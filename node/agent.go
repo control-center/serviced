@@ -21,6 +21,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 	"time"
 
@@ -73,13 +74,11 @@ type HostAgent struct {
 	vfs                  string               // driver for container volumes
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
-	closing              chan interface{}
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string           // the docker registry to use
-	periodicTasks        chan interface{} // signal for periodic tasks to stop
-	maxContainerAge      time.Duration    // maximum age for a stopped container before it is removed
-	virtualAddressSubnet string           // subnet for virtual addresses
+	dockerRegistry       string        // the docker registry to use
+	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
+	virtualAddressSubnet string        // subnet for virtual addresses
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -128,7 +127,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.mount = options.Mount
 	agent.vfs = options.VFS
 	agent.mux = options.Mux
-	agent.periodicTasks = make(chan interface{})
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 
@@ -140,7 +138,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	}
 	agent.zkClient = zkClient
 
-	agent.closing = make(chan interface{})
 	hostID, err := utils.HostID()
 	if err != nil {
 		panic("Could not get hostid")
@@ -149,8 +146,6 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.currentServices = make(map[string]*exec.Cmd)
 
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
-	go agent.start()
-	go agent.reapOldContainersLoop(time.Minute)
 	return agent, err
 
 	/* FIXME: this should work here
@@ -189,14 +184,6 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 	}
 
 	return s.Evaluate(getSvc, findChild, svcState.InstanceID)
-}
-
-// Shutdown stops the agent
-func (a *HostAgent) Shutdown() {
-	glog.V(2).Info("Issuing shutdown signal")
-	close(a.periodicTasks) // shut down period tasks
-	close(a.closing)
-	glog.Info("exiting shutdown")
 }
 
 // AttachService attempts to attach to a running container
@@ -250,11 +237,12 @@ func reapContainers(client *dockerclient.Client, maxAge time.Duration) error {
 			lastErr = err
 			glog.Errorf("Could not remove container %s: %s", container.ID, err)
 		}
+
 	}
 	return lastErr
 }
 
-func (a *HostAgent) reapOldContainersLoop(interval time.Duration) {
+func (a *HostAgent) reapOldContainersLoop(interval time.Duration, shutdown <-chan interface{}) {
 	for {
 		select {
 		case <-time.After(interval):
@@ -264,7 +252,7 @@ func (a *HostAgent) reapOldContainersLoop(interval time.Duration) {
 				continue
 			}
 			reapContainers(dc, a.maxContainerAge)
-		case _, ok := <-a.periodicTasks:
+		case _, ok := <-shutdown:
 			if !ok {
 				return // we are shutting down
 			}
@@ -786,51 +774,75 @@ func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
 }
 
 // main loop of the HostAgent
-func (a *HostAgent) start() {
+func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	glog.Info("Starting HostAgent")
-	for {
-		connc := make(chan coordclient.Connection)
-		go func() {
-			for {
-				c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
-				if err == nil {
-					connc <- c
-					return
-				}
 
-				select {
-				case <-a.closing:
-					return
-				case <-time.After(time.Second):
-				}
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		glog.Info("reapOldContainersLoop starting")
+		a.reapOldContainersLoop(time.Minute, shutdown)
+		glog.Info("reapOldContainersLoop Done")
+		wg.Done()
+	}()
+
+	connc := make(chan coordclient.Connection)
+	go func() {
+		for {
+			c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
+			if err == nil {
+				connc <- c
+				return
 			}
-		}()
 
-		// create a wrapping function so that client.Close() can be handled via defer
-		func(conn coordclient.Connection) {
-			glog.Info("Got a connected client")
-			// watch virtual IP zookeeper nodes
-			virtualIPListener := virtualips.NewVirtualIPListener(conn)
-
-			// watch docker action nodes
-			actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-
-			// watch the host state nodes
-			// this blocks until
-			// 1) has a connection
-			// 2) its node is registered
-			// 3) receieves signal to shutdown or breaks
-			hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
-
-			zzk.Start(a.closing, hsListener, virtualIPListener, actionListener)
-		}(<-connc)
-		select {
-		case <-a.closing:
-			return
-		default:
-			// this will not spin infinitely
+			select {
+			case <-shutdown:
+				return
+			case <-time.After(time.Second):
+			}
 		}
+	}()
+
+	var conn coordclient.Connection
+
+	//handle shutdown if we are waiting fo a zk connection
+	select {
+	case conn = <-connc:
+		break
+	case <-shutdown:
+		//wait for any go routines started to end befor returning
+		glog.Info("Waiting for agent routines...")
+		wg.Wait()
+		glog.Info("Agent routines ended")
+		return
 	}
+	glog.Info("Got a connected client")
+	defer conn.Close()
+
+	// watch virtual IP zookeeper nodes
+	virtualIPListener := virtualips.NewVirtualIPListener(conn)
+
+	// watch docker action nodes
+	actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+
+	// watch the host state nodes
+	// this blocks until
+	// 1) has a connection
+	// 2) its node is registered
+	// 3) receieves signal to shutdown or breaks
+	hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		zzk.Start(shutdown, hsListener, virtualIPListener, actionListener)
+		glog.Infof("Host Agent Listeners are done")
+	}()
+
+	//wait for everythint to be done
+	wg.Wait()
+	glog.Info("HostAgent Done")
 }
 
 // AttachAndRun implements zkdocker.ActionHandler; it attaches to a running

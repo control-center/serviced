@@ -2,6 +2,8 @@ package zzk
 
 import (
 	"sync"
+
+	"github.com/zenoss/glog"
 )
 
 type Listener interface {
@@ -22,6 +24,8 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 		}()
 	}
 	master.Listen(shutdown)
+	glog.Infof("shutdown finished for %#v", master)
 	close(_shutdown)
 	wg.Wait()
+	glog.Info("all listeners stopped")
 }
