@@ -494,21 +494,4 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
             }
         }
     };
-
-    $scope.getRunningHostName = function(service) {
-        if(service.DesiredState === 1){
-            var promise = new Promise(function(){
-                resourcesService.get_running_services_for_service(service.ID, function(runningServices) {
-                    console.log(runningServices);
-                    resolve("All done");
-                });
-            });
-
-            promise.then(function(result){
-                alert(result);
-            });
-        }
-
-        return "";
-    };
 }
