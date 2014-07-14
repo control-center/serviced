@@ -356,28 +356,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
             }
         }
 
-        var runningServiceDeferred = $q.defer();
-        var runningServicePromise = runningServiceDeferred.promise;
-        var ctr = 0;
-        for(idx in $scope.services.subservices){
-            (function(ctr){
-                runningServicePromise.then(function(){
-                    var deferred = $q.defer();
-                    resourcesService.get_running_services_for_service($scope.services.subservices[ctr].ID, function(runningServices) {
-                        $scope.services.subservices[ctr].runningHosts = [];
-
-                        for (var i in runningServices) {
-                            var instance = runningServices[i];
-                            $scope.services.subservices[ctr].runningHosts.push({"ID": instance.HostID, "HostName": $scope.hosts.mapped[instance.HostID].Name});
-                        }
-
-                        deferred.resolve();
-                    });
-                });
-            }(idx));
-        }
-
-        runningServiceDeferred.resolve();
+        loadSubServiceHosts();
         $serviceHealth.update();
     });
 
@@ -494,4 +473,32 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
             }
         }
     };
+
+    function loadSubServiceHosts(){
+        // to pull host data for running services, we need to make seperate "running" requests for each subservice
+        // and add the host data to the subservice. We do this synchronously using promises here.
+
+        var runningServiceDeferred = $q.defer();
+        var runningServicePromise = runningServiceDeferred.promise;
+        var ctr = 0;
+        for(idx in $scope.services.subservices){
+            (function(ctr){
+                runningServicePromise.then(function(){
+                    var deferred = $q.defer();
+                    resourcesService.get_running_services_for_service($scope.services.subservices[ctr].ID, function(runningServices) {
+                        $scope.services.subservices[ctr].runningHosts = [];
+
+                        for (var i in runningServices) {
+                            var instance = runningServices[i];
+                            $scope.services.subservices[ctr].runningHosts.push({"ID": instance.HostID, "HostName": $scope.hosts.mapped[instance.HostID].Name});
+                        }
+
+                        deferred.resolve();
+                    });
+                });
+            }(idx));
+        }
+
+        runningServiceDeferred.resolve();
+    }
 }
