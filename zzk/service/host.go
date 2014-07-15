@@ -136,6 +136,8 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				return
 			}
 
+			// TODO: need to move this timeout elsewhere (does docker containers have a kill timeout?
+			// If so, I think the kill timeout should be set in the service definition)
 			if processDone != nil {
 				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				go l.detachInstance(processDone, state)
@@ -202,6 +204,8 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			}
 		case <-shutdown:
 			glog.V(2).Infof("Service %s Host instance %s receieved signal to shutdown", hs.ServiceID, hs.ServiceStateID)
+
+			// TODO: move this timeout elsewhere
 			if processDone != nil {
 				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				go l.detachInstance(processDone, state)

@@ -14,7 +14,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
+	"github.com/zenoss/serviced/zzk"
 )
 
 func TestHostRegistryListener_Spawn(t *testing.T) {
@@ -72,11 +72,11 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 
 	// verify none of the service states were removed
 	for _, state := range states {
-		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+		if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
 			t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
 		} else if !exists {
 			t.Errorf("Deleted host node %s", state.ID)
-		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+		} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 			t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
 		} else if !exists {
 			t.Errorf("Deleted service node %s", state.ID)
@@ -102,11 +102,11 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 	// verify that all of the service states were removed
 	for _, state := range states {
 		// verify the state has been removed
-		if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+		if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
 			t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
 		} else if exists {
 			t.Errorf("Failed to delete host node %s", state.ID)
-		} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+		} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 			t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
 		} else if exists {
 			t.Errorf("Failed to delete service node %s", state.ID)
@@ -157,11 +157,11 @@ func TestHostRegistryListener_unregister(t *testing.T) {
 	for _, state := range states {
 		if state.HostID == host1.ID {
 			// verify the state has been removed
-			if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+			if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
 				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
 			} else if exists {
 				t.Errorf("Failed to delete host node %s", state.ID)
-			} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+			} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
 			} else if exists {
 				t.Errorf("Failed to delete service node %s", state.ID)
@@ -170,11 +170,11 @@ func TestHostRegistryListener_unregister(t *testing.T) {
 			}
 		} else {
 			// verify the state has been preserved
-			if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+			if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
 				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
 			} else if !exists {
 				t.Errorf("Deleted host node %s", state.ID)
-			} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+			} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
 			} else if !exists {
 				t.Errorf("Deleted service node %s", state.ID)
