@@ -1,6 +1,8 @@
-package layer
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
 
-// Copyright 2014 Zenoss, Inc. All rights reserved
+package layer
 
 import (
 	"github.com/zenoss/glog"
