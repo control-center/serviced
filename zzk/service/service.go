@@ -178,6 +178,31 @@ func (l *ServiceListener) stop(rss []*dao.RunningService) {
 	}
 }
 
+// StartService schedules a service to start
+func StartService(conn client.Connection, serviceID string) error {
+	var svc service.Service
+	if err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc}); err != nil {
+		return err
+	}
+	svc.DesiredState = service.SVCRun
+	return conn.Set(servicepath(serviceID), &ServiceNode{Service: &svc})
+}
+
+// StopService schedules a service to stop
+func StopService(conn client.Connection, serviceID string) error {
+	var svc service.Service
+	if err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc}); err != nil {
+		return err
+	}
+	svc.DesiredState = service.SVCStop
+	return conn.Set(servicepath(serviceID), &ServiceNode{Service: &svc})
+}
+
+// AddService creates a new service node
+func AddService(conn client.Connection, svc *service.Service) error {
+	return conn.Create(servicepath(svc.ID), &ServiceNode{Service: svc})
+}
+
 // UpdateService updates a service node if it exists, otherwise creates it
 func UpdateService(conn client.Connection, svc *service.Service) error {
 	if svc.ID == "" {
@@ -195,4 +220,66 @@ func UpdateService(conn client.Connection, svc *service.Service) error {
 		return conn.Create(spath, node)
 	}
 	return conn.Set(spath, node)
+}
+
+// RemoveServices stop any running services and deletes an existing service
+func RemoveService(cancel <-chan interface{}, conn client.Connection, serviceID string) error {
+	// Check if the path exists
+	if exists, err := zzk.PathExists(conn, servicepath(serviceID)); err != nil {
+		return err
+	} else if !exists {
+		return nil
+	}
+
+	// If it exists, stop the service
+	if err := StopService(conn, serviceID); err != nil {
+		return err
+	}
+
+	// Wait for there to be no running states
+	for {
+		children, event, err := conn.ChildrenW(servicepath(serviceID))
+		if err != nil {
+			return err
+		}
+
+		if len(children) == 0 {
+			break
+		}
+
+		select {
+		case <-event:
+			// pass
+		case <-cancel:
+			glog.Infof("Gave up deleting service %s with %d children", serviceID, len(children))
+			return zzk.ErrShutdown
+		}
+	}
+
+	// Delete the service
+	return conn.Delete(servicepath(serviceID))
+}
+
+// GetServiceState gets a service state
+func GetServiceState(conn client.Connection, state *servicestate.ServiceState, serviceID string, stateID string) error {
+	return conn.Get(servicepath(serviceID, stateID), &ServiceStateNode{ServiceState: state})
+}
+
+// GetServiceStates gets all service states for a particular service
+func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []*servicestate.ServiceState, err error) {
+	for _, serviceID := range serviceIDs {
+		stateIDs, err := conn.Children(servicepath(serviceID))
+		if err != nil {
+			return nil, err
+		}
+
+		for _, stateID := range stateIDs {
+			var state servicestate.ServiceState
+			if err := GetServiceState(conn, &state, serviceID, stateID); err != nil {
+				return nil, err
+			}
+			states = append(states, &state)
+		}
+	}
+	return states, nil
 }

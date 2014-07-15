@@ -41,11 +41,7 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
 
-	hostRegistry, err := zkservice.NewHostRegistryListener(conn)
-	if err != nil {
-		glog.Errorf("Could not initialize registry listener for pool %s", poolID)
-		return
-	}
+	hostRegistry := zkservice.NewHostRegistryListener(conn)
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
 	var wg sync.WaitGroup
@@ -71,49 +67,12 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 		// creates a listener for snapshots with a function call to take snapshots
 		// and return the label and error message
 		snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
-		wg.Add(1)
-		go func() {
-			glog.Info("snapshotListener starting")
-			snapshotListener.Listen(done)
-			glog.Info("snapshotListener stopped")
-			wg.Done()
-		}()
 
-		// starts a listener for the host registry
-		wg.Add(1)
-		go func() {
-			glog.Info("starting host registry ")
-			hostRegistry.Listen(done)
-			glog.Info("host registry stopped")
-			wg.Done()
-		}()
+		// creates a listener for services
+		serviceListener := zkservice.NewServiceListener(conn, &leader)
 
-		wg.Add(1)
-		go func() {
-			glog.Info("leader watch services starting")
-			leader.watchServices(done)
-			glog.Info("leader watch services  stopped")
-			wg.Done()
-		}()
-
-		wait := make(chan struct{})
-		go func() {
-			defer close(wait)
-			wg.Wait()
-			glog.Info("leader routines done")
-		}()
-		select {
-		case <-wait:
-			break
-		case <-shutdown:
-			glog.Infof("closing leader")
-			close(done)
-			select {
-			case <-wait:
-			}
-			return
-		}
-
+		// starts all of the listeners
+		zzk.Start(shutdown, serviceListener, hostRegistry, snapshotListener)
 	}
 }
 

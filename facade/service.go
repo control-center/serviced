@@ -781,7 +781,7 @@ func (z *zkf) updateService(svc *service.Service) error {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
 	}
-	return zzk.UpdateService(poolBasedConn, svc)
+	return zkservice.UpdateService(poolBasedConn, svc)
 }
 
 func (z *zkf) removeService(svc *service.Service) error {
@@ -790,15 +790,34 @@ func (z *zkf) removeService(svc *service.Service) error {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
 	}
-	return zzk.RemoveService(poolBasedConn, svc.ID)
+
+	var (
+		cancel = make(chan interface{})
+		done   = make(chan interface{})
+	)
+
+	go func() {
+		defer close(done)
+		err = zkservice.RemoveService(cancel, poolBasedConn, svc.ID)
+	}()
+
+	go func() {
+		defer close(cancel)
+		<-time.After(30 * time.Second)
+	}()
+
+	<-done
+	return err
 }
-func (z *zkf) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+
+func (z *zkf) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIDs ...string) error {
 	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err
 	}
-	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
+	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceIDs...)
+	return err
 }
 
 func (z *zkf) RegisterHost(h *host.Host) error {
