@@ -1,11 +1,6 @@
-#############################################################################
-#
-# Copyright (C) Zenoss, Inc. 2014, all rights reserved.
-#
-# This content is made available according to terms specified in
-# License.zenoss under the directory where your Zenoss product is installed.
-#
-##############################################################################
+# Copyright 2014, The Serviced Authors. All rights reserved.
+# Use of this source code is governed by a
+# license that can be found in the LICENSE file.
 
 THIS_MAKEFILE := $(notdir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_LIST)))
 

@@ -1,5 +1,5 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
+// Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
 // ConvertUp & NewUUID62 taken from https://raw.githubusercontent.com/xhroot/Koderank/48db8afb0759a354bcb16759e2769d3b7621769e/uuid/uuid.go
