@@ -3,7 +3,7 @@
 # license that can be found in the LICENSE file.
 
 TARGET := $(shell pwd)
-CONSUMER_VERSION := 0.0.7
+CONSUMER_VERSION := 0.0.8
 
 .PHONY: default tarball
 
