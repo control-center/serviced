@@ -28,19 +28,8 @@
           "active": true,
           "alias": "",
           "id": 0
-        },
-        "1": {
-          "type": "field",
-          "field": "loglevel",
-          "query": "\"ERROR\"",
-          "mandate": "must",
-          "active": true,
-          "alias": "",
-          "id": 1
-        }
-      },
+        }      },
       "ids": [
-        1,
         0
       ]
     }
@@ -66,7 +55,7 @@
           "pages": 5,
           "offset": 0,
           "sort": [
-            "timestamp",
+            "@timestamp",
             "desc"
           ],
           "style": {
