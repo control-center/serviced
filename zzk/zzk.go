@@ -38,15 +38,20 @@ func PathExists(conn client.Connection, p string) (bool, error) {
 
 // Ready waits for a node to be available for watching
 func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error {
+	if exists, err := PathExists(conn, p); err != nil {
+		return err
+	} else if exists {
+		return nil
+	}
+
 	for {
-		if exists, err := PathExists(conn, p); err != nil {
+		if err := Ready(shutdown, conn, path.Dir(p)); err != nil {
+			return err
+		} else if exists, err := PathExists(conn, p); err != nil {
 			return err
 		} else if exists {
 			return nil
-		} else if err := Ready(shutdown, conn, path.Dir(p)); err != nil {
-			return err
 		}
-
 		_, event, err := conn.ChildrenW(path.Dir(p))
 		if err != nil {
 			return err
@@ -132,13 +137,23 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 	for _, listener := range listeners {
 		wg.Add(1)
 		go func() {
+			// TODO: implement restarts?
 			defer wg.Done()
 			Listen(_shutdown, listener)
 		}()
 	}
-	Listen(shutdown, master)
-	glog.Infof("shutdown finished for %#v", master)
+
+	done := make(chan interface{})
+	go func() {
+		defer close(done)
+		Listen(_shutdown, master)
+	}()
+
+	// Wait for the master to finish or shutdown signal received
+	select {
+	case <-done:
+	case <-shutdown:
+	}
 	close(_shutdown)
 	wg.Wait()
-	glog.Info("all listeners stopped")
 }

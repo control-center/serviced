@@ -139,8 +139,11 @@ func (conn *TestConnection) Exists(p string) (bool, error) {
 		return false, err
 	}
 
-	_, exists := conn.nodes[p]
-	return exists, nil
+	if _, exists := conn.nodes[p]; !exists {
+		return false, ErrNoNode
+	}
+
+	return true, nil
 }
 
 // Delete implements Connection.Delete
