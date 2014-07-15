@@ -5,6 +5,7 @@
 package api
 
 import (
+	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/container"
 )
 
@@ -50,6 +51,7 @@ func (c ControllerOptions) toContainerControllerOptions() container.ControllerOp
 
 // Start a service proxy
 func (a *api) StartProxy(cfg ControllerOptions) error {
+	glog.SetLogstashType("controller-" + cfg.ServiceID + "-" + cfg.InstanceID)
 	c, err := container.NewController(cfg.toContainerControllerOptions())
 	if err != nil {
 		return err
