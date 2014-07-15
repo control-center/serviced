@@ -13,9 +13,44 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 )
 
+var zClient *client.Client
+var poolBasedConnections = make(map[string]client.Connection)
+
+// Errors
 var (
 	ErrShutdown = errors.New("listener shutdown")
 )
+
+func InitializeGlobalCoordClient(myZClient *client.Client) {
+	zClient = myZClient
+}
+
+// GeneratePoolPath is used to convert a pool ID to /pools/POOLID
+func GeneratePoolPath(poolID string) string {
+	return "/pools/" + poolID
+}
+
+// GetBasePathConnection returns a connection based on the basePath provided
+func GetBasePathConnection(basePath string) (client.Connection, error) { // TODO figure out how/when to Close connections
+	if _, ok := poolBasedConnections[basePath]; ok {
+		return poolBasedConnections[basePath], nil
+	}
+
+	if zClient == nil {
+		glog.Errorf("zkdao zClient has not been initialized!")
+	}
+
+	myNewConnection, err := zClient.GetCustomConnection(basePath)
+	if err != nil {
+		glog.Errorf("Failed to obtain a connection to %v: %v", basePath, err)
+		return nil, err
+	}
+
+	// save off the new connection to the map
+	poolBasedConnections[basePath] = myNewConnection
+
+	return myNewConnection, nil
+}
 
 // Listener is zookeeper node listener type
 type Listener interface {
