@@ -1,5 +1,5 @@
 TARGET := $(shell pwd)
-QUERY_VERSION := 0.0.5
+QUERY_VERSION := 0.0.6
 
 .PHONY: default tarball
 
