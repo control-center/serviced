@@ -108,7 +108,6 @@ func New(driver api.API) *ServicedCli {
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
-		cli.StringFlag{"logstashtype", "", "enable logstash logging and define the type"},
 		cli.StringFlag{"logstashurl", "172.17.42.1:5042", "logstash url and port"},
 		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
@@ -192,16 +191,21 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 }
 
 func setLogging(ctx *cli.Context) error {
+
+	if ctx.GlobalBool("master") || ctx.GlobalBool("agent") {
+		hostname, err := os.Hostname()
+		if err != nil {
+			hostname = "unknown"
+		}
+		glog.SetLogstashType("serviced-" + hostname)
+	}
+
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
 
 	if ctx.IsSet("alsologtostderr") {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
-	}
-
-	if ctx.IsSet("logstashtype") {
-		glog.SetLogstashType(ctx.GlobalString("logstashtype"))
 	}
 
 	if ctx.IsSet("logstashurl") {
