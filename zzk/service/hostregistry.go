@@ -86,7 +86,7 @@ func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string
 				return
 			}
 			glog.V(2).Infof("Receieved event: ", e)
-		case <-l.shutdown:
+		case <-shutdown:
 			glog.V(2).Infof("Host listener for %s (%s) received signal to shutdown", host.ID, eHostID)
 			return
 		}

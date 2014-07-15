@@ -5,6 +5,7 @@
 package service
 
 import (
+	"fmt"
 	"path"
 	"sync"
 	"testing"
@@ -16,6 +17,116 @@ import (
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
 )
+
+func TestHostRegistryListener_Listen(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	listener := NewHostRegistryListener(conn)
+
+	var (
+		shutdown = make(chan interface{})
+		wait     = make(chan interface{})
+	)
+	go func() {
+		zzk.Listen(shutdown, listener)
+		close(wait)
+	}()
+
+	// Create services
+	numServices := 5
+	var svcs []*service.Service
+	for i := 0; i < numServices; i++ {
+		svc := &service.Service{ID: fmt.Sprintf("test-service-%d", i)}
+		if err := UpdateService(conn, svc); err != nil {
+			t.Fatalf("Could not add service %s: %s", svc.ID, err)
+		}
+		svcs = append(svcs, svc)
+	}
+
+	// Register hosts
+	t.Log("Registering hosts")
+	numHosts := 5
+	hosts := make(map[string]*host.Host)
+	for i := 0; i < numHosts; i++ {
+		host := &host.Host{ID: fmt.Sprintf("test-host-%d", i)}
+		if err := RegisterHost(conn, host.ID); err != nil {
+			t.Fatalf("Could not register host %s: %s", host.ID, err)
+		}
+		ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
+		t.Log("Ephemeral node: ", ehostpath)
+		if err != nil {
+			t.Fatalf("Could not register host %s: %s", host.ID, err)
+		}
+		hosts[ehostpath] = host
+	}
+
+	// Add service states
+	t.Log("Adding service states")
+	var states []*servicestate.ServiceState
+	for _, host := range hosts {
+		for _, svc := range svcs {
+			state, err := servicestate.BuildFromService(svc, host.ID)
+			if err != nil {
+				t.Fatalf("Could not create service state: %s", err)
+			}
+			if err := addInstance(conn, state); err != nil {
+				t.Fatalf("Could not add service state %s: %s", state.ID, err)
+			}
+			if _, err := LoadRunningService(conn, state.ServiceID, state.ID); err != nil {
+				t.Fatalf("Could not get running service: %s", state.ID)
+			}
+			states = append(states, state)
+		}
+	}
+
+	// Delete hosts
+	deleteHosts := 2
+	deletedHosts := make(map[string]interface{})
+	for ehostpath, host := range hosts {
+		<-time.After(time.Second)
+		t.Log("Removing host: ", host.ID)
+		if err := conn.Delete(ehostpath); err != nil {
+			t.Fatalf("Could not delete ephemeral node %s: %s", ehostpath, err)
+		}
+		deletedHosts[host.ID] = nil
+		deleteHosts--
+		if deleteHosts == 0 {
+			break
+		}
+	}
+
+	// Shutdown
+	<-time.After(time.Second)
+	close(shutdown)
+	<-wait
+	/*
+		for _, state := range states {
+			if _, ok := deletedHosts[state.HostID]; ok {
+				// verify the state has been removed
+				if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+					t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+				} else if exists {
+					t.Errorf("Failed to delete host node %s", state.ID)
+				} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+					t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+				} else if exists {
+					t.Errorf("Failed to delete service node %s", state.ID)
+				}
+			} else {
+				// verify the state has been preserved
+				if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+					t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
+				} else if !exists {
+					t.Errorf("Deleted host node %s", state.ID)
+				} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+					t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
+				} else if !exists {
+					t.Errorf("Deleted service node %s", state.ID)
+				}
+			}
+		}
+	*/
+}
 
 func TestHostRegistryListener_Spawn(t *testing.T) {
 	conn := client.NewTestConnection()

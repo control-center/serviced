@@ -78,6 +78,99 @@ func (handler *TestHostStateHandler) UpdateInstance(state *servicestate.ServiceS
 	return fmt.Errorf("instance %s not found", state.ID)
 }
 
+func TestHostStateListener_Listen(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := NewTestHostStateHandler()
+	listener := NewHostStateListener(conn, handler, "test-host-1")
+	RegisterHost(conn, listener.hostID)
+	shutdown := make(chan interface{})
+	wait := make(chan interface{})
+	go func() {
+		zzk.Listen(shutdown, listener)
+		close(wait)
+	}()
+
+	// Create the service
+	svc := &service.Service{
+		ID:        "test-service-1",
+		Endpoints: make([]service.ServiceEndpoint, 1),
+	}
+	if err := UpdateService(conn, svc); err != nil {
+		t.Fatalf("Could not add service %s: %s", svc.ID, err)
+	}
+
+	var states []*servicestate.ServiceState
+	for i := 0; i < 3; i++ {
+		// Create a service instance
+		state, err := servicestate.BuildFromService(svc, listener.hostID)
+		if err != nil {
+			t.Fatalf("Could not generate instance from service %s", svc.ID)
+		} else if err := addInstance(conn, state); err != nil {
+			t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
+		}
+		states = append(states, state)
+	}
+
+	spath := servicepath(states[0].ServiceID, states[0].ID)
+	var s servicestate.ServiceState
+	eventC, err := conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+	if err != nil {
+		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
+	}
+
+	// verify the service has started
+	<-eventC
+	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+	if err != nil {
+		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
+	}
+	if s.Started.UnixNano() <= s.Terminated.UnixNano() {
+		t.Fatalf("Service instance %s not started", s.ID)
+	}
+
+	// schedule stopping the instance
+	<-time.After(3 * time.Second)
+	t.Logf("Stopping service instance %s", states[0].ID)
+	if err := StopServiceInstance(conn, listener.hostID, states[0].ID); err != nil {
+		t.Fatalf("Could not stop service instance %s: %s", states[0].ID, err)
+	}
+
+	// verify the instance stopped
+	<-eventC
+	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+	if err != nil {
+		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
+	}
+	if s.Started.UnixNano() > s.Terminated.UnixNano() {
+		t.Fatalf("Service instance %s not stopped", s.ID)
+	}
+
+	// verify the instance was removed
+	if e := <-eventC; e.Type != client.EventNodeDeleted {
+		t.Errorf("Service instance %s still exists for service %s", s.ID, s.ServiceID)
+	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
+		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.hostID, err)
+	} else if exists {
+		t.Errorf("Instance %s still exists for host %s", s.ID, listener.hostID)
+	}
+
+	// shutdown
+	<-time.After(3 * time.Second)
+	close(shutdown)
+	<-wait
+	hpath := hostpath(listener.hostID)
+	if children, err := conn.Children(spath); err != nil {
+		t.Fatalf("Error checking children for %s: %s", spath, err)
+	} else if len(children) > 0 {
+		t.Errorf("Found nodes for %s: %s", spath, children)
+	} else if children, err := conn.Children(hpath); err != nil {
+		t.Fatalf("Error checking children for %s: %s", hpath, err)
+	} else if len(children) > 0 {
+		t.Errorf("Found nodes for %s: %s", hpath, children)
+	}
+}
+
 func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()

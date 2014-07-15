@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/zenoss/serviced/zzk"
 )
 
 type SnapshotResult struct {
@@ -34,6 +35,67 @@ func (handler *TestSnapshotHandler) TakeSnapshot(serviceID string) (string, erro
 	}
 
 	return "", fmt.Errorf("service ID not found")
+}
+
+func TestSnapshotListener_Listen(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+
+	handler := &TestSnapshotHandler{
+		ResultMap: map[string]SnapshotResult{
+			"service-id-success": SnapshotResult{time.Second, "success-label", nil},
+			"service-id-failure": SnapshotResult{time.Second, "", fmt.Errorf("failure-label")},
+		},
+	}
+
+	t.Log("Create snapshots and shutdown")
+	shutdown := make(chan interface{})
+	listener := NewSnapshotListener(conn, handler)
+	go zzk.Listen(shutdown, listener)
+
+	// send success snapshot
+	if err := Send(conn, "service-id-success"); err != nil {
+		t.Fatalf("Could not send success snapshot")
+	}
+
+	// wait for result
+	var snapshot Snapshot
+	if err := Recv(conn, "service-id-success", &snapshot); err != nil {
+		t.Fatalf("Could not receieve success snapshot")
+	}
+
+	// verify fields
+	result := handler.ResultMap["service-id-success"]
+	if snapshot.ServiceID != "service-id-success" {
+		t.Errorf("MISMATCH: Service IDs do not match 'service-id-success' != %s", snapshot.ServiceID)
+	} else if snapshot.Label != result.Label {
+		t.Errorf("MISMATCH: Labels do not match '%s' != '%s'", result.Label, snapshot.Label)
+	} else if result.Err != nil {
+		t.Errorf("MISMATCH: Err msgs do not match '%s' != '%s'", result.Err, snapshot.Err)
+	}
+
+	// send fail snapshot and shutdown
+	if err := Send(conn, "service-id-failure"); err != nil {
+		t.Fatal("Could not send failure snapshot: ", err)
+	}
+
+	// shutdown and wait for result
+	if err := Recv(conn, "service-id-failure", &snapshot); err != nil {
+		t.Fatal("Could not receive failure snapshot: ", err)
+	}
+
+	// verify the fields
+	result = handler.ResultMap["service-id-failure"]
+	if snapshot.ServiceID != "service-id-failure" {
+		t.Errorf("MISMATCH: Service IDs do not match 'service-id-success' != %s", snapshot.ServiceID)
+	} else if snapshot.Label != result.Label {
+		t.Errorf("MISMATCH: Labels do not match '%s' != '%s'", result.Label, snapshot.Label)
+	} else if result.Err == nil || result.Err.Error() != snapshot.Err {
+		t.Errorf("MISMATCH: Err msgs do not match '%s' != '%s'", result.Err, snapshot.Err)
+	}
+
+	// make sure listener shuts down
+	close(shutdown)
 }
 
 func TestSnapshotListener_Spawn(t *testing.T) {

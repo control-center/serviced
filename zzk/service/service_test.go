@@ -10,6 +10,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/zzk"
 )
 
 type TestServiceHandler struct {
@@ -19,6 +20,71 @@ type TestServiceHandler struct {
 
 func (handler *TestServiceHandler) SelectHost(svc *service.Service) (*host.Host, error) {
 	return handler.Host, handler.Err
+}
+
+func TestServiceListener_Listen(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+
+	t.Log("Start and stop listener with no services")
+	shutdown := make(chan interface{})
+	done := make(chan interface{})
+	listener := NewServiceListener(conn, handler)
+	go func() {
+		zzk.Listen(shutdown, listener)
+		close(done)
+	}()
+
+	<-time.After(2 * time.Second)
+	t.Log("shutting down listener with no services")
+	close(shutdown)
+	<-done
+
+	t.Log("Start and stop listener with multiple services")
+	shutdown = make(chan interface{})
+	done = make(chan interface{})
+	go func() {
+		zzk.Listen(shutdown, listener)
+		close(done)
+	}()
+
+	svcs := []*service.Service{
+		{
+			ID:           "test-service-1",
+			Endpoints:    make([]service.ServiceEndpoint, 1),
+			DesiredState: service.SVCRun,
+			Instances:    3,
+		}, {
+			ID:           "test-service-2",
+			Endpoints:    make([]service.ServiceEndpoint, 1),
+			DesiredState: service.SVCRun,
+			Instances:    2,
+		},
+	}
+
+	for _, s := range svcs {
+		if err := conn.Create(servicepath(s.ID), &ServiceNode{Service: s}); err != nil {
+			t.Fatalf("Could not create service %s: %s", s.ID, err)
+		}
+	}
+
+	// wait for instances to start
+	for {
+		if rss, err := LoadRunningServices(conn); err != nil {
+			t.Fatalf("Could not load running services: %s", err)
+		} else if count := len(rss); count < 5 {
+			<-time.After(time.Second)
+		} else {
+			break
+		}
+	}
+
+	// shutdown
+	t.Log("services started, now shutting down")
+	close(shutdown)
+	<-done
+
 }
 
 func TestServiceListener_Spawn(t *testing.T) {
