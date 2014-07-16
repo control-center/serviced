@@ -62,4 +62,4 @@
 # SERVICED_STATS_PERIOD=10
 
 # Arbitraty daeomon args
-# SERVICED_OPS=
+# SERVICED_OPTS=
