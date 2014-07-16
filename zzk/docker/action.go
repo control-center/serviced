@@ -10,7 +10,6 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/utils"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
 )
 
 const (
@@ -54,66 +53,32 @@ func NewActionListener(conn client.Connection, handler ActionHandler, hostID str
 	return &ActionListener{conn, handler, hostID}
 }
 
-// Listen listens for new actions for a particular host
-func (l *ActionListener) Listen(shutdown <-chan interface{}) {
-	var (
-		processing = make(map[string]interface{})
-		done       = make(chan string)
-	)
+// GetConnection implements zzk.Listener
+func (l *ActionListener) GetConnection() client.Connection { return l.conn }
 
-	apath := actionPath(l.hostID)
-	if exists, err := zkutils.PathExists(l.conn, apath); err != nil {
-		glog.Error("Unable to look up docker path on zookeeper: ", err)
-		return
-	} else if exists {
-		// pass
-	} else if err := l.conn.CreateDir(apath); err != nil {
-		glog.Error("Unable to create docker path on zookeeper: ", err)
-		return
-	}
-
-	// Wait for action commands
-	for {
-		nodes, event, err := l.conn.ChildrenW(apath)
-		if err != nil {
-			glog.Errorf("Could not listen for commands %s: %s", apath, err)
-			return
-		}
-
-		for _, actionID := range nodes {
-			if _, ok := processing[actionID]; !ok {
-				glog.V(1).Infof("Performing action to service state via request: %s", actionID)
-				processing[actionID] = nil
-
-				// do action
-				go l.doAction(done, actionID)
-			}
-		}
-
-		select {
-		case e := <-event:
-			glog.V(2).Infof("Receieved docker action event: %v", e)
-		case actionID := <-done:
-			glog.V(2).Info("Cleaning up action ", actionID)
-			delete(processing, actionID)
-		case <-shutdown:
-			return
-		}
-	}
+// GetPath implements zzk.Listener
+func (l *ActionListener) GetPath(nodes ...string) string {
+	return actionPath(append([]string{l.hostID}, nodes...)...)
 }
 
-func (l *ActionListener) doAction(done chan<- string, actionID string) {
-	apath := actionPath(l.hostID, actionID)
+// Ready implements zzk.Listener
+func (l *ActionListener) Ready() (err error) { return }
 
+// Done implements zzk.Listener
+func (l *ActionListener) Done() { return }
+
+// Spawn attaches to a container and performs the requested action
+func (l *ActionListener) Spawn(shutdown <-chan interface{}, actionID string) {
 	defer func() {
-		glog.V(2).Info("Action complete: ", actionID)
-		l.conn.Delete(apath)
-		done <- actionID
+		glog.V(2).Infof("Action %s complete: ", actionID)
+		if err := l.conn.Delete(l.GetPath(actionID)); err != nil {
+			glog.Errorf("Could not delete %s: %s", l.GetPath(actionID), err)
+		}
 	}()
 
 	var action Action
-	if err := l.conn.Get(apath, &action); err != nil {
-		glog.V(1).Infof("Could not get action %s: %s", apath, err)
+	if err := l.conn.Get(l.GetPath(actionID), &action); err != nil {
+		glog.V(1).Infof("Could not get action %s: %s", l.GetPath(actionID), err)
 		return
 	}
 
