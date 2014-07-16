@@ -94,7 +94,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			return
 		}
 
-		rss, err := LoadRunningServicesByService(l.conn, serviceID)
+		rss, err := LoadRunningServicesByService(l.conn, svc.ID)
 		if err != nil {
 			glog.Errorf("Could not load states for service %s (%s): %s", svc.Name, svc.ID, err)
 		}

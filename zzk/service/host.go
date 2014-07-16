@@ -96,14 +96,14 @@ func (l *HostStateListener) Ready() error {
 	} else if host == nil {
 		return ErrHostInvalid
 	}
-	l.registry, err = l.conn.CreateEphemeral(l.GetPath(), &HostNode{Host: host})
+	l.registry, err = l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
 	return err
 }
 
 // Done removes the ephemeral node from the host registry
 func (l *HostStateListener) Done() {
 	if err := l.conn.Delete(l.registry); err != nil {
-		glog.Warning("Could not unregister host %s: %s", l.hostID, err)
+		glog.Warningf("Could not unregister host %s: %s", l.hostID, err)
 	}
 }
 
