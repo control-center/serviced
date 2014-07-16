@@ -64,9 +64,18 @@ func (node *HostLeader) Version() interface{} { return node.version }
 // SetVersion implements client.Node
 func (node *HostLeader) SetVersion(version interface{}) { node.version = version }
 
-// NewLeader initializes a new leader
-func NewLeader(conn client.Connection, hostID, path string) client.Leader {
+// NewHostLeader initializes a new host leader
+func NewHostLeader(conn client.Connection, hostID, path string) client.Leader {
 	return conn.NewLeader(path, &HostLeader{HostID: hostID})
+}
+
+// GetHostID finds the host of a led node
+func GetHostID(leader client.Leader) (string, error) {
+	var hl HostLeader
+	if err := leader.Current(&hl); err != nil {
+		return "", err
+	}
+	return hl.HostID, nil
 }
 
 // Listener is zookeeper node listener type

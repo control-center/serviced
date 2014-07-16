@@ -283,3 +283,14 @@ func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []*s
 	}
 	return states, nil
 }
+
+// UpdateServiceState updates a particular service state
+func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState) error {
+	var node ServiceStateNode
+	path := servicepath(state.ServiceID, state.ID)
+	if err := conn.Get(path, &node); err != nil {
+		return err
+	}
+	node.ServiceState = state
+	return conn.Set(path, &node)
+}

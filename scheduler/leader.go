@@ -20,7 +20,6 @@ import (
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
-	"sync"
 )
 
 type leader struct {
@@ -44,7 +43,6 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	hostRegistry := zkservice.NewHostRegistryListener(conn)
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
-	var wg sync.WaitGroup
 	for {
 		done := make(chan interface{})
 		if shutdownmode {
@@ -107,7 +105,9 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 
 	if assignmentType == "virtual" {
 		// populate hostid
-		if err := virtualips.GetVirtualIPHostID(l.conn, ipAddr, &hostid); err != nil {
+		var err error
+		hostid, err = virtualips.GetHostID(l.conn, ipAddr)
+		if err != nil {
 			return nil, err
 		}
 		glog.Infof("Service: %v has been assigned virtual IP: %v which has been locked and configured on host %s", s.Name, ipAddr, hostid)
