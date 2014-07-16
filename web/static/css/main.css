@@ -928,7 +928,10 @@ rect {
 #notifications {
     position: fixed;
     top: 72px;
+    opacity: 0.9;
+    z-index: 999;
 }
+
 #loginNotifications {
     width: 671px;
     margin: auto;
