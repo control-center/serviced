@@ -80,7 +80,7 @@ func (l *VirtualIPListener) GetConnection() client.Connection { return l.conn }
 
 // GetPath implements zzk.Listener
 func (l *VirtualIPListener) GetPath(nodes ...string) string {
-	return ""
+	return vippath(nodes...)
 }
 
 // Ready removes all virtual IPs that may be present

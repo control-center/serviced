@@ -106,10 +106,10 @@ func (s *scheduler) loop() {
 			return
 		}
 
-		leader := zzk.NewHostLeader(poolBasedConn, s.instance_id, "")
+		leader := zzk.NewScheduler(poolBasedConn, s.instance_id)
 		events, err := leader.TakeLead()
 		if err != nil {
-			glog.Error("could not take lead: ", err)
+			glog.Errorf("%s could not take lead: %s", s.instance_id, err)
 			return
 		}
 

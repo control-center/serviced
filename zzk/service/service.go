@@ -5,7 +5,6 @@
 package service
 
 import (
-	"fmt"
 	"path"
 	"sort"
 
@@ -198,28 +197,16 @@ func StopService(conn client.Connection, serviceID string) error {
 	return conn.Set(servicepath(serviceID), &ServiceNode{Service: &svc})
 }
 
-// AddService creates a new service node
-func AddService(conn client.Connection, svc *service.Service) error {
-	return conn.Create(servicepath(svc.ID), &ServiceNode{Service: svc})
-}
-
 // UpdateService updates a service node if it exists, otherwise creates it
 func UpdateService(conn client.Connection, svc *service.Service) error {
-	if svc.ID == "" {
-		return fmt.Errorf("service id required")
-	}
+	var node ServiceNode
+	spath := servicepath(svc.ID)
 
-	var (
-		spath = servicepath(svc.ID)
-		node  = &ServiceNode{Service: svc}
-	)
-
-	if exists, err := zzk.PathExists(conn, spath); err != nil {
-		return err
-	} else if !exists {
-		return conn.Create(spath, node)
+	if err := conn.Get(spath, &node); err != nil {
+		return conn.Create(spath, &ServiceNode{Service: svc})
 	}
-	return conn.Set(spath, node)
+	node.Service = svc
+	return conn.Set(spath, &node)
 }
 
 // RemoveServices stop any running services and deletes an existing service
