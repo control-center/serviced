@@ -169,7 +169,7 @@
         }
 
         // determines the overall health of the service by examining the status
-        // of all of its healtchecks as well as the desired state of the service
+        // of all of its healthchecks as well as the desired state of the service
         function determineServiceStatus(desiredState, healthChecksRollup){
             var status,
                 description;
