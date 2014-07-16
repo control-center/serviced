@@ -13,7 +13,6 @@ import (
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
-	zkservice "github.com/zenoss/serviced/zzk/service"
 
 	"sync"
 	"time"
@@ -107,7 +106,7 @@ func (s *scheduler) loop() {
 			return
 		}
 
-		leader := zkservice.NewLeader(poolBasedConn, s.instance_id)
+		leader := zzk.NewLeader(poolBasedConn, s.instance_id, "")
 		events, err := leader.TakeLead()
 		if err != nil {
 			glog.Error("could not take lead: ", err)

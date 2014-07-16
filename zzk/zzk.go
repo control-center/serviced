@@ -52,6 +52,23 @@ func GetBasePathConnection(basePath string) (client.Connection, error) { // TODO
 	return myNewConnection, nil
 }
 
+// HostLeader is the node to store leader information for a host
+type HostLeader struct {
+	HostID  string
+	version interface{}
+}
+
+// Version implements client.Node
+func (node *HostLeader) Version() interface{} { return node.version }
+
+// SetVersion implements client.Node
+func (node *HostLeader) SetVersion(version interface{}) { node.version = version }
+
+// NewLeader initializes a new leader
+func NewLeader(conn client.Connection, hostID, path string) client.Leader {
+	return conn.NewLeader(path, &HostLeader{HostID: hostID})
+}
+
 // Listener is zookeeper node listener type
 type Listener interface {
 	GetConnection() client.Connection
