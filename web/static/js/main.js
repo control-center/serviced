@@ -1629,3 +1629,12 @@ function itemClass(item) {
     }
     return cls;
 }
+
+$(window).on("scroll", function(){
+    if($(window).scrollTop() > 0){
+        var top = Math.max(72 - $(window).scrollTop(), 0);
+        $("#notifications").css("top", top+"px");
+    }else{
+        $("#notifications").css("top", "72px");
+    }
+});
