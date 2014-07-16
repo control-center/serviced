@@ -179,22 +179,28 @@ func (l *ServiceListener) stop(rss []*dao.RunningService) {
 
 // StartService schedules a service to start
 func StartService(conn client.Connection, serviceID string) error {
-	var svc service.Service
-	if err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc}); err != nil {
+	glog.Infof("Scheduling service %s to start", serviceID)
+	var node ServiceNode
+	path := servicepath(serviceID)
+
+	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	svc.DesiredState = service.SVCRun
-	return conn.Set(servicepath(serviceID), &ServiceNode{Service: &svc})
+	node.Service.DesiredState = service.SVCRun
+	return conn.Set(path, &node)
 }
 
 // StopService schedules a service to stop
 func StopService(conn client.Connection, serviceID string) error {
-	var svc service.Service
-	if err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc}); err != nil {
+	glog.Infof("Scheduling service %s to stop", serviceID)
+	var node ServiceNode
+	path := servicepath(serviceID)
+
+	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	svc.DesiredState = service.SVCStop
-	return conn.Set(servicepath(serviceID), &ServiceNode{Service: &svc})
+	node.Service.DesiredState = service.SVCStop
+	return conn.Set(path, &node)
 }
 
 // UpdateService updates a service node if it exists, otherwise creates it
@@ -202,8 +208,10 @@ func UpdateService(conn client.Connection, svc *service.Service) error {
 	var node ServiceNode
 	spath := servicepath(svc.ID)
 
+	// For some reason you can't just create the node with the service data
+	// already set.  Trust me, I tried.  It was very aggravating.
 	if err := conn.Get(spath, &node); err != nil {
-		return conn.Create(spath, &ServiceNode{Service: svc})
+		conn.Create(spath, &node)
 	}
 	node.Service = svc
 	return conn.Set(spath, &node)
