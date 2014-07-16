@@ -79,7 +79,7 @@
 
             var service, healthCheck, runningService, startTime,
                 healthChecksRollup,
-                missedIntervals, tooltipDetails,
+                tooltipDetails,
                 serviceStatus, healthCheckStatus, healthCheckStatusIcon;
 
             for (var ServiceId in services) {
