@@ -19,7 +19,7 @@ func TestContainerCommit(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -64,7 +64,7 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -111,7 +111,7 @@ func TestOnContainerCreated(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -137,7 +137,7 @@ func TestOnContainerStop(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -173,7 +173,7 @@ func TestCancelOnEvent(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -214,7 +214,7 @@ func TestRestartContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -259,7 +259,7 @@ func TestListContainers(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -313,7 +313,7 @@ func TestWaitForContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -355,7 +355,7 @@ func TestInspectContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -407,7 +407,7 @@ func TestRepeatedStart(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -448,7 +448,7 @@ func TestNewContainerTimeout(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -465,7 +465,7 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -524,7 +524,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -570,7 +570,7 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -617,7 +617,7 @@ func TestFindContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -659,7 +659,7 @@ func TestContainerExport(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "base:latest",
-				Cmd:   []string{"watch ls"},
+				Cmd:   []string{"watch", "ls"},
 			},
 		},
 		dockerclient.HostConfig{},
