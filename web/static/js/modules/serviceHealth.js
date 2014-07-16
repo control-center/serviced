@@ -254,7 +254,8 @@
         function updateServiceStatus(service, status, description, tooltipDetails){
             tooltipDetails = tooltipDetails || [];
 
-            var $el = $("[data-id='"+ service.ID +"'] .healthIcon");
+            var $el = $("[data-id='"+ service.ID +"'] .healthIcon"),
+                tooltipsDetailsHTML;
 
             // remove any existing popover if not currently visible            
             if(!$el.next('div.popover:visible').length){
@@ -263,13 +264,18 @@
 
             // if service is not disabled, add a new popover
             if(status !== "disabled"){
-                // create the healthchecks tooltip html
-                var tooltipDetailsHTML = tooltipDetails.reduce(function(acc, detail){
-                    return acc += "<div class='healthTooltipDetailRow'>\
-                        <i class='healthIcon glyphicon "+ STATUS_STYLES[detail.status] +"'></i>\
-                        <div class='healthTooltipDetailName'>"+ detail.name +"</div>\
-                    </div>";
-                }, "");
+                tooltipsDetailsHTML = null;
+
+                // create the healthchecks tooltip html if the service
+                // should be running
+                if(service.DesiredState === 1){
+                    tooltipsDetailsHTML = tooltipDetails.reduce(function(acc, detail){
+                        return acc += "<div class='healthTooltipDetailRow'>\
+                            <i class='healthIcon glyphicon "+ STATUS_STYLES[detail.status] +"'></i>\
+                            <div class='healthTooltipDetailName'>"+ detail.name +"</div>\
+                        </div>";
+                    }, "");
+                }
 
                 // configure popover
                 // TODO - dont touch dom!
@@ -279,7 +285,13 @@
                     delay: 0,
                     title: description,
                     html: true,
-                    content: tooltipDetailsHTML || ""
+                    content: tooltipsDetailsHTML,
+
+                    // if DesiredState is 0 or there are no healthchecks, the
+                    // popover should be only a title with no content
+                    template: service.DesiredState === 0 || !tooltipsDetailsHTML ?
+                        '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3></div>' :
+                        undefined
                 });
             }
             
