@@ -50,6 +50,13 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
             poolID: $scope.params.poolID
         };
     };
+    
+    $scope.remove_host = function(hostId) {
+        resourcesService.remove_host(hostId, function(data) {
+            // After removing, refresh our list
+            refreshHosts($scope, resourcesService, false, hostCallback);
+        });
+    };
 
     $scope.clickHost = function(hostId) {
         $location.path('/hosts/' + hostId);
