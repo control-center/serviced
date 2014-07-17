@@ -14,6 +14,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
     $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
     $scope.visualization.debug = false;
 
+
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
     if (re.test(location.hostname) || location.hostname == "localhost") {

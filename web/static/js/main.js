@@ -1629,13 +1629,3 @@ function itemClass(item) {
     }
     return cls;
 }
-
-var $notificationArea = $("#notifications");
-$(window).on("scroll", function(){
-    if($(window).scrollTop() > 0){
-        var top = Math.max(72 - $(window).scrollTop(), 0);
-        $notificationArea.css("top", top+"px");
-    }else{
-        $notificationArea.css("top", "72px");
-    }
-});

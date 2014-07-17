@@ -75,16 +75,6 @@ func New(driver api.API) *ServicedCli {
 		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
 	}
 
-	zks := cli.StringSlice{}
-	if len(configEnv("ZK", "")) > 0 {
-		zks = cli.StringSlice(strings.Split(configEnv("ZK", ""), ","))
-	}
-
-	aliases := cli.StringSlice{}
-	if len(configEnv("VHOST_ALIASES", "")) > 0 {
-		zks = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
-	}
-
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
@@ -97,20 +87,20 @@ func New(driver api.API) *ServicedCli {
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
 		cli.BoolTFlag{"tls", "enable TLS"},
 		cli.StringFlag{"var", varPath, "path to store serviced data"},
-		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
-		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
-		cli.StringSliceFlag{"zk", &zks, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
+		cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private key)"},
+		cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
+		cli.StringSliceFlag{"zk", &cli.StringSlice{}, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
-		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
+		cli.StringSliceFlag{"alias", &cli.StringSlice{}, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60), "maximum age of a stopped container before removing"},
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
-		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
+		cli.StringFlag{"master-pool-id", "default", "master's pool ID"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", "127.0.0.1:8443", "container statistics for host:port"},
-		cli.IntFlag{"stats-period", configInt("STATS_PERIOD", 10), "Period (seconds) for container statistics reporting"},
+		cli.IntFlag{"stats-period", 10, "Period (seconds) for container statistics reporting"},
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
 		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},
@@ -118,7 +108,7 @@ func New(driver api.API) *ServicedCli {
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
-		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "172.17.42.1:5042"), "logstash url and port"},
+		cli.StringFlag{"logstashurl", "172.17.42.1:5042", "logstash url and port"},
 		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
@@ -173,12 +163,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		CPUProfile:           ctx.GlobalString("cpuprofile"),
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
 		MasterPoolID:         ctx.GlobalString("master-pool-id"),
-	}
-	if os.Getenv("SERVICED_MASTER") == "1" {
-		options.Master = true
-	}
-	if os.Getenv("SERVICED_AGENT") == "1" {
-		options.Agent = true
 	}
 
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {

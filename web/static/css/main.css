@@ -928,10 +928,7 @@ rect {
 #notifications {
     position: fixed;
     top: 72px;
-    opacity: 0.9;
-    z-index: 999;
 }
-
 #loginNotifications {
     width: 671px;
     margin: auto;
@@ -1090,20 +1087,6 @@ rect {
     0% { -webkit-transform: scale(1.4, 1.4); }
     50% { -webkit-transform: scale(2.4, 2.4); }
     100% { -webkit-transform: scale(1.4, 1.4);  }
-}
-
-.healthTooltipDetailRow {
-    font-size: .9em;
-}
-.healthTooltipDetailRow .healthTooltipDetailName,
-.healthTooltipDetailRow .healthIcon {
-    display: inline-block;
-}
-.healthTooltipDetailRow .healthIcon {
-    -webkit-transform: scale(1, 1);
-}
-.healthTooltipDetailRow .healthTooltipDetailName {
-    margin-left: 10px;
 }
 
 

@@ -18,16 +18,9 @@ end script
 
 script
     export SERVICED_HOME=/opt/serviced
-    export SERVICED_AGENT=1
-    export SERVICED_MASTER=1
-    export HOME=/root
+    . /etc/default/serviced
 
-    if [ -f /etc/default/serviced ]; then
-        . /etc/default/serviced
-    fi
-
-    cd $SERVICED_HOME && ./bin/serviced $SERVICED_OPTS
-
+    cd $SERVICED_HOME && ./bin/serviced -agent -master
 end script
 
 post-stop script
