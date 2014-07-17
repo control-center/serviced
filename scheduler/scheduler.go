@@ -105,6 +105,10 @@ func (s *scheduler) loop() {
 	}
 	registry.CreateEndpointRegistry(rootConn)
 
+	// synchronize pools, hosts, services, virtualIPs
+	synchronizer := NewSynchronizer(s.facade, datastore.Get())
+	go synchronizer.Sync()
+
 	stop := make(chan interface{})
 	var wg sync.WaitGroup
 	for _, aPool := range allPools {

@@ -111,7 +111,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 }
 
 //
-func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]*service.Service, error) {
+func (f *Facade) GetServices(ctx datastore.Context) ([]*service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
@@ -172,8 +172,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 	if len(service_imports) > 0 {
 		glog.V(2).Infof("%+v service imports=%+v", myService, service_imports)
 
-		var request dao.EntityRequest
-		servicesList, err := f.getServices(ctx, request)
+		servicesList, err := f.getServices(ctx)
 		if err != nil {
 			return result, err
 		}
@@ -468,9 +467,9 @@ func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, 
 	return *svc, err
 }
 
-//getServices is an internal method that returns  all Services without filling in all related service data like address assignments
+//getServices is an internal method that returns all Services without filling in all related service data like address assignments
 //and modified config files
-func (f *Facade) getServices(ctx datastore.Context, request dao.EntityRequest) ([]*service.Service, error) {
+func (f *Facade) getServices(ctx datastore.Context) ([]*service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
