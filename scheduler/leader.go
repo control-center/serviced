@@ -9,6 +9,8 @@ import (
 	"path"
 	"time"
 
+	"sync"
+
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -23,10 +25,10 @@ import (
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/snapshot"
 	"github.com/zenoss/serviced/zzk/virtualips"
-	"sync"
 )
 
 type leader struct {
+	sync.Mutex
 	facade       *facade.Facade
 	dao          dao.ControlPlane
 	conn         coordclient.Connection
@@ -266,6 +268,10 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 // TODO: move me into zzk
 func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
+	// Locking to serialize starting of services so they get more evenly distributed (ZEN-12865)
+	l.Lock()
+	defer l.Unlock()
+
 	// pick services instances to start
 	instancesToKill := 0
 	instancesToStart := 0
