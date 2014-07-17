@@ -253,8 +253,37 @@ func (s *Synchronizer) syncVirtualIPs() error {
 	return nil
 }
 
-func (s *Synchronizer) Sync() {
-	syncSuccess := false
+func (s *Synchronizer) SyncAll() error {
+	if err := s.syncPools(); err != nil {
+		glog.Errorf("syncPools failed to sync: %v", err)
+		return err
+	}
+
+	if err := s.syncServices(); err != nil {
+		glog.Errorf("syncServices failed to sync: %v", err)
+		return err
+	}
+
+	if err := s.syncHosts(); err != nil {
+		glog.Errorf("syncHosts failed to sync: %v", err)
+		return err
+	}
+
+	if err := s.syncVirtualIPs(); err != nil {
+		glog.Errorf("syncVirtualIPs failed to sync: %v", err)
+		return err
+	}
+
+	return nil
+}
+
+// Sync will sync the pools, services in a pool, hosts in a pool, and virtual IPs in a pool every 3 hours
+func (s *Synchronizer) SyncLoop() {
+	syncSuccess := true
+	if err := s.SyncAll(); err != nil {
+		syncSuccess = false
+	}
+
 	for {
 		if syncSuccess {
 			time.Sleep(time.Hour * 3)
@@ -263,26 +292,10 @@ func (s *Synchronizer) Sync() {
 			time.Sleep(time.Second * 30)
 		}
 
-		if err := s.syncPools(); err != nil {
-			glog.Errorf("syncPools failed to sync: %v", err)
-			continue // syncSuccess is false
+		if err := s.SyncAll(); err != nil {
+			syncSuccess = false
+		} else {
+			syncSuccess = true
 		}
-
-		if err := s.syncServices(); err != nil {
-			glog.Errorf("syncServices failed to sync: %v", err)
-			continue // syncSuccess is false
-		}
-
-		if err := s.syncHosts(); err != nil {
-			glog.Errorf("syncHosts failed to sync: %v", err)
-			continue // syncSuccess is false
-		}
-
-		if err := s.syncVirtualIPs(); err != nil {
-			glog.Errorf("syncVirtualIPs failed to sync: %v", err)
-			continue // syncSuccess is false
-		}
-
-		syncSuccess = true
 	}
 }

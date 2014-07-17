@@ -107,7 +107,7 @@ func (s *scheduler) loop() {
 
 	// synchronize pools, hosts, services, virtualIPs
 	synchronizer := NewSynchronizer(s.facade, datastore.Get())
-	go synchronizer.Sync()
+	go synchronizer.SyncLoop()
 
 	stop := make(chan interface{})
 	var wg sync.WaitGroup
