@@ -305,9 +305,13 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 	// attempt to unmarshal into singleLine
 	var line logSingleLine
 	if e := json.Unmarshal(source, &line); e == nil {
-		offset, e := strconv.ParseUint(line.Offset, 10, 64)
-		if e != nil {
-			return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
+		offset := uint64(0)
+		if len(line.Offset) != 0 {
+			var e error
+			offset, e = strconv.ParseUint(line.Offset, 10, 64)
+			if e != nil {
+				return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
+			}
 		}
 		compactLine := compactLogLine{
 			Timestamp: truncateToMinute(line.Timestamp.UnixNano()),
