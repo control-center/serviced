@@ -391,9 +391,11 @@ func (d *daemon) startAgent() error {
 		}()
 		//wait indefinitely(?) for storage to work before starting
 		glog.Info("Waiting for Storage Leader")
-		for {
+		nfsUp := false
+		for !nfsUp {
 			select {
 			case <-nfsDone:
+				nfsUp = true
 				glog.Info("Found Storage Leader")
 				break
 			case <-time.After(time.Second * 30):
