@@ -241,6 +241,10 @@ table .btn,
 .navbar-brand {
     font-weight: bold;
 }
+.navbar-brand .version {
+    font-size: .7em;
+    color: #CCC;
+}
 
 .nav > li > .item {
     position: relative;
