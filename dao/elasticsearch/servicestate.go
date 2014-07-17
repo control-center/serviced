@@ -29,7 +29,7 @@ func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, se
 		return err
 	}
 
-	return zzk.GetServiceState(poolBasedConn, serviceState, request.ServiceID, request.ServiceStateID)
+	return zkservice.GetServiceState(poolBasedConn, serviceState, request.ServiceID, request.ServiceStateID)
 }
 
 func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*servicestate.ServiceState) error {
@@ -47,7 +47,8 @@ func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[
 		return err
 	}
 
-	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceId)
+	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceId)
+	return err
 }
 
 /* This method assumes that if a service instance exists, it has not yet been terminated */
@@ -66,7 +67,8 @@ func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, ser
 		return err
 	}
 
-	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceId)
+	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceId)
+	return err
 }
 
 // Update the current state of a service instance.
@@ -85,7 +87,7 @@ func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState,
 		return err
 	}
 
-	return zzk.UpdateServiceState(poolBasedConn, &state)
+	return zkservice.UpdateServiceState(poolBasedConn, &state)
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {

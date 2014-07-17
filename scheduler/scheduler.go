@@ -65,14 +65,6 @@ func (s *scheduler) Stop() error {
 	return <-errc
 }
 
-type hostNodeT struct {
-	HostID  string
-	version interface{}
-}
-
-func (h *hostNodeT) Version() interface{}           { return h.version }
-func (h *hostNodeT) SetVersion(version interface{}) { h.version = version }
-
 func (s *scheduler) loop() {
 	glog.V(3).Infoln("entering scheduler")
 
@@ -114,11 +106,10 @@ func (s *scheduler) loop() {
 			return
 		}
 
-		hostNode := hostNodeT{HostID: s.instance_id}
-		leader := poolBasedConn.NewLeader(zzk.SCHEDULER_PATH, &hostNode)
+		leader := zzk.NewScheduler(poolBasedConn, s.instance_id)
 		events, err := leader.TakeLead()
 		if err != nil {
-			glog.Error("could not take lead: ", err)
+			glog.Errorf("%s could not take lead: %s", s.instance_id, err)
 			return
 		}
 

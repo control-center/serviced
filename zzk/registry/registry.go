@@ -7,7 +7,7 @@ package registry
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/zzk/utils"
+	"github.com/zenoss/serviced/zzk"
 )
 
 type registryType struct {
@@ -36,7 +36,7 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 
 	path := r.getPath(key)
 	glog.Infof("EnsureKey key:%s path:%s", key, path)
-	exists, err := utils.PathExists(conn, path)
+	exists, err := zzk.PathExists(conn, path)
 	if err != nil {
 		return "", err
 	}
@@ -96,7 +96,7 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 	//TODO: make ephemeral
 	path := r.getPath(key, nodeID)
 
-	exists, err := utils.PathExists(conn, path)
+	exists, err := zzk.PathExists(conn, path)
 	if err != nil {
 		return "", err
 	}
@@ -131,7 +131,7 @@ func (r *registryType) removeItem(conn client.Connection, key string, nodeID str
 }
 
 func removeNode(conn client.Connection, path string) error {
-	exists, err := utils.PathExists(conn, path)
+	exists, err := zzk.PathExists(conn, path)
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 		return err
 	}
 	defer lock.Unlock()
-	if exists, err := utils.PathExists(conn, path); err != nil {
+	if exists, err := zzk.PathExists(conn, path); err != nil {
 		return err
 	} else if !exists {
 		glog.V(0).Infof("creating zk dir %s", path)
@@ -169,7 +169,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 }
 
 func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	exists, err := utils.PathExists(conn, path)
+	exists, err := zzk.PathExists(conn, path)
 	if err != nil {
 		return err
 	}
@@ -201,7 +201,7 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 
 func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan bool, processNode func(conn client.Connection,
 	node client.Node), errorHandler WatchError) error {
-	exists, err := utils.PathExists(conn, path)
+	exists, err := zzk.PathExists(conn, path)
 	if err != nil {
 		return err
 	}

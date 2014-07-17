@@ -25,6 +25,7 @@ import (
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
+	zkservice "github.com/zenoss/serviced/zzk/service"
 )
 
 var (
@@ -79,12 +80,7 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 
 // getServiceState gets the service states for a serviceID
 func getServiceStates(conn coordclient.Connection, serviceID string) ([]*servicestate.ServiceState, error) {
-	var serviceStates []*servicestate.ServiceState
-	err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
-	if err != nil {
-		return nil, err
-	}
-	return serviceStates, nil
+	return zkservice.GetServiceStates(conn, serviceID)
 }
 
 // getServiceState gets the service state for a serviceID matching the instance ID specified
