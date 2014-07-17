@@ -923,7 +923,7 @@ func (a *HostAgent) VirtualInterfaceMap(prefix string) (map[string]*pool.Virtual
 		}
 		netmask := net.IP(network.Mask)
 
-		interfaceMap[virtualInterfaceName] = &pool.VirtualIP{PoolID: "", IP: virtualIPAddress.String(), Netmask: netmask.String(), BindInterface: bindInterface}
+		interfaceMap[virtualIPAddress.String()] = &pool.VirtualIP{PoolID: "", IP: virtualIPAddress.String(), Netmask: netmask.String(), BindInterface: bindInterface}
 	}
 
 	return interfaceMap, nil

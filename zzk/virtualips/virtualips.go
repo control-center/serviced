@@ -104,6 +104,7 @@ func (l *VirtualIPListener) Done() {}
 // Spawn implements zzk.Listener
 func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 
+	glog.V(2).Infof("Host %s waiting to acquire virtual ip %s", l.hostID, ip)
 	// Try to take lead on the path
 	leader := zzk.NewHostLeader(l.conn, l.hostID, l.GetPath(ip))
 	_, err := leader.TakeLead()
@@ -130,7 +131,9 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 			return
 		}
 
-		if err := l.bind(&vip, index); err != nil {
+		glog.V(2).Infof("Host %s binding to %s", l.hostID, ip)
+		rebind, err := l.bind(&vip, index)
+		if err != nil {
 			glog.Errorf("Could not bind to virtual ip %s: %s", ip, err)
 			return
 		}
@@ -146,9 +149,12 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 				return
 			}
 			glog.V(4).Infof("virtual ip listener for %s receieved event: %v", ip, e)
-		case <-l.get(ip):
-			// if the primary virtual IP is removed, all other virtual IPs on that subnet are removed
-			// this is in place to restore the virtual IPs that were removed soley by the removal of the primary virtual IP
+		case <-rebind:
+			// If the primary virtual IP is removed, all other virtual IPs on
+			// that subnet are removed.  This is in place to restore the
+			// virtual IPs that were removed soley by the removal of the
+			// primary virtual IP.
+			glog.V(2).Infof("Host %s rebinding to %s", l.hostID, ip)
 		case <-shutdown:
 			if err := l.unbind(ip); err != nil {
 				glog.Errorf("Could not unbind to virtual ip %s: %s", ip, err)
@@ -162,45 +168,38 @@ func (l *VirtualIPListener) getIndex() int {
 	return <-l.index
 }
 
-func (l *VirtualIPListener) reset(ip string) {
-	if _, ok := l.ips[ip]; ok {
-		delete(l.ips, ip)
-	}
-
+func (l *VirtualIPListener) reset() {
 	for _, ipChan := range l.ips {
 		ipChan <- true
 	}
 }
 
 func (l *VirtualIPListener) get(ip string) <-chan bool {
-	if _, ok := l.ips[ip]; !ok {
-		l.ips[ip] = make(chan bool)
-	}
-
+	l.ips[ip] = make(chan bool, 1)
 	return l.ips[ip]
 }
 
-func (l *VirtualIPListener) bind(vip *pool.VirtualIP, index int) error {
+func (l *VirtualIPListener) bind(vip *pool.VirtualIP, index int) (<-chan bool, error) {
 	vmap, err := l.handler.VirtualInterfaceMap(virtualInterfacePrefix)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	if _, ok := vmap[vip.IP]; ok {
-		glog.V(2).Infof("Virtual IP %s already exists", vip.IP)
-		return nil
+	if _, ok := vmap[vip.IP]; !ok {
+		if vip.BindInterface == "" {
+			return nil, ErrInvalidVirtualIP
+		}
+		vname := fmt.Sprintf("%s%s%d", vip.BindInterface, virtualInterfacePrefix, index)
+		if err := l.handler.BindVirtualIP(vip, vname); err != nil {
+			return nil, err
+		}
 	}
 
-	if vip.BindInterface == "" {
-		return ErrInvalidVirtualIP
-	}
-
-	vname := fmt.Sprintf("%s%s%d", vip.BindInterface, virtualInterfacePrefix, index)
-	return l.handler.BindVirtualIP(vip, vname)
+	return l.get(vip.IP), nil
 }
 
 func (l *VirtualIPListener) unbind(ip string) error {
-	defer l.reset(ip)
+	defer l.reset()
 	vmap, err := l.handler.VirtualInterfaceMap(virtualInterfacePrefix)
 	if err != nil {
 		return err
@@ -214,10 +213,19 @@ func (l *VirtualIPListener) unbind(ip string) error {
 }
 
 func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
-	return conn.Create(vippath(virtualIP.IP), &VirtualIPNode{VirtualIP: virtualIP})
+	var node VirtualIPNode
+	path := vippath(virtualIP.IP)
+
+	glog.V(1).Infof("Adding virtual ip to zookeeper: %s", path)
+	if err := conn.Create(path, &node); err != nil {
+		return err
+	}
+	node.VirtualIP = virtualIP
+	return conn.Set(path, &node)
 }
 
 func RemoveVirtualIP(conn client.Connection, ip string) error {
+	glog.V(1).Infof("Removing virtual ip from zookeeper: %s", vippath(ip))
 	return conn.Delete(vippath(ip))
 }
 

@@ -143,6 +143,7 @@ func Listen(shutdown <-chan interface{}, l Listener) {
 		conn       = l.GetConnection()
 	)
 
+	glog.Infof("Starting a listener at %s", l.GetPath())
 	if err := Ready(shutdown, conn, l.GetPath()); err != nil {
 		glog.Errorf("Could not start listener at %s: %s", l.GetPath(), err)
 		return
@@ -160,6 +161,7 @@ func Listen(shutdown <-chan interface{}, l Listener) {
 		l.Done()
 	}()
 
+	glog.V(1).Infof("Listener %s started; waiting for data", l.GetPath())
 	for {
 		nodes, event, err := conn.ChildrenW(l.GetPath())
 		if err != nil {
@@ -169,11 +171,11 @@ func Listen(shutdown <-chan interface{}, l Listener) {
 
 		for _, node := range nodes {
 			if _, ok := processing[node]; !ok {
-				glog.V(1).Infof("Spawning a listener for %s", l.GetPath(node))
+				glog.V(1).Infof("Spawning a goroutine for %s", l.GetPath(node))
 				processing[node] = nil
 				go func(node string) {
 					defer func() {
-						glog.V(1).Infof("Listener at %s was shutdown", l.GetPath(node))
+						glog.V(1).Infof("Goroutine at %s was shutdown", l.GetPath(node))
 						done <- node
 					}()
 					l.Spawn(_shutdown, node)
@@ -205,11 +207,11 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 	_shutdown := make(chan interface{})
 	for _, listener := range listeners {
 		wg.Add(1)
-		go func() {
+		go func(l Listener) {
 			// TODO: implement restarts?
 			defer wg.Done()
-			Listen(_shutdown, listener)
-		}()
+			Listen(_shutdown, l)
+		}(listener)
 	}
 
 	done := make(chan interface{})
