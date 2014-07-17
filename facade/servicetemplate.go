@@ -7,8 +7,6 @@ package facade
 import (
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 
@@ -18,6 +16,7 @@ import (
 
 	"github.com/zenoss/serviced/commons"
 	"github.com/zenoss/serviced/commons/docker"
+	"github.com/zenoss/serviced/commons/subprocess"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/service"
@@ -111,7 +110,11 @@ func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
 }
 
 func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
-	for _, img := range getImageIDs(template.Services...) {
+	imageIDs := getImageIDs(template.Services...)
+
+	//iterate through images IDs for image names
+	images := make([]string, len(imageIDs))
+	for i, img := range imageIDs {
 		imageID, err := commons.ParseImageID(img)
 		if err != nil {
 			return err
@@ -120,17 +123,23 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 		if tag == "" {
 			tag = "latest"
 		}
-		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
-		glog.Infof("Pulling image %s", image)
-		// Using a subprocess instead of dockerclient in order to take
-		// advantage of Docker's auth and the default registry logic
-		cmd := exec.Command("docker", "pull", image)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			glog.Warningf("Unable to pull image %s", image)
+		images[i] = fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
+	}
+
+	executor := subprocess.Executor{}
+	for _, img := range imageIDs {
+		executor.Submit("docker", "pull", img)
+	}
+
+	executor.Execute()
+	for i := range executor.Results {
+		result := &executor.Results[i]
+		if result.Error != nil {
+			msg := fmt.Sprintf("Failed to pull image %s: err=%s, stderr=%s", images[i], result.Error, result.Stderr.String())
+			return errors.New(msg)
 		}
 	}
+
 	return nil
 }
 
