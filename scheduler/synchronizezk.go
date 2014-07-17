@@ -6,7 +6,6 @@ package scheduler
 
 import (
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/pool"
@@ -23,9 +22,9 @@ import (
 type Synchronizer struct {
 	facade  *facade.Facade
 	context datastore.Context
-	conn    coordclient.Connection
 }
 
+// create a new Synchronizer
 func NewSynchronizer(myFacade *facade.Facade, myContext datastore.Context) *Synchronizer {
 	s := new(Synchronizer)
 	s.facade = myFacade
@@ -253,6 +252,11 @@ func (s *Synchronizer) syncVirtualIPs() error {
 	return nil
 }
 
+// SyncAll will sync the following:
+//   pools
+//   services in a pool
+//   hosts in a pool
+//   virtual IPs
 func (s *Synchronizer) SyncAll() error {
 	if err := s.syncPools(); err != nil {
 		glog.Errorf("syncPools failed to sync: %v", err)
@@ -277,7 +281,11 @@ func (s *Synchronizer) SyncAll() error {
 	return nil
 }
 
-// Sync will sync the pools, services in a pool, hosts in a pool, and virtual IPs in a pool every 3 hours
+// SyncAll will sync the following every 3 hours:
+//   pools
+//   services in a pool
+//   hosts in a pool
+//   virtual IPs
 func (s *Synchronizer) SyncLoop() {
 	syncSuccess := true
 	if err := s.SyncAll(); err != nil {
