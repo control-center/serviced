@@ -144,11 +144,9 @@
             <span ng-class="indent(app.zendepth)"></span>{{app.Name}}
           </td>
           <td style="text-align:center;">
-            <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
-              <div ng-if="app.children === undefined">
-                <i class="healthIcon" ng-class="app.healthIconClass"></i>
-              </div>
-            </span>
+            <div ng-if="app.children === undefined">
+              <i class="healthIcon" ng-class="app.healthIconClass"></i>
+            </div>
           </td>
           <td>
             <a ng-click="click_host(app.runningHosts[0].ID)" class="link">{{app.runningHosts[0].HostName}}</a>

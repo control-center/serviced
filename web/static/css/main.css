@@ -1092,6 +1092,20 @@ rect {
     100% { -webkit-transform: scale(1.4, 1.4);  }
 }
 
+.healthTooltipDetailRow {
+    font-size: .9em;
+}
+.healthTooltipDetailRow .healthTooltipDetailName,
+.healthTooltipDetailRow .healthIcon {
+    display: inline-block;
+}
+.healthTooltipDetailRow .healthIcon {
+    -webkit-transform: scale(1, 1);
+}
+.healthTooltipDetailRow .healthTooltipDetailName {
+    margin-left: 10px;
+}
+
 
 /* chart styles */
 .nv-axis .tick text,
