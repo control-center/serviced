@@ -17,7 +17,7 @@ import (
 	"github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/validation"
-	"github.com/zenoss/serviced/zzk/utils"
+	"github.com/zenoss/serviced/zzk"
 
 	"fmt"
 	"path"
@@ -59,7 +59,7 @@ type VhostRegistry struct {
 // VHostRegistry ensures the vhost registry and returns the VhostRegistry type
 func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	path := vhostPath()
-	if exists, err := utils.PathExists(conn, path); err != nil {
+	if exists, err := zzk.PathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {
