@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"time"
 
+	"sync"
+
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
@@ -23,6 +25,7 @@ import (
 )
 
 type leader struct {
+	sync.Mutex
 	facade       *facade.Facade
 	dao          dao.ControlPlane
 	conn         coordclient.Connection

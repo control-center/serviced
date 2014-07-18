@@ -377,13 +377,32 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("could not create an NFS client: %s", err)
 		}
 
-		go func(){
+		go func() {
 			<-d.shutdown
 			glog.Infof("shutting down storage client")
 			nfsClient.Close()
 		}()
-		nfsClient.Wait()
 
+		//loop and log waiting for Storage Leader
+		nfsDone := make(chan struct{})
+		go func() {
+			defer close(nfsDone)
+			nfsClient.Wait()
+		}()
+		//wait indefinitely(?) for storage to work before starting
+		glog.Info("Waiting for Storage Leader")
+		nfsUp := false
+		for !nfsUp {
+			select {
+			case <-nfsDone:
+				nfsUp = true
+				glog.Info("Found Storage Leader")
+				break
+			case <-time.After(time.Second * 30):
+				glog.Info("Waiting for Storage Leader, will not be available for running services. ")
+				continue
+			}
+		}
 		agentOptions := node.AgentOptions{
 			PoolID:               thisHost.PoolID,
 			Master:               options.Endpoint,
