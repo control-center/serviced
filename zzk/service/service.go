@@ -134,7 +134,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 	sort.Sort(instances(rss))
 
 	netInstances := svc.Instances - len(rss)
-	if netInstances != 0 && utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
+	if len(rss) > 0 && netInstances != 0 && utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
 		netInstances = -len(rss)
 	}
 

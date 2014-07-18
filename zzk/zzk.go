@@ -52,14 +52,6 @@ func GetBasePathConnection(basePath string) (client.Connection, error) { // TODO
 	return myNewConnection, nil
 }
 
-const (
-	zkScheduler = "/scheduler"
-)
-
-func NewScheduler(conn client.Connection, hostID string) client.Leader {
-	return NewHostLeader(conn, hostID, zkScheduler)
-}
-
 // HostLeader is the node to store leader information for a host
 type HostLeader struct {
 	HostID  string

@@ -578,7 +578,12 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, schedShutdown := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
+		sched, err := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
+		if err != nil {
+			glog.Errorf("Could not start scheduler: %s", err)
+			continue
+		}
+
 		sched.Start()
 		select {
 		case <-d.shutdown:
@@ -586,8 +591,6 @@ func (d *daemon) runScheduler() {
 			sched.Stop()
 			glog.Info("Scheduler stopped")
 			return
-		case <-schedShutdown:
-			break
 		}
 	}
 }

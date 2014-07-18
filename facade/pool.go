@@ -51,6 +51,10 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		entity.UpdatedAt = now
 		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
 	}
+	if err == nil {
+		err = zkAPI(f).AddResourcePool(entity.ID)
+	}
+
 	f.afterEvent(afterPoolAdd, ec, entity, err)
 	return err
 }
@@ -157,6 +161,8 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return fmt.Errorf("error verifying no hosts in pool: %v", err)
 	} else if len(hosts) > 0 {
 		return errors.New("cannot delete resource pool with hosts")
+	} else if err := zkAPI(f).RemoveResourcePool(id); err != nil {
+		return errors.New("cannot remove resource pool from zookeeper")
 	}
 
 	return f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete)

@@ -27,6 +27,7 @@ import (
 	"github.com/zenoss/serviced/domain/servicedefinition"
 	"github.com/zenoss/serviced/domain/servicestate"
 	"github.com/zenoss/serviced/zzk"
+	zkscheduler "github.com/zenoss/serviced/zzk/scheduler"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	zkvirtualip "github.com/zenoss/serviced/zzk/virtualips"
 )
@@ -769,6 +770,8 @@ type zkfuncs interface {
 	UnregisterHost(h *host.Host) error
 	AddVirtualIP(vip *pool.VirtualIP) error
 	RemoveVirtualIP(vip *pool.VirtualIP) error
+	AddResourcePool(poolID string) error
+	RemoveResourcePool(poolID string) error
 }
 
 type zkf struct {
@@ -851,6 +854,22 @@ func (z *zkf) RemoveVirtualIP(vip *pool.VirtualIP) error {
 		return err
 	}
 	return zkvirtualip.RemoveVirtualIP(poolBasedConnection, vip.IP)
+}
+
+func (z *zkf) AddResourcePool(poolID string) error {
+	rootBasedConnection, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkscheduler.AddResourcePool(rootBasedConnection, poolID)
+}
+
+func (z *zkf) RemoveResourcePool(poolID string) error {
+	rootBasedConnection, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkscheduler.RemoveResourcePool(rootBasedConnection, poolID)
 }
 
 func lookUpTenant(svcID string) (string, bool) {

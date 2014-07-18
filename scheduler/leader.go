@@ -6,7 +6,6 @@ package scheduler
 
 import (
 	"fmt"
-	"time"
 
 	"sync"
 
@@ -38,33 +37,17 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string, shutdown <-chan interface{}) {
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, poolID string, shutdown <-chan interface{}) {
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
-	shutdownmode := false
 
+	// creates a listener for the host registry
 	hostRegistry := zkservice.NewHostRegistryListener(conn)
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
 	for {
-		done := make(chan interface{})
-		if shutdownmode {
-			glog.V(1).Info("Shutdown mode encountered.")
-			close(done)
-			break
-		}
+		glog.V(0).Info("Processing leader duties")
 
-		time.Sleep(time.Second)
-		select {
-		case evt := <-zkEvent:
-			// shut this thing down
-			shutdownmode = true
-			glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-			return
-		default:
-			glog.V(0).Info("Processing leader duties")
-			// passthru
-		}
 		// creates a listener for snapshots with a function call to take snapshots
 		// and return the label and error message
 		snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
@@ -74,6 +57,13 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 
 		// starts all of the listeners
 		zzk.Start(shutdown, serviceListener, hostRegistry, snapshotListener)
+
+		select {
+		case <-shutdown:
+			glog.V(1).Info("Shutdown mode encountered.")
+		default:
+			// pass
+		}
 	}
 }
 

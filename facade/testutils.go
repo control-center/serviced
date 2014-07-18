@@ -80,3 +80,11 @@ func (z *zkMock) AddVirtualIP(vip *pool.VirtualIP) error {
 func (z *zkMock) RemoveVirtualIP(vip *pool.VirtualIP) error {
 	return nil
 }
+
+func (z *zkMock) AddResourcePool(poolID string) error {
+	return nil
+}
+
+func (z *zkMock) RemoveResourcePool(poolID string) error {
+	return nil
+}
