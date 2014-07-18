@@ -734,6 +734,9 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		hcfg.Privileged = true
 	}
 
+	cfg.Memory = svc.MemoryLimit
+	cfg.CpuShares = svc.CPUShares
+
 	return cfg, hcfg, nil
 }
 
