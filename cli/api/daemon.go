@@ -581,7 +581,7 @@ func (d *daemon) runScheduler() {
 		sched, err := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
-			continue
+			return
 		}
 
 		sched.Start()
