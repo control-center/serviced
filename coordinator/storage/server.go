@@ -73,7 +73,7 @@ func (s *Server) loop() {
 	}
 
 	glog.Info("creating leader")
-	storageLead := conn.NewLeader("/leader", node)
+	storageLead := conn.NewLeader("/storage/leader", node)
 	defer storageLead.ReleaseLead()
 	for {
 		glog.V(2).Info("looping")

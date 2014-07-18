@@ -212,7 +212,7 @@ func (l *VirtualIPListener) unbind(ip string) error {
 	return nil
 }
 
-func SyncVirtualIPs(conn client.Connection, virtualIPs []*pool.VirtualIP) error {
+func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
 	var current []string
 	if exists, err := zzk.PathExists(conn, vippath()); err != nil {
 		return err
@@ -223,8 +223,8 @@ func SyncVirtualIPs(conn client.Connection, virtualIPs []*pool.VirtualIP) error 
 	}
 
 	unsynced := make(map[string]*pool.VirtualIP)
-	for _, virtualIP := range virtualIPs {
-		unsynced[virtualIP.IP] = virtualIP
+	for i, virtualIP := range virtualIPs {
+		unsynced[virtualIP.IP] = &virtualIPs[i]
 	}
 
 	for _, ip := range current {

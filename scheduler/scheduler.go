@@ -8,6 +8,7 @@ import (
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
 	"github.com/zenoss/serviced/dao"
+	"github.com/zenoss/serviced/datastore"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
@@ -87,6 +88,11 @@ func (s *scheduler) Ready() (err error) {
 	if s.zkEvent, err = s.leader.TakeLead(); err != nil {
 		return err
 	}
+
+	// synchronize pools, hosts, services, virtualIPs
+	synchronizer := NewSynchronizer(s.facade, datastore.Get())
+	go synchronizer.SyncLoop(s.shutdown)
+
 	return nil
 }
 
