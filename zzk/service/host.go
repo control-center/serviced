@@ -136,8 +136,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 				return
 			}
 
-			// TODO: need to move this timeout elsewhere (does docker containers have a kill timeout?
-			// If so, I think the kill timeout should be set in the service definition)
+			// TODO: need to move this timeout elsewhere
 			if processDone != nil {
 				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				go l.detachInstance(processDone, state)
@@ -315,7 +314,13 @@ func addInstance(conn client.Connection, state *servicestate.ServiceState) error
 }
 
 func updateInstance(conn client.Connection, state *servicestate.ServiceState) error {
-	return conn.Set(servicepath(state.ServiceID, state.ID), &ServiceStateNode{ServiceState: state})
+	var node ServiceStateNode
+	path := servicepath(state.ServiceID, state.ID)
+	if err := conn.Get(path, &node); err != nil {
+		return err
+	}
+	node.ServiceState = state
+	return conn.Set(path, &node)
 }
 
 func removeInstance(conn client.Connection, state *servicestate.ServiceState) error {

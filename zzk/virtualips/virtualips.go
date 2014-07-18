@@ -212,6 +212,38 @@ func (l *VirtualIPListener) unbind(ip string) error {
 	return nil
 }
 
+func SyncVirtualIPs(conn client.Connection, virtualIPs []*pool.VirtualIP) error {
+	var current []string
+	if exists, err := zzk.PathExists(conn, vippath()); err != nil {
+		return err
+	} else if !exists {
+		//pass
+	} else if current, err = conn.Children(vippath()); err != nil {
+		return err
+	}
+
+	unsynced := make(map[string]*pool.VirtualIP)
+	for _, virtualIP := range virtualIPs {
+		unsynced[virtualIP.IP] = virtualIP
+	}
+
+	for _, ip := range current {
+		if _, ok := unsynced[ip]; ok {
+			delete(unsynced, ip)
+		} else if err := RemoveVirtualIP(conn, ip); err != nil {
+			return err
+		}
+	}
+
+	for _, virtualIP := range unsynced {
+		if err := AddVirtualIP(conn, virtualIP); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
 	var node VirtualIPNode
 	path := vippath(virtualIP.IP)

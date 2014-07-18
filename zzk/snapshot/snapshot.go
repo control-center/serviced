@@ -105,7 +105,13 @@ func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, serviceID string) 
 
 // Send sends a new snapshot request to the queue
 func Send(conn client.Connection, serviceID string) error {
-	return conn.Create(snapshotPath(serviceID), &Snapshot{ServiceID: serviceID})
+	var node Snapshot
+	path := snapshotPath(serviceID)
+	if err := conn.Create(path, &node); err != nil {
+		return err
+	}
+	node.ServiceID = serviceID
+	return conn.Set(path, &node)
 }
 
 // Recv waits for a snapshot to be complete
