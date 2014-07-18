@@ -7,6 +7,7 @@ package service
 import (
 	"path"
 	"sort"
+	"sync"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
@@ -14,6 +15,7 @@ import (
 	"github.com/zenoss/serviced/domain/host"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/zenoss/serviced/utils"
 	"github.com/zenoss/serviced/zzk"
 )
 
@@ -63,13 +65,14 @@ type ServiceHandler interface {
 
 // ServiceListener is the listener for /services
 type ServiceListener struct {
+	sync.Mutex
 	conn    client.Connection
 	handler ServiceHandler
 }
 
 // NewServiceListener instantiates a new ServiceListener
 func NewServiceListener(conn client.Connection, handler ServiceHandler) *ServiceListener {
-	return &ServiceListener{conn, handler}
+	return &ServiceListener{conn: conn, handler: handler}
 }
 
 // GetConnection implements zzk.Listener
@@ -126,9 +129,17 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 }
 
 func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) {
+	l.Lock()
+	defer l.Unlock()
 	sort.Sort(instances(rss))
+
 	netInstances := svc.Instances - len(rss)
+	if netInstances != 0 && utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
+		netInstances = -len(rss)
+	}
+
 	if netInstances > 0 {
+		glog.V(2).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
 		var (
 			last        = 0
 			instanceIDs = make([]int, netInstances)
@@ -140,8 +151,9 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 			instanceIDs[i] = last + i
 		}
 		l.start(svc, instanceIDs)
-	} else if netInstances < 0 {
-		l.stop(rss[:-netInstances])
+	} else if netInstances = -netInstances; netInstances > 0 {
+		glog.V(2).Infof("Stopping %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
+		l.stop(rss[:netInstances])
 	}
 }
 
