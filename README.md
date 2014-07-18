@@ -67,18 +67,18 @@ export PATH="$PATH:$GOPATH/bin"
 mkdir $GOPATH/{bin,pkg,src} -p
 mkdir $GOPATH/src/github.com/zenoss -p
 cd $GOPATH/src/github.com/zenoss 
-git clone git@github.com:zenoss/serviced.git
+git clone git@github.com:control-center/serviced.git
 cd serviced
 make install
 ```
 
 Setup HBASE
 ```
-https://github.com/zenoss/serviced/wiki/Single-node-HBASE-setup
+https://github.com/control-center/serviced/wiki/Single-node-HBASE-setup
 ```
 
 After this, a binary should exist at $GOPATH/bin/serviced & 
-$GOPATH/src/github.com/zenoss/serviced/serviced. You can run the server with
+$GOPATH/src/github.com/control-center/serviced/serviced. You can run the server with
 
 ```bash
 serviced -agent -master

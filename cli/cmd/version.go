@@ -6,7 +6,7 @@ package cmd
 
 import (
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/serviced/servicedversion"
+	"github.com/control-center/serviced/servicedversion"
 
 	"fmt"
 )

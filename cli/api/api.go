@@ -11,10 +11,10 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/rpc/agent"
-	"github.com/zenoss/serviced/rpc/master"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/agent"
+	"github.com/control-center/serviced/rpc/master"
 )
 
 var options Options

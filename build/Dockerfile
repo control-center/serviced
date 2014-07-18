@@ -34,4 +34,4 @@ RUN	apt-get install -y -q rpm
 RUN	apt-get install -y -q mercurial bzr
 RUN apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
-WORKDIR	/go/src/github.com/zenoss/serviced
+WORKDIR	/go/src/github.com/control-center/serviced

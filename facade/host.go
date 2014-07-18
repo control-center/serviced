@@ -6,8 +6,8 @@ package facade
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/host"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/host"
 
 	"fmt"
 	"time"

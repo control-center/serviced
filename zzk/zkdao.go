@@ -6,10 +6,10 @@ package zzk
 
 import (
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	zkservice "github.com/zenoss/serviced/zzk/service"
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	zkservice "github.com/control-center/serviced/zzk/service"
 
 	"errors"
 	"fmt"

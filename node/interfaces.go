@@ -14,9 +14,9 @@ package node
 import (
 	"time"
 
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // Network protocol type.

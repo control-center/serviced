@@ -5,8 +5,8 @@
 package serviceconfigfile
 
 import (
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/utils"
 )
 
 //SvcConfigFile is used to store and track service config files that have been modified

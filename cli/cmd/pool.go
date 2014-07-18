@@ -12,8 +12,8 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/domain/pool"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain/pool"
 )
 
 // Initializer for serviced pool subcommands

@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/coordinator/client/zookeeper"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 )
 
 // Server manages the exporting of a file system to clients.

@@ -7,8 +7,8 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/node"
-	userdomain "github.com/zenoss/serviced/domain/user"
+	"github.com/control-center/serviced/node"
+	userdomain "github.com/control-center/serviced/domain/user"
 
 	"crypto/rand"
 	"encoding/base64"

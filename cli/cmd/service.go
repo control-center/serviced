@@ -14,10 +14,10 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/node"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/node"
 )
 
 var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)

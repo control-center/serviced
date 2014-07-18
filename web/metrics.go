@@ -5,7 +5,7 @@
 package web
 
 import (
-	"github.com/zenoss/serviced/domain"
+	"github.com/control-center/serviced/domain"
 )
 
 //profile defines meta-data for the host/pool resource's metrics and graphs

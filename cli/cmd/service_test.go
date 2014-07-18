@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
 )
 
 const (

@@ -7,10 +7,10 @@ package web
 import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/registry"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 
 	"crypto/tls"
 	"errors"

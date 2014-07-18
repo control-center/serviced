@@ -13,7 +13,7 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
+	"github.com/control-center/serviced/commons"
 )
 
 // Container represents a Docker container.

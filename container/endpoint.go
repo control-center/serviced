@@ -18,13 +18,13 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/registry"
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 )
 
 var (

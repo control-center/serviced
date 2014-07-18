@@ -6,8 +6,8 @@ package servicedefinition
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/validation"
 
 	"fmt"
 	"regexp"

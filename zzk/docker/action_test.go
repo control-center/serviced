@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client"
 )
 
 type ActionResult struct {
