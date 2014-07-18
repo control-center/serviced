@@ -62,7 +62,10 @@ func (c *Client) Close() {
 func (c *Client) loop() {
 	var err error
 	var e <-chan client.Event
-	node := &Node{}
+	node := &Node{
+		Host:    *c.host,
+		version: nil,
+	}
 	leaderNode := &Node{
 		Host:    host.Host{},
 		version: nil,
