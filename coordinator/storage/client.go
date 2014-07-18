@@ -84,7 +84,8 @@ func (c *Client) loop() {
 		}
 		err = nil
 		if leader == nil {
-			conn, err = zzk.GetBasePathConnection(zzk.GeneratePoolPath(c.host.PoolID))
+			// /storage/leader needs to be at the root
+			conn, err = zzk.GetBasePathConnection("/")
 			if err != nil {
 				continue
 			}

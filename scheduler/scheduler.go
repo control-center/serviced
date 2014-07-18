@@ -84,8 +84,10 @@ func (s *scheduler) Ready() (err error) {
 	registry.CreateEndpointRegistry(s.conn)
 
 	s.leader = zzk.NewHostLeader(s.conn, s.instance_id, "/scheduler")
-	s.zkEvent, err = s.leader.TakeLead()
-	return err
+	if s.zkEvent, err = s.leader.TakeLead(); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (s *scheduler) Done() {
