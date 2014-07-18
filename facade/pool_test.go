@@ -8,8 +8,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
 	. "gopkg.in/check.v1"
 )
 

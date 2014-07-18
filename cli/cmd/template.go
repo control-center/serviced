@@ -10,7 +10,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/serviced/cli/api"
+	"github.com/control-center/serviced/cli/api"
 )
 
 // initTemplate is the initializer for serviced template

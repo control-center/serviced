@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicestate"
 )
 
 func TestNewRunningService(t *testing.T) {

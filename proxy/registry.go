@@ -8,7 +8,7 @@ package proxy
 
 import (
 	"github.com/dotcloud/docker/pkg/proxy"
-	"github.com/zenoss/serviced/commons"
+	"github.com/control-center/serviced/commons"
 
 	"errors"
 	"fmt"

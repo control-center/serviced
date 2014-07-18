@@ -37,10 +37,10 @@ import (
 
 	"github.com/zenoss/glog"
 
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/validation"
-	"github.com/zenoss/serviced/zzk/utils"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/validation"
+	"github.com/control-center/serviced/zzk/utils"
 )
 
 const (

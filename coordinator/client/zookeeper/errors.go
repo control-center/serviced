@@ -6,7 +6,7 @@ package zookeeper
 
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client"
 )
 
 func xlateError(err error) error {

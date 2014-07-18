@@ -5,7 +5,7 @@
 package servicedefinition
 
 import (
-	"github.com/zenoss/serviced/commons"
+	"github.com/control-center/serviced/commons"
 
 	"fmt"
 	"log"

@@ -15,9 +15,9 @@ import (
 
 	"github.com/zenoss/glog"
 
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 )
 
 // Function map for evaluating PortTemplate fields

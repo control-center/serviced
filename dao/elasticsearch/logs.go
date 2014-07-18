@@ -6,9 +6,9 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/rpc/agent"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/rpc/agent"
 )
 
 func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) error {

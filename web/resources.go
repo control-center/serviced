@@ -16,12 +16,12 @@ import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/isvcs"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/servicedversion"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/servicedversion"
 )
 
 var empty interface{}

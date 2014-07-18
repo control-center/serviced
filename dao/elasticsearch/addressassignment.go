@@ -5,8 +5,8 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 )
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.

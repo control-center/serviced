@@ -13,10 +13,10 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/utils"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/utils"
+	zkutils "github.com/control-center/serviced/zzk/utils"
 )
 
 const (

@@ -5,7 +5,7 @@
 package pool
 
 import (
-	"github.com/zenoss/serviced/domain"
+	"github.com/control-center/serviced/domain"
 
 	"reflect"
 	"sort"

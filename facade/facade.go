@@ -5,10 +5,10 @@
 package facade
 
 import (
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicetemplate"
 )
 
 // New creates an initialized Facade instance

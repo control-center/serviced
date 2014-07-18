@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/utils"
 )
 
 const (

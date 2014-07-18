@@ -6,8 +6,8 @@ package isvcs
 
 import (
 	// "github.com/zenoss/glog"
-	"github.com/zenoss/serviced/domain"
-	. "github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/domain"
+	. "github.com/control-center/serviced/domain/service"
 )
 
 var oneHundred int = 100

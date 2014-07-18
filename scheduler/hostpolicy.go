@@ -8,10 +8,10 @@ import (
 	"errors"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // ServiceHostPolicy wraps a service and provides several policy

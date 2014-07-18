@@ -21,7 +21,7 @@ import (
 	elastigo "github.com/zenoss/elastigo/api"
 	"github.com/zenoss/elastigo/core"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // ExportLogs exports logs from ElasticSearch.
