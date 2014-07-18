@@ -290,9 +290,9 @@ func (s *Synchronizer) SyncLoop(shutdown <-chan interface{}) {
 	var wait <-chan time.Time
 	for {
 		if success := s.SyncAll(); success {
-			wait := time.After(3 * time.Hour)
+			wait = time.After(3 * time.Hour)
 		} else {
-			wait := time.After(30 * time.Second)
+			wait = time.After(30 * time.Second)
 		}
 
 		select {
