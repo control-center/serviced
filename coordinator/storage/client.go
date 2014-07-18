@@ -86,6 +86,8 @@ func (c *Client) loop() {
 		if leader == nil {
 			// /storage/leader needs to be at the root
 			conn, err = zzk.GetBasePathConnection("/")
+			glog.Errorf("Connection: %+v", conn)
+
 			if err != nil {
 				continue
 			}
