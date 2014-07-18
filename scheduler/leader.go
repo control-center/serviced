@@ -45,26 +45,17 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	hostRegistry := zkservice.NewHostRegistryListener(conn)
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
-	for {
-		glog.V(0).Info("Processing leader duties")
+	glog.V(0).Info("Processing leader duties")
 
-		// creates a listener for snapshots with a function call to take snapshots
-		// and return the label and error message
-		snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+	// creates a listener for snapshots with a function call to take snapshots
+	// and return the label and error message
+	snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
 
-		// creates a listener for services
-		serviceListener := zkservice.NewServiceListener(conn, &leader)
+	// creates a listener for services
+	serviceListener := zkservice.NewServiceListener(conn, &leader)
 
-		// starts all of the listeners
-		zzk.Start(shutdown, serviceListener, hostRegistry, snapshotListener)
-
-		select {
-		case <-shutdown:
-			glog.V(1).Info("Shutdown mode encountered.")
-		default:
-			// pass
-		}
-	}
+	// starts all of the listeners
+	zzk.Start(shutdown, serviceListener, hostRegistry, snapshotListener)
 }
 
 func (l *leader) TakeSnapshot(serviceID string) (string, error) {
