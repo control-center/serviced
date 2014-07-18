@@ -127,6 +127,7 @@ func (c *Connection) Create(path string, node client.Node) error {
 	}
 
 	_, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll))
+	glog.Infof("creating ", p)
 	if err == zklib.ErrNoNode {
 		// Create parent node.
 		parts := strings.Split(p, "/")
@@ -139,6 +140,7 @@ func (c *Connection) Create(path string, node client.Node) error {
 			}
 		}
 	}
+	glog.Infof("stuff 2")
 	if err == nil {
 		node.SetVersion(&zklib.Stat{})
 	}

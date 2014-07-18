@@ -60,9 +60,10 @@ func (s *Server) loop() {
 	var leadEventC <-chan client.Event
 	var e <-chan client.Event
 
-	conn, err := zzk.GetBasePathConnection("/")
+	// Cannot create dirs based off of "/"
+	conn, err := zzk.GetBasePathConnection("/storage")
 	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", s.host.PoolID, err)
+		glog.Errorf("Error in getting a connection: %v", err)
 	}
 
 	var children []string
@@ -73,10 +74,10 @@ func (s *Server) loop() {
 	}
 
 	glog.Info("creating leader")
-	storageLead := conn.NewLeader("/storage/leader", node)
+	storageLead := conn.NewLeader("/leader", node)
 	defer storageLead.ReleaseLead()
 	for {
-		glog.V(2).Info("looping")
+		glog.V(0).Info("looping")
 		// keep from churning if we get errors
 		if err != nil {
 			select {
@@ -87,8 +88,8 @@ func (s *Server) loop() {
 		}
 		err = nil
 
-		if err = conn.CreateDir("/storage/clients"); err != nil && err != client.ErrNodeExists {
-			glog.Errorf("err creating /storage/clients: %s", err)
+		if err = conn.CreateDir("/clients"); err != nil && err != client.ErrNodeExists {
+			glog.Errorf("err creating /clients: %s", err)
 			continue
 		}
 
@@ -98,7 +99,7 @@ func (s *Server) loop() {
 			continue
 		}
 
-		children, e, err = conn.ChildrenW("/storage/clients")
+		children, e, err = conn.ChildrenW("/clients")
 		if err != nil {
 			glog.Errorf("err getting childrenw: %s", err)
 			continue
