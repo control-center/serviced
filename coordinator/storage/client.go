@@ -62,10 +62,7 @@ func (c *Client) Close() {
 func (c *Client) loop() {
 	var err error
 	var e <-chan client.Event
-	node := &Node{
-		Host:    *c.host,
-		version: nil,
-	}
+	node := &Node{}
 	leaderNode := &Node{
 		Host:    host.Host{},
 		version: nil,
@@ -102,13 +99,13 @@ func (c *Client) loop() {
 				glog.Errorf("could not get %s: %s", nodePath, err)
 				continue
 			}
-			node.Host = *c.host
-			err = conn.Set(nodePath, node)
-			if err != nil {
-				glog.Errorf("problem updating %s: %s", nodePath, err)
-				continue
-			}
 		}
+		node.Host = *c.host
+		if err := conn.Set(nodePath, node); err != nil {
+			glog.Errorf("problem updating %s: %s", nodePath, err)
+			continue
+		}
+
 		e, err = conn.GetW(nodePath, node)
 		if err != nil {
 			glog.Errorf("err getting node %s: %s", nodePath, err)
