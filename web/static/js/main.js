@@ -1,13 +1,6 @@
-/*
- *******************************************************************************
- *
- *  Copyright (C) Zenoss, Inc. 2013, all rights reserved.
- *
- *  This content is made available according to terms specified in
- *  License.zenoss under the directory where your Zenoss product is installed.
- *
- *******************************************************************************
- */
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
 
 /*******************************************************************************
  * Main module & controllers
@@ -1636,3 +1629,13 @@ function itemClass(item) {
     }
     return cls;
 }
+
+var $notificationArea = $("#notifications");
+$(window).on("scroll", function(){
+    if($(window).scrollTop() > 0){
+        var top = Math.max(72 - $(window).scrollTop(), 0);
+        $notificationArea.css("top", top+"px");
+    }else{
+        $notificationArea.css("top", "72px");
+    }
+});

@@ -86,8 +86,8 @@
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
       <td><span am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span></td>
       <td>
-          <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
           <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
+          <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
       </td>
     </tr>
   </tbody>

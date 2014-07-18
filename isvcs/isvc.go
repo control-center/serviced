@@ -1,5 +1,5 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
+// Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
 // Package agent implements a service that runs on a serviced node. It is
@@ -21,7 +21,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zenoss/serviced-isvcs"
-	IMAGE_TAG  = "v10"
+	IMAGE_TAG  = "v11"
 )
 
 func Init() {

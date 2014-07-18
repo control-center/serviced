@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package service
 
 import (
@@ -190,9 +194,6 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
 	}
 
-	shutdown := make(chan interface{})
-	done := make(chan string)
-	go listener.listenHostState(shutdown, done, state.ID)
 
 	t.Log("Stop the instance and verify restart")
 	var s servicestate.ServiceState
@@ -201,6 +202,10 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not add watch to %s: %s", spath, err)
 	}
+
+	shutdown := make(chan interface{})
+	done := make(chan string)
+	go listener.listenHostState(shutdown, done, state.ID)
 
 	// get the start time and stop the service
 	<-eventC

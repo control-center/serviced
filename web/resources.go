@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package web
 
 import (
@@ -15,6 +19,7 @@ import (
 	"github.com/zenoss/serviced/dao"
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/zenoss/serviced/isvcs"
 	"github.com/zenoss/serviced/node"
 	"github.com/zenoss/serviced/servicedversion"
 )
@@ -114,6 +119,18 @@ func getServices(client *node.ControlClient) ([]*service.Service, error) {
 	return services, nil
 }
 
+func getISVCS() []*service.Service {
+	services := []*service.Service{}
+	services = append(services, &isvcs.InternalServicesISVC)
+	services = append(services, &isvcs.ElasticsearchISVC)
+	services = append(services, &isvcs.ZookeeperISVC)
+	services = append(services, &isvcs.LogstashISVC)
+	services = append(services, &isvcs.OpentsdbISVC)
+	services = append(services, &isvcs.CeleryISVC)
+	services = append(services, &isvcs.DockerRegistryISVC)
+	return services
+}
+
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
@@ -139,6 +156,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	}
 
 	result, err := getServices(client)
+	result = append(result, getISVCS()...)
 	if err != nil {
 		restServerError(w)
 		return
@@ -170,6 +188,10 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 
 func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if strings.Contains(serviceID, "isvc-") {
+		w.WriteJson([]*dao.RunningService{})
+		return
+	}
 	if err != nil {
 		restBadRequest(w)
 		return
@@ -245,22 +267,28 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 			topServices = append(topServices, service)
 		}
 	}
+	topServices = append(topServices, &isvcs.InternalServicesISVC)
 	glog.V(2).Infof("Returning %d services as top services", len(topServices))
 	w.WriteJson(&topServices)
 }
 
 func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w)
+		return
+	}
+
+	if strings.Contains(sid, "isvc-") {
+		w.WriteJson(isvcs.ISVCSMap[sid])
+		return
+	}
+
 	var allServices []*service.Service
 
 	if err := client.GetServices(&empty, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w)
-		return
-	}
-
-	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if err != nil {
-		restBadRequest(w)
 		return
 	}
 

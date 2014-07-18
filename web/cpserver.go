@@ -1,5 +1,5 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
+// Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
 package web
@@ -52,10 +52,10 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 // Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the vhosthandler function.
-func (sc *ServiceConfig) Serve() {
+func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	//start getting vhost endpoints
-	go sc.syncVhosts()
+	go sc.syncVhosts(shutdown)
 
 	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {

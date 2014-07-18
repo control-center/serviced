@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 /*
 PriorityQueue implementation take from golang std library container/heap documentation example
 */

@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package cmd
 
 import (
@@ -62,7 +66,7 @@ func (t APITest) StartServer() error {
 }
 
 func ExampleServicedCLI_CmdInit_logging() {
-	InitAPITest("serviced", "--logtostderr", "--alsologtostderr", "--logstashtype", "abc", "--master")
+	InitAPITest("serviced", "--logtostderr", "--alsologtostderr", "--master")
 	InitAPITest("serviced", "--logstashurl", "127.0.0.1", "-v", "4", "--agent")
 	InitAPITest("serviced", "--stderrthreshold", "2", "--vmodule", "a=1,b=2,c=3", "--master", "--agent")
 	InitAPITest("serviced", "--log_backtrace_at", "file.go:123", "--master", "--agent")

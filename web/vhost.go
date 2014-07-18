@@ -1,5 +1,5 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
+// Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
 package web
@@ -123,10 +123,6 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	}
 }
 
-func (sc *ServiceConfig) syncVhosts() {
-	go sc.watchVhosts()
-}
-
 func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry) registry.ProcessChildrenFunc {
 	return func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
@@ -158,7 +154,7 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 	}
 }
 
-func (sc *ServiceConfig) watchVhosts() error {
+func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 	glog.Info("watchVhosts starting")
 
 	// vhosts are at the root level (not pool aware)
@@ -175,11 +171,20 @@ func (sc *ServiceConfig) watchVhosts() error {
 	}
 
 	cancelChan := make(chan bool)
+	//listens to shutdown
 	go func() {
-		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
-		glog.Warning("watchVhosts ended")
+		select {
+		case <-shutdown:
+			close(cancelChan)
+			for vhost, ch := range vregistry.vhostWatch {
+				glog.Infof("Shutdown closing watch for %v", vhost)
+				close(ch)
+			}
+		}
 	}()
 
+	vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
+	glog.Warning("watchVhosts ended")
 	return nil
 }
 

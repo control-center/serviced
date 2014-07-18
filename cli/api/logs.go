@@ -1,5 +1,5 @@
 // Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by a
+// Use of this source code is governed by the Apache 2.0
 // license that can be found in the LICENSE file.
 
 package api
@@ -305,9 +305,13 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 	// attempt to unmarshal into singleLine
 	var line logSingleLine
 	if e := json.Unmarshal(source, &line); e == nil {
-		offset, e := strconv.ParseUint(line.Offset, 10, 64)
-		if e != nil {
-			return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
+		offset := uint64(0)
+		if len(line.Offset) != 0 {
+			var e error
+			offset, e = strconv.ParseUint(line.Offset, 10, 64)
+			if e != nil {
+				return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
+			}
 		}
 		compactLine := compactLogLine{
 			Timestamp: truncateToMinute(line.Timestamp.UnixNano()),

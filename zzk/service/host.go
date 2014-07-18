@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package service
 
 import (
@@ -94,7 +98,7 @@ func (l *HostStateListener) Listen(shutdown <-chan interface{}) {
 
 	// Housekeeping
 	defer func() {
-		glog.Infof("Agent receieved interrupt")
+		glog.Info("HostStateListener receieved interrupt")
 		close(_shutdown)
 		for len(processing) > 0 {
 			delete(processing, <-done)
@@ -214,11 +218,22 @@ func (l *HostStateListener) listenHostState(shutdown <-chan interface{}, done ch
 				return
 			}
 		case <-shutdown:
-			glog.V(2).Infof("Host instance %s receieved signal to shutdown", hs.ServiceStateID)
+			glog.V(2).Infof("Service %s Host instance %s receieved signal to shutdown", hs.ServiceID, hs.ServiceStateID)
 			if processDone != nil {
-				l.detachInstance(processDone, &state)
+				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				go l.detachInstance(processDone, &state)
+				select {
+				case <-processDone:
+					glog.V(2).Infof("detached from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				case <-time.After(45 * time.Second):
+					glog.Infof("timed out detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
+				}
+
 			} else {
+				glog.V(2).Infof("stopping from %s; %s", hs.ServiceID, hs.ServiceStateID)
 				l.stopInstance(&state)
+				glog.V(2).Infof("stopped from %s; %s", hs.ServiceID, hs.ServiceStateID)
+
 			}
 			return
 		}

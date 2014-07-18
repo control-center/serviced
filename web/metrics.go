@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package web
 
 import (
@@ -71,14 +75,14 @@ var (
 				Name:         "Swap empty",
 				Description:  "Alert when swap reaches zero",
 				MetricSource: "memory",
-				DataPoints:   []string{"memory.swap", "memory.free"},
+				DataPoints:   []string{"swap.free", "memory.free"},
 				Type:         "MinMax",
 				Threshold:    domain.MinMaxThreshold{Min: &zeroInt64, Max: nil},
 				EventTags: map[string]interface{}{
 					"Severity":    1,
 					"Resolution":  "Increase swap or memory",
 					"Explanation": "Ran out of all available memory space",
-					"EventClass":  "/Memory",
+					"EventClass":  "/Perf/Memory",
 				},
 			},
 		},

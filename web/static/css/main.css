@@ -100,6 +100,9 @@ table > thead.light {
 
 .table {
     margin-bottom: 30px;
+    /* tables usually have headings and/or actions
+        which are floated and must be cleared */
+    clear: both;
 }
 
 .table-bordered > thead > tr > th {
@@ -278,7 +281,7 @@ table .btn,
         width: 1024px;
     }
     .big textarea {
-        width: 100%;
+        width: 960px;
         min-height: 600px
     }
 }
@@ -677,10 +680,6 @@ input.startup {
     padding: 10px 30px;
 }
 
-.wizard .modal-footer {
-    text-align: left;
-}
-
 .wizard .block-data {
     padding: 6px 0px;
     display: block;
@@ -758,7 +757,6 @@ input.startup {
 .wizard .content {
     border-left: 1px solid black;
     background-color: #ffffff;
-    padding: 0px 15px 15px 15px;
     min-height: 600px;
 }
 
@@ -930,7 +928,10 @@ rect {
 #notifications {
     position: fixed;
     top: 72px;
+    opacity: 0.9;
+    z-index: 999;
 }
+
 #loginNotifications {
     width: 671px;
     margin: auto;
@@ -1091,6 +1092,20 @@ rect {
     100% { -webkit-transform: scale(1.4, 1.4);  }
 }
 
+.healthTooltipDetailRow {
+    font-size: .9em;
+}
+.healthTooltipDetailRow .healthTooltipDetailName,
+.healthTooltipDetailRow .healthIcon {
+    display: inline-block;
+}
+.healthTooltipDetailRow .healthIcon {
+    -webkit-transform: scale(1, 1);
+}
+.healthTooltipDetailRow .healthTooltipDetailName {
+    margin-left: 10px;
+}
+
 
 /* chart styles */
 .nv-axis .tick text,
@@ -1144,4 +1159,14 @@ input.ng-invalid:focus.ng-dirty:focus{
 
 .btn-link:hover{
     color: #4F83D1;
+}
+
+.modal-footer{
+    margin-top: 0px;
+}
+
+.note{
+    color: #666666;
+    font-size: .7em;
+    font-weight: bold;
 }

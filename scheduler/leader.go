@@ -1,9 +1,15 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package scheduler
 
 import (
 	"fmt"
 	"path"
 	"time"
+
+	"sync"
 
 	"github.com/zenoss/glog"
 	coordclient "github.com/zenoss/serviced/coordinator/client"
@@ -22,6 +28,7 @@ import (
 )
 
 type leader struct {
+	sync.Mutex
 	facade       *facade.Facade
 	dao          dao.ControlPlane
 	conn         coordclient.Connection
@@ -34,7 +41,7 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string) {
+func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, zkEvent <-chan coordclient.Event, poolID string, shutdown <-chan interface{}) {
 	glog.V(0).Info("Entering Lead()!")
 	defer glog.V(0).Info("Exiting Lead()!")
 	shutdownmode := false
@@ -46,37 +53,72 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	}
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
+	var wg sync.WaitGroup
 	for {
-		shutdown := make(chan interface{})
+		done := make(chan interface{})
 		if shutdownmode {
 			glog.V(1).Info("Shutdown mode encountered.")
-			close(shutdown)
+			close(done)
 			break
 		}
 
 		time.Sleep(time.Second)
-		func() error {
-			select {
-			case evt := <-zkEvent:
-				// shut this thing down
-				shutdownmode = true
-				glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
-				return nil
-			default:
-				glog.V(0).Info("Processing leader duties")
-				// passthru
-			}
-			// creates a listener for snapshots with a function call to take snapshots
-			// and return the label and error message
-			snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
-			go snapshotListener.Listen(shutdown)
-			leader.watchServices()
-
-			// starts a listener for the host registry
-			go hostRegistry.Listen(shutdown)
-
-			return nil
+		select {
+		case evt := <-zkEvent:
+			// shut this thing down
+			shutdownmode = true
+			glog.V(0).Info("Got a zkevent, leaving lead: ", evt)
+			return
+		default:
+			glog.V(0).Info("Processing leader duties")
+			// passthru
+		}
+		// creates a listener for snapshots with a function call to take snapshots
+		// and return the label and error message
+		snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+		wg.Add(1)
+		go func() {
+			glog.Info("snapshotListener starting")
+			snapshotListener.Listen(done)
+			glog.Info("snapshotListener stopped")
+			wg.Done()
 		}()
+
+		// starts a listener for the host registry
+		wg.Add(1)
+		go func() {
+			glog.Info("starting host registry ")
+			hostRegistry.Listen(done)
+			glog.Info("host registry stopped")
+			wg.Done()
+		}()
+
+		wg.Add(1)
+		go func() {
+			glog.Info("leader watch services starting")
+			leader.watchServices(done)
+			glog.Info("leader watch services  stopped")
+			wg.Done()
+		}()
+
+		wait := make(chan struct{})
+		go func() {
+			defer close(wait)
+			wg.Wait()
+			glog.Info("leader routines done")
+		}()
+		select {
+		case <-wait:
+			break
+		case <-shutdown:
+			glog.Infof("closing leader")
+			close(done)
+			select {
+			case <-wait:
+			}
+			return
+		}
+
 	}
 }
 
@@ -94,7 +136,7 @@ func (l *leader) TakeSnapshot(serviceID string) (string, error) {
 }
 
 // TODO: Move me into the zzk
-func (l *leader) watchServices() {
+func (l *leader) watchServices(cancel <-chan interface{}) {
 	conn := l.conn
 	processing := make(map[string]chan int)
 	sDone := make(chan string)
@@ -137,6 +179,8 @@ func (l *leader) watchServices() {
 				glog.V(1).Info("Leading cleaning up for service ", serviceID)
 				delete(processing, serviceID)
 				break VirtualIPWatching
+			case <-cancel:
+				return
 			case <-time.After(10 * time.Second):
 				// every 10 seconds, sync the virtual IPs in the model to zookeeper nodes
 				myPool, err := l.facade.GetResourcePool(l.context, l.poolID)
@@ -224,6 +268,10 @@ func (l *leader) watchService(shutdown <-chan int, done chan<- string, serviceID
 
 // TODO: move me into zzk
 func (l *leader) updateServiceInstances(service *service.Service, serviceStates []*servicestate.ServiceState) error {
+	// Locking to serialize starting of services so they get more evenly distributed (ZEN-12865)
+	l.Lock()
+	defer l.Unlock()
+
 	// pick services instances to start
 	instancesToKill := 0
 	instancesToStart := 0

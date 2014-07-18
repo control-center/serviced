@@ -1,5 +1,9 @@
+# Copyright 2014, The Serviced Authors. All rights reserved.
+# Use of this source code is governed by the Apache 2.0
+# license that can be found in the LICENSE file.
+
 TARGET := $(shell pwd)
-CONSUMER_VERSION := 0.0.7
+CONSUMER_VERSION := 0.0.8
 
 .PHONY: default tarball
 

@@ -1,3 +1,7 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package scheduler
 
 import (
@@ -10,10 +14,11 @@ import (
 	"github.com/zenoss/serviced/zzk"
 	"github.com/zenoss/serviced/zzk/registry"
 
+	"sync"
 	"time"
 )
 
-type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event, string)
+type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, <-chan coordclient.Event, string, <-chan interface{})
 
 type scheduler struct {
 	cpDao        dao.ControlPlane // ControlPlane interface
@@ -100,6 +105,8 @@ func (s *scheduler) loop() {
 	}
 	registry.CreateEndpointRegistry(rootConn)
 
+	stop := make(chan interface{})
+	var wg sync.WaitGroup
 	for _, aPool := range allPools {
 		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(aPool.ID))
 		if err != nil {
@@ -115,11 +122,25 @@ func (s *scheduler) loop() {
 			return
 		}
 
-		defer func() {
-			leader.ReleaseLead()
-		}()
+		defer func(l coordclient.Leader) {
+			glog.Info("releasing lead")
+			l.ReleaseLead()
+		}(leader)
 
 		glog.Infof(" Creating a leader for pool: %v --- %+v", aPool.ID, poolBasedConn)
-		s.zkleaderFunc(s.facade, s.cpDao, poolBasedConn, events, aPool.ID)
+		wg.Add(1)
+		go func(conn coordclient.Connection, zkevents <-chan coordclient.Event, poolID string) {
+			s.zkleaderFunc(s.facade, s.cpDao, conn, zkevents, poolID, stop)
+			glog.Infof("Leader done for pool: %v --- %+v", poolID, conn)
+			wg.Done()
+		}(poolBasedConn, events, aPool.ID)
+	}
+
+	select {
+	case stopChan := <-s.closing:
+		glog.Info("Scheduler asked to stop")
+		close(stop)
+		stopChan <- nil
+		//wait until we stop
 	}
 }
