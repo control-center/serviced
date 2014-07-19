@@ -31,7 +31,7 @@ func vippath(nodes ...string) string {
 
 type VirtualIPNode struct {
 	*pool.VirtualIP
-	version   interface{}
+	version interface{}
 }
 
 // ID implements zzk.Node
@@ -51,7 +51,7 @@ func (node *VirtualIPNode) Update(conn client.Connection) error {
 
 // Delete implements zzk.Node
 func (node *VirtualIPNode) Delete(conn client.Connection) error {
-	return RemoveVirtualIP(conn, node.ID)
+	return RemoveVirtualIP(conn, node.IP)
 }
 
 func (node *VirtualIPNode) Version() interface{}           { return node.version }
@@ -235,7 +235,7 @@ func (l *VirtualIPListener) unbind(ip string) error {
 func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
 	nodes := make([]*VirtualIPNode, len(virtualIPs))
 	for i := range virtualIPs {
-		nodes[i] = &VirtualIPNode{VirtualIP:&virtualIPs[i]}
+		nodes[i] = &VirtualIPNode{VirtualIP: &virtualIPs[i]}
 	}
 	return zzk.Sync(conn, nodes, vippath())
 }

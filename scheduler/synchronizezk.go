@@ -12,9 +12,9 @@ import (
 	"github.com/zenoss/serviced/domain/service"
 	"github.com/zenoss/serviced/facade"
 	"github.com/zenoss/serviced/zzk"
+	zkscheduler "github.com/zenoss/serviced/zzk/scheduler"
 	zkservice "github.com/zenoss/serviced/zzk/service"
 	"github.com/zenoss/serviced/zzk/virtualips"
-	zkscheduler "github.com/zenoss/serviced/zzk/scheduler"
 
 	"time"
 )
@@ -118,8 +118,8 @@ func (s *Synchronizer) syncHosts() error {
 	}
 
 	for _, myHost := range myHosts {
-		hosts := hostMap[myHost.PoolID]
-		servicesMap[myHost.PoolID] = append(hosts, myHost)
+		hosts := hostsMap[myHost.PoolID]
+		hostsMap[myHost.PoolID] = append(hosts, myHost)
 	}
 
 	// sync hosts by PoolID
@@ -137,7 +137,6 @@ func (s *Synchronizer) syncHosts() error {
 
 	return nil
 }
-
 
 func (s *Synchronizer) syncVirtualIPs() error {
 	allPools, err := s.facade.GetResourcePools(s.context)

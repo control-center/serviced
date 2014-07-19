@@ -234,13 +234,13 @@ func Sync(conn client.Connection, data []Node, path string) error {
 	var current []string
 	if exists, err := zzk.PathExists(conn, path); err != nil {
 		return err
-	} else if !exists{
+	} else if !exists {
 		// pass
 	} else if current, err = conn.Children(path); err != nil {
 		return err
 	}
 
-	datamap := make(map[string]CRUD)
+	datamap := make(map[string]Node)
 	for i, node := range data {
 		datamap[node.ID()] = datamap[i]
 	}
