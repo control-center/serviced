@@ -8,6 +8,7 @@ import (
 	"path"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/serviced/coordinator/client"
@@ -36,8 +37,43 @@ func (inst instances) Swap(i, j int)      { inst[i], inst[j] = inst[j], inst[i] 
 
 // ServiceNode is the zookeeper client Node for services
 type ServiceNode struct {
-	Service *service.Service
+	*service.Service
 	version interface{}
+}
+
+// ID implements zzk.Node
+func (node *ServiceNode) ID() string {
+	return node.ID
+}
+
+// Create implements zzk.Node
+func (node *ServiceNode) Create(conn client.Connection) error {
+	return UpdateService(conn, node.Service)
+}
+
+// Update implements zzk.Node
+func (node *ServiceNode) Update(conn client.Connection) error {
+	return UpdateService(conn, node.Service)
+}
+
+// Delete implements zzk.Node
+func (node *ServiceNode) Delete(conn client.Connection) (err error) {
+	var (
+		cancel = make(chan interface{})
+		done = make(chan interface{})
+	)
+
+	go func() {
+		defer close(done) 
+		err = RemoveService(cancel, conn, node.ID)
+	}
+	select {
+	case <-time.After(45 * time.Second):
+		close(cancel)
+	case <-done:
+	}
+	<-done
+	return err
 }
 
 // Version implements client.Node
@@ -213,6 +249,15 @@ func StopService(conn client.Connection, serviceID string) error {
 	}
 	node.Service.DesiredState = service.SVCStop
 	return conn.Set(path, &node)
+}
+
+// SyncServices synchronizes all services into zookeeper
+func SyncServices(conn client.Connection, services []*service.Service) error {
+	nodes := make([]*ServiceNode, len(services))
+	for i := range services {
+		nodes[i] = &ServiceNode{Service:services[i]}
+	}
+	return zzk.Sync(conn, nodes, servicepath())
 }
 
 // UpdateService updates a service node if it exists, otherwise creates it

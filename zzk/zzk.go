@@ -220,3 +220,47 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 	close(_shutdown)
 	wg.Wait()
 }
+
+// Node manages zookeeper actions
+type Node interface {
+	ID() string
+	Create(conn client.Connection) error
+	Update(conn client.Connection) error
+	Delete(conn client.Connection) error
+}
+
+// Sync synchronizes zookeeper data with what is in elastic or any other storage facility
+func Sync(conn client.Connection, data []Node, path string) error {
+	var current []string
+	if exists, err := zzk.PathExists(conn, path); err != nil {
+		return err
+	} else if !exists{
+		// pass
+	} else if current, err = conn.Children(path); err != nil {
+		return err
+	}
+
+	datamap := make(map[string]CRUD)
+	for i, node := range data {
+		datamap[node.ID()] = datamap[i]
+	}
+
+	for _, id := range current {
+		if node, ok := datamap[id]; ok {
+			if err := node.Update(conn); err != nil {
+				return nil
+			}
+			delete(datamap, id)
+		} else if err := node.Delete(conn); err != nil {
+			return err
+		}
+	}
+
+	for _, node := range datamap {
+		if err := node.Create(conn); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}

@@ -30,8 +30,28 @@ func hostregpath(nodes ...string) string {
 
 // HostNode is the zk node for Host
 type HostNode struct {
-	Host    *host.Host
+	*host.Host
 	version interface{}
+}
+
+// ID implements zzk.Node
+func (node *HostNode) ID() string {
+	return node.ID
+}
+
+// Create implements zzk.Node
+func (node *HostNode) Create(conn client.Connection) error {
+	return RegisterHost(conn, node.ID)
+}
+
+// Update implements zzk.Node
+func (node *HostNode) Update(conn client.Connection) error {
+	return nil
+}
+
+// Delete implements zzk.Node
+func (node *HostNode) Delete(conn client.Connection) error {
+	return UnregisterHost(conn, node.ID)
 }
 
 // Version implements client.Node
@@ -154,6 +174,14 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			return nil, ErrShutdown
 		}
 	}
+}
+
+func SyncHosts(conn client.Connection, hosts []*host.Host) error {
+	nodes := make([]*HostNode, len(hosts))
+	for i := range hosts {
+		nodes[i] = &HostNode{Host:hosts[i]}
+	}
+	return zzk.Sync(conn, nodes, hostpath())
 }
 
 func RegisterHost(conn client.Connection, hostID string) error {

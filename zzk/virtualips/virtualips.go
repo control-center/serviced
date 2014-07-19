@@ -30,8 +30,28 @@ func vippath(nodes ...string) string {
 }
 
 type VirtualIPNode struct {
-	VirtualIP *pool.VirtualIP
+	*pool.VirtualIP
 	version   interface{}
+}
+
+// ID implements zzk.Node
+func (node *VirtualIPNode) ID() string {
+	return node.IP
+}
+
+// Create implements zzk.Node
+func (node *VirtualIPNode) Create(conn client.Connection) error {
+	return AddVirtualIP(conn, node.VirtualIP)
+}
+
+// Update implements zzk.Node
+func (node *VirtualIPNode) Update(conn client.Connection) error {
+	return nil
+}
+
+// Delete implements zzk.Node
+func (node *VirtualIPNode) Delete(conn client.Connection) error {
+	return RemoveVirtualIP(conn, node.ID)
 }
 
 func (node *VirtualIPNode) Version() interface{}           { return node.version }
@@ -213,35 +233,11 @@ func (l *VirtualIPListener) unbind(ip string) error {
 }
 
 func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
-	var current []string
-	if exists, err := zzk.PathExists(conn, vippath()); err != nil {
-		return err
-	} else if !exists {
-		//pass
-	} else if current, err = conn.Children(vippath()); err != nil {
-		return err
+	nodes := make([]*VirtualIPNode, len(virtualIPs))
+	for i := range virtualIPs {
+		nodes[i] = &VirtualIPNode{VirtualIP:&virtualIPs[i]}
 	}
-
-	unsynced := make(map[string]*pool.VirtualIP)
-	for i, virtualIP := range virtualIPs {
-		unsynced[virtualIP.IP] = &virtualIPs[i]
-	}
-
-	for _, ip := range current {
-		if _, ok := unsynced[ip]; ok {
-			delete(unsynced, ip)
-		} else if err := RemoveVirtualIP(conn, ip); err != nil {
-			return err
-		}
-	}
-
-	for _, virtualIP := range unsynced {
-		if err := AddVirtualIP(conn, virtualIP); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return zzk.Sync(conn, nodes, vippath())
 }
 
 func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
