@@ -10,8 +10,8 @@ install: true
 
 before_script:
   - sudo apt-get update -qq
-  - sudo apt-get install -qq openjdk-7-jre-headless libpam0g-dev make
-
+  - sudo apt-get install -qq openjdk-7-jre-headless libpam0g-dev make git mercurial bzr libpam0g-dev 
+  - go get github.com/tools/godep
 
 script: "make test"
 
