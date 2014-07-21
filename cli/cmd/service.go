@@ -561,12 +561,9 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	service, err := c.driver.GetService(args[0])
+	service, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return
-	} else if service == nil {
-		fmt.Fprintln(os.Stderr, "service not found")
 		return
 	}
 
