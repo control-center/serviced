@@ -937,7 +937,13 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 		return
 	}
 
-	if snapshots, err := c.driver.GetSnapshotsByServiceID(ctx.Args().First()); err != nil {
+	svc, err := c.searchForService(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if snapshots, err := c.driver.GetSnapshotsByServiceID(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
