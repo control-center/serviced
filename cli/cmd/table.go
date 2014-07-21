@@ -16,6 +16,7 @@ var (
 	treeCharset map[string]string
 	treeUTF8    map[string]string
 	treeASCII   map[string]string
+	treeSPACE   map[string]string
 )
 
 func init() {
@@ -29,6 +30,12 @@ func init() {
 		"bar":    "| ",
 		"middle": "|-",
 		"last":   "+-",
+	}
+
+	treeSPACE = map[string]string{
+		"bar":    "  ",
+		"middle": "  ",
+		"last":   "  ",
 	}
 
 	treeCharset = treeUTF8
