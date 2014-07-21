@@ -5,7 +5,6 @@
 package api
 
 import (
-	"github.com/zenoss/glog"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -32,6 +31,7 @@ import (
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 	// Need to do btrfs driver initializations
 	_ "github.com/control-center/serviced/volume/btrfs"
 	// Need to do rsync driver initializations
@@ -213,9 +213,13 @@ func (d *daemon) startMaster() error {
 	d.startScheduler()
 	d.addTemplates()
 
-	agentIP, err := utils.GetIPAddress()
-	if err != nil {
-		panic(err)
+	agentIP := options.OutboundIP
+	if agentIP == "" {
+		var err error
+		agentIP, err = utils.GetIPAddress()
+		if err != nil {
+			panic(err)
+		}
 	}
 
 	// This is storage related
@@ -302,9 +306,13 @@ func (d *daemon) startAgent() error {
 		return err
 	}
 
-	agentIP, err := utils.GetIPAddress()
-	if err != nil {
-		panic(err)
+	agentIP := options.OutboundIP
+	if agentIP == "" {
+		var err error
+		agentIP, err = utils.GetIPAddress()
+		if err != nil {
+			panic(err)
+		}
 	}
 	thisHost, err := host.Build(agentIP, "unknown")
 	if err != nil {

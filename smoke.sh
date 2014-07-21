@@ -116,7 +116,6 @@ test_started() {
                 echo
                 echo "Output of docker ps --no-trunc | grep -v isvcs:"
                 docker ps --no-trunc | grep -v isvcs
-		sleep 600
             fi
             return 1
         fi
