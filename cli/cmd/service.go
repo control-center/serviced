@@ -16,6 +16,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 )
@@ -277,6 +278,41 @@ func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 		// TODO: get a list of the docker images
 	}
 	fmt.Println(strings.Join(output, "\n"))
+}
+
+// searches for services from definitions given keyword
+func (c *ServicedCli) searchForService(keyword string) (*service.Service, error) {
+	svcs, err := c.driver.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*service.Service
+	for _, svc := range svcs {
+		switch strings.ToLower(keyword) {
+		case svc.ID, strings.ToLower(svc.Name):
+			services = append(services, svc)
+		default:
+			if keyword == "" {
+				services = append(services, svc)
+			}
+		}
+	}
+
+	switch len(services) {
+	case 0:
+		return nil, fmt.Errorf("no services found")
+	case 1:
+		return services[0], nil
+	}
+
+	matches := newtable(0, 8, 2)
+	matches.printrow("NAME", "SERVICEID")
+	for _, row := range services {
+		matches.printrow(row.Name, row.ID)
+	}
+	matches.flush()
+	return nil, fmt.Errorf("multiple results found; select one from list")
 }
 
 // serviced service status
@@ -584,7 +620,13 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StartService(args[0]); err != nil {
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if err := c.driver.StartService(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Printf("Service scheduled to start.\n")
@@ -600,7 +642,13 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StopService(args[0]); err != nil {
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if err := c.driver.StopService(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Printf("Service scheduled to stop.\n")
