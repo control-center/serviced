@@ -12,7 +12,7 @@ import (
 )
 
 func main() {
-	hc := domain.HealthCheck{
+	hc := domain.StatusCheck{
 		Script:   "boo!",
 		Interval: time.Second * 10,
 	}

@@ -88,13 +88,7 @@ func getServiceStates(conn coordclient.Connection, serviceID string) ([]*service
 }
 
 // getServiceState gets the service state for a serviceID matching the instance ID specified
-func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr string) (*servicestate.ServiceState, error) {
-	tmpID, err := strconv.Atoi(instanceIDStr)
-	if err != nil {
-		glog.Errorf("Unable to interpret InstanceID: %s", instanceIDStr)
-		return nil, fmt.Errorf("endpoint.go getServiceState failed: %v", err)
-	}
-	instanceID := int(tmpID)
+func getServiceState(conn coordclient.Connection, serviceID string, instanceID int) (*servicestate.ServiceState, error) {
 
 	for {
 		serviceStates, err := getServiceStates(conn, serviceID)

@@ -41,28 +41,28 @@ func TestMinMax(t *testing.T) {
 	//min > max
 	mm.Min, mm.Max = 10, 5
 	err = mm.Validate()
-	if err.Error() != "Minimum instances larger than maximum instances: Min=10; Max=5" {
+	if err.Error() != "minimum instances larger than maximum instances: Min=10; Max=5" {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	// negative min
 	mm.Min, mm.Max = -1, 1
 	err = mm.Validate()
-	if err.Error() != "Instances constraints must be positive: Min=-1; Max=1" {
+	if err.Error() != "instances constraints must be positive: Min=-1; Max=1" {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	// negative max
 	mm.Min, mm.Max = 1, -1
 	err = mm.Validate()
-	if err.Error() != "Instances constraints must be positive: Min=1; Max=-1" {
+	if err.Error() != "instances constraints must be positive: Min=1; Max=-1" {
 		t.Errorf("Unexpected error: %v", err)
 	}
 
 	// negative min and max
 	mm.Min, mm.Max = -10, -10
 	err = mm.Validate()
-	if err.Error() != "Instances constraints must be positive: Min=-10; Max=-10" {
+	if err.Error() != "instances constraints must be positive: Min=-10; Max=-10" {
 		t.Errorf("Unexpected error: %v", err)
 	}
 

@@ -34,7 +34,7 @@ func init() {
 			Command:     `/opt/elasticsearch-0.90.9/bin/elasticsearch -f`,
 			Ports:       []int{9200},
 			Volumes:     map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
-			HealthCheck: elasticsearchHealthCheck,
+			StatusCheck: elasticsearchStatusCheck,
 		},
 	)
 	if err != nil {
@@ -56,8 +56,8 @@ func getEnvVarInt(envVar string, defaultValue int) int {
 	return defaultValue
 }
 
-// elasticsearchHealthCheck() determines if elasticsearch is healthy
-func elasticsearchHealthCheck() error {
+// elasticsearchStatusCheck() determines if elasticsearch is healthy
+func elasticsearchStatusCheck() error {
 
 	start := time.Now()
 	lastError := time.Now()

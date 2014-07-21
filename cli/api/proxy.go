@@ -5,6 +5,8 @@
 package api
 
 import (
+	"fmt"
+
 	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/container"
 )
@@ -12,7 +14,7 @@ import (
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
 	ServiceID            string   // The uuid of the service to launch
-	InstanceID           string   // The service state instance id
+	InstanceID           int      // The service state instance id
 	Command              []string // The command to launch
 	MuxPort              int      // the TCP port for the remote mux
 	Mux                  bool     // True if a remote mux is used
@@ -51,7 +53,7 @@ func (c ControllerOptions) toContainerControllerOptions() container.ControllerOp
 
 // Start a service proxy
 func (a *api) StartProxy(cfg ControllerOptions) error {
-	glog.SetLogstashType("controller-" + cfg.ServiceID + "-" + cfg.InstanceID)
+	glog.SetLogstashType(fmt.Sprintf("controller-%s-%d", cfg.ServiceID, cfg.InstanceID))
 	c, err := container.NewController(cfg.toContainerControllerOptions())
 	if err != nil {
 		return err

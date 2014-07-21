@@ -5,6 +5,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/domain/event"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -28,5 +29,6 @@ type Facade struct {
 	poolStore      *pool.Store
 	templateStore  *servicetemplate.Store
 	serviceStore   *service.Store
+	eventStore     *event.Store
 	dockerRegistry string
 }

@@ -8,7 +8,7 @@
 # /etc/init.d/apparmor stop ; /etc/init.d/apparmor teardown
 #
 # # Mount your source in an interactive container for quick testing:
-# docker run -v `pwd`:/go/src/github.com/zenoss/serviced -privileged -lxc-conf=lxc.aa_profile=unconfined -i -t serviced bash
+# docker run -v `pwd`:/go/src/github.com/control-center/serviced -privileged -lxc-conf=lxc.aa_profile=unconfined -i -t serviced bash
 #
 #
 FROM ubuntu:trusty

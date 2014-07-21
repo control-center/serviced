@@ -26,7 +26,7 @@ func init() {
 			Command:     `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`,
 			Ports:       []int{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
-			HealthCheck: registryHealthCheck,
+			StatusCheck: registryStatusCheck,
 		},
 	)
 	if err != nil {
@@ -34,7 +34,7 @@ func init() {
 	}
 }
 
-func registryHealthCheck() error {
+func registryStatusCheck() error {
 
 	start := time.Now()
 	timeout := time.Second * 30

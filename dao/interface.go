@@ -5,7 +5,6 @@
 package dao
 
 import (
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -188,7 +187,4 @@ type ControlPlane interface {
 
 	// Restore templates and services from a tgz file (inverse of Backup)
 	Restore(backupFilePath string, unused *int) error
-
-	// Register a health check result
-	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 }

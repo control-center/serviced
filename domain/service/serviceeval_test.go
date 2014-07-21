@@ -446,8 +446,8 @@ func (s *S) TestIllegalTemplates(t *C) {
 		},
 		//health check
 		Service{
-			HealthChecks: map[string]domain.HealthCheck{
-				"check": domain.HealthCheck{
+			StatusChecks: map[string]domain.StatusCheck{
+				"check": domain.StatusCheck{
 					Script: "{{illegal_healthcheck_script}}",
 				},
 			},

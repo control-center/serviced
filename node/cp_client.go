@@ -14,8 +14,8 @@ import (
 
 	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/event"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -237,8 +237,8 @@ func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.Action", req, unused)
 }
 
-func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused)
+func (s *ControlClient) SendEvent(evt event.Event, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.SendEvent", evt, unused)
 }
 
 func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {

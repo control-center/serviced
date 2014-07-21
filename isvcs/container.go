@@ -61,7 +61,7 @@ type ContainerDescription struct {
 	Command       string                              // the actual command to run inside the container
 	Volumes       map[string]string                   // Volumes to bind mount in to the containers
 	Ports         []int                               // Ports to expose to the host
-	HealthCheck   func() error                        // A function to verify that the service is healthy
+	StatusCheck   func() error                        // A function to verify that the service is healthy
 	Configuration interface{}                         // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 	volumesDir    string                              // directory to store volume data
@@ -143,8 +143,8 @@ func (c *Container) loop() {
 				c.stop()                // stop the container, if it's not stoppped
 				c.rm()                  // remove it if it was not already removed
 				cmd, exitChan = c.run() // run the actual container
-				if c.HealthCheck != nil {
-					req.response <- c.HealthCheck() // run the HealthCheck if it exists
+				if c.StatusCheck != nil {
+					req.response <- c.StatusCheck() // run the StatusCheck if it exists
 				} else {
 					req.response <- nil
 				}

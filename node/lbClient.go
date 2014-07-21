@@ -7,7 +7,7 @@ package node
 import (
 	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/event"
 	"github.com/control-center/serviced/domain/service"
 
 	"net/rpc"
@@ -78,16 +78,10 @@ func (a *LBClient) GetTenantId(serviceId string, tenantId *string) error {
 	return a.rpcClient.Call("ControlPlaneAgent.GetTenantId", serviceId, tenantId)
 }
 
-// LogHealthCheck stores a health check result.
-func (a *LBClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	glog.V(4).Infof("ControlPlaneAgent.LogHealthCheck()")
-	return a.rpcClient.Call("ControlPlaneAgent.LogHealthCheck", result, unused)
-}
-
-// GetHealthCheck returns the health check configuration for a service, if it exists
-func (a *LBClient) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
-	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
-	return a.rpcClient.Call("ControlPlaneAgent.GetHealthCheck", req, healthChecks)
+// SendEvent sends a system event.
+func (a *LBClient) SendEvent(evt event.Event, unused *int) error {
+	glog.V(4).Infof("ControlPlaneAgent.SendEvent()")
+	return a.rpcClient.Call("ControlPlaneAgent.SendEvent", evt, unused)
 }
 
 // GetHostID returns the agent's host id

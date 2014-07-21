@@ -31,7 +31,7 @@ func init() {
 			Command:     "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
 			Ports:       []int{2181, 12181},
 			Volumes:     map[string]string{"data": "/tmp"},
-			HealthCheck: zkHealthCheck,
+			StatusCheck: zkStatusCheck,
 		})
 	if err != nil {
 		glog.Fatal("Error initializing zookeeper container: %s", err)
@@ -39,7 +39,7 @@ func init() {
 }
 
 // a health check for zookeeper
-func zkHealthCheck() error {
+func zkStatusCheck() error {
 
 	start := time.Now()
 	lastError := time.Now()
