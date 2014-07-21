@@ -7,8 +7,8 @@ package layer
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/commons/circular"
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/circular"
 
 	"archive/tar"
 	"bufio"

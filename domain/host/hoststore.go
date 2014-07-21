@@ -7,7 +7,7 @@ package host
 import (
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
+	"github.com/control-center/serviced/datastore"
 
 	"errors"
 	"fmt"

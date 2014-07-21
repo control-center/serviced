@@ -7,9 +7,9 @@ package docker
 import (
 	"path"
 
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/utils"
 )
 
 const (

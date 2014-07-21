@@ -5,7 +5,7 @@
 package web
 
 import (
-	"github.com/zenoss/serviced/domain/host"
+	"github.com/control-center/serviced/domain/host"
 
 	"testing"
 )

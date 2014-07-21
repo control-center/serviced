@@ -1,10 +1,14 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
 package scheduler
 
 import (
 	"path"
 
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/pools"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/zzk"
 )
 
 const (
@@ -22,7 +26,7 @@ type PoolNode struct {
 }
 
 // ID implements zzk.Node
-func (node *PoolNode) ID() string {
+func (node *PoolNode) GetID() string {
 	return node.ID
 }
 
@@ -44,11 +48,10 @@ func (node *PoolNode) Delete(conn client.Connection) error {
 func (node *PoolNode) Version() interface{}           { return node.version }
 func (node *PoolNode) SetVersion(version interface{}) { node.version = version }
 
-
 func SyncResourcePools(conn client.Connection, pools []*pool.ResourcePool) error {
-	nodes := make([]*PoolNode, len(pools))
+	nodes := make([]zzk.Node, len(pools))
 	for i := range pools {
-		nodes[i] = &HostNode{ResourcePool:pools[i]}
+		nodes[i] = &PoolNode{ResourcePool: pools[i]}
 	}
 	return zzk.Sync(conn, nodes, poolpath())
 }

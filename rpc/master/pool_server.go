@@ -7,8 +7,8 @@ package master
 import (
 	"errors"
 
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/facade"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/facade"
 )
 
 // GetResourcePools returns all ResourcePools

@@ -7,13 +7,13 @@ package api
 import (
 	"io"
 
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	template "github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/facade"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	template "github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/facade"
 )
 
 // API is the intermediary between the command-line interface and the dao layer

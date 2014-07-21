@@ -9,18 +9,18 @@ import (
 
 	"sync"
 
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/zzk"
+	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/snapshot"
+	"github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/zzk"
-	zkservice "github.com/zenoss/serviced/zzk/service"
-	"github.com/zenoss/serviced/zzk/snapshot"
-	"github.com/zenoss/serviced/zzk/virtualips"
 )
 
 type leader struct {

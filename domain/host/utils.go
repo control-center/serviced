@@ -7,8 +7,8 @@ package host
 import (
 	"github.com/kr/pretty"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/utils"
-	"github.com/zenoss/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/servicedversion"
 
 	"fmt"
 	"net"

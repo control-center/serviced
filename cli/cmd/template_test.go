@@ -5,9 +5,9 @@
 package cmd
 
 import (
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/domain/service"
-	template "github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain/service"
+	template "github.com/control-center/serviced/domain/servicetemplate"
 
 	"encoding/json"
 	"errors"

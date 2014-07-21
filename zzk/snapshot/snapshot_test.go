@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/zzk"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/zzk"
 )
 
 type SnapshotResult struct {

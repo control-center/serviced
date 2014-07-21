@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/zenoss/serviced/cli/api"
+	"github.com/control-center/serviced/cli/api"
 )
 
 const (

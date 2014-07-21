@@ -9,10 +9,10 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/zzk"
 )
 
 const (
@@ -35,7 +35,7 @@ type VirtualIPNode struct {
 }
 
 // ID implements zzk.Node
-func (node *VirtualIPNode) ID() string {
+func (node *VirtualIPNode) GetID() string {
 	return node.IP
 }
 
@@ -233,7 +233,7 @@ func (l *VirtualIPListener) unbind(ip string) error {
 }
 
 func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
-	nodes := make([]*VirtualIPNode, len(virtualIPs))
+	nodes := make([]zzk.Node, len(virtualIPs))
 	for i := range virtualIPs {
 		nodes[i] = &VirtualIPNode{VirtualIP: &virtualIPs[i]}
 	}

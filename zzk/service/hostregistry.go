@@ -8,10 +8,10 @@ import (
 	"errors"
 	"path"
 
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
 )
 
 const (
@@ -35,7 +35,7 @@ type HostNode struct {
 }
 
 // ID implements zzk.Node
-func (node *HostNode) ID() string {
+func (node *HostNode) GetID() string {
 	return node.ID
 }
 
@@ -177,9 +177,9 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 }
 
 func SyncHosts(conn client.Connection, hosts []*host.Host) error {
-	nodes := make([]*HostNode, len(hosts))
+	nodes := make([]zzk.Node, len(hosts))
 	for i := range hosts {
-		nodes[i] = &HostNode{Host:hosts[i]}
+		nodes[i] = &HostNode{Host: hosts[i]}
 	}
 	return zzk.Sync(conn, nodes, hostpath())
 }

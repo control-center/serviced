@@ -10,14 +10,14 @@ import (
 	"sync"
 	"time"
 
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/utils"
-	"github.com/zenoss/serviced/zzk"
 )
 
 const (
@@ -42,7 +42,7 @@ type ServiceNode struct {
 }
 
 // ID implements zzk.Node
-func (node *ServiceNode) ID() string {
+func (node *ServiceNode) GetID() string {
 	return node.ID
 }
 
@@ -60,13 +60,13 @@ func (node *ServiceNode) Update(conn client.Connection) error {
 func (node *ServiceNode) Delete(conn client.Connection) (err error) {
 	var (
 		cancel = make(chan interface{})
-		done = make(chan interface{})
+		done   = make(chan interface{})
 	)
 
 	go func() {
-		defer close(done) 
+		defer close(done)
 		err = RemoveService(cancel, conn, node.ID)
-	}
+	}()
 	select {
 	case <-time.After(45 * time.Second):
 		close(cancel)
@@ -253,9 +253,9 @@ func StopService(conn client.Connection, serviceID string) error {
 
 // SyncServices synchronizes all services into zookeeper
 func SyncServices(conn client.Connection, services []*service.Service) error {
-	nodes := make([]*ServiceNode, len(services))
+	nodes := make([]zzk.Node, len(services))
 	for i := range services {
-		nodes[i] = &ServiceNode{Service:services[i]}
+		nodes[i] = &ServiceNode{Service: services[i]}
 	}
 	return zzk.Sync(conn, nodes, servicepath())
 }

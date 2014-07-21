@@ -5,7 +5,7 @@
 package storage
 
 import (
-	"github.com/zenoss/serviced/domain/host"
+	"github.com/control-center/serviced/domain/host"
 )
 
 // Node is a server that participate in serviced storage as a server or client

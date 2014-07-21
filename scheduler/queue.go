@@ -8,7 +8,7 @@ PriorityQueue implementation take from golang std library container/heap documen
 package scheduler
 
 import (
-	"github.com/zenoss/serviced/domain/host"
+	"github.com/control-center/serviced/domain/host"
 )
 
 // PriorityQueue implements the heap.Interface and holds hostitems

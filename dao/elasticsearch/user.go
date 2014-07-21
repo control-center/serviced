@@ -11,9 +11,9 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	userdomain "github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/datastore"
+	userdomain "github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/utils"
 
 	"crypto/sha1"
 	"errors"

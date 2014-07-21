@@ -7,8 +7,8 @@ package elastic_test
 import (
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	. "github.com/zenoss/serviced/datastore/elastic"
+	"github.com/control-center/serviced/datastore"
+	. "github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"

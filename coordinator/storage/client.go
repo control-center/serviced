@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dfs/nfs"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dfs/nfs"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 )
 
 type nfsMountT func(string, string) error

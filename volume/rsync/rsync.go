@@ -6,7 +6,7 @@ package rsync
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/volume"
+	"github.com/control-center/serviced/volume"
 
 	"fmt"
 	"io/ioutil"

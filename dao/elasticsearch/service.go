@@ -5,9 +5,9 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // AddService add a service. Return error if service already exists

@@ -6,10 +6,10 @@ package facade
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 
 	"fmt"
 )

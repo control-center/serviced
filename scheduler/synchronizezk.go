@@ -5,16 +5,15 @@
 package scheduler
 
 import (
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/zzk"
+	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
+	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/zzk"
-	zkscheduler "github.com/zenoss/serviced/zzk/scheduler"
-	zkservice "github.com/zenoss/serviced/zzk/service"
-	"github.com/zenoss/serviced/zzk/virtualips"
 
 	"time"
 )
@@ -82,7 +81,7 @@ func (s *Synchronizer) syncServices() error {
 	for poolID, services := range servicesMap {
 		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
-			glog.Errorf("could not get pool based zk connection to %v: %v", aPool.ID, err)
+			glog.Errorf("could not get pool based zk connection to %v: %v", poolID, err)
 			return err
 		}
 		if err := zkservice.SyncServices(poolBasedConn, services); err != nil {
@@ -123,7 +122,7 @@ func (s *Synchronizer) syncHosts() error {
 	}
 
 	// sync hosts by PoolID
-	for poolID, hosts := range servicesMap {
+	for poolID, hosts := range hostsMap {
 		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("could not get pool based zk connection to %v: %v", poolID, err)

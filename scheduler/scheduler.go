@@ -5,13 +5,13 @@
 package scheduler
 
 import (
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/zzk"
-	"github.com/zenoss/serviced/zzk/registry"
 
 	"path"
 )

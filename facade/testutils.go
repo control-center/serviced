@@ -5,16 +5,16 @@
 package facade
 
 import (
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/elastic"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/serviceconfigfile"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/domain/user"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/serviceconfigfile"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
 	gocheck "gopkg.in/check.v1"
 )
 

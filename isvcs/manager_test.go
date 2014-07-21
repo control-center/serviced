@@ -10,7 +10,7 @@
 package isvcs
 
 import (
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/utils"
 
 	"testing"
 	"time"

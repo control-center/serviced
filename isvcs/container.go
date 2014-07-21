@@ -13,9 +13,9 @@ import (
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons/circular"
-	"github.com/zenoss/serviced/stats/cgroup"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/commons/circular"
+	"github.com/control-center/serviced/stats/cgroup"
+	"github.com/control-center/serviced/utils"
 
 	"bytes"
 	"encoding/json"

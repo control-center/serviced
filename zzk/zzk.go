@@ -9,8 +9,8 @@ import (
 	"path"
 	"sync"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
 )
 
 var zClient *client.Client
@@ -223,7 +223,7 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 
 // Node manages zookeeper actions
 type Node interface {
-	ID() string
+	GetID() string
 	Create(conn client.Connection) error
 	Update(conn client.Connection) error
 	Delete(conn client.Connection) error
@@ -232,7 +232,7 @@ type Node interface {
 // Sync synchronizes zookeeper data with what is in elastic or any other storage facility
 func Sync(conn client.Connection, data []Node, path string) error {
 	var current []string
-	if exists, err := zzk.PathExists(conn, path); err != nil {
+	if exists, err := PathExists(conn, path); err != nil {
 		return err
 	} else if !exists {
 		// pass
@@ -242,7 +242,7 @@ func Sync(conn client.Connection, data []Node, path string) error {
 
 	datamap := make(map[string]Node)
 	for i, node := range data {
-		datamap[node.ID()] = datamap[i]
+		datamap[node.GetID()] = data[i]
 	}
 
 	for _, id := range current {
