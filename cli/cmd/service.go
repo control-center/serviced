@@ -446,7 +446,13 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 // serviced service list [--verbose, -v] [SERVICEID]
 func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
-		serviceID := ctx.Args()[0]
+		svc, err := c.searchForService(ctx.Args()[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceID := svc.ID
 		if service, err := c.driver.GetService(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
