@@ -280,7 +280,7 @@ func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 	fmt.Println(strings.Join(output, "\n"))
 }
 
-// searches for services from definitions given keyword
+// searches for service from definitions given keyword
 func (c *ServicedCli) searchForService(keyword string) (*service.Service, error) {
 	svcs, err := c.driver.GetServices()
 	if err != nil {
@@ -313,6 +313,34 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
+}
+
+// searches for services from definitions given keyword
+func (c *ServicedCli) searchForServices(keywords []string) ([]*service.Service, error) {
+	svcs, err := c.driver.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*service.Service
+	for _, svc := range svcs {
+		for _, keyword := range keywords {
+			switch strings.ToLower(keyword) {
+			case svc.ID, strings.ToLower(svc.Name):
+				services = append(services, svc)
+			default:
+				if keyword == "" {
+					services = append(services, svc)
+				}
+			}
+		}
+	}
+
+	if len(services) == 0 {
+		return nil, fmt.Errorf("no services found")
+	}
+
+	return services, nil
 }
 
 // serviced service status
@@ -538,16 +566,22 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	for _, id := range args {
+	services, err := c.searchForServices(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	for _, svc := range services {
 		cfg := api.RemoveServiceConfig{
-			ServiceID:       id,
+			ServiceID:       svc.ID,
 			RemoveSnapshots: ctx.Bool("remove-snapshots"),
 		}
 
 		if err := c.driver.RemoveService(cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+			fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 		} else {
-			fmt.Println(id)
+			fmt.Println(svc.ID)
 		}
 	}
 }
