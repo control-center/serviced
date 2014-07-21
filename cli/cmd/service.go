@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/node"
+	"github.com/zenoss/glog"
 )
 
 var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
@@ -46,12 +46,16 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceList,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
 				},
 			}, {
 				Name:        "status",
 				Usage:       "Displays the status of deployed services",
 				Description: "serviced service status",
 				Action:      c.cmdServiceStatus,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
+				},
 			}, {
 				Name:         "add",
 				Usage:        "Adds a new service",
@@ -394,6 +398,19 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			top = append(top, line["ID"])
 		}
 	}
+
+	useTreeAscii := configBool("TREE_ASCII", false)
+	if ctx.Bool("ascii") {
+		useTreeAscii = true
+	}
+
+	isTTY := isatty(os.Stdout)
+	if useTreeAscii {
+		treeCharset = treeASCII
+	} else if !isTTY {
+		treeCharset = treeSPACE
+	}
+
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
 	tableService.printrow("NAME", "ID", "STATUS", "HOST", "DOCKER_ID")
@@ -439,6 +456,19 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Println(string(jsonService))
 		}
 	} else {
+
+		useTreeAscii := configBool("TREE_ASCII", false)
+		if ctx.Bool("ascii") {
+			useTreeAscii = true
+		}
+
+		isTTY := isatty(os.Stdout)
+		if useTreeAscii {
+			treeCharset = treeASCII
+		} else if !isTTY {
+			treeCharset = treeSPACE
+		}
+
 		servicemap := api.NewServiceMap(services)
 		tableService := newtable(0, 8, 2)
 		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")

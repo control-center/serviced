@@ -43,6 +43,32 @@ func configInt(key string, defaultVal int) int {
 	}
 	return v
 }
+func configBool(key string, defaultVal bool) bool {
+	s := configEnv(key, "")
+	if len(s) == 0 {
+		return defaultVal
+	}
+
+	trues := []string{"1", "true", "t", "yes"}
+	if v := strings.ToLower(s); v != "" {
+		for _, t := range trues {
+			if v == t {
+				return true
+			}
+		}
+	}
+
+	falses := []string{"0", "false", "f", "no"}
+	if v := strings.ToLower(s); v != "" {
+		for _, t := range falses {
+			if v == t {
+				return false
+			}
+		}
+	}
+
+	return defaultVal
+}
 
 const defaultRPCPort = 4979
 
