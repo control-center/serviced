@@ -337,7 +337,7 @@ func (c *ServicedCli) searchForServices(keywords []string) ([]*service.Service, 
 	}
 
 	if len(services) == 0 {
-		return nil, fmt.Errorf("no services found")
+		return nil, fmt.Errorf("no service found")
 	}
 
 	return services, nil
