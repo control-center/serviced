@@ -53,6 +53,9 @@ func (c *ServicedCli) initService() {
 				Usage:       "Displays the status of deployed services",
 				Description: "serviced service status",
 				Action:      c.cmdServiceStatus,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
+				},
 			}, {
 				Name:         "add",
 				Usage:        "Adds a new service",
@@ -395,6 +398,19 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			top = append(top, line["ID"])
 		}
 	}
+
+	useTreeAscii := configBool("TREE_ASCII", false)
+	if ctx.Bool("ascii") {
+		useTreeAscii = true
+	}
+
+	isTTY := isatty(os.Stdout)
+	if useTreeAscii {
+		treeCharset = treeASCII
+	} else if !isTTY {
+		treeCharset = treeSPACE
+	}
+
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
 	tableService.printrow("NAME", "ID", "STATUS", "HOST", "DOCKER_ID")
