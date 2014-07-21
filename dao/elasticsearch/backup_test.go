@@ -16,12 +16,12 @@ import (
 	"testing"
 
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicetemplate"
 	. "gopkg.in/check.v1"
 )
 

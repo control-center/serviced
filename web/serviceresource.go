@@ -7,8 +7,8 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/dao"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/dao"
 
 	"net/url"
 )

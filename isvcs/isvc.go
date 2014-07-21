@@ -11,7 +11,7 @@ package isvcs
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/utils"
 
 	"fmt"
 	"os/user"

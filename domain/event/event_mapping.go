@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/control-center/serviced/datastore/elastic"
 )
 
 var (

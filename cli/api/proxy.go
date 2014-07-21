@@ -8,7 +8,7 @@ import (
 	"fmt"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/container"
+	"github.com/control-center/serviced/container"
 )
 
 // ControllerOptions are options to be run when starting a new proxy server

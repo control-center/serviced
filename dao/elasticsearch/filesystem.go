@@ -6,11 +6,11 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/volume"
-	"github.com/zenoss/serviced/zzk"
-	zkSnapshot "github.com/zenoss/serviced/zzk/snapshot"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/zzk"
+	zkSnapshot "github.com/control-center/serviced/zzk/snapshot"
 
 	"errors"
 	"os"

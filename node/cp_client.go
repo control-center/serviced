@@ -13,14 +13,14 @@ import (
 	"net/rpc"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/event"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/volume"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/event"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/volume"
 )
 
 // A serviced client.

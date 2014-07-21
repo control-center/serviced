@@ -8,10 +8,10 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	zkutils "github.com/control-center/serviced/zzk/utils"
 )
 
 const (

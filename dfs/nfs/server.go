@@ -16,8 +16,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/zenoss/serviced/commons/atomicfile"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/commons/atomicfile"
+	"github.com/control-center/serviced/utils"
 )
 
 // Server manages exporting an NFS mount.

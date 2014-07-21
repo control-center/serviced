@@ -6,7 +6,7 @@ package facade
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
+	"github.com/control-center/serviced/datastore"
 )
 
 type eventContext map[string]interface{}

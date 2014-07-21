@@ -9,8 +9,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // URL parses and handles URL typed options

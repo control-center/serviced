@@ -10,8 +10,8 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	. "gopkg.in/check.v1"
 
 	"fmt"

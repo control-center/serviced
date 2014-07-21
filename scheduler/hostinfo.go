@@ -10,9 +10,9 @@ import (
 	"sync"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // HostInfo provides methods for getting host information from the dao or

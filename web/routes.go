@@ -6,7 +6,7 @@ package web
 
 import (
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/health"
+	"github.com/control-center/serviced/health"
 )
 
 //getRoutes returns all registered rest routes

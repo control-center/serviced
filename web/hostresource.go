@@ -7,9 +7,9 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/rpc/agent"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/rpc/agent"
 
 	"net"
 	"net/url"

@@ -17,9 +17,9 @@ import (
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 var startup_testcases = []struct {

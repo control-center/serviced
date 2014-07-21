@@ -6,7 +6,7 @@ package utils
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client"
 )
 
 // PathExists ensures the error from the coordinator is not an ErrNoNode

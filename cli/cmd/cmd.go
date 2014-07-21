@@ -12,9 +12,9 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/servicedversion"
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/validation"
 )
 
 // ServicedCli is the client ui for serviced

@@ -5,11 +5,11 @@
 package servicetemplate
 
 import (
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/validation"
 
 	//	"strings"
 	"fmt"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // ValidEntity ensure that a ServiceTemplate has valid values

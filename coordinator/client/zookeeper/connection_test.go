@@ -13,7 +13,7 @@ import (
 
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
+	coordclient "github.com/control-center/serviced/coordinator/client"
 )
 
 func init() {

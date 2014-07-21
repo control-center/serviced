@@ -11,11 +11,11 @@ import (
 
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/shell"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/shell"
+	"github.com/control-center/serviced/utils"
 )
 
 // ShellConfig is the deserialized object from the command-line

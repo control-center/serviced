@@ -8,9 +8,9 @@ import (
 	"path"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/utils"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/utils"
+	zkutils "github.com/control-center/serviced/zzk/utils"
 )
 
 const (

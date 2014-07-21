@@ -8,9 +8,9 @@ package main
 import (
 	"os"
 
-	"github.com/zenoss/serviced/servicedversion"
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/cli/cmd"
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/cli/cmd"
 )
 
 var Version string

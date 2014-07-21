@@ -13,8 +13,8 @@ import (
 	"sync"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/validation"
 )
 
 const defaultSubnet string = "10.3" // /16 subnet for virtual addresses

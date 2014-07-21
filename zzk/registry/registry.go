@@ -6,8 +6,8 @@ package registry
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/zzk/utils"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/zzk/utils"
 )
 
 type registryType struct {

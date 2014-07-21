@@ -5,7 +5,7 @@
 package api
 
 import (
-	"github.com/zenoss/serviced/commons/layer"
+	"github.com/control-center/serviced/commons/layer"
 )
 
 // Squash flattens the image (or at least down the to optional downToLayer).

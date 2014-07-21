@@ -5,7 +5,7 @@
 package master
 
 import (
-	"github.com/zenoss/serviced/domain/event"
+	"github.com/control-center/serviced/domain/event"
 )
 
 //GetEvent gets the event for the given eventID or nil

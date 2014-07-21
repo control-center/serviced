@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/validation"
 )
 
 var validTime = time.Date(2014, 1, 1, 0, 0, 0, 0, time.UTC)

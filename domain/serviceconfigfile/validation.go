@@ -5,7 +5,7 @@
 package serviceconfigfile
 
 import (
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/validation"
 	"strings"
 )
 

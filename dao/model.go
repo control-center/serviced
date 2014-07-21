@@ -7,9 +7,9 @@ package dao
 import (
 	"time"
 
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/utils"
 )
 
 type User struct {

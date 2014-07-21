@@ -7,7 +7,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/zenoss/serviced/domain"
+	"github.com/control-center/serviced/domain"
 	"time"
 )
 

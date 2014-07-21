@@ -5,7 +5,7 @@
 package servicedefinition
 
 import (
-	"github.com/zenoss/serviced/domain"
+	"github.com/control-center/serviced/domain"
 
 	"errors"
 	"strings"

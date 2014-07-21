@@ -7,7 +7,7 @@ package web
 import (
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/domain/event"
+	"github.com/control-center/serviced/domain/event"
 
 	"net/url"
 )

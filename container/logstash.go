@@ -8,8 +8,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 const (

@@ -7,7 +7,7 @@ package elastic
 import (
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/datastore"
+	"github.com/control-center/serviced/datastore"
 
 	"bytes"
 	"encoding/json"

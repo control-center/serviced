@@ -5,8 +5,8 @@
 package agent
 
 import (
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/utils"
 
 	"strings"
 	"testing"

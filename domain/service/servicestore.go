@@ -6,8 +6,8 @@ package service
 
 import (
 	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/servicedefinition"
 
 	"errors"
 	"fmt"
