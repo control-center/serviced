@@ -42,7 +42,11 @@ func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connecti
 	defer glog.V(0).Info("Exiting Lead()!")
 
 	// creates a listener for the host registry
-	hostRegistry := zkservice.NewHostRegistryListener(conn)
+	hostRegistry, err := zkservice.NewHostRegistryListener(conn)
+	if err != nil {
+		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
+		return
+	}
 
 	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
 	glog.V(0).Info("Processing leader duties")

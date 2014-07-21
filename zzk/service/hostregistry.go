@@ -72,8 +72,17 @@ type HostRegistryListener struct {
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
-func NewHostRegistryListener(conn client.Connection) *HostRegistryListener {
-	return &HostRegistryListener{conn, make(chan interface{})}
+func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
+	// initialize the hostregistry
+	if exists, err := zzk.PathExists(conn, hostregpath()); err != nil {
+		return nil, err
+	} else if exists {
+		// pass
+	} else if err := conn.CreateDir(hostregpath()); err != nil {
+		return nil, err
+	}
+
+	return &HostRegistryListener{conn, make(chan interface{})}, nil
 }
 
 // GetConnection implements zzk.Listener

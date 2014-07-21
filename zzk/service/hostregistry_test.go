@@ -15,12 +15,16 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
 )
 
 func TestHostRegistryListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatalf("Could not initialize host registry: %s", err)
+	}
 
 	var (
 		shutdown = make(chan interface{})
@@ -130,7 +134,10 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 func TestHostRegistryListener_Spawn(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatalf("Could not initialize host registry: %s", err)
+	}
 
 	// Register the host
 	host := &host.Host{ID: "test-host-1"}
@@ -227,7 +234,10 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 func TestHostRegistryListener_unregister(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener := NewHostRegistryListener(conn)
+	listener, err := NewHostRegistryListener(conn)
+	if err != nil {
+		t.Fatalf("Could not initialize host registry: %s", err)
+	}
 
 	host1 := &host.Host{ID: "test-host-1"}
 	host2 := &host.Host{ID: "test-host-2"}

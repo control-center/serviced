@@ -14,6 +14,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
 )
 
 type TestHostStateHandler struct {
