@@ -196,6 +196,45 @@ func TestServiceListener_Spawn(t *testing.T) {
 	wg.Wait()
 }
 
+func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	svc := &service.Service{
+		ID:            "test-service-1",
+		Endpoints:     make([]service.ServiceEndpoint, 1),
+		ChangeOptions: []string{"restartAllOnInstanceChanged"},
+	}
+	spath := servicepath(svc.ID)
+	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
+		t.Fatalf("Error while cresting node %s: %s", spath, err)
+	}
+	listener := NewServiceListener(conn, handler)
+	rss, err := LoadRunningServicesByService(conn, svc.ID)
+
+	// Start 5 instances and verify
+	t.Log("Starting 5 instances")
+	svc.Instances = 5
+	listener.sync(svc, rss)
+	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
+	if err != nil {
+		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
+	} else if count := len(rss); count != svc.Instances {
+		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
+	}
+
+	// Add three more instances
+	t.Log("Starting 3 more instances")
+	svc.Instances = 8
+	listener.sync(svc, rss)
+	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
+	if err != nil {
+		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
+	} else if count := len(rss); count != 5 {
+		t.Errorf("MISMATCH: expected %d instances; actual %d", 5, count)
+	}
+}
+
 func TestServiceListener_sync(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
