@@ -344,6 +344,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 		}
 	} else if len(offsets) > len(messages) {
 		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+		offsets = offsets[0:len(messages)]
 	} else if len(offsets) < len(messages) {
 		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = generateOffsets(messages, offsets)
