@@ -19,5 +19,5 @@ script: "make test --warn-undefined-variables"
 # whitelist
 branches:
   only:
-    - develop
+    - feature/fixTravis
 
