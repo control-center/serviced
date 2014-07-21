@@ -779,21 +779,26 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 
 	var (
-		serviceID, command string
-		argv               []string
+		command string
+		argv    []string
 	)
 
-	serviceID = args[0]
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return err
+	}
+
 	command = args[1]
 	if len(args) > 2 {
 		argv = args[2:]
 	}
 
 	config := api.ShellConfig{
-		ServiceID:        serviceID,
+		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
-		SaveAs:           node.GetLabel(serviceID),
+		SaveAs:           node.GetLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
