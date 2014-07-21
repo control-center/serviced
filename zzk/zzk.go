@@ -248,7 +248,7 @@ func Sync(conn client.Connection, data []Node, path string) error {
 	for _, id := range current {
 		if node, ok := datamap[id]; ok {
 			if err := node.Update(conn); err != nil {
-				return nil
+				return err
 			}
 			delete(datamap, id)
 		} else if err := node.Delete(conn); err != nil {
