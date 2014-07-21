@@ -13,11 +13,11 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/node"
+	"github.com/zenoss/glog"
 )
 
 var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
@@ -758,7 +758,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		}
 
 		switch keyword {
-		case rs.ServiceID, rs.Name, rs.ID, rs.DockerID:
+		case rs.ServiceID, rs.Name, rs.ID, rs.DockerID, rs.DockerID[0:12]:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
