@@ -301,7 +301,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 
 	switch len(services) {
 	case 0:
-		return nil, fmt.Errorf("no services found")
+		return nil, fmt.Errorf("service not found")
 	case 1:
 		return services[0], nil
 	}
