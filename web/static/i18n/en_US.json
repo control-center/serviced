@@ -74,6 +74,15 @@
     "confirm_remove_virtual_ip": "This will remove the following virtual IP, and cannot be undone:",
     "confirm_remove_virtual_host": "This will remove the following virtual host, and cannot be undone:",
 
+    "deploy_getting_status": "Getting status from server",
+    "deploy_loading_template": "Loading application template",
+    "deploy_loading_resource_pool": "Loading resource pool",
+    "deploy_pulling_images": "Pulling images",
+    "deploy_loading_service": "Loading service",
+    "deploy_renaming_image": "Renaming service",
+    "deploy_loading_image": "Loading image",
+    "deploy_tagging_image": "Tagging image (this may take a while)",
+
     "breadcrumb_deployed": "Applications",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Hosts",

@@ -36,6 +36,12 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	return err
 }
 
+func (this *ControlPlaneDao) DeployTemplateStatus(notUsed string, deployTemplateStatus *string) error {
+	var err error
+	err = this.facade.DeployTemplateStatus(deployTemplateStatus)
+	return err
+}
+
 func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) error {
 	var err error
 	*serviceID, err = this.facade.DeployService(datastore.Get(), request.ParentID, request.Service)

@@ -1170,3 +1170,7 @@ input.ng-invalid:focus.ng-dirty:focus{
     font-size: .7em;
     font-weight: bold;
 }
+
+#deployStatus{
+    margin-top: 20px;
+}

@@ -75,6 +75,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		// Service templates (App templates)
 		rest.Route{"GET", "/templates", sc.authorizedClient(restGetAppTemplates)},
 		rest.Route{"POST", "/templates/deploy", sc.authorizedClient(restDeployAppTemplate)},
+		rest.Route{"GET", "/templates/deploy/status", sc.authorizedClient(restDeployAppTemplateStatus)},
 
 		// Login
 		rest.Route{"POST", "/login", sc.unAuthorizedClient(restLogin)},

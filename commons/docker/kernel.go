@@ -272,6 +272,7 @@ func init() {
 			}
 		}
 	}
+	useRegistry = true
 
 	client, err := dockerclient.NewClient(dockerep)
 	if err != nil {
