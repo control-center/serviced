@@ -805,8 +805,8 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 			continue
 		}
 
-		switch keyword {
-		case rs.ServiceID, rs.Name, rs.ID, rs.DockerID, rs.DockerID[0:12]:
+		switch strings.ToLower(keyword) {
+		case rs.ServiceID, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12]:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
