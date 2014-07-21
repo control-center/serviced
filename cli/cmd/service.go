@@ -598,14 +598,19 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		return
 	}
 
-	var serviceID, ipAddress string
-	serviceID = args[0]
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	var ipAddress string
 	if len(args) > 1 {
 		ipAddress = args[1]
 	}
 
 	cfg := api.IPConfig{
-		ServiceID: serviceID,
+		ServiceID: svc.ID,
 		IPAddress: ipAddress,
 	}
 
