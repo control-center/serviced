@@ -5,8 +5,8 @@
 package event
 
 import (
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
 	"testing"
