@@ -18,10 +18,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/domain/service"
 	elastigo "github.com/zenoss/elastigo/api"
 	"github.com/zenoss/elastigo/core"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/domain/service"
 )
 
 // ExportLogs exports logs from ElasticSearch.
@@ -339,7 +339,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(offsets), source)
 		numLines := len(messages)
 		if numLines > 1 {
-			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-1]
+			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-2]
 			offsets = append(offsets, lastOffset)
 		}
 	} else if len(offsets) > len(messages) {
@@ -352,7 +352,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 
 	// deal with offsets that are not sorted in increasing order
 	if !uint64sAreSorted(offsets) {
-		glog.Warningf("offsets are not sorted: %s", offsets)
+		glog.Warningf("offsets are not sorted: %v", offsets)
 		offsets = generateOffsets(messages, offsets)
 		glog.Warningf("new offsets: %v", offsets)
 	}
