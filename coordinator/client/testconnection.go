@@ -16,7 +16,7 @@ import (
 type TestConnection struct {
 	id      int
 	nodes   map[string][]byte
-	watches map[string]chan<- Event
+	watches map[string][]chan<- Event
 	Err     error // Connection Error set by the user
 }
 
@@ -27,9 +27,10 @@ func NewTestConnection() *TestConnection {
 
 func (conn *TestConnection) init() *TestConnection {
 	conn = &TestConnection{
-		nodes:   map[string][]byte{"/": nil},
-		watches: make(map[string]chan<- Event),
+		nodes:   make(map[string][]byte),
+		watches: make(map[string][]chan<- Event),
 	}
+	conn.nodes["/"] = nil
 	return conn
 }
 
@@ -39,25 +40,26 @@ func (conn *TestConnection) checkpath(p *string) error {
 }
 
 func (conn *TestConnection) updatewatch(p string, eventtype EventType) {
-	if watch := conn.watches[p]; watch != nil {
+	if watches := conn.watches[p]; watches != nil && len(watches) > 0 {
 		delete(conn.watches, p)
-		watch <- Event{eventtype, p, nil}
+		for _, watch := range watches {
+			watch <- Event{eventtype, p, nil}
+		}
 	}
 
-	parent := path.Dir(p) + "/"
-	if watch := conn.watches[parent]; watch != nil {
+	parent := path.Dir(p)
+	if watches := conn.watches[parent]; watches != nil && len(watches) > 0 {
 		delete(conn.watches, parent)
-		watch <- Event{EventNodeChildrenChanged, parent, nil}
+		for _, watch := range watches {
+			watch <- Event{EventNodeChildrenChanged, parent, nil}
+		}
 	}
 }
 
 func (conn *TestConnection) addwatch(p string) <-chan Event {
 	eventC := make(chan Event, 1)
-	watch := conn.watches[p]
-	conn.watches[p] = eventC
-	if watch != nil {
-		watch <- Event{EventNotWatching, p, nil}
-	}
+	watches := conn.watches[p]
+	conn.watches[p] = append(watches, eventC)
 	return eventC
 }
 
@@ -109,7 +111,7 @@ func (conn *TestConnection) Create(p string, node Node) error {
 
 	data, err := json.Marshal(node)
 	if err != nil {
-		conn.nodes[p] = data
+		return err
 	}
 	conn.nodes[p] = data
 	return nil
@@ -137,8 +139,11 @@ func (conn *TestConnection) Exists(p string) (bool, error) {
 		return false, err
 	}
 
-	_, exists := conn.nodes[p]
-	return exists, nil
+	if _, exists := conn.nodes[p]; !exists {
+		return false, ErrNoNode
+	}
+
+	return true, nil
 }
 
 // Delete implements Connection.Delete
@@ -171,7 +176,7 @@ func (conn *TestConnection) ChildrenW(p string) ([]string, <-chan Event, error) 
 		return nil, nil, err
 	}
 
-	return children, conn.addwatch(p + "/"), nil
+	return children, conn.addwatch(p), nil
 }
 
 // Children implements Connection.Children

@@ -40,7 +40,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/validation"
-	"github.com/control-center/serviced/zzk/utils"
+	"github.com/control-center/serviced/zzk"
 )
 
 const (
@@ -89,7 +89,7 @@ type EndpointRegistry struct {
 // This is created in the leader, most other calls will just get that one
 func CreateEndpointRegistry(conn client.Connection) (*EndpointRegistry, error) {
 	path := zkEndpointsPath()
-	if exists, err := utils.PathExists(conn, path); err != nil {
+	if exists, err := zzk.PathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {

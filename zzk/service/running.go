@@ -11,6 +11,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
 )
 
 // NewRunningService instantiates a RunningService object from a given service and service state
@@ -64,6 +65,12 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]*dao.RunningService, error) {
 	var rss []*dao.RunningService
 	for _, hostID := range hostIDs {
+		if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
+			return nil, err
+		} else if !exists {
+			continue
+		}
+
 		stateIDs, err := conn.Children(hostpath(hostID))
 		if err != nil {
 			return nil, err
@@ -89,6 +96,12 @@ func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]*da
 func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) ([]*dao.RunningService, error) {
 	var rss []*dao.RunningService
 	for _, serviceID := range serviceIDs {
+		if exists, err := zzk.PathExists(conn, servicepath(serviceID)); err != nil {
+			return nil, err
+		} else if !exists {
+			continue
+		}
+
 		stateIDs, err := conn.Children(servicepath(serviceID))
 		if err != nil {
 			return nil, err
@@ -106,6 +119,12 @@ func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) 
 
 // LoadRunningServices gets all RunningServices
 func LoadRunningServices(conn client.Connection) ([]*dao.RunningService, error) {
+	if exists, err := zzk.PathExists(conn, servicepath()); err != nil {
+		return nil, err
+	} else if !exists {
+		return []*dao.RunningService{}, nil
+	}
+
 	serviceIDs, err := conn.Children(servicepath())
 	if err != nil {
 		return nil, err

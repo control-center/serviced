@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/zzk"
 )
 
 type ActionResult struct {
@@ -51,7 +52,7 @@ func TestActionListener_Listen(t *testing.T) {
 
 	listener := NewActionListener(conn, handler, "test-host-1")
 	go func() {
-		listener.Listen(shutdown)
+		zzk.Listen(shutdown, listener)
 		close(done)
 	}()
 
@@ -88,4 +89,39 @@ func TestActionListener_Listen(t *testing.T) {
 	close(shutdown)
 	<-done
 
+}
+
+func TestActionListener_Spawn(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := &TestActionHandler{
+		ResultMap: map[string]ActionResult{
+			"success": ActionResult{time.Second, []byte("success"), nil},
+			"failure": ActionResult{time.Second, []byte("message failure"), fmt.Errorf("failure")},
+		},
+	}
+	listener := NewActionListener(conn, handler, "test-host-1")
+
+	// send actions
+	t.Logf("Sending successful command")
+	success, err := SendAction(conn, &Action{
+		HostID:   listener.hostID,
+		DockerID: "success",
+		Command:  []string{"do", "some", "command"},
+	})
+	if err != nil {
+		t.Fatalf("Could not send success action")
+	}
+	listener.Spawn(make(<-chan interface{}), success)
+
+	t.Logf("Sending failure command")
+	failure, err := SendAction(conn, &Action{
+		HostID:   listener.hostID,
+		DockerID: "failure",
+		Command:  []string{"do", "some", "bad", "command"},
+	})
+	if err != nil {
+		t.Fatalf("Could not send failure action")
+	}
+	listener.Spawn(make(<-chan interface{}), failure)
 }

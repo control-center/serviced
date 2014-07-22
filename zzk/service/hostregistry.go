@@ -8,10 +8,10 @@ import (
 	"errors"
 	"path"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
-	zkutils "github.com/control-center/serviced/zzk/utils"
+	"github.com/control-center/serviced/zzk"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -30,8 +30,28 @@ func hostregpath(nodes ...string) string {
 
 // HostNode is the zk node for Host
 type HostNode struct {
-	Host    *host.Host
+	*host.Host
 	version interface{}
+}
+
+// ID implements zzk.Node
+func (node *HostNode) GetID() string {
+	return node.ID
+}
+
+// Create implements zzk.Node
+func (node *HostNode) Create(conn client.Connection) error {
+	return RegisterHost(conn, node.ID)
+}
+
+// Update implements zzk.Node
+func (node *HostNode) Update(conn client.Connection) error {
+	return nil
+}
+
+// Delete implements zzk.Node
+func (node *HostNode) Delete(conn client.Connection) error {
+	return UnregisterHost(conn, node.ID)
 }
 
 // Version implements client.Node
@@ -48,90 +68,42 @@ func (node *HostNode) SetVersion(version interface{}) {
 // information about available hosts
 type HostRegistryListener struct {
 	conn     client.Connection
-	shutdown <-chan interface{}
+	shutdown chan interface{}
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
 func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
-	return new(HostRegistryListener).init(conn)
-}
-
-func (l *HostRegistryListener) init(conn client.Connection) (*HostRegistryListener, error) {
-	regpath := hostregpath()
-	if exists, err := zkutils.PathExists(conn, regpath); err != nil {
-		glog.Errorf("Error checking path %s: %s", regpath, err)
+	// initialize the hostregistry
+	if exists, err := zzk.PathExists(conn, hostregpath()); err != nil {
 		return nil, err
 	} else if exists {
 		// pass
-	} else if conn.CreateDir(regpath); err != nil {
-		glog.Errorf("Error creating path %s: %s", regpath, err)
+	} else if err := conn.CreateDir(hostregpath()); err != nil {
 		return nil, err
 	}
 
-	return &HostRegistryListener{conn: conn}, nil
+	return &HostRegistryListener{conn, make(chan interface{})}, nil
 }
 
-// Listen listens for changes to /registry/hosts and updates the host list
-// accordingly
-func (l *HostRegistryListener) Listen(shutdown <-chan interface{}) {
-	var (
-		_shutdown  = make(chan interface{})
-		done       = make(chan string)
-		processing = make(map[string]interface{})
-	)
-	l.shutdown = _shutdown
+// GetConnection implements zzk.Listener
+func (l *HostRegistryListener) GetConnection() client.Connection { return l.conn }
 
-	defer func() {
-		glog.Infof("Host registry receieved interrupt")
-		close(_shutdown)
-		for len(processing) > 0 {
-			delete(processing, <-done)
-		}
-	}()
+// GetPath implements zzk.Listener
+func (l *HostRegistryListener) GetPath(nodes ...string) string { return hostregpath(nodes...) }
 
-	for {
-		ehostIDs, event, err := l.conn.ChildrenW(hostregpath())
-		if err != nil {
-			glog.Errorf("Could not watch host registry: %s", err)
-			return
-		}
+// Ready implements zzk.Listener
+func (l *HostRegistryListener) Ready() (err error) { return }
 
-		for _, ehostID := range ehostIDs {
-			if _, ok := processing[ehostID]; !ok {
-				glog.V(1).Info("Spawning a listener for ephemeral host ", ehostID)
-				processing[ehostID] = nil
-				go l.listenHost(done, ehostID)
-			}
-		}
+// Done shuts down any running processes outside of the main listener, like l.GetHosts()
+func (l *HostRegistryListener) Done() { close(l.shutdown) }
 
-		select {
-		case e := <-event:
-			if e.Type == client.EventNodeDeleted {
-				glog.Infof("Host registry is no longer available, shutting down")
-				return
-			}
-			glog.V(2).Infof("Receieved event: %v", e)
-		case ehostID := <-done:
-			glog.V(2).Infof("Cleaning up %s", ehostID)
-			delete(processing, ehostID)
-		case <-shutdown:
-			return
-		}
-	}
-}
-
-func (l *HostRegistryListener) listenHost(done chan<- string, ehostID string) {
-	defer func() {
-		glog.V(2).Info("Shutting down listener for ephemeral host: ", ehostID)
-		done <- ehostID
-	}()
-
-	hpath := hostregpath(ehostID)
+// Spawn listens on the host registry and waits til the node is deleted to unregister
+func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string) {
 	for {
 		var host host.Host
-		event, err := l.conn.GetW(hpath, &HostNode{Host: &host})
+		event, err := l.conn.GetW(l.GetPath(eHostID), &HostNode{Host: &host})
 		if err != nil {
-			glog.Errorf("Could not load ephemeral node %s: %s", ehostID, err)
+			glog.Errorf("Could not load ephemeral node %s: %s", eHostID, err)
 			return
 		}
 
@@ -143,15 +115,15 @@ func (l *HostRegistryListener) listenHost(done chan<- string, ehostID string) {
 				return
 			}
 			glog.V(2).Infof("Receieved event: ", e)
-		case <-l.shutdown:
-			glog.V(2).Infof("Host listener for %s (%s) received signal to shutdown", host.ID, ehostID)
+		case <-shutdown:
+			glog.V(2).Infof("Host listener for %s (%s) received signal to shutdown", host.ID, eHostID)
 			return
 		}
 	}
 }
 
 func (l *HostRegistryListener) unregister(hostID string) {
-	if exists, err := zkutils.PathExists(l.conn, hostpath(hostID)); err != nil {
+	if exists, err := zzk.PathExists(l.conn, hostpath(hostID)); err != nil {
 		glog.Errorf("Unable to check path for host %s: %s", hostID, err)
 		return
 	} else if !exists {
@@ -177,14 +149,12 @@ func (l *HostRegistryListener) unregister(hostID string) {
 
 // GetHosts returns all of the registered hosts
 func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
-	var (
-		ehosts []string
-		eventW <-chan client.Event
-	)
+	if err := zzk.Ready(l.shutdown, l.conn, l.GetPath()); err != nil {
+		return nil, err
+	}
 
-	// wait if no hosts are registered
 	for {
-		ehosts, eventW, err = l.conn.ChildrenW(hostregpath())
+		ehosts, eventW, err := l.conn.ChildrenW(hostregpath())
 		if err != nil {
 			return nil, err
 		}
@@ -194,13 +164,14 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 			if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
 				return nil, err
 			}
-			if exists, err := zkutils.PathExists(l.conn, hostpath(host.ID)); err != nil {
+			if exists, err := zzk.PathExists(l.conn, hostpath(host.ID)); err != nil {
 				return nil, err
 			} else if exists {
 				hosts = append(hosts, &host)
 			}
 		}
 
+		// wait if no hosts are registered
 		if len(hosts) > 0 {
 			return hosts, nil
 		}
@@ -214,8 +185,16 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	}
 }
 
+func SyncHosts(conn client.Connection, hosts []*host.Host) error {
+	nodes := make([]zzk.Node, len(hosts))
+	for i := range hosts {
+		nodes[i] = &HostNode{Host: hosts[i]}
+	}
+	return zzk.Sync(conn, nodes, hostpath())
+}
+
 func RegisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
 		return err
 	} else if exists {
 		return nil
@@ -225,7 +204,7 @@ func RegisterHost(conn client.Connection, hostID string) error {
 }
 
 func UnregisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zkutils.PathExists(conn, hostpath(hostID)); err != nil {
+	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
 		return err
 	} else if !exists {
 		return nil
