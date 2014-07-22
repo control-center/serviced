@@ -218,7 +218,7 @@ func (d *daemon) startMaster() error {
 		var err error
 		agentIP, err = utils.GetIPAddress()
 		if err != nil {
-			panic(err)
+			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
 	}
 
@@ -311,7 +311,7 @@ func (d *daemon) startAgent() error {
 		var err error
 		agentIP, err = utils.GetIPAddress()
 		if err != nil {
-			panic(err)
+			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
 	}
 	thisHost, err := host.Build(agentIP, "unknown")
