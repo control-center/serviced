@@ -61,6 +61,8 @@ type Service struct {
 	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile
+	MemoryLimit       float64
+	CPUShares         int64
 	PIDFile           string
 }
 
@@ -157,6 +159,8 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		return nil, err
 	}
 	svc.MonitoringProfile = *profile
+	svc.MemoryLimit = sd.MemoryLimit
+	svc.CPUShares = sd.CPUShares
 
 	return &svc, nil
 }
