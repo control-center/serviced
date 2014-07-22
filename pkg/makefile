@@ -14,6 +14,11 @@ SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot
 INSTALL_TEMLATES = 1
+LICENSE       = "Apache 2.0"
+VENDOR        = "Zenoss, Inc."
+URL           = https://github.com/control-center/serviced
+DEB_PRIORITY  = extra
+CATEGORY      = admin
 
 ifeq "$(BUILD_NUMBER)" ""
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
@@ -126,6 +131,11 @@ deb: stage_deb
 		--description "$$DESCRIPTION" \
 		--deb-user root \
 		--deb-group root \
+		--deb-priority $(DEB_PRIORITY) \
+		--license $(LICENSE) \
+		--vendor $(VENDOR) \
+		--url $(URL) \
+		--category $(CATEGORY) \
 		.
 
 # Make an RPM
@@ -141,5 +151,9 @@ rpm: stage_rpm
 		--description "$$DESCRIPTION" \
 		--rpm-user root \
 		--rpm-group root \
+		--license $(LICENSE) \
+		--vendor $(VENDOR) \
+		--url $(URL) \
+		--category $(CATEGORY) \
 		.
 #		-d "supervisor" \
