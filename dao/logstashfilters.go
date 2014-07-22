@@ -10,11 +10,13 @@
 package dao
 
 import (
-	"fmt"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/utils"
+
 	"io/ioutil"
 	"os"
+	"fmt"
 	"path"
 	"runtime"
 	"strings"
@@ -47,7 +49,7 @@ func WriteConfigurationFile(templates map[string]*servicetemplate.ServiceTemplat
 	filters := ""
 
 	for _, template := range templates {
-		filters += getFilters(template.Services, filterDefs)
+		filters += getFilters(template.Services, filterDefs, []string{})
 	}
 	configFile := resourcesDir() + "/logstash/logstash.conf"
 	err := writeLogStashConfigFile(filters, configFile)
@@ -74,16 +76,20 @@ func getFilterDefinitions(services []servicedefinition.ServiceDefinition) map[st
 	return filterDefs
 }
 
-func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[string]string) string {
+func getFilters(services []servicedefinition.ServiceDefinition, filterDefs map[string]string, typeFilter []string) string {
 	filters := ""
 	for _, service := range services {
 		for _, config := range service.LogConfigs {
 			for _, filtName := range config.Filters {
-				filters += fmt.Sprintf("\nif [type] == \"%s\" \n {\n  %s \n}", config.Type, filterDefs[filtName])
+        //do not write duplicate types, logstash doesn't handle this 
+        if ! utils.StringInSlice( config.Type, typeFilter) {
+          filters += fmt.Sprintf("\nif [type] == \"%s\" \n {\n  %s \n}", config.Type, filterDefs[filtName])
+          typeFilter = append( typeFilter, config.Type)
+        }
 			}
 		}
 		if len(service.Services) > 0 {
-			subFilts := getFilters(service.Services, filterDefs)
+			subFilts := getFilters(service.Services, filterDefs, typeFilter)
 			filters += subFilts
 		}
 	}
