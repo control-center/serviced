@@ -17,7 +17,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/zenoss/glog"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
@@ -25,6 +24,8 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
+	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/zenoss/glog"
 )
 
 var (
@@ -79,12 +80,7 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 
 // getServiceState gets the service states for a serviceID
 func getServiceStates(conn coordclient.Connection, serviceID string) ([]*servicestate.ServiceState, error) {
-	var serviceStates []*servicestate.ServiceState
-	err := zzk.GetServiceStates(conn, &serviceStates, serviceID)
-	if err != nil {
-		return nil, err
-	}
-	return serviceStates, nil
+	return zkservice.GetServiceStates(conn, serviceID)
 }
 
 // getServiceState gets the service state for a serviceID matching the instance ID specified

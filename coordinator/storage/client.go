@@ -84,7 +84,9 @@ func (c *Client) loop() {
 		}
 		err = nil
 		if leader == nil {
-			conn, err = zzk.GetBasePathConnection(zzk.GeneratePoolPath(c.host.PoolID))
+			// /storage/leader needs to be at the root
+			conn, err = zzk.GetBasePathConnection("/")
+
 			if err != nil {
 				continue
 			}
@@ -102,13 +104,13 @@ func (c *Client) loop() {
 				glog.Errorf("could not get %s: %s", nodePath, err)
 				continue
 			}
-			node.Host = *c.host
-			err = conn.Set(nodePath, node)
-			if err != nil {
-				glog.Errorf("problem updating %s: %s", nodePath, err)
-				continue
-			}
 		}
+		node.Host = *c.host
+		if err := conn.Set(nodePath, node); err != nil {
+			glog.Errorf("problem updating %s: %s", nodePath, err)
+			continue
+		}
+
 		e, err = conn.GetW(nodePath, node)
 		if err != nil {
 			glog.Errorf("err getting node %s: %s", nodePath, err)
