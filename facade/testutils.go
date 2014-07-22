@@ -72,3 +72,19 @@ func (z *zkMock) RegisterHost(h *host.Host) error {
 func (z *zkMock) UnregisterHost(h *host.Host) error {
 	return nil
 }
+
+func (z *zkMock) AddVirtualIP(vip *pool.VirtualIP) error {
+	return nil
+}
+
+func (z *zkMock) RemoveVirtualIP(vip *pool.VirtualIP) error {
+	return nil
+}
+
+func (z *zkMock) AddResourcePool(poolID string) error {
+	return nil
+}
+
+func (z *zkMock) RemoveResourcePool(poolID string) error {
+	return nil
+}

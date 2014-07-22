@@ -21,12 +21,15 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 )
 
 var zkAPI func(f *Facade) zkfuncs = getZKAPI
@@ -111,7 +114,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 }
 
 //
-func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]*service.Service, error) {
+func (f *Facade) GetServices(ctx datastore.Context) ([]*service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
@@ -172,8 +175,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 	if len(service_imports) > 0 {
 		glog.V(2).Infof("%+v service imports=%+v", myService, service_imports)
 
-		var request dao.EntityRequest
-		servicesList, err := f.getServices(ctx, request)
+		servicesList, err := f.getServices(ctx)
 		if err != nil {
 			return result, err
 		}
@@ -468,9 +470,9 @@ func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, 
 	return *svc, err
 }
 
-//getServices is an internal method that returns  all Services without filling in all related service data like address assignments
+//getServices is an internal method that returns all Services without filling in all related service data like address assignments
 //and modified config files
-func (f *Facade) getServices(ctx datastore.Context, request dao.EntityRequest) ([]*service.Service, error) {
+func (f *Facade) getServices(ctx datastore.Context) ([]*service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
@@ -765,6 +767,10 @@ type zkfuncs interface {
 	getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error
 	RegisterHost(h *host.Host) error
 	UnregisterHost(h *host.Host) error
+	AddVirtualIP(vip *pool.VirtualIP) error
+	RemoveVirtualIP(vip *pool.VirtualIP) error
+	AddResourcePool(poolID string) error
+	RemoveResourcePool(poolID string) error
 }
 
 type zkf struct {
@@ -777,7 +783,7 @@ func (z *zkf) updateService(svc *service.Service) error {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
 	}
-	return zzk.UpdateService(poolBasedConn, svc)
+	return zkservice.UpdateService(poolBasedConn, svc)
 }
 
 func (z *zkf) removeService(svc *service.Service) error {
@@ -786,15 +792,34 @@ func (z *zkf) removeService(svc *service.Service) error {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
 		return err
 	}
-	return zzk.RemoveService(poolBasedConn, svc.ID)
+
+	var (
+		cancel = make(chan interface{})
+		done   = make(chan interface{})
+	)
+
+	go func() {
+		defer close(done)
+		err = zkservice.RemoveService(cancel, poolBasedConn, svc.ID)
+	}()
+
+	go func() {
+		defer close(cancel)
+		<-time.After(30 * time.Second)
+	}()
+
+	<-done
+	return err
 }
-func (z *zkf) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+
+func (z *zkf) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIDs ...string) error {
 	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err
 	}
-	return zzk.GetServiceStates(poolBasedConn, serviceStates, serviceIds...)
+	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceIDs...)
+	return err
 }
 
 func (z *zkf) RegisterHost(h *host.Host) error {
@@ -812,6 +837,38 @@ func (z *zkf) UnregisterHost(h *host.Host) error {
 		return err
 	}
 	return zkservice.UnregisterHost(poolBasedConnection, h.ID)
+}
+
+func (z *zkf) AddVirtualIP(vip *pool.VirtualIP) error {
+	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(vip.PoolID))
+	if err != nil {
+		return err
+	}
+	return zkvirtualip.AddVirtualIP(poolBasedConnection, vip)
+}
+
+func (z *zkf) RemoveVirtualIP(vip *pool.VirtualIP) error {
+	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(vip.PoolID))
+	if err != nil {
+		return err
+	}
+	return zkvirtualip.RemoveVirtualIP(poolBasedConnection, vip.IP)
+}
+
+func (z *zkf) AddResourcePool(poolID string) error {
+	rootBasedConnection, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkscheduler.AddResourcePool(rootBasedConnection, poolID)
+}
+
+func (z *zkf) RemoveResourcePool(poolID string) error {
+	rootBasedConnection, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkscheduler.RemoveResourcePool(rootBasedConnection, poolID)
 }
 
 func lookUpTenant(svcID string) (string, bool) {
