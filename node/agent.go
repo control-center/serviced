@@ -736,6 +736,19 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		hcfg.Privileged = true
 	}
 
+	// Memory and CpuShares should never be negative
+	if svc.MemoryLimit < 0 {
+		cfg.Memory = 0
+	} else {
+		cfg.Memory = svc.MemoryLimit
+	}
+
+	if svc.CPUShares < 0 {
+		cfg.CpuShares = 0
+	} else {
+		cfg.CpuShares = svc.CPUShares
+	}
+
 	return cfg, hcfg, nil
 }
 
