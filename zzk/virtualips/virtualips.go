@@ -85,6 +85,7 @@ func NewVirtualIPListener(conn client.Connection, handler VirtualIPHandler, host
 		ips:     make(map[string]chan bool),
 	}
 
+	// Index generator for bind interface
 	go func(start int) {
 		for {
 			l.index <- start

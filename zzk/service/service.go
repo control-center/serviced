@@ -165,21 +165,38 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 }
 
 func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) {
+	// only one service can start and stop service instances at a time
 	l.Lock()
 	defer l.Unlock()
+
+	// sort running services by instance ID, so that you stop instances by the
+	// lowest instance ID first and start instances with the greatest instance
+	// ID last.
 	sort.Sort(instances(rss))
 
+	// netInstances is the difference between the number of instances that
+	// should be running, as described by the service from the number of
+	// instances that are currently running
 	netInstances := svc.Instances - len(rss)
+
+	// if the service has a change option for restart all on changed, stop all
+	// instances and wait for the nodes to stop.  Once all service instances
+	// have been stopped (deleted), then go ahead and start the instances back
+	// up.
 	if len(rss) > 0 && netInstances != 0 && utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
 		netInstances = -len(rss)
 	}
 
 	if netInstances > 0 {
+		// the number of running instances is *less* than the number of
+		// instances that need to be running, so schedule instances to start
 		glog.V(2).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
 		var (
 			last        = 0
 			instanceIDs = make([]int, netInstances)
 		)
+
+		// calculate the instance IDs from the sorted list of instances
 		if count := len(rss); count > 0 {
 			last = rss[count-1].InstanceID + 1
 		}
@@ -188,6 +205,8 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 		}
 		l.start(svc, instanceIDs)
 	} else if netInstances = -netInstances; netInstances > 0 {
+		// the number of running instances is *greater* than the number of
+		// instances that need to be running, so schedule instances to stop
 		glog.V(2).Infof("Stopping %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
 		l.stop(rss[:netInstances])
 	}
@@ -268,7 +287,9 @@ func UpdateService(conn client.Connection, svc *service.Service) error {
 	// For some reason you can't just create the node with the service data
 	// already set.  Trust me, I tried.  It was very aggravating.
 	if err := conn.Get(spath, &node); err != nil {
-		conn.Create(spath, &node)
+		if err := conn.Create(spath, &node); err != nil {
+			glog.Errorf("Error trying to create node at %s: %s", spath, err)
+		}
 	}
 	node.Service = svc
 	return conn.Set(spath, &node)

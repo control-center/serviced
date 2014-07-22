@@ -80,10 +80,15 @@ func GetHostID(leader client.Leader) (string, error) {
 
 // Listener is zookeeper node listener type
 type Listener interface {
+	// GetConnection expects a client.Connection object
 	GetConnection() client.Connection
+	// GetPath concatenates the base path with whatever child nodes that are specified
 	GetPath(nodes ...string) string
+	// Ready verifies that the listener can start listening
 	Ready() error
+	// Done performs any cleanup when the listener exits
 	Done()
+	// Spawn is the action to be performed when a child node is found on the parent
 	Spawn(<-chan interface{}, string)
 }
 
@@ -223,9 +228,13 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 
 // Node manages zookeeper actions
 type Node interface {
+	// GetID relates to the child node mapping in zookeeper
 	GetID() string
+	// Create creates the object in zookeeper
 	Create(conn client.Connection) error
+	// Update updates the object in zookeeper
 	Update(conn client.Connection) error
+	// Delete deletes the object from zookeeper
 	Delete(conn client.Connection) error
 }
 
