@@ -2,16 +2,16 @@
 # export HOME=/root
 
 # Set enable/disable the agent role, set to 1/0, respectively
-# SERVICED_AGENT=0
+# export SERVICED_AGENT=0
 
 # Set enable/disable the master role, set to 1/0, respectively
-# SERVICED_MASTER=0
+# export SERVICED_MASTER=0
 
 # Set the pool id for the master role
-# SERVICED_MASTER_POOLID=default
+# export SERVICED_MASTER_POOLID=default
 
 # Set the the zookeeper ensemble, uncomment
-# SERVICED_ZK=foo:2181,bar:2181
+# export SERVICED_ZK=foo:2181,bar:2181
 
 
 # Set to 1 to have serviced push/pull in to a docker registry
@@ -19,52 +19,52 @@
 # SERVICED_REGISTRY=1
 
 # Set the local docker registry
-# SERVICED_DOCKER_REGISTRY=localhost:5000
+# export SERVICED_DOCKER_REGISTRY=localhost:5000
 
 # Set the static IPs this host can advertize
-# SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
+# export SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
 
 # Set the default serviced RPC endpoint to dial
-# SERVICED_ENDPOINT=localhost:4979
+# export SERVICED_ENDPOINT=localhost:4979
 
 # Set the RPC port to listen on
-# SERVICED_RPC_PORT=4979
+# export SERVICED_RPC_PORT=4979
 
 # Set the UI port to use
-# SERVICED_UI_PORT=443
+# export SERVICED_UI_PORT=443
 
 # Set the mux port to listen on
-# SERVICED_MUX_PORT=22250
+# export SERVICED_MUX_PORT=22250
 
 # Set the VAR path for serviced
-# SERVICED_VARPATH=/opt/serviced/var
+# export SERVICED_VARPATH=/opt/serviced/var
 
 # Set the TLS keyfile
-# SERVICED_KEY_FILE=/etc/....
+# export SERVICED_KEY_FILE=/etc/....
 
 # Set the TLS certfile
-# SERVICED_CERT_FILE=/etc/....
+# export SERVICED_CERT_FILE=/etc/....
 
 # Set the driver type for the volumes (rsync/btrfs)
-# SERVICED_VFS=rsync
+# export SERVICED_VFS=rsync
 
 # Set the aliases for this host (use in vhost muxing)
-# SERVICED_VHOST_ALIASES=foobar.com,example.com
+# export SERVICED_VHOST_ALIASES=foobar.com,example.com
 
 # Set the max stopped container age before serviced will remove it
-# SERVICED_MAX_CONTAINER_AGE=60
+# export SERVICED_MAX_CONTAINER_AGE=60
 
 # Set the subnet that dynamic endpoints use, inside the containers
-# SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
+# export SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
 
 # Set the loglevel for serviced
-# SERVICED_LOG_LEVEL=0
+# export SERVICED_LOG_LEVEL=0
 
 # Set the address to which to send logs
-# SERVICED_LOG_ADDRESS=10.0.0.44:5042
+# export SERVICED_LOG_ADDRESS=10.0.0.44:5042
 
 # Set the interval (in seconds) for host performance collection
-# SERVICED_STATS_PERIOD=10
+# export SERVICED_STATS_PERIOD=10
 
 # Arbitraty daeomon args
-# SERVICED_OPTS=
+# export SERVICED_OPTS=
