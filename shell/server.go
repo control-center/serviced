@@ -17,11 +17,11 @@ import (
 	"github.com/googollee/go-socket.io"
 	"github.com/zenoss/glog"
 
-	"github.com/zenoss/serviced/commons/docker"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 )
 
 var empty interface{}

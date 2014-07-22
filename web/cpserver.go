@@ -16,9 +16,9 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/proxy"
-	"github.com/zenoss/serviced/rpc/master"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/master"
 )
 
 // ServiceConfig is the ui/rest handler for control center

@@ -5,9 +5,9 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/servicetemplate"
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateID *string) error {

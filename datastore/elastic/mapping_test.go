@@ -5,7 +5,7 @@
 package elastic_test
 
 import (
-	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"

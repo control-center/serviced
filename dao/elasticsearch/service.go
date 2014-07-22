@@ -5,9 +5,9 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/service"
 )
 
 // AddService add a service. Return error if service already exists
@@ -45,9 +45,9 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 	}
 }
 
-//
+// TODO FIXME no need for the request argument
 func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]*service.Service) error {
-	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
+	if svcs, err := this.facade.GetServices(datastore.Get()); err == nil {
 		*services = svcs
 		return nil
 	} else {

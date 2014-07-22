@@ -13,11 +13,11 @@
 package registry
 
 import (
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/validation"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/validation"
-	"github.com/zenoss/serviced/zzk/utils"
 
 	"fmt"
 	"path"
@@ -59,7 +59,7 @@ type VhostRegistry struct {
 // VHostRegistry ensures the vhost registry and returns the VhostRegistry type
 func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	path := vhostPath()
-	if exists, err := utils.PathExists(conn, path); err != nil {
+	if exists, err := zzk.PathExists(conn, path); err != nil {
 		return nil, err
 	} else if !exists {
 		if err := conn.CreateDir(path); err != nil {

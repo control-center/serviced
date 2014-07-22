@@ -11,10 +11,10 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/facade"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/facade"
 )
 
 const (

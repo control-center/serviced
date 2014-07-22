@@ -5,8 +5,8 @@
 package testutils
 
 import (
-	"github.com/zenoss/serviced/commons"
-	. "github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/commons"
+	. "github.com/control-center/serviced/domain/servicedefinition"
 )
 
 //ValidSvcDef used for testing

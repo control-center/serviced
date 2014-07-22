@@ -5,11 +5,11 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/datastore/elastic"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
-	"github.com/zenoss/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"testing"
 )
 

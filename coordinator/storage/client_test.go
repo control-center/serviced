@@ -8,10 +8,10 @@ import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/coordinator/client/zookeeper"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 
 	"encoding/json"
 	"fmt"
@@ -67,9 +67,8 @@ func TestClient(t *testing.T) {
 	defer c.Close()
 	time.Sleep(time.Second * 5)
 
-	// the connection client is added under the h's poolID, but this connection is based by root,
 	// therefore, we need to check that the client was added under the pool from root
-	nodePath := fmt.Sprintf("/pools/%v/storage/clients/%s", h.PoolID, h.IPAddr)
+	nodePath := fmt.Sprintf("/storage/clients/%s", h.IPAddr)
 	glog.Infof("about to check for %s", nodePath)
 	if exists, err := conn.Exists(nodePath); err != nil {
 		t.Fatalf("did not expect error checking for existence of %s: %s", nodePath, err)

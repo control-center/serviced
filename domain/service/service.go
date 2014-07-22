@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/utils"
 )
 
 // Desired states of services.
@@ -63,6 +63,7 @@ type Service struct {
 	MonitoringProfile domain.MonitorProfile
 	MemoryLimit       float64
 	CPUShares         int64
+	PIDFile           string
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
@@ -143,6 +144,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Actions = sd.Actions
 	svc.HealthChecks = sd.HealthChecks
 	svc.Prereqs = sd.Prereqs
+	svc.PIDFile = sd.PIDFile
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {

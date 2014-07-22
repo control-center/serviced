@@ -5,13 +5,13 @@
 package dao
 
 import (
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/addressassignment"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/domain/servicetemplate"
-	"github.com/zenoss/serviced/domain/user"
-	"github.com/zenoss/serviced/volume"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/volume"
 )
 
 // A generic ControlPlane error

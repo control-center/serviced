@@ -11,10 +11,10 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/servicedversion"
-	"github.com/zenoss/serviced/validation"
 )
 
 // ServicedCli is the client ui for serviced
@@ -42,6 +42,32 @@ func configInt(key string, defaultVal int) int {
 		return defaultVal
 	}
 	return v
+}
+func configBool(key string, defaultVal bool) bool {
+	s := configEnv(key, "")
+	if len(s) == 0 {
+		return defaultVal
+	}
+
+	trues := []string{"1", "true", "t", "yes"}
+	if v := strings.ToLower(s); v != "" {
+		for _, t := range trues {
+			if v == t {
+				return true
+			}
+		}
+	}
+
+	falses := []string{"0", "false", "f", "no"}
+	if v := strings.ToLower(s); v != "" {
+		for _, t := range falses {
+			if v == t {
+				return false
+			}
+		}
+	}
+
+	return defaultVal
 }
 
 const defaultRPCPort = 4979
@@ -89,6 +115,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
 		cli.StringFlag{"endpoint", configEnv("ENDPOINT", agentIP), "endpoint for remote serviced (example.com:8080)"},
+		cli.StringFlag{"outbound", configEnv("OUTBOUND_IP", ""), "outbound ip address"},
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
 		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
@@ -173,6 +200,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		CPUProfile:           ctx.GlobalString("cpuprofile"),
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
 		MasterPoolID:         ctx.GlobalString("master-pool-id"),
+		OutboundIP:           ctx.GlobalString("outbound"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true

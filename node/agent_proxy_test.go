@@ -11,7 +11,7 @@
 package node
 
 import (
-	"github.com/zenoss/serviced/dao"
+	"github.com/control-center/serviced/dao"
 
 	"testing"
 )

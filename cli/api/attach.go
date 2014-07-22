@@ -7,8 +7,8 @@ package api
 import (
 	"fmt"
 
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/utils"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/utils"
 )
 
 // AttachConfig is the deserialized object from the command-line

@@ -10,10 +10,10 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dfs/nfs"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dfs/nfs"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 )
 
 type nfsMountT func(string, string) error
@@ -84,7 +84,9 @@ func (c *Client) loop() {
 		}
 		err = nil
 		if leader == nil {
-			conn, err = zzk.GetBasePathConnection(zzk.GeneratePoolPath(c.host.PoolID))
+			// /storage/leader needs to be at the root
+			conn, err = zzk.GetBasePathConnection("/")
+
 			if err != nil {
 				continue
 			}
@@ -102,13 +104,13 @@ func (c *Client) loop() {
 				glog.Errorf("could not get %s: %s", nodePath, err)
 				continue
 			}
-			node.Host = *c.host
-			err = conn.Set(nodePath, node)
-			if err != nil {
-				glog.Errorf("problem updating %s: %s", nodePath, err)
-				continue
-			}
 		}
+		node.Host = *c.host
+		if err := conn.Set(nodePath, node); err != nil {
+			glog.Errorf("problem updating %s: %s", nodePath, err)
+			continue
+		}
+
 		e, err = conn.GetW(nodePath, node)
 		if err != nil {
 			glog.Errorf("err getting node %s: %s", nodePath, err)

@@ -10,7 +10,7 @@ import (
 	"io"
 	"os"
 
-	"github.com/zenoss/serviced/cli/api"
+	"github.com/control-center/serviced/cli/api"
 )
 
 func pipe(f func(...string), args ...string) []byte {

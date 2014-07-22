@@ -9,7 +9,7 @@ import (
 	"time"
 
 	zklib "github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client"
 )
 
 // Driver implements a Zookeeper based client.Driver interface

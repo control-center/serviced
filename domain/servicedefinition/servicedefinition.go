@@ -5,7 +5,7 @@
 package servicedefinition
 
 import (
-	"github.com/zenoss/serviced/domain"
+	"github.com/control-center/serviced/domain"
 
 	"errors"
 	"strings"
@@ -43,6 +43,7 @@ type ServiceDefinition struct {
 	MonitoringProfile domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
 	MemoryLimit       float64
 	CPUShares         int64
+	PIDFile           string // An optional path or command to generate a path for a PID file to which signals are relayed.
 }
 
 // SnapshotCommands commands to be called during and after a snapshot

@@ -5,8 +5,8 @@
 package service
 
 import (
-	"github.com/zenoss/serviced/commons"
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/validation"
 )
 
 //ValidEntity validate that Service has all required fields

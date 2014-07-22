@@ -12,7 +12,7 @@ import (
 	"strings"
 
 	"github.com/codegangsta/cli"
-	"github.com/zenoss/serviced/cli/api"
+	"github.com/control-center/serviced/cli/api"
 )
 
 // Initializer for serviced host subcommands

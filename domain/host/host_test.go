@@ -6,8 +6,8 @@ package host
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/utils"
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 
 	"strings"
 	"testing"

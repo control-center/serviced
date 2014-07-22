@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/servicedversion"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/servicedversion"
 )
 
 //Host that runs the control plane agent.

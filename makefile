@@ -43,7 +43,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js $(logstash.conf) nsinit serviced
+build_TARGETS = build_isvcs build_js nsinit serviced
 
 # Define GOPATH for containerized builds.
 #
@@ -51,7 +51,7 @@ build_TARGETS = build_isvcs build_js $(logstash.conf) nsinit serviced
 #
 docker_GOPATH = /go
 
-serviced_SRC            = github.com/zenoss/serviced
+serviced_SRC            = github.com/control-center/serviced
 docker_serviced_SRC     = $(docker_GOPATH)/src/$(serviced_SRC)
 docker_serviced_pkg_SRC = $(docker_serviced_SRC)/pkg
 
@@ -198,13 +198,6 @@ docker_build: docker_ok
 	-t zenoss/serviced-build \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
 	cd isvcs && make isvcs_repo
-
-# Seems odd that we're 'building' logstash.conf here.  
-# Why not as part of 'make isvcs'?
-logstash.conf     = isvcs/resources/logstash/logstash.conf
-logstash.conf_SRC = isvcs/resources/logstash/logstash.conf.in 
-$(logstash.conf): $(logstash.conf_SRC)
-	cp $? $@
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
@@ -396,7 +389,7 @@ docker_buildandpackage: docker_ok
 	docker build -t zenoss/serviced-build build
 	cd isvcs && make export
 	docker run --rm \
-	-v `pwd`:/go/src/github.com/zenoss/serviced \
+	-v `pwd`:/go/src/github.com/control-center/serviced \
 	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	if [ ! -d "$(pkg_build_tmp)" ];then \
 		mkdir -p $(pkg_build_tmp) ;\
@@ -408,6 +401,7 @@ docker_buildandpackage: docker_ok
 		IN_DOCKER=1 \
 		INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) \
 		GOPATH=$(docker_GOPATH) \
+		BUILD_TAG=$(BUILD_TAG) \
 		BUILD_NUMBER=$(BUILD_NUMBER) \
 		RELEASE_PHASE=$(RELEASE_PHASE) \
 		SUBPRODUCT=$(SUBPRODUCT) \
@@ -436,6 +430,7 @@ test: build docker_ok
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
+	cd zzk && go test $(GOTEST_FLAGS)
 	cd zzk/snapshot && go test $(GOTEST_FLAGS)
 	cd zzk/service && go test $(GOTEST_FLAGS)
 	cd zzk/docker && go test $(GOTEST_FLAGS)
@@ -489,7 +484,7 @@ clean_pkg:
 
 .PHONY: clean_godeps
 clean_godeps: | $(GODEP) $(Godeps)
-	-$(GODEP) restore && go clean -r && go clean -i github.com/zenoss/serviced/... # this cleans all dependencies
+	-$(GODEP) restore && go clean -r && go clean -i github.com/control-center/serviced/... # this cleans all dependencies
 	@if [ -f "$(Godeps_restored)" ];then \
 		rm -f $(Godeps_restored) ;\
 		echo "rm -f $(Godeps_restored)" ;\

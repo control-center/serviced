@@ -5,8 +5,8 @@
 package api
 
 import (
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/rpc/agent"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/rpc/agent"
 )
 
 // HostConfig is the deserialized object from the command-line

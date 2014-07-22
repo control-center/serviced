@@ -6,14 +6,15 @@ package service
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicestate"
-	zkutils "github.com/zenoss/serviced/zzk/utils"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
 )
 
 type TestHostStateHandler struct {
@@ -86,7 +87,7 @@ func TestHostStateListener_Listen(t *testing.T) {
 	shutdown := make(chan interface{})
 	wait := make(chan interface{})
 	go func() {
-		listener.Listen(shutdown)
+		zzk.Listen(shutdown, listener)
 		close(wait)
 	}()
 
@@ -148,7 +149,7 @@ func TestHostStateListener_Listen(t *testing.T) {
 	// verify the instance was removed
 	if e := <-eventC; e.Type != client.EventNodeDeleted {
 		t.Errorf("Service instance %s still exists for service %s", s.ID, s.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
 		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.hostID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for host %s", s.ID, listener.hostID)
@@ -170,7 +171,7 @@ func TestHostStateListener_Listen(t *testing.T) {
 	}
 }
 
-func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
+func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
@@ -194,7 +195,6 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
 	}
 
-
 	t.Log("Stop the instance and verify restart")
 	var s servicestate.ServiceState
 	spath := servicepath(state.ServiceID, state.ID)
@@ -203,9 +203,13 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 		t.Fatalf("Could not add watch to %s: %s", spath, err)
 	}
 
+	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	done := make(chan string)
-	go listener.listenHostState(shutdown, done, state.ID)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		listener.Spawn(shutdown, state.ID)
+	}()
 
 	// get the start time and stop the service
 	<-eventC
@@ -239,20 +243,19 @@ func TestHostStateListener_listenHostState_StartAndStop(t *testing.T) {
 
 	// stop the service instance and verify
 	StopServiceInstance(conn, listener.hostID, s.ID)
-	if ssID := <-done; ssID != state.ID {
-		t.Errorf("MISMATCH: instances do not match! (%s != %s)", state.ID, ssID)
-	} else if exists, err := zkutils.PathExists(conn, spath); err != nil {
+	wg.Wait()
+	if exists, err := zzk.PathExists(conn, spath); err != nil {
 		t.Fatalf("Error checking the instance %s for service %s: %s", s.ID, s.ServiceID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for service %s", s.ID, s.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
 		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.hostID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for host %s", s.ID, listener.hostID)
 	}
 }
 
-func TestHostStateListener_listenHostState_AttachAndDelete(t *testing.T) {
+func TestHostStateListener_Spawn_AttachAndDelete(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
@@ -287,27 +290,30 @@ func TestHostStateListener_listenHostState_AttachAndDelete(t *testing.T) {
 		t.Fatalf("Could not update instance %s: %s", state.ID, err)
 	}
 
+	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	done := make(chan string)
-	go listener.listenHostState(shutdown, done, state.ID)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		listener.Spawn(shutdown, state.ID)
+	}()
 
 	// Remove the instance and verify stopped
 	<-time.After(3 * time.Second)
 	removeInstance(conn, state)
-	if ssID := <-done; ssID != state.ID {
-		t.Errorf("MISMATCH: instances do not match! (%s != %s)", state.ID, ssID)
-	} else if exists, err := zkutils.PathExists(conn, spath); err != nil {
+	wg.Wait()
+	if exists, err := zzk.PathExists(conn, spath); err != nil {
 		t.Fatalf("Error checking the instance %s for service %s: %s", state.ID, state.ServiceID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for service %s", state.ID, state.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, hostpath(listener.hostID, state.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, state.ID)); err != nil {
 		t.Fatalf("Error checking the instance %s for host %s: %s", state.ID, listener.hostID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for host %s", state.ID, listener.hostID)
 	}
 }
 
-func TestHostStateListener_listenHostState_Shutdown(t *testing.T) {
+func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
@@ -331,22 +337,25 @@ func TestHostStateListener_listenHostState_Shutdown(t *testing.T) {
 		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
 	}
 
+	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	done := make(chan string)
-	go listener.listenHostState(shutdown, done, state.ID)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		listener.Spawn(shutdown, state.ID)
+	}()
 
 	// wait 3 seconds and shutdown
 	t.Log("Shutdown and verify the instance")
 	<-time.After(3)
 	close(shutdown)
 	spath := servicepath(state.ServiceID, state.ID)
-	if ssID := <-done; ssID != state.ID {
-		t.Errorf("MISMATCH: instances do not match! (%s != %s)", state.ID, ssID)
-	} else if exists, err := zkutils.PathExists(conn, spath); err != nil {
+	wg.Wait()
+	if exists, err := zzk.PathExists(conn, spath); err != nil {
 		t.Fatalf("Error checking the instance %s for service %s: %s", state.ID, state.ServiceID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for service %s", state.ID, state.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, hostpath(listener.hostID, state.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, state.ID)); err != nil {
 		t.Fatalf("Error checking the instance %s for host %s: %s", state.ID, listener.hostID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for host %s", state.ID, listener.hostID)
@@ -373,11 +382,11 @@ func TestHostStateListener_stopInstance(t *testing.T) {
 		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
 	} else if err := listener.stopInstance(state); err != nil {
 		t.Fatalf("Could not stop instance %s from service %s", state.ID, state.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 		t.Fatalf("Error while checking the existance of %s from service %s", state.ID, state.ServiceID)
 	} else if exists {
 		t.Errorf("Failed to delete node %s from %s", state.ID, state.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
 		t.Fatalf("Error while checking the existance of %s from host %s", state.ID, state.HostID)
 	} else if exists {
 		t.Errorf("Failed to delete node %s from %s", state.ID, state.HostID)
@@ -418,11 +427,11 @@ func TestHostStateListener_detachInstance(t *testing.T) {
 	close(done)
 	<-wait
 
-	if exists, err := zkutils.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
+	if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 		t.Fatalf("Error while checking the existance of %s from service %s", state.ID, state.ServiceID)
 	} else if exists {
 		t.Errorf("Failed to delete node %s from %s", state.ID, state.ServiceID)
-	} else if exists, err := zkutils.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
+	} else if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
 		t.Fatalf("Error while checking the existance of %s from host %s", state.ID, state.HostID)
 	} else if exists {
 		t.Errorf("Failed to delete node %s from %s", state.ID, state.HostID)

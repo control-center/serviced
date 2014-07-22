@@ -5,7 +5,7 @@
 package master
 
 import (
-	"github.com/zenoss/serviced/domain/host"
+	"github.com/control-center/serviced/domain/host"
 
 	"errors"
 )

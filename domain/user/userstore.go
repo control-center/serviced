@@ -5,7 +5,7 @@
 package user
 
 import (
-	"github.com/zenoss/serviced/datastore"
+	"github.com/control-center/serviced/datastore"
 
 	"strings"
 )

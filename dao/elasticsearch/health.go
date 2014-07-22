@@ -5,8 +5,8 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/health"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/health"
 )
 
 func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {

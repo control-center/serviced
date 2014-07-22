@@ -78,7 +78,7 @@ const example_state = `
     "SysInitPath": "/usr/bin/docker",
     "ResolvConfPath": "/var/lib/docker/containers/af5163d96bdc1532875f0f0601ae32a7eafadfdd287d9df6cf2b2020ddfb930d/resolv.conf",
     "Volumes": {
-        "/serviced": "/home/daniel/mygo/src/github.com/zenoss/serviced/serviced"
+        "/serviced": "/home/daniel/mygo/src/github.com/control-center/serviced/serviced"
     },
     "VolumesRW": {
         "/serviced": true

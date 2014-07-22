@@ -13,11 +13,12 @@ import (
 	"time"
 
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/node"
 )
 
 var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
@@ -46,12 +47,16 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceList,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
 				},
 			}, {
 				Name:        "status",
 				Usage:       "Displays the status of deployed services",
 				Description: "serviced service status",
 				Action:      c.cmdServiceStatus,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
+				},
 			}, {
 				Name:         "add",
 				Usage:        "Adds a new service",
@@ -279,6 +284,69 @@ func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
 	fmt.Println(strings.Join(output, "\n"))
 }
 
+// searches for service from definitions given keyword
+func (c *ServicedCli) searchForService(keyword string) (*service.Service, error) {
+	svcs, err := c.driver.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*service.Service
+	for _, svc := range svcs {
+		switch strings.ToLower(keyword) {
+		case svc.ID, strings.ToLower(svc.Name):
+			services = append(services, svc)
+		default:
+			if keyword == "" {
+				services = append(services, svc)
+			}
+		}
+	}
+
+	switch len(services) {
+	case 0:
+		return nil, fmt.Errorf("service not found")
+	case 1:
+		return services[0], nil
+	}
+
+	matches := newtable(0, 8, 2)
+	matches.printrow("NAME", "SERVICEID")
+	for _, row := range services {
+		matches.printrow(row.Name, row.ID)
+	}
+	matches.flush()
+	return nil, fmt.Errorf("multiple results found; select one from list")
+}
+
+// searches for services from definitions given keyword
+func (c *ServicedCli) searchForServices(keywords []string) ([]*service.Service, error) {
+	svcs, err := c.driver.GetServices()
+	if err != nil {
+		return nil, err
+	}
+
+	var services []*service.Service
+	for _, svc := range svcs {
+		for _, keyword := range keywords {
+			switch strings.ToLower(keyword) {
+			case svc.ID, strings.ToLower(svc.Name):
+				services = append(services, svc)
+			default:
+				if keyword == "" {
+					services = append(services, svc)
+				}
+			}
+		}
+	}
+
+	if len(services) == 0 {
+		return nil, fmt.Errorf("no service found")
+	}
+
+	return services, nil
+}
+
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	services, err := c.driver.GetServices()
@@ -394,6 +462,19 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			top = append(top, line["ID"])
 		}
 	}
+
+	useTreeAscii := configBool("TREE_ASCII", false)
+	if ctx.Bool("ascii") {
+		useTreeAscii = true
+	}
+
+	isTTY := isatty(os.Stdout)
+	if useTreeAscii {
+		treeCharset = treeASCII
+	} else if !isTTY {
+		treeCharset = treeSPACE
+	}
+
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
 	tableService.printrow("NAME", "ID", "STATUS", "HOST", "DOCKER_ID")
@@ -410,7 +491,13 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 // serviced service list [--verbose, -v] [SERVICEID]
 func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	if len(ctx.Args()) > 0 {
-		serviceID := ctx.Args()[0]
+		svc, err := c.searchForService(ctx.Args()[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		serviceID := svc.ID
 		if service, err := c.driver.GetService(serviceID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
@@ -439,6 +526,19 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Println(string(jsonService))
 		}
 	} else {
+
+		useTreeAscii := configBool("TREE_ASCII", false)
+		if ctx.Bool("ascii") {
+			useTreeAscii = true
+		}
+
+		isTTY := isatty(os.Stdout)
+		if useTreeAscii {
+			treeCharset = treeASCII
+		} else if !isTTY {
+			treeCharset = treeSPACE
+		}
+
 		servicemap := api.NewServiceMap(services)
 		tableService := newtable(0, 8, 2)
 		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
@@ -496,16 +596,22 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	for _, id := range args {
+	services, err := c.searchForServices(args)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	for _, svc := range services {
 		cfg := api.RemoveServiceConfig{
-			ServiceID:       id,
+			ServiceID:       svc.ID,
 			RemoveSnapshots: ctx.Bool("remove-snapshots"),
 		}
 
 		if err := c.driver.RemoveService(cfg); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+			fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 		} else {
-			fmt.Println(id)
+			fmt.Println(svc.ID)
 		}
 	}
 }
@@ -519,12 +625,9 @@ func (c *ServicedCli) cmdServiceEdit(ctx *cli.Context) {
 		return
 	}
 
-	service, err := c.driver.GetService(args[0])
+	service, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return
-	} else if service == nil {
-		fmt.Fprintln(os.Stderr, "service not found")
 		return
 	}
 
@@ -559,14 +662,19 @@ func (c *ServicedCli) cmdServiceAssignIP(ctx *cli.Context) {
 		return
 	}
 
-	var serviceID, ipAddress string
-	serviceID = args[0]
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	var ipAddress string
 	if len(args) > 1 {
 		ipAddress = args[1]
 	}
 
 	cfg := api.IPConfig{
-		ServiceID: serviceID,
+		ServiceID: svc.ID,
 		IPAddress: ipAddress,
 	}
 
@@ -584,7 +692,13 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StartService(args[0]); err != nil {
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if err := c.driver.StartService(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Printf("Service scheduled to start.\n")
@@ -600,7 +714,13 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StopService(args[0]); err != nil {
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if err := c.driver.StopService(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Printf("Service scheduled to stop.\n")
@@ -675,18 +795,23 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	}
 
 	var (
-		serviceID, command string
-		argv               []string
+		command string
+		argv    []string
 	)
 
-	serviceID = args[0]
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return err
+	}
+
 	command = args[1]
 	if len(args) > 2 {
 		argv = args[2:]
 	}
 
 	config := api.ShellConfig{
-		ServiceID:        serviceID,
+		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
 		SaveAs:           ctx.GlobalString("saveas"),
@@ -718,21 +843,26 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	}
 
 	var (
-		serviceID, command string
-		argv               []string
+		command string
+		argv    []string
 	)
 
-	serviceID = args[0]
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return err
+	}
+
 	command = args[1]
 	if len(args) > 2 {
 		argv = args[2:]
 	}
 
 	config := api.ShellConfig{
-		ServiceID:        serviceID,
+		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
-		SaveAs:           node.GetLabel(serviceID),
+		SaveAs:           node.GetLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
@@ -757,8 +887,8 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 			continue
 		}
 
-		switch keyword {
-		case rs.ServiceID, rs.Name, rs.ID, rs.DockerID:
+		switch strings.ToLower(keyword) {
+		case rs.ServiceID, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12]:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
@@ -871,7 +1001,13 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 		return
 	}
 
-	if snapshots, err := c.driver.GetSnapshotsByServiceID(ctx.Args().First()); err != nil {
+	svc, err := c.searchForService(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if snapshots, err := c.driver.GetSnapshotsByServiceID(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
@@ -890,7 +1026,13 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		return
 	}
 
-	if snapshot, err := c.driver.AddSnapshot(ctx.Args().First()); err != nil {
+	svc, err := c.searchForService(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if snapshot, err := c.driver.AddSnapshot(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")

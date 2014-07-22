@@ -7,9 +7,9 @@ package elasticsearch
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/zzk/registry"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/zzk/registry"
 	. "gopkg.in/check.v1"
 
 	"fmt"

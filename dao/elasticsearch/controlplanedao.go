@@ -16,13 +16,13 @@ import (
 
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/dfs"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/zzk"
-	zkdocker "github.com/zenoss/serviced/zzk/docker"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/zzk"
+	zkdocker "github.com/control-center/serviced/zzk/docker"
 )
 
 const (

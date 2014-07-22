@@ -17,6 +17,8 @@ COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname)
 EXPORT_CONTAINER_ID:= .isvcs_export_container_id
 GZIP               := $(shell which pigz || which gzip)
 DOCKERCFG           = $(HOME)/.dockercfg
+logstash.conf     = resources/logstash/logstash.conf
+logstash.conf_SRC = resources/logstash/logstash.conf.in
 
 ifeq "$(IN_DOCKER)" "1"
 #
@@ -24,9 +26,9 @@ ifeq "$(IN_DOCKER)" "1"
 # to the problematic docker-in-docker build
 # scenario.
 #
-all: buildgo
+all: $(logstash.conf) buildgo
 else
-all: buildgo isvcs_repo
+all: $(logstash.conf) buildgo isvcs_repo
 endif
 
 export: $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
@@ -45,6 +47,9 @@ build_repo:
 	[ -n "$$(docker images -q $(BUILD_REPO) 2>/dev/null)" ] \
 		|| docker pull $(BUILD_REPO) \
 		|| docker build -t $(BUILD_REPO) build_img
+
+$(logstash.conf): $(logstash.conf_SRC)
+	cp $? $@
 
 $(REPO_DIR):
 	mkdir -p $(@)

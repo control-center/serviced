@@ -9,10 +9,10 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/coordinator/client/zookeeper"
-	"github.com/zenoss/serviced/domain/host"
-	"github.com/zenoss/serviced/zzk"
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/zzk"
 )
 
 // Server manages the exporting of a file system to clients.
@@ -60,9 +60,9 @@ func (s *Server) loop() {
 	var leadEventC <-chan client.Event
 	var e <-chan client.Event
 
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(s.host.PoolID))
+	conn, err := zzk.GetBasePathConnection("/")
 	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", s.host.PoolID, err)
+		glog.Errorf("Error in getting a connection: %v", err)
 	}
 
 	var children []string

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/coordinator/client/retry"
+	"github.com/control-center/serviced/coordinator/client/retry"
 )
 
 // EventType is a numerical type to identify event types.

@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/zenoss/serviced/cli/api"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/domain/service"
+	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
 )
 
 const (
@@ -441,7 +441,7 @@ func ExampleServicedCLI_CmdServiceRemove_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "remove", "test-service-0")
 
 	// Output:
-	// test-service-0: no service found
+	// no service found
 }
 
 func ExampleServicedCLI_CmdServiceRemove_complete() {
@@ -547,7 +547,7 @@ func ExampleServicedCLI_CmdServiceAssignIPs_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-0", "100.99.88.1")
 
 	// Output:
-	//
+	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceStart() {
@@ -588,7 +588,7 @@ func ExampleServicedCLI_CmdServiceStart_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-0")
 
 	// Output:
-	// no service found
+	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceStop() {
@@ -620,7 +620,7 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "stop", "test-service-0")
 
 	// Output:
-	// no service found
+	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {
@@ -689,7 +689,7 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "shell", "test-service-0", "some", "command")
 
 	// Output:
-	// no service found
+	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceRun_list() {
@@ -735,7 +735,7 @@ func ExampleServicedCLI_CmdServiceRun_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "run", "test-service-0", "goodbye")
 
 	// Output:
-	// no service found
+	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceRun_complete() {
@@ -789,7 +789,7 @@ func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1")
 
 	// Output:
-	// invalid snapshot
+	// invalid service
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_err() {
@@ -830,12 +830,12 @@ func ExampleServicedCLI_CmdServiceSnapshot_fail() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-1")
 
 	// Output:
-	// invalid snapshot
+	// invalid service
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-0")
 
 	// Output:
-	// received nil snapshot
+	// service not found
 }

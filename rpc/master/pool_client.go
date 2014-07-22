@@ -5,8 +5,8 @@
 package master
 
 import (
-	"github.com/zenoss/serviced/domain/pool"
-	"github.com/zenoss/serviced/facade"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/facade"
 )
 
 //GetResourcePool gets the pool for the given poolID or nil

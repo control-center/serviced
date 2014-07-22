@@ -9,12 +9,12 @@ import (
 	"os"
 	"runtime/pprof"
 
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/rpc/agent"
+	"github.com/control-center/serviced/rpc/master"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/rpc/agent"
-	"github.com/zenoss/serviced/rpc/master"
 )
 
 var options Options
@@ -24,6 +24,7 @@ type Options struct {
 	Endpoint             string // the endpoint address to make RPC requests to
 	UIPort               string
 	Listen               string
+	OutboundIP           string // outbound ip to listen on
 	Master               bool
 	DockerDNS            []string
 	Agent                bool

@@ -5,12 +5,12 @@
 package dfs
 
 import (
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/domain/servicestate"
-	"github.com/zenoss/serviced/facade"
-	"github.com/zenoss/serviced/volume"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/volume"
 
 	"errors"
 	"fmt"

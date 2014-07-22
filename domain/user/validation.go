@@ -6,7 +6,7 @@ package user
 
 import (
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/validation"
+	"github.com/control-center/serviced/validation"
 
 	"strings"
 )

@@ -5,16 +5,16 @@
 package container
 
 import (
+	"github.com/control-center/serviced/commons/subprocess"
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced/commons/subprocess"
-	coordclient "github.com/zenoss/serviced/coordinator/client"
-	"github.com/zenoss/serviced/dao"
-	"github.com/zenoss/serviced/domain"
-	"github.com/zenoss/serviced/domain/service"
-	"github.com/zenoss/serviced/domain/servicedefinition"
-	"github.com/zenoss/serviced/node"
-	"github.com/zenoss/serviced/utils"
-	"github.com/zenoss/serviced/zzk/registry"
 
 	"bufio"
 	"errors"
@@ -93,6 +93,7 @@ type Controller struct {
 	zkConn             coordclient.Connection
 	exportedEndpoints  map[string][]export
 	importedEndpoints  map[string]importedEndpoint
+	PIDFile            string
 }
 
 // Close shuts down the controller
@@ -266,6 +267,20 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidService
 	}
 
+	if service.PIDFile != "" {
+		if strings.HasPrefix(service.PIDFile, "exec ") {
+			cmd := service.PIDFile[5:len(service.PIDFile)]
+			out, err := exec.Command("sh", "-c", cmd).Output()
+			if err != nil {
+				glog.Errorf("Unable to run command '%s'", cmd)
+			} else {
+				c.PIDFile = strings.Trim(string(out), "\n ")
+			}
+		} else {
+			c.PIDFile = service.PIDFile
+		}
+	}
+
 	// create config files
 	if err := setupConfigFiles(service); err != nil {
 		glog.Errorf("Could not setup config files error:%s", err)
@@ -381,6 +396,29 @@ func writeEnvFile(env []string) (err error) {
 	return err
 }
 
+func (c *Controller) forwardSignal(sig os.Signal) {
+	pidBuffer, err := ioutil.ReadFile(c.PIDFile)
+	if err != nil {
+		glog.Errorf("Error reading PID file while forwarding signal: %v", err)
+		return
+	}
+	pid, err := strconv.Atoi(strings.Trim(string(pidBuffer), "\n "))
+	if err != nil {
+		glog.Errorf("Error reading PID file while forwarding signal: %v", err)
+		return
+	}
+	process, err := os.FindProcess(pid)
+	if err != nil {
+		glog.Errorf("Error finding process while forwarding signal: %v", err)
+		return
+	}
+	glog.Infof("Sending signal %v to pid %d provided by PIDFile.", sig, pid)
+	err = process.Signal(sig)
+	if err != nil {
+		glog.Errorf("Encountered error sending signal %v to pid %d: %v", sig, pid, err)
+	}
+}
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
@@ -430,7 +468,11 @@ func (c *Controller) Run() (err error) {
 				c.options.Service.Autorestart = false
 			}
 			glog.Infof("notifying subprocess of signal %v", sig)
-			service.Notify(sig)
+			if c.PIDFile != "" {
+				c.forwardSignal(sig)
+			} else {
+				service.Notify(sig)
+			}
 			select {
 			case <-serviceExited:
 				return

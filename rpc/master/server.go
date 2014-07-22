@@ -5,8 +5,8 @@
 package master
 
 import (
-	"github.com/zenoss/serviced/datastore"
-	"github.com/zenoss/serviced/facade"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/facade"
 )
 
 // NewServer creates a new serviced master rpc server
