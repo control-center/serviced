@@ -43,7 +43,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js $(logstash.conf) nsinit serviced
+build_TARGETS = build_isvcs build_js nsinit serviced
 
 # Define GOPATH for containerized builds.
 #
@@ -198,13 +198,6 @@ docker_build: docker_ok
 	-t zenoss/serviced-build \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
 	cd isvcs && make isvcs_repo
-
-# Seems odd that we're 'building' logstash.conf here.  
-# Why not as part of 'make isvcs'?
-logstash.conf     = isvcs/resources/logstash/logstash.conf
-logstash.conf_SRC = isvcs/resources/logstash/logstash.conf.in 
-$(logstash.conf): $(logstash.conf_SRC)
-	cp $? $@
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
