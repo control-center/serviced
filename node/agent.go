@@ -744,7 +744,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	if svc.CPUShares < 0 {
-		cfg.CPUShares = 0
+		cfg.CpuShares = 0
 	} else {
 		cfg.CpuShares = svc.CPUShares
 	}
