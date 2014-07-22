@@ -125,6 +125,8 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 	if e != nil {
 		return e
 	}
+
+	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", tempdir)
 	foundIndexedDay := false
 	for _, yyyymmdd := range days {
 		// Skip the indexes that are filtered out by the date range
@@ -185,6 +187,8 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", from, to)
 	}
 
+	glog.Infof("Starting part 2 of 3: sort output files")
+
 	indexData := []string{}
 	for host, logfileIndex := range fileIndex {
 		for logfile, i := range logfileIndex {
@@ -214,10 +218,13 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		return fmt.Errorf("failed writing to %s: %s", indexFile, e)
 	}
 
+	glog.Infof("Starting part 3 of 3: generate tar file: %s", outfile)
+
 	cmd := exec.Command("tar", "-czf", outfile, "-C", filepath.Dir(tempdir), filepath.Base(tempdir))
 	if output, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("failed to write tgz cmd:%+v, error:%v, output:%s", cmd, e, string(output))
 	}
+
 	return nil
 }
 
