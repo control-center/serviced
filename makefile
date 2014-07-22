@@ -219,6 +219,7 @@ $(GODEP): | $(missing_godep_SRC)
 install_DIRS  = $(_DESTDIR)$(prefix)
 install_DIRS += $(_DESTDIR)/usr/bin
 install_DIRS += $(_DESTDIR)$(prefix)/bin
+install_DIRS += $(_DESTDIR)$(prefix)/doc
 install_DIRS += $(_DESTDIR)$(prefix)/share/web
 install_DIRS += $(_DESTDIR)$(prefix)/share/shell
 install_DIRS += $(_DESTDIR)$(prefix)/isvcs
@@ -238,6 +239,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += nsinit
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/nsinit:$(_DESTDIR)/usr/bin/nsinit
+$(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
 $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
