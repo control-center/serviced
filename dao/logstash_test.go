@@ -107,7 +107,7 @@ func TestConstructingFilterString(t *testing.T) {
 	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
-	filters := getFilters(services, filterDefs)
+	filters := getFilters(services, filterDefs, []string{})
 	testString := "My Test Filter"
 
 	// make sure our test filter definition is in the constructed filters
