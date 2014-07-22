@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"time"
 
 	dutils "github.com/dotcloud/docker/utils"
 	"github.com/zenoss/glog"
@@ -134,14 +135,33 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 	return nil
 }
 
+var deployTemplateOutput chan string = make(chan string, 100)
+var deployTemplateError chan string = make(chan string, 100)
+
+func (f *Facade) DeployTemplateStatus(deployTemplateStatus *string) error{
+	select {
+	case *deployTemplateStatus = <-deployTemplateOutput:
+	case <-time.After(10 * time.Second):
+		*deployTemplateStatus = "timeout"
+	case *deployTemplateStatus = <-deployTemplateError:
+		var err error = errors.New(*deployTemplateStatus)
+		return err
+	}
+
+	return nil
+}
+
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
+
+	deployTemplateOutput <- "deploy_loading_template|" + templateID
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
 		return "", err
 	}
 
+	deployTemplateOutput <- "deploy_loading_resource_pool|" + poolID
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -151,6 +171,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		return "", fmt.Errorf("poolid %s not found", poolID)
 	}
 
+	deployTemplateOutput <- "deploy_pulling_images"
 	if err := pullTemplateImages(template); err != nil {
 		glog.Errorf("Unable to pull one or more images")
 		return "", err
@@ -194,6 +215,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		return err
 	}
 
+	deployTemplateOutput <- "deploy_loading_service|" + svc.Name
 	getSvc := func(svcID string) (service.Service, error) {
 		svc, err := f.GetService(ctx, svcID)
 		return *svc, err
@@ -219,6 +241,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 	// Using the tenant id, tag the base image with the tenantID
 	if svc.ImageID != "" {
+		deployTemplateOutput <- "deploy_renaming_image|" + svc.Name
 		name, err := renameImageID(f.dockerRegistry, svc.ImageID, *tenantId)
 		if err != nil {
 			glog.Errorf("malformed imageId: %s", svc.ImageID)
@@ -231,12 +254,14 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 				glog.Error(err)
 				return err
 			}
+			deployTemplateOutput <- "deploy_loading_image|" + name
 			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
 				return msg
 			}
+			deployTemplateOutput <- "deploy_tagging_image|" + name
 			if _, err := image.Tag(name); err != nil {
 				glog.Errorf("could not tag image: %s (%v)", image.ID, err)
 				return err

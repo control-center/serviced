@@ -1,4 +1,4 @@
-function DeployWizard($scope, $notification, $translate, resourcesService) {
+function DeployWizard($scope, $notification, $translate, $http, resourcesService) {
     var step = 0;
     var nextClicked = false;
     $scope.name='wizard';
@@ -221,6 +221,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             }
             dName += selected[i].Name;
 
+            var checkStatus = true;
             resourcesService.deploy_app_template({
                 poolID: $scope.install.selected.pool,
                 TemplateID: selected[i].Id,
@@ -235,10 +236,38 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                             }
                         }
                     }
-
+                    checkStatus = false;
                     closeModal();
                 });
-            }, closeModal);
+            }, function(){
+                checkStatus = false;
+                closeModal();
+            });
+
+            //now that we have started deploying our app, we poll for status
+            var getStatus = function(){
+                if(checkStatus){
+                    var $status = $("#deployStatusText");
+                    $http.get('/templates/deploy/status').
+                        success(function(data, status) {
+                            if(data.Detail === "timeout"){
+                                $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                            }else{
+                                var parts = data.Detail.split("|");
+                                if(parts[1]){
+                                    $status.html('<strong>' + $translate(parts[0]) + ":</strong> " + parts[1]);
+                                }else{
+                                    $status.html('<strong>' + $translate(parts[0]) + '</strong>');
+                                }
+                            }
+
+                            getStatus();
+                        });
+                }
+            };
+
+            $("#deployStatus").show();
+            getStatus();
         }
 
         nextClicked = false;

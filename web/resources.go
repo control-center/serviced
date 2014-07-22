@@ -65,6 +65,17 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 	w.WriteJson(&simpleResponse{tenantID, servicesLinks()})
 }
 
+func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	status := ""
+	err := client.DeployTemplateStatus("", &status)
+	if err != nil {
+		glog.Errorf("Unexpected error during template status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&simpleResponse{status, servicesLinks()})
+}
+
 func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
