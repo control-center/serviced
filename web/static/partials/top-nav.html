@@ -8,14 +8,19 @@
       <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}">{{navlink.label|translate}}</a></li>
     </ul>
     <ul class="nav navbar-nav navbar-right">
-      <li class="item">{{user.language}}</li>
         <li>
             <button class="btn-link" ng-click="modalUserDetails()">
+                {{user.language}}
                 <i class="glyphicon glyphicon-user"></i>
                 {{user.username}}
                 &nbsp;
                 <i class="glyphicon glyphicon-envelope"></i>
                 <span ng-bind="messages.unreadCount"></span>
+            </button>
+        </li>
+        <li>
+            <button class="btn-link" ng-click="modalAbout()">
+                {{'title_about'|translate}}
             </button>
         </li>
       <li>

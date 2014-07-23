@@ -1,4 +1,4 @@
-function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService, $modalService) {
+function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService, resourcesService, $modalService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/entry', label: 'brand_cp' };
 
@@ -61,6 +61,19 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
             templateUrl: "user-details.html",
             model: $scope,
             title: "title_user_details",
+            bigModal: true
+        });
+    };
+
+    $scope.modalAbout = function() {
+        resourcesService.get_version(function(data){
+            $scope['version'] = data;
+        });
+
+        $modalService.create({
+            templateUrl: "about.html",
+            model: $scope,
+            title: "title_about",
             bigModal: true
         });
     };
