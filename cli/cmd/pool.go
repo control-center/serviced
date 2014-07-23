@@ -273,7 +273,7 @@ func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 // serviced pool remove-virtual-ip POOLID IPADDRESS
 func (c *ServicedCli) cmdRemoveVirtualIP(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 1 || len(args) > 2 {
+	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "remove-virtual-ip")
 		return
