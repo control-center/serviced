@@ -10,7 +10,4 @@ function EntryControl($scope, authService, resourcesService) {
             }
         });
     }
-    resourcesService.get_version(function(data){
-        $scope['version'] = data.Detail;
-    });
 }

@@ -12,6 +12,10 @@
     "applications": "Aplicaciones",
     "brand_cp": "Centro de Control",
     "brand_zcp": "Centro de Control de Zenoss",
+
+    "version": "Versi\u00f3n",
+    "build": "Compilaci\u00f3n",
+
     "breadcrumb_backuprestore": "Respaldar / Restaurar",
     "backuprestore": "Respaldar / Restaurar",
     "backup_create": "Crear respaldo",
@@ -224,6 +228,7 @@
     "tbl_virtual_ip": "IP",
     "tbl_virtual_ip_port": "Servidore de Puerto",
     "tbl_virtual_ip_actions":"Acciones",
+    "title_about": "Sobre",
     "title_add_config_file": "A\u00f1adir archivos de configuraci\u00f3n",
     "title_add_host": "A\u00f1adir servidor",
     "title_add_pool": "A\u00f1adir grupo de recursos",

@@ -15,3 +15,23 @@ var Gitbranch string
 var Gitcommit string
 var Giturl string
 var Buildtag string
+
+type ServicedVersion struct {
+	Version string
+	Date string
+	Gitbranch string
+	Gitcommit string
+	Giturl string
+	Buildtag string
+}
+
+func GetVersion() ServicedVersion {
+	return ServicedVersion{
+		Version,
+		Date,
+		Gitbranch,
+		Gitcommit,
+		Giturl,
+		Buildtag,
+	}
+}
