@@ -554,11 +554,7 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *no
 }
 
 func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	type ServicedVersion struct {
-		Version        string
-		Buildtag       string
-	}
-	w.WriteJson(ServicedVersion{servicedversion.Version, servicedversion.Buildtag})
+	w.WriteJson(servicedversion.GetVersion())
 }
 
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

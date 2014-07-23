@@ -1,9 +1,5 @@
 <h1>{{'brand_zcp'|translate}}</h1>
-<div>
-    <strong>{{'version'|translate}}:</strong>
-    <span>{{version.Version}}</span>
-</div>
-<div>
-    <strong>{{'build'|translate}}:</strong>
-    <span>{{version.Buildtag}}</span>
+<div ng-repeat="(key, value) in version">
+    <strong>{{key}}:</strong>
+    <span>{{value}}</span>
 </div>
