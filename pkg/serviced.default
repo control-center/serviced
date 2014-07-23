@@ -10,22 +10,25 @@
 # Set the pool id for the master role
 # export SERVICED_MASTER_POOLID=default
 
+# For multi-host, it is convenient to set a master IP to be used in this script
+# export SERVICED_MASTER_IP=172.17.42.1
+
 # Set the the zookeeper ensemble, uncomment
 # export SERVICED_ZK=foo:2181,bar:2181
-
+# export SERVICED_ZK=$SERVICED_MASTER_IP:2181
 
 # Set to 1 to have serviced push/pull in to a docker registry
 # instead of only using the local docker index
 # SERVICED_REGISTRY=1
 
 # Set the local docker registry
-# export SERVICED_DOCKER_REGISTRY=localhost:5000
+# export SERVICED_DOCKER_REGISTRY=$SERVICED_MASTER_IP:5000
 
 # Set the static IPs this host can advertize
 # export SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
 
 # Set the default serviced RPC endpoint to dial
-# export SERVICED_ENDPOINT=localhost:4979
+# export SERVICED_ENDPOINT=$SERVICED_MASTER_IP:4979
 
 # Set the RPC port to listen on
 # export SERVICED_RPC_PORT=4979
@@ -61,10 +64,10 @@
 # export SERVICED_LOG_LEVEL=0
 
 # Set the address to which to send logs
-# export SERVICED_LOG_ADDRESS=10.0.0.44:5042
+# export SERVICED_LOG_ADDRESS=$SERVICED_MASTER_IP:5042
 
 # Set the default serviced stats endpoint to use
-# export SERVICED_STATS_PORT=localhost:8443
+# export SERVICED_STATS_PORT=$SERVICED_MASTER_IP:8443
 
 # Set the interval (in seconds) for host performance collection
 # export SERVICED_STATS_PERIOD=10
