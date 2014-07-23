@@ -347,6 +347,17 @@ func (c *ServicedCli) searchForServices(keywords []string) ([]*service.Service, 
 	return services, nil
 }
 
+// cmdSetTreeCharset sets the default behavior for --ASCII, SERVICED_TREE_ASCII, and stdout pipe
+func cmdSetTreeCharset(ctx *cli.Context) {
+	if ctx.Bool("ascii") {
+		treeCharset = treeASCII
+	} else if !isatty(os.Stdout) {
+		treeCharset = treeSPACE
+	} else if configBool("TREE_ASCII", false) {
+		treeCharset = treeASCII
+	}
+}
+
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	services, err := c.driver.GetServices()
@@ -463,17 +474,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 		}
 	}
 
-	useTreeAscii := configBool("TREE_ASCII", false)
-	if ctx.Bool("ascii") {
-		useTreeAscii = true
-	}
-
-	isTTY := isatty(os.Stdout)
-	if useTreeAscii {
-		treeCharset = treeASCII
-	} else if !isTTY {
-		treeCharset = treeSPACE
-	}
+	cmdSetTreeCharset(ctx)
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
@@ -527,17 +528,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		}
 	} else {
 
-		useTreeAscii := configBool("TREE_ASCII", false)
-		if ctx.Bool("ascii") {
-			useTreeAscii = true
-		}
-
-		isTTY := isatty(os.Stdout)
-		if useTreeAscii {
-			treeCharset = treeASCII
-		} else if !isTTY {
-			treeCharset = treeSPACE
-		}
+		cmdSetTreeCharset(ctx)
 
 		servicemap := api.NewServiceMap(services)
 		tableService := newtable(0, 8, 2)
