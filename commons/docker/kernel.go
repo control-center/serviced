@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/control-center/serviced/commons"
 )
 
 const (
@@ -219,6 +219,7 @@ var (
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
 		PullImage       chan pushpullreq
+		PushImage       chan pushpullreq
 		Restart         chan restartreq
 		Start           chan startreq
 		Stop            chan stopreq
@@ -239,6 +240,7 @@ var (
 		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
+		make(chan pushpullreq),
 		make(chan pushpullreq),
 		make(chan restartreq),
 		make(chan startreq),
@@ -491,6 +493,8 @@ KernelLoop:
 			}
 			close(req.errchan)
 		case req := <-cmds.PullImage:
+			ppi <- req
+		case req := <-cmds.PushImage:
 			ppi <- req
 		case req := <-cmds.Restart:
 			// FIXME: this should really be done by the scheduler since the timeout could be long.
@@ -806,7 +810,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				go func(req pushpullreq, dc *dockerclient.Client) {
-					glog.V(2).Info("pushing image: ", req.args.reponame)
+					glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", req.args.reponame, req.args.registry, req.args.tag)
 					opts := dockerclient.PushImageOptions{
 						Name:     req.args.reponame,
 						Registry: req.args.registry,
