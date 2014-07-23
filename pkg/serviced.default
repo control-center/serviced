@@ -10,11 +10,12 @@
 # Set the pool id for the master role
 # export SERVICED_MASTER_POOLID=default
 
-# Set the the zookeeper ensemble, uncomment
-# export SERVICED_ZK=foo:2181,bar:2181
-
 # For multi-host, it is convenient to set a master IP to be used in this script
 # export SERVICED_MASTER_IP=172.17.42.1
+
+# Set the the zookeeper ensemble, uncomment
+# export SERVICED_ZK=foo:2181,bar:2181
+# export SERVICED_ZK=$SERVICED_MASTER_IP:2181
 
 # Set to 1 to have serviced push/pull in to a docker registry
 # instead of only using the local docker index
