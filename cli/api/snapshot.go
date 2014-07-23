@@ -19,11 +19,13 @@ func (a *api) GetSnapshots() ([]string, error) {
 		return nil, err
 	}
 
+	// Get only unique snapshots as defined by the tenant ID
+	svcmap := NewServiceMap(services)
 	var snapshots []string
-	for _, s := range services {
-		ss, err := a.GetSnapshotsByServiceID(s.ID)
+	for _, s := range svcmap.Tree()[""] {
+		ss, err := a.GetSnapshotsByServiceID(s)
 		if err != nil {
-			return nil, fmt.Errorf("error trying to retrieve snapshots for service %s: %s", s.ID, err)
+			return nil, fmt.Errorf("error trying to retrieve snapshots for service %s: %s", s, err)
 		}
 		snapshots = append(snapshots, ss...)
 	}
