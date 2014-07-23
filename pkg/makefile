@@ -14,7 +14,10 @@ SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot
 INSTALL_TEMLATES = 1
-LICENSE       = "Apache 2.0"
+# https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/#license-specification
+DEB_LICENSE   = Apache-2
+# https://fedoraproject.org/wiki/Licensing:Main?rd=Licensing
+RPM_LICENSE   = "ASL 2.0"
 VENDOR        = "Zenoss, Inc."
 URL           = https://github.com/control-center/serviced
 DEB_PRIORITY  = extra
@@ -132,7 +135,7 @@ deb: stage_deb
 		--deb-user root \
 		--deb-group root \
 		--deb-priority $(DEB_PRIORITY) \
-		--license $(LICENSE) \
+		--license $(DEB_LICENSE) \
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
@@ -151,7 +154,7 @@ rpm: stage_rpm
 		--description "$$DESCRIPTION" \
 		--rpm-user root \
 		--rpm-group root \
-		--license $(LICENSE) \
+		--license $(RPM_LICENSE) \
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
