@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService){
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService, $interval){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -116,7 +116,28 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         $scope.hosts.page = 1;
         $scope.hosts.pageSize = 10;
         $scope.filterHosts();
+        updateActiveHosts();
     };
+
+    function updateActiveHosts() {
+        if ($scope.hosts) {
+            $.getJSON("/hosts/running", "", function(data) {
+                for (var i in $scope.hosts.filtered) {
+                    var host = $scope.hosts.filtered[i];
+                    host.active = 'no';
+                    for (var j in data) {
+                        if (data[j] == host.ID) {
+                            host.active = 'yes';
+                        }
+                    }
+                }
+            });
+        }
+    }
+
+    if(!angular.isDefined($scope.updateActiveHostsInterval)) {
+        $scope.updateActiveHostsInterval = $interval(updateActiveHosts, 3000);
+    }
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
