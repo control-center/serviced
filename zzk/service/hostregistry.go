@@ -185,6 +185,26 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	}
 }
 
+func GetPoolActiveHostIDs(poolID string) ([]string, error) {
+	hostids := []string{}
+	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+	if err != nil {
+		return nil, err
+	}
+	ehosts, err := conn.Children(hostregpath())
+	if err != nil {
+		return nil, err
+	}
+	for _, ehostID := range ehosts {
+		var ehost host.Host
+		if err := conn.Get(hostregpath(ehostID), &HostNode{Host: &ehost}); err != nil {
+			return nil, err
+		}
+		hostids = append(hostids, ehost.ID)
+	}
+	return hostids, nil
+}
+
 func SyncHosts(conn client.Connection, hosts []*host.Host) error {
 	nodes := make([]zzk.Node, len(hosts))
 	for i := range hosts {
