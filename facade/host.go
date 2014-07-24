@@ -127,11 +127,13 @@ func (f *Facade) GetActiveHosts(ctx datastore.Context) ([]string, error) {
 	hostids := []string{}
 	hosts, err := f.GetHosts(ctx)
 	if err != nil {
+		glog.Errorf("Could not get hosts: %v", err)
 		return hostids, err
 	}
 	for _, h := range hosts {
 		active, err := service.HostIsActive(h)
 		if err != nil {
+			glog.Errorf("Could not determine if host was active: %v", err)
 			return hostids, err
 		}
 		if active {
