@@ -24,6 +24,7 @@
   <thead>
     <tr>
       <th>{{'label_host_id' | translate}}</th>
+      <th>Active</th>
       <th>{{'label_pool_name'| translate}}</th>
       <th>{{'label_host_memory' | translate}}</th>
       <th>{{'label_host_cores' | translate}}</th>
@@ -34,6 +35,7 @@
   <tbody>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
+      <td>{{host.active}}</td>
       <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
       <td>{{host.Memory | toGB}}</td>
       <td>{{host.Cores}}</td>
