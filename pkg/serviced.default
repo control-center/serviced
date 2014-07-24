@@ -13,8 +13,7 @@
 # For multi-host, it is convenient to set a master IP to be used in this script
 # export SERVICED_MASTER_IP=172.17.42.1
 
-# Set the the zookeeper ensemble, uncomment
-# export SERVICED_ZK=foo:2181,bar:2181
+# Set the the zookeeper ensemble, multiple masters should be comma separated
 # export SERVICED_ZK=$SERVICED_MASTER_IP:2181
 
 # Set to 1 to have serviced push/pull in to a docker registry
@@ -72,5 +71,5 @@
 # Set the interval (in seconds) for host performance collection
 # export SERVICED_STATS_PERIOD=10
 
-# Arbitraty daeomon args
+# Arbitrary serviced daemon args
 # export SERVICED_OPTS=
