@@ -19,7 +19,7 @@
 
 # Set to 1 to have serviced push/pull in to a docker registry
 # instead of only using the local docker index
-# SERVICED_REGISTRY=1
+# export SERVICED_REGISTRY=1
 
 # Set the local docker registry
 # export SERVICED_DOCKER_REGISTRY=$SERVICED_MASTER_IP:5000
