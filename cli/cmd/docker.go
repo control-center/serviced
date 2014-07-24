@@ -28,6 +28,15 @@ func (c *ServicedCli) initDocker() {
 					cli.StringFlag{"tempdir", "", "temp directory"},
 				},
 			},
+			{
+				Name:        "sync",
+				Usage:       "serviced docker sync",
+				Description: "sync pushes all images to local registry - allows single host to easily be made master for multi-host",
+				Action:      c.cmdRegistrySync,
+				Flags: []cli.Flag{
+					cli.StringFlag{"endpoint", "unix:///var/run/docker.sock", "docker endpoint"},
+				},
+			},
 		},
 	})
 }
@@ -58,4 +67,13 @@ func (c *ServicedCli) cmdSquash(ctx *cli.Context) {
 		glog.Fatalf("error squashing: %s", err)
 	}
 	fmt.Println(imageID)
+}
+
+// serviced docker sync
+func (c *ServicedCli) cmdRegistrySync(ctx *cli.Context) {
+
+	err := c.driver.RegistrySync()
+	if err != nil {
+		glog.Fatalf("error syncing docker images to local registry: %s", err)
+	}
 }

@@ -81,6 +81,7 @@ type API interface {
 
 	// Docker
 	Squash(imageName, downToLayer, newName, tempDir string) (string, error)
+	RegistrySync() error
 
 	// Logs
 	ExportLogs(serviceIds []string, to, from, outfile string) error
