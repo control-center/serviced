@@ -26,6 +26,15 @@ func (c *Client) GetHosts() ([]*host.Host, error) {
 	return response, nil
 }
 
+//GetActiveHosts returns all active host ids or empty array
+func (c *Client) GetActiveHosts() ([]string, error) {
+	response := []string{}
+	if err := c.call("GetActiveHosts", empty, &response); err != nil {
+		return []string{}, err
+	}
+	return response, nil
+}
+
 //AddHost adds a Host
 func (c *Client) AddHost(host host.Host) error {
 	return c.call("AddHost", host, nil)

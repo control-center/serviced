@@ -5,8 +5,8 @@
 package web
 
 import (
-	"github.com/zenoss/go-json-rest"
 	"github.com/control-center/serviced/health"
+	"github.com/zenoss/go-json-rest"
 )
 
 //getRoutes returns all registered rest routes
@@ -24,6 +24,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/backup/restore/status", sc.authorizedClient(RestRestoreStatus)},
 		// Hosts
 		rest.Route{"GET", "/hosts", sc.checkAuth(restGetHosts)},
+		rest.Route{"GET", "/hosts/running", sc.checkAuth(restGetActiveHostIDs)},
 		rest.Route{"GET", "/hosts/defaultHostAlias", sc.checkAuth(restGetDefaultHostAlias)},
 		rest.Route{"GET", "/hosts/:hostId", sc.checkAuth(restGetHost)},
 		rest.Route{"POST", "/hosts/add", sc.checkAuth(restAddHost)},
