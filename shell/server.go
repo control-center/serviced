@@ -413,9 +413,8 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 
 	if cfg.IsTTY {
 		argv = append(argv, "-i", "-t")
-	} else {
-		argv = append(argv, "-t")
 	}
+
 	// set the systemuser and password
 	unused := 0
 	systemUser := user.User{}
