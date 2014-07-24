@@ -51,7 +51,7 @@ func restGetActiveHostIDs(w *rest.ResponseWriter, r *rest.Request, ctx *requestC
 		return
 	}
 
-	hostids, err := client.GetActiveHosts()
+	hostids, err := client.GetActiveHostIDs()
 	if err != nil {
 		restServerError(w)
 		return

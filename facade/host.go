@@ -7,7 +7,7 @@ package facade
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
-	"github.com/control-center/serviced/zzk/service"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -123,24 +123,22 @@ func (f *Facade) GetHosts(ctx datastore.Context) ([]*host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
 }
 
-func (f *Facade) GetActiveHosts(ctx datastore.Context) ([]string, error) {
+func (f *Facade) GetActiveHostIDs(ctx datastore.Context) (*[]string, error) {
 	hostids := []string{}
-	hosts, err := f.GetHosts(ctx)
+	pools, err := f.GetResourcePools(ctx)
 	if err != nil {
-		glog.Errorf("Could not get hosts: %v", err)
-		return hostids, err
+		glog.Errorf("Could not get resource pools: %v", err)
+		return nil, err
 	}
-	for _, h := range hosts {
-		active, err := service.HostIsActive(h)
+	for _, p := range pools {
+		active, err := zkservice.GetPoolActiveHostIDs(p.ID)
 		if err != nil {
-			glog.Errorf("Could not determine if host was active: %v", err)
-			return hostids, err
+			glog.Errorf("Could not get active host ids for pool: %v", err)
+			return nil, err
 		}
-		if active {
-			hostids = append(hostids, h.ID)
-		}
+		hostids = append(hostids, *active...)
 	}
-	return hostids, nil
+	return &hostids, nil
 }
 
 // FindHostsInPool returns a list of all hosts with poolID

@@ -34,12 +34,12 @@ func (s *Server) GetHosts(empty struct{}, hostReply *[]*host.Host) error {
 }
 
 // GetActiveHosts returns all active host ids
-func (s *Server) GetActiveHosts(empty struct{}, hostReply *[]string) error {
-	hosts, err := s.f.GetActiveHosts(s.context())
+func (s *Server) GetActiveHostIDs(empty struct{}, hostReply *[]string) error {
+	hosts, err := s.f.GetActiveHostIDs(s.context())
 	if err != nil {
 		return err
 	}
-	*hostReply = hosts
+	*hostReply = *hosts
 	return nil
 }
 

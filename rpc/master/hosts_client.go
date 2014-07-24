@@ -27,9 +27,9 @@ func (c *Client) GetHosts() ([]*host.Host, error) {
 }
 
 //GetActiveHosts returns all active host ids or empty array
-func (c *Client) GetActiveHosts() ([]string, error) {
+func (c *Client) GetActiveHostIDs() ([]string, error) {
 	response := []string{}
-	if err := c.call("GetActiveHosts", empty, &response); err != nil {
+	if err := c.call("GetActiveHostIDs", empty, &response); err != nil {
 		return []string{}, err
 	}
 	return response, nil
