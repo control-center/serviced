@@ -138,7 +138,7 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 var deployTemplateOutput chan string = make(chan string, 100)
 var deployTemplateError chan string = make(chan string, 100)
 
-func (f *Facade) DeployTemplateStatus(deployTemplateStatus *string) error{
+func (f *Facade) DeployTemplateStatus(deployTemplateStatus *string) error {
 	select {
 	case *deployTemplateStatus = <-deployTemplateOutput:
 	case <-time.After(10 * time.Second):
@@ -153,6 +153,17 @@ func (f *Facade) DeployTemplateStatus(deployTemplateStatus *string) error{
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
+	sl, err := f.GetServices(ctx)
+	if err != nil {
+		glog.Error("unable to get list of services")
+		return "", err
+	}
+
+	for _, s := range sl {
+		if deploymentID == s.DeploymentID {
+			return "", fmt.Errorf("duplicate deployment id: %s", deploymentID)
+		}
+	}
 
 	deployTemplateOutput <- "deploy_loading_template|" + templateID
 	template, err := f.templateStore.Get(ctx, templateID)
