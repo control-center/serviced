@@ -261,6 +261,6 @@
     "vhost_controls": "Controles",
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
-    "vhost_name_invalid": "Nombre de host virtual no válido.",
+    "vhost_name_invalid": "Nombre de host virtual no válido:",
     "warning": "Aviso"
 }

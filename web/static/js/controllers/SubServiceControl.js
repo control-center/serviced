@@ -91,7 +91,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                         }
                         else {
                             this.close();
-                            $notification.create("", $translate("vhost_name_invalid")).error();
+                            $notification.create("", $translate("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
                         }
                     }
                 }
