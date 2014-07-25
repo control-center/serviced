@@ -150,7 +150,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.BoolFlag{"logtostderr", "enable/disable detailed serviced run logging (false by default)"},
 					cli.BoolTFlag{"logstash", "enable/disable log stash (true by default)"},
-					cli.StringFlag{"logstash-idle-flush-time", "1ms", "time duration for logstash to flush log messages"},
+					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
