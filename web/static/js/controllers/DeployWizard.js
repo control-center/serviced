@@ -7,6 +7,8 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
         if($scope.selectedTemplates().length <= 0){
             showError($translate("label_wizard_select_app"));
             return false;
+        }else{
+            resetError();
         }
 
         return true;
@@ -16,6 +18,8 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
         if($scope.install.deploymentId === undefined || $scope.install.deploymentId === ""){
             showError($translate("label_wizard_deployment_id"));
             return false;
+        }else{
+            resetError();
         }
 
         return true;
