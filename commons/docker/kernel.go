@@ -715,12 +715,13 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 							glog.V(2).Infof("container %s is started", ctr.ID)
 							break WaitForContainerStart
 						case <-time.After(5 * time.Second):
-							ctr, err = dc.InspectContainer(ctr.ID)
+							nctr, err := dc.InspectContainer(ctr.ID)
 							if err != nil {
 								glog.V(2).Infof("can't inspect container %s: %v", ctr.ID, err)
 								req.errchan <- err
 								return
 							}
+							ctr = nctr
 
 							switch {
 							case !ctr.State.Running && attempts > maxStartAttempts:
