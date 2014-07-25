@@ -5,11 +5,11 @@
 package web
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/rpc/agent"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 
 	"net"
 	"net/url"
@@ -41,6 +41,24 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 	}
 
 	w.WriteJson(&response)
+}
+
+func restGetActiveHostIDs(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+
+	client, err := ctx.getMasterClient()
+	if err != nil {
+		restServerError(w)
+		return
+	}
+
+	hostids, err := client.GetActiveHostIDs()
+	if err != nil {
+		restServerError(w)
+		return
+	}
+
+	w.WriteJson(&hostids)
+
 }
 
 //restGetHost retrieves a host. Response is Host
