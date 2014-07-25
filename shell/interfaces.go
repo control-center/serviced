@@ -7,6 +7,8 @@ package shell
 
 import (
 	"github.com/googollee/go-socket.io"
+
+	"time"
 )
 
 // Describes whether a process terminated normally or abnormally
@@ -23,12 +25,18 @@ type ProcessServer struct {
 }
 
 type ProcessConfig struct {
-	ServiceID string
-	IsTTY     bool
-	SaveAs    string
-	Envv      []string
-	Mount	  []string
-	Command   string
+	ServiceID   string
+	IsTTY       bool
+	SaveAs      string
+	Envv        []string
+	Mount       []string
+	Command     string
+	LogToStderr bool // log the command output for stderr
+	LogStash    struct {
+		Enable        bool          //enable log stash
+		SettleTime    time.Duration //how long to wait for log stash to flush logs before exiting, ex. 1s
+		IdleFlushTime time.Duration //interval log stash flushes its buffer, ex 1ms
+	}
 }
 
 type Result struct {

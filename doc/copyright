@@ -4,7 +4,7 @@ Source: https://github.com/control-center/serviced/
 
 Files: *
 Copyright: Copyright 2014 Zenoss, Inc.
-License: Apache 2.0 and Zenoss Beta Version
+License: Apache 2.0
 
 License: Apache 2.0
  Licensed to Zenoss, Inc. under one or more contributor license agreements.  
@@ -24,76 +24,3 @@ License: Apache 2.0
  .
  On Debian systems, the full text of the Apache Software License version 2 can
  be found in the file `/usr/share/common-licenses/Apache-2.0'.
-
-License: Zenoss Beta Version
- Your use of Zenoss Beta Software, as defined below, is subject to the terms 
- and conditions of this Zenoss Beta Version License Agreement 
- (this “Agreement”).  You may not use the Beta Software unless you have signed
- this Agreement, either by clicking “accept” or following other signing 
- instructions provided by Zenoss.  If the individual signing this Agreement 
- does so on behalf a legal entity, then the individual represents and warrants
- to Zenoss that he or she has the authority to legally bind that entity to this
- Agreement.
-
- License.  You are licensed to use the Beta Software for a limited term 
- beginning on the date that you sign this Agreement (using the signing means 
- established by Zenoss) and ending on the 15th day after Zenoss releases the 
- “generally availability” version of the Beta Software (the “Test Period”).
- You will not owe Zenoss any fee for your use of the Beta Software during the
- Test Period, provided you comply with the terms and conditions of this 
- Agreement.   Your license is non-exclusive, non-transferable, and 
- non-sublicenseable.  You may install and use the Software only on computers
- or other devices that are located at the address you provided to Zenoss as
- part of the contracting and download process for the Beta Software or that are
- located in the same country as that address and are otherwise under your
- direct control.  You may use the Beta Software only in a non-production test
- environment and only in connection with your internal business operations.
- Zenoss may revoke your license to use the Beta Software at any time in its
- sole discretion by giving you written or oral notice.  If Zenoss has
- provided you with a test plan, you agree that you will use good faith efforts
- to test the Zenoss software in accordance with the test plan in an environment
- that meets the test plan specification.  You may also test the Beta Software
- against your own requirements.
-
- Test Information.  You must promptly provide Zenoss with any feedback or
- information that Zenoss may reasonably request regarding your use of the
- Beta Software, as part of any Zenoss test plan or otherwise, including any
- defects or errors you discover with all information necessary for Zenoss to
- reproduce the defect or error.  You must provide the information required
- under this Section in a reasonably complete and objective manner.
-
- Confidential Information.  The following is confidential information of
- Zenoss: (i) all information provided by Zenoss to you about the Beta Software
- or in connection with your use of the Beta Software (such as features, release
- dates, road map information, defects, testing data), (ii)  the fact that you
- have been given access to the Beta Software, (iii) all information generated
- or learned by you as part of your testing or other use of the Beta Software,
- including your conclusions regarding the general quality of the Software, and
- (iv) Your Feedback, as defined below, but in each case excluding any
- information that was known by you or was publicly available prior to your use
- of the Beta Software, or that has been publicly disclosed by Zenoss
- (“Confidential Information”).  You may not use the Confidential Information
- for any purpose other than testing the Beta Software and providing Your
- Feedback to Zenoss.  You may not disclose the Confidential Information to any
- third party without Zenoss’ prior written consent, unless required by law.  
- If you are required by law to disclose the Confidential Information you will
- give Zenoss advance notice of the requirement as far in advance as reasonably
- possible, and will limit your disclosure to the information that is strictly
- required to be disclosed.  You will use reasonable care to prevent the
- unauthorized use or disclosure of the Confidential Information.
-
- Back Up of System.  Zenoss recommends that you create a back up copy of any
- data, software or other information used as part of the system on which you
- install the Beta Software such that you are able to fully restore the system
- in the event it is harmed or corrupted by the Beta Software.
-
- Warranty Disclaimer.  The Beta Software is a pre-release version and may 
- contain serious defects or errors, including security vulnerabilities.  You 
- acknowledge that the Beta Software is provided AS IS with no representation
- or warranty whatsoever.  You acknowledge that Zenoss is under no obligation
- to release a “general availability” version of the Beta Software, or if it
- does, the features and functionality of the general availability version may
- differ materially from the Beta Software.
-
- Zenoss hereby disclaims any implied warranties, such as a warranty of
- merchantability, non-infringement, and suitability for a particular purpose.

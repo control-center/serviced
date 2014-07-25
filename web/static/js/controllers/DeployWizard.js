@@ -193,6 +193,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             $('#addApp').modal('hide');
             $("#deploy-save-button").removeAttr("disabled");
             $("#deploy-save-button").removeClass('active');
+												$("#deploy-start-save-button").removeAttr("disabled");
             resetStepPage();
             resetError();
         };
@@ -206,6 +207,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
         $("#deploy-save-button").toggleClass('active');
         $("#deploy-save-button").attr("disabled", "disabled");
+								$("#deploy-start-save-button").attr("disabled", "disabled");
 
         var selected = $scope.selectedTemplates();
         var f = true;

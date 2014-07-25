@@ -33,6 +33,16 @@ func (s *Server) GetHosts(empty struct{}, hostReply *[]*host.Host) error {
 	return nil
 }
 
+// GetActiveHosts returns all active host ids
+func (s *Server) GetActiveHostIDs(empty struct{}, hostReply *[]string) error {
+	hosts, err := s.f.GetActiveHostIDs(s.context())
+	if err != nil {
+		return err
+	}
+	*hostReply = hosts
+	return nil
+}
+
 // AddHost adds the host
 func (s *Server) AddHost(host host.Host, _ *struct{}) error {
 	return s.f.AddHost(s.context(), &host)

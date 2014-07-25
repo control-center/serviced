@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/control-center/serviced/commons"
 )
 
 const (
@@ -219,6 +219,7 @@ var (
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
 		PullImage       chan pushpullreq
+		PushImage       chan pushpullreq
 		Restart         chan restartreq
 		Start           chan startreq
 		Stop            chan stopreq
@@ -239,6 +240,7 @@ var (
 		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
+		make(chan pushpullreq),
 		make(chan pushpullreq),
 		make(chan restartreq),
 		make(chan startreq),
@@ -279,6 +281,16 @@ func init() {
 	}
 
 	go kernel(client, done)
+}
+
+// SetUseRegistry sets the value of useRegistry
+func SetUseRegistry(ur bool) {
+	useRegistry = ur
+}
+
+// UseRegistry returns the value of useRegistry
+func UseRegistry() bool {
+	return useRegistry
 }
 
 // kernel is responsible for executing all the Docker client commands.
@@ -492,6 +504,8 @@ KernelLoop:
 			close(req.errchan)
 		case req := <-cmds.PullImage:
 			ppi <- req
+		case req := <-cmds.PushImage:
+			ppi <- req
 		case req := <-cmds.Restart:
 			// FIXME: this should really be done by the scheduler since the timeout could be long.
 			glog.V(1).Info("restarting container: ", req.args.id)
@@ -701,12 +715,13 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 							glog.V(2).Infof("container %s is started", ctr.ID)
 							break WaitForContainerStart
 						case <-time.After(5 * time.Second):
-							ctr, err = dc.InspectContainer(ctr.ID)
+							nctr, err := dc.InspectContainer(ctr.ID)
 							if err != nil {
 								glog.V(2).Infof("can't inspect container %s: %v", ctr.ID, err)
 								req.errchan <- err
 								return
 							}
+							ctr = nctr
 
 							switch {
 							case !ctr.State.Running && attempts > maxStartAttempts:
@@ -806,7 +821,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				go func(req pushpullreq, dc *dockerclient.Client) {
-					glog.V(2).Info("pushing image: ", req.args.reponame)
+					glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", req.args.reponame, req.args.registry, req.args.tag)
 					opts := dockerclient.PushImageOptions{
 						Name:     req.args.reponame,
 						Registry: req.args.registry,

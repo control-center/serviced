@@ -11,9 +11,9 @@ import (
 	"os"
 	"time"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
-	"github.com/control-center/serviced/commons"
 )
 
 // Container represents a Docker container.
@@ -637,6 +637,53 @@ func pullImage(repotag string) error {
 			registry string
 			tag      string
 		}{pullop, "", iid.BaseName(), iid.Registry(), iid.Tag},
+		nil,
+	}
+
+	select {
+	case <-done:
+		return ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			return nil
+		default:
+			return fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+// PushImage pushes an image by repotag to local registry, e.g., zenoss/devimg, from the local docker repository
+func PushImage(repotag string) error {
+	glog.V(1).Infof("looking up image: %s", repotag)
+	if _, err := lookupImage(repotag); err != nil {
+		return err
+	}
+
+	if err := pushImage(repotag); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func pushImage(repotag string) error {
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
+		return err
+	}
+
+	ec := make(chan error)
+
+	cmds.PushImage <- pushpullreq{
+		request{ec},
+		struct {
+			op       int
+			uuid     string
+			reponame string
+			registry string
+			tag      string
+		}{pushop, "", iid.BaseName(), iid.Registry(), iid.Tag},
 		nil,
 	}
 
