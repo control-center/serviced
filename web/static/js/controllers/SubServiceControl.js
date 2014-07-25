@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $q, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate) {
+function SubServiceControl($scope, $q, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -89,12 +89,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                             // addVHost function before closing
                             this.close();
                         }
+                        else {
+                            this.close();
+                            $notification.create("", $scope.vhosts.add.name + " is not a valid virtual host name.").error();
+                        }
                     }
                 }
             ],
             validate: function(){
-                // TODO - actually validate
-                return true;
+                var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
+                return re.test($scope.vhosts.add.name);
             }
         });
     };
