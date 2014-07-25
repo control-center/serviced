@@ -91,7 +91,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                         }
                         else {
                             this.close();
-                            $notification.create("", $scope.vhosts.add.name + " is not a valid virtual host name.").error();
+                            $notification.create("", $translate("vhost_name_invalid")).error();
                         }
                     }
                 }

@@ -297,6 +297,7 @@
     "vhost_application": "Application",
     "vhost_controls": "Controls",
     "vhost_name": "Virtual Host Name",
+    "vhost_name_invalid": "Invalid virtual host name.",
     "vhost_names": "Virtual Host Names",
     "vhost_service_endpoint": "Endpoint",
     "vhost_url": "URL",
