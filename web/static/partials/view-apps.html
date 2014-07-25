@@ -1,4 +1,5 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
     <h3 class="pull-left">
         {{'applications'|translate}}
     </h3>
@@ -27,7 +28,15 @@
         </tr>
       </thead>
       <tbody>
-        <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.ID}}">
+        <tr ng-repeat="app in services.deploying | orderBy:services.sort" ng-model="services.deploying">
+            <td>{{app.templateName}}</td>
+            <td style="text-align:center;">{{"deploying" | translate}}</td>
+            <td>{{app.DeploymentID}}</td>
+            <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
+            <td>&nbsp;</td>
+            <td>&nbsp;</td>
+        </tr>
+        <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.ID}}"  ng-model="services.data">
           <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
           <td style="text-align:center;">
             <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">

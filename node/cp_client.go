@@ -151,8 +151,12 @@ func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequ
 	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantId)
 }
 
-func (s *ControlClient) DeployTemplateStatus(unused string, status *string) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplateStatus", unused, status)
+func (s *ControlClient) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, status *string) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplateStatus", request, status)
+}
+
+func (s *ControlClient) DeployTemplateActive(notUsed string, active *[]map[string]string) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplateActive", notUsed, active)
 }
 
 func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error {
