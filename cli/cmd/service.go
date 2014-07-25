@@ -122,6 +122,8 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
+					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
+					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
@@ -146,8 +148,13 @@ func (c *ServicedCli) initService() {
 				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
+					cli.BoolFlag{"logtostderr", "enable/disable detailed serviced run logging (false by default)"},
+					cli.BoolTFlag{"logstash", "enable/disable log stash (true by default)"},
+					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
+					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "attach",
@@ -743,21 +750,23 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 
 	args := ctx.Args()
 	options := api.ControllerOptions{
-		MuxPort:              ctx.GlobalInt("muxport"),
-		Mux:                  ctx.GlobalBool("mux"),
-		TLS:                  ctx.GlobalBool("tls"),
-		KeyPEMFile:           ctx.GlobalString("keyfile"),
-		CertPEMFile:          ctx.GlobalString("certfile"),
-		ServicedEndpoint:     ctx.GlobalString("endpoint"),
-		Autorestart:          ctx.GlobalBool("autorestart"),
-		MetricForwarderPort:  ctx.GlobalString("metric-forwarder-port"),
-		Logstash:             ctx.GlobalBool("logstash"),
-		LogstashBinary:       ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:       ctx.GlobalString("forwarder-config"),
-		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
-		ServiceID:            args[0],
-		InstanceID:           args[1],
-		Command:              args[2:],
+		MuxPort:               ctx.GlobalInt("muxport"),
+		Mux:                   ctx.GlobalBool("mux"),
+		TLS:                   ctx.GlobalBool("tls"),
+		KeyPEMFile:            ctx.GlobalString("keyfile"),
+		CertPEMFile:           ctx.GlobalString("certfile"),
+		ServicedEndpoint:      ctx.GlobalString("endpoint"),
+		Autorestart:           ctx.GlobalBool("autorestart"),
+		MetricForwarderPort:   ctx.GlobalString("metric-forwarder-port"),
+		Logstash:              ctx.GlobalBool("logstash"),
+		LogstashIdleFlushTime: ctx.GlobalString("logstash-idle-flush-time"),
+		LogstashSettleTime:    ctx.GlobalString("logstash-settle-time"),
+		LogstashBinary:        ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:        ctx.GlobalString("forwarder-config"),
+		VirtualAddressSubnet:  ctx.GlobalString("virtual-address-subnet"),
+		ServiceID:             args[0],
+		InstanceID:            args[1],
+		Command:               args[2:],
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {
@@ -838,6 +847,11 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
+	// Set logging options
+	if err := setLogging(ctx); err != nil {
+		fmt.Println(err)
+	}
+
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -857,7 +871,12 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
+
+	config.LogStash.Enable = ctx.GlobalBool("logstash")
+	config.LogStash.SettleTime = ctx.GlobalString("logstash-settle-time")
+	config.LogStash.IdleFlushTime = ctx.GlobalString("logstash-idle-flush-time")
 
 	if err := c.driver.RunShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)

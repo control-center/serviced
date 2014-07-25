@@ -66,9 +66,11 @@ type ControllerOptions struct {
 		CertPEMFile string // Path to the cert file when TLS is used
 	}
 	Logforwarder struct { // Logforwarder configuration
-		Enabled    bool   // True if enabled
-		Path       string // Path to the logforwarder program
-		ConfigFile string // Path to the config file for logstash-forwarder
+		Enabled       bool          // True if enabled
+		Path          string        // Path to the logforwarder program
+		ConfigFile    string        // Path to the config file for logstash-forwarder
+		IdleFlushTime time.Duration // period for log stash to flush its buffer
+		SettleTime    time.Duration // time to wait for logstash to flush its buffer before exiting
 	}
 	Metric struct {
 		Address       string // TCP port to host the metric service, :22350
@@ -313,6 +315,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		logforwarder, exited, err := subprocess.New(time.Second,
 			nil,
 			options.Logforwarder.Path,
+			fmt.Sprintf("-idle-flush-time=%s", options.Logforwarder.IdleFlushTime),
 			"-old-files-hours=26280",
 			"-config", options.Logforwarder.ConfigFile)
 		if err != nil {
@@ -485,6 +488,9 @@ func (c *Controller) Run() (err error) {
 		case exitError := <-serviceExited:
 			if !c.options.Service.Autorestart {
 				exitStatus, _ := utils.GetExitStatus(exitError)
+				if c.options.Logforwarder.Enabled {
+					time.Sleep(c.options.Logforwarder.SettleTime)
+				}
 				glog.Infof("Exiting with status:%d due to %+v", exitStatus, exitError)
 				os.Exit(exitStatus)
 			}

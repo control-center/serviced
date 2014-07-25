@@ -366,11 +366,13 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	// get the proxy command
 	proxycmd := []string{
 		svcdcmd,
-		"--logtostderr=false",
+		fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
 		"service",
 		"proxy",
 		"--autorestart=false",
-		"--logstash=false",
+		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
+		fmt.Sprintf("--logstash-idle-flush-time=%s", cfg.LogStash.IdleFlushTime),
+		fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),
 		svc.ID,
 		"0",
 		shellcmd,
@@ -382,7 +384,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		glog.Errorf("Docker not found: %v", err)
 		return nil, err
 	}
-	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume}
+	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", utils.ResourcesDir() + ":" + "/usr/local/serviced/resources"}
 	for _, mount := range cfg.Mount {
 		hostPath, containerPath, err := parseMountArg(mount)
 		if err != nil {

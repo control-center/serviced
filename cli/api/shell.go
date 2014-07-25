@@ -8,14 +8,15 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
-	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 // ShellConfig is the deserialized object from the command-line
@@ -27,6 +28,12 @@ type ShellConfig struct {
 	IsTTY            bool
 	Mounts           []string
 	ServicedEndpoint string
+	LogToStderr      bool
+	LogStash         struct {
+		Enable        bool
+		SettleTime    string
+		IdleFlushTime string
+	}
 }
 
 // getServiceBindMounts retrieves a service's bindmounts
@@ -139,11 +146,23 @@ func (a *api) RunShell(config ShellConfig) error {
 	command = strings.Join(append([]string{command}, quotedArgs...), " ")
 
 	cfg := shell.ProcessConfig{
-		ServiceID: config.ServiceID,
-		IsTTY:     config.IsTTY,
-		SaveAs:    config.SaveAs,
-		Mount:     mounts,
-		Command:   fmt.Sprintf("su - zenoss -c \"%s\"", command),
+		ServiceID:   config.ServiceID,
+		IsTTY:       config.IsTTY,
+		SaveAs:      config.SaveAs,
+		Mount:       mounts,
+		Command:     fmt.Sprintf("su - zenoss -c \"%s\"", command),
+		LogToStderr: config.LogToStderr,
+	}
+
+	cfg.LogStash.Enable = config.LogStash.Enable
+	cfg.LogStash.SettleTime, err = time.ParseDuration(config.LogStash.SettleTime)
+	if err != nil {
+		return err
+	}
+
+	cfg.LogStash.IdleFlushTime, err = time.ParseDuration(config.LogStash.IdleFlushTime)
+	if err != nil {
+		return err
 	}
 
 	// TODO: change me to use sockets
