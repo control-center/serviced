@@ -126,7 +126,7 @@
   </div>
 	
   <!-- This table has sub service definitions -->
-	<h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
+	<h3 ng-show="services.subservices.length > 0" ng-if="services.current.ID.indexOf('isvc-') == -1">{{'title_services'|translate}}</h3>
     <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
