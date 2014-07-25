@@ -49,6 +49,16 @@
 
     "application": "Aplicaci\u00f3n",
 
+    "deploying": "Desplegando",
+    "deploy_getting_status": "Obteniendo estado desde el servidor",
+    "deploy_loading_template": "Cargando plantilla de la aplicación",
+    "deploy_loading_resource_pool": "Cargando grupo de recursos",
+    "deploy_pulling_images": "Descargando imágenes",
+    "deploy_loading_service": "Cargando servicio",
+    "deploy_renaming_image": "Renombrando servicio",
+    "deploy_loading_image": "Cargando imagen",
+    "deploy_tagging_image": "Etiquetando imagen (Por favor espere)",
+
     "breadcrumb_deployed": "Aplicaciones Instaladas",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Servidores",

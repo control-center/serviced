@@ -78,6 +78,7 @@
     "confirm_remove_virtual_ip": "This will remove the following virtual IP, and cannot be undone:",
     "confirm_remove_virtual_host": "This will remove the following virtual host, and cannot be undone:",
 
+    "deploying": "Deploying",
     "deploy_getting_status": "Getting status from server",
     "deploy_loading_template": "Loading application template",
     "deploy_loading_resource_pool": "Loading resource pool",

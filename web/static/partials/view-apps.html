@@ -30,7 +30,7 @@
       <tbody>
         <tr ng-repeat="app in services.deploying | orderBy:services.sort" ng-model="services.deploying">
             <td>{{app.templateName}}</td>
-            <td style="text-align:center;">{{"deploying" | translate}}</td>
+            <td>{{"deploying" | translate}}</td>
             <td>{{app.DeploymentID}}</td>
             <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
             <td>&nbsp;</td>
