@@ -1,6 +1,32 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $http) {
     // Ensure logged in
     authService.checkLogin($scope);
+
+    //constantly poll for apps that are in the process of being deployed so we can alert the user
+    $scope.deployingServices = [];
+    var lastPollResults = 0;
+    var pollDeploying = function(){
+        $http.get('/templates/deploy/active').
+            success(function(data, status) {
+                if(data === "null"){
+                    $scope.services.deploying = [];
+                }else{
+                    $scope.services.deploying = data;
+                }
+
+                //if we have fewer results than last poll, we need to refresh our table
+                if(lastPollResults > $scope.services.deploying.length){
+                    // Get a list of deployed apps
+                    refreshServices($scope, resourcesService, false, function(){
+                        $serviceHealth.update();
+                    });
+                }
+                lastPollResults = $scope.services.deploying.length;
+
+                setTimeout(pollDeploying, 3000);
+            });
+    };
+
     $scope.name = "apps";
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
@@ -163,4 +189,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     function capitalizeFirst(str){
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
+
+    pollDeploying();
 }

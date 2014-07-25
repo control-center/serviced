@@ -66,14 +66,34 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 }
 
 func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var payload dao.ServiceTemplateDeploymentRequest
+	err := r.DecodeJsonPayload(&payload)
+	if err != nil {
+		glog.V(1).Info("Could not decode deployment payload: ", err)
+		restBadRequest(w)
+		return
+	}
 	status := ""
-	err := client.DeployTemplateStatus("", &status)
+
+	err = client.DeployTemplateStatus(payload, &status)
 	if err != nil {
 		glog.Errorf("Unexpected error during template status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
 		return
 	}
 	w.WriteJson(&simpleResponse{status, servicesLinks()})
+}
+
+func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var active []map[string]string
+
+	err := client.DeployTemplateActive("", &active)
+	if err != nil {
+		glog.Errorf("Unexpected error during template status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&active)
 }
 
 func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {

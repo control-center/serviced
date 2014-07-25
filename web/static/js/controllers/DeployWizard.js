@@ -223,12 +223,14 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             }
             dName += selected[i].Name;
 
-            var checkStatus = true;
-            resourcesService.deploy_app_template({
+            var deploymentDefinition = {
                 poolID: $scope.install.selected.pool,
                 TemplateID: selected[i].Id,
                 DeploymentID: $scope.install.deploymentId
-            }, function(result) {
+            };
+
+            var checkStatus = true;
+            resourcesService.deploy_app_template(deploymentDefinition, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
                     //start the service if requested
                     if($scope.install.startNow){
@@ -250,7 +252,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    $http.get('/templates/deploy/status').
+                    $http.post('/templates/deploy/status', deploymentDefinition).
                         success(function(data, status) {
                             if(data.Detail === "timeout"){
                                 $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});

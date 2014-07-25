@@ -36,9 +36,15 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 	return err
 }
 
-func (this *ControlPlaneDao) DeployTemplateStatus(notUsed string, deployTemplateStatus *string) error {
+func (this *ControlPlaneDao) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, deployTemplateStatus *string) error {
 	var err error
-	err = this.facade.DeployTemplateStatus(deployTemplateStatus)
+	err = this.facade.DeployTemplateStatus(request.DeploymentID, deployTemplateStatus)
+	return err
+}
+
+func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[string]string) error {
+	var err error
+	err = this.facade.DeployTemplateActive(active)
 	return err
 }
 

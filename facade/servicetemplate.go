@@ -135,17 +135,33 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 	return nil
 }
 
-var deployTemplateOutput chan string = make(chan string, 100)
-var deployTemplateError chan string = make(chan string, 100)
+var deployments = make(map[string]map[string]string)
 
-func (f *Facade) DeployTemplateStatus(deployTemplateStatus *string) error {
-	select {
-	case *deployTemplateStatus = <-deployTemplateOutput:
-	case <-time.After(10 * time.Second):
-		*deployTemplateStatus = "timeout"
-	case *deployTemplateStatus = <-deployTemplateError:
-		var err error = errors.New(*deployTemplateStatus)
-		return err
+func UpdateDeployTemplateStatus(deploymentID string, status string) {
+	deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
+	deployments[deploymentID]["status"] = status
+}
+
+// gather a list of all active DeploymentIDs
+func (f *Facade) DeployTemplateActive(active *[]map[string]string) error {
+	for _,v := range deployments {
+		*active = append(*active, v)
+	}
+
+	return nil
+}
+
+func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error{
+	if _, ok := deployments[deploymentID]; ok{
+		if(deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"]){
+			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"];
+			*status = deployments[deploymentID]["status"];
+		}else if(deployments[deploymentID]["status"] != ""){
+			time.Sleep(100 * time.Millisecond);
+			f.DeployTemplateStatus(deploymentID, status);
+		}
+	}else{
+		*status = ""
 	}
 
 	return nil
@@ -153,26 +169,26 @@ func (f *Facade) DeployTemplateStatus(deployTemplateStatus *string) error {
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
-	sl, err := f.GetServices(ctx)
-	if err != nil {
-		glog.Error("unable to get list of services")
-		return "", err
+	// add an entry for reporting status
+	deployments[deploymentID] = map[string]string{
+		"TemplateID": templateID,
+		"DeploymentID": deploymentID,
+		"PoolID": poolID,
+		"status": "Starting",
+		"lastStatus": "",
 	}
 
-	for _, s := range sl {
-		if deploymentID == s.DeploymentID {
-			return "", fmt.Errorf("duplicate deployment id: %s", deploymentID)
-		}
-	}
-
-	deployTemplateOutput <- "deploy_loading_template|" + templateID
+	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|" + templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
 		return "", err
 	}
 
-	deployTemplateOutput <- "deploy_loading_resource_pool|" + poolID
+	//now that we know the template name, set it in the status
+	deployments[deploymentID]["templateName"] = template.Name
+
+	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|" + poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -182,7 +198,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		return "", fmt.Errorf("poolid %s not found", poolID)
 	}
 
-	deployTemplateOutput <- "deploy_pulling_images"
+	UpdateDeployTemplateStatus(deploymentID, "deploy_pulling_images")
 	if err := pullTemplateImages(template); err != nil {
 		glog.Errorf("Unable to pull one or more images")
 		return "", err
@@ -191,6 +207,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	volumes := make(map[string]string)
 	var tenantID string
 	err = f.deployServiceDefinitions(ctx, template.Services, poolID, "", volumes, deploymentID, &tenantID)
+	delete(deployments, deploymentID)
 	return tenantID, err
 }
 
@@ -226,7 +243,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 		return err
 	}
 
-	deployTemplateOutput <- "deploy_loading_service|" + svc.Name
+	UpdateDeployTemplateStatus(deploymentId, "deploy_loading_service|" + svc.Name)
 	getSvc := func(svcID string) (service.Service, error) {
 		svc, err := f.GetService(ctx, svcID)
 		return *svc, err
@@ -252,7 +269,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 	// Using the tenant id, tag the base image with the tenantID
 	if svc.ImageID != "" {
-		deployTemplateOutput <- "deploy_renaming_image|" + svc.Name
+		UpdateDeployTemplateStatus(deploymentId, "deploy_renaming_image|" + svc.Name)
 		name, err := renameImageID(f.dockerRegistry, svc.ImageID, *tenantId)
 		if err != nil {
 			glog.Errorf("malformed imageId: %s", svc.ImageID)
@@ -265,14 +282,14 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 				glog.Error(err)
 				return err
 			}
-			deployTemplateOutput <- "deploy_loading_image|" + name
+			UpdateDeployTemplateStatus(deploymentId, "deploy_loading_image|" + name)
 			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
 				return msg
 			}
-			deployTemplateOutput <- "deploy_tagging_image|" + name
+			UpdateDeployTemplateStatus(deploymentId, "deploy_tagging_image|" + name)
 			if _, err := image.Tag(name); err != nil {
 				glog.Errorf("could not tag image: %s (%v)", image.ID, err)
 				return err
