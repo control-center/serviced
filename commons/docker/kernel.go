@@ -283,6 +283,16 @@ func init() {
 	go kernel(client, done)
 }
 
+// SetUseRegistry sets the value of useRegistry
+func SetUseRegistry(ur bool) {
+	useRegistry = ur
+}
+
+// UseRegistry returns the value of useRegistry
+func UseRegistry() bool {
+	return useRegistry
+}
+
 // kernel is responsible for executing all the Docker client commands.
 func kernel(dc *dockerclient.Client, done chan struct{}) error {
 	routeEventsToKernel(dc)

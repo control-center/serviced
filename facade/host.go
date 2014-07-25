@@ -5,8 +5,10 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
@@ -35,6 +37,18 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	}
 	if exists != nil {
 		return fmt.Errorf("host already exists: %s", entity.ID)
+	}
+
+	// only allow hostid of master if SERVICED_REGISTRY is false
+	if !docker.UseRegistry() {
+		masterHostID, err := utils.HostID()
+		if err != nil {
+			return fmt.Errorf("unable to retrieve hostid %s: %s", entity.ID, err)
+		}
+
+		if entity.ID != masterHostID {
+			return fmt.Errorf("SERVICED_REGISTRY is false and hostid %s does not match master %s", entity.ID, masterHostID)
+		}
 	}
 
 	// validate Pool exists

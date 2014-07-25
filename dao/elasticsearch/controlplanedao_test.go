@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
@@ -30,6 +30,7 @@ import (
 	_ "github.com/control-center/serviced/volume/btrfs"
 	_ "github.com/control-center/serviced/volume/rsync"
 	"github.com/control-center/serviced/zzk"
+	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 )
 
@@ -62,6 +63,8 @@ type DaoTest struct {
 
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
+	docker.SetUseRegistry(true)
+
 	dt.Port = 9202
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
