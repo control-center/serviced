@@ -543,7 +543,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	}
 }
 
-// serviced service add [[-p PORT]...] [[-q REMOTE]...] [--parent SERVICEID|--pool POOLID] NAME IMAGEID COMMAND
+// serviced service add [[-p PORT]...] [[-q REMOTE]...] [--parent SERVICEID] NAME IMAGEID COMMAND
 func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 3 {
