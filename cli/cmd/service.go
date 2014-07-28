@@ -58,14 +58,14 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
 				},
 			}, {
-				Name:         "add",
-				Usage:        "Adds a new service",
-				Description:  "serviced service add NAME POOLID IMAGEID COMMAND",
-				BashComplete: c.printServiceAdd,
-				Action:       c.cmdServiceAdd,
+				Name:        "add",
+				Usage:       "Adds a new service",
+				Description: "serviced service add NAME IMAGEID COMMAND",
+				Action:      c.cmdServiceAdd,
 				Flags: []cli.Flag{
 					cli.GenericFlag{"p", &api.PortMap{}, "Expose a port for this service (e.g. -p tcp:3306:mysql)"},
 					cli.GenericFlag{"q", &api.PortMap{}, "Map a remote service port (e.g. -q tcp:3306:mysql)"},
+					cli.StringFlag{"parent-id", "", "Parent service ID for which this service relates"},
 				},
 			}, {
 				Name:         "remove",
@@ -272,21 +272,6 @@ func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 		output = c.services()
 	case 1:
 		output = c.serviceRuns(args[0])
-	}
-	fmt.Println(strings.Join(output, "\n"))
-}
-
-// Bash-completion command that completes the pool ID as the first argument
-// and the docker image ID as the second argument
-func (c *ServicedCli) printServiceAdd(ctx *cli.Context) {
-	var output []string
-
-	args := ctx.Args()
-	switch len(args) {
-	case 1:
-		output = c.pools()
-	case 2:
-		// TODO: get a list of the docker images
 	}
 	fmt.Println(strings.Join(output, "\n"))
 }
@@ -558,22 +543,34 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	}
 }
 
-// serviced service add [[-p PORT]...] [[-q REMOTE]...] NAME POOLID IMAGEID COMMAND
+// serviced service add [[-p PORT]...] [[-q REMOTE]...] [--parent-id SERVICEID] NAME IMAGEID COMMAND
 func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 4 {
+	if len(args) < 3 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add")
 		return
 	}
 
+	var (
+		parentService *service.Service
+		err           error
+	)
+	if parentServiceID := ctx.String("parent-id"); parentServiceID == "" {
+		fmt.Fprintln(os.Stderr, "Must specify a parent service ID")
+		return
+	} else if parentService, err = c.searchForService(parentServiceID); err != nil {
+		fmt.Fprintf(os.Stderr, "Error searching for parent service: %s", err)
+		return
+	}
+
 	cfg := api.ServiceConfig{
-		Name:        args[0],
-		PoolID:      args[1],
-		ImageID:     args[2],
-		Command:     args[3],
-		LocalPorts:  ctx.Generic("p").(*api.PortMap),
-		RemotePorts: ctx.Generic("q").(*api.PortMap),
+		Name:            args[0],
+		ImageID:         args[1],
+		Command:         args[2],
+		ParentServiceID: parentService.ID,
+		LocalPorts:      ctx.Generic("p").(*api.PortMap),
+		RemotePorts:     ctx.Generic("q").(*api.PortMap),
 	}
 
 	if service, err := c.driver.AddService(cfg); err != nil {
