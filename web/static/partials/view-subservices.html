@@ -30,8 +30,8 @@
         <div class="vertical-info">
           <label>{{'running_tbl_actions'|translate}}</label>
           <div>
-            <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunning(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
-            <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunning(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+            <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
+            <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunningApp(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
           </div>
         </div>
 

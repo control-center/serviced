@@ -125,7 +125,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    $scope.clickRunning = function(app, status, servicesService){
+    $scope.clickRunning = function(app, status, servicesService) {
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({

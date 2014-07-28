@@ -205,6 +205,37 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $serviceHealth.update(app.ID);
     };
 
+    function capitalizeFirst(str){
+        return str.slice(0,1).toUpperCase() + str.slice(1);
+    }
+
+    $scope.clickRunningApp = function(app, status, servicesService) {
+        if ($scope.services.current.ParentServiceID !== "") {
+            $scope.clickRunning(app, status, servicesService);
+            return;
+        }
+
+        var displayStatus = capitalizeFirst(status);
+
+        $modalService.create({
+            template: $translate("confirm_"+ status +"_app"),
+            model: $scope,
+            title: displayStatus +" Services",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: displayStatus +" Services",
+                    action: function(){
+                        toggleRunning(app, status, servicesService);
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
+
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = 'TODO: Implement';
