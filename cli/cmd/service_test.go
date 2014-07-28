@@ -353,7 +353,7 @@ func ExampleServicedCLI_CmdServiceList_complete() {
 }
 
 func ExampleServicedCLI_CmdServiceAdd() {
-	InitServiceAPITest("serviced", "service", "add", "--parent", "test-service-1", "test-service", "test-image", "bash -c lsof")
+	InitServiceAPITest("serviced", "service", "add", "--parent-id", "test-service-1", "test-service", "test-image", "bash -c lsof")
 
 	// Output:
 	// test-service-test-service-1-test-image
@@ -377,7 +377,7 @@ func ExampleServicedCLI_CmdServiceAdd_usage() {
 	// OPTIONS:
 	//    -p 		`-p option -p option` Expose a port for this service (e.g. -p tcp:3306:mysql)
 	//    -q 		`-q option -q option` Map a remote service port (e.g. -q tcp:3306:mysql)
-	//    --parent 	Parent service ID for which this service relates
+	//    --parent-id 	Parent service ID for which this service relates
 }
 
 func ExampleServicedCLI_CmdServiceAdd_fail() {
@@ -390,7 +390,7 @@ func ExampleServicedCLI_CmdServiceAdd_fail() {
 }
 
 func ExampleServicedCLI_CmdServiceAdd_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent", "test-parent", NilService, "test-image", "bash -c lsof")
+	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-parent", NilService, "test-image", "bash -c lsof")
 
 	// Output:
 	// service not found

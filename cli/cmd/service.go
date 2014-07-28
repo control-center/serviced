@@ -65,7 +65,7 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.GenericFlag{"p", &api.PortMap{}, "Expose a port for this service (e.g. -p tcp:3306:mysql)"},
 					cli.GenericFlag{"q", &api.PortMap{}, "Map a remote service port (e.g. -q tcp:3306:mysql)"},
-					cli.StringFlag{"parent", "", "Parent service ID for which this service relates"},
+					cli.StringFlag{"parent-id", "", "Parent service ID for which this service relates"},
 				},
 			}, {
 				Name:         "remove",
@@ -543,7 +543,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 	}
 }
 
-// serviced service add [[-p PORT]...] [[-q REMOTE]...] [--parent SERVICEID] NAME IMAGEID COMMAND
+// serviced service add [[-p PORT]...] [[-q REMOTE]...] [--parent-id SERVICEID] NAME IMAGEID COMMAND
 func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 3 {
@@ -556,11 +556,11 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 		parentService *service.Service
 		err           error
 	)
-	if parentServiceID := ctx.String("parent"); parentServiceID == "" {
+	if parentServiceID := ctx.String("parent-id"); parentServiceID == "" {
 		fmt.Fprintln(os.Stderr, "Must specify a parent service ID")
 		return
 	} else if parentService, err = c.searchForService(parentServiceID); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		fmt.Fprintf(os.Stderr, "Error searching for parent service: %s", err)
 		return
 	}
 

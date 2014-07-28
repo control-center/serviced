@@ -137,6 +137,7 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 
 var deployments = make(map[string]map[string]string)
 
+// UpdateDeployTemplateStatus updates the deployment status of the service being deployed
 func UpdateDeployTemplateStatus(deploymentID string, status string) {
 	if _, ok := deployments[deploymentID]; !ok {
 		deployments[deploymentID] = make(map[string]string)
@@ -155,6 +156,7 @@ func (f *Facade) DeployTemplateActive(active *[]map[string]string) error {
 	return nil
 }
 
+// DeployTemplateStatus sets the status of a deployed service or template
 func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error {
 	if _, ok := deployments[deploymentID]; ok {
 		if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
