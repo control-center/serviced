@@ -8,24 +8,26 @@
       <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}">{{navlink.label|translate}}</a></li>
     </ul>
     <ul class="nav navbar-nav navbar-right">
-        <li>
-            <button class="btn-link" ng-click="modalUserDetails()">
-                {{user.language}}&nbsp;&nbsp;
-                <i class="glyphicon glyphicon-user"></i>
-                {{user.username}}&nbsp;&nbsp;
-                <i class="glyphicon glyphicon-envelope"></i>
-                <span ng-bind="messages.unreadCount"></span>
-            </button>
-        </li>
-        <li>
-            <button class="btn-link" ng-click="modalAbout()">
-                {{'title_about'|translate}}
-            </button>
-        </li>
+      <li>
+          <button class="btn-link" ng-click="modalUserDetails()">
+              <i class="glyphicon glyphicon-user"></i>
+              {{user.username}}&nbsp;&nbsp;
+              <i class="glyphicon glyphicon-envelope"></i>
+              <span ng-bind="messages.unreadCount"></span>
+          </button>
+      </li>
       <li>
         <button class="btn-link" ng-click="logout()">
           {{'nav_logout'|translate}}
         </button>
+      </li>
+      <li>
+        <div class="vr">|</div>
+      </li>
+      <li>
+          <button class="btn-link" ng-click="modalAbout()">
+              {{'title_about'|translate}}
+          </button>
       </li>
       <!--
       <li>
