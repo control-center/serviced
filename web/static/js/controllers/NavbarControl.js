@@ -73,8 +73,7 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
         $modalService.create({
             templateUrl: "about.html",
             model: $scope,
-            title: "title_about",
-            bigModal: true
+            title: "title_about"
         });
     };
 

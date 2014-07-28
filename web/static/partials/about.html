@@ -1,5 +1,11 @@
-<h1>{{'brand_zcp'|translate}}</h1>
-<div ng-repeat="(key, value) in version">
-    <strong>{{key}}:</strong>
-    <span>{{value}}</span>
+<div style="text-align:center;">
+	<h1>{{'brand_zcp'|translate}}</h1>
+	<h3 style="margin-top: -10px;">Version {{version.Version}}</h3>
+	<br>
+	<table class="table table-striped" style="margin: auto;">
+		<tr ng-repeat="(key, value) in version">
+		    <td style="text-align: right; padding-right: 10px;"><strong>{{key}}:</strong></td>
+		    <td  style="text-align: left;">{{value}}</td>
+	    <tr>
+	</table>
 </div>
