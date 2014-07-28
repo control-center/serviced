@@ -35,7 +35,10 @@
   <tbody>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
-      <td>{{host.active}}</td>
+      <td>
+        <i ng-if="host.active" class="healthIcon glyphicon glyphicon-ok-sign good"></i>
+        <i ng-if="!host.active" class="healthIcon glyphicon glyphicon-question-sign unknown"></i>
+      </td>
       <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
       <td>{{host.Memory | toGB}}</td>
       <td>{{host.Cores}}</td>
