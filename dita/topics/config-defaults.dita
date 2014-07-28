@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><ph conkeyref="names/zcc"/> defaults</title>
+  <refbody>
+    <section>
+      <p><ph conkeyref="names/zcc"/> is a single binary that behaves differently based
+        on the variables defined in <filepath>/etc/default/serviced</filepath>. </p>
+      <table>
+        <tgroup cols="3">
+          <colspec colname="c1" colwidth="2*"/>
+          <colspec colname="c2" colwidth="1*"/>
+          <colspec colname="c3" colwidth="3*"/>
+          <thead>
+            <row>
+              <entry>Variable</entry>
+              <entry>Default</entry>
+              <entry>Description</entry>
+            </row>
+          </thead>
+          <tbody>
+            <row>
+              <entry>HOME</entry>
+              <entry><filepath>/root</filepath></entry>
+              <entry>The path <ph conkeyref="names/zcc"/> uses to locate the 
+                <filepath>.dockercfg</filepath> file to which it refers.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_AGENT</entry>
+              <entry>0</entry>
+              <entry>
+                <p>One of two variables that determine whether an instance assumes the role of agent
+                  or master. The other variable is SERVICED_MASTER.</p>
+                <ul>
+                  <li>To configure an instance as an agent:
+                    <codeblock>SERVICED_AGENT=1
+SERVICED_MASTER=0</codeblock></li>
+                  <li>To configure an instance as the master:
+                    <codeblock>SERVICED_AGENT=1
+SERVICED_MASTER=1</codeblock></li>
+                </ul>
+              </entry>
+            </row>
+            <row>
+              <entry>SERVICED_MASTER</entry>
+              <entry>0</entry>
+              <entry>
+                <p>One of two variables that determine whether an instance assumes the role of agent
+                  or master. The other variable is SERVICED_AGENT.</p>
+              </entry>
+            </row>
+            <row>
+              <entry>SERVICED_MASTER_POOLID</entry>
+              <entry>default</entry>
+              <entry>The name of the resource pool in which the 
+                instance configured as the master is located.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_MASTER_IP</entry>
+              <entry>172.17.42.1</entry>
+              <entry>The IP address of the instance configured as master. This variable 
+              simplifies the configuration of multi-host deployments.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_ZK</entry>
+              <entry>$SERVICED_MASTER_IP:2181</entry>
+              <entry>The list of endpoints in the <xref keyref="url-zookeeper">ZooKeeper</xref> 
+                ensemble of <ph conkeyref="names/zcc"/>, separated by the comma character
+                (<codeph>,</codeph>). Currently, the instance configured as the
+                master is the only host in the ZooKeeper ensemble.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_REGISTRY</entry>
+              <entry>1</entry>
+              <entry>Determines whether Docker uses a local registry to store images. 
+              <draft-comment author="gemil">Do we support 0/false?</draft-comment></entry>
+            </row>
+            <row>
+              <entry>SERVICED_DOCKER_REGISTRY</entry>
+              <entry>$SERVICED_MASTER_IP:5000</entry>
+              <entry>The IP address and port number of the Docker registry host.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_STATIC_IPS</entry>
+              <entry>10.0.0.30,10.0.0.31</entry>
+              <entry>The list of static IP addresses reserved for 
+                <ph conkeyref="names/zcc"/> to use when it advertises external
+                IP addresses on behalf of services it manages, separated by the comma character
+                (<codeph>,</codeph>). 
+                <draft-comment author="gemil">Does this need to be the same
+                  on all serviced instances?</draft-comment></entry>
+            </row>
+            <row>
+              <entry>SERVICED_ENDPOINT</entry>
+              <entry>$SERVICED_MASTER_IP:4979</entry>
+              <entry>The IP address and port number of the 
+              default <ph conkeyref="names/zcc"/> RPC endpoint.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_RPC_PORT</entry>
+              <entry>4979</entry>
+              <entry>The port on which an instance listens for RPC requests.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_UI_PORT</entry>
+              <entry>443</entry>
+              <entry>The port on which an instance listens for HTTPS requests.
+                (The port for the <ph conkeyref="names/zcc"/> web interface.)</entry>
+            </row>
+            <row>
+              <entry>SERVICED_MUX_PORT</entry>
+              <entry>22250</entry>
+              <entry>The port an instance uses for multiplexing 
+              on its private subnet.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_VARPATH</entry>
+              <entry>/opt/serviced/var</entry>
+              <entry>The path of the local directory in which an instance 
+                stores its data files.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_KEY_FILE</entry>
+              <entry><filepath>/etc/....</filepath></entry>
+              <entry>The path of a TSL key file. By default, no key file is installed.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_CERT_FILE</entry>
+              <entry><filepath>/etc/....</filepath></entry>
+              <entry>The path of a TLS certificate file. By default, no certificate file is installed.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_VFS</entry>
+              <entry><codeph>rsync</codeph></entry>
+              <entry>The driver for virtual file system volumes. The supported drivers are 
+                <codeph>rsync</codeph> and <codeph>btrfs</codeph>.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_VHOST_ALIASES</entry>
+              <entry>foobar.com,example.com</entry>
+              <entry>The list of virtual host aliases to use in virtual  
+                host multiplexing, separated by the comma character
+                (<codeph>,</codeph>).</entry>
+            </row>
+            <row>
+              <entry>SERVICED_MAX_CONTAINER_AGE</entry>
+              <entry>60</entry>
+              <entry>The maximum number of days this instance
+              waits before removing a stopped container.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_VIRTUAL_ADDRESS_SUBNET</entry>
+              <entry>10.3</entry>
+              <entry>The 16-bit private subnet to use for virtual IPv4 addresses. 
+                NOTE: This value affects the values of SERVICED_STATIC_IPS.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_LOG_LEVEL</entry>
+              <entry>0</entry>
+              <entry>The relative amount of information to include in the
+                  <filepath>/var/log/upstart/serviced.log</filepath> file. The range is 0 (minimum)
+                to 5 (maximum).</entry>
+            </row>
+            <row>
+              <entry>SERVICED_LOG_ADDRESS</entry>
+              <entry>$SERVICED_MASTER_IP:5042</entry>
+              <entry>The endpoint of the <xref keyref="url-logstash">logstash</xref> service.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_STATS_PORT</entry>
+              <entry>$SERVICED_MASTER_IP:8443</entry>
+              <entry>The endpoint of the OpenTSDB reader for 
+                <ph conkeyref="names/zcc"/> statistics.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_STATS_PERIOD</entry>
+              <entry>10</entry>
+              <entry>The number of seconds to wait between polls of hosts
+              in a multi-host deployment.</entry>
+            </row>
+            <row>
+              <entry>SERVICED_OPTS</entry>
+              <entry> </entry>
+              <entry>Arbitrary options to the <cmdname>serviced</cmdname> daemon 
+                startup command of an instance.</entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+    </section>
+  </refbody>
+</reference>
