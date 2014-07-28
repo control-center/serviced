@@ -210,7 +210,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
     }
 
     $scope.clickRunningApp = function(app, status, servicesService) {
-        if ($scope.services.current.children === undefined) {
+        if ($scope.services.current.ParentServiceID !== "") {
             $scope.clickRunning(app, status, servicesService);
             return;
         }
