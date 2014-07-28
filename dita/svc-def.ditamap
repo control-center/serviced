@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map>
+   <title>Defining a service</title>
+   <topicref href="topics/svcdef.dita">
+     <topicref href="topics/svcdef-service-template.dita"/>
+     <topicref href="topics/svcdef-object.dita"> 
+       <topicref href="topics/svcdef-configFile.dita"/>
+       <topicref href="topics/svcdef-endpoint.dita"/>
+     </topicref>
+     <topicref href="topics/svcdef-go-template.dita"/>
+   </topicref>
+</map>

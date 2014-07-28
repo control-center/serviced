@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Service definition</title>
+  <shortdesc>A service definition contains the information that <ph conkeyref="names/zcc"/> needs to
+    start and manage a service, in JavaScript Object Notation (JSON) format.</shortdesc>
+  <refbody>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="1*"/>
+        <colspec colname="c2" colwidth="1*"/>
+        <colspec colname="c3" colwidth="3*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>Name</codeph></entry>
+            <entry>String</entry>
+            <entry>The service name.</entry>
+          </row>
+          <row>
+            <entry><codeph>Command</codeph></entry>
+            <entry>String</entry>
+            <entry>The command that starts and runs the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>Description</codeph></entry>
+            <entry>String</entry>
+            <entry>The service description.</entry>
+          </row>
+          <row>
+            <entry><codeph>Tags</codeph></entry>
+            <entry>Array of strings</entry>
+            <entry>Searchable words or phrases for the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>ImageID</codeph></entry>
+            <entry>String</entry>
+            <entry>The Docker image ID for this service.</entry>
+          </row>
+          <row>
+            <entry><codeph>Instances</codeph></entry>
+            <entry>Object</entry>
+            <entry>
+              <p>The number of instances of the service to run at the same time, in different
+                containers. This object has two members.</p>
+              <dl>
+                <dlentry>
+                  <dt><codeph>Min</codeph> (integer)</dt>
+                  <dd>The minimum number of instances to run. If the value is zero, no instances are
+                    started. If non-zero, the value must be greater than or equal to zero.</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>Max</codeph> (integer)</dt>
+                  <dd>The maximum number of instances to run. If the value is zero, only
+                      <codeph>Min</codeph> is used. If non-zero, the value must be greater than or
+                    equal to <codeph>Min</codeph>.</dd>
+                </dlentry>
+              </dl>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>ChangeOptions</codeph></entry>
+            <entry>Array of strings</entry>
+            <entry>Control options for what happens when a running instance of the service is
+              changed.</entry>
+          </row>
+          <row>
+            <entry><codeph>Launch</codeph></entry>
+            <entry>String</entry>
+            <entry>Determines whether the service starts when its parent service starts. The default
+              is <codeph>AUTO</codeph>, start the service. The alternative is
+                <codeph>MANUAL</codeph>, do not start the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>HostPolicy</codeph></entry>
+            <entry>String</entry>
+            <entry>
+              <p>Determines how to schedule instances of the service on hosts in the pool.</p>
+              <dl>
+                <dlentry>
+                  <dt><codeph>LeastCommitted</codeph></dt>
+                  <dd>Select the host with the smallest amount of memory committed to other
+                    services.</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>PreferSeparate</codeph></dt>
+                  <dd>Attempt to schedule instances of the service on separate hosts.</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>RequireSeparate</codeph></dt>
+                  <dd>Schedule instances of the service on separate hosts only.</dd>
+                </dlentry>
+              </dl>
+              <p>The default is <codeph>LeastCommitted</codeph>.</p>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>Hostname</codeph></entry>
+            <entry>String</entry>
+            <entry>The host name to use when an instance of the service is run.</entry>
+          </row>
+          <row>
+            <entry><codeph>Privileged</codeph></entry>
+            <entry>Boolean</entry>
+            <entry>Determines whether the Docker container in which the instance runs has extended
+              privileges. </entry>
+          </row>
+          <row>
+            <entry><codeph>ConfigFiles</codeph></entry>
+            <entry>Objects</entry>
+            <entry>
+              <p>The configuration file templates to include in instances of the service.</p>
+              <p>A ConfigFiles object includes one or more members. Each member attribute is the
+                absolute path of a configuration file temaplate, and each member value is a
+                <xref keyref="ref-svcdef-configFile">ConfigFile</xref> object.</p>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>Context</codeph></entry>
+            <entry>Object</entry>
+            <entry>
+              <draft-comment author="gee">THIS SEEMS TO BE UNIMPLEMENTED</draft-comment>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>Endpoints</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>The network endpoints that the service uses, defined as one or more
+              <xref keyref="ref-svcdef-endpoint">Endpoint</xref> objects.</entry>
+          </row>
+          <row>
+            <entry><codeph>Services</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>The subservices that are integral to the service, defined as complete service
+              definitions.</entry>
+          </row>
+          <row>
+            <entry><codeph>Tasks</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>LogFilters</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>Volumes</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>LogConfigs</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>Snapshot</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>RAMCommitment</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>CPUCommitment</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>Runs</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>Actions</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>HealthChecks</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>Prereqs</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+          <row>
+            <entry><codeph>MonitoringProfile</codeph></entry>
+            <entry/>
+            <entry/>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </refbody>
+</reference>

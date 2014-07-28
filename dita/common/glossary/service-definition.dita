@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE glossentry PUBLIC "-//OASIS//DTD DITA Glossary//EN" "glossentry.dtd">
+<glossentry id="glossentryid">
+  <glossterm>service definition</glossterm>
+<glossdef>A service definition contains the information that 
+    <ph conkeyref="names/zcc"/> needs to start and manage a service,
+    in JavaScript Object Notation (JSON) format.</glossdef>  
+</glossentry>

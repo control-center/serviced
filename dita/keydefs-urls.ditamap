@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map>
+    <title>URL Keydefs</title>
+	<topicgroup>
+	  <topicref keys="url-golang-text-template " 
+                href="http://golang.org/pkg/text/template/"
+                format="html"
+				scope="external"
+	            processing-role="resource-only"
+	        />
+	<topicref keys="url-docker " 
+                href="http://www.docker.com/"
+                format="html"
+				scope="external"
+	            processing-role="resource-only"
+	        />
+	</topicgroup>
+</map>
+

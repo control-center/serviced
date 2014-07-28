@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Applications</uicontrol> page</title>
+  <shortdesc>The <uicontrol>Applications</uicontrol> page displays upon login, and features a table
+    listing both deployed applications and the services that support <ph conkeyref="names/zcc"
+    />.</shortdesc>
+  <refbody>
+    <section>
+      <p></p>
+      <fig>
+        <title><uicontrol>Applications</uicontrol> page</title>
+        <image href="../images/xf-apps.png" scale="80"/>
+      </fig>
+    </section>
+  </refbody>
+</reference>

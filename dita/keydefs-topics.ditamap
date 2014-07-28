@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map>
+ <title>Topic KeyDefs</title>
+  <topicgroup>
+   <keydef keys="con-about-zcc "
+          href="topics/about-zcc.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-configFile "
+          href="topics/svcdef-configFile.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-endpoint "
+          href="topics/svcdef-endpoint.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-go-template "
+          href="topics/svcdef-go-template.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-object "
+          href="topics/svcdef-object.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-service-template "
+          href="topics/svcdef-service-template.dita"
+          format="dita"
+  />
+  <keydef keys="con-svcdef "
+          href="topics/svcdef.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-add-host "
+          href="topics/xface-add-host.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-add-pool "
+          href="topics/xface-add-pool.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-apps "
+          href="topics/xface-apps.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-hosts "
+          href="topics/xface-hosts.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-initial "
+          href="topics/xface-initial.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-pools "
+          href="topics/xface-pools.dita"
+          format="dita"
+  />
+  <keydef keys="con-xface "
+          href="topics/xface.dita"
+          format="dita"
+  />
+
+  </topicgroup>
+</map>
+
