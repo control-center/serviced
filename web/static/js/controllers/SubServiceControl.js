@@ -210,6 +210,11 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
     }
 
     $scope.clickRunningApp = function(app, status, servicesService) {
+        if ($scope.services.current.children === undefined) {
+            $scope.clickRunning(app, status, servicesService);
+            return;
+        }
+
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
