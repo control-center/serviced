@@ -6,8 +6,10 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/codegangsta/cli"
 	"os"
+
+	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/cli/api"
 )
 
 // Initializer for serviced log
@@ -60,9 +62,16 @@ func (c *ServicedCli) cmdExportLogs(ctx *cli.Context) {
 	from := ctx.String("from")
 	to := ctx.String("to")
 	outfile := ctx.String("out")
-	serviceIds := ctx.StringSlice("service")
+	serviceIDs := ctx.StringSlice("service")
 
-	if err := c.driver.ExportLogs(serviceIds, from, to, outfile); err != nil {
+	cfg := api.ExportLogsConfig{
+		ServiceIDs: serviceIDs,
+		FromDate:   from,
+		ToDate:     to,
+		Outfile:    outfile,
+	}
+
+	if err := c.driver.ExportLogs(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 }
