@@ -136,14 +136,14 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	}
 
 	s := service.Service{
-		ID:             fmt.Sprintf("%s-%s-%s", config.Name, config.PoolID, config.ImageID),
-		Name:           config.Name,
-		PoolID:         config.PoolID,
-		ImageID:        config.ImageID,
-		Endpoints:      endpoints,
-		Startup:        config.Command,
-		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
+		ID:              fmt.Sprintf("%s-%s-%s", config.Name, config.ParentServiceID, config.ImageID),
+		ParentServiceID: config.ParentServiceID,
+		Name:            config.Name,
+		ImageID:         config.ImageID,
+		Endpoints:       endpoints,
+		Startup:         config.Command,
+		Instances:       1,
+		InstanceLimits:  domain.MinMax{1, 1},
 	}
 
 	return &s, nil
@@ -353,10 +353,10 @@ func ExampleServicedCLI_CmdServiceList_complete() {
 }
 
 func ExampleServicedCLI_CmdServiceAdd() {
-	InitServiceAPITest("serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
+	InitServiceAPITest("serviced", "service", "add", "--parent-id", "test-service-1", "test-service", "test-image", "bash -c lsof")
 
 	// Output:
-	// test-service-test-pool-test-image
+	// test-service-test-service-1-test-image
 }
 
 func ExampleServicedCLI_CmdServiceAdd_usage() {
@@ -372,11 +372,12 @@ func ExampleServicedCLI_CmdServiceAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service add NAME POOLID IMAGEID COMMAND
+	//    serviced service add NAME IMAGEID COMMAND
 	//
 	// OPTIONS:
-	//    -p 	`-p option -p option` Expose a port for this service (e.g. -p tcp:3306:mysql)
-	//    -q 	`-q option -q option` Map a remote service port (e.g. -q tcp:3306:mysql)
+	//    -p 		`-p option -p option` Expose a port for this service (e.g. -p tcp:3306:mysql)
+	//    -q 		`-q option -q option` Map a remote service port (e.g. -q tcp:3306:mysql)
+	//    --parent-id 	Parent service ID for which this service relates
 }
 
 func ExampleServicedCLI_CmdServiceAdd_fail() {
@@ -385,23 +386,14 @@ func ExampleServicedCLI_CmdServiceAdd_fail() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
 
 	// Output:
-	// invalid service
+	// Must specify a parent service ID
 }
 
 func ExampleServicedCLI_CmdServiceAdd_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "add", NilService, "test-pool", "test-image", "bash -c lsof")
+	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-parent", NilService, "test-image", "bash -c lsof")
 
 	// Output:
-	// received nil service definition
-}
-
-func ExampleServicedCLI_CmdServiceAdd_complete() {
-	InitServiceAPITest("serviced", "service", "add", "test-service", "--generate-bash-completion")
-
-	// Output:
-	// test-pool-id-1
-	// test-pool-id-2
-	// test-pool-id-3
+	// Error searching for parent service: service not found
 }
 
 func ExampleServicedCLI_CmdServiceRemove() {
