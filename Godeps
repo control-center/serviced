@@ -6,6 +6,11 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
+			"Comment": "null-187",
+			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
+		},
+		{
 			"ImportPath": "github.com/kr/pretty",
 			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
 		},
@@ -89,11 +94,6 @@
 		{
 			"ImportPath": "github.com/codegangsta/cli",
 			"Rev": "bb9189510af1f49580c073c9e59e8bf288f0df27"
-		},
-		{
-			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
-			"Comment": "null-187",
-			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
 		},
 		{
 			"ImportPath": "github.com/dotcloud/docker/dockerversion",
