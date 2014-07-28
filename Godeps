@@ -6,9 +6,20 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
-			"Comment": "null-187",
-			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
+			"ImportPath": "github.com/kr/pretty",
+			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
+		},
+		{
+			"ImportPath": "github.com/zenoss/go-json-rest",
+			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
+		},
+		{
+			"ImportPath": "github.com/googollee/go-socket.io",
+			"Rev": "7a2b443286222187f996ceede5d353469be6853a"
+		},
+		{
+			"ImportPath": "github.com/araddon/gou",
+			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
 		},
 		{
 			"ImportPath": "code.google.com/p/go.net/websocket",
@@ -16,24 +27,77 @@
 			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
 		},
 		{
-			"ImportPath": "github.com/araddon/gou",
-			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
+			"ImportPath": "github.com/gorilla/mux",
+			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
 		},
 		{
-			"ImportPath": "github.com/codegangsta/cli",
-			"Rev": "bb9189510af1f49580c073c9e59e8bf288f0df27"
+			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+		},
+		{
+			"ImportPath": "github.com/syndtr/gocapability/capability",
+			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
+		},
+		{
+			"ImportPath": "github.com/coreos/go-systemd/activation",
+			"Rev": "219f3f19eea4de69bd7261b3b1ef4848f652f790"
+		},
+		{
+			"ImportPath": "github.com/godbus/dbus",
+			"Rev": "cb98efbb933d8389ab549a060e880ea3c375d213"
+		},
+		{
+			"ImportPath": "github.com/zenoss/elastigo/api",
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+		},
+		{
+			"ImportPath": "github.com/zenoss/elastigo/cluster",
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+		},
+		{
+			"ImportPath": "github.com/zenoss/elastigo/core",
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+		},
+		{
+			"ImportPath": "github.com/zenoss/elastigo/indices",
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+		},
+		{
+			"ImportPath": "github.com/zenoss/elastigo/search",
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+		},
+		{
+			"ImportPath": "github.com/samuel/go-zookeeper/zk",
+			"Rev": "897888e14f7bd6c1c9a70e2973d0f5fbdb28bde0"
+		},
+		{
+			"ImportPath": "github.com/zenoss/glog",
+			"Rev": "73e8a1c4e8cc8688ef84ccea341f2041fa2ecf72"
+		},
+		{
+			"ImportPath": "github.com/rcrowley/go-metrics",
+			"Rev": "6ffbdf30ba7072d9f9e2afe57ad651a75a544a83"
 		},
 		{
 			"ImportPath": "github.com/daniel-garcia/go-procfs/linux",
 			"Rev": "1bb72fb9c41297e28dedd504278a69d875e81b5a"
 		},
 		{
-			"ImportPath": "github.com/dotcloud/docker/dockerversion",
-			"Comment": "v1.0.0-1-gd993975",
-			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+			"ImportPath": "github.com/zenoss/go-dockerclient",
+			"Rev": "a56fbb21a030c1b3ce82f04e95e11d6ccb3ca3b7"
 		},
 		{
-			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
+			"ImportPath": "github.com/codegangsta/cli",
+			"Rev": "bb9189510af1f49580c073c9e59e8bf288f0df27"
+		},
+		{
+			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
+			"Comment": "null-187",
+			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker/dockerversion",
+			"Comment": "v1.0.0-1-gd993975",
 			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
 		},
 		{
@@ -57,76 +121,12 @@
 			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
 		},
 		{
-			"ImportPath": "github.com/coreos/go-systemd/activation",
-			"Rev": "219f3f19eea4de69bd7261b3b1ef4848f652f790"
-		},
-		{
-			"ImportPath": "github.com/godbus/dbus",
-			"Rev": "cb98efbb933d8389ab549a060e880ea3c375d213"
-		},
-		{
-			"ImportPath": "github.com/syndtr/gocapability/capability",
-			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
-		},
-		{
-			"ImportPath": "github.com/googollee/go-socket.io",
-			"Rev": "7a2b443286222187f996ceede5d353469be6853a"
-		},
-		{
 			"ImportPath": "github.com/gorilla/context",
 			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
 		},
 		{
-			"ImportPath": "github.com/gorilla/mux",
-			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
-		},
-		{
-			"ImportPath": "github.com/kr/pretty",
-			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
-		},
-		{
 			"ImportPath": "github.com/kr/text",
 			"Rev": "6807e777504f54ad073ecef66747de158294b639"
-		},
-		{
-			"ImportPath": "github.com/rcrowley/go-metrics",
-			"Rev": "6ffbdf30ba7072d9f9e2afe57ad651a75a544a83"
-		},
-		{
-			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "897888e14f7bd6c1c9a70e2973d0f5fbdb28bde0"
-		},
-		{
-			"ImportPath": "github.com/zenoss/elastigo/api",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
-		},
-		{
-			"ImportPath": "github.com/zenoss/elastigo/cluster",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
-		},
-		{
-			"ImportPath": "github.com/zenoss/elastigo/core",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
-		},
-		{
-			"ImportPath": "github.com/zenoss/elastigo/indices",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
-		},
-		{
-			"ImportPath": "github.com/zenoss/elastigo/search",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
-		},
-		{
-			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "73e8a1c4e8cc8688ef84ccea341f2041fa2ecf72"
-		},
-		{
-			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Rev": "a56fbb21a030c1b3ce82f04e95e11d6ccb3ca3b7"
-		},
-		{
-			"ImportPath": "github.com/zenoss/go-json-rest",
-			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
