@@ -9,9 +9,11 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 )
 
@@ -21,12 +23,12 @@ var ()
 
 // ServiceConfig is the deserialized object from the command-line
 type ServiceConfig struct {
-	Name        string
-	PoolID      string
-	ImageID     string
-	Command     string
-	LocalPorts  *PortMap
-	RemotePorts *PortMap
+	Name            string
+	ParentServiceID string
+	ImageID         string
+	Command         string
+	LocalPorts      *PortMap
+	RemotePorts     *PortMap
 }
 
 // RemoveServiceConfig is the deserialized object from the command-line
@@ -116,35 +118,34 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
-	endpoints := make([]service.ServiceEndpoint, len(*config.LocalPorts)+len(*config.RemotePorts))
+	endpoints := make([]servicedefinition.EndpointDefinition, len(*config.LocalPorts)+len(*config.RemotePorts))
 	i := 0
 	for _, e := range *config.LocalPorts {
 		e.Purpose = "local"
-		endpoints[i] = service.BuildServiceEndpoint(e)
+		endpoints[i] = e
 		i++
 	}
 	for _, e := range *config.RemotePorts {
 		e.Purpose = "remote"
-		endpoints[i] = service.BuildServiceEndpoint(e)
+		endpoints[i] = e
 		i++
 	}
 
-	s := service.Service{
-		Name:           config.Name,
-		PoolID:         config.PoolID,
-		ImageID:        config.ImageID,
-		Endpoints:      endpoints,
-		Startup:        config.Command,
-		Instances:      1,
-		InstanceLimits: domain.MinMax{Min: 1, Max: 1},
+	sd := &servicedefinition.ServiceDefinition{
+		Name:      config.Name,
+		Command:   config.Command,
+		Instances: domain.MinMax{Min: 1, Max: 1},
+		ImageID:   config.ImageID,
+		Launch:    commons.AUTO,
+		Endpoints: endpoints,
 	}
 
-	var id string
-	if err := client.AddService(s, &id); err != nil {
+	var serviceID string
+	if err := client.DeployService(dao.ServiceDeploymentRequest{config.ParentServiceID, *sd}, &serviceID); err != nil {
 		return nil, err
 	}
 
-	return a.GetService(id)
+	return a.GetService(serviceID)
 }
 
 // RemoveService removes an existing service
