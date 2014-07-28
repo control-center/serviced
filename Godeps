@@ -1,6 +1,9 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
 	"GoVersion": "go1.2",
+	"Packages": [
+		"./..."
+	],
 	"Deps": [
 		{
 			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
@@ -24,8 +27,9 @@
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
 		},
 		{
-			"ImportPath": "github.com/gorilla/websocket",
-			"Rev": "92334662baa9cbebc2e6e68b8d56bc1233f85a4c"
+			"ImportPath": "code.google.com/p/go.net/websocket",
+			"Comment": "null-139",
+			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
@@ -33,7 +37,6 @@
 		},
 		{
 			"ImportPath": "github.com/dotcloud/docker/pkg/proxy",
-			"#### ImportPath also affected:": "github.com/dotcloud/docker/pkg/libcontainer/nsinit",
 			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
 		},
 		{
@@ -42,8 +45,7 @@
 		},
 		{
 			"ImportPath": "github.com/coreos/go-systemd/activation",
-			"#### ImportPath also affected:": "github.com/coreos/go-systemd/dbus",
-			"Rev": "8514b9fc57569e6dfc5e88a6411be351afcc69b4"
+			"Rev": "219f3f19eea4de69bd7261b3b1ef4848f652f790"
 		},
 		{
 			"ImportPath": "github.com/godbus/dbus",
@@ -59,6 +61,10 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/core",
+			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+		},
+		{
+			"ImportPath": "github.com/zenoss/elastigo/indices",
 			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
 		},
 		{
@@ -88,6 +94,39 @@
 		{
 			"ImportPath": "github.com/codegangsta/cli",
 			"Rev": "bb9189510af1f49580c073c9e59e8bf288f0df27"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker/dockerversion",
+			"Comment": "v1.0.0-1-gd993975",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker/pkg/term",
+			"Comment": "v1.0.0-1-gd993975",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker/pkg/units",
+			"Comment": "v1.0.0-1-gd993975",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker/utils",
+			"Comment": "v1.0.0-1-gd993975",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+		},
+		{
+			"ImportPath": "github.com/dotcloud/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
+			"Comment": "v1.0.0-1-gd993975",
+			"Rev": "d9939758e6a02cbd42e01635166fc168ef0470dd"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
+		},
+		{
+			"ImportPath": "github.com/kr/text",
+			"Rev": "6807e777504f54ad073ecef66747de158294b639"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",
