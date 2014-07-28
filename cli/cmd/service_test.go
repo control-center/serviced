@@ -393,7 +393,7 @@ func ExampleServicedCLI_CmdServiceAdd_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-parent", NilService, "test-image", "bash -c lsof")
 
 	// Output:
-	// service not found
+	// Error searching for parent service: service not found
 }
 
 func ExampleServicedCLI_CmdServiceRemove() {
