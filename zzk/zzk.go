@@ -151,11 +151,11 @@ func Listen(shutdown <-chan interface{}, l Listener) {
 
 	defer func() {
 		glog.Infof("Listener at %s receieved interrupt", l.GetPath())
+		l.Done()
 		close(_shutdown)
 		for len(processing) > 0 {
 			delete(processing, <-done)
 		}
-		l.Done()
 	}()
 
 	glog.V(1).Infof("Listener %s started; waiting for data", l.GetPath())

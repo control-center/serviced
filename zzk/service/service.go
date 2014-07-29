@@ -127,9 +127,15 @@ func (l *ServiceListener) Done() { return }
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {
 		var svc service.Service
-		event, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
+		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
 		if err != nil {
 			glog.Errorf("Could not load service %s: %s", serviceID, err)
+			return
+		}
+
+		_, stateEvent, err := l.conn.ChildrenW(l.GetPath(serviceID))
+		if err != nil {
+			glog.Errorf("Could not load service states for %s: %s", serviceID, err)
 			return
 		}
 
@@ -149,13 +155,20 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		}
 
 		select {
-		case e := <-event:
+		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(0).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
+			glog.V(2).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
+		case e := <-stateEvent:
+			if e.Type == client.EventNodeDeleted {
+				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
+				l.stop(rss)
+				return
+			}
+			glog.V(2).Infof("Service %s (%s) received event: %v", svc.Name, svc.ID, e)
 		case <-shutdown:
 			glog.V(2).Infof("Leader stopping watch for %s (%s)", svc.Name, svc.ID)
 			l.stop(rss)
@@ -190,7 +203,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 	if netInstances > 0 {
 		// the number of running instances is *less* than the number of
 		// instances that need to be running, so schedule instances to start
-		glog.V(2).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
+		glog.V(1).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
 		var (
 			last        = 0
 			instanceIDs = make([]int, netInstances)
@@ -207,7 +220,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 	} else if netInstances = -netInstances; netInstances > 0 {
 		// the number of running instances is *greater* than the number of
 		// instances that need to be running, so schedule instances to stop
-		glog.V(2).Infof("Stopping %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
+		glog.V(1).Infof("Stopping %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
 		l.stop(rss[:netInstances])
 	}
 }

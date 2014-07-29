@@ -802,62 +802,56 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		wg.Done()
 	}()
 
-	connc := make(chan coordclient.Connection)
-	go func() {
-		for {
-			c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
-			if err == nil {
-				connc <- c
-				return
-			}
+	for {
+		connc := make(chan coordclient.Connection)
+		go func() {
+			for {
+				c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
+				if err == nil {
+					connc <- c
+					return
+				}
 
-			select {
-			case <-shutdown:
-				return
-			case <-time.After(time.Second):
+				select {
+				case <-shutdown:
+					return
+				case <-time.After(time.Second):
+				}
 			}
+		}()
+
+		var conn coordclient.Connection
+
+		//handle shutdown if we are waiting fo a zk connection
+		select {
+		case conn = <-connc:
+			break
+		case <-shutdown:
+			//wait for any go routines started to end befor returning
+			glog.Info("Waiting for agent routines...")
+			wg.Wait()
+			glog.Info("Agent routines ended")
+			return
 		}
-	}()
+		glog.Info("Got a connected client")
+		// defer conn.Close()
 
-	var conn coordclient.Connection
+		// watch virtual IP zookeeper nodes
+		virtualIPListener := virtualips.NewVirtualIPListener(conn, a, a.hostID)
 
-	//handle shutdown if we are waiting fo a zk connection
-	select {
-	case conn = <-connc:
-		break
-	case <-shutdown:
-		//wait for any go routines started to end befor returning
-		glog.Info("Waiting for agent routines...")
-		wg.Wait()
-		glog.Info("Agent routines ended")
-		return
-	}
-	glog.Info("Got a connected client")
-	defer conn.Close()
+		// watch docker action nodes
+		actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
 
-	// watch virtual IP zookeeper nodes
-	virtualIPListener := virtualips.NewVirtualIPListener(conn, a, a.hostID)
+		// watch the host state nodes
+		// this blocks until
+		// 1) has a connection
+		// 2) its node is registered
+		// 3) receieves signal to shutdown or breaks
+		hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
 
-	// watch docker action nodes
-	actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
-
-	// watch the host state nodes
-	// this blocks until
-	// 1) has a connection
-	// 2) its node is registered
-	// 3) receieves signal to shutdown or breaks
-	hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
 		zzk.Start(shutdown, hsListener, virtualIPListener, actionListener)
 		glog.Infof("Host Agent Listeners are done")
-	}()
-
-	//wait for everythint to be done
-	wg.Wait()
-	glog.Info("HostAgent Done")
+	}
 }
 
 // AttachAndRun implements zkdocker.ActionHandler; it attaches to a running
