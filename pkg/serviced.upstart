@@ -20,6 +20,7 @@ script
     export SERVICED_HOME=/opt/serviced
     export SERVICED_AGENT=1
     export SERVICED_MASTER=1
+    export TZ=UTC
     export HOME=/root
 
     if [ -f /etc/default/serviced ]; then
