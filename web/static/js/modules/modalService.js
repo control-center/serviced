@@ -78,6 +78,11 @@
                     $modalFooter.append($button);
                 }.bind(this));
 
+                // if no actions, remove footer
+                if(!config.actions.length){
+                    $modalFooter.remove();
+                }
+
                 // setup/default validation function
                 this.validateFn = config.validate || function(){ return true; };
 

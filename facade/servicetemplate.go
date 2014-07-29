@@ -137,30 +137,36 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 
 var deployments = make(map[string]map[string]string)
 
+// UpdateDeployTemplateStatus updates the deployment status of the service being deployed
 func UpdateDeployTemplateStatus(deploymentID string, status string) {
+	if _, ok := deployments[deploymentID]; !ok {
+		deployments[deploymentID] = make(map[string]string)
+	}
+
 	deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
 	deployments[deploymentID]["status"] = status
 }
 
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive(active *[]map[string]string) error {
-	for _,v := range deployments {
+	for _, v := range deployments {
 		*active = append(*active, v)
 	}
 
 	return nil
 }
 
-func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error{
-	if _, ok := deployments[deploymentID]; ok{
-		if(deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"]){
-			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"];
-			*status = deployments[deploymentID]["status"];
-		}else if(deployments[deploymentID]["status"] != ""){
-			time.Sleep(100 * time.Millisecond);
-			f.DeployTemplateStatus(deploymentID, status);
+// DeployTemplateStatus sets the status of a deployed service or template
+func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error {
+	if _, ok := deployments[deploymentID]; ok {
+		if deployments[deploymentID]["lastStatus"] != deployments[deploymentID]["status"] {
+			deployments[deploymentID]["lastStatus"] = deployments[deploymentID]["status"]
+			*status = deployments[deploymentID]["status"]
+		} else if deployments[deploymentID]["status"] != "" {
+			time.Sleep(100 * time.Millisecond)
+			f.DeployTemplateStatus(deploymentID, status)
 		}
-	}else{
+	} else {
 		*status = ""
 	}
 
@@ -171,14 +177,14 @@ func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error
 func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
 	// add an entry for reporting status
 	deployments[deploymentID] = map[string]string{
-		"TemplateID": templateID,
+		"TemplateID":   templateID,
 		"DeploymentID": deploymentID,
-		"PoolID": poolID,
-		"status": "Starting",
-		"lastStatus": "",
+		"PoolID":       poolID,
+		"status":       "Starting",
+		"lastStatus":   "",
 	}
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|" + templateID)
+	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
@@ -188,7 +194,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	//now that we know the template name, set it in the status
 	deployments[deploymentID]["templateName"] = template.Name
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|" + poolID)
+	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_resource_pool|"+poolID)
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
@@ -223,14 +229,10 @@ func (f *Facade) DeployService(ctx datastore.Context, parentID string, sd servic
 	}
 
 	volumes := make(map[string]string)
-	serviceDefinitions := []servicedefinition.ServiceDefinition{sd}
-
-	// TODO: need to fill in serviceID for return.
-	err = f.deployServiceDefinitions(ctx, serviceDefinitions, parent.PoolID, parentID, volumes, parent.DeploymentID, &tenantId)
-	return tenantId, err
+	return f.deployServiceDefinition(ctx, sd, parent.PoolID, parentID, volumes, parent.DeploymentID, &tenantId)
 }
 
-func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
+func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) (string, error) {
 	// Always deploy in stopped state, starting is a separate step
 	ds := service.SVCStop
 
@@ -240,10 +242,10 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 	}
 	svc, err := service.BuildService(sd, parentServiceID, pool, ds, deploymentId)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	UpdateDeployTemplateStatus(deploymentId, "deploy_loading_service|" + svc.Name)
+	UpdateDeployTemplateStatus(deploymentId, "deploy_loading_service|"+svc.Name)
 	getSvc := func(svcID string) (service.Service, error) {
 		svc, err := f.GetService(ctx, svcID)
 		return *svc, err
@@ -255,12 +257,12 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 	//for each endpoint, evaluate its Application
 	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
-		return err
+		return "", err
 	}
 
 	//for each endpoint, evaluate its Application
 	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
-		return err
+		return "", err
 	}
 
 	if parentServiceID == "" {
@@ -269,30 +271,30 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 	// Using the tenant id, tag the base image with the tenantID
 	if svc.ImageID != "" {
-		UpdateDeployTemplateStatus(deploymentId, "deploy_renaming_image|" + svc.Name)
+		UpdateDeployTemplateStatus(deploymentId, "deploy_renaming_image|"+svc.Name)
 		name, err := renameImageID(f.dockerRegistry, svc.ImageID, *tenantId)
 		if err != nil {
 			glog.Errorf("malformed imageId: %s", svc.ImageID)
-			return err
+			return "", err
 		}
 
 		_, err = docker.FindImage(name, false)
 		if err != nil {
 			if err != docker.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
 				glog.Error(err)
-				return err
+				return "", err
 			}
-			UpdateDeployTemplateStatus(deploymentId, "deploy_loading_image|" + name)
+			UpdateDeployTemplateStatus(deploymentId, "deploy_loading_image|"+name)
 			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
 				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
 				glog.Error(err.Error())
-				return msg
+				return "", msg
 			}
-			UpdateDeployTemplateStatus(deploymentId, "deploy_tagging_image|" + name)
+			UpdateDeployTemplateStatus(deploymentId, "deploy_tagging_image|"+name)
 			if _, err := image.Tag(name); err != nil {
 				glog.Errorf("could not tag image: %s (%v)", image.ID, err)
-				return err
+				return "", err
 			}
 		}
 		svc.ImageID = name
@@ -300,10 +302,10 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 
 	err = f.AddService(ctx, *svc)
 	if err != nil {
-		return err
+		return "", err
 	}
 
-	return f.deployServiceDefinitions(ctx, sd.Services, pool, svc.ID, exportedVolumes, deploymentId, tenantId)
+	return svc.ID, f.deployServiceDefinitions(ctx, sd.Services, pool, svc.ID, exportedVolumes, deploymentId, tenantId)
 }
 
 func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
@@ -323,7 +325,7 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 	}
 
 	for _, sd := range sds {
-		if err := f.deployServiceDefinition(ctx, sd, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
+		if _, err := f.deployServiceDefinition(ctx, sd, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
 			return err
 		}
 	}

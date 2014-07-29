@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map>
+    <title>Keydefs for variables</title>
+	<topicgroup>
+	
+	  <!-- These two are always specific -->
+	  <topicref keys="names "
+                href="names-zcc.dita"
+                processing-role="resource-only"
+            />
+
+      <topicref keys="pubs "
+                href="pubs-zcc.dita"
+                processing-role="resource-only"
+            />
+			
+      <!-- The rest are generic, and of varying utility and/or wisdom -->
+      <topicref keys="login-as "
+                href="login-as.dita"
+                processing-role="resource-only"
+            />
+	</topicgroup>
+</map>

@@ -107,7 +107,7 @@
                 healthChecksRollup = {
                     passing: false,
                     failing: false,
-                    unknown: false,
+                    unknown: true,
                     down: false
                 };
 

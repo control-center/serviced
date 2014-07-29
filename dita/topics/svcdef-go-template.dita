@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Text templates in service definitions</title>
+  <refbody>
+    <section>
+      <p>Some service definition values may be expressed in <xref keyref="url-golang-text-template"
+          >Go text template</xref> syntax with <ph conkeyref="names/zcc"/> functions and
+        contexts.</p>
+    </section>
+  </refbody>
+</reference>

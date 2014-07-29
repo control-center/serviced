@@ -5,8 +5,6 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -14,6 +12,8 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
+	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"encoding/json"
 	"errors"
@@ -614,7 +614,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		restoreOutput <- fmt.Sprintf("Restoring Docker image: %v", imageName)
 		image, e := docker.FindImage(imageID, false)
 		if e != nil {
-			if e != dockerclient.ErrNoSuchImage {
+			if e != docker.ErrNoSuchImage {
 				glog.Errorf("Unexpected error when inspecting docker image %s: %v", imageID, e)
 				restoreError <- e.Error()
 				return e

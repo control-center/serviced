@@ -84,5 +84,5 @@ type API interface {
 	RegistrySync() error
 
 	// Logs
-	ExportLogs(serviceIds []string, to, from, outfile string) error
+	ExportLogs(config ExportLogsConfig) error
 }

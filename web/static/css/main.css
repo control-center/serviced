@@ -53,6 +53,7 @@ a:hover, a:active, a:focus,
 .btn-link:hover, .btn-link:active, .btn-link:focus {
     color: #404040;
     text-decoration: none;
+    outline: 0;
 }
 
 .link {
@@ -240,6 +241,21 @@ table .btn,
 
 .navbar-brand {
     font-weight: bold;
+}
+
+.navbar-zen .navbar-right button{
+    font-weight: normal;
+    color: #EEE;
+    font-size: .9em;
+    line-height: 1.6em;
+}
+
+.navbar-zen .navbar-right .vr{
+    font-weight: normal;
+    color: #888;
+    font-size: .9em;
+    line-height: 1.6em;
+    padding: 15px 4px;
 }
 
 .nav > li > .item {

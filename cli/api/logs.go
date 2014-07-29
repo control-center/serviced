@@ -24,56 +24,64 @@ import (
 	"github.com/zenoss/glog"
 )
 
+// ExportLogsConfig is the deserialized object from the command-line
+type ExportLogsConfig struct {
+	ServiceIDs []string
+	FromDate   string
+	ToDate     string
+	Outfile    string
+}
+
 // ExportLogs exports logs from ElasticSearch.
 // serviceIds: list of services to select (includes their children). Empty slice means no filter
 // from: yyyy.mm.dd (inclusive), "" means unbounded
 // to: yyyy.mm.dd (inclusive), "" means unbounded
 // outfile: the exported logs will tgz'd and written here. "" means "./serviced-log-export.tgz".
-func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err error) {
+func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	var e error
 	files := []*os.File{}
 	fileIndex := make(map[string]map[string]int) // host => filename => index
 
 	// make sure we can write to outfile
-	if outfile == "" {
+	if config.Outfile == "" {
 		pwd, e := os.Getwd()
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
 		}
-		outfile = filepath.Join(pwd, "serviced-log-export.tgz")
+		config.Outfile = filepath.Join(pwd, "serviced-log-export.tgz")
 	}
-	fp, e := filepath.Abs(outfile)
+	fp, e := filepath.Abs(config.Outfile)
 	if e != nil {
-		return fmt.Errorf("could not convert '%s' to an absolute path: %v", outfile, e)
+		return fmt.Errorf("could not convert '%s' to an absolute path: %v", config.Outfile, e)
 	}
-	outfile = filepath.Clean(fp)
-	tgzfile, e := os.Create(outfile)
+	config.Outfile = filepath.Clean(fp)
+	tgzfile, e := os.Create(config.Outfile)
 	if e != nil {
-		return fmt.Errorf("could not create %s: %s", outfile, e)
+		return fmt.Errorf("could not create %s: %s", config.Outfile, e)
 	}
 	tgzfile.Close()
-	if e = os.Remove(outfile); e != nil {
-		return fmt.Errorf("could not remove %s: %s", outfile, e)
+	if e = os.Remove(config.Outfile); e != nil {
+		return fmt.Errorf("could not remove %s: %s", config.Outfile, e)
 	}
 
 	// Validate and normalize the date range filter attributes "from" and "to"
-	if from == "" && to == "" {
-		to = time.Now().UTC().Format("2006.01.02")
-		from = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
+	if config.FromDate == "" && config.ToDate == "" {
+		config.ToDate = time.Now().UTC().Format("2006.01.02")
+		config.FromDate = time.Now().UTC().AddDate(0, 0, -1).Format("2006.01.02")
 	}
-	if from != "" {
-		if from, e = NormalizeYYYYMMDD(from); e != nil {
+	if config.FromDate != "" {
+		if config.FromDate, e = NormalizeYYYYMMDD(config.FromDate); e != nil {
 			return e
 		}
 	}
-	if to != "" {
-		if to, e = NormalizeYYYYMMDD(to); e != nil {
+	if config.ToDate != "" {
+		if config.ToDate, e = NormalizeYYYYMMDD(config.ToDate); e != nil {
 			return e
 		}
 	}
 
 	query := "*"
-	if len(serviceIds) > 0 {
+	if len(config.ServiceIDs) > 0 {
 		services, e := a.GetServices()
 		if e != nil {
 			return e
@@ -83,14 +91,14 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 			serviceMap[service.ID] = service
 		}
 		serviceIDMap := make(map[string]bool) //includes serviceIds, and their children as well
-		for _, serviceID := range serviceIds {
+		for _, serviceID := range config.ServiceIDs {
 			serviceIDMap[serviceID] = true
 		}
 		for _, service := range services {
 			srvc := service
 			for {
 				found := false
-				for _, serviceID := range serviceIds {
+				for _, serviceID := range config.ServiceIDs {
 					if srvc.ID == serviceID {
 						serviceIDMap[service.ID] = true
 						found = true
@@ -126,11 +134,24 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		return e
 	}
 
+	// create a file to hold parse warnings
+	parseWarningsFilename := filepath.Join(tempdir, "warnings.log")
+	parseWarningsFile, e := os.Create(parseWarningsFilename)
+	if e != nil {
+		return fmt.Errorf("failed to create file %s: %s", parseWarningsFilename, e)
+	}
+	defer func() {
+		if e := parseWarningsFile.Close(); e != nil && err == nil {
+			err = fmt.Errorf("failed to close file '%s' cleanly: %s", parseWarningsFilename, e)
+		}
+	}()
+
 	glog.Infof("Starting part 1 of 3: process logstash elasticsearch results using temporary dir: %s", tempdir)
+	numWarnings := 0
 	foundIndexedDay := false
 	for _, yyyymmdd := range days {
 		// Skip the indexes that are filtered out by the date range
-		if (from != "" && yyyymmdd < from) || (to != "" && yyyymmdd > to) {
+		if (config.FromDate != "" && yyyymmdd < config.FromDate) || (config.ToDate != "" && yyyymmdd > config.ToDate) {
 			continue
 		} else {
 			foundIndexedDay = true
@@ -148,7 +169,7 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 			hits := result.Hits.Hits
 			total := len(hits)
 			for i := 0; i < total; i++ {
-				host, logfile, compactLines, e := parseLogSource(hits[i].Source)
+				host, logfile, compactLines, warningMessage, e := parseLogSource(hits[i].Source)
 				if e != nil {
 					return e
 				}
@@ -179,12 +200,18 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 						return fmt.Errorf("failed writing to file %s: %s", filename, e)
 					}
 				}
+				if len(warningMessage) > 0 {
+					if _, e := parseWarningsFile.WriteString(warningMessage); e != nil {
+						return fmt.Errorf("failed writing to file %s: %s", parseWarningsFilename, e)
+					}
+					numWarnings++
+				}
 			}
 			remaining = len(hits) > 0
 		}
 	}
 	if !foundIndexedDay {
-		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", from, to)
+		return fmt.Errorf("no logstash indexes exist for the given date range %s - %s", config.FromDate, config.ToDate)
 	}
 
 	glog.Infof("Starting part 2 of 3: sort output files")
@@ -198,13 +225,20 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 			if output, e := cmd.CombinedOutput(); e != nil {
 				return fmt.Errorf("failed sorting %s, error: %v, output: %s", filename, e, output)
 			}
-			cmd = exec.Command("mv", tmpfilename, filename)
-			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+			if numWarnings == 0 {
+				cmd = exec.Command("mv", tmpfilename, filename)
+				if output, e := cmd.CombinedOutput(); e != nil {
+					return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+				}
+			} else {
+				cmd = exec.Command("cp", tmpfilename, filename)
+				if output, e := cmd.CombinedOutput(); e != nil {
+					return fmt.Errorf("failed moving %s %s, error: %v, output: %s", tmpfilename, filename, e, output)
+				}
 			}
 			cmd = exec.Command("sed", "s/^[0-9a-f]*\\t[0-9a-f]*\\t//", "-i", filename)
 			if output, e := cmd.CombinedOutput(); e != nil {
-				return fmt.Errorf("failed stripping sort prefixes from %s, error: %v, output: %s", filename, e, output)
+				return fmt.Errorf("failed stripping sort prefixes config.FromDate %s, error: %v, output: %s", filename, e, output)
 			}
 			indexData = append(indexData, fmt.Sprintf("%03d.log\t%s\t%s", i, strconv.Quote(host), strconv.Quote(logfile)))
 		}
@@ -218,11 +252,15 @@ func (a *api) ExportLogs(serviceIds []string, from, to, outfile string) (err err
 		return fmt.Errorf("failed writing to %s: %s", indexFile, e)
 	}
 
-	glog.Infof("Starting part 3 of 3: generate tar file: %s", outfile)
+	glog.Infof("Starting part 3 of 3: generate tar file: %s", config.Outfile)
 
-	cmd := exec.Command("tar", "-czf", outfile, "-C", filepath.Dir(tempdir), filepath.Base(tempdir))
+	cmd := exec.Command("tar", "-czf", config.Outfile, "-C", filepath.Dir(tempdir), filepath.Base(tempdir))
 	if output, e := cmd.CombinedOutput(); e != nil {
 		return fmt.Errorf("failed to write tgz cmd:%+v, error:%v, output:%s", cmd, e, string(output))
+	}
+
+	if numWarnings != 0 {
+		glog.Warningf("warnings for log parse are included in the tar file as: %s", filepath.Join(filepath.Base(tempdir), filepath.Base(parseWarningsFilename)))
 	}
 
 	return nil
@@ -308,7 +346,9 @@ func generateOffsets(messages []string, offsets []uint64) []uint64 {
 }
 
 // return: host, file, lines, error
-func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
+func parseLogSource(source []byte) (string, string, []compactLogLine, string, error) {
+	warnings := ""
+
 	// attempt to unmarshal into singleLine
 	var line logSingleLine
 	if e := json.Unmarshal(source, &line); e == nil {
@@ -317,7 +357,7 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 			var e error
 			offset, e = strconv.ParseUint(line.Offset, 10, 64)
 			if e != nil {
-				return "", "", nil, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
+				return "", "", nil, warnings, fmt.Errorf("failed to parse offset \"%s\" in \"%s\": %s", line.Offset, source, e)
 			}
 		}
 		compactLine := compactLogLine{
@@ -325,44 +365,50 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 			Offset:    offset,
 			Message:   line.Message,
 		}
-		return line.Host, line.File, []compactLogLine{compactLine}, nil
+		return line.Host, line.File, []compactLogLine{compactLine}, warnings, nil
 	}
 
 	// attempt to unmarshal into multiLine
 	var multiLine logMultiLine
 	if e := json.Unmarshal(source, &multiLine); e != nil {
-		return "", "", nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
+		return "", "", nil, warnings, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
 
 	// build offsets - list of uint64
 	offsets, e := convertOffsets(multiLine.Offset)
 	if e != nil {
-		return "", "", nil, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
+		return "", "", nil, warnings, fmt.Errorf("failed to parse JSON \"%s\": %s", source, e)
 	}
 
 	// verify number of lines in message against number of offsets
 	messages := newline.Split(multiLine.Message, -1)
 	if len(offsets)+1 == len(messages) {
-		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(offsets), source)
+		warnings += fmt.Sprintf(
+			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is one less than number of lines: %s\n",
+			multiLine.Host, multiLine.File, len(messages), len(offsets), source)
 		numLines := len(messages)
 		if numLines > 1 {
 			lastOffset := uint64(len(messages[numLines-2])) + offsets[numLines-2]
 			offsets = append(offsets, lastOffset)
 		}
 	} else if len(offsets) > len(messages) {
-		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+		warnings += fmt.Sprintf(
+			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is greater than number of lines: %s\n",
+			multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = offsets[0:len(messages)]
 	} else if len(offsets) < len(messages) {
-		glog.Warningf("number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s", multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
+		warnings += fmt.Sprintf(
+			"number of offsets for %s:%s (numLines:%d numOffsets:%d) is less than number of lines: %s\n",
+			multiLine.Host, multiLine.File, len(messages), len(multiLine.Offset), source)
 		offsets = generateOffsets(messages, offsets)
-		glog.Warningf("new offsets: %v", offsets)
+		warnings += fmt.Sprintf("new offsets: %v", offsets)
 	}
 
 	// deal with offsets that are not sorted in increasing order
 	if !uint64sAreSorted(offsets) {
-		glog.Warningf("offsets are not sorted: %v", offsets)
+		warnings = fmt.Sprintf("offsets are not sorted: %v\n", offsets)
 		offsets = generateOffsets(messages, offsets)
-		glog.Warningf("new offsets: %v", offsets)
+		warnings = fmt.Sprintf("new offsets: %v\n", offsets)
 	}
 
 	// build compactLines
@@ -375,7 +421,8 @@ func parseLogSource(source []byte) (string, string, []compactLogLine, error) {
 			Message:   messages[i],
 		})
 	}
-	return multiLine.Host, multiLine.File, compactLines, nil
+
+	return multiLine.Host, multiLine.File, compactLines, warnings, nil
 }
 
 // NormalizeYYYYMMDD matches optional non-digits, 4 digits, optional non-digits,

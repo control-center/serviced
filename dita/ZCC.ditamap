@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE bookmap PUBLIC "-//OASIS//DTD DITA BookMap//EN" "bookmap.dtd">
+<bookmap>
+  <booktitle>
+    <mainbooktitle><ph conkeyref="names/zcc"/></mainbooktitle>
+  </booktitle>
+  <bookmeta>
+    <publisherinformation>
+      <organization>Zenoss, Inc.</organization>
+    </publisherinformation>
+    <prodinfo>
+      <prodname>Zenoss Control Center</prodname>
+      <vrmlist>
+        <vrm version="1" release="0" modification="0"/>        
+      </vrmlist>
+    </prodinfo>
+    <bookid>
+      <bookpartno>29.14.xxx</bookpartno>
+    </bookid>
+    <bookrights>
+      <copyrfirst>
+        <year>2014</year>
+      </copyrfirst>
+      <bookowner>
+        <organization>Zenoss, Inc., 11305 Four Points Drive, Bldg 1 - Suite 300, Austin, Texas 78726, U.S.A.</organization>        
+      </bookowner>
+    </bookrights>
+    <data name="trademarks">
+      <data name="trademark">Zenoss and the Zenoss logo are trademarks or registered trademarks
+        of Zenoss, Inc., in the United States and other countries. All other
+        trademarks, logos, and service marks are the property of Zenoss or other
+        third parties. Use of these marks is prohibited without the express
+        written consent of Zenoss, Inc., or the third-party owner.</data>
+      <data name="trademark">Linux is a registered trademark of Linus Torvalds.</data>
+      <data name="trademark">All other companies and products mentioned are trademarks and property of their respective owners.</data>      
+    </data>
+  </bookmeta>
+  <frontmatter>
+    <topicgroup>
+      <!-- Keys from common; always present -->
+      <mapref href="common/vars/keydefs-zcc.ditamap" format="ditamap"/>
+    </topicgroup>
+    <topicgroup>
+      <!-- Keys for this book; usually present -->
+      <mapref href="keydefs-glossary.ditamap" format="ditamap"/>
+      <mapref href="keydefs-topics.ditamap" format="ditamap"/>
+      <mapref href="keydefs-urls.ditamap" format="ditamap"/>
+    </topicgroup>
+  </frontmatter>
+  
+  <chapter href="svc-def.ditamap" format="ditamap"/>
+  <chapter href="xface.ditamap" format="ditamap"/>
+  
+</bookmap>

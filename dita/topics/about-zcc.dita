@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="conceptid">
+  <title><ph conkeyref="names/zcc"/></title>
+  <conbody>
+    <p><ph conkeyref="names/zcc"/> is a Platform-as-a-Service 
+      (PaaS) management system for services. <ph conkeyref="names/zcc"/> is based on 
+      <xref keyref="url-docker">Docker</xref>, and greatly improves the speed and 
+      flexibility of deploying and managing complex services. </p>    
+  </conbody>
+</concept>
