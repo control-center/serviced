@@ -303,9 +303,9 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID")
+	matches.printrow("NAME", "SERVICEID", "POOL", "DEPID")
 	for _, row := range services {
-		matches.printrow(row.Name, row.ID)
+		matches.printrow(row.Name, row.ID, row.PoolID, row.DeploymentID)
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
