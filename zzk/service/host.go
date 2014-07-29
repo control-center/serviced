@@ -96,8 +96,16 @@ func (l *HostStateListener) Ready() error {
 	} else if host == nil {
 		return ErrHostInvalid
 	}
-	l.registry, err = l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
-	return err
+
+	// Create an ephemeral node at /registry/host
+	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
+	if err != nil {
+		return err
+	}
+
+	// Parse the ephemeral path to get the relative path from the connection base
+	l.registry = hostregpath(path.Base(epath))
+	return nil
 }
 
 // Done removes the ephemeral node from the host registry
