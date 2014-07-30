@@ -159,7 +159,7 @@ func (sc *ServiceConfig) unAuthorizedClient(realfunc handlerClientFunc) handlerF
 		client, err := sc.getClient()
 		if err != nil {
 			glog.Errorf("Unable to acquire client: %v", err)
-			restServerError(w)
+			restServerError(w, err)
 			return
 		}
 		defer client.Close()
@@ -176,7 +176,7 @@ func (sc *ServiceConfig) authorizedClient(realfunc handlerClientFunc) handlerFun
 		client, err := sc.getClient()
 		if err != nil {
 			glog.Errorf("Unable to acquire client: %v", err)
-			restServerError(w)
+			restServerError(w, err)
 			return
 		}
 		defer client.Close()
