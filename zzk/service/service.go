@@ -174,18 +174,18 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 	// ID last.
 	sort.Sort(instances(rss))
 
-	// netInstances is the difference between the number of instances that
-	// should be running, as described by the service from the number of
-	// instances that are currently running
-	netInstances := svc.Instances - len(rss)
-
 	// if the service has a change option for restart all on changed, stop all
 	// instances and wait for the nodes to stop.  Once all service instances
 	// have been stopped (deleted), then go ahead and start the instances back
 	// up.
-	if len(rss) > 0 && netInstances != 0 && utils.StringInSlice("restartAllOnInstanceChanged", svc.ChangeOptions) {
-		netInstances = -len(rss)
+	if len(rss) != svc.Instances && utils.StringInSlice("restartAllOnInstanceChanges", svc.ChangeOptions) {
+		svc.Instances = 0 // NOTE: this will not update the node in zk or elastic
 	}
+
+	// netInstances is the difference between the number of instances that
+	// should be running, as described by the service from the number of
+	// instances that are currently running
+	netInstances := svc.Instances - len(rss)
 
 	if netInstances > 0 {
 		// the number of running instances is *less* than the number of
@@ -196,19 +196,29 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 			instanceIDs = make([]int, netInstances)
 		)
 
-		// calculate the instance IDs from the sorted list of instances
-		if count := len(rss); count > 0 {
-			last = rss[count-1].InstanceID + 1
+		// Find which instances IDs are being unused and add those instances
+		// first.  All SERVICES must have an instance ID of 0, if instance ID
+		// zero dies for whatever reason, then the service must schedule
+		// another 0-id instance to take its place.
+		j := 0
+		for i := range instanceIDs {
+			for j < len(rss) && last == rss[j].InstanceID {
+				// if instance ID exists, then keep searching the list for
+				// the next unique instance ID
+				last += 1
+				j += 1
+			}
+			instanceIDs[i] = last
+			last += 1
 		}
-		for i := 0; i < netInstances; i++ {
-			instanceIDs[i] = last + i
-		}
+
 		l.start(svc, instanceIDs)
 	} else if netInstances = -netInstances; netInstances > 0 {
 		// the number of running instances is *greater* than the number of
-		// instances that need to be running, so schedule instances to stop
-		glog.V(2).Infof("Stopping %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
-		l.stop(rss[:netInstances])
+		// instances that need to be running, so schedule instances to stop of
+		// the highest instance IDs.
+		glog.V(0).Infof("Stopping %d of %d instances of service %s (%s)", netInstances, len(rss), svc.Name, svc.ID)
+		l.stop(rss[svc.Instances:])
 	}
 }
 
