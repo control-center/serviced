@@ -422,7 +422,7 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	//    command remove [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service remove SERVICEID ...
+	//    serviced service remove SERVICEID
 	//
 	// OPTIONS:
 	//    --remove-snapshots, -R	Remove snapshots associated with removed service
@@ -433,7 +433,7 @@ func ExampleServicedCLI_CmdServiceRemove_err() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "remove", "test-service-0")
 
 	// Output:
-	// no service found
+	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceRemove_complete() {
