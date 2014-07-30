@@ -132,6 +132,10 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 }
 
 // Listen initializes a listener for a particular zookeeper node
+// shutdown:	signal to shutdown the listener
+// ready:		signal to indicate that the listener has started watching its
+//				child nodes (must set buffer size >= 1)
+// l:			object that manages the zk interface for a specific path
 func Listen(shutdown <-chan interface{}, ready chan<- error, l Listener) {
 	var (
 		_shutdown  = make(chan interface{})
