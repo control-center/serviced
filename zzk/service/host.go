@@ -96,8 +96,22 @@ func (l *HostStateListener) Ready() error {
 	} else if host == nil {
 		return ErrHostInvalid
 	}
-	l.registry, err = l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
-	return err
+
+	// Create an ephemeral node at /registry/host
+	// What you would expect to see from epath is /registry/host/EHOSTID, but
+	// CreateEphemeral returns the full path from the root.  Since these are
+	// pool-based connections, the path from the root is actually
+	// /pools/POOLID/registry/host/EHOSTID
+	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
+	if err != nil {
+		return err
+	}
+
+	// Parse the ephemeral path to get the relative path from the connection
+	// base. In other words, get the base (EHOSTID) and set the path starting
+	// from /registry/host, instead of from /pools/POOLID/.../EHOSTID
+	l.registry = hostregpath(path.Base(epath))
+	return nil
 }
 
 // Done removes the ephemeral node from the host registry

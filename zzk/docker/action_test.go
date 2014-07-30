@@ -52,7 +52,7 @@ func TestActionListener_Listen(t *testing.T) {
 
 	listener := NewActionListener(conn, handler, "test-host-1")
 	go func() {
-		zzk.Listen(shutdown, listener)
+		zzk.Listen(shutdown, make(chan error, 1), listener)
 		close(done)
 	}()
 
