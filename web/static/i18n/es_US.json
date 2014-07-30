@@ -49,6 +49,27 @@
 
     "application": "Aplicaci\u00f3n",
 
+    "remove_virtual_ip": "Eliminar Virtual IP",
+    "remove_virtual_host": "Eliminar Virtual Host",
+    "remove_service": "Eliminar Servicio",
+    "remove_pool": "Eliminar Pool",
+    "remove_host": "Eliminar Host",
+    "add_host": "Agregar Host",
+    "add_pool": "Agregar Pool",
+    "add_virtual_ip": "Agregar Virtual IP",
+    "add_virtual_host": "Agregar Virtual Host",
+    "add_service": "Agregar Servicio",
+    "assign_ip": "Asignar IP",
+
+    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco.",
+    "confirm_start_restore": "El proceso de restauración no se puede revertir.",
+    "confirm_start_app": "Esto iniciará todos los servicios hijos.",
+    "confirm_stop_app": "Esto detendrá todos los servicios hijos.",
+    "confirm_remove_pool": "Esto eliminará el siguiente pool, y no puede ser desecho:",
+    "confirm_remove_host": "Esto eliminará el siguiente host, y no puede ser desecho:",
+    "confirm_remove_virtual_ip": "Esto eliminará la siguiente IP virtual , y no puede ser desecho:",
+    "confirm_remove_virtual_host": "Esto eliminará la siguiente Virtual Host, y no puede ser desecho:",
+
     "deploying": "Desplegando",
     "deploy_getting_status": "Obteniendo estado desde el servidor",
     "deploy_loading_template": "Cargando plantilla de la aplicación",
