@@ -22,6 +22,7 @@ script
     export SERVICED_MASTER=1
     export TZ=UTC
     export HOME=/root
+    export GOMAXPROCS=$(nproc)
 
     if [ -f /etc/default/serviced ]; then
         . /etc/default/serviced
