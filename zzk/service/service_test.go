@@ -230,8 +230,8 @@ func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
 	if err != nil {
 		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != 5 {
-		t.Errorf("MISMATCH: expected %d instances; actual %d", 5, count)
+	} else if count := len(rss); count != svc.Instances {
+		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
 	}
 }
 

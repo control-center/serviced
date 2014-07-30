@@ -26,14 +26,14 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	var request virtualHostRequest
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
 	var services []*service.Service
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -46,7 +46,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	if service == nil {
 		glog.Errorf("Could not find service: %s", services)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -61,7 +61,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 			for _, host := range endpoint.VHosts {
 				if host == _vhost {
 					glog.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.ID)
-					restServerError(w)
+					restServerError(w, err)
 					return
 				}
 			}
@@ -71,7 +71,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	err = service.AddVirtualHost(request.Application, request.VirtualHostName)
 	if err != nil {
 		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -79,7 +79,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	err = client.UpdateService(*service, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error adding vhost to service (%s): %v", service.Name, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -91,20 +91,20 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		glog.Errorf("Failed getting serviceId: %v", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	application, err := url.QueryUnescape(r.PathParam("application"))
 	if err != nil {
 		glog.Errorf("Failed getting application: %v", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
 	hostname, err := url.QueryUnescape(r.PathParam("name"))
 	if err != nil {
 		glog.Errorf("Failed getting hostname: %v", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
@@ -112,14 +112,14 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	err = client.GetService(serviceID, &service)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
 	err = service.RemoveVirtualHost(application, hostname)
 	if err != nil {
 		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceID, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -127,7 +127,7 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	err = client.UpdateService(service, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceID, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -148,7 +148,7 @@ func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.C
 	err := client.GetServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 

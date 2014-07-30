@@ -41,14 +41,14 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode deployment payload: ", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var tenantID string
 	err = client.DeployTemplate(payload, &tenantID)
 	if err != nil {
 		glog.Error("Could not deploy template: ", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	glog.V(0).Info("Deployed template ", payload)
@@ -70,7 +70,7 @@ func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode deployment payload: ", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	status := ""
@@ -167,7 +167,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		nmregex := r.URL.Query().Get("name")
 		result, err := getTaggedServices(client, tags, nmregex)
 		if err != nil {
-			restServerError(w)
+			restServerError(w, err)
 			return
 		}
 
@@ -178,7 +178,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	if nmregex := r.URL.Query().Get("name"); nmregex != "" {
 		result, err := getNamedServices(client, nmregex)
 		if err != nil {
-			restServerError(w)
+			restServerError(w, err)
 			return
 		}
 
@@ -189,7 +189,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	result, err := getServices(client)
 	result = append(result, getISVCS()...)
 	if err != nil {
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -199,14 +199,14 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var services []*dao.RunningService
 	err = client.GetRunningServicesForHost(hostID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	if services == nil {
@@ -224,14 +224,14 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 		return
 	}
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var services []*dao.RunningService
 	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	if services == nil {
@@ -247,7 +247,7 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	err := client.GetRunningServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	if services == nil {
@@ -261,12 +261,12 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	request := dao.HostServiceRequest{hostID, serviceStateID}
@@ -276,7 +276,7 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 	err = client.StopRunningInstance(request, &unused)
 	if err != nil {
 		glog.Errorf("Unable to stop service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -290,7 +290,7 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	err := client.GetServices(&empty, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	for _, service := range allServices {
@@ -306,7 +306,7 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
@@ -319,7 +319,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	if err := client.GetServices(&empty, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -331,7 +331,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	glog.Errorf("No such service [%v]", sid)
-	restServerError(w)
+	restServerError(w, err)
 }
 
 func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -340,13 +340,13 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode service payload: ", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	svc, err := service.NewService()
 	if err != nil {
 		glog.Errorf("Could not create service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	now := time.Now()
@@ -380,7 +380,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
 		glog.Errorf("Unable to evaluate service endpoints: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -388,7 +388,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	err = client.AddService(*svc, &serviceID)
 	if err != nil {
 		glog.Errorf("Unable to add service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -396,7 +396,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
 		glog.Error("Failed to automatically assign IPs: %+v -> %v", request, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -409,7 +409,7 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode service payload: ", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
@@ -417,7 +417,7 @@ func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	err = client.DeployService(payload, &serviceID)
 	if err != nil {
 		glog.Errorf("Unable to deploy service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 
@@ -429,7 +429,7 @@ func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	glog.V(3).Infof("Received update request for %s", serviceID)
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var payload service.Service
@@ -437,13 +437,13 @@ func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode service payload: ", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	err = client.UpdateService(payload, &unused)
 	if err != nil {
 		glog.Errorf("Unable to update service %s: %v", serviceID, err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	glog.V(1).Info("Updated service ", serviceID)
@@ -454,13 +454,13 @@ func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	var unused int
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	err = client.RemoveService(serviceID, &unused)
 	if err != nil {
 		glog.Errorf("Could not remove service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 		return
 	}
 	glog.V(0).Info("Removed service ", serviceID)
@@ -470,14 +470,14 @@ func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var logs string
 	err = client.GetServiceLogs(serviceID, &logs)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service logs: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{logs, serviceLinks(serviceID)})
 }
@@ -486,14 +486,14 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var i string
 	err = client.StartService(serviceID, &i)
 	if err != nil {
 		glog.Errorf("Unexpected error starting service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{"Started service", serviceLinks(serviceID)})
 }
@@ -502,14 +502,14 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var i int
 	err = client.StopService(serviceID, &i)
 	if err != nil {
 		glog.Errorf("Unexpected error stopping service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{"Stopped service", serviceLinks(serviceID)})
 }
@@ -517,14 +517,14 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var label string
 	err = client.Snapshot(serviceID, &label)
 	if err != nil {
 		glog.Errorf("Unexpected error snapshotting service: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{label, serviceLinks(serviceID)})
 }
@@ -532,12 +532,12 @@ func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.C
 func restGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	request := dao.ServiceStateRequest{serviceID, serviceStateID}
@@ -546,7 +546,7 @@ func restGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *node
 	err = client.GetRunningService(request, &running)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving services: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(running)
 }
@@ -554,12 +554,12 @@ func restGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *node
 func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	request := dao.ServiceStateRequest{serviceID, serviceStateID}
@@ -568,7 +568,7 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *no
 	err = client.GetServiceStateLogs(request, &logs)
 	if err != nil {
 		glog.Errorf("Unexpected error getting service state logs: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{logs, servicesLinks()})
 }
@@ -589,7 +589,7 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	err := client.AsyncBackup(dir, &filepath)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{filepath, servicesLinks()})
 }
@@ -605,7 +605,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	filepath := r.FormValue("filename")
 
 	if err != nil || filepath == "" {
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
@@ -614,7 +614,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	err = client.AsyncRestore(home+"/backup/"+filepath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
-		restServerError(w)
+		restServerError(w, err)
 	}
 	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
 }

@@ -1,6 +1,9 @@
 # Need to set $HOME so Docker client can find .dockercfg
 # export HOME=/root
 
+# Set the number of processors used by serviced
+# export GOMAXPROCS=4
+
 # Set enable/disable the agent role, set to 1/0, respectively
 # export SERVICED_AGENT=0
 
@@ -73,3 +76,4 @@
 
 # Arbitrary serviced daemon args
 # export SERVICED_OPTS=
+

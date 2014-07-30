@@ -9,10 +9,11 @@
           <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
         </div>        
 
-        <div class="vertical-info">
+        <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
+        <div class="vertical-info" ng-show="!services.current.InstanceLimits || services.current.InstanceLimits.Max > 0 || services.current.InstanceLimits.Min > services.current.InstanceLimits.Max">
           <label for="app_data_instances">{{'label_service_instances'|translate}}</label>
-          <input type="number" min="0" id="app_data_instances" class="instances"
-                 ng-model="services.current.Instances" ng-disabled="services.current.InstanceLimits.Max && services.current.InstanceLimits.Max <= 1"></input>
+          <input type="number" min="{{services.current.InstanceLimits.Min}}" id="app_data_instances" class="instances"
+                 ng-model="services.current.Instances" ng-disabled="services.current.InstanceLimits.Max == services.current.InstanceLimits.Min"></input>
         </div>
 
         <div class="vertical-info">

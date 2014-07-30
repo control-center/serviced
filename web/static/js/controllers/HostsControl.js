@@ -33,6 +33,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
                             $scope.add_host();
                             // NOTE: should wait for success before closing
                             this.close();
+                            $scope.newHost = {};
                         }
                     }
                 }
