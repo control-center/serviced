@@ -1630,12 +1630,17 @@ function itemClass(item) {
     return cls;
 }
 
-var $notificationArea = $("#notifications");
-$(window).on("scroll", function(){
-    if($(window).scrollTop() > 0){
-        var top = Math.max(72 - $(window).scrollTop(), 0);
-        $notificationArea.css("top", top+"px");
+// keep notifications stuck to bottom of nav, or top of window
+// if nav is out ovf view.
+var $window = $(window);
+$window.on("scroll", function(){
+    var currScrollTop = $window.scrollTop(),
+        $notifications = $("#notifications");
+
+    if(currScrollTop > 0){
+        var top = Math.max(72 - currScrollTop, 0);
+        $notifications.css("top", top+"px");
     }else{
-        $notificationArea.css("top", "72px");
+        $notifications.css("top", "72px");
     }
 });
