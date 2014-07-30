@@ -208,7 +208,7 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 		wg        sync.WaitGroup
 		_shutdown = make(chan interface{})
 		done      = make(chan interface{})
-		ready     = make(chan error)
+		ready     = make(chan error, 1)
 	)
 
 	// Start up the master
