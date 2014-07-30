@@ -87,7 +87,7 @@ func TestHostStateListener_Listen(t *testing.T) {
 	shutdown := make(chan interface{})
 	wait := make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error), listener)
+		zzk.Listen(shutdown, make(chan error, 1), listener)
 		close(wait)
 	}()
 

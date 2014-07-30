@@ -31,7 +31,7 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 		wait     = make(chan interface{})
 	)
 	go func() {
-		zzk.Listen(shutdown, make(chan error), listener)
+		zzk.Listen(shutdown, make(chan error, 1), listener)
 		close(wait)
 	}()
 

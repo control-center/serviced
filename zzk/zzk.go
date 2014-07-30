@@ -228,8 +228,7 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 			wg.Add(1)
 			go func(l Listener) {
 				defer wg.Done()
-				ready := make(chan error)
-				Listen(_shutdown, ready, l)
+				Listen(_shutdown, make(chan error, 1), l)
 			}(listener)
 		}
 	case <-done:

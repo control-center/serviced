@@ -793,6 +793,11 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	glog.Info("Starting HostAgent")
 
 	var wg sync.WaitGroup
+	defer func() {
+		glog.Info("Waiting for agent routines...")
+		wg.Wait()
+		glog.Info("Agent routines ended")
+	}()
 
 	wg.Add(1)
 	go func() {
@@ -827,10 +832,6 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		case conn = <-connc:
 			break
 		case <-shutdown:
-			//wait for any go routines started to end befor returning
-			glog.Info("Waiting for agent routines...")
-			wg.Wait()
-			glog.Info("Agent routines ended")
 			return
 		}
 		glog.Info("Got a connected client")
@@ -851,6 +852,12 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 		zzk.Start(shutdown, hsListener, virtualIPListener, actionListener)
 		glog.Infof("Host Agent Listeners are done")
+
+		select {
+		case <-shutdown:
+			return
+		default:
+		}
 	}
 }
 

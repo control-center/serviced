@@ -36,7 +36,7 @@ func TestServiceListener_Listen(t *testing.T) {
 	done := make(chan interface{})
 	listener := NewServiceListener(conn, handler)
 	go func() {
-		zzk.Listen(shutdown, make(chan error), listener)
+		zzk.Listen(shutdown, make(chan error, 1), listener)
 		close(done)
 	}()
 
@@ -49,7 +49,7 @@ func TestServiceListener_Listen(t *testing.T) {
 	shutdown = make(chan interface{})
 	done = make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error), listener)
+		zzk.Listen(shutdown, make(chan error, 1), listener)
 		close(done)
 	}()
 
@@ -223,15 +223,16 @@ func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
 	}
 
-	// Add three more instances
+	// Add three more instances; SHOULD NOT CHANGE UNLESS ALL INSTANCES HAVE
+	// BEEN REMOVED
 	t.Log("Starting 3 more instances")
 	svc.Instances = 8
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
 	if err != nil {
 		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != svc.Instances {
-		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
+	} else if count := len(rss); count != 5 {
+		t.Errorf("MISMATCH: expected %d instances; actual %d", 5, count)
 	}
 }
 
