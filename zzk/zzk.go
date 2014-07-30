@@ -132,7 +132,7 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 }
 
 // Listen initializes a listener for a particular zookeeper node
-func Listen(shutdown <-chan interface{}, l Listener) {
+func Listen(shutdown <-chan interface{}, ready chan<- error, l Listener) {
 	var (
 		_shutdown  = make(chan interface{})
 		done       = make(chan string)
@@ -143,11 +143,15 @@ func Listen(shutdown <-chan interface{}, l Listener) {
 	glog.Infof("Starting a listener at %s", l.GetPath())
 	if err := Ready(shutdown, conn, l.GetPath()); err != nil {
 		glog.Errorf("Could not start listener at %s: %s", l.GetPath(), err)
+		ready <- err
 		return
 	} else if err := l.Ready(); err != nil {
 		glog.Errorf("Could not start listener at %s: %s", l.GetPath(), err)
+		ready <- err
 		return
 	}
+
+	close(ready)
 
 	defer func() {
 		glog.Infof("Listener at %s receieved interrupt", l.GetPath())
@@ -200,28 +204,45 @@ func Listen(shutdown <-chan interface{}, l Listener) {
 // When the master exits, it shuts down all of the child listeners and waits
 // for all of the subprocesses to exit
 func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) {
-	var wg sync.WaitGroup
-	_shutdown := make(chan interface{})
-	for _, listener := range listeners {
-		wg.Add(1)
-		go func(l Listener) {
-			// TODO: implement restarts?
-			defer wg.Done()
-			Listen(_shutdown, l)
-		}(listener)
-	}
+	var (
+		wg        sync.WaitGroup
+		_shutdown = make(chan interface{})
+		done      = make(chan interface{})
+		ready     = make(chan error)
+	)
 
-	done := make(chan interface{})
+	// Start up the master
 	go func() {
 		defer close(done)
-		Listen(_shutdown, master)
+		Listen(_shutdown, ready, master)
 	}()
 
-	// Wait for the master to finish or shutdown signal received
+	// Wait for the master to be ready and start the slave listeners
+	select {
+	case err := <-ready:
+		if err != nil {
+			break
+		}
+
+		for _, listener := range listeners {
+			wg.Add(1)
+			go func(l Listener) {
+				defer wg.Done()
+				ready := make(chan error)
+				Listen(_shutdown, ready, l)
+			}(listener)
+		}
+	case <-done:
+	case <-shutdown:
+	}
+
+	// Wait for the master to shutdown or shutdown signal
 	select {
 	case <-done:
 	case <-shutdown:
 	}
+
+	// Wait for everything to stop
 	close(_shutdown)
 	wg.Wait()
 }

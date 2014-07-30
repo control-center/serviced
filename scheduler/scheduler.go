@@ -59,7 +59,7 @@ func (s *scheduler) Start() {
 		s.started = true
 		go func() {
 			defer close(s.stopped)
-			zzk.Listen(s.shutdown, s)
+			zzk.Listen(s.shutdown, make(chan error), s)
 		}()
 	}
 }

@@ -36,7 +36,7 @@ func TestServiceListener_Listen(t *testing.T) {
 	done := make(chan interface{})
 	listener := NewServiceListener(conn, handler)
 	go func() {
-		zzk.Listen(shutdown, listener)
+		zzk.Listen(shutdown, make(chan error), listener)
 		close(done)
 	}()
 
@@ -49,7 +49,7 @@ func TestServiceListener_Listen(t *testing.T) {
 	shutdown = make(chan interface{})
 	done = make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, listener)
+		zzk.Listen(shutdown, make(chan error), listener)
 		close(done)
 	}()
 
