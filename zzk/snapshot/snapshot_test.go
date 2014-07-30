@@ -51,7 +51,7 @@ func TestSnapshotListener_Listen(t *testing.T) {
 	t.Log("Create snapshots and shutdown")
 	shutdown := make(chan interface{})
 	listener := NewSnapshotListener(conn, handler)
-	go zzk.Listen(shutdown, listener)
+	go zzk.Listen(shutdown, make(chan error, 1), listener)
 
 	// send success snapshot
 	if err := Send(conn, "service-id-success"); err != nil {

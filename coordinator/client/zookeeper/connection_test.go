@@ -8,12 +8,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path"
 	"testing"
 	"time"
 
+	coordclient "github.com/control-center/serviced/coordinator/client"
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	coordclient "github.com/control-center/serviced/coordinator/client"
 )
 
 func init() {
@@ -119,6 +120,85 @@ func TestZkDriver(t *testing.T) {
 	}
 
 	conn.Close()
+}
+
+func TestZkDriver_Ephemeral(t *testing.T) {
+	basePath := "/basePath"
+	tc, err := zklib.StartTestCluster(1)
+	if err != nil {
+		t.Fatalf("could not start test zk cluster: %s", err)
+	}
+	defer os.RemoveAll(tc.Path)
+	defer tc.Stop()
+	time.Sleep(time.Second)
+
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+
+	drv := Driver{}
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	if err != nil {
+		t.Fatalf("unexpected error creating zk DSN: %s", err)
+	}
+
+	dsn := string(dsnBytes)
+
+	conn, err := drv.GetConnection(dsn, basePath)
+	defer conn.Close()
+	if err != nil {
+		t.Fatal("unexpected error getting connection")
+	}
+
+	node := &testNodeT{Name: "ephemeral"}
+	epath, err := conn.CreateEphemeral("/ephemeral", node)
+	if err != nil {
+		t.Fatalf("creating /ephemeral should work: %s", err)
+	}
+	// The returned is from the root, so it has to be trimmed down to the
+	// relative location
+	ename := "/" + path.Base(epath)
+
+	if ok, err := conn.Exists(ename); err != nil {
+		t.Fatalf("could not find path to ephemeral %s: %s", ename, err)
+	} else if !ok {
+		t.Fatalf("ephemeral %s not created", ename)
+	}
+
+	// Close connection and verify the node was deleted
+	conn.Close()
+	conn, err = drv.GetConnection(dsn, basePath)
+
+	if err != nil {
+		t.Fatal("unexpected error getting connection")
+	}
+
+	if ok, err := conn.Exists(ename); err != nil && err != coordclient.ErrNoNode {
+		t.Fatalf("should be able to check path %s: %s", ename, err)
+	} else if ok {
+		t.Errorf("ephemeral %s should have been deleted", ename)
+	}
+
+	// Adding and deleting
+	node = &testNodeT{Name: "ephemeral"}
+	epath, err = conn.CreateEphemeral("/ephemeral", node)
+	if err != nil {
+		t.Fatalf("creating /ephemeral should work: %s", err)
+	}
+	ename = "/" + path.Base(epath)
+
+	if ok, err := conn.Exists(ename); err != nil {
+		t.Fatalf("could not find path to ephemeral %s: %s", ename, err)
+	} else if !ok {
+		t.Fatalf("ephemeral %s not created", ename)
+	}
+	if err := conn.Delete(ename); err != nil {
+		t.Fatalf("could not delete path %s to ephemeral: %s", err)
+	}
+
+	if ok, err := conn.Exists(ename); err != nil && err != coordclient.ErrNoNode {
+		t.Fatalf("should be able to check path %s: %s", ename, err)
+	} else if ok {
+		t.Errorf("ephemeral %s should have been deleted", ename)
+	}
 }
 
 func TestZkDriver_Watch(t *testing.T) {
