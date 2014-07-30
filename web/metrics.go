@@ -132,7 +132,7 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 				ID:           "pgfault",
 				Color:        "#aec7e8",
 				Fill:         false,
-				Format:       "%d",
+				Format:       "%.2f",
 				Legend:       "Major Page Faults",
 				Metric:       "vmstat.pgmajfault",
 				MetricSource: "virtual.memory",
@@ -144,7 +144,7 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		ID:     "memory.major.pagefault",
 		Name:   "Memory Major Page Faults",
 		Footer: false,
-		Format: "%d",
+		Format: "%.2f",
 		MinY:   &zero,
 		Range: &domain.GraphConfigRange{
 			End:   "0s-ago",
