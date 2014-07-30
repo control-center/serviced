@@ -61,12 +61,14 @@
 
     "remove_virtual_ip": "Remove Virtual IP",
     "remove_virtual_host": "Remove Virtual Host",
+    "remove_host": "Remove Host",
     "remove_service": "Remove Service",
     "remove_pool": "Remove Pool",
     "add_host": "Add Host",
     "add_pool": "Add Pool",
     "add_virtual_ip": "Add Virtual IP",
     "add_virtual_host": "Add Virtual Host",
+    "add_host": "Add Host",
     "add_service": "Add Service",
     "assign_ip": "Assign IP",
 
@@ -77,6 +79,7 @@
     "confirm_remove_pool": "This will remove the following pool, and cannot be undone:",
     "confirm_remove_virtual_ip": "This will remove the following virtual IP, and cannot be undone:",
     "confirm_remove_virtual_host": "This will remove the following virtual host, and cannot be undone:",
+    "confirm_remove_host": "This will remove the following host, and cannot be undone:",
 
     "deploying": "Deploying",
     "deploy_getting_status": "Getting status from server",
