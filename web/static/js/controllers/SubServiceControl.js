@@ -97,8 +97,14 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                 }
             ],
             validate: function(){
+                var name = $scope.vhosts.add.name;
+                for (var i in $scope.vhosts.data) {
+                    if (name == $scope.vhosts.data[i].Name) {
+                        return false;
+                    }
+                }
                 var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
-                return re.test($scope.vhosts.add.name);
+                return re.test(name);
             }
         });
     };
