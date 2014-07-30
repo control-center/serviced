@@ -106,7 +106,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
 		glog.V(1).Info("Unable to decode login payload ", err)
-		restBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 

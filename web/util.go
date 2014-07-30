@@ -69,16 +69,16 @@ func restUnauthorized(w *rest.ResponseWriter) {
 /*
  * Provide a generic response for an oopsie.
  */
-func restServerError(w *rest.ResponseWriter) {
-	writeJSON(w, &simpleResponse{"Internal Server Error", homeLink()}, http.StatusInternalServerError)
+func restServerError(w *rest.ResponseWriter, err error) {
+	writeJSON(w, &simpleResponse{fmt.Sprintf("Internal Server Error: %v", err), homeLink()}, http.StatusInternalServerError)
 	return
 }
 
 /*
  * The user sent us junk, or we were incapabale of decoding what they sent.
  */
-func restBadRequest(w *rest.ResponseWriter) {
-	writeJSON(w, &simpleResponse{"Bad Request", homeLink()}, http.StatusBadRequest)
+func restBadRequest(w *rest.ResponseWriter, err error) {
+	writeJSON(w, &simpleResponse{fmt.Sprintf("Bad Request: %v", err), homeLink()}, http.StatusInternalServerError)
 	return
 }
 
