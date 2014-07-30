@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService, $interval){
+function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService, $interval, $translate){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -53,9 +53,27 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     };
     
     $scope.remove_host = function(hostId) {
-        resourcesService.remove_host(hostId, function(data) {
-            // After removing, refresh our list
-            refreshHosts($scope, resourcesService, false, hostCallback);
+        $modalService.create({
+            template: $translate("confirm_remove_host") + " <strong>"+ $scope.hosts.mapped[hostId].Name +"</strong>",
+            model: $scope,
+            title: "remove_host",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "remove_host",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.remove_host(hostId, function(data) {
+                            // After removing, refresh our list
+                            refreshHosts($scope, resourcesService, false, hostCallback);
+                        });
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
+                }
+            ]
         });
     };
 
