@@ -5,13 +5,6 @@
 package web
 
 import (
-	"github.com/gorilla/mux"
-	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
-
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -22,6 +15,14 @@ import (
 	"net/url"
 	"sync"
 	"time"
+
+	"github.com/gorilla/mux"
+	"github.com/zenoss/glog"
+
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 )
 
 var (
@@ -241,7 +242,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	// than one service state is mapped to a given virtual host
 	vhEP, err := vhInfo.GetNext()
 	if err != nil {
-		glog.V(4).Infof("no endpoing found for vhost %s: %v", subdomain, err)
+		glog.V(4).Infof("no endpoint found for vhost %s: %v", subdomain, err)
 		http.Error(w, fmt.Sprintf("no available service for vhost %v ", subdomain), http.StatusNotFound)
 		return
 	}
@@ -252,6 +253,13 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 	rp := getReverseProxy(remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 	glog.V(1).Infof("vhost proxy remoteAddr:%s sc.muxPort:%s vhEP.privateIP:%s vhEP.epPort:%s", remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort)
 	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
+
+	// Set up the X-Forwarded-Proto header so that downstream servers know
+	// the request originated as HTTPS.
+	if _, ok := r.Header["X-Forwarded-Proto"]; !ok {
+		r.Header.Set("X-Forwarded-Proto", "https")
+	}
+
 	rp.ServeHTTP(w, r)
 	return
 }
