@@ -106,4 +106,5 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
         "left": (windowWidth * 0.5) - (navWidth * 0.5)
     });
 
+    $scope.cookies = $cookies;
 }
