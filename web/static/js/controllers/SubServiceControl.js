@@ -40,7 +40,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         { id: 'Action', name: 'vhost_actions'},
     ]);
 
-    $scope.ips = buildTable('ServiceID', [
+    $scope.ips = buildTable('ServiceName', [
         { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
         { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
         { id: 'HostName', name: 'tbl_virtual_ip_host'},
