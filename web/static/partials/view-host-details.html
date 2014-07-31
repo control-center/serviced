@@ -64,6 +64,9 @@
     </tr>
   </thead>
   <tbody>
+    <tr ng-hide="hosts.current.IPs !== undefined">
+      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
     <tr ng-repeat="address in hosts.current.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
       <td>{{address.IPAddress}}</td>
@@ -82,6 +85,9 @@
     </tr>
   </thead>
   <tbody>
+    <tr ng-hide="running.data !== undefined">
+      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
     <tr ng-repeat="app in running.data | orderBy:running.sort">
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
       <td><span am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span></td>

@@ -65,14 +65,17 @@
   			</tr>
   		</thead>
   		<tbody>
-  			<tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
-  				<td>{{vhost.Name}}</td>
-  				<td>{{vhost.Application}}</td>
-  				<td>{{vhost.ServiceEndpoint}}</td>
-  				<td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
-  				<td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
-  			</tr>
-  		</tbody>
+            <tr ng-hide="vhosts.data !== undefined">
+                <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+            </tr>
+            <tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
+                <td>{{vhost.Name}}</td>
+                <td>{{vhost.Application}}</td>
+                <td>{{vhost.ServiceEndpoint}}</td>
+                <td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
+                <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
+            </tr>
+        </tbody>
   	</table>
   </div>
 
@@ -89,15 +92,18 @@
   			</tr>
   		</thead>
   		<tbody>
-  			<tr ng-repeat="ip in ips.data | orderBy:ips.sort">
-  				<td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
-  				<td>{{ip.AssignmentType}}</td>
-  				<td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
-  				<td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
-  				<td>{{ip.IPAddr}}:{{ip.Port}}</td>
-  				<td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
-  			</tr>
-  		</tbody>
+            <tr ng-hide="ips.data !== undefined">
+                <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+            </tr>
+            <tr ng-repeat="ip in ips.data | orderBy:ips.sort">
+                <td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
+                <td>{{ip.AssignmentType}}</td>
+                <td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
+                <td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID}}</td>
+                <td>{{ip.IPAddr}}:{{ip.Port}}</td>
+                <td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
+            </tr>
+        </tbody>
   	</table>
   </div>
 
@@ -114,6 +120,9 @@
           </tr>
         </thead>
         <tbody>
+          <tr ng-hide="services.current.ConfigFiles !== undefined">
+            <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+          </tr>
           <tr ng-repeat="configFile in services.current.ConfigFiles">
             <td>{{ configFile.Filename }}</td>
             <td>{{ configFile.Owner }}</td>
@@ -140,6 +149,9 @@
         </tr>
       </thead>
       <tbody>
+        <tr ng-hide="services.subservices !== undefined">
+          <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+        </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
           <td ng-click="click_app(app.ID)" class="link">
             <span ng-class="indent(app.zendepth)"></span>{{app.Name}}
@@ -179,6 +191,9 @@
       </tr>
     </thead>
     <tbody>
+      <tr ng-hide="running.data !== undefined">
+        <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+      </tr>
       <tr ng-repeat="app in running.data | orderBy:running.sort">
         <td>{{app.InstanceID}}</td>
         <td>{{app.Name}}</td>
@@ -204,6 +219,9 @@
               </tr>
           </thead>
           <tbody>
+          <tr ng-hide="services.current.Tasks !== undefined">
+              <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+          </tr>
           <tr ng-repeat="task in services.current.Tasks">
               <td style="font-family:monospace">{{ task.Schedule }}</td>
               <td>{{ task.Command }}</td>
