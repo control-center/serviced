@@ -23,7 +23,10 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-repeat="pool in pools.data | orderBy:pools.sort">		  
+    <tr ng-hide="pools.data.length">
+        <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
+    <tr ng-repeat="pool in pools.data | orderBy:pools.sort">
       <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID}}</td>
       <td>{{pool.Priority}}</td>
       <td>{{pool.CoreCapacity}}</td>

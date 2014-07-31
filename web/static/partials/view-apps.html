@@ -28,6 +28,9 @@
         </tr>
       </thead>
       <tbody>
+        <tr ng-hide="services.data !== undefined">
+          <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+        </tr>
         <tr ng-repeat="app in services.deploying | orderBy:services.sort" ng-model="services.deploying">
             <td>{{app.templateName}}</td>
             <td>{{"deploying" | translate}}</td>
