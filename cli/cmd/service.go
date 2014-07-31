@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"path"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -18,6 +20,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
@@ -159,13 +162,16 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "attach",
 				Usage:        "Run an arbitrary command in a running service container",
-				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND]",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
+				Flags: []cli.Flag{
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+				},
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
-				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID } ACTION",
+				Description:  "serviced service action { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
 			}, {
@@ -858,14 +864,25 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return nil, err
 	}
 
+	hosts, err := c.driver.GetHosts()
+	if err != nil {
+		return nil, err
+	}
+	hostmap := make(map[string]*host.Host)
+	for _, host := range hosts {
+		hostmap[host.ID] = host
+	}
+
 	var states []*dao.RunningService
 	for _, rs := range rss {
 		if rs.DockerID == "" {
 			continue
 		}
 
+		nameInstance := path.Join(strings.ToLower(rs.Name), fmt.Sprintf("%d", rs.InstanceID))
+		poolNameInstance := path.Join(strings.ToLower(rs.PoolID), nameInstance)
 		switch strings.ToLower(keyword) {
-		case rs.ServiceID, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12]:
+		case rs.ServiceID, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12], poolNameInstance, nameInstance:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
@@ -882,15 +899,15 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "INSTANCE", "DOCKERID")
+	matches.printrow("NAME", "SERVICEID", "INST", "POOL", "HOST", "HOSTIP", "DOCKERID")
 	for _, row := range states {
-		matches.printrow(row.Name, row.ServiceID, row.InstanceID, row.DockerID)
+		matches.printrow(row.Name, row.ServiceID, row.InstanceID, row.PoolID, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12])
 	}
 	matches.flush()
-	return nil, fmt.Errorf("multiple results found; select one from list")
+	return nil, fmt.Errorf("multiple results found; specify unique item from list")
 }
 
-// serviced service attach { SERVICEID | SERVICENAME | DOCKERID } [COMMAND ...]
+// serviced service attach { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -906,6 +923,33 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		return err
 	}
 
+	// attach on remote host if service is running on remote
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return err
+	}
+
+	if rs.HostID != myHostID {
+		hosts, err := c.driver.GetHosts()
+		if err != nil {
+			return err
+		}
+		hostmap := make(map[string]*host.Host)
+		for _, host := range hosts {
+			hostmap[host.ID] = host
+		}
+
+		endpointArg := ctx.GlobalString("endpoint")
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "attach", args[0]}
+		if len(args) > 1 {
+			cmd = append(cmd, args[1:]...)
+		}
+
+		glog.V(1).Infof("remote attaching with: %s\n", cmd)
+		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
+	}
+
+	// attach on local host if service is running locally
 	var command string
 	if len(args) > 1 {
 		command = args[1]
@@ -929,7 +973,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service attach")
 }
 
-// serviced service action { SERVICEID | SERVICENAME | DOCKERID } ACTION
+// serviced service action { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } ACTION
 func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
