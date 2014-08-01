@@ -220,44 +220,37 @@ func (a *HostAgent) StopService(serviceState *servicestate.ServiceState) error {
 	return a.dockerTerminate(serviceState.ID)
 }
 
-func reapContainers(client *dockerclient.Client, maxAge time.Duration) error {
-	containers, lastErr := client.ListContainers(dockerclient.ListContainersOptions{All: true})
-	if lastErr != nil {
-		return lastErr
+func reapContainers(maxAge time.Duration) error {
+	containers, err := docker.Containers()
+	if err != nil {
+		return err
 	}
-	cutoff := time.Now().Add(-maxAge).Unix()
+
+	cutoff := time.Now().Add(-maxAge)
 	for _, container := range containers {
-		if !strings.HasPrefix(container.Status, "Exited") {
+		if container.IsRunning() {
 			continue
-		}
-		if container.Created > cutoff {
+		} else if container.State.FinishedAt.Unix() > cutoff.Unix() {
 			continue
-		}
-		// attempt to delete the container
-		glog.Infof("About to remove container %s", container.ID)
-		if err := client.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
-			lastErr = err
-			glog.Errorf("Could not remove container %s: %s", container.ID, err)
 		}
 
+		// attempt to delete the container
+		glog.Infof("About to remove container %s", container.ID)
+		if err := container.Delete(true); err != nil {
+			glog.Errorf("Could not remove container %s: %s", container.ID, err)
+		}
 	}
-	return lastErr
+
+	return nil
 }
 
 func (a *HostAgent) reapOldContainersLoop(interval time.Duration, shutdown <-chan interface{}) {
 	for {
 		select {
 		case <-time.After(interval):
-			dc, err := dockerclient.NewClient(dockerEndpoint)
-			if err != nil {
-				glog.Errorf("can't create docker client: %v", err)
-				continue
-			}
-			reapContainers(dc, a.maxContainerAge)
-		case _, ok := <-shutdown:
-			if !ok {
-				return // we are shutting down
-			}
+			reapContainers(a.maxContainerAge)
+		case <-shutdown:
+			return
 		}
 	}
 }
