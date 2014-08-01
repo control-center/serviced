@@ -37,7 +37,7 @@ var DefaultTestServices = []*service.Service{
 		InstanceLimits: domain.MinMax{0, 0},
 		ImageID:        "quay.io/zenossinc/tenantid1-core5x",
 		PoolID:         "default",
-		DesiredState:   1,
+		DesiredState:   service.SVCRun,
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-resmgr",
 		Runs: map[string]string{
@@ -52,7 +52,7 @@ var DefaultTestServices = []*service.Service{
 		InstanceLimits: domain.MinMax{1, 1},
 		ImageID:        "quay.io/zenossinc/tenantid2-core5x",
 		PoolID:         "default",
-		DesiredState:   1,
+		DesiredState:   service.SVCRun,
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-core",
 	}, {
@@ -63,7 +63,7 @@ var DefaultTestServices = []*service.Service{
 		InstanceLimits: domain.MinMax{2, 2},
 		ImageID:        "quay.io/zenossinc/tenantid1-opentsdb",
 		PoolID:         "remote",
-		DesiredState:   1,
+		DesiredState:   service.SVCRun,
 		Launch:         "manual",
 		DeploymentID:   "Zenoss-core",
 	},
