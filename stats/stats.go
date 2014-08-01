@@ -7,14 +7,14 @@
 package stats
 
 import (
-	"github.com/daniel-garcia/go-procfs/linux"
-	"github.com/rcrowley/go-metrics"
-	"github.com/zenoss/glog"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/daniel-garcia/go-procfs/linux"
+	"github.com/rcrowley/go-metrics"
+	"github.com/zenoss/glog"
 
 	"bytes"
 	"encoding/json"
@@ -65,7 +65,8 @@ func NewStatsReporter(destination string, interval time.Duration, conn coordclie
 		containerRegistries: make(map[registryKey]metrics.Registry),
 		hostID:              hostID,
 	}
-	sr.hostRegistry = sr.getOrCreateContainerRegistry("", 0)
+
+	sr.hostRegistry = metrics.NewRegistry()
 	go sr.report(interval)
 	return &sr, nil
 }
