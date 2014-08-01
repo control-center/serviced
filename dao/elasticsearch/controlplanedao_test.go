@@ -292,7 +292,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		InstanceLimits: domain.MinMax{1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
-		DesiredState:   1,
+		DesiredState:   service.SVCRun,
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
 		CreatedAt:      time.Now(),
@@ -344,7 +344,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	var services []*service.Service
 	err = dt.Dao.GetServices(query, &services)
 	for _, subService := range services {
-		if subService.DesiredState == 1 && subService.ParentServiceID == id {
+		if subService.DesiredState == service.SVCRun && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
