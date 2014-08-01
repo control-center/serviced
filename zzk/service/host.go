@@ -123,9 +123,17 @@ func (l *HostStateListener) Done() {
 
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
-	var processDone <-chan interface{}
+	var (
+		processDone <-chan interface{}
+		state       *servicestate.ServiceState
+	)
+
+	defer func() {
+		glog.V(0).Infof("Stopping service instance: %s", state.ID)
+		l.stopInstance(processDone, state)
+	}()
+
 	hpath := l.GetPath(stateID)
-	state := &servicestate.ServiceState{} // Just in case our state gets deleted from under us
 	for {
 		var hs HostState
 		event, err := l.conn.GetW(hpath, &hs)
@@ -142,30 +150,6 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		var s servicestate.ServiceState
 		if err := l.conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &s}); err != nil {
 			glog.Error("Could not find service instance: ", hs.ServiceStateID)
-			// Node doesn't exist or cannot be loaded, delete
-			if err := l.conn.Delete(hpath); err != nil {
-				glog.Warningf("Could not delete host state %s: %s", stateID, err)
-			}
-			if state == nil {
-				return
-			}
-
-			// TODO: need to move this timeout elsewhere
-			if processDone != nil {
-				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				go l.detachInstance(processDone, state)
-				select {
-				case <-processDone:
-					glog.V(2).Infof("detached from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				case <-time.After(45 * time.Second):
-					glog.Infof("timed out detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				}
-			} else {
-				glog.V(2).Infof("stopping from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				l.stopInstance(state)
-				glog.V(2).Infof("stopped from %s; %s", hs.ServiceID, hs.ServiceStateID)
-
-			}
 			return
 		}
 		state = &s
@@ -187,15 +171,9 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			}
 			if err != nil {
 				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.ID, err)
-				l.stopInstance(state)
 				return
 			}
 		case service.SVCStop:
-			if processDone != nil {
-				l.detachInstance(processDone, state)
-			} else {
-				l.stopInstance(state)
-			}
 			return
 		default:
 			glog.V(2).Infof("Unhandled service %s (%s)", svc.Name, svc.ID)
@@ -204,36 +182,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		select {
 		case <-processDone:
 			glog.V(2).Infof("Process ended for instance: ", hs.ServiceStateID)
-			processDone = nil
 		case e := <-event:
 			glog.V(3).Info("Receieved event: ", e)
 			if e.Type == client.EventNodeDeleted {
-				if processDone != nil {
-					l.detachInstance(processDone, state)
-				} else {
-					l.stopInstance(state)
-				}
 				return
 			}
 		case <-shutdown:
 			glog.V(2).Infof("Service %s Host instance %s receieved signal to shutdown", hs.ServiceID, hs.ServiceStateID)
-
-			// TODO: move this timeout elsewhere
-			if processDone != nil {
-				glog.V(2).Infof("detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				go l.detachInstance(processDone, state)
-				select {
-				case <-processDone:
-					glog.V(2).Infof("detached from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				case <-time.After(45 * time.Second):
-					glog.Infof("timed out detaching from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				}
-			} else {
-				glog.V(2).Infof("stopping from %s; %s", hs.ServiceID, hs.ServiceStateID)
-				l.stopInstance(state)
-				glog.V(2).Infof("stopped from %s; %s", hs.ServiceID, hs.ServiceStateID)
-
-			}
 			return
 		}
 	}
@@ -244,6 +199,7 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 	go func(path string) {
 		defer close(wait)
 		<-done
+		glog.V(3).Infof("Received process done signal for %s", state.ID)
 		var s servicestate.ServiceState
 		if err := l.conn.Get(path, &ServiceStateNode{ServiceState: &s}); err != nil {
 			glog.Warningf("Could not get service state %s: %s", state.ID, err)
@@ -288,18 +244,19 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 	return wait, nil
 }
 
-func (l *HostStateListener) stopInstance(state *servicestate.ServiceState) error {
-	if err := l.handler.StopService(state); err != nil {
-		return err
+func (l *HostStateListener) stopInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
+	// TODO: may leave zombies hanging around if StopService fails...do we care?
+	if state == nil {
+		// pass
+	} else if err := l.handler.StopService(state); err != nil {
+		glog.Errorf("Could not stop service instance %s: %s", state.ID, err)
+	} else if done != nil {
+		// wait for signal that the process is done
+		glog.V(3).Infof("waiting for service instance %s to be updated", state.ID)
+		<-done
 	}
-	return removeInstance(l.conn, state)
-}
 
-func (l *HostStateListener) detachInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
-	if err := l.handler.StopService(state); err != nil {
-		return err
-	}
-	<-done
+	glog.V(3).Infof("removing service state %s", state.ID)
 	return removeInstance(l.conn, state)
 }
 

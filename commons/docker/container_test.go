@@ -148,21 +148,24 @@ func TestOnContainerStop(t *testing.T) {
 		t.Fatal("can't start container: ", err)
 	}
 
-	ec := make(chan struct{})
-
-	ctr.OnEvent(Stop, func(cid string) {
-		ec <- struct{}{}
-	})
+	ec := make(chan int)
 
 	ctr.OnEvent(Die, func(cid string) {
-		ec <- struct{}{}
+		exitcode, err := ctr.Wait(1 * time.Second)
+		if err != nil {
+			t.Fatalf("Error waiting for container to exit: %s", err)
+		}
+		ec <- exitcode
 	})
 
 	ctr.Stop(30)
 	defer ctr.Delete(true)
 
 	select {
-	case <-ec:
+	case exitcode := <-ec:
+		if exitcode != 1 {
+			t.Errorf("Receieved exit code: %d", exitcode)
+		}
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for event")
 	}

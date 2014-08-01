@@ -190,34 +190,61 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 
 // AttachService attempts to attach to a running container
 func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Service, serviceState *servicestate.ServiceState) error {
-	// get docker status
-	containerState, err := getDockerState(serviceState.DockerID)
-	glog.V(2).Infof("Agent.updateCurrentState got container state for docker ID %s: %v", serviceState.DockerID, containerState)
-
-	switch {
-	case err == nil && !containerState.State.Running:
-		glog.V(1).Infof("Container does not appear to be running: %s", serviceState.ID)
-		return errors.New("Container not running for " + serviceState.ID)
-
-	case err != nil:
-		glog.Warningf("Error retrieving container state: %s", serviceState.ID)
-		return err
-	}
-
-	dc, err := dockerclient.NewClient(dockerEndpoint)
+	ctr, err := docker.FindContainer(serviceState.DockerID)
 	if err != nil {
-		glog.Errorf("can't create docker client: %v", err)
 		return err
 	}
 
-	updateInstance(serviceState, containerState)
-	go a.waitInstance(dc, done, service, serviceState)
+	defer close(done)
+
+	if !ctr.IsRunning() {
+		return nil
+	}
+
+	updateInstance(serviceState, ctr)
+	go a.waitInstance(done, ctr, service, serviceState)
 	return nil
 }
 
 // StopService terminates a particular service instance (serviceState) on the localhost.
-func (a *HostAgent) StopService(serviceState *servicestate.ServiceState) error {
-	return a.dockerTerminate(serviceState.ID)
+func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
+	if state == nil || state.DockerID == "" {
+		return errors.New("missing Docker ID")
+	}
+
+	ctr, err := docker.FindContainer(state.DockerID)
+	if err != nil {
+		return err
+	}
+
+	// TODO: Need to delegate the timeout setting somewhere else
+	err = ctr.Stop(45 * time.Second)
+	if err == docker.ErrRequestTimeout {
+		glog.Warningf("Could not stop container %s; killing", state.DockerID)
+		err = ctr.Kill()
+	}
+
+	return err
+}
+
+// RemoveService removes a particular service instance's docker container on localhost
+func (a *HostAgent) RemoveService(state *servicestate.ServiceState) error {
+	if state == nil || state.DockerID == "" {
+		return errors.New("missing Docker ID")
+	}
+
+	ctr, err := docker.FindContainer(state.DockerID)
+	if err != nil {
+		return err
+	}
+
+	if !ctr.IsRunning() {
+		// pass
+	} else if err := ctr.Kill(); err != nil {
+		return err
+	}
+
+	return ctr.Delete(true)
 }
 
 func reapContainers(maxAge time.Duration) error {
@@ -255,42 +282,6 @@ func (a *HostAgent) reapOldContainersLoop(interval time.Duration, shutdown <-cha
 	}
 }
 
-func (a *HostAgent) dockerRemove(dockerID string) error {
-	glog.V(1).Infof("Ensuring that container %s does not exist", dockerID)
-
-	dc, err := dockerclient.NewClient(dockerEndpoint)
-	if err != nil {
-		glog.Errorf("can't create docker client: %v", err)
-		return err
-	}
-
-	if err = dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: dockerID, RemoveVolumes: true}); err != nil {
-		glog.Errorf("unable to remove container %s: %v", dockerID, err)
-		return err
-	}
-
-	glog.V(2).Infof("Successfully removed %s", dockerID)
-	return nil
-}
-
-func (a *HostAgent) dockerTerminate(dockerID string) error {
-	glog.V(1).Infof("Killing container %s", dockerID)
-
-	dc, err := dockerclient.NewClient(dockerEndpoint)
-	if err != nil {
-		glog.Errorf("can't create docker client: %v", err)
-		return err
-	}
-
-	if err = dc.KillContainer(dockerclient.KillContainerOptions{dockerID, dockerclient.SIGTERM}); err != nil && !strings.Contains(err.Error(), "No such container") {
-		glog.Errorf("unable to kill container %s: %v", dockerID, err)
-		return err
-	}
-
-	glog.V(2).Infof("Successfully killed %s", dockerID)
-	return nil
-}
-
 // Get the state of the docker container given the dockerId
 func getDockerState(dockerID string) (*docker.Container, error) {
 	glog.V(1).Infof("Inspecting container: %s", dockerID)
@@ -314,12 +305,13 @@ func dumpBuffer(reader io.Reader, size int, name string) {
 	}
 }
 
-func (a *HostAgent) waitInstance(dc *dockerclient.Client, procFinished chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) {
-	exited := make(chan error)
+func (a *HostAgent) waitInstance(procFinished chan<- interface{}, ctr *docker.Container, svc *service.Service, state *servicestate.ServiceState) {
+	exited := make(chan int)
 
-	go func() {
+	// Waits for the container to stop running
+	ctr.OnEvent(docker.Die, func(cid string) {
 		defer close(procFinished)
-		rc, err := dc.WaitContainer(state.DockerID)
+		rc, err := ctr.Wait(time.Second)
 		if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
 			// TODO: output of docker logs is potentially very large
 			// this should be implemented another way, perhaps a docker attach
@@ -334,13 +326,13 @@ func (a *HostAgent) waitInstance(dc *dockerclient.Client, procFinished chan<- in
 				glog.Warningf("Last %d bytes of container %s: %s", buffersize, state.DockerID, string(output))
 			}
 		}
+
 		glog.Infof("Docker wait %s exited", state.DockerID)
-		// remove the container
-		if err := dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: state.DockerID, RemoveVolumes: true}); err != nil {
+		if err := ctr.Delete(true); err != nil {
 			glog.Errorf("Could not remove container %s: %s", state.DockerID, err)
 		}
-		exited <- err
-	}()
+		exited <- rc
+	})
 
 	glog.V(4).Infof("Looking for address assignment in service %s (%s)", svc.Name, svc.ID)
 	for _, endpoint := range svc.Endpoints {
@@ -358,17 +350,12 @@ func (a *HostAgent) waitInstance(dc *dockerclient.Client, procFinished chan<- in
 		}
 	}
 
-	exitcode, ok := utils.GetExitStatus(<-exited)
-	if !ok {
-		glog.V(1).Infof("Unable to determine exit code for %s", state.ID)
-		return
-	}
-
+	exitcode := <-exited
 	switch exitcode {
-	case 137:
-		glog.V(1).Infof("Docker process killed: %s", state.ID)
-	case 2:
-		glog.V(1).Infof("Docker process stopped: %s", state.ID)
+	case -1:
+		glog.V(0).Infof("Docker process killed: %s", state.ID)
+	case 1:
+		glog.V(0).Infof("Docker process stopped: %s", state.ID)
 	case 0:
 		glog.V(0).Infof("Process for service state %s finished", state.ID)
 	}
@@ -460,21 +447,7 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 	defer client.Close()
 
 	// start from a known good state
-	a.dockerTerminate(serviceState.ID)
-	a.dockerRemove(serviceState.ID)
-
-	dc, err := dockerclient.NewClient(dockerEndpoint)
-	if err != nil {
-		glog.Errorf("can't create Docker client: %v ", err)
-		return err
-	}
-
-	em, err := dc.MonitorEvents()
-	if err != nil {
-		glog.Errorf("can't monitor Docker events: %v", err)
-		return err
-	}
-	defer em.Close()
+	a.RemoveService(serviceState)
 
 	// create the docker client Config and HostConfig structures necessary to create and start the service
 	config, hostconfig, err := configureContainer(a, client, service, serviceState, a.virtualAddressSubnet)
@@ -504,7 +477,7 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 
 	glog.V(2).Infof("container %s a.waitForProcessToDie", ctr.ID)
 	updateInstance(serviceState, ctr)
-	go a.waitInstance(dc, done, service, serviceState)
+	go a.waitInstance(done, ctr, service, serviceState)
 	return nil
 }
 
