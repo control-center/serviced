@@ -380,7 +380,7 @@ func TestHostStateListener_stopInstance(t *testing.T) {
 		t.Fatalf("Could not generate instance from service %s", svc.ID)
 	} else if err := addInstance(conn, state); err != nil {
 		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	} else if err := listener.stopInstance(state); err != nil {
+	} else if err := listener.stopInstance(nil, state); err != nil {
 		t.Fatalf("Could not stop instance %s from service %s", state.ID, state.ServiceID)
 	} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
 		t.Fatalf("Error while checking the existance of %s from service %s", state.ID, state.ServiceID)
@@ -418,7 +418,7 @@ func TestHostStateListener_detachInstance(t *testing.T) {
 	wait := make(chan interface{})
 	go func() {
 		defer close(wait)
-		if err := listener.detachInstance(done, state); err != nil {
+		if err := listener.stopInstance(done, state); err != nil {
 			t.Fatalf("Could not detach instance %s from service %s", state.ID, state.ServiceID)
 		}
 	}()
