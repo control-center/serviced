@@ -394,7 +394,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 				}
 			}
 		} else {
-			if svc.DesiredState == 0 {
+			if svc.DesiredState == service.SVCStop {
 				lines[svc.ID] = map[string]string{
 					"ID":        svc.ID,
 					"ServiceID": svc.ID,

@@ -478,6 +478,7 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	if err != nil {
 		glog.Errorf("Unexpected error getting service logs: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{logs, serviceLinks(serviceID)})
 }
@@ -494,6 +495,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	if err != nil {
 		glog.Errorf("Unexpected error starting service: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{"Started service", serviceLinks(serviceID)})
 }
@@ -510,6 +512,7 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 	if err != nil {
 		glog.Errorf("Unexpected error stopping service: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{"Stopped service", serviceLinks(serviceID)})
 }
@@ -525,6 +528,7 @@ func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.C
 	if err != nil {
 		glog.Errorf("Unexpected error snapshotting service: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{label, serviceLinks(serviceID)})
 }
@@ -547,6 +551,7 @@ func restGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *node
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving services: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(running)
 }
@@ -569,6 +574,7 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *no
 	if err != nil {
 		glog.Errorf("Unexpected error getting service state logs: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{logs, servicesLinks()})
 }
@@ -590,6 +596,7 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{filepath, servicesLinks()})
 }
@@ -615,6 +622,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
 }

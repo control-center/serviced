@@ -64,7 +64,16 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
 			return err
 		}
+		vhosts := make(map[string]struct{})
+		for _, ep := range svc.GetServiceVHosts() {
+			for _, vh := range ep.VHosts {
+				vhosts[vh] = struct{}{}
+			}
+		}
 
+		if err := f.checkNotRunning(ctx, vhosts, svc.ID); err != nil {
+			return err
+		}
 	}
 	return f.updateService(ctx, &svc)
 }
@@ -300,6 +309,7 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 	// traverse all the services
 	return f.walkServices(ctx, serviceId, visitor)
 }
+
 func (f *Facade) StopService(ctx datastore.Context, id string) error {
 	glog.V(0).Info("Facade.StopService id=", id)
 
@@ -586,6 +596,10 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 		} else if addressAssignmentId != "" {
 			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
 		}
+
+		if len(endpoint.VHosts) > 0 {
+			//check to see if this vhost is in use by another app
+		}
 	}
 
 	if svc.RAMCommitment < 0 {
@@ -598,19 +612,58 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 
 // validate the provided service
 func (f *Facade) validateService(ctx datastore.Context, serviceId string) error {
+
+	vhosts := make(map[string]struct{})
 	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
-	visitor := func(service *service.Service) error {
+	visitor := func(svc *service.Service) error {
 		// validate the service is ready to start
-		err := f.validateServicesForStarting(ctx, service)
+		err := f.validateServicesForStarting(ctx, svc)
 		if err != nil {
 			glog.Errorf("services failed validation for starting")
 			return err
+		}
+		for _, ep := range svc.GetServiceVHosts() {
+			for _, vh := range ep.VHosts {
+				vhosts[vh] = struct{}{}
+			}
 		}
 		return nil
 	}
 
 	// traverse all the services
-	return f.walkServices(ctx, serviceId, visitor)
+	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+		return err
+	}
+
+	//check that vhosts aren't already started else where
+	return f.checkNotRunning(ctx, vhosts, "")
+}
+
+//Checks to see if any service with the any of the vhosts is currently scheduled to run, if so return an error. Exclude
+//svcID from check if given
+func (f *Facade) checkNotRunning(ctx datastore.Context, vhosts map[string]struct{}, svcID string) error {
+	if len(vhosts) == 0 {
+		return nil
+	}
+
+	//this is brute force but I don't know a better way
+	svcs, err := f.GetServices(ctx)
+	if err != nil {
+		return err
+	}
+	for _, svc := range svcs {
+		if svc.ID != svcID && svc.DesiredState != service.SVCStop {
+			for _, ep := range svc.Endpoints {
+				for _, vh := range ep.VHosts {
+					if _, found := vhosts[vh]; found {
+						return fmt.Errorf("Vhosts %v is already scheduled to run in another application", vh)
+					}
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) error {
