@@ -455,10 +455,13 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 
 	glog.Infof("Snapshot all top level services (count:%d)", len(services))
 
-	for _, service := range services {
-		if service.ParentServiceID == "" {
-			if _, e := snapshotToTgzFile(service); e != nil {
-				glog.Errorf("Could not save snapshot of service %s: %v", service.ID, e)
+	for _, svc := range services {
+		// Make sure you back up the service with desired state as stopped
+		svc.DesiredState = service.SVCStop
+
+		if svc.ParentServiceID == "" {
+			if _, e := snapshotToTgzFile(svc); e != nil {
+				glog.Errorf("Could not save snapshot of service %s: %v", svc.ID, e)
 				backupError <- e.Error()
 				return e
 			}

@@ -194,15 +194,13 @@ func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Serv
 	if err != nil {
 		return err
 	}
-
-	defer close(done)
-
 	if !ctr.IsRunning() {
+		close(done)
 		return nil
+	} else {
+		updateInstance(serviceState, ctr)
+		go a.waitInstance(done, ctr, service, serviceState)
 	}
-
-	updateInstance(serviceState, ctr)
-	go a.waitInstance(done, ctr, service, serviceState)
 	return nil
 }
 
