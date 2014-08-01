@@ -21,7 +21,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zenoss/serviced-isvcs"
-	IMAGE_TAG  = "v11"
+	IMAGE_TAG  = "v12"
 )
 
 func Init() {
