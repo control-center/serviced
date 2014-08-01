@@ -131,7 +131,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
-		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60), "maximum age of a stopped container before removing"},
+		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
 
