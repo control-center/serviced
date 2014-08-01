@@ -217,16 +217,27 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.
 
 // addLogstashEndpoint adds an application endpoint mapping for the master control plane api
 func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
-	key := "tcp:5043"
-	endpoint := dao.ApplicationEndpoint{}
-	endpoint.ServiceID = "controlplane_logstash"
-	endpoint.Application = "controlplane_logstash"
-	endpoint.ContainerIP = "127.0.0.1"
-	endpoint.ContainerPort = 5043
-	endpoint.HostPort = 5043
-	endpoint.HostIP = strings.Split(a.master, ":")[0]
-	endpoint.Protocol = "tcp"
-	a.addEndpoint(key, endpoint, endpoints)
+	tcp_endpoint := dao.ApplicationEndpoint{
+		ServiceID:     "controlplane_logstash_tcp",
+		Application:   "controlplane_logstash_tcp",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 5042,
+		HostPort:      5042,
+		HostIP:        strings.Split(a.master, ":")[0],
+		Protocol:      "tcp",
+	}
+	a.addEndpoint("tcp:5042", tcp_endpoint, endpoints)
+
+	ljack_endpoint := dao.ApplicationEndpoint{
+		ServiceID:     "controlplane_logstash_lumberjack",
+		Application:   "controlplane_logstash_lumberjack",
+		ContainerIP:   "127.0.0.1",
+		ContainerPort: 5043,
+		HostPort:      5043,
+		HostIP:        strings.Split(a.master, ":")[0],
+		Protocol:      "tcp",
+	}
+	a.addEndpoint("tcp:5043", ljack_endpoint, endpoints)
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
