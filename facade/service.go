@@ -656,7 +656,7 @@ func (f *Facade) checkNotRunning(ctx datastore.Context, vhosts map[string]struct
 			for _, ep := range svc.Endpoints {
 				for _, vh := range ep.VHosts {
 					if _, found := vhosts[vh]; found {
-						return fmt.Errorf("Vhosts $v is already scheduled to run in another application", vh)
+						return fmt.Errorf("Vhosts %v is already scheduled to run in another application", vh)
 					}
 				}
 			}
