@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><codeph>DataPoint</codeph> object</title>
+  <refbody>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="2*"/>
+        <colspec colname="c2" colwidth="1*"/>
+        <colspec colname="c3" colwidth="8*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>Aggregator</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Color</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Expression</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Fill</codeph></entry>
+            <entry><codeph>true</codeph> or <codeph>false</codeph></entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Format</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Legend</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Metric</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>MetricSource</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>ID</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Name</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Rate</codeph></entry>
+            <entry><codeph>true</codeph> or <codeph>false</codeph></entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>RateOptions</codeph></entry>
+            <entry>Object</entry>
+            <entry>This object has 3 members: <dl>
+                <dlentry>
+                  <dt><codeph>Counter</codeph></dt>
+                  <dd>(<codeph>true</codeph> or <codeph>false</codeph>)</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>CounterMax</codeph></dt>
+                  <dd></dd>
+                </dlentry>
+              <dlentry>
+                <dt><codeph>ResetThreshold</codeph></dt>
+                <dd></dd>
+              </dlentry>
+              </dl>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>Type</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </refbody>
+</reference>

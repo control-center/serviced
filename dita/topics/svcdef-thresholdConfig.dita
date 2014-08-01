@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><codeph>ThresholdConfig</codeph> object</title>
+  <refbody>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="2*"/>
+        <colspec colname="c2" colwidth="1*"/>
+        <colspec colname="c3" colwidth="8*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>ID</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Name</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Type</codeph></entry>
+            <entry>String</entry>
+            <entry>type of threshold (MinMax, Duration, ValueChange, or HoltWinters)</entry>
+          </row>
+          <row>
+            <entry><codeph>Description</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>AppliedTo</codeph></entry>
+            <entry>Integer</entry>
+            <entry>how should this threshold be applied 0=everything, 1=services only, 2=running services only</entry>
+          </row>
+          <row>
+            <entry><codeph>MetricSource</codeph></entry>
+            <entry>Arrays of strings</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>DataPoints</codeph></entry>
+            <entry>String</entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>Threshold</codeph></entry>
+            <entry></entry>
+            <entry></entry>
+          </row>
+          <row>
+            <entry><codeph>EventTags</codeph></entry>
+            <entry></entry>
+            <entry></entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </refbody>
+</reference>

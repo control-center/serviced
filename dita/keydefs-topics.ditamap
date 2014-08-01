@@ -3,12 +3,24 @@
 <map>
  <title>Topic KeyDefs</title>
   <topicgroup>
-   <keydef keys="con-about-zcc "
+  <keydef keys="con-about-zcc "
           href="topics/about-zcc.dita"
+          format="dita"
+  />
+  <keydef keys="ref-config-defaults "
+          href="topics/config-defaults.dita"
+          format="dita"
+  />
+  <keydef keys="ref-config "
+          href="topics/config.dita"
           format="dita"
   />
   <keydef keys="ref-svcdef-configFile "
           href="topics/svcdef-configFile.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-datapoint "
+          href="topics/svcdef-datapoint.dita"
           format="dita"
   />
   <keydef keys="ref-svcdef-endpoint "
@@ -19,12 +31,44 @@
           href="topics/svcdef-go-template.dita"
           format="dita"
   />
+  <keydef keys="ref-svcdef-graphConfig "
+          href="topics/svcdef-graphConfig.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-health "
+          href="topics/svcdef-health.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-logconfig "
+          href="topics/svcdef-logconfig.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-metric "
+          href="topics/svcdef-metric.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-metricConfig "
+          href="topics/svcdef-metricConfig.dita"
+          format="dita"
+  />
   <keydef keys="ref-svcdef-object "
           href="topics/svcdef-object.dita"
           format="dita"
   />
-  <keydef keys="ref-svcdef-service-template "
-          href="topics/svcdef-service-template.dita"
+  <keydef keys="ref-svcdef-task "
+          href="topics/svcdef-task.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-template "
+          href="topics/svcdef-template.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-thresholdConfig "
+          href="topics/svcdef-thresholdConfig.dita"
+          format="dita"
+  />
+  <keydef keys="ref-svcdef-volume "
+          href="topics/svcdef-volume.dita"
           format="dita"
   />
   <keydef keys="con-svcdef "
@@ -51,6 +95,10 @@
           href="topics/xface-initial.dita"
           format="dita"
   />
+  <keydef keys="ref-xface-logs "
+          href="topics/xface-logs.dita"
+          format="dita"
+  />
   <keydef keys="ref-xface-pools "
           href="topics/xface-pools.dita"
           format="dita"
@@ -59,7 +107,6 @@
           href="topics/xface.dita"
           format="dita"
   />
-
   </topicgroup>
 </map>
 

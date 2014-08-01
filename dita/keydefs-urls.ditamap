@@ -9,8 +9,32 @@
 				scope="external"
 	            processing-role="resource-only"
 	        />
-	<topicref keys="url-docker " 
+	  <topicref keys="url-docker " 
                 href="http://www.docker.com/"
+                format="html"
+				scope="external"
+	            processing-role="resource-only"
+	        />
+	  <topicref keys="url-zookeeper " 
+                href="http://zookeeper.apache.org/"
+                format="html"
+				scope="external"
+	            processing-role="resource-only"
+	        />
+	  <topicref keys="url-logstash " 
+                href="http://logstash.net/"
+                format="html"
+				scope="external"
+	            processing-role="resource-only"
+	        />
+	  <topicref keys="url-kibana " 
+                href="http://www.elasticsearch.org/overview/kibana/"
+                format="html"
+				scope="external"
+	            processing-role="resource-only"
+	        />
+	  <topicref keys="url-golang-fmt " 
+                href="http://golang.org/pkg/fmt/"
                 format="html"
 				scope="external"
 	            processing-role="resource-only"

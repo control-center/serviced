@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
-  <title><codeph>ConfigFile</codeph> object</title>
+  <title><codeph>Volume</codeph> object</title>
+  <shortdesc>A <codeph>Volume</codeph> object defines a file system 
+    directory that is exported by Docker containers.</shortdesc>
   <refbody>
     <table>
       <tgroup cols="3">
@@ -17,35 +19,36 @@
         </thead>
         <tbody>
           <row>
-            <entry><codeph>Name</codeph></entry>
-            <entry>String</entry>
-            <entry>The service name.</entry>
-          </row>
-          <row>
-            <entry><codeph>Filename</codeph></entry>
-            <entry>String</entry>
-            <entry>The absolute path of the configuration file.</entry>
-          </row>
-          <row>
             <entry><codeph>Owner</codeph></entry>
             <entry>String</entry>
-            <entry>The user and group of the configuration file&#39;s owner inside Docker containers,
+            <entry>The user and group of the directory&#39;s owner inside Docker containers,
               in a format accepted by the <cmdname>chown</cmdname> command. For example, for a
               file owned by user and group <codeph>root</codeph>, <codeph>root:root</codeph>
               or <codeph>0:0</codeph>.</entry>
           </row>
           <row>
-            <entry><codeph>Permissions</codeph></entry>
+            <entry><codeph>Permission</codeph></entry>
             <entry>String</entry>
-            <entry>The file mode bits for the configuration file inside Docker containers, in a format
+            <entry>The file mode bits for the directory inside Docker containers, in a format
               accepted by the <cmdname>chmod</cmdname> command. For example, for read, write, and
               execute permission for the owner and read permission for group and others,
                 <codeph>go+r,u+rwx</codeph> or <codeph>0744</codeph>.</entry>
           </row>
           <row>
-            <entry><codeph>Content</codeph></entry>
+            <entry><codeph>ResourcePath</codeph></entry>
             <entry>String</entry>
-            <entry>The content of the configuration file template, in a single JSON string.</entry>
+            <entry>Resource Pool Path, shared across all hosts in a resource pool <draft-comment
+                author="gemil">I don't understand how this is used.</draft-comment></entry>
+          </row>
+          <row>
+            <entry><codeph>ContainerPath</codeph></entry>
+            <entry>String</entry>
+            <entry>The absolute path of the bind mount directory inside Docker containers.</entry>
+          </row>
+          <row>
+            <entry><codeph>Type</codeph></entry>
+            <entry>String</entry>
+            <entry>The use of the path; for example, <codeph>dfs</codeph> or <codeph>tmp</codeph>.</entry>
           </row>
         </tbody>
       </tgroup>

@@ -46,8 +46,9 @@
       <mapref href="keydefs-topics.ditamap" format="ditamap"/>
       <mapref href="keydefs-urls.ditamap" format="ditamap"/>
     </topicgroup>
-  </frontmatter>
   
+  </frontmatter>
+  <chapter href="config.ditamap" format="ditamap"/>
   <chapter href="svc-def.ditamap" format="ditamap"/>
   <chapter href="xface.ditamap" format="ditamap"/>
   

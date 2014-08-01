@@ -5,9 +5,9 @@
   <refbody>
     <table>
       <tgroup cols="3">
-        <colspec colname="c1" colwidth="3*"/>
+        <colspec colname="c1" colwidth="4*"/>
         <colspec colname="c2" colwidth="2*"/>
-        <colspec colname="c3" colwidth="10*"/>
+        <colspec colname="c3" colwidth="8*"/>
         <thead>
           <row>
             <entry>Atttribute</entry>
@@ -34,13 +34,13 @@
           </row>
           <row>
             <entry><codeph>PortNumber</codeph></entry>
-            <entry>Integer (0-65535)</entry>
+            <entry>Integer</entry>
             <entry>The port number of the endpoint.</entry>
           </row>
           <row>
             <entry><codeph>PortTemplate</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>???</entry>
           </row>
           <row>
             <entry><codeph>VirtualAddress</codeph></entry>
@@ -65,11 +65,11 @@
               <p>The definition of an external-facing port. This object has two members:</p>
               <dl>
                 <dlentry>
-                  <dt><codeph>Port</codeph> (integer, 0-65535)</dt>
+                  <dt><codeph>Port</codeph></dt>
                   <dd>The port number of the endpoint.</dd>
                 </dlentry>
                 <dlentry>
-                  <dt><codeph>Protocol</codeph> (string)</dt>
+                  <dt><codeph>Protocol</codeph></dt>
                   <dd>The networking protocol to use, <codeph>tcp</codeph> or <codeph>udp</codeph>.</dd>
                 </dlentry>
               </dl>

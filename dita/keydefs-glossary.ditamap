@@ -8,9 +8,9 @@
 	    href="common/glossary/service-definition.dita" 
 		keys="gloss-service-definition"
 		/>
-		<keydef 
-			href="common/glossary/service-template.dita" 
-			keys="gloss-service-template"
+	<keydef 
+		href="common/glossary/service-template.dita" 
+		keys="gloss-service-template"
 		/>
 	</topicgroup>
 </map>

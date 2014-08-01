@@ -11,6 +11,7 @@
      <topicref href="topics/xface-hosts.dita">
        <topicref href="topics/xface-add-host.dita"/>
      </topicref>
+     <topicref href="topics/xface-logs.dita"/>
    </topicref>
    
 </map>

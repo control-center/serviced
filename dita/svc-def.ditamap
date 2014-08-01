@@ -3,10 +3,21 @@
 <map>
    <title>Defining a service</title>
    <topicref href="topics/svcdef.dita">
-     <topicref href="topics/svcdef-service-template.dita"/>
+     <topicref href="topics/svcdef-template.dita"/>
      <topicref href="topics/svcdef-object.dita"> 
        <topicref href="topics/svcdef-configFile.dita"/>
        <topicref href="topics/svcdef-endpoint.dita"/>
+       <topicref href="topics/svcdef-task.dita"/>
+       <topicref href="topics/svcdef-volume.dita"/>
+       <topicref href="topics/svcdef-logconfig.dita"/>
+       <topicref href="topics/svcdef-health.dita"/>
+       <topicref href="topics/svcdef-metricConfig.dita">
+         <topicref href="topics/svcdef-metric.dita"/>
+       </topicref>
+       <topicref href="topics/svcdef-graphConfig.dita">
+         <topicref href="topics/svcdef-datapoint.dita"/>
+       </topicref>
+       <topicref href="topics/svcdef-thresholdConfig.dita"/>
      </topicref>
      <topicref href="topics/svcdef-go-template.dita"/>
    </topicref>

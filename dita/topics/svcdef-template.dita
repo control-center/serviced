@@ -2,8 +2,8 @@
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
   <title>Service template</title>
-  <shortdesc>A service template contains one or more service definitions,
-    in JavaScript Object Notation (JSON) format.</shortdesc>
+  <shortdesc>A service template contains service definitions, in JavaScript Object Notation (JSON)
+    format.</shortdesc>
   <refbody>
     <table>
       <tgroup cols="3">
@@ -36,12 +36,14 @@
           <row>
             <entry><codeph>Services</codeph></entry>
             <entry>Array of objects</entry>
-            <entry>One or more service definition objects.</entry>
+            <entry>One or more <xref keyref="ref-svcdef-object">ServiceDefinition</xref>
+              objects.</entry>
           </row>
           <row>
             <entry><codeph>ConfigFile</codeph></entry>
-            <entry>Object (defined in service definition)</entry>
-            <entry>The configuration file for this service template.</entry>
+            <entry>Object </entry>
+            <entry>The configuration file for this service template (a <xref
+                keyref="ref-svcdef-configFile">ConfigFile</xref> object).</entry>
           </row>
         </tbody>
       </tgroup>
