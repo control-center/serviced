@@ -71,7 +71,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 			}
 		}
 
-		if err := f.checkNotRunning(ctx, vhosts, svc.ID); err != nil{
+		if err := f.checkNotRunning(ctx, vhosts, svc.ID); err != nil {
 			return err
 		}
 	}
@@ -611,7 +611,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 }
 
 // validate the provided service
-func (f *Facade) validateService(ctx datastore.Context, serviceId string, recursive bool) error {
+func (f *Facade) validateService(ctx datastore.Context, serviceId string) error {
 
 	vhosts := make(map[string]struct{})
 	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
@@ -631,13 +631,10 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, recurs
 	}
 
 	// traverse all the services
-	if recursive {
-		if err := f.walkServices(ctx, serviceId, visitor); err != nil {
-			return err
-		}
-	} else {
-
+	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+		return err
 	}
+
 	//check that vhosts aren't already started else where
 	return f.checkNotRunning(ctx, vhosts, "")
 }
@@ -645,7 +642,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, recurs
 //Checks to see if any service with the any of the vhosts is currently scheduled to run, if so return an error. Exclude
 //svcID from check if given
 func (f *Facade) checkNotRunning(ctx datastore.Context, vhosts map[string]struct{}, svcID string) error {
-	if len(vhosts) == 0{
+	if len(vhosts) == 0 {
 		return nil
 	}
 
