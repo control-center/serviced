@@ -494,6 +494,7 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	if err != nil {
 		glog.Errorf("Unexpected error starting service: %v", err)
 		restServerError(w, err)
+		return
 	}
 	w.WriteJson(&simpleResponse{"Started service", serviceLinks(serviceID)})
 }
