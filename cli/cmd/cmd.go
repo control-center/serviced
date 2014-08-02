@@ -145,7 +145,7 @@ func New(driver api.API) *ServicedCli {
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
-		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "172.17.42.1:5042"), "logstash url and port"},
+		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "127.0.0.1:5042"), "logstash url and port"},
 		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
