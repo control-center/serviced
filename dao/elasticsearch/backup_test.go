@@ -303,7 +303,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		ImageID:        imageId,
 		Launch:         commons.MANUAL,
 		PoolID:         "default",
-		DesiredState:   0,
+		DesiredState:   service.SVCStop,
 		Volumes:        []servicedefinition.Volume{template_volume},
 		DeploymentID:   "backup_test",
 	}
