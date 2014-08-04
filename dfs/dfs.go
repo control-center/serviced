@@ -5,7 +5,6 @@
 package dfs
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
@@ -17,6 +16,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"errors"
@@ -423,6 +423,16 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 		services         []*service.Service
 	)
 
+	// Verify there are no running service instances
+	var rss []*dao.RunningService
+	if err := d.client.GetRunningServices(unused, &rss); err != nil {
+		glog.Errorf("Could not get running services: %s", err)
+		return err
+	} else if count := len(rss); count > 0 {
+		glog.Errorf("Found %d running services; stop all services before restoring from backup", count)
+		return fmt.Errorf("found %d running services", count)
+	}
+
 	// Read the service definitions
 	servicesPath := filepath.Join(restorePath, "services.json")
 	if e := readJsonFromFile(&services, servicesPath); e != nil {
@@ -431,10 +441,9 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	}
 
 	// Restore the services ...
-	var request dao.EntityRequest
-	if e := d.client.GetServices(request, &existingServices); e != nil {
-		glog.Errorf("Could not get existing services: %v", e)
-		return e
+	if err := d.client.GetServices(unused, &existingServices); err != nil {
+		glog.Errorf("Could not get existing services: %s", err)
+		return err
 	}
 
 	existingPools := make(map[string]*pool.ResourcePool)
@@ -452,38 +461,40 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	for _, service := range existingServices {
 		existingServiceMap[service.ID] = service
 	}
-	for _, service := range services {
-		if existingService := existingServiceMap[service.ID]; existingService != nil {
+	for _, svc := range services {
+		// Verify the service has stopped
+		if svc.DesiredState != service.SVCStop {
+			glog.Errorf("Service %s (%s) is running; stop all services before restoring from backup", svc.Name, svc.ID)
+			return fmt.Errorf("service %s (%s) is running", svc.Name, svc.ID)
+		}
+
+		if existingService := existingServiceMap[svc.ID]; existingService != nil {
 			var unused *int
-			if e := d.client.StopService(service.ID, unused); e != nil {
-				glog.Errorf("Could not stop service %s: %v", service.ID, e)
-				return e
+			svc.PoolID = existingService.PoolID
+			if existingPools[svc.PoolID] == nil {
+				glog.Infof("Changing PoolID of service %s from %s to default", svc.ID, svc.PoolID)
+				svc.PoolID = "default"
 			}
-			service.PoolID = existingService.PoolID
-			if existingPools[service.PoolID] == nil {
-				glog.Infof("Changing PoolID of service %s from %s to default", service.ID, service.PoolID)
-				service.PoolID = "default"
-			}
-			if e := d.client.UpdateService(*service, unused); e != nil {
-				glog.Errorf("Could not update service %s: %v", service.ID, e)
+			if e := d.client.UpdateService(*svc, unused); e != nil {
+				glog.Errorf("Could not update service %s: %v", svc.ID, e)
 				return e
 			}
 		} else {
-			if existingPools[service.PoolID] == nil {
-				glog.Infof("Changing PoolID of service %s from %s to default", service.ID, service.PoolID)
-				service.PoolID = "default"
+			if existingPools[svc.PoolID] == nil {
+				glog.Infof("Changing PoolID of service %s from %s to default", svc.ID, svc.PoolID)
+				svc.PoolID = "default"
 			}
 			var serviceId string
-			if e := d.client.AddService(*service, &serviceId); e != nil {
-				glog.Errorf("Could not add service %s: %v", service.ID, e)
+			if e := d.client.AddService(*svc, &serviceId); e != nil {
+				glog.Errorf("Could not add service %s: %v", svc.ID, e)
 				return e
 			}
-			if service.ID != serviceId {
-				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", service.ID, serviceId)
+			if svc.ID != serviceId {
+				msg := fmt.Sprintf("BUG!!! ADDED SERVICE %s, BUT WITH THE WRONG ID: %s", svc.ID, serviceId)
 				glog.Errorf(msg)
 				return errors.New(msg)
 			}
-			existingServiceMap[service.ID] = service
+			existingServiceMap[svc.ID] = svc
 		}
 	}
 
