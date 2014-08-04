@@ -541,6 +541,20 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		return err
 	}
 
+	// Do not restore if there are running services
+	var empty interface{}
+	var rss []*dao.RunningService
+	if e := cp.GetRunningServices(empty, &rss); e != nil {
+		glog.Errorf("Error trying to find running services: %s", err)
+		restoreError <- e.Error()
+		return e
+	} else if count := len(rss); count > 0 {
+		e := fmt.Errorf("found %d running service instances", count)
+		glog.Errorf("Could not restore from backup: %s", e)
+		restoreError <- e.Error()
+		return e
+	}
+
 	restoreOutput <- "Starting restore"
 
 	//TODO: acquire restore mutex, defer release
