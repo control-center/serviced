@@ -464,7 +464,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	for _, svc := range services {
 		// Verify the service has stopped
 		if svc.DesiredState != service.SVCStop {
-			glog.Errorf("Service %s (%s) on is running; stop all services before restoring from backup", svc.Name, svc.ID)
+			glog.Errorf("Service %s (%s) is running; stop all services before restoring from backup", svc.Name, svc.ID)
 			return fmt.Errorf("service %s (%s) is running", svc.Name, svc.ID)
 		}
 
