@@ -1070,7 +1070,7 @@ function ResourcesService($http, $location, $notification) {
         get_backup_status: function(successCallback, failCallback){
             failCallback = failCallback || angular.noop;
 
-            $http.get('/backup/status').
+            $http({url: '/backup/status', method: "GET", params: {'time': new Date().getTime()}}).
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved status of backup.');
                     successCallback(data);
@@ -1086,8 +1086,8 @@ function ResourcesService($http, $location, $notification) {
 
         get_restore_status: function(successCallback, failCallback){
             failCallback = failCallback || angular.noop;
-            
-            $http.get('/backup/restore/status').
+
+            $http({url: '/backup/restore/status', method: "GET", params: {'time': new Date().getTime()}}).
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved status of restore.');
                     successCallback(data);
