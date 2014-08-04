@@ -1197,7 +1197,7 @@ function get_vhost_url( $location, vhost) {
 }
 
 // collect all virtual hosts for provided service
-function aggregateVhosts( service) {
+function aggregateVhosts(service) {
   var vhosts = [];
   if (service.Endpoints) {
     for (var i in service.Endpoints) {
@@ -1218,7 +1218,7 @@ function aggregateVhosts( service) {
   return vhosts;
 }
 // collect all address assignments for a service
-function aggregateAddressAssigments( service, api) {
+function aggregateAddressAssigments(service, api) {
   var assignments = [];
   if (service.Endpoints) {
     for (var i in service.Endpoints) {
@@ -1254,25 +1254,25 @@ function aggregateAddressAssigments( service, api) {
 }
 
 // collect all virtual hosts options for provided service
-function aggregateVhostOptions( service) {
+function aggregateVhostOptions(service) {
   var options = [];
   if (service.Endpoints) {
     for (var i in service.Endpoints) {
       var endpoint = service.Endpoints[i];
-      if (endpoint.VHosts) {
+      if (endpoint.Purpose == "export") {
         var option = {
           ServiceID:service.ID,
           ServiceEndpoint:endpoint.Application,
           Value:service.Name + " - " + endpoint.Application
         };
-        options.push( option);
+        options.push(option);
       }
     }
   }
 
   for (var i in service.children) {
     var child_service = service.children[i];
-    options = options.concat( aggregateVhostOptions( child_service));
+    options = options.concat(aggregateVhostOptions(child_service));
   }
 
   return options;
