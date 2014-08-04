@@ -705,9 +705,10 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						select {
 						case <-sc:
 							glog.V(2).Infof("update container %s state post start", ctr.ID)
-							ctr, err = dc.InspectContainer(ctr.ID)
+							ctrID := ctr.ID
+							ctr, err = dc.InspectContainer(ctrID)
 							if err != nil {
-								glog.V(1).Infof("failed to update container %s state post start: %v", ctr.ID, err)
+								glog.V(1).Infof("failed to update container %s state post start: %v", ctrID, err)
 								req.errchan <- err
 								return
 							}
