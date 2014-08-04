@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"regexp"
 	"strings"
+	"sync"
 	"time"
 
 	dutils "github.com/dotcloud/docker/utils"
@@ -112,6 +113,7 @@ func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
 }
 
 func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
+	wg := sync.WaitGroup{}
 	for _, img := range getImageIDs(template.Services...) {
 		imageID, err := commons.ParseImageID(img)
 		if err != nil {
@@ -121,17 +123,22 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 		if tag == "" {
 			tag = "latest"
 		}
+		wg.Add(1)
 		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
-		glog.Infof("Pulling image %s", image)
-		// Using a subprocess instead of dockerclient in order to take
-		// advantage of Docker's auth and the default registry logic
-		cmd := exec.Command("docker", "pull", image)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
-			glog.Warningf("Unable to pull image %s", image)
-		}
+		go func(image string) {
+			defer wg.Done()
+			glog.Infof(" Pulling image %s", image)
+			// Using a subprocess instead of dockerclient in order to take
+			// advantage of Docker's auth and the default registry logic
+			cmd := exec.Command("docker", "pull", image)
+			cmd.Stdout = os.Stdout
+			cmd.Stderr = os.Stderr
+			if err := cmd.Run(); err != nil {
+				glog.Warningf("Unable to pull image %s", image)
+			}
+		}(image)
 	}
+	wg.Wait()
 	return nil
 }
 
