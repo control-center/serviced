@@ -205,6 +205,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         return false;
     }
 
+
     $scope.AssignIP = function() {
         var serviceID = $scope.ips.assign.ip.ServiceID;
         var IP = $scope.ips.assign.value.IPAddr;
