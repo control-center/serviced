@@ -129,8 +129,12 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	)
 
 	defer func() {
-		glog.V(0).Infof("Stopping service instance: %s", state.ID)
-		l.stopInstance(processDone, state)
+		if state == nil {
+			glog.Warning("Spawn completed without state instance to stop")
+		} else {
+			glog.V(0).Infof("Stopping service instance: %s", state.ID)
+			l.stopInstance(processDone, state)
+		}
 	}()
 
 	hpath := l.GetPath(stateID)
@@ -244,11 +248,10 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 	return wait, nil
 }
 
+// stopInstance stops instance and signals done.  callers expected to check for nil state
 func (l *HostStateListener) stopInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
 	// TODO: may leave zombies hanging around if StopService fails...do we care?
-	if state == nil {
-		// pass
-	} else if err := l.handler.StopService(state); err != nil {
+	if err := l.handler.StopService(state); err != nil {
 		glog.Errorf("Could not stop service instance %s: %s", state.ID, err)
 	} else if done != nil {
 		// wait for signal that the process is done
@@ -295,6 +298,10 @@ func updateInstance(conn client.Connection, state *servicestate.ServiceState) er
 }
 
 func removeInstance(conn client.Connection, state *servicestate.ServiceState) error {
+	if state == nil {
+		return nil
+	}
+
 	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
 		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
 	}
