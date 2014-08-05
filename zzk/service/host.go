@@ -258,8 +258,12 @@ func (l *HostStateListener) stopInstance(done <-chan interface{}, state *service
 		<-done
 	}
 
-	glog.V(3).Infof("removing service state %s", state.ID)
-	return removeInstance(l.conn, state)
+	if state == nil {
+		return nil
+	} else {
+		glog.V(3).Infof("removing service state %s", state.ID)
+		return removeInstance(l.conn, state)
+	}
 }
 
 func addInstance(conn client.Connection, state *servicestate.ServiceState) error {
@@ -297,6 +301,10 @@ func updateInstance(conn client.Connection, state *servicestate.ServiceState) er
 }
 
 func removeInstance(conn client.Connection, state *servicestate.ServiceState) error {
+	if state == nil {
+		return nil
+	}
+
 	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
 		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
 	}
