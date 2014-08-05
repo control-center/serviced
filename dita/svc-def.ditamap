@@ -19,6 +19,15 @@
        </topicref>
        <topicref href="topics/svcdef-thresholdConfig.dita"/>
      </topicref>
-     <topicref href="topics/svcdef-go-template.dita"/>
+     <topicref href="topics/svcdef-go-template.dita">
+       <topicref href="topics/svcdef-go-template-bytesToMB.dita"/>
+       <topicref href="topics/svcdef-go-template-child.dita"/>
+       <topicref href="topics/svcdef-go-template-each.dita"/>
+       <topicref href="topics/svcdef-go-template-parent.dita"/>
+       <topicref href="topics/svcdef-go-template-percentScale.dita"/>
+       <topicref href="topics/svcdef-go-template-plus.dita"/>
+     </topicref>
    </topicref>
 </map>
+
+

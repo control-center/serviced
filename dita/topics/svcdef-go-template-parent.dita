@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>parent</keyword> function</title>
+  <shortdesc>Use the context of the parent service.</shortdesc>
+  <refbody>
+    <section>
+      <p>Syntax: <synph><delim>(</delim><kwd>parent</kwd> <var>Context</var><delim>)</delim></synph></p>
+      <p>Example: <codeph>{{(parent .).Name}}</codeph></p>
+    </section>
+  </refbody>
+</reference>

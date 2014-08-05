@@ -8,8 +8,8 @@
 		<p><ph id="company-long">Zenoss, Inc.</ph></p>
 		<p><ph id="company-address">11305 Four Points Drive, Bldg 1 - Suite 300, Austin, Texas 78726, U.S.A.</ph></p>
 		
-		<p><ph id="zcc">Zenoss Control Center</ph></p>
-		<p><ph id="product">Zenoss Control Center</ph></p>
+		<p><ph id="zcc">Control Center</ph></p>
+		<p><ph id="product">Control Center</ph></p>
 
 	</body>
 </topic>

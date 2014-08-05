@@ -2,7 +2,7 @@
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
   <title>Service template</title>
-  <shortdesc>A service template contains service definitions, in JavaScript Object Notation (JSON)
+  <shortdesc>A service template contains a ServiceDefinition object, in JavaScript Object Notation (JSON)
     format.</shortdesc>
   <refbody>
     <table>

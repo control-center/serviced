@@ -10,8 +10,8 @@
         <dlentry>
           <dt><codeph>HOME</codeph></dt>
           <dd>Default: <filepath>/root</filepath></dd> 
-          <dd>The path <ph conkeyref="names/zcc"/> uses to locate the 
-            <filepath>.dockercfg</filepath> file to which it refers.</dd>
+          <dd>The path <ph conkeyref="names/zcc"/> uses to locate the
+              <filepath>.dockercfg</filepath> file.</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_AGENT</codeph></dt>
@@ -36,8 +36,8 @@ SERVICED_MASTER=1</codeblock></li>
         <dlentry>
           <dt><codeph>SERVICED_MASTER_POOLID</codeph></dt>
           <dd>Default: <codeph>default</codeph></dd> 
-          <dd>The name of the resource pool in which the 
-            instance configured as the master is located.</dd>
+          <dd>The name of the resource pool in which the instance configured as master is
+            located.</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_MASTER_IP</codeph></dt>
@@ -48,10 +48,10 @@ SERVICED_MASTER=1</codeblock></li>
         <dlentry>
           <dt><codeph>SERVICED_ZK</codeph></dt>
           <dd>Default: <codeph>$SERVICED_MASTER_IP:2181</codeph></dd> 
-          <dd>The list of endpoints in the <xref keyref="url-zookeeper">ZooKeeper</xref> 
-            ensemble of <ph conkeyref="names/zcc"/>, separated by the comma character
-            (<codeph>,</codeph>). Currently, the instance configured as the
-            master is the only host in the ZooKeeper ensemble.</dd>
+          <dd>The list of endpoints in the <xref keyref="url-zookeeper">ZooKeeper</xref> ensemble of
+              <ph conkeyref="names/zcc"/>, separated by the comma character (<codeph>,</codeph>).
+            Currently, the instance configured as master is the only host in the ZooKeeper
+            ensemble.</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_REGISTRY</codeph></dt>
@@ -106,7 +106,7 @@ SERVICED_MASTER=1</codeblock></li>
         <dlentry>
           <dt><codeph>SERVICED_KEY_FILE</codeph></dt>
           <dd>Default: <codeph>/etc/....</codeph></dd> 
-          <dd>The path of a TSL key file. By default, no key file is installed.</dd>
+          <dd>The path of a TLS key file. By default, no key file is installed.</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_CERT_FILE</codeph></dt>
@@ -141,9 +141,9 @@ SERVICED_MASTER=1</codeblock></li>
         <dlentry>
           <dt><codeph>SERVICED_LOG_LEVEL</codeph></dt>
           <dd>Default: <codeph>0</codeph></dd> 
-          <dd>The relative amount of information to include in the
-            <filepath>/var/log/upstart/serviced.log</filepath> file. The range is 0 (minimum)
-            to 5 (maximum).</dd>
+          <dd>The relative amount of debug information to write to the
+              <filepath>/var/log/upstart/serviced.log</filepath> file. The range is 0 (minimum) to 5
+            (maximum).</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_LOG_ADDRESS</codeph></dt>
@@ -153,13 +153,14 @@ SERVICED_MASTER=1</codeblock></li>
         <dlentry>
           <dt><codeph>SERVICED_STATS_PORT</codeph></dt>
           <dd>Default: <codeph>$SERVICED_MASTER_IP:8443</codeph></dd> 
-          <dd>The endpoint of the OpenTSDB reader for 
-            <ph conkeyref="names/zcc"/> statistics.</dd>
+          <dd>The endpoint of the OpenTSDB reader daemon, for <ph conkeyref="names/zcc"/>
+            statistics.</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_STATS_PERIOD</codeph></dt>
           <dd>Default: <codeph>10</codeph></dd> 
-          <dd>The number of seconds to wait between polls of hosts in resource pools.</dd>
+          <dd>The number of seconds to wait between polls (health checks) of hosts in resource
+            pools.</dd>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_OPTS</codeph></dt>

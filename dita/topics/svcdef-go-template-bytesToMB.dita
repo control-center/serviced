@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>bytesToMB</keyword> function</title>
+  <shortdesc>Divide by 1024.</shortdesc>
+  <refbody>
+    <section>
+      <p>Syntax: <synph><kwd>bytesToMB</kwd> <var>Item</var></synph></p>
+      <p>Example: <codeph>{{bytesToMB .RAMCommitment 0.8 | bytesToMB}}</codeph></p>
+      <p>If the value of <codeph>RAMCommitment</codeph> is 2147483648 bytes, the 
+        preceding template is replaced by 16777 (17179818 / 1024). The item to 
+        transform is rounded and the result is converted to an integer.</p>
+    </section>
+  </refbody>
+</reference>

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>percentScale</keyword> function</title>
+  <shortdesc>Multiply an item by a percentage.</shortdesc>
+  <refbody>
+    <section>
+      <p>Syntax: <synph><kwd>percentScale</kwd> <var>Item</var> <var>Percentage</var></synph></p>
+      <p>Example: <codeph>{{percentScale .RAMCommitment 0.8}}</codeph></p>
+      <p>If the value of <codeph>RAMCommitment</codeph> is 2147483648 bytes, the preceding template
+        is replaced by 17179818. The item to transform is rounded and the result is converted to an
+        integer.</p>
+    </section>
+  </refbody>
+</reference>

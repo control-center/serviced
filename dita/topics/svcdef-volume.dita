@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
-  <title><codeph>Volume</codeph> object</title>
+  <title>Volume object</title>
   <shortdesc>A <codeph>Volume</codeph> object defines a file system 
     directory that is exported by Docker containers.</shortdesc>
   <refbody>

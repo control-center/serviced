@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
-  <title><codeph>MetricConfig</codeph> object</title>
+  <title>MetricConfig object</title>
   <refbody>
     <table>
       <tgroup cols="3">
@@ -35,9 +35,8 @@
           <row>
             <entry><codeph>Query</codeph></entry>
             <entry>Object</entry>
-            <entry>
-              <p>The components of an HTTP query to request metrics. This object includes the
-                following pairs:</p>
+            <entry>The components of an HTTP query to request metrics. This object includes the
+                following pairs:
               <dl>
                 <dlentry>
                   <dt><codeph>RequestURI</codeph></dt>

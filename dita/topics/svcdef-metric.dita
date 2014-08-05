@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
-  <title><codeph>Metric</codeph> object</title>
+  <title>Metric object</title>
   <shortdesc>The metadata description of a single metric.</shortdesc>
   <refbody>
     <table>

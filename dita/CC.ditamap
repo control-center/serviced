@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE bookmap PUBLIC "-//OASIS//DTD DITA BookMap//EN" "bookmap.dtd">
+<bookmap>
+  <booktitle>
+    <mainbooktitle><ph conkeyref="pubs/ph-zcc"/></mainbooktitle>
+  </booktitle>
+  <bookmeta>
+    <prodinfo>
+      <prodname>Control Center</prodname>
+      <vrmlist>
+        <vrm version="0" release="8" modification="0"/>        
+      </vrmlist>
+    </prodinfo>
+  </bookmeta>
+  <frontmatter>
+    <topicgroup>
+      <mapref href="common/vars/keydefs-zcc.ditamap" format="ditamap"/>
+    </topicgroup>
+    <topicgroup>
+      <mapref href="keydefs-glossary.ditamap" format="ditamap"/>
+      <mapref href="keydefs-topics.ditamap" format="ditamap"/>
+      <mapref href="keydefs-urls.ditamap" format="ditamap"/>
+    </topicgroup>
+  
+  </frontmatter>
+  <chapter href="config.ditamap" format="ditamap"/>
+  <chapter href="svc-def.ditamap" format="ditamap"/>
+  <chapter href="xface.ditamap" format="ditamap"/>
+  
+</bookmap>

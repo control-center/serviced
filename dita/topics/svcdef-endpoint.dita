@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
-  <title><codeph>Endpoint</codeph> object</title>
+  <title>Endpoint object</title>
   <refbody>
     <table>
       <tgroup cols="3">
@@ -78,9 +78,8 @@
           <row>
             <entry><codeph>VHosts</codeph></entry>
             <entry>Array of strings</entry>
-            <entry>
-              <p>Reserve a virtual hostname for the endpoint. The string or strings are used as
-                subdomain names.</p> 
+            <entry>Reserve a virtual hostname for the endpoint. The strings are used as
+                subdomain names. 
               <p>A virtual hostname allows users to find a service quickly, without manually
                 searching for its IP address.</p></entry>
           </row>

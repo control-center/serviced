@@ -11,22 +11,22 @@
                                         Universal
          ================================================================================  -->
 		 
-    <p><cite id="cite-zcc">Zenoss Control Center Guide</cite></p>
-    <p><ph id="ph-zcc">Zenoss Control Center Guide</ph></p>
+    <p><cite id="cite-zcc">Control Center Guide</cite></p>
+    <p><ph id="ph-zcc">Control Center Guide</ph></p>
 	
 	
     <!-- ================================================================================
                                     Generics for ZCC
          ================================================================================  -->
     
-    <p><cite id="cite-install">Zenoss Control Center Installation Guide</cite></p>
-    <p><ph id="ph-install">Zenoss Control Center Installation Guide</ph></p>
+    <p><cite id="cite-install">Control Center Installation Guide</cite></p>
+    <p><ph id="ph-install">Control Center Installation Guide</ph></p>
     
-    <p><cite id="cite-admin">Zenoss Control Center Administration Guide</cite></p>
-    <p><ph id="ph-admin">Zenoss Control Center Administration Guide</ph></p>
+    <p><cite id="cite-admin">Control Center Administration Guide</cite></p>
+    <p><ph id="ph-admin">Control Center Administration Guide</ph></p>
     
-    <p><cite id="cite-relnotes">Zenoss Control Center Release Notes</cite></p>
-    <p><ph id="ph-relnotes">Zenoss Control Center Release Notes</ph></p>
+    <p><cite id="cite-relnotes">Control Center Release Notes</cite></p>
+    <p><ph id="ph-relnotes">Control Center Release Notes</ph></p>
  
   </body>
 </topic>

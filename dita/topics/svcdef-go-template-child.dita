@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>child</keyword> function</title>
+  <shortdesc>Use the context of a child service.</shortdesc>
+  <refbody>
+    <section>
+      <p>Syntax: <synph><delim>(</delim><kwd>child</kwd> <var>Context</var><delim>)</delim></synph></p>
+      <p>Example: <codeph>{{with $zks := (child (parent .) \"ZooKeeper\").Instances }}</codeph></p>
+    </section>
+  </refbody>
+</reference>
