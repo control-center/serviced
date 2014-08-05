@@ -808,6 +808,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	}
 
 	// Remove the service from zookeeper if the pool ID has changed
+	err = nil
 	if oldSvc.PoolID != svc.PoolID {
 		err = zkAPI(f).removeService(oldSvc)
 	}
