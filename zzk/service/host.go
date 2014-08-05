@@ -129,8 +129,10 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	)
 
 	defer func() {
-		glog.V(0).Infof("Stopping service instance: %s", state.ID)
-		l.stopInstance(processDone, state)
+		if state != nil {
+			glog.V(0).Infof("Stopping service instance: %s", state.ID)
+			l.stopInstance(processDone, state)
+		}
 	}()
 
 	hpath := l.GetPath(stateID)
