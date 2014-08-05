@@ -1156,7 +1156,16 @@ rect {
     border: solid #EEE 1px;
 }
 .zenchartContainer h4{
-    margin: 0;
+    margin: 0 0 10px 0;
+    display: inline-block;
+}
+.zenchartContainer .graphDescrip {
+    display: inline-block;
+    font-size: .9em;
+    color: #AAA;
+    padding-left: 10px;
+    border-left: solid 1px #CCC;
+    margin-left: 10px;
 }
 
 
