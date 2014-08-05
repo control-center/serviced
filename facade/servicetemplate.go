@@ -183,12 +183,23 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		"status":       "Starting",
 		"lastStatus":   "",
 	}
+	defer delete(deployments, deploymentID)
 
 	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_template|"+templateID)
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
 		return "", err
+	}
+
+	//check that deployment id does not already exist
+	svcs, err := f.serviceStore.GetServicesByDeployment(ctx, deploymentID)
+	if err != nil {
+		glog.Errorf("unable to validate deploymentID %v while deploying %v", deploymentID, templateID)
+		return "", err
+	}
+	if len(svcs) > 0 {
+		return "", fmt.Errorf("deployment ID %v is already in use", deploymentID)
 	}
 
 	//now that we know the template name, set it in the status
@@ -213,7 +224,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	volumes := make(map[string]string)
 	var tenantID string
 	err = f.deployServiceDefinitions(ctx, template.Services, poolID, "", volumes, deploymentID, &tenantID)
-	delete(deployments, deploymentID)
+
 	return tenantID, err
 }
 

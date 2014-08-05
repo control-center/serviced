@@ -5,9 +5,9 @@
 package service
 
 import (
-	"github.com/zenoss/elastigo/search"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/zenoss/elastigo/search"
 
 	"errors"
 	"fmt"
@@ -69,6 +69,16 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]*Serv
 		return nil, errors.New("empty poolID not allowed")
 	}
 	queryString := fmt.Sprintf("PoolID:%s", id)
+	return query(ctx, queryString)
+}
+
+//GetServicesByDeployment returns services with the given deployment id
+func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]*Service, error) {
+	id := strings.TrimSpace(deploymentID)
+	if id == "" {
+		return nil, errors.New("empty deploymentID not allowed")
+	}
+	queryString := fmt.Sprintf("DeploymentID:%s", id)
 	return query(ctx, queryString)
 }
 
