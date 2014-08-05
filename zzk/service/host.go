@@ -248,7 +248,7 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 	return wait, nil
 }
 
-// stopInstance stops instance and signals done.  callers expected to check for nil state
+// stopInstance stops instance and signals done.  caller is expected to check for nil state
 func (l *HostStateListener) stopInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
 	// TODO: may leave zombies hanging around if StopService fails...do we care?
 	if err := l.handler.StopService(state); err != nil {
