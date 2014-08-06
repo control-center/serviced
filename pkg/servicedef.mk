@@ -8,13 +8,13 @@ THIS_MAKEFILE := $(notdir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_
 # RPM and DEB builder for service definitions.
 #
 
-NAME          = servicedef
-FROMVERSION   = 0.3.70
-VERSION       := $(shell cat ../VERSION)
+NAME          = product
+FULL_NAME     = $(NAME)-service
+#FROMVERSION  = 0.3.70
+VERSION       = 5.0.0
 RELEASE_PHASE = 
-SUBPRODUCT    = subproduct
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
-PKGROOT       = pkgroot_$(NAME)
+PKGROOT       = pkgroot_$(FULL_NAME)
 
 ifeq "$(BUILD_NUMBER)" ""
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
@@ -28,14 +28,9 @@ else
 DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
 endif
 
-ifeq "$(SUBPRODUCT)" ""
-FULL_NAME=$(NAME)
-else
-FULL_NAME=$(NAME)-$(SUBPRODUCT)
-endif
-
 define DESCRIPTION
-These service definitions allow $(SUBPRODUCT) to be instantiated by the
+Service definitions for $(NAME).
+These definitions allow $(NAME) to be instantiated by the
 Zenoss Control Center serviced application into a runtime environment that
 leverages the scalability, performance, and deployment lifecycle associated
 with Docker containers.
