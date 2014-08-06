@@ -8,6 +8,9 @@ THIS_MAKEFILE := $(notdir $(CURDIR)/$(word $(words $(MAKEFILE_LIST)),$(MAKEFILE_
 # RPM and DEB builder for service definitions.
 #
 
+# NAME is typically overridden from the toplevel make:
+#    e.g. make -f servicedef.mk NAME=zenoss-core
+#
 NAME          = product
 FULL_NAME     = $(NAME)-service
 #FROMVERSION  = 0.3.70
