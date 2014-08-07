@@ -270,6 +270,8 @@ func reapContainers(maxAge time.Duration) error {
 }
 
 func (a *HostAgent) reapOldContainersLoop(interval time.Duration, shutdown <-chan interface{}) {
+	glog.V(1).Infof("will reap stopped containers older than age of %v", a.maxContainerAge)
+
 	for {
 		select {
 		case <-time.After(interval):
