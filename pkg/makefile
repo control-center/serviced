@@ -7,7 +7,6 @@
 #
 
 NAME          ?= serviced
-FROMVERSION   ?= 0.3.70
 VERSION       ?= $(shell cat ../VERSION)
 RELEASE_PHASE ?=
 SUBPRODUCT    ?=
@@ -29,12 +28,6 @@ else
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
 endif
 
-ifeq "$(FROMVERSION)" ""
-DEB_PKG_VERSION=$(PKG_VERSION)
-else
-DEB_PKG_VERSION = $(FROMVERSION)+$(PKG_VERSION)
-endif
-
 ifeq "$(SUBPRODUCT)" ""
 FULL_NAME=$(NAME)
 else
@@ -42,8 +35,8 @@ FULL_NAME=$(NAME)-$(SUBPRODUCT)
 endif
 
 define DESCRIPTION
-Zenoss Serviced is a PaaS runtime. It allows users to create, manage and scale
-services in a uniform way.
+Zenoss Serviced PaaS runtime 
+Allows services to be uniformly created, scaled, and managed.
 endef
 export DESCRIPTION
 
@@ -120,7 +113,7 @@ stage_rpm: build
 deb: stage_deb
 	fpm \
 		-n $(FULL_NAME) \
-		-v $(DEB_PKG_VERSION)~$$(lsb_release -cs) \
+		-v $(PKG_VERSION)~$$(lsb_release -cs) \
 		-s dir \
 		-d nfs-kernel-server \
 		-d net-tools \
