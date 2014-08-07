@@ -53,11 +53,10 @@ Add your development user to the "docker" group.
 ```bash
 sudo usermod -G docker -a $USER
 ```
-Ubuntu 13.x is the typical development environment. There are additional dependencies 
+Ubuntu 14.04 is the typical development environment. There are additional dependencies 
 your install will need.
 ```bash
-sudo apt-get install git mercurial libpam0g-dev apparmor-utils make
-sudo aa-complain /usr/bin/lxc-start
+sudo apt-get install git mercurial libpam0g-dev make
 ```
 
 With $GOROOT set and $GOROOT/bin in your $PATH, create a development workspace.
@@ -72,15 +71,10 @@ cd serviced
 make install
 ```
 
-Setup HBASE
-```
-https://github.com/control-center/serviced/wiki/Single-node-HBASE-setup
-```
-
 After this, a binary should exist at $GOPATH/bin/serviced & 
 $GOPATH/src/github.com/control-center/serviced/serviced. You can run the server with
 
 ```bash
-serviced -agent -master
+sudo serviced -agent -master
 ```
 
