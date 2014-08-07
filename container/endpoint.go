@@ -453,7 +453,6 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 				glog.Infof("not overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
 			}
 		}
-
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
 	}
 }
@@ -476,11 +475,20 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 		return
 	}
 
-	// First pass of endpoints creates a map of instanceID to array of addresses
+	// First pass of endpoints creates a map of proxy index (which is
+	// instanceID in an import_all scenario) to array of addresses
 	addressMap := make(map[int][]string, len(endpoints))
 	for _, endpoint := range endpoints {
 		address := fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
-		addressMap[endpoint.InstanceID] = append(addressMap[endpoint.InstanceID], address)
+		if purpose == "import" {
+			// If we're a load-balanced endpoint, we don't care about instance
+			// ID; just put everything on 0, since we will have 1 proxy
+			addressMap[0] = append(addressMap[0], address)
+		} else if purpose == "import_all" {
+			// In this case, we care about instance ID -> address, because we
+			// will have a proxy per instance
+			addressMap[endpoint.InstanceID] = append(addressMap[endpoint.InstanceID], address)
+		}
 		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
@@ -494,7 +502,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 	}
 
 	// Populate a map representing the proxies that are to be created, again
-	// with instanceID as the key
+	// with proxy index as the key
 	proxyKeys := map[int]string{}
 	if purpose == "import" {
 		// We're doing a normal, load-balanced endpoint import
