@@ -198,6 +198,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		MCPasswd:             ctx.GlobalString("mc-password"),
 		Verbosity:            ctx.GlobalInt("v"),
 		CPUProfile:           ctx.GlobalString("cpuprofile"),
+		MaxContainerAge:      ctx.GlobalInt("max-container-age"),
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
 		MasterPoolID:         ctx.GlobalString("master-pool-id"),
 		OutboundIP:           ctx.GlobalString("outbound"),

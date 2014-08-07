@@ -56,8 +56,8 @@
 # Set the aliases for this host (use in vhost muxing)
 # export SERVICED_VHOST_ALIASES=foobar.com,example.com
 
-# Set the max stopped container age before serviced will remove it
-# export SERVICED_MAX_CONTAINER_AGE=60
+# Set the max stopped container age (in seconds) before serviced will remove it
+# export SERVICED_MAX_CONTAINER_AGE==`expr 24*60*60`
 
 # Set the subnet that dynamic endpoints use, inside the containers
 # export SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
