@@ -123,7 +123,7 @@ func New(driver api.API) *ServicedCli {
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
 		cli.BoolTFlag{"tls", "enable TLS"},
-		cli.StringFlag{"var", varPath, "path to store serviced data"},
+		cli.StringFlag{"var", configEnv("VARPATH", varPath), "path to store serviced data"},
 		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", &zks, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
