@@ -3,6 +3,7 @@ MAINTAINER Zenoss <dev@zenoss.com>
 
 RUN mkdir /usr/local/serviced/resources -p # this is mounted in to every isvcs container
 RUN echo "deb http://archive.ubuntu.com/ubuntu trusty main universe" > /etc/apt/sources.list; \
+    echo "deb http://security.ubuntu.com/ubuntu trusty-security main universe" >> /etc/apt/sources.list; \
     apt-get update; \
     apt-get upgrade -y; \
     apt-get install -y -q openjdk-7-jre-headless gnuplot-nox supervisor make \
