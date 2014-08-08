@@ -21,8 +21,9 @@ filter {
 
 
 output {
-	stdout { debug => true}
-	elasticsearch_http {
+	elasticsearch {
+		protocol => "http"
 		host => "172.17.42.1"
+		port => 9100
 	}
 }
