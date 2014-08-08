@@ -46,6 +46,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 		return fmt.Errorf("error adding service; %v already exists", svc.ID)
 	}
 
+	svcCopy := svc
 	err = store.Put(ctx, &svc)
 	if err != nil {
 		glog.V(2).Infof("Facade.AddService: %+v", err)
@@ -53,6 +54,14 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 	glog.V(2).Infof("Facade.AddService: id %+v", svc.ID)
 
+	if svcCopy.OriginalConfigs != nil && !reflect.DeepEqual(svcCopy.OriginalConfigs, svc.ConfigFiles) {
+		for key, _ := range svcCopy.OriginalConfigs {
+			glog.V(2).Infof("Facade.AddService: calling updateService for %s due to OriginalConfigs of %+v", svc.Name, key)
+		}
+		return f.updateService(ctx, &svcCopy)
+	}
+
+	glog.V(2).Infof("Facade.AddService: calling zk.updateService for %s %d ConfigFiles", svc.Name, len(svc.ConfigFiles))
 	return zkAPI(f).updateService(&svc)
 }
 
