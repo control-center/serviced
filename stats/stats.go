@@ -177,15 +177,15 @@ func (sr StatsReporter) updateStats() {
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
 			glog.Warningf("Couldn't read CpuacctStat:", err)
 		} else {
-			metrics.GetOrRegisterGauge("CpuacctStat.system", containerRegistry).Update(cpuacctStat.System)
-			metrics.GetOrRegisterGauge("CpuacctStat.user", containerRegistry).Update(cpuacctStat.User)
+			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
+			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
 		}
 		if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + rs.DockerID + "/memory.stat"); err != nil {
 			glog.Warningf("Couldn't read MemoryStat:", err)
 		} else {
-			metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
-			metrics.GetOrRegisterGauge("MemoryStat.totalrss", containerRegistry).Update(memoryStat.TotalRss)
-			metrics.GetOrRegisterGauge("MemoryStat.cache", containerRegistry).Update(memoryStat.Cache)
+			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
+			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
+			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
 		}
 	}
 }
@@ -243,7 +243,7 @@ func Post(destination string, stats []Sample) error {
 		glog.Warningf("Couldn't post stats: ", reqerr)
 		return reqerr
 	}
-	if strings.Contains(resp.Status, "200 OK") == false {
+	if !strings.Contains(resp.Status, "200 OK") {
 		glog.Warningf("couldn't post stats: ", resp.Status)
 		return nil
 	}

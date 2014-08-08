@@ -45,12 +45,14 @@ func collect(ts time.Time, statsUrl string) {
 	i := 0
 	for name, value := range netStats {
 		samples[i] = stats.Sample{
-			Metric:    name,
+			Metric:    "net." + name,
 			Value:     strconv.FormatInt(value, 10),
 			Timestamp: now,
 			Tags:      tags,
 		}
+		i++
 	}
+	glog.Info("posting samples: %+v", samples)
 	if err := stats.Post(statsUrl, samples); err != nil {
 		glog.Errorf("could not post stats: %s", err)
 	}
