@@ -22,11 +22,11 @@ type Metric struct {
 	ID          string //id is a unique idenitifier for the metric
 	Name        string //name is a canonical name for the metric
 	Description string //description of this metric
-	Counter     bool
+	Counter     bool   // Counter is true if this metric is a constantly incrementing measure
 	CounterMax  *int64 `json:"CounterMax,omitempty"`
-	ResetValue  int64
-	Unit        string
-	BuiltIn     bool // is this metric supplied by the serviced runtime?
+	ResetValue  int64  // If metric is a counter, ResetValue is the maximum counter value before a rollover occurs
+	Unit        string // Unit of measure for metric
+	BuiltIn     bool   // is this metric supplied by the serviced runtime?
 }
 
 // MetricBuilder contains data to build the MetricConfig.Metrics and QueryConfig.Data
