@@ -35,7 +35,8 @@ type StatsReporter struct {
 	hostRegistry        metrics.Registry
 }
 
-type containerStat struct {
+// Sample is a single metric measurement
+type Sample struct {
 	Metric    string            `json:"metric"`
 	Value     string            `json:"value"`
 	Timestamp int64             `json:"timestamp"`
@@ -104,7 +105,7 @@ func (sr StatsReporter) report(d time.Duration) {
 			glog.V(1).Info("Reporting container stats at:", t)
 			sr.updateStats()
 			stats := sr.gatherStats(t)
-			err := sr.post(stats)
+			err := Post(sr.destination, stats)
 			if err != nil {
 				glog.Errorf("Error reporting container stats: %v", err)
 			}
@@ -190,20 +191,20 @@ func (sr StatsReporter) updateStats() {
 }
 
 // Fills out the metric consumer format.
-func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
-	stats := []containerStat{}
+func (sr StatsReporter) gatherStats(t time.Time) []Sample {
+	stats := []Sample{}
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
 	reg.Each(func(name string, i interface{}) {
 		if metric, ok := i.(metrics.Gauge); ok {
 			tagmap := make(map[string]string)
 			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 		}
 		if metricf64, ok := i.(metrics.GaugeFloat64); ok {
 			tagmap := make(map[string]string)
 			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+			stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 		}
 	})
 	// Handle each container's metrics.
@@ -215,7 +216,7 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 				tagmap["controlplane_service_id"] = key.serviceID
 				tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
 				tagmap["controlplane_host_id"] = sr.hostID
-				stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+				stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 			}
 		})
 	}
@@ -223,14 +224,14 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 }
 
 // Send the list of stats to the TSDB.
-func (sr StatsReporter) post(stats []containerStat) error {
-	payload := map[string][]containerStat{"metrics": stats}
+func Post(destination string, stats []Sample) error {
+	payload := map[string][]Sample{"metrics": stats}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		glog.Warningf("Couldn't marshal stats: ", err)
 		return err
 	}
-	statsreq, err := http.NewRequest("POST", sr.destination, bytes.NewBuffer(data))
+	statsreq, err := http.NewRequest("POST", destination, bytes.NewBuffer(data))
 	if err != nil {
 		glog.Warningf("Couldn't create stats request: ", err)
 		return err
