@@ -72,7 +72,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "format": "%6.2f",
                 "id": "rssmemory",
                 "legend": "Memory Usage",
-                "metric": "MemoryStat.totalrss",
+                "metric": "cgroup.memory.totalrss",
                 "name": "Memory Usage",
                 "rateOptions": {},
                 "type": "line",
