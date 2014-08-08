@@ -28,6 +28,8 @@ type Store struct {
 func (s *Store) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+
+	// strip builtin metrics/graphs
 	return s.ds.Put(ctx, Key(svc.ID), svc)
 }
 
@@ -40,6 +42,8 @@ func (s *Store) Get(ctx datastore.Context, id string) (*Service, error) {
 	//Copy original config files
 
 	fillConfig(svc)
+
+	// TODO: fill in built in metrics, graphs
 	return svc, nil
 }
 

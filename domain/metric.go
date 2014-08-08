@@ -26,6 +26,7 @@ type Metric struct {
 	CounterMax  *int64 `json:"CounterMax,omitempty"`
 	ResetValue  int64
 	Unit        string
+	BuiltIn     bool // is this metric supplied by the serviced runtime?
 }
 
 // MetricBuilder contains data to build the MetricConfig.Metrics and QueryConfig.Data
