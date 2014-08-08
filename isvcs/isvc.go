@@ -21,7 +21,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zenoss/serviced-isvcs"
-	IMAGE_TAG  = "v12"
+	IMAGE_TAG  = "v13"
 )
 
 func Init() {
@@ -34,7 +34,10 @@ func Init() {
 
 	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
 
-	if err := Mgr.Register(elasticsearch); err != nil {
+	if err := Mgr.Register(elasticsearch_serviced); err != nil {
+		glog.Fatalf("%s", err)
+	}
+	if err := Mgr.Register(elasticsearch_logstash); err != nil {
 		glog.Fatalf("%s", err)
 	}
 	if err := Mgr.Register(zookeeper); err != nil {
