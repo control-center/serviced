@@ -25,7 +25,7 @@
           <row>
             <entry><codeph>Interval</codeph></entry>
             <entry>Float</entry>
-            <entry>The number of seconds to wait between incovations of the data-gathering
+            <entry>The number of seconds to wait between invocations of the data-gathering
               command.</entry>
           </row>
         </tbody>

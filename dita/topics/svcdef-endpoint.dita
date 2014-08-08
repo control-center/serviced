@@ -56,7 +56,7 @@
           <row>
             <entry><codeph>ApplicationTemplate</codeph></entry>
             <entry>String</entry>
-            <entry>Deprecated. <codeph>Application</codeph> accepts templates.</entry>
+            <entry>Deprecated. Use <codeph>Application</codeph> instead.</entry>
           </row>
           <row>
             <entry><codeph>AddressConfig</codeph></entry>
@@ -78,7 +78,7 @@
           <row>
             <entry><codeph>VHosts</codeph></entry>
             <entry>Array of strings</entry>
-            <entry>Reserve a virtual hostname for the endpoint. The strings are used as
+            <entry>The virtual hostnames to reserve for the endpoint. The strings are used as
                 subdomain names. 
               <p>A virtual hostname allows users to find a service quickly, without manually
                 searching for its IP address.</p></entry>

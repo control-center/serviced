@@ -10,7 +10,7 @@
       <p>The <uicontrol>Resource Pools</uicontrol> table shows the total resources available in each
         pool.</p>
       <p>The <uicontrol>Resource Pool</uicontrol> button, located immediately above the right side
-        of the table, displays the <uicontrol>Add Pool</uicontrol> dialog.</p>
+        of the table, displays the <xref keyref="ref-xface-add-pool"><uicontrol>Add Pool</uicontrol> dialog</xref>.</p>
     </section>
   </refbody>
 </reference>

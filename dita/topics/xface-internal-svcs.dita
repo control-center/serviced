@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Internal Services</uicontrol> page</title>
+  <refbody>
+    <section>
+      <image href="../images/xf-app-internal-svcs.png" scale="50"/>
+      <p>The <uicontrol>Internal Services</uicontrol> table provides summary information about the services upon which
+      <ph conkeyref="names/zcc"/> relies. To view graph data associated with
+      a service, click on its name.</p>
+    </section>
+  </refbody>
+</reference>
+

@@ -19,7 +19,7 @@
           <row>
             <entry><codeph>Path</codeph></entry>
             <entry>String</entry>
-            <entry>The absolute path of a log file on a Docker container&#39;s file system. The path
+            <entry>The absolute path of a log file on a container&#39;s file system. The path
               can be a directory or a file, and <cmdname>bash</cmdname> pathname expansion
               (globbing) is supported.</entry>
           </row>
@@ -33,7 +33,7 @@
             <entry><codeph>Filters</codeph></entry>
             <entry>Array of strings</entry>
             <entry>A list of filters to apply to the log file. The filters listed here must be
-              defined in the LogFilters object of the current service, or a parent service.</entry>
+              defined in the <keyword>LogFilters</keyword> object of the current service, or a parent service.</entry>
           </row>
           <row>
             <entry><codeph>LogTags</codeph></entry>
@@ -46,8 +46,7 @@
                 </dlentry>
                 <dlentry>
                   <dt><codeph>Value</codeph> (integer)</dt>
-                  <dd>The value of the tag to send, which may be expressed as a <ph
-                      conkeyref="names/zcc"/> template.</dd>
+                  <dd>The value of the tag to send.</dd>
                 </dlentry>
               </dl>
             </entry>

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Applications</uicontrol> page</title>
+  <shortdesc>The <uicontrol>Applications</uicontrol> page displays upon login, 
+    and features a table listing both deployed applications and the services 
+    that support <ph conkeyref="names/zcc"/>.</shortdesc>
+  <refbody>
+    <section>
+      <fig>
+        <title><uicontrol>Applications</uicontrol> page</title>
+        <image href="../images/xf-app.png" scale="50"/>
+      </fig>
+      <ul>
+        <li>To display the details page of an application, click its name (in this example,
+            <uicontrol>Zenoss.core</uicontrol>).</li>
+        <li>To display the Internal Services page, click <uicontrol>Internal Services</uicontrol>.</li>
+      </ul>
+      <p>The space at the bottom-left of the menu bar 
+        displays the relative location of the page in the
+        <ph conkeyref="names/zcc"/> web interface hierarchy.</p>
+    </section>
+  </refbody>
+</reference>
+
