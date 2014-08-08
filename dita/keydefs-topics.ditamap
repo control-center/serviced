@@ -3,6 +3,10 @@
 <map>
  <title>Topic KeyDefs</title>
   <topicgroup>
+  <keydef keys="ref-xface-app-edit-config "
+          href="topics/xface-app-edit-config.dita"
+          format="dita"
+  />
   <keydef keys="con-about-zcc "
           href="topics/about-zcc.dita"
           format="dita"
