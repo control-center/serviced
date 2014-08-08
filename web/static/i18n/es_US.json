@@ -61,6 +61,10 @@
     "add_service": "Agregar Servicio",
     "assign_ip": "Asignar IP",
 
+    "instances_invalid": "Importe de las instancias no es válida:",
+    "minimum": "mínimo",
+    "maximum": "máxima",
+
     "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco.",
     "confirm_start_restore": "El proceso de restauración no se puede revertir.",
     "confirm_start_app": "Esto iniciará todos los servicios hijos.",
