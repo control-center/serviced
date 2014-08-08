@@ -4,13 +4,13 @@
 
 .PHONY: buildgo buildimage
 
-COMPONENT_NAMES    := es zk opentsdb logstash query consumer celery
+COMPONENT_NAMES    := es_serviced es_logstash zk opentsdb logstash query consumer celery
 HERE               := $(shell pwd)
 UID                := $(shell id -u)
 BUILD_DIR          := build
 BUILD_REPO         := zenoss/isvcs_build
 REPO               := zenoss/serviced-isvcs
-TAG                := v12
+TAG                := v13
 REPO_DIR           := images
 EXPORTED_FILE      := $(REPO_DIR)/$(REPO)/$(TAG).tar.gz
 COMPONENT_ARCHIVES := $(foreach cname, $(COMPONENT_NAMES), $(BUILD_DIR)/$(cname).tar.gz)

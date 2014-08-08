@@ -26,7 +26,8 @@ ADD supervisor.conf /opt/zenoss/etc/supervisor.conf
 ADD consumer.tar.gz /
 ADD opentsdb.tar.gz /
 ADD query.tar.gz /
-ADD es.tar.gz /
+ADD es_serviced.tar.gz /
+ADD es_logstash.tar.gz /
 ADD zk.tar.gz /
 ADD logstash.tar.gz /
 ADD celery.tar.gz /
