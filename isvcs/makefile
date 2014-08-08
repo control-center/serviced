@@ -43,10 +43,10 @@ $(REPO_DIR)/$(REPO)/$(TAG).tar.gz: isvcs_repo
 buildgo:
 	go build
 
-build_repo:
-	[ -n "$$(docker images -q $(BUILD_REPO) 2>/dev/null)" ] \
-		|| docker pull $(BUILD_REPO) \
-		|| docker build -t $(BUILD_REPO) build_img
+# build the repo locally
+.PHONY: repo
+repo: $(COMPONENT_ARCHIVES)
+	docker build -t $(REPO):$(TAG) $(BUILD_DIR);
 
 $(logstash.conf): $(logstash.conf_SRC)
 	cp $? $@
@@ -102,7 +102,10 @@ isvcs_repo: | $(REPO_DIR)
 		echo "$(REPO):$(TAG) found locally." ;\
 	fi
 
-$(BUILD_DIR)/%.tar.gz: build_repo
+$(BUILD_DIR)/%.tar.gz:
+	@[ -n "$$(docker images -q $(BUILD_REPO) 2>/dev/null)" ] \
+		|| docker pull $(BUILD_REPO) \
+		|| docker build -t $(BUILD_REPO) build_img
 	docker run --rm -v $(HERE)/$(*):/tmp/in -v $(HERE)/$(BUILD_DIR):/tmp/out -w /tmp/in $(BUILD_REPO) \
 		bash -c "make TARGET=/tmp/out; chown -R $(UID):$(UID) /tmp/out/$(notdir $(@))"
 
