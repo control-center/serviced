@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Virtual Host Names</uicontrol> table</title>
+  <refbody>
+    <section>
+      <image href="../images/xf-app-detail-vhosts.png" scale="50"/>
+      <p>The <uicontrol>Virtual Host Names</uicontrol> table lists the virtual host names defined
+        for the application. </p>
+      <ul>
+        <li>The <uicontrol>Add Virtual Host</uicontrol> button is above the table,
+          at the right side. It displays the <xref keyref="ref-xface-add-vhost"><uicontrol>Add Virtual Host</uicontrol> dialog</xref>.</li>
+        <li>Values in the <uicontrol>Virtual Host Name</uicontrol> column are used as subdomain
+          names in virtual host URLs. </li>
+        <li>Values in the <uicontrol>URL</uicontrol> column are a combination of
+          <ul>
+            <li>the subdomain name (from the <uicontrol>Virtual Host Name</uicontrol> column)</li>
+            <li>the IP address or hostname used to log in to the <ph conkeyref="names/zcc"/> web interface</li>
+          </ul>
+        </li>
+        <li>Virtual hosts simplify access to services. Deleting a virtual host does not delete the 
+        service associated with the virtual host.</li>
+      </ul>
+    </section>
+  </refbody>
+</reference>

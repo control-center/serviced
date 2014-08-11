@@ -363,6 +363,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	svc.Launch = payload.Launch
 	svc.Endpoints = payload.Endpoints
 	svc.ConfigFiles = payload.ConfigFiles
+	svc.OriginalConfigs = payload.OriginalConfigs
 	svc.Volumes = payload.Volumes
 	svc.CreatedAt = now
 	svc.UpdatedAt = now

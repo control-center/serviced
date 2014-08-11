@@ -4,7 +4,30 @@
    <title>User interface reference</title>
    <topicref href="topics/xface.dita">
      <topicref href="topics/xface-initial.dita"/>
-     <topicref href="topics/xface-apps.dita"/>
+     
+     <topicref href="topics/xface-app.dita">
+       <topicref href="topics/xface-app-detail.dita">
+         <topicref href="topics/xface-app-detail-control.dita"/>
+       
+       <topicref href="topics/xface-app-detail-vhosts.dita">
+         <topicref href="topics/xface-add-vhost.dita"/>
+       </topicref>
+       
+       <topicref href="topics/xface-app-detail-ip-assign.dita">
+         <topicref href="topics/xface-assign-ip.dita"/>
+       </topicref>
+
+       <topicref href="topics/xface-app-detail-config.dita">
+         <topicref href="topics/xface-app-edit-config.dita"/>
+       </topicref>
+       
+       <topicref href="topics/xface-app-detail-services.dita"/>
+       
+       <topicref href="topics/xface-app-detail-schedule.dita"/>
+     </topicref>
+       <topicref href="topics/xface-internal-svcs.dita"/>
+     </topicref>
+     
      <topicref href="topics/xface-pools.dita">
        <topicref href="topics/xface-add-pool.dita"/>
      </topicref>

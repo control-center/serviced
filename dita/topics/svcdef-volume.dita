@@ -2,9 +2,10 @@
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
   <title>Volume object</title>
-  <shortdesc>A <codeph>Volume</codeph> object defines a file system 
-    directory that is exported by Docker containers.</shortdesc>
   <refbody>
+    <section>
+      <p>A <codeph>Volume</codeph> object defines a file system 
+        directory that is exported by containers.</p>
     <table>
       <tgroup cols="3">
         <colspec colname="c1" colwidth="2*"/>
@@ -21,7 +22,7 @@
           <row>
             <entry><codeph>Owner</codeph></entry>
             <entry>String</entry>
-            <entry>The user and group of the directory&#39;s owner inside Docker containers,
+            <entry>The user and group of the directory&#39;s owner inside containers,
               in a format accepted by the <cmdname>chown</cmdname> command. For example, for a
               file owned by user and group <codeph>root</codeph>, <codeph>root:root</codeph>
               or <codeph>0:0</codeph>.</entry>
@@ -29,7 +30,7 @@
           <row>
             <entry><codeph>Permission</codeph></entry>
             <entry>String</entry>
-            <entry>The file mode bits for the directory inside Docker containers, in a format
+            <entry>The file mode bits for the directory inside containers, in a format
               accepted by the <cmdname>chmod</cmdname> command. For example, for read, write, and
               execute permission for the owner and read permission for group and others,
                 <codeph>go+r,u+rwx</codeph> or <codeph>0744</codeph>.</entry>
@@ -37,13 +38,13 @@
           <row>
             <entry><codeph>ResourcePath</codeph></entry>
             <entry>String</entry>
-            <entry>Resource Pool Path, shared across all hosts in a resource pool <draft-comment
+            <entry>The resource pool path, shared by all hosts in a resource pool. <draft-comment
                 author="gemil">I don't understand how this is used.</draft-comment></entry>
           </row>
           <row>
             <entry><codeph>ContainerPath</codeph></entry>
             <entry>String</entry>
-            <entry>The absolute path of the bind mount directory inside Docker containers.</entry>
+            <entry>The absolute path of the bind mount directory inside containers.</entry>
           </row>
           <row>
             <entry><codeph>Type</codeph></entry>
@@ -53,5 +54,6 @@
         </tbody>
       </tgroup>
     </table>
+    </section>
   </refbody>
 </reference>

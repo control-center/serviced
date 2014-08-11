@@ -29,7 +29,7 @@
           <row>
             <entry><codeph>Owner</codeph></entry>
             <entry>String</entry>
-            <entry>The user and group of the configuration file&#39;s owner inside Docker containers,
+            <entry>The user and group of the configuration file&#39;s owner inside containers,
               in a format accepted by the <cmdname>chown</cmdname> command. For example, for a
               file owned by user and group <codeph>root</codeph>, <codeph>root:root</codeph>
               or <codeph>0:0</codeph>.</entry>
@@ -37,7 +37,7 @@
           <row>
             <entry><codeph>Permissions</codeph></entry>
             <entry>String</entry>
-            <entry>The file mode bits for the configuration file inside Docker containers, in a format
+            <entry>The file mode bits for the configuration file inside containers, in a format
               accepted by the <cmdname>chmod</cmdname> command. For example, for read, write, and
               execute permission for the owner and read permission for group and others,
                 <codeph>go+r,u+rwx</codeph> or <codeph>0744</codeph>.</entry>
@@ -45,7 +45,7 @@
           <row>
             <entry><codeph>Content</codeph></entry>
             <entry>String</entry>
-            <entry>The content of the configuration file template, in a single JSON string.</entry>
+            <entry>The content of the configuration file template, as a single JSON string.</entry>
           </row>
         </tbody>
       </tgroup>
