@@ -1,0 +1,8 @@
+The workflow for logstash.conf in source builds:
+
+make:
+    copies logstash.conf.in to logstash.conf
+
+service-template deploy:
+    copies logstash.conf.template to logstash.conf, after doing  a string
+    replacement of ${FILTER_SECTION} with the filters from the service-template.
