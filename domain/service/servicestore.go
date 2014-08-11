@@ -6,8 +6,10 @@ package service
 
 import (
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/elastigo/search"
+	"github.com/zenoss/glog"
 
 	"errors"
 	"fmt"
@@ -29,8 +31,62 @@ func (s *Store) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 
-	// strip builtin metrics/graphs
+	//Remove built in metrics
+	removeBuiltinMetrics(svc)
+
 	return s.ds.Put(ctx, Key(svc.ID), svc)
+}
+
+// removeBuiltinMetrics removes internal metrics from the monitoring profile
+func removeBuiltinMetrics(svc *Service) {
+}
+
+/*
+        MetricConfigs    []MetricConfig    //metrics for domain object
+        GraphConfigs     []GraphConfig     //graphs for a domain object
+        ThresholdConfigs []ThresholdConfig //thresholds for a domain object
+
+
+// Metric defines the meta-data for a single metric
+type Metric struct {
+        ID          string //id is a unique idenitifier for the metric
+        Name        string //name is a canonical name for the metric
+        Description string //description of this metric
+        Counter     bool   // Counter is true if this metric is a constantly incrementing measure
+        CounterMax  *int64 `json:"CounterMax,omitempty"`
+        ResetValue  int64  // If metric is a counter, ResetValue is the maximum counter value before a rollover occurs
+        Unit        string // Unit of measure for metric
+        BuiltIn     bool   // is this metric supplied by the serviced runtime?
+}
+
+
+*/
+
+// fillBuiltinMetrics adds internal metrics to the monitoring profile
+func fillBuiltinMetrics(svc *Service) {
+	if svc.MonitoringProfile.MetricConfigs == nil {
+		builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+		if err != nil {
+			glog.Errorf("Could not create builder to add internal metrics: %s", err)
+			return
+		}
+		config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
+		if err != nil {
+			glog.Errorf("could not create metric config for internal metrics: %s", err)
+		}
+		svc.MonitoringProfile.MetricConfigs = []domain.MetricConfig{*config}
+	}
+	findInternalMetricConfig(svc)
+}
+
+func findInternalMetricConfig(svc *Service) (index int, found bool) {
+	// find the metric config
+	for i := range svc.MonitoringProfile.MetricConfigs {
+		if svc.MonitoringProfile.MetricConfigs[i].ID == "metrics" {
+			return i, true
+		}
+	}
+	return -1, false
 }
 
 // Get a Service by id. Return ErrNoSuchEntity if not found
@@ -39,11 +95,12 @@ func (s *Store) Get(ctx datastore.Context, id string) (*Service, error) {
 	if err := s.ds.Get(ctx, Key(id), svc); err != nil {
 		return nil, err
 	}
-	//Copy original config files
 
+	//Copy original config files
 	fillConfig(svc)
 
-	// TODO: fill in built in metrics, graphs
+	//Add builtin metrics
+	fillBuiltinMetrics(svc)
 	return svc, nil
 }
 

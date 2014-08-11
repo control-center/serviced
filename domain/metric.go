@@ -29,20 +29,20 @@ type Metric struct {
 	BuiltIn     bool   // is this metric supplied by the serviced runtime?
 }
 
-// MetricBuilder contains data to build the MetricConfig.Metrics and QueryConfig.Data
-type MetricBuilder struct {
+// MetricMetricBuilder contains data to build the MetricConfig.Metrics and QueryConfig.Data
+type MetricMetricBuilder struct {
 	Metric
 	Tags map[string][]string //tags required for querying a metric
 }
 
 // SetTag puts a tag into the metric request object
-func (request *MetricBuilder) SetTag(Name string, Values ...string) *MetricBuilder {
+func (request *MetricMetricBuilder) SetTag(Name string, Values ...string) *MetricMetricBuilder {
 	request.Tags[Name] = Values
 	return request
 }
 
 // SetTags sets tags to value
-func (request *MetricBuilder) SetTags(tags map[string][]string) *MetricBuilder {
+func (request *MetricMetricBuilder) SetTags(tags map[string][]string) *MetricMetricBuilder {
 	request.Tags = tags
 	return request
 }
@@ -74,16 +74,16 @@ func (config *MetricConfig) Equals(that *MetricConfig) bool {
 	return reflect.DeepEqual(config, that)
 }
 
-// Builder aggregates a url, method, and metrics for building a MetricConfig
-type Builder struct {
-	url     *url.URL        //url to request a metrics
-	method  string          //method to retrieve metrics
-	metrics []MetricBuilder //metrics available in url
+// MetricBuilder aggregates a url, method, and metrics for building a MetricConfig
+type MetricBuilder struct {
+	url     *url.URL              //url to request a metrics
+	method  string                //method to retrieve metrics
+	metrics []MetricMetricBuilder //metrics available in url
 }
 
-// Metric appends a metric configuration to the Builder
-func (builder *Builder) Metric(metric Metric) *MetricBuilder {
-	newMetric := MetricBuilder{
+// Metric appends a metric configuration to the MetricBuilder
+func (builder *MetricBuilder) Metric(metric Metric) *MetricMetricBuilder {
+	newMetric := MetricMetricBuilder{
 		Metric{
 			ID:          metric.ID,
 			Name:        metric.Name,
@@ -100,7 +100,7 @@ func (builder *Builder) Metric(metric Metric) *MetricBuilder {
 }
 
 // Config builds a MetricConfig using all defined MetricRequests and resets the metrics requets
-func (builder *Builder) Config(ID, Name, Description, Start string) (*MetricConfig, error) {
+func (builder *MetricBuilder) Config(ID, Name, Description, Start string) (*MetricConfig, error) {
 	//config object to build
 	headers := make(http.Header)
 	headers["Content-Type"] = []string{"application/json"}
@@ -149,13 +149,13 @@ func (builder *Builder) Config(ID, Name, Description, Start string) (*MetricConf
 		return nil, err
 	}
 
-	builder.metrics = make([]MetricBuilder, 0)
+	builder.metrics = make([]MetricMetricBuilder, 0)
 	config.Query.Data = string(bodyBytes)
 	return config, nil
 }
 
 // NewMetricConfigBuilder creates a factory to create MetricConfig instances.
-func NewMetricConfigBuilder(RequestURI, Method string) (*Builder, error) {
+func NewMetricConfigBuilder(RequestURI, Method string) (*MetricBuilder, error) {
 	//strip leading '/' it's added back below
 	requestURI := RequestURI
 	if len(RequestURI) > 0 && RequestURI[0] == '/' {
@@ -179,9 +179,9 @@ func NewMetricConfigBuilder(RequestURI, Method string) (*Builder, error) {
 		return nil, errors.New("invalid method")
 	}
 
-	return &Builder{
+	return &MetricBuilder{
 		url:     url,
 		method:  Method,
-		metrics: make([]MetricBuilder, 0),
+		metrics: make([]MetricMetricBuilder, 0),
 	}, nil
 }
