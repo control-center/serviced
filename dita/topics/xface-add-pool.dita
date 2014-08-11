@@ -42,7 +42,7 @@
               <entry><uicontrol>Priority</uicontrol></entry>
               <entry>Optional</entry>
               <entry>The priority of the pool relative to other pools, as a postive integer. This
-                value is used for CPU priority. <draft-comment author="gemil">How is it used for CPU priority?</draft-comment></entry>
+                value is used for CPU priority. </entry>
             </row>
           </tbody>
         </tgroup>

@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
-  <title>Configuration</title>
+  <title><uicontrol>Services</uicontrol> table</title>
   <refbody>
     <section>
-      <p/>
+      <image href="../images/xf-app-detail-services.png" scale="50"/>
     </section>
   </refbody>
 </reference>
+

@@ -369,15 +369,40 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         });
     };
 
-    $scope.updateService = function() {
-        resourcesService.update_service($scope.services.current.ID, $scope.services.current, function() {
-            console.log('Updated %s', $scope.services.current.ID);
-            var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
-            lastCrumb.label = $scope.services.current.Name;
-        });
+
+    $scope.validateService = function() {
+      // TODO: Validate name and startup command
+      var svc = $scope.services.current,
+          max = svc.InstanceLimits.Max,
+          min = svc.InstanceLimits.Min,
+          num = svc.Instances;
+      if (typeof num == 'undefined' || (max > 0 && num > max) || (min > 0 && num < min)) {
+        var msg = $translate("instances_invalid") + " ";
+        if (min > 0) {
+          msg += $translate("minimum") + " " + min;
+          if (max > 0) {
+            msg += ", "
+          }
+        }
+        if (max > 0) {
+          msg += $translate("maximum") + " " + max;
+        }
+        $notification.create("", msg).error();
+        return false;
+      }
+      return true;
     };
 
-    
+    $scope.updateService = function() {
+        if ($scope.validateService()) {
+          resourcesService.update_service($scope.services.current.ID, $scope.services.current, function() {
+              console.log('Updated %s', $scope.services.current.ID);
+              var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
+              lastCrumb.label = $scope.services.current.Name;
+          });
+        }
+    };
+
 
     // Update the running instances so it is reflected when we save the changes
     //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together

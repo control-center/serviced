@@ -72,6 +72,10 @@
     "add_service": "Add Service",
     "assign_ip": "Assign IP",
 
+    "instances_invalid": "Number of instances is invalid:",
+    "minimum": "minimum",
+    "maximum": "maximum",
+
     "confirm_start_backup": "The backup process may take a while.",
     "confirm_start_restore": "The restore process cannot be reversed.",
     "confirm_start_app": "This will start all child services.",

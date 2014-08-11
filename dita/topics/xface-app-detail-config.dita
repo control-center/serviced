@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Configuration Files</uicontrol> table</title>
+  <refbody>
+    <section>
+      <image href="../images/xf-app-detail-config.png" scale="50"/>
+      <p>This table lists the configuration files, if any, associated with the application (in the
+        preceding example, none are present). </p><p>The <uicontrol>Actions</uicontrol> column
+          includes the <uicontrol>Edit</uicontrol> button, which opens the <xref keyref="ref-xface-app-edit-config"><uicontrol>Edit
+          configuration</uicontrol> dialog</xref>. </p>
+    </section>
+  </refbody>
+</reference>
+

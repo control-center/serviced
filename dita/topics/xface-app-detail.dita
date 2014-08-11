@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Application details page</title>
+  <refbody>
+    <section>
+      <image href="../images/xf-app-detail.png" scale="50"/>
+      <p>An application details page includes the following sections.</p>
+      <ul>
+        <li></li>
+      </ul>
+    </section>
+  </refbody>
+</reference>
+

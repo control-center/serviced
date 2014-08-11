@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Backup / Restore</uicontrol> page</title>
+  <shortdesc>The .</shortdesc>
+  <refbody>
+    <section>
+      <p>The menu bar is at the top of each page. Click an item in the menu bar 
+        to display the page or dialog box associated with the item, or
+        to log out of the <ph conkeyref="names/zcc"/> interface.</p>
+      <fig>
+        <title><uicontrol>Backup / Restore</uicontrol> page</title>
+        <image href="../images/xf-backup-restore.png" scale="50"/>
+      </fig>
+    </section>
+  </refbody>
+</reference>

@@ -3,7 +3,11 @@
 <map>
  <title>Topic KeyDefs</title>
   <topicgroup>
-   <keydef keys="con-about-zcc "
+  <keydef keys="ref-xface-app-edit-config "
+          href="topics/xface-app-edit-config.dita"
+          format="dita"
+  />
+  <keydef keys="con-about-zcc "
           href="topics/about-zcc.dita"
           format="dita"
   />
@@ -107,8 +111,44 @@
           href="topics/xface-add-pool.dita"
           format="dita"
   />
-  <keydef keys="ref-xface-apps "
-          href="topics/xface-apps.dita"
+  <keydef keys="ref-xface-add-vhost "
+          href="topics/xface-add-vhost.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app-detail-config "
+          href="topics/xface-app-detail-config.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app-detail-ip-assign "
+          href="topics/xface-app-detail-ip-assign.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app-detail-schedule "
+          href="topics/xface-app-detail-schedule.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app-detail-services "
+          href="topics/xface-app-detail-services.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app-detail-vhosts "
+          href="topics/xface-app-detail-vhosts.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app-detail "
+          href="topics/xface-app-detail.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-app "
+          href="topics/xface-app.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-assign-ip "
+          href="topics/xface-assign-ip.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-backups "
+          href="topics/xface-backups.dita"
           format="dita"
   />
   <keydef keys="ref-xface-hosts "
@@ -117,6 +157,10 @@
   />
   <keydef keys="ref-xface-initial "
           href="topics/xface-initial.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-internal-svcs "
+          href="topics/xface-internal-svcs.dita"
           format="dita"
   />
   <keydef keys="ref-xface-logs "

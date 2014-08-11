@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE reference PUBLIC "urn:pubid:zenoss.com:doctypes:dita:dtd:reference" "reference.dtd">
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
 <reference id="referenceid">
   <title>Configuring <ph conkeyref="names/zcc"/></title>
   <refbody>
@@ -146,7 +146,7 @@ SERVICED_MASTER=1</codeblock></li>
         </dlentry>
         <dlentry>
           <dt><codeph>SERVICED_MAX_CONTAINER_AGE</codeph></dt>
-          <dd>Default: <codeph>24*60*60  # 1 day</codeph></dd> 
+          <dd>Default: <codeph>86400</codeph> (1 day)</dd> 
           <dd>The maximum number of seconds <cmdname>serviced</cmdname>
             waits before removing a stopped container.</dd>
         </dlentry>
