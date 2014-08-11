@@ -30,9 +30,12 @@
 
         <div class="vertical-info">
           <label>{{'running_tbl_actions'|translate}}</label>
-          <div>
+          <div ng-if="services.current.DesiredState !== 2">
             <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
             <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunningApp(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+          </div>
+          <div ng-if="services.current.DesiredState === 2">
+            <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
           </div>
         </div>
 
@@ -170,8 +173,13 @@
           </td>
           <td >
             <div ng-if="app.ID.indexOf('isvc-') == -1">
-              <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-              <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+              <div ng-if="app.DesiredState !== 2">
+                <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+                <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+              </div>
+              <div ng-if="app.DesiredState === 2">
+                <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
+              </div>
             </div>
           </td>
         </tr>

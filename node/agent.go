@@ -204,6 +204,31 @@ func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Serv
 	return nil
 }
 
+// PauseService pauses a running service
+func (a *HostAgent) PauseService(service *service.Service, state *servicestate.ServiceState) error {
+	return attachAndRun(state.DockerID, service.Snapshot.Pause)
+}
+
+// ResumeService resumes a paused service
+func (a *HostAgent) ResumeService(service *service.Service, state *servicestate.ServiceState) error {
+	return attachAndRun(state.DockerID, service.Snapshot.Resume)
+}
+
+func attachAndRun(dockerID, command string) error {
+	if dockerID == "" {
+		return errors.New("missing docker ID")
+	} else if command == "" {
+		return nil
+	}
+
+	output, err := utils.AttachAndRun(dockerID, []string{command})
+	if err != nil {
+		err = fmt.Errorf("%s (%s)", string(output), err)
+		glog.Errorf("Could not pause container %s: %s", dockerID, err)
+	}
+	return err
+}
+
 // StopService terminates a particular service instance (serviceState) on the localhost.
 func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
 	if state == nil || state.DockerID == "" {

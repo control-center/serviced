@@ -534,7 +534,8 @@ func (d *daemon) initISVCS() error {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS)
+	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS, dfsTimeout)
 }
 
 func (d *daemon) initWeb() {

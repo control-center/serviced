@@ -5,13 +5,15 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
+	//	"errors"
+
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/zenoss/glog"
 )
 
 func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, serviceState *servicestate.ServiceState) error {
@@ -105,6 +107,28 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 
 	if err := zkservice.StopServiceInstance(poolBasedConn, request.HostID, request.ServiceStateID); err != nil {
 		glog.Errorf("zkservice.StopServiceInstance failed (conn: %+v hostID: %v serviceStateID: %v): %v", poolBasedConn, request.HostID, request.ServiceStateID, err)
+		return err
+	}
+
+	return nil
+}
+
+func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[*servicestate.ServiceState]dao.Status) error {
+	svc, err := this.facade.GetService(datastore.Get(), serviceID)
+	if err != nil {
+		glog.Errorf("Unable to get service %s: %s", serviceID, err)
+		return err
+	}
+
+	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %s: %s", svc.PoolID, err)
+		return err
+	}
+
+	*status, err = zkservice.GetServiceStatus(poolBasedConn, svc.ID)
+	if err != nil {
+		glog.Errorf("zkservice.GetServiceStatus failed (conn: %+v serviceID: %s): %s", poolBasedConn, serviceID, err)
 		return err
 	}
 

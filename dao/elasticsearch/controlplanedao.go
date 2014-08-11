@@ -13,9 +13,8 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
-	"github.com/zenoss/elastigo/api"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -23,6 +22,8 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
+	"github.com/zenoss/elastigo/api"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -106,7 +107,7 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 }
 
 // Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
@@ -115,7 +116,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*Cont
 		hostName: hostName,
 		port:     port,
 	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
+	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, maxdfstimeout); err != nil {
 		return nil, err
 	} else {
 		dao.dfs = dfs
@@ -124,11 +125,11 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*Cont
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, maxdfstimeout time.Duration) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade)
+	s, err := NewControlPlaneDao(hostName, port, facade, maxdfstimeout)
 	if err != nil {
 		return nil, err
 	}

@@ -350,80 +350,51 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	}
 
 	lines := make(map[string]map[string]string)
-	now := time.Now().Truncate(time.Second)
 	for _, svc := range services {
-		states, err := c.driver.GetServiceStates(svc.ID)
+		statemap, err := c.driver.GetServiceStatus(svc.ID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
-		if states != nil && len(states) > 0 {
-			if svc.Instances > 1 {
-				lines[svc.ID] = map[string]string{
-					"ID":        svc.ID,
-					"ServiceID": svc.ID,
-					"Name":      svc.Name,
-					"ParentID":  svc.ParentServiceID,
-					"Hostname":  "",
-					"DockerID":  "",
+
+		iid := svc.ID
+		lines[iid] = map[string]string{
+			"ID":        svc.ID,
+			"ServiceID": svc.ID,
+			"Name":      svc.Name,
+			"ParentID":  svc.ParentServiceID,
+		}
+
+		if statemap == nil || len(statemap) == 0 {
+			if svc.Instances > 0 {
+				switch svc.DesiredState {
+				case service.SVCRun:
+					lines[iid]["Status"] = dao.Scheduled.String()
+				case service.SVCPause:
+					lines[iid]["Status"] = dao.Paused.String()
+				case service.SVCStop:
+					lines[iid]["Status"] = dao.Stopped.String()
 				}
-				for _, state := range states {
-					iid := fmt.Sprintf("%s_%d", svc.ID, state.InstanceID)
-					started := fmt.Sprintf("%s", now.Sub(state.Started.Truncate(time.Second)))
-					if state.Started.Before(unstartedTime) {
-						started = "starting"
-					}
+			}
+		} else {
+			if svc.Instances > 1 {
+				delete(lines, iid)
+			}
+
+			for state, status := range statemap {
+				if svc.Instances > 1 {
+					iid = fmt.Sprintf("%s_%d", svc.ID, state.InstanceID)
 					lines[iid] = map[string]string{
 						"ID":        iid,
 						"ServiceID": svc.ID,
 						"Name":      fmt.Sprintf("%s_%d", svc.Name, state.InstanceID),
-						"Started":   started,
-						"ParentID":  svc.ID,
-						"Hostname":  hostmap[state.HostID].Name,
-						"DockerID":  fmt.Sprintf("%.12s", state.DockerID),
+						"ParentID":  svc.ParentServiceID,
 					}
 				}
-			} else {
-				state := states[0]
-				started := fmt.Sprintf("%s", now.Sub(state.Started.Truncate(time.Second)))
-				if state.Started.Before(unstartedTime) {
-					started = "starting"
-				}
-				lines[svc.ID] = map[string]string{
-					"ID":        svc.ID,
-					"ServiceID": svc.ID,
-					"Name":      svc.Name,
-					"Started":   started,
-					"ParentID":  svc.ParentServiceID,
-					"Hostname":  hostmap[state.HostID].Name,
-					"DockerID":  fmt.Sprintf("%.12s", state.DockerID),
-				}
-			}
-		} else {
-			if svc.DesiredState == service.SVCStop {
-				lines[svc.ID] = map[string]string{
-					"ID":        svc.ID,
-					"ServiceID": svc.ID,
-					"Name":      svc.Name,
-					"Started":   "stopped",
-					"ParentID":  svc.ParentServiceID,
-					"Hostname":  "",
-					"DockerID":  "",
-				}
-			} else {
-				started := ""
-				if svc.Startup != "" && svc.Instances != 0 {
-					started = "scheduling"
-				}
-				lines[svc.ID] = map[string]string{
-					"ID":        svc.ID,
-					"ServiceID": svc.ID,
-					"Name":      svc.Name,
-					"Started":   started,
-					"ParentID":  svc.ParentServiceID,
-					"Hostname":  "",
-					"DockerID":  "",
-				}
+				lines[iid]["Hostname"] = hostmap[state.HostID].Name
+				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", state.DockerID)
+				lines[iid]["Uptime"] = state.Uptime().String()
+				lines[iid]["Status"] = status.String()
 			}
 		}
 	}
@@ -448,10 +419,10 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "HOST", "DOCKER_ID")
+	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID")
 	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
 		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Started"], s["Hostname"], s["DockerID"])
+		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"])
 	}, func(row []interface{}) string {
 		return strings.ToLower(row[1].(string))
 	})

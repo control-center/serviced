@@ -5,8 +5,8 @@
 package btrfs
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 
 	"fmt"
 	"os/exec"

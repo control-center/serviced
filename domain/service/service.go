@@ -22,6 +22,7 @@ const (
 	SVCRun     = 1
 	SVCStop    = 0
 	SVCRestart = -1
+	SVCPause   = 2
 )
 
 // Service A Service that can run in serviced.

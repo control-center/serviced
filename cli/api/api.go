@@ -50,6 +50,7 @@ type Options struct {
 	DockerRegistry       string
 	CPUProfile           string // write cpu profile to file
 	MaxContainerAge      int    // max container age in seconds
+	MaxDFSTimeout        int    // max timeout for snapshot
 	VirtualAddressSubnet string
 	MasterPoolID         string
 }
