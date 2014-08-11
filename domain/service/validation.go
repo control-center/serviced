@@ -18,7 +18,7 @@ func (s *Service) ValidEntity() error {
 	vErr.Add(validation.NotEmpty("PoolID", s.PoolID))
 
 	vErr.Add(validation.StringIn(s.Launch, commons.AUTO, commons.MANUAL))
-	vErr.Add(validation.IntIn(s.DesiredState, SVCRun, SVCStop, SVCRestart))
+	vErr.Add(validation.IntIn(s.DesiredState, SVCRun, SVCStop, SVCPause, SVCRestart))
 
 	if vErr.HasError() {
 		return vErr

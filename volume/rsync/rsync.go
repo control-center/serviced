@@ -5,8 +5,8 @@
 package rsync
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 
 	"fmt"
 	"io/ioutil"
@@ -15,6 +15,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -29,8 +30,9 @@ type RsyncDriver struct {
 
 // RsyncConn is a connection to a rsync volume
 type RsyncConn struct {
-	name string
-	root string
+	timeout time.Duration
+	name    string
+	root    string
 	sync.Mutex
 }
 
@@ -53,7 +55,7 @@ func New() (*RsyncDriver, error) {
 func (d *RsyncDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
 	d.Lock()
 	defer d.Unlock()
-	conn := &RsyncConn{name: volumeName, root: rootDir}
+	conn := &RsyncConn{timeout: 30 * time.Second, name: volumeName, root: rootDir}
 	if err := os.MkdirAll(conn.Path(), 0775); err != nil {
 		return nil, err
 	}
@@ -108,7 +110,22 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 	argv := []string{"-a", c.Path() + "/", dest + "/"}
 	glog.Infof("Performing snapshot rsync command: %s %s", exe, argv)
 	rsync := exec.Command(exe, argv...)
-	if output, err := rsync.CombinedOutput(); err != nil {
+
+	done, output, err := make(chan interface{}), []byte{}, nil
+	go func() {
+		defer close(done)
+		output, err = rsync.CombinedOutput()
+	}()
+
+	select {
+	case <-time.After(c.timeout):
+		glog.V(2).Infof("Received signal to kill rsync")
+		rsync.Process.Kill()
+	case <-done:
+	}
+
+	<-done
+	if err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
 		return err
 	}
