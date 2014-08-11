@@ -422,6 +422,7 @@ func (c *Controller) forwardSignal(sig os.Signal) {
 	}
 }
 
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
@@ -443,7 +444,7 @@ func (c *Controller) Run() (err error) {
 		return err
 	}
 
-	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
+	args := []string{"-c", "exec " + utils.ShellQuoteArgs(c.options.Service.Command)}
 
 	startService := func() (*subprocess.Instance, chan error) {
 		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)

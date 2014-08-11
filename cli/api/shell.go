@@ -7,7 +7,6 @@ package api
 import (
 	"fmt"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -86,7 +85,8 @@ func (a *api) StartShell(config ShellConfig) error {
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
 		Mount:     mounts,
-		Command:   strings.Join(command, " "),
+		Command:   config.Command,
+		Args:      config.Args,
 	}
 
 	// TODO: change me to use sockets
@@ -130,7 +130,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	if err := svc.EvaluateRunsTemplate(getSvc, findChild); err != nil {
 		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
-	command, ok := svc.Runs[config.Command]
+	svcCommand, ok := svc.Runs[config.Command]
 	if !ok {
 		return fmt.Errorf("command not found for service")
 	}
@@ -139,18 +139,22 @@ func (a *api) RunShell(config ShellConfig) error {
 		return err
 	}
 
-	quotedArgs := []string{}
-	for _, arg := range config.Args {
-		quotedArgs = append(quotedArgs, fmt.Sprintf("\\\"%s\\\"", arg))
+	command := "su"
+	args := []string {
+		"-",
+		"zenoss",
+		"-c",
+		svcCommand,
+		utils.ShellQuoteArgs(config.Args),
 	}
-	command = strings.Join(append([]string{command}, quotedArgs...), " ")
 
 	cfg := shell.ProcessConfig{
 		ServiceID:   config.ServiceID,
 		IsTTY:       config.IsTTY,
 		SaveAs:      config.SaveAs,
 		Mount:       mounts,
-		Command:     fmt.Sprintf("su - zenoss -c \"%s\"", command),
+		Command:     command,
+		Args:        args,
 		LogToStderr: config.LogToStderr,
 	}
 

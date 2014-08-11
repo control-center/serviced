@@ -31,6 +31,7 @@ type ProcessConfig struct {
 	Envv        []string
 	Mount       []string
 	Command     string
+	Args        []string
 	LogToStderr bool // log the command output for stderr
 	LogStash    struct {
 		Enable        bool          //enable log stash
