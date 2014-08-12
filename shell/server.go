@@ -365,27 +365,31 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 
 	// get the shell command
 	shellcmd := cfg.Command
+	shellargs := cfg.Args
 	if cfg.Command == "" {
-		shellcmd = "su -"
+		shellcmd = "su"
+		shellargs = []string{"-"}
 	}
 
 	// get the serviced command
 	svcdcmd := fmt.Sprintf("/serviced/%s", bin)
 
 	// get the proxy command
-	proxycmd := []string{
-		svcdcmd,
-		fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
-		"service",
-		"proxy",
-		"--autorestart=false",
-		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
-		fmt.Sprintf("--logstash-idle-flush-time=%s", cfg.LogStash.IdleFlushTime),
-		fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),
-		svc.ID,
-		"0",
-		shellcmd,
-	}
+	proxycmd := append(
+		[]string{
+			svcdcmd,
+			fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
+			"service",
+			"proxy",
+			"--autorestart=false",
+			fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
+			fmt.Sprintf("--logstash-idle-flush-time=%s", cfg.LogStash.IdleFlushTime),
+			fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),
+			svc.ID,
+			"0",
+			shellcmd,
+		},
+		shellargs...)
 
 	// get the docker start command
 	docker, err := exec.LookPath("docker")
@@ -436,6 +440,6 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	cp.ReadyDFS(false, nil)
 	glog.Infof("Acquired!  Starting shell")
 
-	glog.V(1).Infof("command: docker %+v", argv)
+	glog.V(1).Infof("command: docker [%s]", strings.Join(argv, ","))
 	return exec.Command(docker, argv...), nil
 }
