@@ -72,6 +72,9 @@ func (a *api) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
 		return nil, err
 	}
 
+	if _, ok := templatemap[id]; !ok {
+		return nil, fmt.Errorf("unable to find template by id: %s", id)
+	}
 	t := templatemap[id]
 	(*t).ID = id
 
