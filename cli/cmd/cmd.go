@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cmd
 
@@ -132,6 +141,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
+		cli.IntFlag{"max-dfs-timeout", configInt("MAX_DFS_TIMEOUT", 60*5), "max timeout to perform a dfs snapshot"},
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
 
@@ -199,6 +209,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Verbosity:            ctx.GlobalInt("v"),
 		CPUProfile:           ctx.GlobalString("cpuprofile"),
 		MaxContainerAge:      ctx.GlobalInt("max-container-age"),
+		MaxDFSTimeout:        ctx.GlobalInt("max-dfs-timeout"),
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
 		MasterPoolID:         ctx.GlobalString("master-pool-id"),
 		OutboundIP:           ctx.GlobalString("outbound"),

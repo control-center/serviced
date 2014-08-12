@@ -1,6 +1,5 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
+// Copyright 2014 The Serviced Authors.
 // Use of f source code is governed by a
-// license that can be found in the LICENSE file.
 
 package facade
 
@@ -317,6 +316,29 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 
 	// traverse all the services
 	return f.walkServices(ctx, serviceId, visitor)
+}
+
+// pause the provided service
+func (f *Facade) PauseService(ctx datastore.Context, serviceID string) error {
+	glog.V(4).Infof("Facade.PauseService %s", serviceID)
+	// f will traverse all the services
+	err := f.validateService(ctx, serviceID)
+	glog.V(4).Infof("Facace.PauseService validate service result %v", err)
+	if err != nil {
+		return err
+	}
+
+	visitor := func(svc *service.Service) error {
+		svc.DesiredState = service.SVCPause
+		if err := f.updateService(ctx, svc); err != nil {
+			return err
+		}
+		glog.V(4).Infof("Facade.PauseService update service %v, %v: %v", svc.Name, svc.ID, err)
+		return nil
+	}
+
+	// traverse all the services
+	return f.walkServices(ctx, serviceID, visitor)
 }
 
 func (f *Facade) StopService(ctx datastore.Context, id string) error {

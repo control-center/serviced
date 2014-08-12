@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -13,9 +22,8 @@ import (
 	"fmt"
 	"strconv"
 	"sync"
+	"time"
 
-	"github.com/zenoss/elastigo/api"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -23,6 +31,8 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
+	"github.com/zenoss/elastigo/api"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -106,7 +116,7 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 }
 
 // Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
@@ -115,7 +125,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*Cont
 		hostName: hostName,
 		port:     port,
 	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao, facade); err != nil {
+	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, maxdfstimeout); err != nil {
 		return nil, err
 	} else {
 		dao.dfs = dfs
@@ -124,11 +134,11 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade) (*Cont
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, maxdfstimeout time.Duration) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade)
+	s, err := NewControlPlaneDao(hostName, port, facade, maxdfstimeout)
 	if err != nil {
 		return nil, err
 	}

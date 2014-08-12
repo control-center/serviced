@@ -1,11 +1,19 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
 import (
-	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -111,11 +119,10 @@ func TestServiceListener_Spawn(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmt.Println("Start 1")
 		listener.Spawn(shutdown, svc.ID)
 	}()
 
-	// wait 3 seconds an shutdown
+	// wait 3 seconds and shutdown
 	<-time.After(3 * time.Second)
 	t.Log("Signaling shutdown for service listener")
 	close(shutdown)
@@ -125,7 +132,6 @@ func TestServiceListener_Spawn(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		fmt.Println("Start 2")
 		listener.Spawn(make(<-chan interface{}), svc.ID)
 	}()
 
@@ -170,6 +176,34 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 	if count := getInstances(); count != svc.Instances {
 		t.Errorf("Expected %d started instances; actual: %d", svc.Instances, count)
+	}
+
+	t.Log("Pause service")
+	svc.DesiredState = service.SVCPause
+	if err := UpdateService(conn, svc); err != nil {
+		t.Fatalf("Could not pause service %s: %s", svc.ID, err)
+	}
+
+	for {
+		if count := getInstances(); count > 0 {
+			t.Logf("Waiting for %d instances to pause", count)
+			<-time.After(5 * time.Second)
+		} else {
+			break
+		}
+	}
+
+	svc.DesiredState = service.SVCRun
+	if err := UpdateService(conn, svc); err != nil {
+		t.Fatalf("Could not update service %s: %s", svc.ID, err)
+	}
+	for {
+		if count := getInstances(); count < svc.Instances {
+			t.Logf("Waiting for %d instances to resume", svc.Instances)
+			<-time.After(5 * time.Second)
+		} else {
+			break
+		}
 	}
 
 	// Stop service
@@ -445,6 +479,42 @@ func TestServiceListener_start(t *testing.T) {
 	}
 }
 
+func TestServiceListener_pause(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+
+	svc := &service.Service{
+		ID:        "test-service-1",
+		Endpoints: make([]service.ServiceEndpoint, 1),
+	}
+	if err := UpdateService(conn, svc); err != nil {
+		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
+	}
+
+	listener := NewServiceListener(conn, handler)
+	listener.start(svc, []int{1})
+
+	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)
+	if err != nil {
+		t.Fatalf("Error which looking up %s: %s", handler.Host.ID, err)
+	} else if count := len(rss); count != 1 {
+		t.Errorf("MISMATCH: expected 1 children; found %d", count)
+	}
+
+	// Pause instance
+	listener.pause(rss)
+
+	// Verify the state of the instance
+	var hs HostState
+	hpath := hostpath(handler.Host.ID, rss[0].ID)
+	if err := conn.Get(hpath, &hs); err != nil {
+		t.Fatalf("Error while looking up %s: %s", hpath, err)
+	} else if hs.DesiredState != service.SVCPause {
+		t.Errorf("MISMATCH: expected service state paused (%d); actual (%d): %s", service.SVCPause, hs.DesiredState, hpath)
+	}
+}
+
 func TestServiceListener_stop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
@@ -468,9 +538,6 @@ func TestServiceListener_stop(t *testing.T) {
 		t.Errorf("MISMATCH: expected 2 children; found %d", count)
 	}
 	// Stop 1 instance
-	if err != nil {
-		t.Fatalf("Error while looking up running service: %s", err)
-	}
 	listener.stop(rss[:1])
 
 	// Verify the state of the instances

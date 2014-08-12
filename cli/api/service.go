@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package api
 
@@ -77,6 +86,20 @@ func (a *api) GetServiceStates(serviceID string) ([]*servicestate.ServiceState, 
 	}
 
 	return states, nil
+}
+
+func (a *api) GetServiceStatus(serviceID string) (map[*servicestate.ServiceState]dao.Status, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var status map[*servicestate.ServiceState]dao.Status
+	if err := client.GetServiceStatus(serviceID, &status); err != nil {
+		return nil, err
+	}
+
+	return status, nil
 }
 
 // Gets the service definition identified by its service ID
