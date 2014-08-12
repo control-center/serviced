@@ -114,4 +114,7 @@ type LoadBalancer interface {
 	// GetServiceInstance retrieves a service object with templates evaluated using a
 	// given instance ID.
 	GetServiceInstance(req ServiceInstanceRequest, response *service.Service) error
+
+	// Ping waits for the specified time then returns the server time
+	Ping(waitFor time.Duration, timestamp *time.Time) error
 }

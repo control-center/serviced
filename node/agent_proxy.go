@@ -14,12 +14,12 @@ import (
 	"errors"
 	"strconv"
 	"strings"
-
-	"github.com/zenoss/glog"
+	"time"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
 )
 
 // assert that the HostAgent implements the LoadBalancer interface
@@ -37,6 +37,11 @@ type ZkInfo struct {
 
 func (a *HostAgent) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) (err error) {
 	glog.Infof("Service: %v message: %v", serviceLogInfo.ServiceID, serviceLogInfo.Message)
+	return nil
+}
+
+func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
+	*timestamp = <-time.After(waitFor)
 	return nil
 }
 
