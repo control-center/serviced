@@ -12,7 +12,6 @@ package node
 import (
 	"net/rpc"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -21,6 +20,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
 // A serviced client.
@@ -145,6 +145,10 @@ func (s *ControlClient) StopService(serviceId string, unused *int) (err error) {
 
 func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
+}
+
+func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]dao.Status) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap)
 }
 
 func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {

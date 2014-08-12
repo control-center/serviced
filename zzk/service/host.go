@@ -60,6 +60,8 @@ type HostStateHandler interface {
 	GetHost(string) (*host.Host, error)
 	AttachService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StartService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
+	PauseService(*service.Service, *servicestate.ServiceState) error
+	ResumeService(*service.Service, *servicestate.ServiceState) error
 	StopService(*servicestate.ServiceState) error
 }
 
@@ -129,9 +131,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	)
 
 	defer func() {
-		if state == nil {
-			glog.Warning("Spawn completed without state instance to stop")
-		} else {
+		if state != nil {
 			glog.V(0).Infof("Stopping service instance: %s", state.ID)
 			l.stopInstance(processDone, state)
 		}
@@ -168,13 +168,25 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		switch hs.DesiredState {
 		case service.SVCRun:
 			var err error
-			if state.Started.UnixNano() <= state.Terminated.UnixNano() {
+			if !state.IsRunning() {
+				// process has stopped
 				processDone, err = l.startInstance(&svc, state)
+			} else if state.IsPaused() {
+				// process has paused
+				err = l.resumeInstance(&svc, state)
 			} else if processDone == nil {
+				// process is running superficially
 				processDone, err = l.attachInstance(&svc, state)
 			}
 			if err != nil {
 				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.ID, err)
+				return
+			}
+		case service.SVCPause:
+			if state.IsPaused() {
+				// service instance is not running, pass
+			} else if err := l.pauseInstance(&svc, state); err != nil {
+				glog.Errorf("Could not pause service instance %s; stopping: %s", state.ID, err)
 				return
 			}
 		case service.SVCStop:
@@ -211,13 +223,13 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 		}
 
 		s.Terminated = time.Now()
-		if err := updateInstance(l.conn, &s); err != nil {
+		if err := UpdateServiceState(l.conn, &s); err != nil {
 			glog.Warningf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
 			return
 		}
 	}(servicepath(state.ServiceID, state.ID))
 
-	return wait, updateInstance(l.conn, state)
+	return wait, UpdateServiceState(l.conn, state)
 }
 
 func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
@@ -246,6 +258,25 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 	}
 
 	return wait, nil
+}
+
+func (l *HostStateListener) pauseInstance(svc *service.Service, state *servicestate.ServiceState) error {
+	glog.Infof("Pausing service instance %s for service %s (%s)", state.ID, svc.Name, svc.ID)
+	if err := l.handler.PauseService(svc, state); err != nil {
+		glog.Errorf("Could not pause service instance %s: %s", state.ID, err)
+		return err
+	}
+	state.Paused = true
+	return UpdateServiceState(l.conn, state)
+}
+
+func (l *HostStateListener) resumeInstance(svc *service.Service, state *servicestate.ServiceState) error {
+	if err := l.handler.ResumeService(svc, state); err != nil {
+		glog.Errorf("Could not resume service instance %s: %s", state.ID, err)
+		return err
+	}
+	state.Paused = false
+	return UpdateServiceState(l.conn, state)
 }
 
 // stopInstance stops instance and signals done.  caller is expected to check for nil state
@@ -287,16 +318,6 @@ func addInstance(conn client.Connection, state *servicestate.ServiceState) error
 	return nil
 }
 
-func updateInstance(conn client.Connection, state *servicestate.ServiceState) error {
-	var node ServiceStateNode
-	path := servicepath(state.ServiceID, state.ID)
-	if err := conn.Get(path, &node); err != nil {
-		return err
-	}
-	node.ServiceState = state
-	return conn.Set(path, &node)
-}
-
 func removeInstance(conn client.Connection, state *servicestate.ServiceState) error {
 	if state == nil {
 		return nil
@@ -306,6 +327,36 @@ func removeInstance(conn client.Connection, state *servicestate.ServiceState) er
 		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
 	}
 	return conn.Delete(servicepath(state.ServiceID, state.ID))
+}
+
+// pauseInstance only updates the service instance if the instance is marked as RUN
+func pauseInstance(conn client.Connection, hostID, stateID string) error {
+	hpath := hostpath(hostID, stateID)
+	var hs HostState
+	if err := conn.Get(hpath, &hs); err != nil {
+		return err
+	}
+	if hs.DesiredState != service.SVCRun {
+		return nil
+	}
+	glog.V(2).Infof("Pausing service instance %s via host %s", stateID, hostID)
+	hs.DesiredState = service.SVCPause
+	return conn.Set(hpath, &hs)
+}
+
+// resumeInstance only updates the service instance if the instance is marked as PAUSED
+func resumeInstance(conn client.Connection, hostID, stateID string) error {
+	hpath := hostpath(hostID, stateID)
+	var hs HostState
+	if err := conn.Get(hpath, &hs); err != nil {
+		return err
+	}
+	if hs.DesiredState != service.SVCPause {
+		return nil
+	}
+	glog.V(2).Infof("Resuming service instance %s via host %s", stateID, hostID)
+	hs.DesiredState = service.SVCRun
+	return conn.Set(hpath, &hs)
 }
 
 func StopServiceInstance(conn client.Connection, hostID, stateID string) error {

@@ -108,6 +108,9 @@ type ControlPlane interface {
 	// Update the service state
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error
 
+	// Computes the status of the service based on its service instances
+	GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]Status) error
+
 	// Get the services instances for a given service
 	GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) error
 
