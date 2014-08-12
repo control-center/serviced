@@ -49,11 +49,6 @@ func (node *HostNode) Update(conn client.Connection) error {
 	return nil
 }
 
-// Delete implements zzk.Node
-func (node *HostNode) Delete(conn client.Connection) error {
-	return UnregisterHost(conn, node.ID)
-}
-
 // Version implements client.Node
 func (node *HostNode) Version() interface{} {
 	return node.version

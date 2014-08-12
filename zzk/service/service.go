@@ -8,7 +8,6 @@ import (
 	"path"
 	"sort"
 	"sync"
-	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
@@ -54,26 +53,6 @@ func (node *ServiceNode) Create(conn client.Connection) error {
 // Update implements zzk.Node
 func (node *ServiceNode) Update(conn client.Connection) error {
 	return UpdateService(conn, node.Service)
-}
-
-// Delete implements zzk.Node
-func (node *ServiceNode) Delete(conn client.Connection) (err error) {
-	var (
-		cancel = make(chan interface{})
-		done   = make(chan interface{})
-	)
-
-	go func() {
-		defer close(done)
-		err = RemoveService(cancel, conn, node.ID)
-	}()
-	select {
-	case <-time.After(45 * time.Second):
-		close(cancel)
-	case <-done:
-	}
-	<-done
-	return err
 }
 
 // Version implements client.Node
