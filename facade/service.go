@@ -322,19 +322,14 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 // pause the provided service
 func (f *Facade) PauseService(ctx datastore.Context, serviceID string) error {
 	glog.V(4).Infof("Facade.PauseService %s", serviceID)
-	// f will traverse all the services
-	err := f.validateService(ctx, serviceID)
-	glog.V(4).Infof("Facace.PauseService validate service result %v", err)
-	if err != nil {
-		return err
-	}
 
 	visitor := func(svc *service.Service) error {
 		svc.DesiredState = service.SVCPause
 		if err := f.updateService(ctx, svc); err != nil {
+			glog.Errorf("could not update service %+v due to error %s", svc, err)
 			return err
 		}
-		glog.V(4).Infof("Facade.PauseService update service %v, %v: %v", svc.Name, svc.ID, err)
+		glog.V(4).Infof("Facade.PauseService update service %v, %v", svc.Name, svc.ID)
 		return nil
 	}
 
@@ -664,6 +659,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 
 	// traverse all the services
 	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+		glog.Errorf("unable to walk services for service %s", serviceId)
 		return err
 	}
 

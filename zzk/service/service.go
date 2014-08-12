@@ -160,7 +160,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 	for _, state := range rss {
 		// resumeInstance updates the service state ONLY if it has a PAUSED DesiredState
 		if err := resumeInstance(l.conn, state.HostID, state.ID); err != nil {
-			glog.Warningf("Could not resume paused service instance %s on host %s: %s", state.ID, state.HostID, err)
+			glog.Warningf("Could not resume paused service instance %s (%s) for service %s on host %s: %s", state.ID, state.Name, state.ServiceID, state.HostID, err)
 		}
 	}
 
@@ -237,10 +237,10 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
 func (l *ServiceListener) stop(rss []*dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
-			glog.Warningf("Service instance %s from %s (%s) won't die: %s", state.ID, state.Name, state.ServiceID, err)
+			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
 			continue
 		}
-		glog.V(2).Infof("Stopping service instance %s for service %s on host %s", state.ID, state.ServiceID, state.HostID)
+		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
 	}
 }
 
@@ -248,10 +248,10 @@ func (l *ServiceListener) pause(rss []*dao.RunningService) {
 	for _, state := range rss {
 		// pauseInstance updates the service state ONLY if it has a RUN DesiredState
 		if err := pauseInstance(l.conn, state.HostID, state.ID); err != nil {
-			glog.Warningf("Could not pause service instance %s for service %s (%s): %s", state.ID, state.ServiceID, state.Name, err)
+			glog.Warningf("Could not pause service instance %s (%s) for service %s: %s", state.ID, state.Name, state.ServiceID, err)
 			continue
 		}
-		glog.V(2).Infof("Pausing service instance %s for service %s on host %s", state.ID, state.ServiceID, state.HostID)
+		glog.V(2).Infof("Pausing service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
 	}
 }
 
