@@ -58,11 +58,6 @@ func (node *VirtualIPNode) Update(conn client.Connection) error {
 	return nil
 }
 
-// Delete implements zzk.Node
-func (node *VirtualIPNode) Delete(conn client.Connection) error {
-	return RemoveVirtualIP(conn, node.IP)
-}
-
 func (node *VirtualIPNode) Version() interface{}           { return node.version }
 func (node *VirtualIPNode) SetVersion(version interface{}) { node.version = version }
 

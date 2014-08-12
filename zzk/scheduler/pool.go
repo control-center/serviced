@@ -49,11 +49,6 @@ func (node *PoolNode) Update(conn client.Connection) error {
 	return nil
 }
 
-// Delete implements zzk.Node
-func (node *PoolNode) Delete(conn client.Connection) error {
-	return RemoveResourcePool(conn, node.ID)
-}
-
 func (node *PoolNode) Version() interface{}           { return node.version }
 func (node *PoolNode) SetVersion(version interface{}) { node.version = version }
 

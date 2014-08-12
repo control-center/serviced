@@ -267,18 +267,16 @@ type Node interface {
 	Create(conn client.Connection) error
 	// Update updates the object in zookeeper
 	Update(conn client.Connection) error
-	// Delete deletes the object from zookeeper
-	Delete(conn client.Connection) error
 }
 
 // Sync synchronizes zookeeper data with what is in elastic or any other storage facility
-func Sync(conn client.Connection, data []Node, path string) error {
+func Sync(conn client.Connection, data []Node, zkpath string) error {
 	var current []string
-	if exists, err := PathExists(conn, path); err != nil {
+	if exists, err := PathExists(conn, zkpath); err != nil {
 		return err
 	} else if !exists {
 		// pass
-	} else if current, err = conn.Children(path); err != nil {
+	} else if current, err = conn.Children(zkpath); err != nil {
 		return err
 	}
 
@@ -289,16 +287,21 @@ func Sync(conn client.Connection, data []Node, path string) error {
 
 	for _, id := range current {
 		if node, ok := datamap[id]; ok {
+			glog.V(2).Infof("Updating id:'%s' at zkpath:%s with: %+v", id, zkpath, node)
 			if err := node.Update(conn); err != nil {
 				return err
 			}
 			delete(datamap, id)
-		} else if err := node.Delete(conn); err != nil {
-			return err
+		} else {
+			glog.V(2).Infof("Deleting id:'%s' at zkpath:%s not found in elastic\nzk current children: %v", id, zkpath, current)
+			if err := conn.Delete(path.Join(zkpath, id)); err != nil {
+				return err
+			}
 		}
 	}
 
-	for _, node := range datamap {
+	for id, node := range datamap {
+		glog.V(2).Infof("Creating id:'%s' at zkpath:%s with: %+v", id, zkpath, node)
 		if err := node.Create(conn); err != nil {
 			return err
 		}
