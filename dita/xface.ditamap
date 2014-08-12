@@ -17,7 +17,9 @@
          <topicref href="topics/xface-assign-ip.dita"/>
        </topicref>
 
-       <topicref href="topics/xface-app-detail-config.dita"/>
+       <topicref href="topics/xface-app-detail-config.dita">
+         <topicref href="topics/xface-app-edit-config.dita"/>
+       </topicref>
        
        <topicref href="topics/xface-app-detail-services.dita"/>
        
