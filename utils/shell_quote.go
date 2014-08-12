@@ -16,10 +16,7 @@ package utils
 import "strings"
 import "regexp"
 
-var hasUnsafeChar *regexp.Regexp
-func init() {
-	hasUnsafeChar, _ =regexp.Compile("[^\\w@%+=:,./-]")
-}
+var hasUnsafeChar = regexp.MustCompile("[^\\w@%+=:,./-]")
 
 // Quote a single argument
 func ShellQuoteArg(arg string) string {
