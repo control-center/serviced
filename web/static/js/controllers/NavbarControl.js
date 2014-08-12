@@ -1,6 +1,6 @@
 function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService, resourcesService, $modalService) {
     $scope.name = 'navbar';
-    $scope.brand = { url: '#/entry', label: 'brand_cp' };
+    $scope.brand = { url: '#/apps', label: 'brand_cp' };
 
     $rootScope.messages = $notification.getMessages();
     $scope.$on('messageUpdate', function(){
@@ -80,7 +80,6 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     updateLanguage($scope, $cookies, $translate);
 
     var helpMap = {
-        '/static/partials/main.html': 'main.html',
         '/static/partials/login.html': 'login.html',
         '/static/partials/view-subservices.html': 'subservices.html',
         '/static/partials/view-apps.html': 'apps.html',

@@ -17,9 +17,6 @@
 angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
-            when('/entry', {
-                templateUrl: '/static/partials/main.html',
-                controller: EntryControl}).
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
@@ -65,7 +62,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-isvcs.html',
                 controller: IsvcsControl
             }).
-            otherwise({redirectTo: '/entry'});
+            otherwise({redirectTo: '/apps'});
     }]).
     config(['$translateProvider', function($translateProvider) {
 
