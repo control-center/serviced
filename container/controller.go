@@ -360,6 +360,11 @@ func NewController(options ControllerOptions) (*Controller, error) {
 			return c, err
 		}
 		c.metricForwarder = forwarder
+
+		// setup network stats
+		destination := fmt.Sprintf("http://localhost%s/api/metrics/store", options.Metric.Address)
+		glog.Infof("pushing network stats to: %s", destination)
+		go statReporter(destination, time.Second *15)
 	}
 
 	// Keep a copy of the service prerequisites in the Controller object.
@@ -377,6 +382,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidCommand
 	}
 
+ 
 	return c, nil
 }
 
