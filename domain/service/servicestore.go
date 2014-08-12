@@ -31,36 +31,8 @@ func (s *Store) Put(ctx datastore.Context, svc *Service) error {
 	//No need to store ConfigFiles
 	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
 
-	//Remove built in metrics
-	removeBuiltinMetrics(svc)
-
 	return s.ds.Put(ctx, Key(svc.ID), svc)
 }
-
-// removeBuiltinMetrics removes internal metrics from the monitoring profile
-func removeBuiltinMetrics(svc *Service) {
-}
-
-/*
-        MetricConfigs    []MetricConfig    //metrics for domain object
-        GraphConfigs     []GraphConfig     //graphs for a domain object
-        ThresholdConfigs []ThresholdConfig //thresholds for a domain object
-
-
-// Metric defines the meta-data for a single metric
-type Metric struct {
-        ID          string //id is a unique idenitifier for the metric
-        Name        string //name is a canonical name for the metric
-        Description string //description of this metric
-        Counter     bool   // Counter is true if this metric is a constantly incrementing measure
-        CounterMax  *int64 `json:"CounterMax,omitempty"`
-        ResetValue  int64  // If metric is a counter, ResetValue is the maximum counter value before a rollover occurs
-        Unit        string // Unit of measure for metric
-        BuiltIn     bool   // is this metric supplied by the serviced runtime?
-}
-
-
-*/
 
 // fillBuiltinMetrics adds internal metrics to the monitoring profile
 func fillBuiltinMetrics(svc *Service) {
@@ -76,7 +48,226 @@ func fillBuiltinMetrics(svc *Service) {
 		}
 		svc.MonitoringProfile.MetricConfigs = []domain.MetricConfig{*config}
 	}
-	findInternalMetricConfig(svc)
+	index, found := findInternalMetricConfig(svc)
+	if !found {
+		glog.Errorf("should have been able to find internal metrics config")
+		return
+	}
+	config := &svc.MonitoringProfile.MetricConfigs[index]
+	removeInternalMetrics(config)
+	removeInternalGraphConfigs(svc)
+
+	if len(svc.Startup) > 2 {
+		addInternalMetrics(config)
+		addInternalGraphConfigs(svc)
+	}
+}
+
+var internalCounterStats = []string{
+	"net.collisions", "net.multicast", "net.rx_bytes", "net.rx_compressed",
+	"net.rx_crc_errors", "net.rx_dropped", "net.rx_errors", "net.rx_fifo_errors",
+	"net.rx_frame_errors", "net.rx_length_errors", "net.rx_missed_errors",
+	"net.rx_over_errors", "net.rx_packets", "net.tx_aborted_errors",
+	"net.tx_bytes", "net.tx_carrier_errors", "net.tx_compressed",
+	"net.tx_dropped", "net.tx_errors", "net.tx_fifo_errors",
+	"net.tx_heartbeat_errors", "net.tx_packets", "net.tx_window_errors",
+	"cgroup.cpuacct.system", "cgroup.cpuacct.user", "cgroup.memory.pgmajfault",
+}
+var internalGuageStats = []string{
+	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.rx_bytes", "net.rx_compressed",
+}
+
+func removeInternalGraphConfigs(svc *Service) {
+	var configs []domain.GraphConfig
+	for _, config := range svc.MonitoringProfile.GraphConfigs {
+		if config.BuiltIn {
+			continue
+		}
+		configs = append(configs, config)
+	}
+	svc.MonitoringProfile.GraphConfigs = configs
+}
+
+func addInternalGraphConfigs(svc *Service) {
+
+	tags := make(map[string][]string)
+	tags["controlplane_service_id"] = []string{svc.ID}
+
+	tRange := domain.GraphConfigRange{
+		Start: "1h-ago",
+		End:   "0s-ago",
+	}
+	zero := 0
+	svc.MonitoringProfile.GraphConfigs = append(
+		svc.MonitoringProfile.GraphConfigs,
+		domain.GraphConfig{
+			ID:          "internalusage",
+			Name:        "CPU Usage",
+			BuiltIn:     true,
+			Format:      "%d",
+			ReturnSet:   "EXACT",
+			Type:        "area",
+			Tags:        tags,
+			YAxisLabel:  "% CPU Used",
+			Description: "% CPU Used Over Last Hour",
+			MinY:        &zero,
+			Range:       &tRange,
+			DataPoints: []domain.DataPoint{
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Format:       "%d",
+					Legend:       "System",
+					Metric:       "cgroup.cpuacct.system",
+					MetricSource: "metrics",
+					ID:           "cgroup.cpuacct.system",
+					Name:         "System",
+					Rate:         true,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Format:       "%d",
+					Legend:       "User",
+					Metric:       "cgroup.cpuacct.user",
+					MetricSource: "metrics",
+					ID:           "cgroup.cpuacct.user",
+					Name:         "User",
+					Rate:         true,
+					Type:         "area",
+				},
+			},
+		},
+	)
+
+	// memory graph
+	svc.MonitoringProfile.GraphConfigs = append(
+		svc.MonitoringProfile.GraphConfigs,
+		domain.GraphConfig{
+			ID:          "internalMemoryUsage",
+			Name:        "Memory Usage",
+			BuiltIn:     true,
+			Format:      "%6.2f",
+			ReturnSet:   "EXACT",
+			Type:        "area",
+			Tags:        tags,
+			YAxisLabel:  "GB",
+			Description: "GB Memory Used Over Last Hour",
+			MinY:        &zero,
+			Range:       &tRange,
+			DataPoints: []domain.DataPoint{
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Expression:   "rpn:1024,/,1024,/,1024,/",
+					Fill:         true,
+					Format:       "%6.2f",
+					Legend:       "RSS",
+					Metric:       "cgroup.memory.totalrss",
+					MetricSource: "metrics",
+					ID:           "cgroup.memory.totalrss",
+					Name:         "Total RSS",
+					Rate:         false,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Expression:   "rpn:1024,/,1024,/,1024,/",
+					Fill:         true,
+					Format:       "%6.2f",
+					Legend:       "Cache",
+					Metric:       "cgroup.memory.cache",
+					MetricSource: "metrics",
+					ID:           "cgroup.memory.cache",
+					Name:         "Cache",
+					Rate:         false,
+					Type:         "area",
+				},
+			},
+		},
+	)
+
+	// network usage graph
+	svc.MonitoringProfile.GraphConfigs = append(
+		svc.MonitoringProfile.GraphConfigs,
+		domain.GraphConfig{
+			ID:          "internalNetworkUsage",
+			Name:        "Network Usage",
+			BuiltIn:     true,
+			Format:      "%6.2f",
+			ReturnSet:   "EXACT",
+			Type:        "area",
+			Tags:        tags,
+			YAxisLabel:  "kbps",
+			Range:       &tRange,
+			Description: "kbps over last hour",
+			DataPoints: []domain.DataPoint{
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Expression:   "rpn:8,/,1024,/",
+					Fill:         true,
+					Format:       "%6.2f",
+					Legend:       "TX",
+					Metric:       "net.tx_bytes",
+					MetricSource: "metrics",
+					ID:           "net.tx_bytes",
+					Name:         "TX kbps",
+					Rate:         true,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Expression:   "rpn:8,/,1024,/",
+					Fill:         true,
+					Format:       "%6.2f",
+					Legend:       "RX",
+					Metric:       "net.rx_bytes",
+					MetricSource: "metrics",
+					ID:           "net.rx_bytes",
+					Name:         "RX kbps",
+					Rate:         true,
+					Type:         "area",
+				},
+			},
+		},
+	)
+}
+
+// addInternalMetrics adds internal metrics to the config. It assumes that
+// the current config does not container any internal metrics
+func addInternalMetrics(config *domain.MetricConfig) {
+
+	for _, metricName := range internalCounterStats {
+		config.Metrics = append(config.Metrics,
+			domain.Metric{
+				ID:      metricName,
+				Name:    metricName,
+				Counter: true,
+				BuiltIn: true,
+			})
+
+	}
+	for _, metricName := range internalGuageStats {
+		config.Metrics = append(config.Metrics,
+			domain.Metric{
+				ID:      metricName,
+				Name:    metricName,
+				Counter: false,
+				BuiltIn: true,
+			})
+
+	}
+}
+
+func removeInternalMetrics(config *domain.MetricConfig) {
+	// create an empty list of metrics
+	var metrics []domain.Metric
+	for _, metric := range config.Metrics {
+		// and copy metrics, except built in ones
+		if metric.BuiltIn {
+			continue
+		}
+		metrics = append(metrics, metric)
+	}
+	config.Metrics = metrics
 }
 
 func findInternalMetricConfig(svc *Service) (index int, found bool) {
@@ -86,7 +277,20 @@ func findInternalMetricConfig(svc *Service) (index int, found bool) {
 			return i, true
 		}
 	}
-	return -1, false
+	builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
+	if err != nil {
+		glog.Errorf("Could not create builder to add internal metrics: %s", err)
+		return
+	}
+	config, err := builder.Config("metrics", "metrics", "metrics", "-1h")
+	if err != nil {
+		glog.Errorf("could not create metric config for internal metrics: %s", err)
+	}
+	svc.MonitoringProfile.MetricConfigs = append(
+		svc.MonitoringProfile.MetricConfigs,
+		*config)
+
+	return len(svc.MonitoringProfile.MetricConfigs) - 1, true
 }
 
 // Get a Service by id. Return ErrNoSuchEntity if not found
@@ -181,6 +385,7 @@ func convert(results datastore.Results) ([]*Service, error) {
 			return nil, err
 		}
 		fillConfig(&svc)
+		fillBuiltinMetrics(&svc)
 		svcs[idx] = &svc
 	}
 	return svcs, nil
