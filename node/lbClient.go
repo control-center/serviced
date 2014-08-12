@@ -5,12 +5,13 @@
 package node
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
 
 	"net/rpc"
+	"time"
 )
 
 // A LBClient implementation.
@@ -33,6 +34,12 @@ func NewLBClient(addr string) (s *LBClient, err error) {
 
 func (a *LBClient) Close() error {
 	return a.rpcClient.Close()
+}
+
+// Ping waits for the specified time then returns the server time
+func (a *LBClient) Ping(waitFor time.Duration, timestamp *time.Time) error {
+	glog.V(4).Infof("ControlPlaneAgent.Ping()")
+	return a.rpcClient.Call("ControlPlaneAgent.Ping", waitFor, timestamp)
 }
 
 // SendLogMessage simply outputs the ServiceLogInfo on the serviced master

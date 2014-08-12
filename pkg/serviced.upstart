@@ -28,7 +28,8 @@ script
         . /etc/default/serviced
     fi
 
-    cd $SERVICED_HOME && ./bin/serviced $SERVICED_OPTS
+    cd $SERVICED_HOME 
+    ./bin/serviced $SERVICED_OPTS
 
 end script
 

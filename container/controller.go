@@ -355,7 +355,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		// setup network stats
 		destination := fmt.Sprintf("http://localhost%s/api/metrics/store", options.Metric.Address)
 		glog.Infof("pushing network stats to: %s", destination)
-		go statReporter(destination, time.Second *15)
+		go statReporter(destination, time.Second*15)
 	}
 
 	// Keep a copy of the service prerequisites in the Controller object.
@@ -373,7 +373,6 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidCommand
 	}
 
- 
 	return c, nil
 }
 
@@ -428,6 +427,29 @@ func (c *Controller) forwardSignal(sig os.Signal) {
 	}
 }
 
+// rpcHealthCheck returns a channel that will close when it not longer possible
+// to ping the RPC server
+func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
+	gone := make(chan struct{})
+
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		return nil, err
+	}
+	go func() {
+		var ts time.Time
+		for {
+			err := client.Ping(time.Minute, &ts)
+			if err != nil {
+				close(gone)
+				return
+			}
+		}
+	}()
+
+	return gone, nil
+}
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
@@ -456,15 +478,22 @@ func (c *Controller) Run() (err error) {
 		return service, serviceExited
 	}
 
+	rpcDead, err := c.rpcHealthCheck()
+	if err != nil {
+		glog.Error("Could not setup RPC ping check: %s", err)
+		return err
+	}
+
 	prereqsPassed := make(chan bool)
 	var startAfter <-chan time.Time
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
 	c.handleControlCenterImports()
 	c.watchRemotePorts()
-	go c.checkPrereqs(prereqsPassed)
+	go c.checkPrereqs(prereqsPassed, rpcDead)
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
+
 	for {
 		select {
 		case sig := <-sigc:
@@ -511,6 +540,14 @@ func (c *Controller) Run() (err error) {
 				doRegisterEndpoints = false
 			}
 			startAfter = nil
+
+		case <-rpcDead:
+			if c.PIDFile != "" {
+				c.forwardSignal(syscall.SIGTERM)
+			} else {
+				service.Notify(syscall.SIGTERM)
+			}
+			glog.Fatalf("RPC Server has gone away, exiting: %s", err)
 		}
 	}
 	for _, exitChannel := range healthExits {
@@ -519,30 +556,36 @@ func (c *Controller) Run() (err error) {
 	return
 }
 
-func (c *Controller) checkPrereqs(prereqsPassed chan bool) error {
+func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}) error {
 	if len(c.prereqs) == 0 {
 		glog.Infof("No prereqs to pass.")
 		prereqsPassed <- true
 		return nil
 	}
-	for _ = range time.Tick(1 * time.Second) {
-		failedAny := false
-		for _, script := range c.prereqs {
-			glog.Infof("Running command: %s", script.Script)
-			cmd := exec.Command("sh", "-c", script.Script)
-			err := cmd.Run()
-			if err != nil {
-				glog.Warningf("Not starting service yet, waiting on prereq: %s", script.Name)
-				failedAny = true
-				break
-			} else {
-				glog.Infof("Passed prereq [%s].", script.Name)
+	healthCheckInterval := time.Tick(1 * time.Second)
+	for {
+		select {
+		case <-rpcDead:
+			glog.Fatalf("Exiting, RPC server has gone away")
+		case <-healthCheckInterval:
+			failedAny := false
+			for _, script := range c.prereqs {
+				glog.Infof("Running command: %s", script.Script)
+				cmd := exec.Command("sh", "-c", script.Script)
+				err := cmd.Run()
+				if err != nil {
+					glog.Warningf("Not starting service yet, waiting on prereq: %s", script.Name)
+					failedAny = true
+					break
+				} else {
+					glog.Infof("Passed prereq [%s].", script.Name)
+				}
 			}
-		}
-		if !failedAny {
-			glog.Infof("Passed all prereqs.")
-			prereqsPassed <- true
-			return nil
+			if !failedAny {
+				glog.Infof("Passed all prereqs.")
+				prereqsPassed <- true
+				return nil
+			}
 		}
 	}
 	return nil
