@@ -78,15 +78,14 @@ func (a *api) StartShell(config ShellConfig) error {
 		return err
 	}
 
-	command := []string{config.Command}
-	command = append(command, config.Args...)
+	command := append([]string{config.Command}, config.Args...)
 
 	cfg := shell.ProcessConfig{
 		ServiceID: config.ServiceID,
 		IsTTY:     config.IsTTY,
 		SaveAs:    config.SaveAs,
 		Mount:     mounts,
-		Command:   strings.Join(command, " "),
+		Command:   utils.ShellQuoteArgs(command),
 	}
 
 	// TODO: change me to use sockets
@@ -139,18 +138,15 @@ func (a *api) RunShell(config ShellConfig) error {
 		return err
 	}
 
-	quotedArgs := []string{}
-	for _, arg := range config.Args {
-		quotedArgs = append(quotedArgs, fmt.Sprintf("\\\"%s\\\"", arg))
-	}
-	command = strings.Join(append([]string{command}, quotedArgs...), " ")
+	quotedArgs := utils.ShellQuoteArgs(config.Args)
+	command = strings.Join([]string{command, quotedArgs}, " ")
 
 	cfg := shell.ProcessConfig{
 		ServiceID:   config.ServiceID,
 		IsTTY:       config.IsTTY,
 		SaveAs:      config.SaveAs,
 		Mount:       mounts,
-		Command:     fmt.Sprintf("su - zenoss -c \"%s\"", command),
+		Command:     "su - zenoss -c " + utils.ShellQuoteArg(command),
 		LogToStderr: config.LogToStderr,
 	}
 
