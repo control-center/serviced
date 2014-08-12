@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -58,6 +67,24 @@ func (handler *TestHostStateHandler) StartService(done chan<- interface{}, svc *
 	}
 
 	return fmt.Errorf("instance %s already started", state.ID)
+}
+
+func (handler *TestHostStateHandler) PauseService(svc *service.Service, state *servicestate.ServiceState) error {
+	if !state.IsRunning() {
+		return fmt.Errorf("instance %s not running", state.ID)
+	} else if state.IsPaused() {
+		return fmt.Errorf("instance %s already paused", state.ID)
+	}
+	return nil
+}
+
+func (handler *TestHostStateHandler) ResumeService(svc *service.Service, state *servicestate.ServiceState) error {
+	if !state.IsRunning() {
+		return fmt.Errorf("instance %s not running", state.ID)
+	} else if !state.IsPaused() {
+		return fmt.Errorf("instance %s already resumed", state.ID)
+	}
+	return nil
 }
 
 func (handler *TestHostStateHandler) StopService(state *servicestate.ServiceState) error {
@@ -234,11 +261,38 @@ func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	}
 
 	<-eventC
-	if err := conn.Get(spath, &ServiceStateNode{ServiceState: &s}); err != nil {
+	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+	if err != nil {
 		t.Fatalf("Could not add watch to %s: %s", spath, err)
-	}
-	if startTime.UnixNano() == s.Started.UnixNano() {
+	} else if startTime.UnixNano() == s.Started.UnixNano() {
 		t.Errorf("Service instance %s not started", s.ID)
+	}
+
+	// pause the service instance
+	if err := pauseInstance(conn, s.HostID, s.ID); err != nil {
+		t.Fatalf("Could not pause service instance %s: %s", s.ID, err)
+	}
+
+	// verify the instance is paused
+	<-eventC
+	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+	if err != nil {
+		t.Fatalf("could not add watch to %s: %s", spath, err)
+	} else if !s.IsPaused() {
+		t.Errorf("Service instance %s not paused", s.ID)
+	}
+
+	// resume the service instance
+	if err := resumeInstance(conn, s.HostID, s.ID); err != nil {
+		t.Fatalf("Could not resume service instance %s: %s", s.ID, err)
+	}
+
+	// verify the instance is running
+	<-eventC
+	if err := conn.Get(spath, &ServiceStateNode{ServiceState: &s}); err != nil {
+		t.Fatalf("Could not get service instance %s: %s", s.ID, err)
+	} else if s.IsPaused() {
+		t.Errorf("Service instance %s not resumed", s.ID)
 	}
 
 	// stop the service instance and verify
@@ -359,6 +413,64 @@ func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
 		t.Fatalf("Error checking the instance %s for host %s: %s", state.ID, listener.hostID, err)
 	} else if exists {
 		t.Errorf("Instance %s still exists for host %s", state.ID, listener.hostID)
+	}
+}
+
+func TestHostStateListener_pauseInstance(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := NewTestHostStateHandler()
+	listener := NewHostStateListener(conn, handler, "test-host-1")
+	RegisterHost(conn, listener.hostID)
+
+	// Create the instance
+	svc := &service.Service{
+		ID:        "test-service-1",
+		Endpoints: make([]service.ServiceEndpoint, 1),
+	}
+
+	t.Log("Adding and pausing an instance from the connection")
+	if state, err := servicestate.BuildFromService(svc, listener.hostID); err != nil {
+		t.Fatalf("Could not generate instance from service %s", svc.ID)
+	} else if err := addInstance(conn, state); err != nil {
+		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
+	} else if err := handler.StartService(make(chan interface{}), svc, state); err != nil {
+		t.Fatalf("Could not start instance %s: %s", state.ID, err)
+	} else if err := listener.pauseInstance(svc, state); err != nil {
+		t.Fatalf("Could not pause instance %s from service %s", state.ID, state.ServiceID)
+	} else if !state.Paused {
+		t.Errorf("Service instance %s was not paused", state.ID)
+	}
+}
+
+func TestHostStateListener_resumeInstance(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := NewTestHostStateHandler()
+	listener := NewHostStateListener(conn, handler, "test-host-1")
+	RegisterHost(conn, listener.hostID)
+
+	// Create the instance
+	svc := &service.Service{
+		ID:        "test-service-1",
+		Endpoints: make([]service.ServiceEndpoint, 1),
+	}
+
+	t.Log("Adding and pausing an instance from the connection")
+	if state, err := servicestate.BuildFromService(svc, listener.hostID); err != nil {
+		t.Fatalf("Could not generate instance from service %s", svc.ID)
+	} else if err := addInstance(conn, state); err != nil {
+		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
+	} else if err := handler.StartService(make(chan interface{}), svc, state); err != nil {
+		t.Fatalf("Could not start instance %s: %s", state.ID, err)
+	} else if err := listener.pauseInstance(svc, state); err != nil {
+		t.Fatalf("Could not pause instance %s from service %s", state.ID, state.ServiceID)
+	} else if !state.Paused {
+		t.Errorf("Service instance %s was not paused", state.ID)
+	} else if err := listener.resumeInstance(svc, state); err != nil {
+		t.Fatalf("Could not resume instance %s from service %s", state.ID, state.ServiceID)
+	} else if state.Paused {
+		t.Errorf("Service instance %s was not resumed", state.ID)
 	}
 }
 

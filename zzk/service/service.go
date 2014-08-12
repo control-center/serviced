@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -82,18 +91,6 @@ func (node *ServiceNode) Version() interface{} { return node.version }
 // SetVersion implements client.Node
 func (node *ServiceNode) SetVersion(version interface{}) { node.version = version }
 
-// ServiceStateNode is the zookeeper client node for service states
-type ServiceStateNode struct {
-	ServiceState *servicestate.ServiceState
-	version      interface{}
-}
-
-// Version implements client.Node
-func (node *ServiceStateNode) Version() interface{} { return node.version }
-
-// SetVersion implements client.Node
-func (node *ServiceStateNode) SetVersion(version interface{}) { node.version = version }
-
 // ServiceHandler handles all non-zookeeper interactions required by the service
 type ServiceHandler interface {
 	SelectHost(*service.Service) (*host.Host, error)
@@ -150,6 +147,8 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			l.stop(rss)
 		case service.SVCRun:
 			l.sync(&svc, rss)
+		case service.SVCPause:
+			l.pause(rss)
 		default:
 			glog.Warningf("Unexpected desired state %d for service %s (%s)", svc.DesiredState, svc.Name, svc.ID)
 		}
@@ -186,6 +185,14 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 	// lowest instance ID first and start instances with the greatest instance
 	// ID last.
 	sort.Sort(instances(rss))
+
+	// resume any paused running services
+	for _, state := range rss {
+		// resumeInstance updates the service state ONLY if it has a PAUSED DesiredState
+		if err := resumeInstance(l.conn, state.HostID, state.ID); err != nil {
+			glog.Warningf("Could not resume paused service instance %s on host %s: %s", state.ID, state.HostID, err)
+		}
+	}
 
 	// if the service has a change option for restart all on changed, stop all
 	// instances and wait for the nodes to stop.  Once all service instances
@@ -264,6 +271,17 @@ func (l *ServiceListener) stop(rss []*dao.RunningService) {
 			continue
 		}
 		glog.V(2).Infof("Stopping service instance %s for service %s on host %s", state.ID, state.ServiceID, state.HostID)
+	}
+}
+
+func (l *ServiceListener) pause(rss []*dao.RunningService) {
+	for _, state := range rss {
+		// pauseInstance updates the service state ONLY if it has a RUN DesiredState
+		if err := pauseInstance(l.conn, state.HostID, state.ID); err != nil {
+			glog.Warningf("Could not pause service instance %s for service %s (%s): %s", state.ID, state.ServiceID, state.Name, err)
+			continue
+		}
+		glog.V(2).Infof("Pausing service instance %s for service %s on host %s", state.ID, state.ServiceID, state.HostID)
 	}
 }
 
@@ -354,39 +372,4 @@ func RemoveService(cancel <-chan interface{}, conn client.Connection, serviceID 
 
 	// Delete the service
 	return conn.Delete(servicepath(serviceID))
-}
-
-// GetServiceState gets a service state
-func GetServiceState(conn client.Connection, state *servicestate.ServiceState, serviceID string, stateID string) error {
-	return conn.Get(servicepath(serviceID, stateID), &ServiceStateNode{ServiceState: state})
-}
-
-// GetServiceStates gets all service states for a particular service
-func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []*servicestate.ServiceState, err error) {
-	for _, serviceID := range serviceIDs {
-		stateIDs, err := conn.Children(servicepath(serviceID))
-		if err != nil {
-			return nil, err
-		}
-
-		for _, stateID := range stateIDs {
-			var state servicestate.ServiceState
-			if err := GetServiceState(conn, &state, serviceID, stateID); err != nil {
-				return nil, err
-			}
-			states = append(states, &state)
-		}
-	}
-	return states, nil
-}
-
-// UpdateServiceState updates a particular service state
-func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState) error {
-	var node ServiceStateNode
-	path := servicepath(state.ServiceID, state.ID)
-	if err := conn.Get(path, &node); err != nil {
-		return err
-	}
-	node.ServiceState = state
-	return conn.Set(path, &node)
 }

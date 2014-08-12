@@ -115,6 +115,10 @@
           href="topics/xface-app-detail-config.dita"
           format="dita"
   />
+  <keydef keys="ref-xface-app-detail-control "
+          href="topics/xface-app-detail-control.dita"
+          format="dita"
+  />
   <keydef keys="ref-xface-app-detail-ip-assign "
           href="topics/xface-app-detail-ip-assign.dita"
           format="dita"
@@ -135,6 +139,10 @@
           href="topics/xface-app-detail.dita"
           format="dita"
   />
+  <keydef keys="ref-xface-app-edit-config "
+          href="topics/xface-app-edit-config.dita"
+          format="dita"
+  />
   <keydef keys="ref-xface-app "
           href="topics/xface-app.dita"
           format="dita"
@@ -145,6 +153,10 @@
   />
   <keydef keys="ref-xface-backups "
           href="topics/xface-backups.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-hosts-details "
+          href="topics/xface-hosts-details.dita"
           format="dita"
   />
   <keydef keys="ref-xface-hosts "
@@ -165,6 +177,10 @@
   />
   <keydef keys="ref-xface-pools "
           href="topics/xface-pools.dita"
+          format="dita"
+  />
+  <keydef keys="ref-xface-svc-details "
+          href="topics/xface-svc-details.dita"
           format="dita"
   />
   <keydef keys="con-xface "

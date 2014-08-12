@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package stats collects serviced metrics and posts them to the TSDB.
 
@@ -35,7 +44,8 @@ type StatsReporter struct {
 	hostRegistry        metrics.Registry
 }
 
-type containerStat struct {
+// Sample is a single metric measurement
+type Sample struct {
 	Metric    string            `json:"metric"`
 	Value     string            `json:"value"`
 	Timestamp int64             `json:"timestamp"`
@@ -104,7 +114,7 @@ func (sr StatsReporter) report(d time.Duration) {
 			glog.V(1).Info("Reporting container stats at:", t)
 			sr.updateStats()
 			stats := sr.gatherStats(t)
-			err := sr.post(stats)
+			err := Post(sr.destination, stats)
 			if err != nil {
 				glog.Errorf("Error reporting container stats: %v", err)
 			}
@@ -176,34 +186,34 @@ func (sr StatsReporter) updateStats() {
 		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
 			glog.Warningf("Couldn't read CpuacctStat:", err)
 		} else {
-			metrics.GetOrRegisterGauge("CpuacctStat.system", containerRegistry).Update(cpuacctStat.System)
-			metrics.GetOrRegisterGauge("CpuacctStat.user", containerRegistry).Update(cpuacctStat.User)
+			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
+			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
 		}
 		if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + rs.DockerID + "/memory.stat"); err != nil {
 			glog.Warningf("Couldn't read MemoryStat:", err)
 		} else {
-			metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
-			metrics.GetOrRegisterGauge("MemoryStat.totalrss", containerRegistry).Update(memoryStat.TotalRss)
-			metrics.GetOrRegisterGauge("MemoryStat.cache", containerRegistry).Update(memoryStat.Cache)
+			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
+			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
+			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
 		}
 	}
 }
 
 // Fills out the metric consumer format.
-func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
-	stats := []containerStat{}
+func (sr StatsReporter) gatherStats(t time.Time) []Sample {
+	stats := []Sample{}
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
 	reg.Each(func(name string, i interface{}) {
 		if metric, ok := i.(metrics.Gauge); ok {
 			tagmap := make(map[string]string)
 			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 		}
 		if metricf64, ok := i.(metrics.GaugeFloat64); ok {
 			tagmap := make(map[string]string)
 			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+			stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 		}
 	})
 	// Handle each container's metrics.
@@ -215,7 +225,7 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 				tagmap["controlplane_service_id"] = key.serviceID
 				tagmap["controlplane_instance_id"] = strconv.FormatInt(int64(key.instanceID), 10)
 				tagmap["controlplane_host_id"] = sr.hostID
-				stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+				stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 			}
 		})
 	}
@@ -223,14 +233,14 @@ func (sr StatsReporter) gatherStats(t time.Time) []containerStat {
 }
 
 // Send the list of stats to the TSDB.
-func (sr StatsReporter) post(stats []containerStat) error {
-	payload := map[string][]containerStat{"metrics": stats}
+func Post(destination string, stats []Sample) error {
+	payload := map[string][]Sample{"metrics": stats}
 	data, err := json.Marshal(payload)
 	if err != nil {
 		glog.Warningf("Couldn't marshal stats: ", err)
 		return err
 	}
-	statsreq, err := http.NewRequest("POST", sr.destination, bytes.NewBuffer(data))
+	statsreq, err := http.NewRequest("POST", destination, bytes.NewBuffer(data))
 	if err != nil {
 		glog.Warningf("Couldn't create stats request: ", err)
 		return err
@@ -242,7 +252,7 @@ func (sr StatsReporter) post(stats []containerStat) error {
 		glog.Warningf("Couldn't post stats: ", reqerr)
 		return reqerr
 	}
-	if strings.Contains(resp.Status, "200 OK") == false {
+	if !strings.Contains(resp.Status, "200 OK") {
 		glog.Warningf("couldn't post stats: ", resp.Status)
 		return nil
 	}

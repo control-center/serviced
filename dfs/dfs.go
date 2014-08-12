@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package dfs
 
@@ -14,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/node"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 
@@ -26,6 +34,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -41,63 +50,63 @@ var (
 	getCurrentUser = user.Current
 )
 
-// runServiceCommand attaches to a service state container and executes an arbitrary bash command
-var runServiceCommand = func(state *servicestate.ServiceState, command string) ([]byte, error) {
-	return utils.AttachAndRun(state.DockerID, []string{command})
-}
-
 type DistributedFileSystem struct {
 	sync.Mutex
-	client dao.ControlPlane
-	facade *facade.Facade
+	client  dao.ControlPlane
+	facade  *facade.Facade
+	timeout time.Duration
 }
 
 // Initiates a New Distributed Filesystem Object given an implementation of a control plane object
-func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade) (*DistributedFileSystem, error) {
+func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, timeout time.Duration) (*DistributedFileSystem, error) {
 	return &DistributedFileSystem{
-		client: client,
-		facade: facade,
+		client:  client,
+		facade:  facade,
+		timeout: timeout,
 	}, nil
 }
 
-// Pauses a running service
-func (d *DistributedFileSystem) Pause(service *service.Service, state *servicestate.ServiceState) error {
-	if output, err := runServiceCommand(state, service.Snapshot.Pause); err != nil {
-		errmsg := fmt.Sprintf("output: \"%s\", err: %s", output, err)
-		glog.V(2).Infof("DistributedFileSystem.Pause service=%+v err=%s", service, err)
-		return errors.New(errmsg)
-	}
-	return nil
-}
+// waitpause waits for a service's instances to pause
+func (d *DistributedFileSystem) waitpause(cancel <-chan interface{}, serviceID string) error {
 
-// Resumes a paused service
-func (d *DistributedFileSystem) Resume(service *service.Service, state *servicestate.ServiceState) error {
-	if output, err := runServiceCommand(state, service.Snapshot.Resume); err != nil {
-		errmsg := fmt.Sprintf("output: \"%s\", err: %s", output, err)
-		glog.V(2).Infof("DistributedFileSystem.Resume service=%+v err=%s", service, err)
-		return errors.New(errmsg)
+	for {
+		var states []*servicestate.ServiceState
+		if err := d.client.GetServiceStates(serviceID, &states); err != nil {
+			return err
+		}
+
+		paused := true
+		for _, state := range states {
+			if !state.IsPaused() {
+				paused = false
+				break
+			}
+		}
+		if paused {
+			return nil
+		}
+		select {
+		case <-time.After(time.Second):
+			// pass
+		case <-cancel:
+			return fmt.Errorf("waitpause timeout")
+		}
 	}
-	return nil
 }
 
 // Snapshots the DFS
 func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
+	cancel := make(chan interface{})
+	go func() {
+		defer close(cancel)
+		<-time.After(d.timeout)
+	}()
+
 	// Get the service
 	var myService service.Service
 	if err := d.client.GetService(tenantId, &myService); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot tenant=%+v err=%s", tenantId, err)
 		return "", err
-	}
-
-	iamRoot := false
-	warnedAboutNonRoot := false
-
-	// Only the root user can pause and resume services
-	if whoami, err := getCurrentUser(); err != nil {
-		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
-		return "", err
-	} else if USER_ROOT == whoami.Username {
-		iamRoot = true
 	}
 
 	var servicesList []*service.Service
@@ -106,32 +115,20 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	for _, service := range servicesList {
-		if service.Snapshot.Pause == "" || service.Snapshot.Resume == "" {
-			continue
-		}
+	// Pause all running services
+	for _, svc := range servicesList {
+		if svc.DesiredState == service.SVCRun {
+			defer d.facade.StartService(datastore.Get(), svc.ID)
+			if err := d.facade.PauseService(datastore.Get(), svc.ID); err != nil {
+				err = fmt.Errorf("could not pause %s (%s): %s", svc.Name, svc.ID, err)
+				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", svc.ID, err)
+				return "", err
+			}
 
-		var states []*servicestate.ServiceState
-		if err := d.client.GetServiceStates(service.ID, &states); err != nil {
-			glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v, err=%s", myService.ID, err)
-			return "", err
-		}
-
-		// Pause all running service states
-		for i, state := range states {
-			glog.V(3).Infof("DEBUG states[%d]: service:%+v state:%+v", i, myService.ID, state.DockerID)
-			if state.DockerID != "" {
-				if iamRoot {
-					err := d.Pause(service, state)
-					defer d.Resume(service, state) // resume service state when snapshot is done
-					if err != nil {
-						glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", service.ID, err)
-						return "", fmt.Errorf("failed to pause \"%s\" (%s): %s", service.Name, service.ID, err)
-					}
-				} else if !warnedAboutNonRoot {
-					warnedAboutNonRoot = true
-					glog.Warningf("Unable to pause/resume service - User is not %s", USER_ROOT)
-				}
+			if err := d.waitpause(cancel, svc.ID); err != nil {
+				err = fmt.Errorf("could not pause %s (%s): %s", svc.Name, svc.ID, err)
+				glog.V(2).Infof("DistributedFileSystem.Snapshot service=%s err %s", svc.ID, err)
+				return "", err
 			}
 		}
 	}
@@ -155,14 +152,14 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 	tag := parts[1]
 
-	// Add tags to the images
-	if err := d.tag(tenantId, DOCKER_LATEST, tag); err != nil {
+	// Add snapshot to the volume
+	if err := theVolume.Snapshot(label); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
 
-	// Add snapshot to the volume
-	if err := theVolume.Snapshot(label); err != nil {
+	// Add tags to the images
+	if err := d.tag(tenantId, DOCKER_LATEST, tag); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
