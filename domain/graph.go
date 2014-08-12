@@ -59,6 +59,7 @@ type GraphConfig struct {
 	Description string              `json:"description"`
 	Range       *GraphConfigRange   `json:"range"`
 	DataPoints  []DataPoint         `json:"datapoints"`
+	BuiltIn     bool                `json:"builtin"`
 }
 
 // Equals returns if graph equals that graph

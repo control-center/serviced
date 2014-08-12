@@ -199,9 +199,9 @@ func (c *Container) doStats(exitChan chan bool) {
 				id = ""
 				break
 			} else {
-				metrics.GetOrRegisterGauge("MemoryStat.pgmajfault", registry).Update(memoryStat.Pgfault)
-				metrics.GetOrRegisterGauge("MemoryStat.totalrss", registry).Update(memoryStat.TotalRss)
-				metrics.GetOrRegisterGauge("MemoryStat.cache", registry).Update(memoryStat.Cache)
+				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", registry).Update(memoryStat.Pgfault)
+				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", registry).Update(memoryStat.TotalRss)
+				metrics.GetOrRegisterGauge("cgroup.memory.cache", registry).Update(memoryStat.Cache)
 			}
 			// Gather the stats.
 			stats := []containerStat{}
