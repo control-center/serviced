@@ -366,8 +366,5 @@ func (s *Service) Equals(b *Service) bool {
 	if s.UpdatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
-	if !s.MonitoringProfile.Equals(&b.MonitoringProfile) {
-		return false
-	}
 	return true
 }
