@@ -160,6 +160,20 @@ test_port_mapped() {
     return 1
 }
 
+test_snapshot() {
+    SNAPSHOT_ID=$(${SERVICED} service snapshot testsvc)
+    ${SERVICED} snapshot list | grep -q ${SNAPSHOT_ID}
+    return $?
+}
+
+test_service_shell() {
+    sentinel=smoke_test_service_shell_sentinel_$$
+    container=smoke_test_service_shell_$$
+    ${SERVICED} service shell -s=$container s1 echo $sentinel
+    docker logs $container | grep -q $sentinel
+    return $?
+}
+
 retry() {
     TIMEOUT=$1
     shift
@@ -197,4 +211,6 @@ retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected"
 retry 10 test_attached     && succeed "Attached to container"                    || fail "Unable to attach to container"
 retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Unable to connect to endpoint"
 
+test_snapshot              && succeed "Created snapshot"                         || fail "Unable to create snapshot"
+test_service_shell         && succeed "Service shell ran successfully"           || fail "Unable to run service shell"
 # "trap cleanup EXIT", above, will handle cleanup
