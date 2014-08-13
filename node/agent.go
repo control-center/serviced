@@ -215,12 +215,20 @@ func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Serv
 
 // PauseService pauses a running service
 func (a *HostAgent) PauseService(service *service.Service, state *servicestate.ServiceState) error {
-	return attachAndRun(state.DockerID, service.Snapshot.Pause)
+	if len(service.Snapshot.Pause) > 0 {
+		return attachAndRun(state.DockerID, service.Snapshot.Pause)
+	}
+
+	return nil
 }
 
 // ResumeService resumes a paused service
 func (a *HostAgent) ResumeService(service *service.Service, state *servicestate.ServiceState) error {
-	return attachAndRun(state.DockerID, service.Snapshot.Resume)
+	if len(service.Snapshot.Resume) > 0 {
+		return attachAndRun(state.DockerID, service.Snapshot.Resume)
+	}
+
+	return nil
 }
 
 func attachAndRun(dockerID, command string) error {
