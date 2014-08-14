@@ -241,8 +241,22 @@
   </div>
 
   <!-- Graphs -->
-  <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0">
+  <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0" class="infoWrapper">
     <h3>{{'graphs'|translate}}</h3>
+    <div class="graphsControls">
+      <div class="graphControl">
+        <label class="control-label">Aggregator</label>
+        <select
+          ng-model="$parent.aggregator"
+          ng-options="agg.val as agg.name for agg in aggregators"
+          ng-change="updateGraphsAggregator()"
+          class="aggregator form-control">
+        </select>
+      </div>
+      <div class="graphControl">
+        <button ng-click="updateGraphs()" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i></button>
+      </div>
+    </div>
     <div class="graphsContainer" style="margin-bottom: 20px;">
       <div ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
         <div class="zenchartContainer">
