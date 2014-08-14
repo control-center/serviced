@@ -680,7 +680,7 @@ func (f *Facade) checkNotRunning(ctx datastore.Context, vhosts map[string]struct
 		return err
 	}
 	for _, svc := range svcs {
-		if svc.ID != svcID && svc.DesiredState != service.SVCStop {
+		if svc.ID != svcID && svc.DesiredState != service.SVCStop && svc.DesiredState != service.SVCPause {
 			for _, ep := range svc.Endpoints {
 				for _, vh := range ep.VHosts {
 					if _, found := vhosts[vh]; found {
