@@ -19,8 +19,8 @@
 package isvcs
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 
 	"fmt"
 	"os/user"
@@ -30,7 +30,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zenoss/serviced-isvcs"
-	IMAGE_TAG  = "v13"
+	IMAGE_TAG  = "v14"
 )
 
 func Init() {

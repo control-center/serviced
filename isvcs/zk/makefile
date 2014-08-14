@@ -19,7 +19,7 @@ ZK_VERSION := 3.4.5
 default: tarball
 
 tarball:
-	wget -qO- http://apache.cs.utah.edu/zookeeper/zookeeper-$(ZK_VERSION)/zookeeper-$(ZK_VERSION).tar.gz | tar -C /opt -xz
+	wget -qO- http://archive.apache.org/dist/zookeeper/zookeeper-$(ZK_VERSION)/zookeeper-$(ZK_VERSION).tar.gz | tar -C /opt -xz
 	cp /opt/zookeeper-$(ZK_VERSION)/conf/zoo_sample.cfg /opt/zookeeper-$(ZK_VERSION)/conf/zoo.cfg
 	echo maxClientCnxns=0 >> /opt/zookeeper-$(ZK_VERSION)/conf/zoo.cfg
 	mkdir /opt/exhibitor && \

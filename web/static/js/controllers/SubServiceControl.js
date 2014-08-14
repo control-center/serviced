@@ -549,9 +549,46 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
             } else {
                 graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
-                $scope.drawn[id] = true;
+                $scope.drawn[id] = graph;
+
+                // HACK - this is a quick fix to set a global
+                // aggregation value. Better graph controls will
+                // need more sophisticated config values
+                $scope.aggregator = graph.datapoints[0].aggregator;
             }
         }
+    };
+
+    $scope.updateGraphs = function(){
+        for(var i in $scope.drawn){
+            $scope.updateGraph(i, $scope.drawn[i]);
+        }
+    };
+
+    $scope.updateGraph = function(id, config){
+        zenoss.visualization.chart.update(id, config);
+    };
+
+    // TODO - make this more generic to handle updating any
+    // graph config propery
+    $scope.aggregators = [
+        {
+            name: "Average",
+            val: "avg"
+        },{
+            name: "Sum",
+            val: "sum"
+        }
+    ];
+    $scope.updateGraphsAggregator = function(){
+        // iterate each graphDef
+        for(var i in $scope.drawn){
+            // then iterate each graphDef's datapoints
+            $scope.drawn[i].datapoints.forEach(function(dp){
+                dp.aggregator = $scope.aggregator;
+            });
+        }
+        $scope.updateGraphs();
     };
 
     function loadSubServiceHosts(){

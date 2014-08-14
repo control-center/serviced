@@ -1168,6 +1168,39 @@ rect {
     margin-left: 10px;
 }
 
+.graphsControls {
+    top: 0;
+    right: 0;
+    position: absolute;
+}
+.graphsControls .graphControl {
+    display: inline-block;
+    padding-right: 10px;
+    margin-right: 10px;
+    border-right: solid 1px #CCC;
+}
+.graphsControls .graphControl:last-of-type {
+    margin-right: 0;
+    padding-right: 0;
+    border-right: none;
+}
+.graphsControls .graphControl label {
+    font-weight: normal;
+    font-size: .9em;
+    font-color: #AAA;
+    padding-right: 5px;
+}
+.graphsControls .form-control {
+    display: inline-block;
+    width: 120px;
+    padding: 2px;
+    height: auto;
+}
+
+.infoWrapper {
+    position: relative;
+}
+
 
 
 input.ng-invalid.ng-dirty{
