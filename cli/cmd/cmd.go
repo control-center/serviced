@@ -255,7 +255,9 @@ func setLogging(ctx *cli.Context) error {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
 
-	glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
+	if ctx.IsSet("logstashurl") {
+		glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
+	}
 
 	if ctx.IsSet("v") {
 		glog.SetVerbosity(ctx.GlobalInt("v"))
