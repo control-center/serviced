@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 )
 
 var empty interface{}
@@ -344,36 +345,23 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 }
 
 func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var payload service.Service
+	var svc service.Service
 	var serviceID string
-	err := r.DecodeJsonPayload(&payload)
+	err := r.DecodeJsonPayload(&svc)
 	if err != nil {
 		glog.V(1).Info("Could not decode service payload: ", err)
 		restBadRequest(w, err)
 		return
+
 	}
-	svc, err := service.NewService()
-	if err != nil {
-		glog.Errorf("Could not create service: %v", err)
-		restServerError(w, err)
+	if id, err := utils.NewUUID36(); err != nil {
+		restBadRequest(w, err)
 		return
+	} else {
+		// service.NewService()
+		svc.ID = id
 	}
 	now := time.Now()
-	svc.Name = payload.Name
-	svc.Description = payload.Description
-	svc.Context = payload.Context
-	svc.Tags = payload.Tags
-	svc.PoolID = payload.PoolID
-	svc.ImageID = payload.ImageID
-	svc.Startup = payload.Startup
-	svc.Instances = payload.Instances
-	svc.ParentServiceID = payload.ParentServiceID
-	svc.DesiredState = payload.DesiredState
-	svc.Launch = payload.Launch
-	svc.Endpoints = payload.Endpoints
-	svc.ConfigFiles = payload.ConfigFiles
-	svc.OriginalConfigs = payload.OriginalConfigs
-	svc.Volumes = payload.Volumes
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 
@@ -395,7 +383,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	//add the service to the data store
-	err = client.AddService(*svc, &serviceID)
+	err = client.AddService(svc, &serviceID)
 	if err != nil {
 		glog.Errorf("Unable to add service: %v", err)
 		restServerError(w, err)

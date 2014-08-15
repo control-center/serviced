@@ -144,7 +144,6 @@ func getDockerImageNameIds() (map[string]string, error) {
 	}
 	result := make(map[string]string)
 	for _, image := range images {
-		result[image.UUID] = image.UUID
 		switch image.ID.Tag {
 		case "", "latest":
 			result[image.ID.BaseName()] = image.UUID
@@ -403,7 +402,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	for imageID, imageTags := range imageIDTags {
 		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
 		backupOutput <- fmt.Sprintf("Exporting docker image: %v", imageID)
-		if e := exportDockerImageToFile(imageID, filename); e != nil {
+		if e := exportDockerImageToFile(imageTags[0], filename); e != nil {
 			if e == dockerclient.ErrNoSuchImage {
 				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageID)
 			} else {
@@ -411,11 +410,8 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 				backupError <- e.Error()
 				return e
 			}
-		} else {
-			imageNameWithTags := append([]string{imageID}, imageTags...)
-			imagesNameTags = append(imagesNameTags, imageNameWithTags)
-			i++
 		}
+		i++
 	}
 
 	if e := writeJSONToFile(imagesNameTags, backupPath("images.json")); e != nil {
@@ -659,7 +655,6 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 			}
 		}
 
-		//		if e := client.TagImage(imageID, dockerclient.TagImageOptions{Repo: "imported", Tag: imageID, Force: true}); e != nil {
 		if _, e := image.Tag(imageID); e != nil {
 			glog.Errorf("Found image %s already exists, but could not tag it: %s", imageID, e)
 			restoreError <- e.Error()
