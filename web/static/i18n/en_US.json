@@ -291,6 +291,8 @@
     "template_add": "Add Application Template",
     "template_file": "Application Template File",
     "template_error": "You must provide a valid Application Template file.",
+    "template_remove": "Remove Template",
+    "template_remove_confirm": "This will remove the following template, and cannot be undone: ",
 
     "title_about": "About",
     "title_add_config_file": "Add Configuration File",

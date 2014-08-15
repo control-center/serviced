@@ -61,10 +61,13 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 
 	template, err := servicetemplate.FromJSON(b.String())
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
 	var templateId string
-
 	err = client.AddServiceTemplate(*template, &templateId)
-
 	if err != nil {
 		restServerError(w, err)
 		return

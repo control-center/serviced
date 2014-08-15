@@ -263,6 +263,18 @@
     "tbl_virtual_ip": "IP",
     "tbl_virtual_ip_port": "Servidore de Puerto",
     "tbl_virtual_ip_actions":"Acciones",
+
+    "template": "Plantilla de la aplicación",
+    "templates": "Plantillas de la aplicación",
+    "template_name": "Plantilla de la aplicación",
+    "template_id": "ID",
+    "template_description": "Descripci\u00f3n",
+    "template_add": "A\u00f1adir plantilla de la aplicación",
+    "template_file": "Archivo de plantilla de la aplicación",
+    "template_error": "Debe proporcionar una plantilla de aplicación válida",
+    "template_remove": "Quitar plantilla de la aplicación",
+    "template_remove_confirm": "Esto eliminará el siguiente plantilla de la aplicación, y no puede ser desecho: ",
+
     "title_about": "Sobre",
     "title_add_config_file": "A\u00f1adir archivos de configuraci\u00f3n",
     "title_add_host": "A\u00f1adir servidor",

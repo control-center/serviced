@@ -91,16 +91,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                                 data.append("tpl", value);
                             });
                             resourcesService.add_app_template(data, function(data){
-                                resourcesService.get_app_templates(false, function(templatesMap) {
-                                    var templates = [];
-                                    for (var key in templatesMap) {
-                                        var template = templatesMap[key];
-                                        template.Id = key;
-                                        templates[templates.length] = template;
-                                    }
-                                    $scope.templates.data = templates;
-                                    $scope.install.templateData = templates;
-                                });
+                                resourcesService.get_app_templates(false, refreshTemplates);
                             });
                         }
 
@@ -224,17 +215,24 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     };
 
     $scope.deleteTemplate = function(templateID){
-        resourcesService.delete_app_template(templateID, function(){
-            resourcesService.get_app_templates(false, function(templatesMap) {
-                var templates = [];
-                for (var key in templatesMap) {
-                    var template = templatesMap[key];
-                    template.Id = key;
-                    templates[templates.length] = template;
+        $modalService.create({
+            template: $translate("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
+            model: $scope,
+            title: "template_remove",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "template_remove",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.delete_app_template(templateID, refreshTemplates);
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
                 }
-                $scope.templates.data = templates;
-                $scope.install.templateData = templates;
-            });
+            ]
         });
     };
 
@@ -253,15 +251,18 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 
-    resourcesService.get_app_templates(false, function(templatesMap) {
-        var templates = [];
-        for (var key in templatesMap) {
-            var template = templatesMap[key];
-            template.Id = key;
-            templates[templates.length] = template;
-        }
-        $scope.templates.data = templates;
-    });
+    function refreshTemplates(){
+        resourcesService.get_app_templates(false, function(templatesMap) {
+            var templates = [];
+            for (var key in templatesMap) {
+                var template = templatesMap[key];
+                template.Id = key;
+                templates[templates.length] = template;
+            }
+            $scope.templates.data = templates;
+        });
+    }
 
+    refreshTemplates();
     pollDeploying();
 }
