@@ -14,6 +14,7 @@
 package web
 
 import (
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -21,6 +22,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"bytes"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -44,6 +46,54 @@ func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.C
 	var templatesMap map[string]*servicetemplate.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
 	w.WriteJson(&templatesMap)
+}
+
+func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	// read uploaded file
+	file, _, err := r.FormFile("tpl")
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	defer file.Close()
+
+	var b bytes.Buffer
+	_, err = io.Copy(&b, file)
+
+
+	template, err := servicetemplate.FromJSON(b.String())
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	var templateId string
+	err = client.AddServiceTemplate(*template, &templateId)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(&simpleResponse{templateId, servicesLinks()})
+}
+
+func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	templateID, err := url.QueryUnescape(r.PathParam("templateId"))
+	var unused int
+
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+
+	err = client.RemoveServiceTemplate(templateID, &unused)
+
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(&simpleResponse{templateID, servicesLinks()})
 }
 
 func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
