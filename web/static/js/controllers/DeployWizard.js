@@ -25,9 +25,34 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
         return true;
     };
 
+    var validTemplateUpload = function(){
+        var uploadedFiles = $("#new_template_filename_wizard")[0].files;
+        if(uploadedFiles.length === 0){
+            showError($translate("template_error"));
+            return false;
+        }else{
+            var data = new FormData();
+            $.each(uploadedFiles, function(key, value){
+                data.append("tpl", value);
+            });
+            resourcesService.add_app_template(data, function(data){
+                resourcesService.get_app_templates(false, function(templatesMap) {
+                    var templates = [];
+                    for (var key in templatesMap) {
+                        var template = templatesMap[key];
+                        template.Id = key;
+                        templates[templates.length] = template;
+                    }
+                    $scope.templates.data = templates;
+                });
+            });
+            resetError();
+            return true;
+        }
+    }
+
     var resetStepPage = function() {
         step = 0;
-        $scope.step_page = $scope.steps[step].content;
 
         $scope.install = {
             selected: {
@@ -53,7 +78,17 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
                 template.Id = key;
                 templates[templates.length] = template;
             }
-            $scope.install.templateData = templates;
+            $scope.templates.data
+
+            if($scope.templates.data.length === 0){
+                $scope.steps.unshift({
+                    content: '/static/partials/wizard-modal-add-template.html',
+                    label: 'template_add',
+                    validate: validTemplateUpload
+                });
+            }
+
+            $scope.step_page = $scope.steps[step].content;
         });
     };
 
@@ -68,7 +103,6 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
     }
 
     $scope.steps = [
-        /*        { content: '/static/partials/wizard-modal-1.html', label: 'label_step_select_hosts' }, */
         {
             content: '/static/partials/wizard-modal-2.html',
             label: 'label_step_select_app',
@@ -103,8 +137,8 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     $scope.selectedTemplates = function() {
         var templates = [];
-        for (var i=0; i < $scope.install.templateData.length; i++) {
-            var template = $scope.install.templateData[i];
+        for (var i=0; i < $scope.templates.data.length; i++) {
+            var template = $scope.templates.data[i];
             if ($scope.install.selected[template.Id]) {
                 templates[templates.length] = template;
             }

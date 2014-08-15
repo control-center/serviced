@@ -862,6 +862,35 @@ function ResourcesService($http, $location, $notification) {
             }
         },
 
+        add_app_template: function(fileData, callback){
+            $.ajax( {
+                url: "/templates/add",
+                type: "POST",
+                data: fileData,
+                processData: false,
+                contentType: false,
+                success: function(data, status){
+                    $notification.create("Added template", data.Detail).success();
+                    callback(data);
+                },
+                error: function(data, status){
+                    console.log(data);
+                    $notification.create("Adding template failed", data.responseJSON.Detail).error();
+                }
+            });
+        },
+
+        delete_app_template: function(templateID, callback){
+            $http.delete('/templates/' + templateID).
+                success(function(data, status) {
+                    $notification.create("Removed template", data.Detail).success();
+                    callback(data);
+                }).
+                error(function(data, status){
+                    $notification.create("Removing template failed", data.Detail).error();
+                });
+        },
+
         /*
          * Create a new service definition.
          *

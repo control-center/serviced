@@ -51,6 +51,12 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         { id: 'VirtualHost', name: 'vhost_names'}
     ]);
 
+    $scope.templates = buildTable('Name', [
+        { id: 'Name', name: 'template_name'},
+        { id: 'ID', name: 'template_id'},
+        { id: 'Description', name: 'template_description'}
+    ]);
+
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
     };
@@ -61,6 +67,48 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
     $scope.modalAddApp = function() {
         $('#addApp').modal('show');
+    };
+
+    $scope.modalAddTemplate = function() {
+        $modalService.create({
+            templateUrl: "add-template.html",
+            model: $scope,
+            title: "template_add",
+            actions: [
+                {
+                    role: "cancel",
+                    action: function(){
+                        $scope.newHost = {};
+                        this.close();
+                    }
+                },{
+                    role: "ok",
+                    label: "template_add",
+                    action: function(){
+                        if(this.validate()){
+                            var data = new FormData();
+                            $.each($("#new_template_filename")[0].files, function(key, value){
+                                data.append("tpl", value);
+                            });
+                            resourcesService.add_app_template(data, function(data){
+                                resourcesService.get_app_templates(false, function(templatesMap) {
+                                    var templates = [];
+                                    for (var key in templatesMap) {
+                                        var template = templatesMap[key];
+                                        template.Id = key;
+                                        templates[templates.length] = template;
+                                    }
+                                    $scope.templates.data = templates;
+                                    $scope.install.templateData = templates;
+                                });
+                            });
+                        }
+
+                        this.close();
+                    }
+                }
+            ]
+        });
     };
 
     // given a service application find all of it's virtual host names
@@ -175,6 +223,21 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         }
     };
 
+    $scope.deleteTemplate = function(templateID){
+        resourcesService.delete_app_template(templateID, function(){
+            resourcesService.get_app_templates(false, function(templatesMap) {
+                var templates = [];
+                for (var key in templatesMap) {
+                    var template = templatesMap[key];
+                    template.Id = key;
+                    templates[templates.length] = template;
+                }
+                $scope.templates.data = templates;
+                $scope.install.templateData = templates;
+            });
+        });
+    };
+
     if ($scope.dev) {
         setupNewService();
         $scope.add_service = function() {
@@ -189,6 +252,16 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     function capitalizeFirst(str){
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
+
+    resourcesService.get_app_templates(false, function(templatesMap) {
+        var templates = [];
+        for (var key in templatesMap) {
+            var template = templatesMap[key];
+            template.Id = key;
+            templates[templates.length] = template;
+        }
+        $scope.templates.data = templates;
+    });
 
     pollDeploying();
 }
