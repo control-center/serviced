@@ -321,6 +321,11 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 		return "", err
 	}
 
+	// Mark any running containers as out of sync
+	if err := d.desynchronize(image.ID, time.Now()); err != nil {
+		glog.Warningf("Could not mark all desynchronized services: %s", err)
+	}
+
 	// Update the dfs
 	var theVolume volume.Volume
 	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
@@ -535,6 +540,40 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 		}
 
 		tagged = append(tagged, ti)
+	}
+
+	return nil
+}
+
+// desynchronize marks all service states using a particular ImageID as out of
+// sync if started before the time of commit
+func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit time.Time) error {
+	svcs, err := d.facade.GetServices(datastore.Get())
+	if err != nil {
+		return err
+	}
+
+	for _, svc := range svcs {
+		// figure out which services use the provided image
+		if svcImage, err := commons.ParseImageID(svc.ImageID); err != nil {
+			return err
+		} else if !svcImage.Equals(imageID) {
+			continue
+		}
+
+		var states []*servicestate.ServiceState
+		if err := d.client.GetServiceStates(svc.ID, &states); err != nil {
+			return err
+		}
+		for _, state := range states {
+			// check if the instance has been running since before the commit
+			if state.IsRunning() && state.Started.Before(commit) {
+				state.InSync = false
+				if err := d.client.UpdateServiceState(*state, new(int)); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil

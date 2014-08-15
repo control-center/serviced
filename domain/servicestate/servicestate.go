@@ -53,6 +53,7 @@ type ServiceState struct {
 	Endpoints  []service.ServiceEndpoint
 	HostIP     string
 	InstanceID int
+	InSync     bool
 }
 
 // IsRunning returns true when a service is currently running
@@ -94,6 +95,7 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 		serviceState.ServiceID = service.ID
 		serviceState.HostID = hostId
 		serviceState.Scheduled = time.Now()
+		serviceState.InSync = true
 		serviceState.Endpoints = service.Endpoints
 		for j, ep := range serviceState.Endpoints {
 			if ep.PortTemplate != "" {

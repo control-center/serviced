@@ -74,6 +74,7 @@ type RunningService struct {
 	HostID            string
 	DockerID          string
 	StartedAt         time.Time
+	InSync            bool
 	Name              string
 	Startup           string
 	Description       string
