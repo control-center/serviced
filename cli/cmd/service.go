@@ -404,6 +404,12 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", state.DockerID)
 				lines[iid]["Uptime"] = state.Uptime().String()
 				lines[iid]["Status"] = status.String()
+
+				insync := "Y"
+				if !state.InSync {
+					insync = "N"
+				}
+				lines[iid]["InSync"] = insync
 			}
 		}
 	}
@@ -428,10 +434,10 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID")
+	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID", "IN_SYNC")
 	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
 		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"])
+		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"], s["InSync"])
 	}, func(row []interface{}) string {
 		return strings.ToLower(row[1].(string))
 	})

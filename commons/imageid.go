@@ -233,6 +233,22 @@ func ParseImageID(iid string) (*ImageID, error) {
 	return result, nil
 }
 
+// Equals compares to ImageID objects to verify they are the same
+func (iid ImageID) Equals(iid2 ImageID) bool {
+	if iid.BaseName() != iid2.BaseName() {
+		return false
+	} else if iid.Tag == iid2.Tag {
+		return true
+	}
+
+	switch iid.Tag {
+	case "", "latest":
+		return iid2.Tag == "" || iid2.Tag == "latest"
+	}
+
+	return false
+}
+
 // String returns a string representation of the ImageID structure
 func (iid ImageID) String() string {
 	name := iid.BaseName()

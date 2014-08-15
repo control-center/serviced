@@ -246,7 +246,7 @@ func (l *HostStateListener) startInstance(svc *service.Service, state *servicest
 	if err := l.handler.StartService(done, svc, state); err != nil {
 		return nil, err
 	}
-
+	state.InSync = true
 	wait, err := l.updateInstance(done, state)
 	if err != nil {
 		return nil, err

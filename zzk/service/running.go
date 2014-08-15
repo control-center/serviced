@@ -32,6 +32,7 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 		HostID:          state.HostID,
 		DockerID:        state.DockerID,
 		InstanceID:      state.InstanceID,
+		InSync:          state.InSync,
 		Startup:         service.Startup,
 		Name:            service.Name,
 		Description:     service.Description,

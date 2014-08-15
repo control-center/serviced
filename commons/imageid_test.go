@@ -299,3 +299,48 @@ func TestValidateValid(t *testing.T) {
 		t.Fatal("expecting success: ", iid.String())
 	}
 }
+
+type ImageEqualsTest struct {
+	id1, id2 string
+	expected bool
+}
+
+func DoImageEqualsTest(t *testing.T, tests []ImageEqualsTest) {
+	for i, tt := range tests {
+		iid1, err := ParseImageID(tt.id1)
+		if err != nil {
+			t.Fatalf("error parsing %s on %d: %s", tt.id1, i, err)
+		}
+
+		iid2, err := ParseImageID(tt.id2)
+		if err != nil {
+			t.Fatalf("error parsing %s on %d: %s", tt.id2, i, err)
+		}
+
+		expected := "match"
+		if !tt.expected {
+			expected = "mismatch"
+		}
+
+		if iid1.Equals(*iid2) != tt.expected {
+			t.Errorf("expected %s on %d: (%s) (%s)", expected, i, iid1, iid2)
+		} else if iid2.Equals(*iid1) != tt.expected {
+			t.Errorf("expected %s on %d: (%s) (%s)", expected, i, iid2, iid1)
+		}
+	}
+}
+
+func TestEquals(t *testing.T) {
+	tests := []ImageEqualsTest{
+		{"warner.bros:1948/dobbs/sierramadre:1925", "warner.bros:1948/dobbs/sierramadre:1925", true},
+		{"warner.bros:1948/dobbs/sierramadre:1925", "niblet3:5000/devimg:1925", false},
+		{"warner.bros:1948/dobbs/sierramadre:1925", "warner.bros:1948/dobbs/sierramadre:1234", false},
+		{"warner.bros:1948/dobbs/sierramadre:1925", "warner.bros:1948/dobbs/sierramadre", false},
+		{"warner.bros:1948/dobbs/sierramadre:1925", "warner.bros:1948/dobbs/sierramadre:latest", false},
+		{"warner.bros:1948/dobbs/sierramadre", "warner.bros:1948/dobbs/sierramadre:latest", true},
+		{"warner.bros:1948/dobbs/sierramadre", "warner.bros:1948/dobbs/sierramadre", true},
+		{"warner.bros:1948/dobbs/sierramadre", "niblet3:5000/devimg", false},
+		{"warner.bros:1948/dobbs/sierramadre", "niblet3:5000/devimg:latest", false},
+	}
+	DoImageEqualsTest(t, tests)
+}
