@@ -16,7 +16,9 @@ package master
 import (
 	"github.com/zenoss/glog"
 
+	"net"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 )
 
 var (
@@ -34,9 +36,12 @@ func NewClient(addr string) (*Client, error) {
 	s := new(Client)
 	s.addr = addr
 	glog.V(4).Infof("Connecting to %s", addr)
-	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
-	s.rpcClient = rpcClient
-	return s, err
+	conn, err := net.Dial("tcp", s.addr)
+	if err != nil {
+		return nil, err
+	}
+	s.rpcClient = jsonrpc.NewClient(conn)
+	return s, nil
 }
 
 func (c *Client) call(name string, request interface{}, response interface{}) error {

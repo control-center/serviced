@@ -19,7 +19,9 @@
 package node
 
 import (
+	"net"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
@@ -46,9 +48,12 @@ func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
 	glog.V(4).Infof("Connecting to %s", addr)
-	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
-	s.rpcClient = rpcClient
-	return s, err
+	conn, err := net.Dial("tcp", s.addr)
+	if err != nil {
+		return nil, err
+	}
+	s.rpcClient = jsonrpc.NewClient(conn)
+	return s, nil
 }
 
 // Return the matching hosts.
