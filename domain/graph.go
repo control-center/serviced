@@ -10,8 +10,8 @@ import "reflect"
 //DataPointRateOptions define the rate options for a data point
 type DataPointRateOptions struct {
 	Counter        bool  `json:"counter"`
-	CounterMax     int64 `json:"countermax"`
-	ResetThreshold int64 `json:"resetthreshold"`
+	CounterMax     int64 `json:"counterMax"`
+	ResetThreshold int64 `json:"resetThreshold"`
 }
 
 // DataPoint defines a datum to be plotted within a graph
