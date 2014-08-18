@@ -402,7 +402,17 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	for imageID, imageTags := range imageIDTags {
 		filename := backupPath("images", fmt.Sprintf("%d.tar", i))
 		backupOutput <- fmt.Sprintf("Exporting docker image: %v", imageID)
-		if e := exportDockerImageToFile(imageTags[0], filename); e != nil {
+		// Try to find the tag referring to the local registry, so we don't
+		// make a call to Docker Hub potentially with invalid auth
+		// Default to the first tag in the list
+		tag := imageTags[0]
+		for _, t := range imageTags {
+			if strings.HasPrefix(t, cp.dockerRegistry) {
+				tag = t
+				break
+			}
+		}
+		if e := exportDockerImageToFile(tag, filename); e != nil {
 			if e == dockerclient.ErrNoSuchImage {
 				glog.Infof("Docker image %s was referenced, but does not exist. Ignoring.", imageID)
 			} else {
