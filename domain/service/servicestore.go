@@ -122,7 +122,10 @@ func addInternalGraphConfigs(svc *Service) {
 					ID:           "cgroup.cpuacct.system",
 					Name:         "System",
 					Rate:         true,
-					Type:         "area",
+					RateOptions: &domain.DataPointRateOptions{
+						Counter: true,
+					},
+					Type: "area",
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
@@ -133,7 +136,10 @@ func addInternalGraphConfigs(svc *Service) {
 					ID:           "cgroup.cpuacct.user",
 					Name:         "User",
 					Rate:         true,
-					Type:         "area",
+					RateOptions: &domain.DataPointRateOptions{
+						Counter: true,
+					},
+					Type: "area",
 				},
 			},
 		},
