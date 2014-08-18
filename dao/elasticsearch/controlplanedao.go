@@ -107,14 +107,15 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 }
 
 // Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
-		hostName: hostName,
-		port:     port,
+		hostName:       hostName,
+		port:           port,
+		dockerRegistry: dockerRegistry,
 	}
 	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, maxdfstimeout); err != nil {
 		return nil, err
@@ -125,11 +126,11 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfs
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, maxdfstimeout time.Duration) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade, maxdfstimeout)
+	s, err := NewControlPlaneDao(hostName, port, facade, maxdfstimeout, dockerRegistry)
 	if err != nil {
 		return nil, err
 	}
