@@ -122,7 +122,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 	return nil
 }
 
-func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[*servicestate.ServiceState]dao.Status) error {
+func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[string]dao.ServiceStatus) error {
 	svc, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %s: %s", serviceID, err)

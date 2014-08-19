@@ -156,7 +156,7 @@ func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unus
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
 
-func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]dao.Status) (err error) {
+func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap)
 }
 
