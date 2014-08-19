@@ -752,7 +752,7 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	for _, backupFileInfo := range backupFiles {
 		if !backupFileInfo.IsDir() {
 			fullPath := hostIP + ":" + filepath.Join(backupDir, backupFileInfo.Name())
-			fileInfo := JsonizableFileInfo{ fullPath, backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
+			fileInfo := JsonizableFileInfo{fullPath, backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
 			fileData = append(fileData, fileInfo)
 		}
 	}

@@ -270,6 +270,6 @@ func (s *ControlClient) RestoreStatus(notUsed string, restoreStatus *string) err
 	return s.rpcClient.Call("ControlPlane.RestoreStatus", notUsed, restoreStatus)
 }
 
-func (s *ControlClient) ImageLayerCount(imageUUID string, layers* int) error {
+func (s *ControlClient) ImageLayerCount(imageUUID string, layers *int) error {
 	return s.rpcClient.Call("ControlPlane.ImageLayerCount", imageUUID, layers)
 }
