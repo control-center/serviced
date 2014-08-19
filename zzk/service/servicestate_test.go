@@ -90,12 +90,12 @@ func TestGetServiceStatus(t *testing.T) {
 	}
 
 	// Verify
-	for state, status := range statusmap {
-		expect, ok := expected[state.ID]
+	for _, svcstatus := range statusmap {
+		expect, ok := expected[svcstatus.State.ID]
 		if !ok {
-			t.Fatalf("Missing service state %s", state.ID)
-		} else if expect != status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, status)
+			t.Fatalf("Missing service state %s", svcstatus.State.ID)
+		} else if expect != svcstatus.Status {
+			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
 		}
 	}
 
@@ -117,12 +117,12 @@ func TestGetServiceStatus(t *testing.T) {
 	}
 
 	// Verify
-	for state, status := range statusmap {
-		expect, ok := expected[state.ID]
+	for _, svcstatus := range statusmap {
+		expect, ok := expected[svcstatus.State.ID]
 		if !ok {
-			t.Fatalf("Missing service state %s", state.ID)
-		} else if expect != status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, status)
+			t.Fatalf("Missing service state %s", svcstatus.State.ID)
+		} else if expect != svcstatus.Status {
+			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
 		}
 	}
 
@@ -144,12 +144,12 @@ func TestGetServiceStatus(t *testing.T) {
 	}
 
 	// Verify
-	for state, status := range statusmap {
-		expect, ok := expected[state.ID]
+	for _, svcstatus := range statusmap {
+		expect, ok := expected[svcstatus.State.ID]
 		if !ok {
-			t.Fatalf("Missing service state %s", state.ID)
-		} else if expect != status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, status)
+			t.Fatalf("Missing service state %s", svcstatus.State.ID)
+		} else if expect != svcstatus.Status {
+			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
 		}
 	}
 
