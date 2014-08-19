@@ -12,7 +12,7 @@
 # limitations under the License.
 
 TARGET := $(shell pwd)
-QUERY_VERSION := 0.0.8
+QUERY_VERSION := 0.0.10
 
 .PHONY: default tarball
 
