@@ -14,17 +14,17 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/zenoss/glog"
 
 	"fmt"
 )
 
-func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]*dao.RunningService) error {
+func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) error {
 	allPools, err := this.facade.GetResourcePools(datastore.Get())
 	if err != nil {
 		glog.Error("runningservice.go failed to get resource pool")
@@ -47,7 +47,9 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 			return err
 		}
 
-		*allRunningServices = append(*allRunningServices, singlePoolRunningServices...)
+		for _, rs := range singlePoolRunningServices {
+			*allRunningServices = append(*allRunningServices, *rs)
+		}
 	}
 
 	return nil

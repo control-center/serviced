@@ -130,7 +130,7 @@ type ControlPlane interface {
 	GetServiceStateLogs(request ServiceStateRequest, logs *string) error
 
 	// Get all running services
-	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
+	GetRunningServices(request EntityRequest, runningServices *[]RunningService) error
 
 	// Get the services instances for a given service
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
