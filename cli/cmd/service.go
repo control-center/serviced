@@ -137,7 +137,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "shell",
@@ -150,7 +149,6 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "run",
@@ -166,7 +164,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "attach",
@@ -702,11 +699,6 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		return nil
 	}
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	args := ctx.Args()
 	options := api.ControllerOptions{
 		MuxPort:               ctx.GlobalInt("muxport"),
@@ -746,11 +738,6 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
-	}
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
 	}
 
 	var (
@@ -805,11 +792,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		command string
 		argv    []string
 	)
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
 
 	svc, err := c.searchForService(args[0])
 	if err != nil {

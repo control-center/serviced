@@ -36,6 +36,7 @@ const envPrefix = "SERVICED_"
 
 func configEnv(key string, defaultVal string) string {
 	s := os.Getenv(envPrefix + key)
+
 	if len(s) == 0 {
 		return defaultVal
 	}
@@ -264,9 +265,7 @@ func setLogging(ctx *cli.Context) error {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
 
-	if ctx.IsSet("logstashurl") {
-		glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
-	}
+	glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
 
 	if ctx.IsSet("v") {
 		glog.SetVerbosity(ctx.GlobalInt("v"))
