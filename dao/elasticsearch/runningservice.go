@@ -92,10 +92,14 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 		return err
 	}
 
-	*services, err = zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
+	svcs, err := zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
 	if err != nil {
 		glog.Errorf("LoadRunningServicesByService failed (conn: %+v serviceID: %v): %v", poolBasedConn, serviceID, err)
 		return err
+	}
+
+	for _, svc := range svcs {
+		*services = append(*services, *svc)
 	}
 
 	return nil

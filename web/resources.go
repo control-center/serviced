@@ -304,7 +304,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if strings.Contains(serviceID, "isvc-") {
-		w.WriteJson([]*dao.RunningService{})
+		w.WriteJson([]dao.RunningService{})
 		return
 	}
 	if err != nil {
