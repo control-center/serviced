@@ -279,14 +279,14 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if strings.Contains(serviceID, "isvc-") {
-		w.WriteJson([]*dao.RunningService{})
+		w.WriteJson([]dao.RunningService{})
 		return
 	}
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -295,7 +295,7 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
 	w.WriteJson(&services)

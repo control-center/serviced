@@ -136,7 +136,7 @@ type ControlPlane interface {
 	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
 
 	// Get the service instances for a given service
-	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
+	GetRunningServicesForService(serviceId string, runningServices *[]RunningService) error
 
 	// Attach to a running container with a predefined action
 	Action(request AttachRequest, unused *int) error

@@ -79,7 +79,7 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 	return nil
 }
 
-func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]*dao.RunningService) error {
+func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
 	myService, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %v: %v", serviceID, err)
@@ -92,10 +92,14 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 		return err
 	}
 
-	*services, err = zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
+	svcs, err := zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
 	if err != nil {
 		glog.Errorf("LoadRunningServicesByService failed (conn: %+v serviceID: %v): %v", poolBasedConn, serviceID, err)
 		return err
+	}
+
+	for _, svc := range svcs {
+		*services = append(*services, *svc)
 	}
 
 	return nil

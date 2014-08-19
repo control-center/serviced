@@ -121,7 +121,7 @@ func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
 }
 
-func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]*dao.RunningService) error {
+func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]dao.RunningService) error {
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForService", serviceId, runningServices)
 }
 
