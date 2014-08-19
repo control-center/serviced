@@ -145,7 +145,7 @@ $(Godeps_restored): $(GODEP) $(Godeps)
 
 .PHONY: build_isvcs
 build_isvcs: $(Godeps_restored)
-	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
+	cd isvcs && make
 
 .PHONY: build_js
 build_js:
@@ -206,7 +206,6 @@ docker_build: docker_ok
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
-	cd isvcs && make isvcs_repo
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
