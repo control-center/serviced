@@ -29,7 +29,7 @@ type Store struct {
 	datastore.DataStore
 }
 
-func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]*AddressAssignment, error) {
+func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
 	query := fmt.Sprintf("ServiceID:%s", serviceID)
 	q := datastore.NewQuery(ctx)
 	elasticQuery := search.Query().Search(query)
@@ -46,8 +46,8 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func convert(results datastore.Results) ([]*AddressAssignment, error) {
-	assignments := make([]*AddressAssignment, results.Len())
+func convert(results datastore.Results) ([]AddressAssignment, error) {
+	assignments := make([]AddressAssignment, results.Len())
 	for idx := range assignments {
 		var aa AddressAssignment
 		err := results.Get(idx, &aa)
@@ -55,7 +55,7 @@ func convert(results datastore.Results) ([]*AddressAssignment, error) {
 			return nil, err
 		}
 
-		assignments[idx] = &aa
+		assignments[idx] = aa
 	}
 	return assignments, nil
 }

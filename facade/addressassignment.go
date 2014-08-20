@@ -15,7 +15,7 @@ import (
 )
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID string, assignments *[]*addressassignment.AddressAssignment) error {
+func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID string, assignments *[]addressassignment.AddressAssignment) error {
 	store := addressassignment.NewStore()
 
 	results, err := store.GetServiceAddressAssignments(ctx, serviceID)
@@ -174,13 +174,13 @@ func (f *Facade) validEndpoint(ctx datastore.Context, serviceId string, endpoint
 }
 
 // getEndpointAddressAssignments returns the AddressAssignment for the service and endpoint, if no assignments the AddressAssignment will be nil
-func (f *Facade) getAddressAssignments(ctx datastore.Context, serviceID string) (map[string]*addressassignment.AddressAssignment, error) {
-	assignments := []*addressassignment.AddressAssignment{}
+func (f *Facade) getAddressAssignments(ctx datastore.Context, serviceID string) (map[string]addressassignment.AddressAssignment, error) {
+	assignments := []addressassignment.AddressAssignment{}
 	if err := f.GetServiceAddressAssignments(ctx, serviceID, &assignments); err != nil {
 		return nil, err
 	}
 
-	addrs := make(map[string]*addressassignment.AddressAssignment)
+	addrs := make(map[string]addressassignment.AddressAssignment)
 	for _, result := range assignments {
 		addrs[result.EndpointName] = result
 	}
@@ -195,7 +195,7 @@ func (f *Facade) getEndpointAddressAssignments(ctx datastore.Context, serviceID 
 	}
 
 	if addr, found := assignments[endpointName]; found {
-		return addr, nil
+		return &addr, nil
 	}
 	return nil, nil
 }
