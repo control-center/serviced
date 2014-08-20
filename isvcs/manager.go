@@ -23,6 +23,7 @@ import (
 	"github.com/zenoss/go-dockerclient"
 
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path"
@@ -176,17 +177,25 @@ func (m *Manager) loadImages() error {
 				continue
 			}
 			localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar.gz")
+			imageRepoTag := c.Repo+":"+c.Tag;
 			glog.Infof("Looking for %s", localTar)
-			if _, exists := loadedImages[localTar]; exists {
+			if _, exists := loadedImages[imageRepoTag]; exists {
 				continue
 			}
 			if _, err := os.Stat(localTar); err == nil {
-				if err := loadImage(localTar, m.dockerAddress, c.Repo+":"+c.Tag); err != nil {
+				if err := loadImage(localTar, m.dockerAddress, imageRepoTag); err != nil {
 					return err
 				}
-				loadedImages[localTar] = true
+				glog.Infof("Loaded %s from %s", imageRepoTag, localTar)
+				loadedImages[imageRepoTag] = true
 			} else {
-
+				glog.Infof("Pulling image %s", imageRepoTag)
+				cmd := exec.Command("docker", "-H", m.dockerAddress, "pull", imageRepoTag)
+				if output, err := cmd.CombinedOutput(); err != nil {
+					return fmt.Errorf("Failed to pull image:(%s) %s ", err, output)
+				}
+				glog.Infof("Pulled %s", imageRepoTag)
+				loadedImages[imageRepoTag] = true
 			}
 		}
 	}

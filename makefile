@@ -145,7 +145,7 @@ $(Godeps_restored): $(GODEP) $(Godeps)
 
 .PHONY: build_isvcs
 build_isvcs: $(Godeps_restored)
-	cd isvcs && make IN_DOCKER=$(IN_DOCKER)
+	cd isvcs && make
 
 .PHONY: build_js
 build_js:
@@ -206,7 +206,6 @@ docker_build: docker_ok
 	-v `pwd`/$(pkg_build_tmp):/tmp \
 	-t zenoss/serviced-build \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
-	cd isvcs && make isvcs_repo
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
@@ -255,8 +254,6 @@ $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
 $(_DESTDIR)$(prefix)/share/shell_INSTOPT           = -R
 $(_DESTDIR)$(prefix)/isvcs_TARGETS                 = isvcs/resources:.
 $(_DESTDIR)$(prefix)/isvcs_INSTOPT                 = -R
-$(_DESTDIR)$(prefix)_TARGETS                       = isvcs/images:.
-$(_DESTDIR)$(prefix)_INSTOPT                       = -R
 $(_DESTDIR)$(sysconfdir)/default_TARGETS           = pkg/serviced.default:serviced
 $(_DESTDIR)$(sysconfdir)/bash_completion.d_TARGETS = serviced-bash-completion.sh:serviced
 
@@ -398,7 +395,6 @@ pkgs:
 .PHONY: docker_buildandpackage
 docker_buildandpackage: docker_ok
 	docker build -t zenoss/serviced-build build
-	cd isvcs && make export
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/control-center/serviced \
 	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
