@@ -324,8 +324,8 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		templateId     string
 		serviceId      string
 		backupFilePath string
-		templates      map[string]*servicetemplate.ServiceTemplate
-		services       []*service.Service
+		templates      map[string]servicetemplate.ServiceTemplate
+		services       []service.Service
 	)
 
 	// Create a minimal docker image

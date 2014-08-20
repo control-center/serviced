@@ -43,7 +43,7 @@ func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, se
 	return zkservice.GetServiceState(poolBasedConn, serviceState, request.ServiceID, request.ServiceStateID)
 }
 
-func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]*servicestate.ServiceState) error {
+func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]servicestate.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
 
 	myService, err := this.facade.GetService(datastore.Get(), serviceId)
@@ -63,7 +63,7 @@ func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[
 }
 
 /* This method assumes that if a service instance exists, it has not yet been terminated */
-func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, serviceStates *[]*servicestate.ServiceState) error {
+func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, serviceStates *[]servicestate.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.getNonTerminatedServiceStates: serviceId=%s", serviceId)
 
 	myService, err := this.facade.GetService(datastore.Get(), serviceId)
@@ -122,7 +122,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 	return nil
 }
 
-func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[*servicestate.ServiceState]dao.Status) error {
+func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[string]dao.ServiceStatus) error {
 	svc, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %s: %s", serviceID, err)

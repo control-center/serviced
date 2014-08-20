@@ -31,7 +31,7 @@ const (
 
 var DefaultTemplateAPITest = TemplateAPITest{templates: DefaultTestTemplates}
 
-var DefaultTestTemplates = []*template.ServiceTemplate{
+var DefaultTestTemplates = []template.ServiceTemplate{
 	{
 		ID:          "test-template-1",
 		Name:        "Alpha",
@@ -55,14 +55,14 @@ var (
 type TemplateAPITest struct {
 	api.API
 	fail      bool
-	templates []*template.ServiceTemplate
+	templates []template.ServiceTemplate
 }
 
 func InitTemplateAPITest(args ...string) {
 	New(DefaultTemplateAPITest).Run(args)
 }
 
-func (t TemplateAPITest) GetServiceTemplates() ([]*template.ServiceTemplate, error) {
+func (t TemplateAPITest) GetServiceTemplates() ([]template.ServiceTemplate, error) {
 	if t.fail {
 		return nil, ErrInvalidTemplate
 	}
@@ -76,7 +76,7 @@ func (t TemplateAPITest) GetServiceTemplate(id string) (*template.ServiceTemplat
 
 	for i, template := range t.templates {
 		if template.ID == id {
-			return t.templates[i], nil
+			return &t.templates[i], nil
 		}
 	}
 
@@ -167,7 +167,7 @@ func TestServicedCLI_CmdTemplateList_all(t *testing.T) {
 		t.Fatalf("got:\n%+v\nwant:\n%+v", actual, expected)
 	}
 	for i := range actual {
-		if !actual[i].Equals(expected[i]) {
+		if !actual[i].Equals(&expected[i]) {
 			t.Fatalf("got:\n%+v\nwant:\n%+v", actual, expected)
 		}
 	}

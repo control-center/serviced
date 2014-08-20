@@ -19,7 +19,9 @@
 package node
 
 import (
+	"net"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
@@ -46,9 +48,12 @@ func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
 	glog.V(4).Infof("Connecting to %s", addr)
-	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
-	s.rpcClient = rpcClient
-	return s, err
+	conn, err := net.Dial("tcp", s.addr)
+	if err != nil {
+		return nil, err
+	}
+	s.rpcClient = jsonrpc.NewClient(conn)
+	return s, nil
 }
 
 // Return the matching hosts.
@@ -56,15 +61,15 @@ func (s *ControlClient) Close() (err error) {
 	return s.rpcClient.Close()
 }
 
-func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
+func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
 }
 
-func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]*service.Service) (err error) {
+func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }
 
-func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServices *[]*service.Service) (err error) {
+func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServices *[]service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetTaggedServices", request, replyServices)
 }
 
@@ -100,7 +105,7 @@ func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *st
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
 }
 
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]*addressassignment.AddressAssignment) (err error) {
+func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses)
 }
 
@@ -112,11 +117,11 @@ func (s *ControlClient) GetServiceStateLogs(request dao.ServiceStateRequest, log
 	return s.rpcClient.Call("ControlPlane.GetServiceStateLogs", request, logs)
 }
 
-func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]*dao.RunningService) (err error) {
+func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices *[]dao.RunningService) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
 }
 
-func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]*dao.RunningService) (err error) {
+func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]dao.RunningService) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForService", serviceId, runningServices)
 }
 
@@ -124,7 +129,7 @@ func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unus
 	return s.rpcClient.Call("ControlPlane.StopRunningInstance", request, unused)
 }
 
-func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]*dao.RunningService) (err error) {
+func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices)
 }
 
@@ -136,7 +141,7 @@ func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, runni
 	return s.rpcClient.Call("ControlPlane.GetRunningService", request, running)
 }
 
-func (s *ControlClient) GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) (err error) {
+func (s *ControlClient) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
 
@@ -156,7 +161,7 @@ func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unus
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
 
-func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]dao.Status) (err error) {
+func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap)
 }
 
@@ -172,7 +177,7 @@ func (s *ControlClient) DeployTemplateActive(notUsed string, active *[]map[strin
 	return s.rpcClient.Call("ControlPlane.DeployTemplateActive", notUsed, active)
 }
 
-func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error {
+func (s *ControlClient) GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error {
 	return s.rpcClient.Call("ControlPlane.GetServiceTemplates", unused, serviceTemplates)
 }
 
@@ -270,6 +275,6 @@ func (s *ControlClient) RestoreStatus(notUsed string, restoreStatus *string) err
 	return s.rpcClient.Call("ControlPlane.RestoreStatus", notUsed, restoreStatus)
 }
 
-func (s *ControlClient) ImageLayerCount(imageUUID string, layers* int) error {
+func (s *ControlClient) ImageLayerCount(imageUUID string, layers *int) error {
 	return s.rpcClient.Call("ControlPlane.ImageLayerCount", imageUUID, layers)
 }

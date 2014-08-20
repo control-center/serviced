@@ -102,7 +102,7 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		if e != nil {
 			return e
 		}
-		serviceMap := make(map[string]*service.Service)
+		serviceMap := make(map[string]service.Service)
 		for _, service := range services {
 			serviceMap[service.ID] = service
 		}

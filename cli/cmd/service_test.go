@@ -38,7 +38,7 @@ var DefaultServiceAPITest = ServiceAPITest{
 	snapshots: DefaultTestSnapshots,
 }
 
-var DefaultTestServices = []*service.Service{
+var DefaultTestServices = []service.Service{
 	{
 		ID:             "test-service-1",
 		Name:           "Zenoss",
@@ -88,7 +88,7 @@ var (
 type ServiceAPITest struct {
 	api.API
 	fail      bool
-	services  []*service.Service
+	services  []service.Service
 	pools     []*pool.ResourcePool
 	snapshots []string
 }
@@ -97,7 +97,7 @@ func InitServiceAPITest(args ...string) {
 	New(DefaultServiceAPITest).Run(args)
 }
 
-func (t ServiceAPITest) GetServices() ([]*service.Service, error) {
+func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 	if t.fail {
 		return nil, ErrInvalidService
 	}
@@ -116,9 +116,9 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 		return nil, ErrInvalidService
 	}
 
-	for _, s := range t.services {
+	for i, s := range t.services {
 		if s.ID == id {
-			return s, nil
+			return &t.services[i], nil
 		}
 	}
 
@@ -312,7 +312,7 @@ func TestServicedCLI_CmdServiceList_all(t *testing.T) {
 		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 	}
 	for i := range actual {
-		if !actual[i].Equals(expected[i]) {
+		if !actual[i].Equals(&expected[i]) {
 			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 		}
 	}

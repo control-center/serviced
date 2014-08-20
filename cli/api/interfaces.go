@@ -48,11 +48,11 @@ type API interface {
 	RemoveVirtualIP(pool.VirtualIP) error
 
 	// Services
-	GetServices() ([]*service.Service, error)
-	GetServiceStates(string) ([]*servicestate.ServiceState, error)
-	GetServiceStatus(string) (map[*servicestate.ServiceState]dao.Status, error)
+	GetServices() ([]service.Service, error)
+	GetServiceStates(string) ([]servicestate.ServiceState, error)
+	GetServiceStatus(string) (map[string]dao.ServiceStatus, error)
 	GetService(string) (*service.Service, error)
-	GetServicesByName(string) ([]*service.Service, error)
+	GetServicesByName(string) ([]service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(RemoveServiceConfig) error
 	UpdateService(io.Reader) (*service.Service, error)
@@ -61,7 +61,7 @@ type API interface {
 	AssignIP(IPConfig) error
 
 	// RunningServices (ServiceStates)
-	GetRunningServices() ([]*dao.RunningService, error)
+	GetRunningServices() ([]dao.RunningService, error)
 	Attach(AttachConfig) error
 	Action(AttachConfig) error
 
@@ -78,7 +78,7 @@ type API interface {
 	Rollback(string) error
 
 	// Templates
-	GetServiceTemplates() ([]*template.ServiceTemplate, error)
+	GetServiceTemplates() ([]template.ServiceTemplate, error)
 	GetServiceTemplate(string) (*template.ServiceTemplate, error)
 	AddServiceTemplate(io.Reader) (*template.ServiceTemplate, error)
 	RemoveServiceTemplate(string) error

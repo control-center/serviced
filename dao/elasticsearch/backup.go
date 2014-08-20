@@ -392,7 +392,7 @@ func utcNow() time.Time {
 }
 
 // Find all docker images referenced by a template or service
-func dockerImageSet(templates map[string]*servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
+func dockerImageSet(templates map[string]servicetemplate.ServiceTemplate, services []service.Service) map[string]bool {
 	imageSet := make(map[string]bool)
 	var visit func(*[]servicedefinition.ServiceDefinition)
 	visit = func(defs *[]servicedefinition.ServiceDefinition) {
@@ -472,8 +472,8 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	backupOutput <- "Starting backup"
 
 	var (
-		templates      map[string]*servicetemplate.ServiceTemplate
-		services       []*service.Service
+		templates      map[string]servicetemplate.ServiceTemplate
+		services       []service.Service
 		imagesNameTags [][]string
 	)
 	backupName := utcNow().Format("backup-2006-01-02-150405")
@@ -594,7 +594,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	// Dump all snapshots
-	snapshotToTgzFile := func(service *service.Service) (filename string, err error) {
+	snapshotToTgzFile := func(service service.Service) (filename string, err error) {
 		glog.V(0).Infof("snapshotToTgzFile(%v)", service.ID)
 		backupOutput <- fmt.Sprintf("Taking snapshot of service: %v", service.Name)
 		var snapshotID string
@@ -721,7 +721,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 
 	// Do not restore if there are running services
 	var empty interface{}
-	var rss []*dao.RunningService
+	var rss []dao.RunningService
 	if e := cp.GetRunningServices(empty, &rss); e != nil {
 		glog.Errorf("Error trying to find running services: %s", err)
 		restoreError <- e.Error()
@@ -738,7 +738,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
-		templates                 map[string]*servicetemplate.ServiceTemplate
+		templates                 map[string]servicetemplate.ServiceTemplate
 		imagesNameTags            [][]string
 	)
 	defer func() {
@@ -793,7 +793,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	for templateID, template := range templates {
 		template.ID = templateID
 		restoreOutput <- fmt.Sprintf("Restoring service template: %v", template.ID)
-		if e := cp.UpdateServiceTemplate(*template, unused); e != nil {
+		if e := cp.UpdateServiceTemplate(template, unused); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateID, e)
 			restoreError <- e.Error()
 			return e
