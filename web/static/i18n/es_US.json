@@ -130,6 +130,7 @@
     "host": "Servidore",
     "info": "Info",
     "ip_addresses": "IPs",
+    "ip_addresses_mac": "MAC Address",
     "ip_addresses_interface": "Interfaz",
     "ip_addresses_ip": "IP",
     "label_application": "Aplicaci\u00f3n",
