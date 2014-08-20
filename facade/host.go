@@ -15,8 +15,10 @@ package facade
 
 import (
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -105,24 +107,90 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 // RemoveHost removes a Host from serviced
 func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
-	ec := newEventCtx()
 
-	defer f.afterEvent(afterHostDelete, ec, hostID, err)
-	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
-		return err
-	}
-
+	//assert valid host
 	var _host *host.Host
 	if _host, err = f.GetHost(ctx, hostID); err != nil {
 		return err
 	} else if _host == nil {
 		return nil
-	} else if err = zkAPI(f).UnregisterHost(_host); err != nil {
+	}
+
+	//grab all services that are address assigned this HostID
+	query := []string{fmt.Sprintf("Endpoints.AddressAssignment.HostID:%s", hostID)}
+	services, err := f.GetTaggedServices(ctx, query)
+	if err != nil {
 		return err
 	}
 
-	err = f.hostStore.Delete(ctx, host.HostKey(hostID))
-	return err
+	//stop any running service that's assigned this Host, also remove the address assignment
+	restart := []string{}
+	reassign := []string{}
+	for i := range services {
+		for j := range services[i].Endpoints {
+			if services[i].Endpoints[j].AddressAssignment.HostID == hostID {
+				if services[i].DesiredState == service.SVCRun {
+					//stop the service
+					if err = f.StopService(ctx, services[i].ID); err != nil {
+						glog.Warningf("Failed to stop service %s:%s address assigned to host %s", services[i].Name, services[i].ID, hostID)
+					}
+
+					//collect ID for restarting it
+					restart = append(restart, services[i].ID)
+					services[i].DesiredState = service.SVCStop
+				}
+
+				//remove the services address assignment
+				assignmentID := services[i].Endpoints[j].AddressAssignment.ID
+				if err = f.RemoveAddressAssignment(ctx, assignmentID); err != nil {
+					glog.Warningf("Failed to remove service %s:%s address assignment to host %s", services[i].Name, services[i].ID, hostID)
+				}
+
+				//collect the service Ids for address reassignment
+				if !utils.StringInSlice(services[i].ID, reassign) {
+					reassign = append(reassign, services[i].ID)
+				}
+			}
+		}
+	}
+
+	ec := newEventCtx()
+	defer f.afterEvent(afterHostDelete, ec, hostID, err)
+	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
+		return err
+	}
+
+	//remove host from zookeeper
+	if err = zkAPI(f).UnregisterHost(_host); err != nil {
+		return err
+	}
+
+	//remove host from datastore
+	if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
+		return err
+	}
+
+	//update address assignments
+	for i := range reassign {
+		request := dao.AssignmentRequest{
+			ServiceID:      reassign[i],
+			IPAddress:      "",
+			AutoAssignment: true,
+		}
+		if err = f.AssignIPs(ctx, request); err != nil {
+			glog.Warningf("Failed assigning another ip to service %s: %s", reassign[i], err)
+			restart = utils.StringRemoveFromSlice(reassign[i], restart)
+		}
+	}
+
+	//start any stopped services
+	for i := range restart {
+		if err = f.StartService(ctx, restart[i]); err != nil {
+			glog.Warningf("Failed restarting service %s: %s", restart[i], err)
+		}
+	}
+
+	return nil
 }
 
 // GetHost gets a host by id. Returns nil if host not found

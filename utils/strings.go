@@ -49,3 +49,15 @@ func StringInSlice(a string, list []string) bool {
 	}
 	return false
 }
+
+//StringInSlice test if a string exists in a slice
+func StringRemoveFromSlice(a string, list []string) []string {
+	result := []string{}
+	for _, b := range list {
+		if a != b {
+			result = append(result, b)
+		}
+	}
+
+	return result
+}
