@@ -721,7 +721,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 
 	// Do not restore if there are running services
 	var empty interface{}
-	var rss []*dao.RunningService
+	var rss []dao.RunningService
 	if e := cp.GetRunningServices(empty, &rss); e != nil {
 		glog.Errorf("Error trying to find running services: %s", err)
 		restoreError <- e.Error()

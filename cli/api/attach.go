@@ -27,13 +27,13 @@ type AttachConfig struct {
 	Args    []string
 }
 
-func (a *api) GetRunningServices() ([]*dao.RunningService, error) {
+func (a *api) GetRunningServices() ([]dao.RunningService, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var rss []*dao.RunningService
+	var rss []dao.RunningService
 	if err := client.GetRunningServices(&empty, &rss); err != nil {
 		return nil, err
 	}

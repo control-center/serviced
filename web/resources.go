@@ -286,7 +286,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		restBadRequest(w, err)
 		return
 	}
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err = client.GetRunningServicesForHost(hostID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -295,7 +295,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
 	w.WriteJson(&services)
@@ -311,7 +311,7 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 		restBadRequest(w, err)
 		return
 	}
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
 		glog.Errorf("Could not get running services for %s: %v", serviceID, err)
@@ -320,14 +320,14 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
 	w.WriteJson(&services)
 }
 
 func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err := client.GetRunningServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -336,7 +336,7 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	}
 	if services == nil {
 		glog.V(3).Info("Services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 
 	for _, rsvc := range services {

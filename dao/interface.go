@@ -130,13 +130,13 @@ type ControlPlane interface {
 	GetServiceStateLogs(request ServiceStateRequest, logs *string) error
 
 	// Get all running services
-	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
+	GetRunningServices(request EntityRequest, runningServices *[]RunningService) error
 
 	// Get the services instances for a given service
-	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
+	GetRunningServicesForHost(hostId string, runningServices *[]RunningService) error
 
 	// Get the service instances for a given service
-	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
+	GetRunningServicesForService(serviceId string, runningServices *[]RunningService) error
 
 	// Attach to a running container with a predefined action
 	Action(request AttachRequest, unused *int) error

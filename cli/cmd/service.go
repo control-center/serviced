@@ -843,7 +843,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		hostmap[host.ID] = host
 	}
 
-	var states []*dao.RunningService
+	var states []dao.RunningService
 	for _, rs := range rss {
 		if rs.DockerID == "" {
 			continue
@@ -865,7 +865,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	case 0:
 		return nil, fmt.Errorf("no matches found")
 	case 1:
-		return states[0], nil
+		return &states[0], nil
 	}
 
 	matches := newtable(0, 8, 2)

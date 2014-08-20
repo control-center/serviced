@@ -61,7 +61,7 @@ type API interface {
 	AssignIP(IPConfig) error
 
 	// RunningServices (ServiceStates)
-	GetRunningServices() ([]*dao.RunningService, error)
+	GetRunningServices() ([]dao.RunningService, error)
 	Attach(AttachConfig) error
 	Action(AttachConfig) error
 
