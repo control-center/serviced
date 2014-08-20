@@ -1250,8 +1250,10 @@ function aggregateVhosts(service) {
     var child_service = service.children[i];
     vhosts = vhosts.concat( aggregateVhosts( child_service));
   }
+  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); })
   return vhosts;
 }
+
 // collect all address assignments for a service
 function aggregateAddressAssigments(service, api) {
   var assignments = [];
