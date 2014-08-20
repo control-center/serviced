@@ -426,7 +426,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	)
 
 	// Verify there are no running service instances
-	var rss []*dao.RunningService
+	var rss []dao.RunningService
 	if err := d.client.GetRunningServices(unused, &rss); err != nil {
 		glog.Errorf("Could not get running services: %s", err)
 		return err
