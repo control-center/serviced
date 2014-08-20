@@ -272,6 +272,16 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		glog.V(3).Info("Running services was nil, returning empty list instead")
 		services = []*dao.RunningService{}
 	}
+	for _, rsvc := range services {
+		var svc service.Service
+		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
+			glog.Errorf("Could not get services: %v", err)
+			restServerError(w, err)
+		}
+		fillBuiltinMetrics(&svc)
+		rsvc.MonitoringProfile = svc.MonitoringProfile
+	}
+
 	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
 	w.WriteJson(&services)
 }
