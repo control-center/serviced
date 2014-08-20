@@ -1,6 +1,5 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
+// Copyright 2014 The Serviced Authors.
 // Use of f source code is governed by a
-// license that can be found in the LICENSE file.
 
 package facade
 
@@ -27,6 +26,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+	zkregistry "github.com/control-center/serviced/zzk/registry"
 	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
@@ -73,18 +73,14 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
 			return err
 		}
-		vhosts := make(map[string]struct{})
+
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHosts {
-				vhosts[vh] = struct{}{}
+				//check that vhosts aren't already started elsewhere
+				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
+					return err
+				}
 			}
-		}
-
-		vhostRunning, err := f.checkRunning(ctx, vhosts, svc.ID)
-		if vhostRunning {
-			return fmt.Errorf("vhost is running: %v", svc.ID)
-		} else if err != nil {
-			return err
 		}
 	}
 	return f.updateService(ctx, &svc)
@@ -308,21 +304,6 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 	}
 
 	visitor := func(svc *service.Service) error {
-		vhosts := make(map[string]struct{})
-		for _, ep := range svc.GetServiceVHosts() {
-			for _, vh := range ep.VHosts {
-				vhosts[vh] = struct{}{}
-			}
-		}
-		//dont start vhosts which are already started elsewhere
-		vhostRunning, err := f.checkRunning(ctx, vhosts, "")
-		if vhostRunning {
-			glog.Infof("%v ID: %v is already running", svc.Name, svc.ID)
-			return nil
-		} else if err != nil {
-			return err
-		}
-
 		//start f service
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
@@ -665,6 +646,14 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 			glog.Errorf("services failed validation for starting")
 			return err
 		}
+		for _, ep := range svc.GetServiceVHosts() {
+			for _, vh := range ep.VHosts {
+				//check that vhosts aren't already started elsewhere
+				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
+					return err
+				}
+			}
+		}
 		return nil
 	}
 
@@ -673,38 +662,8 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 		glog.Errorf("unable to walk services for service %s", serviceId)
 		return err
 	}
-	glog.Info("All services are validated (ready to start!)")
 
 	return nil
-}
-
-//Checks to see if any service with the any of the vhosts is currently scheduled to run, if so return an error. Exclude
-//svcID from check if given
-func (f *Facade) checkRunning(ctx datastore.Context, vhosts map[string]struct{}, svcID string) (bool, error) {
-	if len(vhosts) == 0 {
-		return false, nil
-	}
-
-	//this is brute force but I don't know a better way
-	svcs, err := f.GetServices(ctx)
-	if err != nil {
-		return false, err
-	}
-	for _, svc := range svcs {
-		if svc.ID != svcID && svc.DesiredState != service.SVCStop && svc.DesiredState != service.SVCPause {
-			for _, ep := range svc.Endpoints {
-				for _, vh := range ep.VHosts {
-					glog.Infof(" ... checking vh: %v", vh)
-					if _, found := vhosts[vh]; found {
-						glog.Warningf("Vhosts %v is already scheduled to run in another application", vh)
-						return true, nil
-					}
-				}
-			}
-		}
-	}
-
-	return false, nil
 }
 
 func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) error {
@@ -873,6 +832,7 @@ type zkfuncs interface {
 	RemoveVirtualIP(vip *pool.VirtualIP) error
 	AddResourcePool(poolID string) error
 	RemoveResourcePool(poolID string) error
+	CheckRunningVHost(vhostName, serviceID string) error
 }
 
 type zkf struct {
@@ -971,6 +931,41 @@ func (z *zkf) RemoveResourcePool(poolID string) error {
 		return err
 	}
 	return zkscheduler.RemoveResourcePool(rootBasedConnection, poolID)
+}
+
+func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
+	rootBasedConnection, err := zzk.GetBasePathConnection("/")
+	if err != nil {
+		return err
+	}
+
+	vr, err := zkregistry.VHostRegistry(rootBasedConnection)
+	if err != nil {
+		glog.Errorf("Error getting vhost registry: %v", err)
+		return err
+	}
+
+	vhostEphemeralNodes, err := vr.GetVHostKeyChildren(rootBasedConnection, vhostName)
+	if err != nil {
+		glog.Errorf("GetVHostKeyChildren failed %v: %v", vhostName, err)
+		return err
+	}
+	if len(vhostEphemeralNodes) == 0 {
+		glog.Warningf("Currently, there are no ephemeral nodes for vhost: %v", vhostName)
+		return nil
+	} else if len(vhostEphemeralNodes) > 1 {
+		return fmt.Errorf("There is more than one ephemeral node for vhost: %v", vhostName)
+	}
+
+	for _, vhostEphemeralNode := range vhostEphemeralNodes {
+		if vhostEphemeralNode.ServiceID == serviceID {
+			glog.Infof("validated: vhost %v is already running under THIS servicedID: %v", vhostName, serviceID)
+			return nil
+		}
+		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID")
+	}
+
+	return nil
 }
 
 func lookUpTenant(svcID string) (string, bool) {

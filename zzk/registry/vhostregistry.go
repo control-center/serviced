@@ -70,7 +70,7 @@ func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	return &VhostRegistry{registryType{getPath: vhostPath, ephemeral: true}}, nil
 }
 
-//SetItem adds or replaces the  VhostEndpoint to the key in registry.  Returns the path of the node in the registry
+//SetItem adds or replaces the VhostEndpoint to the key in registry.  Returns the path of the node in the registry
 func (vr *VhostRegistry) SetItem(conn client.Connection, key string, node VhostEndpoint) (string, error) {
 	verr := validation.NewValidationError()
 
@@ -84,7 +84,7 @@ func (vr *VhostRegistry) SetItem(conn client.Connection, key string, node VhostE
 	return vr.setItem(conn, key, nodeID, &node)
 }
 
-//GetItem gets  VhostEndpoint at the given path.
+//GetItem gets VhostEndpoint at the given path.
 func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEndpoint, error) {
 	var vep VhostEndpoint
 	if err := conn.Get(path, &vep); err != nil {
@@ -92,6 +92,29 @@ func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEnd
 		return nil, err
 	}
 	return &vep, nil
+}
+
+// GetVHostKeyChildren gets the ephemeral nodes of a vhost key (example of a key is 'hbase')
+func (vr *VhostRegistry) GetVHostKeyChildren(conn client.Connection, vhostKey string) ([]VhostEndpoint, error) {
+	var vhostEphemeralNodes []VhostEndpoint
+
+	vhostChildren, err := conn.Children(vhostPath(vhostKey))
+	if err == client.ErrNoNode {
+		return vhostEphemeralNodes, nil
+	}
+	if err != nil {
+		return vhostEphemeralNodes, err
+	}
+
+	for _, vhostChild := range vhostChildren {
+		var vep VhostEndpoint
+		if err := conn.Get(vhostPath(vhostKey, vhostChild), &vep); err != nil {
+			return vhostEphemeralNodes, err
+		}
+		vhostEphemeralNodes = append(vhostEphemeralNodes, vep)
+	}
+
+	return vhostEphemeralNodes, nil
 }
 
 //WatchVhostEndpoint watch a specific VhostEnpoint
