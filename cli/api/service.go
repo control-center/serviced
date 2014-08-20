@@ -88,13 +88,13 @@ func (a *api) GetServiceStates(serviceID string) ([]*servicestate.ServiceState, 
 	return states, nil
 }
 
-func (a *api) GetServiceStatus(serviceID string) (map[*servicestate.ServiceState]dao.Status, error) {
+func (a *api) GetServiceStatus(serviceID string) (map[string]dao.ServiceStatus, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var status map[*servicestate.ServiceState]dao.Status
+	var status map[string]dao.ServiceStatus
 	if err := client.GetServiceStatus(serviceID, &status); err != nil {
 		return nil, err
 	}

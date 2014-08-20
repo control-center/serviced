@@ -121,7 +121,7 @@ func (s *ControlClient) GetRunningServicesForHost(hostId string, runningServices
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForHost", hostId, runningServices)
 }
 
-func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]dao.RunningService) (err error) {
+func (s *ControlClient) GetRunningServicesForService(serviceId string, runningServices *[]dao.RunningService) error {
 	return s.rpcClient.Call("ControlPlane.GetRunningServicesForService", serviceId, runningServices)
 }
 
@@ -129,7 +129,7 @@ func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unus
 	return s.rpcClient.Call("ControlPlane.StopRunningInstance", request, unused)
 }
 
-func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) (err error) {
+func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) error {
 	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices)
 }
 
@@ -161,7 +161,7 @@ func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unus
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
 
-func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]dao.Status) (err error) {
+func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string]dao.ServiceStatus) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap)
 }
 

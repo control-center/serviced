@@ -14,6 +14,7 @@
 package web
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,7 +23,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"bytes"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -59,7 +59,6 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	var b bytes.Buffer
 	_, err = io.Copy(&b, file)
-
 
 	template, err := servicetemplate.FromJSON(b.String())
 	if err != nil {
@@ -280,7 +279,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if strings.Contains(serviceID, "isvc-") {
-		w.WriteJson([]*dao.RunningService{})
+		w.WriteJson([]dao.RunningService{})
 		return
 	}
 	if err != nil {

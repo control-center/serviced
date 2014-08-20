@@ -14,12 +14,12 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/zenoss/glog"
 
 	"fmt"
 )
@@ -47,7 +47,9 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 			return err
 		}
 
-		*allRunningServices = append(*allRunningServices, singlePoolRunningServices...)
+		for _, rs := range singlePoolRunningServices {
+			*allRunningServices = append(*allRunningServices, *rs)
+		}
 	}
 
 	return nil
@@ -90,10 +92,14 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 		return err
 	}
 
-	*services, err = zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
+	svcs, err := zkservice.LoadRunningServicesByService(poolBasedConn, serviceID)
 	if err != nil {
 		glog.Errorf("LoadRunningServicesByService failed (conn: %+v serviceID: %v): %v", poolBasedConn, serviceID, err)
 		return err
+	}
+
+	for _, svc := range svcs {
+		*services = append(*services, *svc)
 	}
 
 	return nil

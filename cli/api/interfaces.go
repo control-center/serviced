@@ -50,7 +50,7 @@ type API interface {
 	// Services
 	GetServices() ([]service.Service, error)
 	GetServiceStates(string) ([]*servicestate.ServiceState, error)
-	GetServiceStatus(string) (map[*servicestate.ServiceState]dao.Status, error)
+	GetServiceStatus(string) (map[string]dao.ServiceStatus, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
