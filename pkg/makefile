@@ -27,7 +27,7 @@ DEB_LICENSE   = Apache-2
 # https://fedoraproject.org/wiki/Licensing:Main?rd=Licensing
 RPM_LICENSE   = "ASL 2.0"
 VENDOR        = "Zenoss, Inc."
-URL           = https://github.com/control-center/serviced
+URL           = http://controlcenter.io/
 DEB_PRIORITY  = extra
 CATEGORY      = admin
 
