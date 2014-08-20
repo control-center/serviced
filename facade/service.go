@@ -432,7 +432,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 
 	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
 
-	assignments := []*addressassignment.AddressAssignment{}
+	assignments := []addressassignment.AddressAssignment{}
 	if err := f.GetServiceAddressAssignments(ctx, assignmentRequest.ServiceID, &assignments); err != nil {
 		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
 		return err
