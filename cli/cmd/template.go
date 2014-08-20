@@ -17,9 +17,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"strings"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	template "github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/servicedversion"
 )
 
 // initTemplate is the initializer for serviced template
@@ -241,6 +245,12 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	}
 }
 
+type metaTemplate struct {
+	template.ServiceTemplate
+	ServicedVersion servicedversion.ServicedVersion
+	TemplateVersion map[string]string
+}
+
 // serviced template compile DIR [[--map IMAGE,IMAGE] ...]
 func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 	args := ctx.Args()
@@ -259,9 +269,39 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 	} else if template == nil {
 		fmt.Fprintln(os.Stderr, "received nil template")
-	} else if jsonTemplate, err := json.MarshalIndent(template, " ", "  "); err != nil {
-		fmt.Fprintln(os.Stderr, "failed to marshal template: %s", err)
 	} else {
-		fmt.Println(string(jsonTemplate))
+		cmd := fmt.Sprintf("cd %s && git rev-parse HEAD", args[0])
+		commit, err := exec.Command("sh", "-c", cmd).Output()
+		if err != nil {
+			commit = []byte("unknown")
+		}
+		cmd = fmt.Sprintf("cd %s && git config --get remote.origin.url", args[0])
+		repo, err := exec.Command("sh", "-c", cmd).Output()
+		if err != nil {
+			repo = []byte("unknown")
+		}
+		cmd = fmt.Sprintf("cd %s && git rev-parse --abbrev-ref HEAD", args[0])
+		branch, err := exec.Command("sh", "-c", cmd).Output()
+		if err != nil {
+			branch = []byte("unknown")
+		}
+		cmd = fmt.Sprintf("cd %s && git describe --always", args[0])
+		tag, err := exec.Command("sh", "-c", cmd).Output()
+		if err != nil {
+			tag = []byte("unknown")
+		}
+		templateVersion := map[string]string{
+			"repo":   strings.Trim(string(repo), "\n"),
+			"branch": strings.Trim(string(branch), "\n"),
+			"tag":    strings.Trim(string(tag), "\n"),
+			"commit": strings.Trim(string(commit), "\n"),
+		}
+		mTemplate := metaTemplate{*template, servicedversion.GetVersion(), templateVersion}
+		jsonTemplate, err := json.MarshalIndent(mTemplate, " ", "  ")
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "failed to marshal template: %s", err)
+		} else {
+			fmt.Println(string(jsonTemplate))
+		}
 	}
 }
