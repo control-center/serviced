@@ -220,7 +220,7 @@ function updateLanguage($scope, $cookies, $translate) {
 }
 
 function ResourcesService($http, $location, $notification) {
-    // monkey patch $http to allow for noCacheGet requests
+    // add function to $http service to allow for noCacheGet requests
     $http.noCacheGet = function(location){
         return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
     }
