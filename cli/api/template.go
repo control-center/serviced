@@ -39,20 +39,20 @@ type CompileTemplateConfig struct {
 }
 
 // Gets all available service templates
-func (a *api) GetServiceTemplates() ([]*template.ServiceTemplate, error) {
+func (a *api) GetServiceTemplates() ([]template.ServiceTemplate, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	templatemap := make(map[string]*template.ServiceTemplate)
+	templatemap := make(map[string]template.ServiceTemplate)
 	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
 		return nil, err
 	}
-	templates := make([]*template.ServiceTemplate, len(templatemap))
+	templates := make([]template.ServiceTemplate, len(templatemap))
 	i := 0
 	for id, t := range templatemap {
-		(*t).ID = id
+		t.ID = id
 		templates[i] = t
 		i++
 	}
@@ -67,7 +67,7 @@ func (a *api) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
 		return nil, err
 	}
 
-	templatemap := make(map[string]*template.ServiceTemplate)
+	templatemap := make(map[string]template.ServiceTemplate)
 	if err := client.GetServiceTemplates(unusedInt, &templatemap); err != nil {
 		return nil, err
 	}
@@ -76,9 +76,9 @@ func (a *api) GetServiceTemplate(id string) (*template.ServiceTemplate, error) {
 		return nil, fmt.Errorf("unable to find template by id: %s", id)
 	}
 	t := templatemap[id]
-	(*t).ID = id
+	t.ID = id
 
-	return t, nil
+	return &t, nil
 }
 
 // Adds a new service template

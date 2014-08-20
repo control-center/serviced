@@ -60,7 +60,7 @@ func (s *Synchronizer) syncPools() error {
 
 func (s *Synchronizer) syncServices() error {
 	// create a map of services by PoolID
-	servicesMap := make(map[string][]*service.Service)
+	servicesMap := make(map[string][]service.Service)
 
 	// retrieve ALL of the services found in zookeeper (in all pools)
 	allPools, err := s.facade.GetResourcePools(s.context)
@@ -71,7 +71,7 @@ func (s *Synchronizer) syncServices() error {
 	}
 
 	for _, pool := range allPools {
-		servicesMap[pool.ID] = []*service.Service{}
+		servicesMap[pool.ID] = []service.Service{}
 	}
 
 	// retrieve ALL of the services in elastic search

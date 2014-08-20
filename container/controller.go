@@ -688,7 +688,7 @@ func (c *Controller) handleControlCenterImports() {
 
 	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
 	//       that returns only special "controlplane" imported endpoints
-	var endpoints map[string][]*dao.ApplicationEndpoint
+	var endpoints map[string][]dao.ApplicationEndpoint
 	err = client.GetServiceEndpoints(c.options.Service.ID, &endpoints)
 	if err != nil {
 		glog.Errorf("Error getting application endpoints for service %s: %s", c.options.Service.ID, err)
@@ -696,7 +696,7 @@ func (c *Controller) handleControlCenterImports() {
 	}
 
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
-	tmp := make(map[string][]*dao.ApplicationEndpoint)
+	tmp := make(map[string][]dao.ApplicationEndpoint)
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
 			glog.Warningf("ignoring key: %s with empty endpointList", key)

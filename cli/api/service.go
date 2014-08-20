@@ -59,13 +59,13 @@ type RunningService struct {
 }
 
 // Gets all of the available services
-func (a *api) GetServices() ([]*service.Service, error) {
+func (a *api) GetServices() ([]service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	if err := client.GetServices(&empty, &services); err != nil {
 		return nil, err
 	}
@@ -88,13 +88,13 @@ func (a *api) GetServiceStates(serviceID string) ([]*servicestate.ServiceState, 
 	return states, nil
 }
 
-func (a *api) GetServiceStatus(serviceID string) (map[*servicestate.ServiceState]dao.Status, error) {
+func (a *api) GetServiceStatus(serviceID string) (map[string]dao.ServiceStatus, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var status map[*servicestate.ServiceState]dao.Status
+	var status map[string]dao.ServiceStatus
 	if err := client.GetServiceStatus(serviceID, &status); err != nil {
 		return nil, err
 	}
@@ -118,13 +118,13 @@ func (a *api) GetService(id string) (*service.Service, error) {
 }
 
 // Gets the service definition identified by its service Name
-func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
+func (a *api) GetServicesByName(name string) ([]service.Service, error) {
 	allServices, err := a.GetServices()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	for i, s := range allServices {
 		if s.Name == name || s.ID == name {
 			services = append(services, allServices[i])

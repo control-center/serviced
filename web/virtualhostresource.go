@@ -39,7 +39,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
@@ -49,7 +49,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	var service *service.Service
 	for _, _service := range services {
 		if _service.ID == request.ServiceID {
-			service = _service
+			service = &_service
 		}
 	}
 
@@ -153,7 +153,7 @@ type virtualHost struct {
 
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
 func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []*service.Service
+	var services []service.Service
 	err := client.GetServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
@@ -161,7 +161,7 @@ func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.C
 		return
 	}
 
-	serviceTree := make(map[string]*service.Service)
+	serviceTree := make(map[string]service.Service)
 	for _, service := range services {
 		serviceTree[service.ID] = service
 	}

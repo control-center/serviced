@@ -43,7 +43,7 @@ func resourcesDir() string {
 
 // WriteConfigurationFile takes a map of ServiceTemplates and writes them to the
 // appropriate place in the logstash.conf.
-func WriteConfigurationFile(templates map[string]*servicetemplate.ServiceTemplate) error {
+func WriteConfigurationFile(templates map[string]servicetemplate.ServiceTemplate) error {
 	// the definitions are a map of filter name to content
 	// they are found by recursively going through all the service definitions
 	filterDefs := make(map[string]string)
