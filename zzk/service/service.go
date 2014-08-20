@@ -37,7 +37,7 @@ func servicepath(nodes ...string) string {
 	return path.Join(p...)
 }
 
-type instances []*dao.RunningService
+type instances []dao.RunningService
 
 func (inst instances) Len() int           { return len(inst) }
 func (inst instances) Less(i, j int) bool { return inst[i].InstanceID < inst[j].InstanceID }
@@ -155,7 +155,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	}
 }
 
-func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) {
+func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) {
 	// only one service can start and stop service instances at a time
 	l.Lock()
 	defer l.Unlock()
@@ -243,7 +243,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
 	}
 }
 
-func (l *ServiceListener) stop(rss []*dao.RunningService) {
+func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
@@ -253,7 +253,7 @@ func (l *ServiceListener) stop(rss []*dao.RunningService) {
 	}
 }
 
-func (l *ServiceListener) pause(rss []*dao.RunningService) {
+func (l *ServiceListener) pause(rss []dao.RunningService) {
 	for _, state := range rss {
 		// pauseInstance updates the service state ONLY if it has a RUN DesiredState
 		if err := pauseInstance(l.conn, state.HostID, state.ID); err != nil {

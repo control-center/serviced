@@ -24,7 +24,7 @@ import (
 	"fmt"
 )
 
-func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]*dao.RunningService) error {
+func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) error {
 	allPools, err := this.facade.GetResourcePools(datastore.Get())
 	if err != nil {
 		glog.Error("runningservice.go failed to get resource pool")
@@ -40,7 +40,7 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 			return err
 		}
 
-		singlePoolRunningServices := []*dao.RunningService{}
+		singlePoolRunningServices := []dao.RunningService{}
 		singlePoolRunningServices, err = zkservice.LoadRunningServices(poolBasedConn)
 		if err != nil {
 			glog.Errorf("Failed GetAllRunningServices: %v", err)
@@ -53,7 +53,7 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 	return nil
 }
 
-func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]*dao.RunningService) error {
+func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
 	myHost, err := this.facade.GetHost(datastore.Get(), hostID)
 	if err != nil {
 		glog.Errorf("Unable to get host %v: %v", hostID, err)
@@ -77,7 +77,7 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 	return nil
 }
 
-func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]*dao.RunningService) error {
+func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
 	myService, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %v: %v", serviceID, err)
@@ -114,10 +114,11 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 		return err
 	}
 
-	running, err = zkservice.LoadRunningService(poolBasedConn, request.ServiceID, request.ServiceStateID)
-	if err != nil {
+	if thisRunning, err := zkservice.LoadRunningService(poolBasedConn, request.ServiceID, request.ServiceStateID); err != nil {
 		glog.Errorf("zkservice.LoadRunningService failed (conn: %+v serviceID: %v): %v", poolBasedConn, request.ServiceID, err)
 		return err
+	} else {
+		*running = *thisRunning
 	}
 
 	return nil
