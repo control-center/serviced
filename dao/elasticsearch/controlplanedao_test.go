@@ -288,7 +288,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
 
-	var result []*service.Service
+	var result []service.Service
 	err = dt.Dao.GetServices(new(dao.EntityRequest), &result)
 	t.Assert(err, IsNil)
 	t.Assert(len(result), Equals, 1)
@@ -361,7 +361,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	}
 	// verify the children have all stopped
 	query := fmt.Sprintf("ParentServiceID:%s AND NOT Launch:manual", id)
-	var services []*service.Service
+	var services []service.Service
 	err = dt.Dao.GetServices(query, &services)
 	for _, subService := range services {
 		if subService.DesiredState == service.SVCRun && subService.ParentServiceID == id {
@@ -567,7 +567,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []*addressassignment.AddressAssignment{}
+	assignments := []addressassignment.AddressAssignment{}
 	err = dt.Dao.GetServiceAddressAssignments(testService.ID, &assignments)
 	if err != nil {
 		t.Error("GetServiceAddressAssignments failed: %v", err)
@@ -697,7 +697,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if len(templates) != 1 {
 		t.Fatalf("Expected 1 template. Found %d", len(templates))
 	}
-	if templates[templateId] == nil {
+	if _, ok := templates[templateId]; !ok {
 		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
 	}
 	if templates[templateId].Name != "test_template" {
@@ -714,7 +714,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if len(templates) != 1 {
 		t.Fatalf("Expected 1 template. Found %d", len(templates))
 	}
-	if templates[templateId] == nil {
+	if _, ok := templates[templateId]; !ok {
 		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
 	}
 	if templates[templateId].Name != "test_template" {
@@ -742,7 +742,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if len(templates) != 1 {
 		t.Fatalf("Expected 1 template. Found %d", len(templates))
 	}
-	if templates[templateId] == nil {
+	if _, ok := templates[templateId]; !ok {
 		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
 	}
 	if templates[templateId].Name != "test_template" {
