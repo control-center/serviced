@@ -14,12 +14,10 @@
 package agent
 
 import (
-	"github.com/control-center/serviced/domain/host"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/domain/host"
 
-	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 )
 
 // Client rpc client to interact with agent
@@ -33,12 +31,9 @@ func NewClient(addr string) (*Client, error) {
 	s := new(Client)
 	s.addr = addr
 	glog.V(4).Infof("Agent connecting to %s", addr)
-	conn, err := net.Dial("tcp", s.addr)
-	if err != nil {
-		return nil, err
-	}
-	s.rpcClient = jsonrpc.NewClient(conn)
-	return s, nil
+	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
+	s.rpcClient = rpcClient
+	return s, err
 }
 
 // Close closes rpc client
