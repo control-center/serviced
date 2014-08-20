@@ -40,8 +40,8 @@
             <td>&nbsp;</td>
         </tr>
         <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.ID}}"  ng-model="services.data">
-            <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
-            <td>{{app.Description}}</td>
+          <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
+          <td>{{app.Description}}</td>
           <td style="text-align:center;">
             <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
               <div>
