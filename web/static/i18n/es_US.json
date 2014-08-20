@@ -119,6 +119,7 @@
     "ctl_running_stopped": "parado",
     "deployed_tbl_deployment": "Estado de la Instalaci\u00f3n",
     "deployed_tbl_details": "Detalles",
+    "deployed_tbl_description": "Descripci\u00f3n",
     "deployed_tbl_deployment_id": "ID de la Instalaci\u00f3n",
     "deployed_tbl_name": "Aplicaci\u00f3n",
     "deployed_tbl_pool": "Grupo de Recursos",

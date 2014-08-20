@@ -4,12 +4,17 @@
 
     <div class="details" ng-if="services.current.ID.indexOf('isvc-') == -1">
       <div class="details-form">
-        <div class="vertical-info">
-          <label for="app_data_name">{{'label_service_name'|translate}}</label>
-          <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
-        </div>        
+          <div class="vertical-info">
+              <label for="app_data_name">{{'label_service_name'|translate}}</label>
+              <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
+          </div>
 
-        <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
+          <div class="vertical-info">
+              <label for="app_data_description">{{'label_service_description'|translate}}</label>
+              <input type="text" id="app_data_description" ng-model="services.current.Description"></input>
+          </div>
+
+          <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
         <div class="vertical-info" ng-show="!services.current.InstanceLimits || services.current.InstanceLimits.Max > 0 || services.current.InstanceLimits.Min > services.current.InstanceLimits.Max">
           <label for="app_data_instances">{{'label_service_instances'|translate}}</label>
           <input type="number" min="{{services.current.InstanceLimits.Min}}" id="app_data_instances" class="instances"
