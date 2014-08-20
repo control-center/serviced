@@ -33,7 +33,7 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	return this.facade.RemoveServiceTemplate(datastore.Get(), id)
 }
 
-func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*servicetemplate.ServiceTemplate) error {
+func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]servicetemplate.ServiceTemplate) error {
 	templatemap, err := this.facade.GetServiceTemplates(datastore.Get())
 	*templates = templatemap
 	return err

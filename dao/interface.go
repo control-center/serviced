@@ -157,7 +157,7 @@ type ControlPlane interface {
 	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
 
 	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error
+	GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD

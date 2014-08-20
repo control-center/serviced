@@ -668,7 +668,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	var (
 		unused     int
 		templateId string
-		templates  map[string]*servicetemplate.ServiceTemplate
+		templates  map[string]servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...

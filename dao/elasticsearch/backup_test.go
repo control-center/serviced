@@ -324,7 +324,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		templateId     string
 		serviceId      string
 		backupFilePath string
-		templates      map[string]*servicetemplate.ServiceTemplate
+		templates      map[string]servicetemplate.ServiceTemplate
 		services       []*service.Service
 	)
 
