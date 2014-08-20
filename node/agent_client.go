@@ -19,9 +19,7 @@
 package node
 
 import (
-	"net"
 	"net/rpc"
-	"net/rpc/jsonrpc"
 )
 
 // AgentClient is an interface that the serviced agent implements to provide
@@ -35,10 +33,7 @@ type AgentClient struct {
 func NewAgentClient(addr string) (s *AgentClient, err error) {
 	s = new(AgentClient)
 	s.addr = addr
-	conn, err := net.Dial("tcp", s.addr)
-	if err != nil {
-		return nil, err
-	}
-	s.rpcClient = jsonrpc.NewClient(conn)
-	return s, nil
+	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
+	s.rpcClient = rpcClient
+	return s, err
 }
