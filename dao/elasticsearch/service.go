@@ -95,7 +95,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) err
 }
 
 // Get a service endpoint.
-func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
+func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]dao.ApplicationEndpoint) (err error) {
 	if result, err := this.facade.GetServiceEndpoints(datastore.Get(), serviceID); err == nil {
 		*response = result
 		return nil
