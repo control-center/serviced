@@ -196,6 +196,7 @@ var POOL_CHILDREN_OPEN = 'nav-tree';
 // set verbosity of console.logs
 var DEBUG = false;
 
+
 function addChildren(allowed, parent) {
     allowed[parent.Id] = true;
     if (parent.children) {
@@ -219,6 +220,11 @@ function updateLanguage($scope, $cookies, $translate) {
 }
 
 function ResourcesService($http, $location, $notification) {
+    // add function to $http service to allow for noCacheGet requests
+    $http.noCacheGet = function(location){
+        return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
+    }
+
     var cached_pools;
     var cached_hosts_for_pool = {};
     var cached_hosts;
@@ -227,7 +233,7 @@ function ResourcesService($http, $location, $notification) {
     var cached_services_map; // map of services by by Id, with children attached
 
     var _get_services_tree = function(callback) {
-        $http({url: '/services', method: 'GET', params: {'time': new Date().getTime()}}).
+        $http.noCacheGet('/services').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved list of services');
                 cached_services = [];
@@ -259,7 +265,7 @@ function ResourcesService($http, $location, $notification) {
     };
 
     var _get_app_templates = function(callback) {
-        $http({url: '/templates', method: 'GET', params: {'time': new Date().getTime()}}).
+        $http.noCacheGet('/templates').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved list of application templates');
                 cached_app_templates = data;
@@ -276,7 +282,7 @@ function ResourcesService($http, $location, $notification) {
 
     // Real implementation for acquiring list of resource pools
     var _get_pools = function(callback) {
-        $http({url: '/pools', method: 'GET', params: {'time': new Date().getTime()}}).
+        $http.noCacheGet('/pools').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved list of pools');
                 cached_pools = data;
@@ -292,7 +298,7 @@ function ResourcesService($http, $location, $notification) {
     };
 
     var _get_hosts_for_pool = function(poolID, callback) {
-        $http({url: '/pools/' + poolID + '/hosts', method: 'GET', params: {'time': new Date().getTime()}}).
+        $http.noCacheGet('/pools/' + poolID + '/hosts').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved hosts for pool %s', poolID);
                 cached_hosts_for_pool[poolID] = data;
@@ -308,7 +314,7 @@ function ResourcesService($http, $location, $notification) {
     };
 
     var _get_hosts = function(callback) {
-        $http({url: '/hosts', method: 'GET', params: {'time': new Date().getTime()}}).
+        $http.noCacheGet('/hosts').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved host details');
                 cached_hosts = data;
@@ -377,7 +383,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Pool data is passed to a callback on success.
          */
         get_pool: function(poolID, callback) {
-            $http({url: '/pools', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/pools').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
                     callback(data);
@@ -419,7 +425,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services_for_service: function(serviceId, callback) {
-            $http({url: '/services/' + serviceId + '/running', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/services/' + serviceId + '/running').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved running services for %s', serviceId);
                     callback(data);
@@ -440,7 +446,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback virtual hosts are passed to callback on success.
          */
         get_vhosts: function(callback) {
-            $http({url: '/vhosts', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/vhosts').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved list of virtual hosts');
                     callback(data);
@@ -501,7 +507,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services_for_host: function(hostId, callback) {
-            $http({url: '/hosts/' + hostId + '/running', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/hosts/' + hostId + '/running').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved running services for %s', hostId);
                     callback(data);
@@ -522,7 +528,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services: function(callback) {
-            $http({url: '/running', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/running').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -814,7 +820,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Log data passed to callback on success.
          */
         get_service_logs: function(serviceId, callback) {
-            $http({url: '/services/' + serviceId + '/logs', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/services/' + serviceId + '/logs').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -834,7 +840,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Log data passed to callback on success.
          */
         get_service_state_logs: function(serviceId, serviceStateId, callback) {
-            $http({url: '/services/' + serviceId + '/' + serviceStateId + '/logs', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/services/' + serviceId + '/' + serviceStateId + '/logs').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -964,7 +970,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Response passed to callback on success.
          */
         snapshot_service: function(serviceId, callback) {
-            $http({url: '/services/' + serviceId + '/snapshot', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/services/' + serviceId + '/snapshot').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1040,7 +1046,7 @@ function ResourcesService($http, $location, $notification) {
          * Gets the Serviced version from the server
          */
         get_version: function(callback){
-            $http({url: '/version', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/version').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1057,7 +1063,7 @@ function ResourcesService($http, $location, $notification) {
          * Creates a backup file of serviced
          */
         create_backup: function(callback){
-            $http({url: '/backup/create', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/backup/create').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1088,7 +1094,7 @@ function ResourcesService($http, $location, $notification) {
         },
 
         get_backup_files: function(callback){
-            $http({url: '/backup/list', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/backup/list').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved list of backup files.');
                     callback(data);
@@ -1105,7 +1111,7 @@ function ResourcesService($http, $location, $notification) {
         get_backup_status: function(successCallback, failCallback){
             failCallback = failCallback || angular.noop;
 
-            $http({url: '/backup/status', method: 'GET', params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/backup/status').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved status of backup.');
                     successCallback(data);
