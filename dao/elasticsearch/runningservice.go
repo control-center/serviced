@@ -48,7 +48,7 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 		}
 
 		for _, rs := range singlePoolRunningServices {
-			*allRunningServices = append(*allRunningServices, *rs)
+			*allRunningServices = append(*allRunningServices, rs)
 		}
 	}
 
@@ -99,7 +99,7 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 	}
 
 	for _, svc := range svcs {
-		*services = append(*services, *svc)
+		*services = append(*services, svc)
 	}
 
 	return nil
