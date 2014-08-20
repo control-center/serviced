@@ -261,13 +261,13 @@ function ResourcesService($http, $location, $notification) {
     var _get_app_templates = function(callback) {
         $http.get('/templates').
             success(function(data, status) {
-                if(DEBUG) console.log('Retrieved list of app templates');
+                if(DEBUG) console.log('Retrieved list of application templates');
                 cached_app_templates = data;
                 callback(data);
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",'Unable to retrieve app templates').error();
+                $notification.create("",'Unable to retrieve application templates').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -855,7 +855,7 @@ function ResourcesService($http, $location, $notification) {
          */
         get_app_templates: function(cacheOk, callback) {
             if (cacheOk && cached_app_templates) {
-                if(DEBUG) console.log('Using cached app templates');
+                if(DEBUG) console.log('Using cached application templates');
                 callback(cached_app_templates);
             } else {
                 _get_app_templates(callback);
@@ -944,12 +944,12 @@ function ResourcesService($http, $location, $notification) {
         deploy_app_template: function(deployDef, callback, failCallback) {
             $http.post('/templates/deploy', deployDef).
                 success(function(data, status) {
-                    $notification.create("", "Deployed app template").success();
+                    $notification.create("", "Deployed application template").success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    $notification.create("Deploying app template failed", data.Detail).error();
+                    $notification.create("Deploying application template failed", data.Detail).error();
                     failCallback(data);
                     if (status === 401) {
                         unauthorized($location);
@@ -1250,8 +1250,10 @@ function aggregateVhosts(service) {
     var child_service = service.children[i];
     vhosts = vhosts.concat( aggregateVhosts( child_service));
   }
+  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); })
   return vhosts;
 }
+
 // collect all address assignments for a service
 function aggregateAddressAssigments(service, api) {
   var assignments = [];
