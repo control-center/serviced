@@ -109,7 +109,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	var servicesList []*service.Service
+	var servicesList []service.Service
 	if err := d.client.GetServices(unused, &servicesList); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
@@ -357,7 +357,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	timestamp := parts[1]
 
 	var (
-		services  []*service.Service
+		services  []service.Service
 		theVolume volume.Volume
 	)
 
@@ -421,8 +421,8 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	glog.Infof("DistributedFileSystem.RollbackServices from path: %s", restorePath)
 
 	var (
-		existingServices []*service.Service
-		services         []*service.Service
+		existingServices []service.Service
+		services         []service.Service
 	)
 
 	// Verify there are no running service instances
@@ -459,7 +459,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 		}
 	}
 
-	existingServiceMap := make(map[string]*service.Service)
+	existingServiceMap := make(map[string]service.Service)
 	for _, service := range existingServices {
 		existingServiceMap[service.ID] = service
 	}
@@ -470,14 +470,14 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 			svc.DesiredState = service.SVCStop
 		}
 
-		if existingService := existingServiceMap[svc.ID]; existingService != nil {
+		if existingService, ok := existingServiceMap[svc.ID]; ok {
 			var unused *int
 			svc.PoolID = existingService.PoolID
 			if existingPools[svc.PoolID] == nil {
 				glog.Infof("Changing PoolID of service %s from %s to default", svc.ID, svc.PoolID)
 				svc.PoolID = "default"
 			}
-			if e := d.client.UpdateService(*svc, unused); e != nil {
+			if e := d.client.UpdateService(svc, unused); e != nil {
 				glog.Errorf("Could not update service %s: %v", svc.ID, e)
 				return e
 			}
@@ -487,7 +487,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 				svc.PoolID = "default"
 			}
 			var serviceId string
-			if e := d.client.AddService(*svc, &serviceId); e != nil {
+			if e := d.client.AddService(svc, &serviceId); e != nil {
 				glog.Errorf("Could not add service %s: %v", svc.ID, e)
 				return e
 			}

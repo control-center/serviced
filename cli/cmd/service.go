@@ -295,7 +295,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return nil, err
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	for _, svc := range svcs {
 		switch strings.ToLower(keyword) {
 		case svc.ID, strings.ToLower(svc.Name):
@@ -311,7 +311,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	case 0:
 		return nil, fmt.Errorf("service not found")
 	case 1:
-		return services[0], nil
+		return &services[0], nil
 	}
 
 	matches := newtable(0, 8, 2)

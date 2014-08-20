@@ -233,7 +233,7 @@ func utcNow() time.Time {
 }
 
 // Find all docker images referenced by a template or service
-func dockerImageSet(templates map[string]servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
+func dockerImageSet(templates map[string]servicetemplate.ServiceTemplate, services []service.Service) map[string]bool {
 	imageSet := make(map[string]bool)
 	var visit func(*[]servicedefinition.ServiceDefinition)
 	visit = func(defs *[]servicedefinition.ServiceDefinition) {
@@ -314,7 +314,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 
 	var (
 		templates      map[string]servicetemplate.ServiceTemplate
-		services       []*service.Service
+		services       []service.Service
 		imagesNameTags [][]string
 	)
 	backupName := utcNow().Format("backup-2006-01-02-150405")
@@ -431,7 +431,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	// Dump all snapshots
-	snapshotToTgzFile := func(service *service.Service) (filename string, err error) {
+	snapshotToTgzFile := func(service service.Service) (filename string, err error) {
 		glog.V(0).Infof("snapshotToTgzFile(%v)", service.ID)
 		backupOutput <- fmt.Sprintf("Taking snapshot of service: %v", service.Name)
 		var snapshotID string

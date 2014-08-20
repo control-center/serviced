@@ -17,7 +17,7 @@ package service
 type Visit func(svc *Service) error
 
 //GetChildServices returns a list of services that are children to the parentID, return empty list if none found
-type GetChildServices func(parentID string) ([]*Service, error)
+type GetChildServices func(parentID string) ([]Service, error)
 
 //GetService return a service, return error if not found
 type GetService func(serviceID string) (Service, error)
