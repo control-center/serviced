@@ -89,16 +89,16 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 	return nil
 }
 
-func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]*servicetemplate.ServiceTemplate, error) {
+func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
 	glog.V(2).Infof("Facade.GetServiceTemplates")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
-	templateMap := make(map[string]*servicetemplate.ServiceTemplate)
+	templateMap := make(map[string]servicetemplate.ServiceTemplate)
 	if err != nil {
 		glog.V(2).Infof("Facade.GetServiceTemplates: err=%s", err)
 		return templateMap, err
 	}
 	for _, st := range results {
-		templateMap[st.ID] = st
+		templateMap[st.ID] = *st
 	}
 	return templateMap, nil
 }
@@ -378,7 +378,7 @@ func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 // writeLogstashConfiguration takes all the available
 // services and writes out the filters section for logstash.
 // This is required before logstash startsup
-func writeLogstashConfiguration(templates map[string]*servicetemplate.ServiceTemplate) error {
+func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
 	// FIXME: eventually this file should live in the DFS or the config should
 	// live in zookeeper to allow the agents to get to this
 	if err := dao.WriteConfigurationFile(templates); err != nil {

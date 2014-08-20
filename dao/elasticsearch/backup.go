@@ -233,7 +233,7 @@ func utcNow() time.Time {
 }
 
 // Find all docker images referenced by a template or service
-func dockerImageSet(templates map[string]*servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
+func dockerImageSet(templates map[string]servicetemplate.ServiceTemplate, services []*service.Service) map[string]bool {
 	imageSet := make(map[string]bool)
 	var visit func(*[]servicedefinition.ServiceDefinition)
 	visit = func(defs *[]servicedefinition.ServiceDefinition) {
@@ -313,7 +313,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	backupOutput <- "Starting backup"
 
 	var (
-		templates      map[string]*servicetemplate.ServiceTemplate
+		templates      map[string]servicetemplate.ServiceTemplate
 		services       []*service.Service
 		imagesNameTags [][]string
 	)
@@ -575,7 +575,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	//TODO: acquire restore mutex, defer release
 	var (
 		doReloadLogstashContainer bool
-		templates                 map[string]*servicetemplate.ServiceTemplate
+		templates                 map[string]servicetemplate.ServiceTemplate
 		imagesNameTags            [][]string
 	)
 	defer func() {
@@ -630,7 +630,7 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 	for templateID, template := range templates {
 		template.ID = templateID
 		restoreOutput <- fmt.Sprintf("Restoring service template: %v", template.ID)
-		if e := cp.UpdateServiceTemplate(*template, unused); e != nil {
+		if e := cp.UpdateServiceTemplate(template, unused); e != nil {
 			glog.Errorf("Could not update template %s: %v", templateID, e)
 			restoreError <- e.Error()
 			return e

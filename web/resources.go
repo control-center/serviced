@@ -43,7 +43,7 @@ type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *nod
 
 func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var unused int
-	var templatesMap map[string]*servicetemplate.ServiceTemplate
+	var templatesMap map[string]servicetemplate.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
 	w.WriteJson(&templatesMap)
 }

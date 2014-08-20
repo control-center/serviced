@@ -78,7 +78,7 @@ type API interface {
 	Rollback(string) error
 
 	// Templates
-	GetServiceTemplates() ([]*template.ServiceTemplate, error)
+	GetServiceTemplates() ([]template.ServiceTemplate, error)
 	GetServiceTemplate(string) (*template.ServiceTemplate, error)
 	AddServiceTemplate(io.Reader) (*template.ServiceTemplate, error)
 	RemoveServiceTemplate(string) error
