@@ -179,9 +179,9 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 }
 
 // Get a service endpoint.
-func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]*dao.ApplicationEndpoint, error) {
+func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]dao.ApplicationEndpoint, error) {
 	glog.V(2).Infof("Facade.GetServiceEndpoints serviceId=%s", serviceId)
-	result := make(map[string][]*dao.ApplicationEndpoint)
+	result := make(map[string][]dao.ApplicationEndpoint)
 	myService, err := f.getService(ctx, serviceId)
 	if err != nil {
 		glog.V(2).Infof("Facade.GetServiceEndpoints service=%+v err=%s", myService, err)
@@ -246,9 +246,9 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 
 					key := fmt.Sprintf("%s:%d", protocol, containerPort)
 					if _, exists := result[key]; !exists {
-						result[key] = make([]*dao.ApplicationEndpoint, 0)
+						result[key] = make([]dao.ApplicationEndpoint, 0)
 					}
-					result[key] = append(result[key], &ep)
+					result[key] = append(result[key], ep)
 					matchedEndpoint = true
 				}
 			}

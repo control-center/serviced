@@ -54,7 +54,7 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
+func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -197,7 +197,7 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
@@ -216,7 +216,7 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.Applicat
 }
 
 // addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
@@ -230,7 +230,7 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.
 }
 
 // addLogstashEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	tcp_endpoint := dao.ApplicationEndpoint{
 		ServiceID:     "controlplane_logstash_tcp",
 		Application:   "controlplane_logstash_tcp",
@@ -255,18 +255,18 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationE
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
-func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]dao.ApplicationEndpoint) {
 	if _, ok := endpoints[key]; !ok {
-		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+		endpoints[key] = make([]dao.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
 			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
 			for _, ep := range endpoints[key] {
-				glog.Warningf(" %+v", *ep)
+				glog.Warningf(" %+v", ep)
 			}
 		}
 	}
-	endpoints[key] = append(endpoints[key], &endpoint)
+	endpoints[key] = append(endpoints[key], endpoint)
 }
 
 // GetHostID returns the agent's host id

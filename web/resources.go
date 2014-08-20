@@ -290,7 +290,7 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 	var services []*dao.RunningService
 	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
-		glog.Errorf("Could not get services: %v", err)
+		glog.Errorf("Could not get running services for %s: %v", serviceID, err)
 		restServerError(w, err)
 		return
 	}
