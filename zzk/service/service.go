@@ -294,10 +294,10 @@ func StopService(conn client.Connection, serviceID string) error {
 }
 
 // SyncServices synchronizes all services into zookeeper
-func SyncServices(conn client.Connection, services []*service.Service) error {
+func SyncServices(conn client.Connection, services []service.Service) error {
 	nodes := make([]zzk.Node, len(services))
 	for i := range services {
-		nodes[i] = &ServiceNode{Service: services[i]}
+		nodes[i] = &ServiceNode{Service: &services[i]}
 	}
 	return zzk.Sync(conn, nodes, servicepath())
 }

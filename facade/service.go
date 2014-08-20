@@ -140,7 +140,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 }
 
 //
-func (f *Facade) GetServices(ctx datastore.Context) ([]*service.Service, error) {
+func (f *Facade) GetServices(ctx datastore.Context) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
@@ -170,7 +170,7 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]*ser
 }
 
 //
-func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]*service.Service, error) {
+func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetTaggedServices")
 
 	store := f.serviceStore
@@ -189,7 +189,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 	default:
 		err := fmt.Errorf("Bad request type: %v", v)
 		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
-		return []*service.Service{}, err
+		return []service.Service{}, err
 	}
 }
 
@@ -537,7 +537,7 @@ func (f *Facade) getService(ctx datastore.Context, id string) (service.Service, 
 
 //getServices is an internal method that returns all Services without filling in all related service data like address assignments
 //and modified config files
-func (f *Facade) getServices(ctx datastore.Context) ([]*service.Service, error) {
+func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
 	results, err := store.GetServices(ctx)
@@ -570,7 +570,7 @@ func (f *Facade) getTenantIDAndPath(ctx datastore.Context, svc service.Service) 
 // traverse all the services (including the children of the provided service)
 func (f *Facade) walkServices(ctx datastore.Context, serviceID string, visitFn service.Visit) error {
 	store := f.serviceStore
-	getChildren := func(parentID string) ([]*service.Service, error) {
+	getChildren := func(parentID string) ([]service.Service, error) {
 		return store.GetChildServices(ctx, parentID)
 	}
 	getService := func(svcID string) (service.Service, error) {
@@ -606,7 +606,7 @@ type treenode struct {
 
 // getServiceTree creates the service hierarchy tree containing serviceId, serviceList is used to create the tree.
 // Returns a pointer the root of the service hierarchy
-func (f *Facade) getServiceTree(serviceId string, servicesList *[]*service.Service) *treenode {
+func (f *Facade) getServiceTree(serviceId string, servicesList *[]service.Service) *treenode {
 	glog.V(2).Infof(" getServiceTree = %s", serviceId)
 	servicesMap := make(map[string]*treenode)
 	for _, svc := range *servicesList {
@@ -705,9 +705,9 @@ func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) err
 	return nil
 }
 
-func (f *Facade) fillOutServices(ctx datastore.Context, svcs []*service.Service) error {
-	for _, svc := range svcs {
-		if err := f.fillOutService(ctx, svc); err != nil {
+func (f *Facade) fillOutServices(ctx datastore.Context, svcs []service.Service) error {
+	for i := range svcs {
+		if err := f.fillOutService(ctx, &svcs[i]); err != nil {
 			return err
 		}
 	}

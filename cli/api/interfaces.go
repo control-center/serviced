@@ -48,11 +48,11 @@ type API interface {
 	RemoveVirtualIP(pool.VirtualIP) error
 
 	// Services
-	GetServices() ([]*service.Service, error)
+	GetServices() ([]service.Service, error)
 	GetServiceStates(string) ([]*servicestate.ServiceState, error)
 	GetServiceStatus(string) (map[*servicestate.ServiceState]dao.Status, error)
 	GetService(string) (*service.Service, error)
-	GetServicesByName(string) ([]*service.Service, error)
+	GetServicesByName(string) ([]service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(RemoveServiceConfig) error
 	UpdateService(io.Reader) (*service.Service, error)

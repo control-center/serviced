@@ -159,14 +159,14 @@ func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client
 	w.WriteJson(&active)
 }
 
-func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {
+func filterByNameRegex(nmregex string, services []service.Service) ([]service.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
 		glog.Errorf("Bad name regexp :%s", nmregex)
 		return nil, err
 	}
 
-	matches := []*service.Service{}
+	matches := []service.Service{}
 	for _, service := range services {
 		if r.MatchString(service.Name) {
 			matches = append(matches, service)
@@ -176,8 +176,8 @@ func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.
 	return matches, nil
 }
 
-func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]*service.Service, error) {
-	services := []*service.Service{}
+func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]service.Service, error) {
+	services := []service.Service{}
 	var ts interface{}
 	ts = strings.Split(tags, ",")
 	if err := client.GetTaggedServices(&ts, &services); err != nil {
@@ -192,8 +192,8 @@ func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]*ser
 	return services, nil
 }
 
-func getNamedServices(client *node.ControlClient, nmregex string) ([]*service.Service, error) {
-	services := []*service.Service{}
+func getNamedServices(client *node.ControlClient, nmregex string) ([]service.Service, error) {
+	services := []service.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get named services: %v", err)
 		return nil, err
@@ -202,8 +202,8 @@ func getNamedServices(client *node.ControlClient, nmregex string) ([]*service.Se
 	return filterByNameRegex(nmregex, services)
 }
 
-func getServices(client *node.ControlClient) ([]*service.Service, error) {
-	services := []*service.Service{}
+func getServices(client *node.ControlClient) ([]service.Service, error) {
+	services := []service.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		return nil, err
@@ -213,15 +213,15 @@ func getServices(client *node.ControlClient) ([]*service.Service, error) {
 	return services, nil
 }
 
-func getISVCS() []*service.Service {
-	services := []*service.Service{}
-	services = append(services, &isvcs.InternalServicesISVC)
-	services = append(services, &isvcs.ElasticsearchISVC)
-	services = append(services, &isvcs.ZookeeperISVC)
-	services = append(services, &isvcs.LogstashISVC)
-	services = append(services, &isvcs.OpentsdbISVC)
-	services = append(services, &isvcs.CeleryISVC)
-	services = append(services, &isvcs.DockerRegistryISVC)
+func getISVCS() []service.Service {
+	services := []service.Service{}
+	services = append(services, isvcs.InternalServicesISVC)
+	services = append(services, isvcs.ElasticsearchISVC)
+	services = append(services, isvcs.ZookeeperISVC)
+	services = append(services, isvcs.LogstashISVC)
+	services = append(services, isvcs.OpentsdbISVC)
+	services = append(services, isvcs.CeleryISVC)
+	services = append(services, isvcs.DockerRegistryISVC)
 	return services
 }
 
@@ -380,8 +380,8 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 }
 
 func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var allServices []*service.Service
-	topServices := []*service.Service{}
+	var allServices []service.Service
+	topServices := []service.Service{}
 
 	err := client.GetServices(&empty, &allServices)
 	if err != nil {
@@ -394,7 +394,7 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 			topServices = append(topServices, service)
 		}
 	}
-	topServices = append(topServices, &isvcs.InternalServicesISVC)
+	topServices = append(topServices, isvcs.InternalServicesISVC)
 	glog.V(2).Infof("Returning %d services as top services", len(topServices))
 	w.WriteJson(&topServices)
 }
@@ -411,7 +411,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		return
 	}
 
-	var allServices []*service.Service
+	var allServices []service.Service
 
 	if err := client.GetServices(&empty, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
