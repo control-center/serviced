@@ -5,13 +5,13 @@
   <refbody>
     <section>
       <image href="../images/xf-app-detail-ip-assign.png" scale="50"/>
-      <p>This table lists the application services that have external (public) IP addresses. The
-        services in this table are also listed in the <xref keyref="ref-xface-app-detail-services"><uicontrol>Services</uicontrol> table</xref>.
-        However, this table collects
-        them, highlights their IP properties, and includes a mechanism (the
-          <uicontrol>Assign</uicontrol> button) for quickly changing their external IP addresses, if
-        necessary.</p><p>The <uicontrol>Assign</uicontrol> button displays the
-            <xref keyref="ref-xface-assign-ip"><uicontrol>Assign IP</uicontrol> dialog</xref>.</p>
+      <p>This table lists the services that have external (public) IP addresses. The services in
+        this table are also listed in the <xref keyref="ref-xface-app-detail-services"
+            ><uicontrol>Services</uicontrol> table</xref>. However, this table highlights IP
+        properties and includes a mechanism (the <uicontrol>Assign</uicontrol> button) for changing
+        the external IP address, if necessary.</p><p>The <uicontrol>Assign</uicontrol> button
+        displays the <xref keyref="ref-xface-assign-ip"><uicontrol>Assign IP</uicontrol>
+          dialog</xref>.</p>
     </section>
   </refbody>
 </reference>

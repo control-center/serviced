@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cmd
 
@@ -128,7 +137,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "shell",
@@ -141,7 +149,6 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "run",
@@ -157,7 +164,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "attach",
@@ -395,6 +401,12 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", state.DockerID)
 				lines[iid]["Uptime"] = state.Uptime().String()
 				lines[iid]["Status"] = status.String()
+
+				insync := "Y"
+				if !state.InSync {
+					insync = "N"
+				}
+				lines[iid]["InSync"] = insync
 			}
 		}
 	}
@@ -419,10 +431,10 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID")
+	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID", "IN_SYNC")
 	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
 		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"])
+		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"], s["InSync"])
 	}, func(row []interface{}) string {
 		return strings.ToLower(row[1].(string))
 	})
@@ -687,11 +699,6 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		return nil
 	}
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	args := ctx.Args()
 	options := api.ControllerOptions{
 		MuxPort:               ctx.GlobalInt("muxport"),
@@ -731,11 +738,6 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
-	}
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
 	}
 
 	var (
@@ -790,11 +792,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		command string
 		argv    []string
 	)
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
 
 	svc, err := c.searchForService(args[0])
 	if err != nil {

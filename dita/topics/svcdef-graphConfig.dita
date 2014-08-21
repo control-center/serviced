@@ -29,19 +29,17 @@
           <row>
             <entry><codeph>Footer</codeph></entry>
             <entry><codeph>true</codeph> or <codeph>false</codeph></entry>
-            <entry>Determines whether the graph includes a footer.<draft-comment author="gemil"
-                >Which attrs are used to populate the footer?</draft-comment></entry>
+            <entry>Determines whether the graph includes a footer.</entry>
           </row>
           <row>
             <entry><codeph>Format</codeph></entry>
             <entry>String</entry>
-            <entry>The format specification for graph data, as defined in the 
-              <xref keyref="url-golang-fmt">Go <codeph>fmt</codeph> package</xref>.</entry>
+            <entry>The format specification for graph data.</entry>
           </row>
           <row>
             <entry><codeph>ReturnSet</codeph></entry>
             <entry>String</entry>
-            <entry><draft-comment author="gemil">Clues welcome</draft-comment></entry>
+            <entry> </entry>
           </row>
           <row>
             <entry><codeph>Type</codeph></entry>
@@ -50,7 +48,7 @@
           </row>
           <row>
             <entry><codeph>Tags</codeph></entry>
-            <entry> </entry>
+            <entry>Object</entry>
             <entry></entry>
           </row>
           <row>
@@ -101,7 +99,7 @@
           <row>
             <entry><codeph>DataPoints</codeph></entry>
             <entry>Array of objects</entry>
-            <entry>A list of <xref keyref="ref-svcdef-datapoint">DataPoint</xref> objects.</entry>
+            <entry>The data to graph, as an array of <xref keyref="ref-svcdef-datapoint">DataPoint</xref> objects.</entry>
           </row>
         </tbody>
       </tgroup>

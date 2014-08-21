@@ -51,6 +51,12 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         { id: 'VirtualHost', name: 'vhost_names'}
     ]);
 
+    $scope.templates = buildTable('Name', [
+        { id: 'Name', name: 'template_name'},
+        { id: 'ID', name: 'template_id'},
+        { id: 'Description', name: 'template_description'}
+    ]);
+
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
     };
@@ -63,13 +69,55 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         $('#addApp').modal('show');
     };
 
+    $scope.modalAddTemplate = function() {
+        $modalService.create({
+            templateUrl: "add-template.html",
+            model: $scope,
+            title: "template_add",
+            actions: [
+                {
+                    role: "cancel",
+                    action: function(){
+                        $scope.newHost = {};
+                        this.close();
+                    }
+                },{
+                    role: "ok",
+                    label: "template_add",
+                    action: function(){
+                        if(this.validate()){
+                            var data = new FormData();
+                            $.each($("#new_template_filename")[0].files, function(key, value){
+                                data.append("tpl", value);
+                            });
+                            resourcesService.add_app_template(data, function(data){
+                                resourcesService.get_app_templates(false, refreshTemplates);
+                            });
+                        }
+
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
+
     // given a service application find all of it's virtual host names
     $scope.collect_vhosts = function( app) {
         var vhosts = [];
-        var vhosts_definitions = aggregateVhosts( app);
-        for ( var i in vhosts_definitions) {
-            vhosts.push( vhosts_definitions[i].Name);
+	
+        if (app.Endpoints) {
+            for (var i in app.Endpoints) {
+                var endpoint = app.Endpoints[i];
+                if (endpoint.VHosts) {
+                    for ( var j in endpoint.VHosts) {
+                        vhosts.push( endpoint.VHosts[j] );
+                    }
+                }
+            }
         }
+
+        vhosts.sort();
         return vhosts;
     };
 
@@ -175,6 +223,28 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         }
     };
 
+    $scope.deleteTemplate = function(templateID){
+        $modalService.create({
+            template: $translate("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
+            model: $scope,
+            title: "template_remove",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "template_remove",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.delete_app_template(templateID, refreshTemplates);
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
+
     if ($scope.dev) {
         setupNewService();
         $scope.add_service = function() {
@@ -190,5 +260,18 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 
+    function refreshTemplates(){
+        resourcesService.get_app_templates(false, function(templatesMap) {
+            var templates = [];
+            for (var key in templatesMap) {
+                var template = templatesMap[key];
+                template.Id = key;
+                templates[templates.length] = template;
+            }
+            $scope.templates.data = templates;
+        });
+    }
+
+    refreshTemplates();
     pollDeploying();
 }

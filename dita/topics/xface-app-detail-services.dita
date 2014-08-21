@@ -5,7 +5,78 @@
   <refbody>
     <section>
       <image href="../images/xf-app-detail-services.png" scale="50"/>
+      <note>The preceding example is truncated, to save space.</note>
+      <p>This table lists all of the services associated with an application.</p>
+      <table>
+        <tgroup cols="3">
+          <colspec colname="c1" colwidth="4*"/>
+          <colspec colname="c2" colwidth="1*"/>
+          <colspec colname="c3" colwidth="14*"/>
+          <thead>
+            <row>
+              <entry>Column</entry>
+              <entry namest="c2" nameend="c3">Contents</entry>
+            </row>
+          </thead>
+          <tbody>
+            <row>
+              <entry><uicontrol>Application</uicontrol></entry>
+              <entry namest="c2" nameend="c3">The service name and its relationship to the preceding service.
+                <ul>
+                  <li>If a service is not indented, it is a peer of the preceding service.</li>
+                  <li>If a service is indented, it is a subservice of the preceding service.</li>
+                </ul>
+                Each service name is a link to the <xref keyref="ref-xface-svc-details">details page of the service</xref>.
+              </entry>
+            </row>
+            <row>
+              <entry morerows="3"><uicontrol>Status</uicontrol></entry>
+              <entry namest="c2" nameend="c3">The current state of the service, represented by an icon.</entry>
+            </row>
+            <row>
+              <entry><image href="../images/xf-svc-check.png"></image></entry>
+              <entry>The service is running.</entry>
+            </row>
+            <row>
+              <entry><image href="../images/xf-svc-question.png"></image></entry>
+              <entry>The state of the service is unknown.</entry>
+            </row>
+            <row>
+              <entry><image href="../images/xf-svc-bang.png"></image></entry>
+              <entry>The service is not running.</entry>
+            </row>
+            <row>
+              <entry><uicontrol>Host</uicontrol></entry>
+              <entry namest="c2" nameend="c3">The name of the resource pool host on which an
+                instance of the service is running. 
+                <ul>
+                  <li>If more than one instance is running, the number
+                    is noted parenthetically.</li>
+                  <li>The host name is a link to the <xref keyref="ref-xface-hosts-details">Hosts details page</xref>.</li>
+                </ul>
+              </entry>
+            </row>
+            <row>
+              <entry><uicontrol>Startup Command</uicontrol></entry>
+              <entry namest="c2" nameend="c3">The <cmdname>bash</cmdname> command that starts an
+                instance of the service in a container.</entry>
+            </row>
+            <row>
+              <entry><uicontrol>Actions</uicontrol></entry>
+              <entry namest="c2" nameend="c3">The controls for starting and stopping a service.
+              <ul>
+                <li>The <uicontrol>Stop</uicontrol> control stops all instances
+                  of the service, and discards the containers in which the instances 
+                  were running.</li>
+                <li>The <uicontrol>Start</uicontrol> control creates new containers 
+                for the required number of instances, and use the startup command
+                to start instances in the containers.</li>
+              </ul>
+              </entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
     </section>
   </refbody>
 </reference>
-

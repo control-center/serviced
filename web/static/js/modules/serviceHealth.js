@@ -50,7 +50,7 @@
             // don't so use our own promises
             var servicesDeferred = $q.defer();
             var runningServicesDeferred = $q.defer();
-            var healthCheckDeferred = $http.get("/servicehealth");
+            var healthCheckDeferred = $http({url: "/servicehealth", method: 'GET', params: {'time': new Date().getTime()}});
 
             servicesService.get_services(true, function(top, mapped){
                 servicesDeferred.resolve(mapped);

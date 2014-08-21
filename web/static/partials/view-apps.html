@@ -50,8 +50,12 @@
           </td>
           <td>{{app.DeploymentID}}</td>
           <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
-          <td><p ng-repeat="vhost in collect_vhosts(app) track by $index"><a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a></p></td>
-		      <td>
+          <td>
+              <p ng-repeat="vhost in collect_vhosts(app) track by $index">
+                  <a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a>
+              </p>
+          </td>
+		  <td>
             <div ng-if="app.ID.indexOf('isvc-') == -1">
               <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
               <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
@@ -60,5 +64,39 @@
           </td>
       </tr>
       </tbody>
+    </table>
+    <h3 class="pull-left">
+        {{'templates'|translate}}
+    </h3>
+    <div class="control-buttons pull-right">
+        <span class="add-control">
+            <button class="btn-link" ng-click="modalAddTemplate()">
+                <span class="glyphicon glyphicon-plus-sign"></span>
+                {{'template'|translate}}
+            </button>
+        </span>
+    </div>
+    <table class="table table-striped" id="template_data"  ng-model="templates.data">
+        <thead>
+        <tr>
+            <th ng-repeat="header in templates.headers">{{header.name|translate}}
+                <button ng-click="templates.set_order(header.id, templates)"
+                        ng-class="templates.get_order_class(header.id, templates)"></button>
+            </th>
+            <th>{{'running_tbl_actions'|translate}}</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr ng-hide="templates.data !== undefined">
+            <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+        </tr>
+        <tr ng-repeat="template in templates.data | orderBy:templates.sort">
+            <td>{{template.Name}}</td>
+            <td>{{template.ID}}</td>
+            <td>{{template.Description}}</td>
+            <td>
+                <button ng-click="deleteTemplate(template.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
+            </td>
+        </tr>
     </table>
     <div ng-include="'/static/partials/wizard-modal.html'"></div>

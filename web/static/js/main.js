@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * Main module & controllers
@@ -8,9 +17,6 @@
 angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService']).
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
-            when('/entry', {
-                templateUrl: '/static/partials/main.html',
-                controller: EntryControl}).
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
@@ -56,7 +62,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-isvcs.html',
                 controller: IsvcsControl
             }).
-            otherwise({redirectTo: '/entry'});
+            otherwise({redirectTo: '/apps'});
     }]).
     config(['$translateProvider', function($translateProvider) {
 
@@ -190,6 +196,7 @@ var POOL_CHILDREN_OPEN = 'nav-tree';
 // set verbosity of console.logs
 var DEBUG = false;
 
+
 function addChildren(allowed, parent) {
     allowed[parent.Id] = true;
     if (parent.children) {
@@ -213,6 +220,11 @@ function updateLanguage($scope, $cookies, $translate) {
 }
 
 function ResourcesService($http, $location, $notification) {
+    // add function to $http service to allow for noCacheGet requests
+    $http.noCacheGet = function(location){
+        return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
+    }
+
     var cached_pools;
     var cached_hosts_for_pool = {};
     var cached_hosts;
@@ -221,7 +233,7 @@ function ResourcesService($http, $location, $notification) {
     var cached_services_map; // map of services by by Id, with children attached
 
     var _get_services_tree = function(callback) {
-        $http.get('/services').
+        $http.noCacheGet('/services').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved list of services');
                 cached_services = [];
@@ -253,15 +265,15 @@ function ResourcesService($http, $location, $notification) {
     };
 
     var _get_app_templates = function(callback) {
-        $http.get('/templates').
+        $http.noCacheGet('/templates').
             success(function(data, status) {
-                if(DEBUG) console.log('Retrieved list of app templates');
+                if(DEBUG) console.log('Retrieved list of application templates');
                 cached_app_templates = data;
                 callback(data);
             }).
             error(function(data, status) {
                 // TODO error screen
-                $notification.create("",'Unable to retrieve app templates').error();
+                $notification.create("",'Unable to retrieve application templates').error();
                 if (status === 401) {
                     unauthorized($location);
                 }
@@ -270,7 +282,7 @@ function ResourcesService($http, $location, $notification) {
 
     // Real implementation for acquiring list of resource pools
     var _get_pools = function(callback) {
-        $http.get('/pools').
+        $http.noCacheGet('/pools').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved list of pools');
                 cached_pools = data;
@@ -286,7 +298,7 @@ function ResourcesService($http, $location, $notification) {
     };
 
     var _get_hosts_for_pool = function(poolID, callback) {
-        $http.get('/pools/' + poolID + '/hosts').
+        $http.noCacheGet('/pools/' + poolID + '/hosts').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved hosts for pool %s', poolID);
                 cached_hosts_for_pool[poolID] = data;
@@ -302,7 +314,7 @@ function ResourcesService($http, $location, $notification) {
     };
 
     var _get_hosts = function(callback) {
-        $http.get('/hosts').
+        $http.noCacheGet('/hosts').
             success(function(data, status) {
                 if(DEBUG) console.log('Retrieved host details');
                 cached_hosts = data;
@@ -371,7 +383,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Pool data is passed to a callback on success.
          */
         get_pool: function(poolID, callback) {
-            $http.get('/pools/' + poolID).
+            $http.noCacheGet('/pools').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
                     callback(data);
@@ -392,7 +404,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Pool data is passed to a callback on success.
          */
         get_pool_ips: function(poolID, callback) {
-            $http.get('/pools/' + poolID + "/ips").
+            $http({url: '/pools/' + poolID + "/ips", method: 'GET', params: {'time': new Date().getTime()}}).
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
                     callback(data);
@@ -413,7 +425,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services_for_service: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/running').
+            $http.noCacheGet('/services/' + serviceId + '/running').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved running services for %s', serviceId);
                     callback(data);
@@ -434,7 +446,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback virtual hosts are passed to callback on success.
          */
         get_vhosts: function(callback) {
-            $http.get('/vhosts').
+            $http.noCacheGet('/vhosts').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved list of virtual hosts');
                     callback(data);
@@ -495,7 +507,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services_for_host: function(hostId, callback) {
-            $http.get('/hosts/' + hostId + '/running').
+            $http.noCacheGet('/hosts/' + hostId + '/running').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved running services for %s', hostId);
                     callback(data);
@@ -516,7 +528,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Running services are passed to callback on success.
          */
         get_running_services: function(callback) {
-            $http.get('/running').
+            $http.noCacheGet('/running').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -683,7 +695,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback host data is passed to a callback on success.
          */
         get_host: function(hostID, callback) {
-            $http.get('/hosts/' + hostID).
+            $http({url: '/hosts/' + hostID, method: 'GET', params: {'time': new Date().getTime()}}).
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved %s for %s', data, hostID);
                     callback(data);
@@ -808,7 +820,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Log data passed to callback on success.
          */
         get_service_logs: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/logs').
+            $http.noCacheGet('/services/' + serviceId + '/logs').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -828,7 +840,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Log data passed to callback on success.
          */
         get_service_state_logs: function(serviceId, serviceStateId, callback) {
-            $http.get('/services/' + serviceId + '/' + serviceStateId + '/logs').
+            $http.noCacheGet('/services/' + serviceId + '/' + serviceStateId + '/logs').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -849,11 +861,40 @@ function ResourcesService($http, $location, $notification) {
          */
         get_app_templates: function(cacheOk, callback) {
             if (cacheOk && cached_app_templates) {
-                if(DEBUG) console.log('Using cached app templates');
+                if(DEBUG) console.log('Using cached application templates');
                 callback(cached_app_templates);
             } else {
                 _get_app_templates(callback);
             }
+        },
+
+        add_app_template: function(fileData, callback){
+            $.ajax( {
+                url: "/templates/add",
+                type: "POST",
+                data: fileData,
+                processData: false,
+                contentType: false,
+                success: function(data, status){
+                    $notification.create("Added template", data.Detail).success();
+                    callback(data);
+                },
+                error: function(data, status){
+                    console.log(data);
+                    $notification.create("Adding template failed", data.responseJSON.Detail).error();
+                }
+            });
+        },
+
+        delete_app_template: function(templateID, callback){
+            $http.delete('/templates/' + templateID).
+                success(function(data, status) {
+                    $notification.create("Removed template", data.Detail).success();
+                    callback(data);
+                }).
+                error(function(data, status){
+                    $notification.create("Removing template failed", data.Detail).error();
+                });
         },
 
         /*
@@ -909,12 +950,12 @@ function ResourcesService($http, $location, $notification) {
         deploy_app_template: function(deployDef, callback, failCallback) {
             $http.post('/templates/deploy', deployDef).
                 success(function(data, status) {
-                    $notification.create("", "Deployed app template").success();
+                    $notification.create("", "Deployed application template").success();
                     callback(data);
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    $notification.create("Deploying app template failed", data.Detail).error();
+                    $notification.create("Deploying application template failed", data.Detail).error();
                     failCallback(data);
                     if (status === 401) {
                         unauthorized($location);
@@ -929,7 +970,7 @@ function ResourcesService($http, $location, $notification) {
          * @param {function} callback Response passed to callback on success.
          */
         snapshot_service: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/snapshot').
+            $http.noCacheGet('/services/' + serviceId + '/snapshot').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1005,7 +1046,7 @@ function ResourcesService($http, $location, $notification) {
          * Gets the Serviced version from the server
          */
         get_version: function(callback){
-            $http.get('/version').
+            $http.noCacheGet('/version').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1022,7 +1063,7 @@ function ResourcesService($http, $location, $notification) {
          * Creates a backup file of serviced
          */
         create_backup: function(callback){
-            $http.get('/backup/create').
+            $http.noCacheGet('/backup/create').
                 success(function(data, status) {
                     callback(data);
                 }).
@@ -1053,7 +1094,7 @@ function ResourcesService($http, $location, $notification) {
         },
 
         get_backup_files: function(callback){
-            $http.get('/backup/list').
+            $http.noCacheGet('/backup/list').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved list of backup files.');
                     callback(data);
@@ -1070,7 +1111,7 @@ function ResourcesService($http, $location, $notification) {
         get_backup_status: function(successCallback, failCallback){
             failCallback = failCallback || angular.noop;
 
-            $http({url: '/backup/status', method: "GET", params: {'time': new Date().getTime()}}).
+            $http.noCacheGet('/backup/status').
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved status of backup.');
                     successCallback(data);
@@ -1215,8 +1256,10 @@ function aggregateVhosts(service) {
     var child_service = service.children[i];
     vhosts = vhosts.concat( aggregateVhosts( child_service));
   }
+  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); })
   return vhosts;
 }
+
 // collect all address assignments for a service
 function aggregateAddressAssigments(service, api) {
   var assignments = [];
