@@ -56,7 +56,7 @@ add_to_etc_hosts() {
 
 cleanup() {
     sudo pkill -9 serviced
-    docker kill $(docker ps -q)
+    docker ps -q | xargs docker kill
     sudo rm -rf /tmp/serviced-root/var/isvcs/*
 }
 trap cleanup EXIT
