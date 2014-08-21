@@ -43,7 +43,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js nsinit serviced
+build_TARGETS = build_isvcs build_js serviced
 
 # Define GOPATH for containerized builds.
 #
@@ -156,14 +156,7 @@ go:
 # of their GOPATH and type <goprog> instead of the laborious ./<goprog> :-)
 
 docker_SRC = github.com/dotcloud/docker
-nsinit_SRC = $(docker_SRC)/pkg/libcontainer/nsinit
-nsinit: $(Godeps_restored)
-	go build   $($@_SRC)
-	go install $($@_SRC)
 
-nsinit = $(GOBIN)/nsinit
-$(nsinit): $(Godeps_restored)
-	go install $($(@F)_SRC)
 
 # https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
 #
@@ -237,8 +230,6 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 default_INSTCMD = cp
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
-$(_DESTDIR)$(prefix)/bin_TARGETS                  += nsinit
-$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/nsinit:$(_DESTDIR)/usr/bin/nsinit
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
@@ -456,19 +447,6 @@ docker_ok:
 clean_js:
 	cd web && make clean
 
-.PHONY: clean_nsinit
-clean_nsinit:
-	@for target in nsinit $(nsinit) ;\
-        do \
-                if [ -f "$${target}" ];then \
-                        rm -f $${target} ;\
-			echo "rm -f $${target}" ;\
-                fi ;\
-        done
-	if [ -d "$(GOSRC)/$(nsinit_SRC)" ];then \
-		cd $(GOSRC)/$(nsinit_SRC) && go clean ;\
-	fi
-
 .PHONY: clean_serviced
 clean_serviced:
 	@for target in serviced $(serviced) ;\
@@ -497,7 +475,7 @@ clean_dao:
 	cd dao && make clean
 
 .PHONY: clean
-clean: clean_js clean_nsinit clean_pkg clean_dao clean_godeps clean_serviced
+clean: clean_js clean_pkg clean_dao clean_godeps clean_serviced
 
 .PHONY: docker_clean_pkg
 docker_clean_pkg:
