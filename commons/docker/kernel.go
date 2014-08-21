@@ -117,7 +117,7 @@ type imglistreq struct {
 	respchan chan []*Image
 }
 
-type inspectreq struct {
+type continspectreq struct {
 	request
 	args struct {
 		id string
@@ -213,27 +213,27 @@ type waitreq struct {
 
 var (
 	cmds = struct {
-		AddAction       chan addactionreq
-		CancelAction    chan cancelactionreq
-		Commit          chan commitreq
-		Create          chan createreq
-		Delete          chan deletereq
-		DeleteImage     chan delimgreq
-		Export          chan exportreq
-		ImageImport     chan impimgreq
-		ImageList       chan imglistreq
-		Inspect         chan inspectreq
-		Kill            chan killreq
-		List            chan listreq
-		OnContainerStop chan onstopreq
-		OnEvent         chan oneventreq
-		PullImage       chan pushpullreq
-		PushImage       chan pushpullreq
-		Restart         chan restartreq
-		Start           chan startreq
-		Stop            chan stopreq
-		TagImage        chan tagimgreq
-		Wait            chan waitreq
+		AddAction        chan addactionreq
+		CancelAction     chan cancelactionreq
+		Commit           chan commitreq
+		Create           chan createreq
+		Delete           chan deletereq
+		DeleteImage      chan delimgreq
+		Export           chan exportreq
+		ImageImport      chan impimgreq
+		ImageList        chan imglistreq
+		ContainerInspect chan continspectreq
+		Kill             chan killreq
+		List             chan listreq
+		OnContainerStop  chan onstopreq
+		OnEvent          chan oneventreq
+		PullImage        chan pushpullreq
+		PushImage        chan pushpullreq
+		Restart          chan restartreq
+		Start            chan startreq
+		Stop             chan stopreq
+		TagImage         chan tagimgreq
+		Wait             chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
@@ -244,7 +244,7 @@ var (
 		make(chan exportreq),
 		make(chan impimgreq),
 		make(chan imglistreq),
-		make(chan inspectreq),
+		make(chan continspectreq),
 		make(chan killreq),
 		make(chan listreq),
 		make(chan onstopreq),
@@ -463,7 +463,7 @@ KernelLoop:
 
 			close(req.errchan)
 			req.respchan <- resp
-		case req := <-cmds.Inspect:
+		case req := <-cmds.ContainerInspect :
 			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {

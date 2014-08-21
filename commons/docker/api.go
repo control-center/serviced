@@ -256,7 +256,7 @@ func (c *Container) Inspect() (*dockerclient.Container, error) {
 	ec := make(chan error)
 	rc := make(chan *dockerclient.Container)
 
-	cmds.Inspect <- inspectreq{
+	cmds.ContainerInspect <- continspectreq{
 		request{ec},
 		struct {
 			id string
