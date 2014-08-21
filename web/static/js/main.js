@@ -1227,7 +1227,7 @@ function flattenTree(depth, current, sortFunction) {
         current.children.sort(sortFunction);
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]));
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i], sortFunction));
     }
     return retVal;
 }
@@ -1368,9 +1368,11 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
 
             // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
+                console.log("FLATTEN");
                 $scope.services.subservices = flattenTree(0, $scope.services.current, function(a, b) {
                     return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1;
                 });
+                window.aaa = $scope.services.subservices;
             }
 
             // aggregate virtual ip and virtual host data
