@@ -152,6 +152,7 @@
     "info": "Info",
     "ip_addresses": "IPs",
     "ip_addresses_interface": "Interface",
+    "ip_addresses_mac": "MAC Address",
     "ip_addresses_ip": "IP",
     "label_assign": "Assign",
     "label_edit": "Edit",
