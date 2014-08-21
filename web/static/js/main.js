@@ -1368,11 +1368,9 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
 
             // we need a flattened view of all children
             if ($scope.services.current && $scope.services.current.children) {
-                console.log("FLATTEN");
                 $scope.services.subservices = flattenTree(0, $scope.services.current, function(a, b) {
                     return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1;
                 });
-                window.aaa = $scope.services.subservices;
             }
 
             // aggregate virtual ip and virtual host data
