@@ -129,7 +129,11 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Startup = sd.Command
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
-	svc.Instances = sd.Instances.Min
+	if sd.Instances.Default != 0 {
+		svc.Instances = sd.Instances.Default	
+	} else {
+		svc.Instances = sd.Instances.Min
+	}
 	svc.InstanceLimits = sd.Instances
 	svc.ChangeOptions = sd.ChangeOptions
 	svc.ImageID = sd.ImageID

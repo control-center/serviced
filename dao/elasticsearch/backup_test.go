@@ -308,7 +308,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		Name:           "test_service",
 		Startup:        "echo",
 		Instances:      0,
-		InstanceLimits: domain.MinMax{Min: 0, Max: 0},
+        InstanceLimits: domain.MinMax{Min: 0, Max: 0, Default: 0},
 		ImageID:        imageId,
 		Launch:         commons.MANUAL,
 		PoolID:         "default",
