@@ -585,6 +585,22 @@ func (img *Image) Inspect() (*dockerclient.Image, error) {
 	return InspectImage(img.UUID)
 }
 
+func ImageHistory(uuid string) ([]*dockerclient.Image, error) {
+	layers := make([]*dockerclient.Image, 0, 64)
+	for uuid != "" {
+		imageInfo, err := InspectImage(uuid)
+		if err != nil {
+			return layers, err
+		}
+		layers = append(layers, imageInfo)
+		uuid = imageInfo.Parent
+	}
+	return layers, nil
+}
+
+func (img *Image) History() ([]*dockerclient.Image, error) {
+	return ImageHistory(img.UUID)
+}
 
 func onContainerEvent(event, id string, action ContainerActionFunc) error {
 	ec := make(chan error)
