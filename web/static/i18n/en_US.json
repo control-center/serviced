@@ -139,6 +139,7 @@
     "deployed_tbl_deployment": "Deployment Status",
     "deployed_tbl_deployment_id": "Deployment ID",
     "deployed_tbl_details": "Details",
+    "deployed_tbl_description": "Description",
     "deployed_tbl_name": "Application",
     "deployed_tbl_pool": "Resource Pool",
     "deployed_tbl_state": "Status",

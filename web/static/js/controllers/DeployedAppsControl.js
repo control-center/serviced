@@ -45,6 +45,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
     $scope.services = buildTable('poolID', [
         { id: 'Name', name: 'deployed_tbl_name'},
+        { id: 'Description', name: 'deployed_tbl_description'},
         { id: 'Health', name: 'health_check'},
         { id: 'Id', name: 'deployed_tbl_deployment_id'},
         { id: 'poolID', name: 'deployed_tbl_pool'},
