@@ -555,6 +555,37 @@ func (img *Image) Tag(tag string) (*Image, error) {
 	}
 }
 
+func InspectImage(uuid string) (*dockerclient.Image, error) {
+	ec := make(chan error)
+	rc := make(chan *dockerclient.Image)
+
+	cmds.ImageInspect <- imginspectreq{
+		request{ec},
+		struct {
+			id string
+		}{uuid},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return nil, ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			dci := <-rc
+			return dci, nil
+		default:
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+func (img *Image) Inspect() (*dockerclient.Image, error) {
+	return InspectImage(img.UUID)
+}
+
+
 func onContainerEvent(event, id string, action ContainerActionFunc) error {
 	ec := make(chan error)
 

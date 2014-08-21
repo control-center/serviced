@@ -117,6 +117,14 @@ type imglistreq struct {
 	respchan chan []*Image
 }
 
+type imginspectreq struct {
+	request
+	args struct {
+		id string
+	}
+	respchan chan *dockerclient.Image
+}
+
 type continspectreq struct {
 	request
 	args struct {
@@ -222,6 +230,7 @@ var (
 		Export           chan exportreq
 		ImageImport      chan impimgreq
 		ImageList        chan imglistreq
+		ImageInspect     chan imginspectreq
 		ContainerInspect chan continspectreq
 		Kill             chan killreq
 		List             chan listreq
@@ -244,6 +253,7 @@ var (
 		make(chan exportreq),
 		make(chan impimgreq),
 		make(chan imglistreq),
+		make(chan imginspectreq),
 		make(chan continspectreq),
 		make(chan killreq),
 		make(chan listreq),
@@ -463,6 +473,16 @@ KernelLoop:
 
 			close(req.errchan)
 			req.respchan <- resp
+		case req := <- cmds.ImageInspect:
+			glog.V(1).Info("inspecting image: ", req.args.id)
+			img, err := dc.InspectImage(req.args.id)
+			if err != nil {
+				glog.V(1).Infof("unable to inspect image %s: %v", req.args.id, err)
+				req.errchan <- err
+				continue
+			}
+			close(req.errchan)
+			req.respchan <- img
 		case req := <-cmds.ContainerInspect :
 			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
