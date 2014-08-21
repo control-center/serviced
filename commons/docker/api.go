@@ -256,7 +256,7 @@ func (c *Container) Inspect() (*dockerclient.Container, error) {
 	ec := make(chan error)
 	rc := make(chan *dockerclient.Container)
 
-	cmds.Inspect <- inspectreq{
+	cmds.ContainerInspect <- continspectreq{
 		request{ec},
 		struct {
 			id string
@@ -553,6 +553,53 @@ func (img *Image) Tag(tag string) (*Image, error) {
 			return nil, fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
+}
+
+func InspectImage(uuid string) (*dockerclient.Image, error) {
+	ec := make(chan error)
+	rc := make(chan *dockerclient.Image)
+
+	cmds.ImageInspect <- imginspectreq{
+		request{ec},
+		struct {
+			id string
+		}{uuid},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return nil, ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			dci := <-rc
+			return dci, nil
+		default:
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+func (img *Image) Inspect() (*dockerclient.Image, error) {
+	return InspectImage(img.UUID)
+}
+
+func ImageHistory(uuid string) ([]*dockerclient.Image, error) {
+	layers := make([]*dockerclient.Image, 0, 64)
+	for uuid != "" {
+		imageInfo, err := InspectImage(uuid)
+		if err != nil {
+			return layers, err
+		}
+		layers = append(layers, imageInfo)
+		uuid = imageInfo.Parent
+	}
+	return layers, nil
+}
+
+func (img *Image) History() ([]*dockerclient.Image, error) {
+	return ImageHistory(img.UUID)
 }
 
 func onContainerEvent(event, id string, action ContainerActionFunc) error {
