@@ -16,6 +16,7 @@ package dfs
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/layer"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/pool"
@@ -313,6 +314,18 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 		err := errors.New("cannot commit a stale container")
 		glog.V(2).Infof("DistributedFileSystem.Commit dockerId=%+v err=%s", dockerId, err)
 		return "", err
+	}
+
+	// Check the number of image layers
+	layers, err := image.History()
+	if err != nil {
+		glog.Errorf("Checking history on %s: %s", image.ID, err)
+	}
+	if len(layers) > layer.WARN_LAYER_COUNT {
+		glog.Warningf("Image %s number of layers (%d) approaching maximum (%d).  Please squash image layers.",
+			image.ID, len(layers), layer.MAX_LAYER_COUNT)
+	} else {
+		glog.Infof("Image '%s' number of layers: %d", image.ID, len(layers))
 	}
 
 	// Commit the container to the image and tag
