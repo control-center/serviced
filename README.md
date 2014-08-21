@@ -44,7 +44,7 @@ serviced add-pool NAME CORE_LIMIT MEMORY_LIMIT PRIORITY
 
 Dev Environment
 ---------------
-Serviced is written in go. To install go, download go v1.2 from http://golang.org.
+Serviced is written in go. To install go, download go v1.3 from http://golang.org.
 Untar the distribution to /usr/local/go. If you use a different location for go, you
 must set GOROOT. See the http://www.golang.org for more information. Ensure that 
 $GOROOT/bin is in you path.
