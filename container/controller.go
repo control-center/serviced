@@ -43,6 +43,8 @@ var (
 	ErrInvalidService = errors.New("container: invalid serviced")
 	// ErrInvalidHostID is returned if the host is empty or malformed
 	ErrInvalidHostID = errors.New("container: invalid host id")
+	// ErrNoServiceEndpoints is returned if we can't fetch the service endpoints
+	ErrNoServiceEndpoints = errors.New("container: unable to retrieve service endpoints")
 )
 
 // containerEnvironmentFile writes out all the environment variables passed to the container so
@@ -488,7 +490,10 @@ func (c *Controller) Run() (err error) {
 	var startAfter <-chan time.Time
 	service := &subprocess.Instance{}
 	serviceExited := make(chan error, 1)
-	c.handleControlCenterImports()
+	if err := c.handleControlCenterImports(rpcDead); err != nil {
+		glog.Error("Could not setup Control Center specific imports: ", err)
+		return err
+	}
 	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed, rpcDead)
 	healthExits := c.kickOffHealthChecks()
@@ -665,7 +670,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 	}
 }
 
-func (c *Controller) handleControlCenterImports() {
+func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	// this function is currently needed to handle special control plane imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 
@@ -673,17 +678,62 @@ func (c *Controller) handleControlCenterImports() {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
-		return
+		return err
 	}
 	defer client.Close()
 
 	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
 	//       that returns only special "controlplane" imported endpoints
+
+	epchan := make(chan map[string][]*dao.ApplicationEndpoint)
+	timeout := make(chan struct{})
+
+	go func(c *node.LBClient, svcid string, epc chan map[string][]*dao.ApplicationEndpoint, timeout chan struct{}) {
+		var endpoints map[string][]*dao.ApplicationEndpoint
+	RetryGetServiceEndpoints:
+		for {
+			err = c.GetServiceEndpoints(svcid, &endpoints)
+			if err != nil {
+				select {
+				case <-time.After(1 * time.Second):
+					glog.V(3).Info("Couldn't retrieve service endpoints, trying again")
+					continue RetryGetServiceEndpoints
+				case <-timeout:
+					glog.V(3).Info("Timed out trying to retrieve service endpoints")
+					return
+				}
+			}
+			break
+		}
+
+		// deal with the race between the one minute timeout in handleControlCenterImports() and the
+		// call to GetServiceEndpoint() - the timeout may happen between GetServiceEndpoint() completing
+		// and sending the result via the epc channel.
+		select {
+		case _, ok := <-epc:
+			if ok {
+				panic("should never receive anything on the endpoints channel")
+			}
+			glog.V(3).Info("Endpoint channel closed, giving up")
+			return
+		default:
+			epc <- endpoints
+		}
+	}(client, c.options.Service.ID, epchan, timeout)
+
 	var endpoints map[string][]*dao.ApplicationEndpoint
-	err = client.GetServiceEndpoints(c.options.Service.ID, &endpoints)
-	if err != nil {
-		glog.Errorf("Error getting application endpoints for service %s: %s", c.options.Service.ID, err)
-		return
+	select {
+	case <-time.After(1 * time.Minute):
+		close(epchan)
+		timeout <- struct{}{}
+		client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: "unable to retrieve service endpoints"}, nil)
+		return ErrNoServiceEndpoints
+	case <-rpcdead:
+		close(epchan)
+		timeout <- struct{}{}
+		return fmt.Errorf("RPC Service has gone away")
+	case endpoints := <-epchan:
+		glog.V(2).Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
 	}
 
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
@@ -722,4 +772,6 @@ func (c *Controller) handleControlCenterImports() {
 		// TODO: agent needs to register controlplane and controlplane_consumer
 		//       but don't do that here in the container code
 	}
+
+	return nil
 }
