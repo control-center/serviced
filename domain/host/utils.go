@@ -14,10 +14,10 @@
 package host
 
 import (
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 	"github.com/kr/pretty"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/servicedversion"
 
 	"fmt"
 	"net"
@@ -66,13 +66,13 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	host.Cores = cpus
 	host.Memory = memory
 
-        // get embedded host information
-        host.ServiceD.Version = servicedversion.Version
-        host.ServiceD.Gitbranch = servicedversion.Gitbranch
-        host.ServiceD.Gitcommit = servicedversion.Gitcommit
-        host.ServiceD.Giturl = servicedversion.Giturl
-        host.ServiceD.Date = servicedversion.Date
-        host.ServiceD.Buildtag = servicedversion.Buildtag
+	// get embedded host information
+	host.ServiceD.Version = servicedversion.Version
+	host.ServiceD.Gitbranch = servicedversion.Gitbranch
+	host.ServiceD.Gitcommit = servicedversion.Gitcommit
+	host.ServiceD.Giturl = servicedversion.Giturl
+	host.ServiceD.Date = servicedversion.Date
+	host.ServiceD.Buildtag = servicedversion.Buildtag
 
 	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
 	if err != nil {
@@ -141,6 +141,7 @@ func getIPResources(hostID string, ipaddress ...string) ([]HostIPResource, error
 		hostIP.HostID = hostID
 		hostIP.IPAddress = ipaddr
 		hostIP.InterfaceName = iface.Name
+		hostIP.MACAddress = iface.HardwareAddr.String()
 		hostIPResources = append(hostIPResources, hostIP)
 	}
 	return hostIPResources, nil

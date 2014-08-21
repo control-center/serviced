@@ -19,32 +19,32 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/zenoss/glog"
 )
 
 //Host that runs the control plane agent.
 type Host struct {
-	ID                string // Unique identifier, default to hostid
-	Name              string // A label for the host, eg hostname, role
-	PoolID            string // Pool that the Host belongs to
-	IPAddr            string // The IP address the host can be reached at from a serviced master
-	Cores             int    // Number of cores available to serviced
-	Memory            uint64 // Amount of RAM (bytes) available to serviced
-	PrivateNetwork    string // The private network where containers run, eg 172.16.42.0/24
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	IPs               []HostIPResource // The static IP resources available on the host
-	KernelVersion     string
-	KernelRelease     string
-	ServiceD struct {
-		Version string
-		Date string
+	ID             string // Unique identifier, default to hostid
+	Name           string // A label for the host, eg hostname, role
+	PoolID         string // Pool that the Host belongs to
+	IPAddr         string // The IP address the host can be reached at from a serviced master
+	Cores          int    // Number of cores available to serviced
+	Memory         uint64 // Amount of RAM (bytes) available to serviced
+	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	IPs            []HostIPResource // The static IP resources available on the host
+	KernelVersion  string
+	KernelRelease  string
+	ServiceD       struct {
+		Version   string
+		Date      string
 		Gitcommit string
 		Gitbranch string
-		Giturl string
-		Buildtag string
+		Giturl    string
+		Buildtag  string
 	}
 	MonitoringProfile domain.MonitorProfile
 }
@@ -102,6 +102,7 @@ type HostIPResource struct {
 	HostID        string
 	IPAddress     string
 	InterfaceName string
+	MACAddress    string
 }
 
 // New creates a new empty host

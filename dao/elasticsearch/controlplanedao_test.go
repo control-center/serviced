@@ -590,7 +590,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	h, err := host.Build("", "default", []string{}...)
 	t.Assert(err, IsNil)
 	h.ID = hostid
-	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname"}}
+	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname", "macaddress"}}
 	err = dt.Facade.AddHost(dt.CTX, h)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)

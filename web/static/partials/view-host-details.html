@@ -65,6 +65,7 @@
     <tr ng-repeat="address in hosts.current.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
       <td>{{address.IPAddress}}</td>
+      <td>{{address.MACAddress}}</td>
     </tr>
   </tbody>
 </table>

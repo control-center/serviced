@@ -111,8 +111,8 @@ func (s *S) TestDaoGetHostWithIPs(t *C) {
 	h, err := Build("", "pool-id", []string{}...)
 	h.ID = "TestDaoGetHostWithIPs"
 	h.IPs = []HostIPResource{
-		HostIPResource{h.ID, "testip", "ifname"},
-		HostIPResource{h.ID, "testip2", "ifname"},
+		HostIPResource{h.ID, "testip", "ifname", "address1"},
+		HostIPResource{h.ID, "testip2", "ifname", "address2"},
 	}
 	err = s.hs.Put(s.ctx, HostKey(h.ID), h)
 	defer s.hs.Delete(s.ctx, HostKey(h.ID))
