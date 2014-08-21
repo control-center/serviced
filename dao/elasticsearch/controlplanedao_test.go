@@ -298,7 +298,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
+		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
 		DesiredState:   service.SVCRun,
