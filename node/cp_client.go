@@ -269,3 +269,7 @@ func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {
 func (s *ControlClient) RestoreStatus(notUsed string, restoreStatus *string) error {
 	return s.rpcClient.Call("ControlPlane.RestoreStatus", notUsed, restoreStatus)
 }
+
+func (s *ControlClient) ImageLayerCount(imageUUID string, layers* int) error {
+	return s.rpcClient.Call("ControlPlane.ImageLayerCount", imageUUID, layers)
+}

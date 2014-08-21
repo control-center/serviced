@@ -203,4 +203,7 @@ type ControlPlane interface {
 
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	// Return the number of layers in an image
+	ImageLayerCount(imageUUID string, layers* int) error
 }
