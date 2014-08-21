@@ -14,6 +14,7 @@
 package web
 
 import (
+	"bytes"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -22,7 +23,6 @@ import (
 	"regexp"
 	"strings"
 	"time"
-	"bytes"
 
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -59,7 +59,6 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	var b bytes.Buffer
 	_, err = io.Copy(&b, file)
-
 
 	template, err := servicetemplate.FromJSON(b.String())
 	if err != nil {
@@ -273,6 +272,16 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		glog.V(3).Info("Running services was nil, returning empty list instead")
 		services = []*dao.RunningService{}
 	}
+	for _, rsvc := range services {
+		var svc service.Service
+		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
+			glog.Errorf("Could not get services: %v", err)
+			restServerError(w, err)
+		}
+		fillBuiltinMetrics(&svc)
+		rsvc.MonitoringProfile = svc.MonitoringProfile
+	}
+
 	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
 	w.WriteJson(&services)
 }
@@ -385,6 +394,7 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 
 	for _, service := range allServices {
 		if service.ID == sid {
+			fillBuiltinMetrics(service)
 			w.WriteJson(&service)
 			return
 		}
