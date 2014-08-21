@@ -420,7 +420,7 @@ docker_buildandpackage: docker_ok
 
 .PHONY: test
 test: build docker_ok
-	go test ./commons/... $(GOTEST_FLAGS)
+	go test ./commons/... $(GOTEST_FLAGS) -v
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
 	cd web && go test $(GOTEST_FLAGS)
