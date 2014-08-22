@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	dutils "github.com/dotcloud/docker/utils"
+	"github.com/dotcloud/docker/pkg/parsers"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
@@ -365,7 +365,7 @@ func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.Servic
 
 func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 
-	repo, _ := dutils.ParseRepositoryTag(imageId)
+	repo, _ := parsers.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
 	matches := re.FindStringSubmatch(repo)
 	if matches == nil {
