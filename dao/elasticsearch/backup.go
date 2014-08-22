@@ -33,6 +33,7 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -56,6 +57,145 @@ func commandAsRoot(name string, arg ...string) (*exec.Cmd, error) {
 		return nil, err
 	}
 	return exec.Command("sudo", append([]string{"-n", name}, arg...)...), nil //Go, you make me sad.
+}
+
+type DiskInfo struct {
+	FileSystem string
+	Blocks     int64
+	Used       int64
+	Available  int64
+	UsePercent int
+	MountedOn  string
+}
+
+func parseDisks(output []byte) ([]DiskInfo, error) {
+	rawData := strings.TrimSpace(string(output))
+	rows, err := strings.Split(rawData, "\n"), fmt.Errorf("bad format")
+	if len(rows) < 2 {
+		return nil, err
+	}
+
+	disks := make([]DiskInfo, len(rows)-1)
+	for i, row := range rows[1:] {
+		fields := strings.Fields(row)
+		if len(fields) != 6 {
+			return nil, fmt.Errorf("bad format")
+		}
+
+		var disk DiskInfo
+		disk.FileSystem = fields[0]
+		disk.Blocks, err = strconv.ParseInt(fields[1], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		disk.Used, err = strconv.ParseInt(fields[2], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		disk.Available, err = strconv.ParseInt(fields[3], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		usePercent, err := strconv.ParseInt(strings.TrimRight(fields[4], "%"), 10, 32)
+		disk.UsePercent = int(usePercent)
+		if err != nil {
+			return nil, err
+		}
+		disk.MountedOn = fields[5]
+		disks[i] = disk
+	}
+
+	return disks, nil
+}
+
+// CheckDisk provides information about a disk
+func CheckDisk(dest string, blockSize int64) (*DiskInfo, error) {
+	if blockSize <= 0 {
+		return nil, fmt.Errorf("blockSize <= 0")
+	}
+
+	if cmd, err := commandAsRoot("df", "--block-size", strconv.FormatInt(blockSize, 10), dest); err != nil {
+		return nil, err
+	} else if output, err := cmd.CombinedOutput(); err != nil {
+		err = fmt.Errorf("%s: %s", string(output), err)
+		glog.Errorf("Could not read available disk %+v: %s", cmd, err)
+		return nil, err
+	} else if disks, err := parseDisks(output); err != nil {
+		glog.Errorf("Could not parse output %s: %s", string(output), err)
+		return nil, err
+	} else if len(disks) != 1 {
+		glog.Errorf("Unexpected result %s: %+v", string(output), disks)
+		return nil, fmt.Errorf("unexpected error")
+	} else {
+		return &disks[0], nil
+	}
+}
+
+type TarInfo struct {
+	Permission string // TODO: May want to change this later when we care
+	Owner      string
+	Group      string
+	Size       int64
+	Timestamp  time.Time
+	Filename   string
+}
+
+func parseTarInfo(output []byte) ([]TarInfo, error) {
+	rawData := strings.TrimSpace(string(output))
+	rows, err := strings.Split(rawData, "\n"), fmt.Errorf("bad format")
+
+	contents := make([]TarInfo, len(rows))
+	for i, row := range rows {
+		fields := strings.Fields(row)
+		if len(fields) != 6 {
+			return nil, fmt.Errorf("bad format")
+		}
+
+		var data TarInfo
+		data.Permission = fields[0]
+		owngrp := strings.SplitN(fields[1], "/", 2)
+		if len(owngrp) != 2 {
+			return nil, err
+		}
+		data.Owner = owngrp[0]
+		data.Group = owngrp[1]
+		data.Size, err = strconv.ParseInt(fields[2], 10, 64)
+		if err != nil {
+			return nil, err
+		}
+		data.Timestamp, err = time.Parse("2006-01-02 15:04", fields[3]+" "+fields[4])
+		if err != nil {
+			return nil, err
+		}
+		data.Filename = fields[5]
+		contents[i] = data
+	}
+
+	return contents, nil
+}
+
+func getTgzExpandedSize(filename string, blockSize int64) (int64, error) {
+	if blockSize <= 0 {
+		return 0, fmt.Errorf("blockSize <= 0")
+	}
+
+	var contents []TarInfo
+	if cmd, err := commandAsRoot("tar", "-tzvf", filename); err != nil {
+		return 0, err
+	} else if output, err := cmd.CombinedOutput(); err != nil {
+		err = fmt.Errorf("%s: %s", string(output), err)
+		glog.Errorf("Could not load contents of %s: %s", filename, err)
+		return 0, err
+	} else if contents, err = parseTarInfo(output); err != nil {
+		glog.Errorf("Could not parse output %s: %s", string(output), err)
+		return 0, err
+	}
+	var total int64
+	for _, data := range contents {
+		total += data.Size
+	}
+	return total / blockSize, nil
+
 }
 
 func writeDirectoryToTgz(src, filename string) error {
@@ -89,6 +229,25 @@ func writeDirectoryFromTgz(dest, filename string) (err error) {
 			}
 		}()
 	}
+
+	// verify there is enough disk space to expand the tgz
+	expandedSize, e := getTgzExpandedSize(filename, 1024)
+	if e != nil {
+		glog.Errorf("Could not compute size of archive %s: %s", filename, err)
+		return e
+	}
+
+	disk, e := CheckDisk(dest, 1024)
+	if e != nil {
+		glog.Errorf("Could not acquire disk information %s: %s", dest, err)
+		return e
+	}
+
+	if disk.Available < 2*expandedSize {
+		glog.Errorf("Not enough space on disk to restore from backup (uncompressed: %dK) (available: %dK)", expandedSize, disk.Available)
+		return fmt.Errorf("insufficient disk space")
+	}
+
 	cmd, e := commandAsRoot("tar", "-xpUf", filename, "-C", dest, "--numeric-owner")
 	if e != nil {
 		return e
@@ -405,6 +564,10 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 		// Try to find the tag referring to the local registry, so we don't
 		// make a call to Docker Hub potentially with invalid auth
 		// Default to the first tag in the list
+		if len(imageTags) == 0 {
+			continue
+		}
+
 		tag := imageTags[0]
 		for _, t := range imageTags {
 			if strings.HasPrefix(t, cp.dockerRegistry) {
