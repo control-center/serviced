@@ -10,12 +10,12 @@
 package isvcs
 
 import (
-	"github.com/rcrowley/go-metrics"
-	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/control-center/serviced/commons/circular"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
+	"github.com/rcrowley/go-metrics"
+	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"bytes"
 	"encoding/json"
@@ -143,12 +143,24 @@ func (c *Container) loop() {
 				c.stop()                // stop the container, if it's not stoppped
 				c.rm()                  // remove it if it was not already removed
 				cmd, exitChan = c.run() // run the actual container
-				if c.HealthCheck != nil {
-					req.response <- c.HealthCheck() // run the HealthCheck if it exists
-				} else {
-					req.response <- nil
+
+				healthCheckChan := make(chan error)
+				go func() {
+					if c.HealthCheck != nil {
+						healthCheckChan <- c.HealthCheck() // run the HealthCheck if it exists
+					} else {
+						healthCheckChan <- nil
+					}
+				}()
+				select {
+				case exited := <-exitChan:
+					req.response <- exited
+				case healthCheck := <-healthCheckChan:
+					if healthCheck == nil {
+						go c.doStats(statsExitChan)
+					}
+					req.response <- healthCheck
 				}
-				go c.doStats(statsExitChan)
 			}
 		case exitErr := <-exitChan:
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
@@ -342,7 +354,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 				glog.Errorf("Could not start: %s", c.Name)
 				c.stop()
 				c.rm()
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Second * 5)
 			} else {
 				break
 			}
