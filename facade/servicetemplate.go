@@ -307,7 +307,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			UpdateDeployTemplateStatus(deploymentId, "deploy_loading_image|"+name)
 			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
-				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
+				msg := fmt.Errorf("could not look up image %s: %s. Check your docker login and retry application deployment.", svc.ImageID, err)
 				glog.Error(err.Error())
 				return "", msg
 			}
@@ -338,7 +338,7 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 	for imageId, _ := range imageIds {
 		_, err := docker.FindImage(imageId, false)
 		if err != nil {
-			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
+			msg := fmt.Errorf("could not look up image %s: %s. Check your docker login and retry service deployment.", imageId, err)
 			glog.Error(err.Error())
 			return msg
 		}
