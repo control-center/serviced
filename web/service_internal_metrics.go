@@ -89,7 +89,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalusage",
 			Name:        "CPU Usage",
 			BuiltIn:     true,
-			Format:      "%d",
+			Format:      "%6.2f",
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
@@ -100,7 +100,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Format:       "%d",
+					Format:       "%6.2f",
 					Legend:       "System",
 					Metric:       "cgroup.cpuacct.system",
 					MetricSource: "metrics",
