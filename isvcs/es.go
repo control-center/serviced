@@ -26,13 +26,16 @@ var elasticsearch_logstash *Container
 var elasticsearch_serviced *Container
 
 func init() {
+	var serviceName string
 	var err error
+
+	serviceName = "elasticsearch-serviced"
 	elasticsearch_serviced, err = NewContainer(
 		ContainerDescription{
-			Name:        "elasticsearch-serviced",
+			Name:        serviceName,
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
-			Command:     `/opt/elasticsearch-0.90.9/bin/elasticsearch -f`,
+			Command:     fmt.Sprintf(`/opt/elasticsearch-0.90.9/bin/elasticsearch -f -Des.node.name=%s`, serviceName),
 			Ports:       []int{9200},
 			Volumes:     map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
 			HealthCheck: elasticsearchHealthCheck(9200),
@@ -42,12 +45,13 @@ func init() {
 		glog.Fatal("Error initializing elasticsearch container: %s", err)
 	}
 
+	serviceName = "elasticsearch-logstash"
 	elasticsearch_logstash, err = NewContainer(
 		ContainerDescription{
-			Name:        "elasticsearch-logstash",
+			Name:        serviceName,
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
-			Command:     `/opt/elasticsearch-1.3.1/bin/elasticsearch`,
+			Command:     fmt.Sprintf(`/opt/elasticsearch-1.3.1/bin/elasticsearch -Des.node.name=%s`, serviceName),
 			Ports:       []int{9100},
 			Volumes:     map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
 			HealthCheck: elasticsearchHealthCheck(9100),
