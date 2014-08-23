@@ -58,7 +58,7 @@ type ContainerDescription struct {
 	Name          string                              // name of the container (used for docker named containers)
 	Repo          string                              // the repository the image for this container uses
 	Tag           string                              // the repository tag this container uses
-	Command       string                              // the actual command to run inside the container
+	Command       func() string                       // the actual command to run inside the container
 	Volumes       map[string]string                   // Volumes to bind mount in to the containers
 	Ports         []int                               // Ports to expose to the host
 	HealthCheck   func() error                        // A function to verify that the service is healthy
@@ -80,7 +80,7 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 		return nil, err
 	}
 
-	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || len(cd.Command) == 0 {
+	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || cd.Command == nil {
 		return nil, ErrBadContainerSpec
 	}
 
@@ -328,7 +328,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	// set the image and command to run
-	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
+	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command())
 
 	glog.V(1).Infof("Executing docker %s", args)
 	var cmd *exec.Cmd
