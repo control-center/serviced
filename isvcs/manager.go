@@ -107,6 +107,16 @@ func (m *Manager) SetVolumesDir(dir string) {
 	m.volumesDir = dir
 }
 
+func (m *Manager) SetConfigurationOption(container, key string, value interface{}) error {
+	c, found := m.containers[container]
+	if !found {
+		return errors.New("could not find container")
+	}
+	glog.Infof("setting %s, %s: %s", container, key, value)
+	c.Configuration[key] = value
+	return nil
+}
+
 // checks for the existence of all the container images
 func (m *Manager) allImagesExist() error {
 	for _, c := range m.containers {

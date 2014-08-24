@@ -62,7 +62,7 @@ type ContainerDescription struct {
 	Volumes       map[string]string                   // Volumes to bind mount in to the containers
 	Ports         []int                               // Ports to expose to the host
 	HealthCheck   func() error                        // A function to verify that the service is healthy
-	Configuration interface{}                         // A container specific configuration
+	Configuration map[string]interface{}              // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 	volumesDir    string                              // directory to store volume data
 }
@@ -84,6 +84,9 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 		return nil, ErrBadContainerSpec
 	}
 
+	if cd.Configuration == nil {
+		cd.Configuration = make(map[string]interface{})
+	}
 	c := Container{
 		ContainerDescription: cd,
 
