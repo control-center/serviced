@@ -104,7 +104,7 @@ func (d *daemon) getEsClusterName(Type string) string {
 			glog.Fatalf("could not write clustername to %s: %s", filename, err)
 		}
 	} else {
-		clusterName = string(data)
+		clusterName = strings.TrimSpace(string(data))
 	}
 	return clusterName
 }
