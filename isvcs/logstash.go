@@ -26,12 +26,13 @@ var logstash *Container
 
 func init() {
 	var err error
+	command := "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	logstash, err = NewContainer(
 		ContainerDescription{
 			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf",
+			Command: func() string {return command},
 			Ports:   []int{5042, 5043, 9292},
 			Volumes: map[string]string{},
 			Notify:  notifyLogstashConfigChange,

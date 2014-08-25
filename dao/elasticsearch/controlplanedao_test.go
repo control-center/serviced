@@ -35,6 +35,7 @@ import (
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/utils"
 	_ "github.com/control-center/serviced/volume"
 	_ "github.com/control-center/serviced/volume/btrfs"
 	_ "github.com/control-center/serviced/volume/rsync"
@@ -77,6 +78,14 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	dt.Port = 9202
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
+	esServicedClusterName, _ := utils.NewUUID36()
+	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", esServicedClusterName); err != nil {
+		c.Fatalf("Could not set elasticsearch-serviced clustername: %s", err)
+	}
+	esLogstashClusterName, _ := utils.NewUUID36()
+	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", esLogstashClusterName); err != nil {
+		c.Fatalf("Could not set elasticsearch-logstash clustername: %s", err)
+	}
 	isvcs.Mgr.Wipe()
 	if err := isvcs.Mgr.Start(); err != nil {
 		c.Fatalf("Could not start es container: %s", err)
