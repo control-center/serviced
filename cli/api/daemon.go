@@ -196,6 +196,8 @@ func (d *daemon) run() error {
 		glog.Info("Timed out waiting for shutdown")
 		//Return error???
 	}
+	// finally, close all connections to zookeeper
+	zzk.ShutdownConnections()
 	return nil
 }
 
@@ -282,7 +284,7 @@ func (d *daemon) startMaster() error {
 		go func() {
 			defer d.waitGroup.Done()
 			<-d.shutdown
-			glog.Infof("Shuttding down storage handler")
+			glog.Infof("Shutting down storage handler")
 			d.storageHandler.Close()
 		}()
 	}

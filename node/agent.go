@@ -827,15 +827,15 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 		var conn coordclient.Connection
 
-		//handle shutdown if we are waiting fo a zk connection
+		// handle shutdown if we are waiting for a zk connection
 		select {
 		case conn = <-connc:
 			break
 		case <-shutdown:
 			return
 		}
+
 		glog.Info("Got a connected client")
-		// defer conn.Close()
 
 		// watch virtual IP zookeeper nodes
 		virtualIPListener := virtualips.NewVirtualIPListener(conn, a, a.hostID)

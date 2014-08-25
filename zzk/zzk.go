@@ -17,21 +17,114 @@ import (
 	"errors"
 	"path"
 	"sync"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/zenoss/glog"
 )
 
 var zClient *client.Client
-var poolBasedConnections = make(map[string]client.Connection)
+var poolBasedConnections = make(map[string]*zconn)
 
 // Errors
 var (
+	ErrTimeout  = errors.New("connection timeout")
 	ErrShutdown = errors.New("listener shutdown")
 )
 
 func InitializeGlobalCoordClient(myZClient *client.Client) {
 	zClient = myZClient
+}
+
+// zconn is the connection listener for the coordinator client
+type zconn struct {
+	client    *client.Client
+	connC     chan chan<- client.Connection
+	shutdownC chan struct{}
+}
+
+// newzconn instantiates a new connection listener
+func newzconn(zclient *client.Client, path string) *zconn {
+	zconn := &zconn{
+		client:    zclient,
+		connC:     make(chan chan<- client.Connection),
+		shutdownC: make(chan struct{}),
+	}
+
+	go zconn.monitor(path)
+	return zconn
+}
+
+// monitor checks for changes in a path-based connection
+func (zconn *zconn) monitor(path string) {
+	var (
+		connC chan<- client.Connection
+		conn  client.Connection
+		err   error
+	)
+
+	defer func() {
+		if conn != nil {
+			conn.Close()
+		}
+	}()
+
+	for {
+		// wait for someone to request a connection, or shutdown
+		select {
+		case connC = <-zconn.connC:
+		case <-zconn.shutdownC:
+			return
+		}
+
+	retry:
+		// create a connection if it doesn't exist or ping the existing connection
+		if conn == nil {
+			conn, err = zconn.client.GetCustomConnection(path)
+			if err != nil {
+				glog.Warningf("Could not obtain a connection to %s: %s", path, err)
+			}
+		} else if _, err := conn.Children("/"); err == client.ErrConnectionClosed {
+			glog.Warningf("Could not ping connection to %s: %s", path, err)
+			conn = nil
+		}
+
+		// send the connection back
+		if conn != nil {
+			connC <- conn
+			continue
+		}
+
+		// if conn is nil, try to create a new connection
+		select {
+		case <-time.After(time.Second):
+			glog.Infof("Refreshing connection to zookeeper")
+			goto retry
+		case <-zconn.shutdownC:
+			return
+		}
+	}
+}
+
+// connect returns a connection object or times out trying
+func (zconn *zconn) connect(timeout time.Duration) (client.Connection, error) {
+	connC := make(chan client.Connection)
+	zconn.connC <- connC
+	select {
+	case conn := <-connC:
+		return conn, nil
+	case <-time.After(timeout):
+		glog.Warningf("timed out waiting for connection")
+		return nil, ErrTimeout
+	case <-zconn.shutdownC:
+		glog.Warningf("receieved signal to shutdown")
+		return nil, ErrShutdown
+	}
+}
+
+// shutdown stops the connection listener
+func (zconn *zconn) shutdown() {
+	close(zconn.shutdownC)
 }
 
 // GeneratePoolPath is used to convert a pool ID to /pools/POOLID
@@ -40,25 +133,22 @@ func GeneratePoolPath(poolID string) string {
 }
 
 // GetBasePathConnection returns a connection based on the basePath provided
-func GetBasePathConnection(basePath string) (client.Connection, error) { // TODO figure out how/when to Close connections
-	if _, ok := poolBasedConnections[basePath]; ok {
-		return poolBasedConnections[basePath], nil
+func GetBasePathConnection(basePath string) (client.Connection, error) {
+	if _, ok := poolBasedConnections[basePath]; !ok {
+		if zClient == nil {
+			glog.Fatalf("zClient has not been initialized!")
+		}
+		poolBasedConnections[basePath] = newzconn(zClient, basePath)
 	}
+	zconn := poolBasedConnections[basePath]
+	return zconn.connect(time.Minute)
+}
 
-	if zClient == nil {
-		glog.Errorf("zkdao zClient has not been initialized!")
+// ShutdownConnections closes all pool-based connections to the coordinator client
+func ShutdownConnections() {
+	for _, zconn := range poolBasedConnections {
+		zconn.shutdown()
 	}
-
-	myNewConnection, err := zClient.GetCustomConnection(basePath)
-	if err != nil {
-		glog.Errorf("Failed to obtain a connection to %v: %v", basePath, err)
-		return nil, err
-	}
-
-	// save off the new connection to the map
-	poolBasedConnections[basePath] = myNewConnection
-
-	return myNewConnection, nil
 }
 
 // HostLeader is the node to store leader information for a host
