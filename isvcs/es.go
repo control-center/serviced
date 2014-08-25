@@ -10,9 +10,9 @@
 package isvcs
 
 import (
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/elastigo/cluster"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/utils"
 
 	"fmt"
 	"net/http"
@@ -26,35 +26,55 @@ var elasticsearch_logstash *Container
 var elasticsearch_serviced *Container
 
 func init() {
+	var serviceName string
 	var err error
+
+	serviceName = "elasticsearch-serviced"
 	elasticsearch_serviced, err = NewContainer(
 		ContainerDescription{
-			Name:        "elasticsearch-serviced",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     `/opt/elasticsearch-0.90.9/bin/elasticsearch -f`,
-			Ports:       []int{9200},
-			Volumes:     map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
-			HealthCheck: elasticsearchHealthCheck(9200),
+			Name:          serviceName,
+			Repo:          IMAGE_REPO,
+			Tag:           IMAGE_TAG,
+			Command:       func() string { return "" },
+			Ports:         []int{9200},
+			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			Configuration: make(map[string]interface{}),
+			HealthCheck:   elasticsearchHealthCheck(9200),
 		},
 	)
 	if err != nil {
 		glog.Fatal("Error initializing elasticsearch container: %s", err)
 	}
+	elasticsearch_serviced.Command = func() string {
+		clusterArg := ""
+		if clusterName, ok := elasticsearch_serviced.Configuration["cluster"]; ok {
+			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
+		}
+		return fmt.Sprintf(`/opt/elasticsearch-0.90.9/bin/elasticsearch -f -Des.node.name=%s %s`, elasticsearch_serviced.Name, clusterArg)
+	}
 
+	serviceName = "elasticsearch-logstash"
 	elasticsearch_logstash, err = NewContainer(
 		ContainerDescription{
-			Name:        "elasticsearch-logstash",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     `/opt/elasticsearch-1.3.1/bin/elasticsearch`,
-			Ports:       []int{9100},
-			Volumes:     map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
-			HealthCheck: elasticsearchHealthCheck(9100),
+			Name:          serviceName,
+			Repo:          IMAGE_REPO,
+			Tag:           IMAGE_TAG,
+			Command:       func() string { return "" },
+			Ports:         []int{9100},
+			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
+			Configuration: make(map[string]interface{}),
+			HealthCheck:   elasticsearchHealthCheck(9100),
 		},
 	)
 	if err != nil {
 		glog.Fatal("Error initializing elasticsearch container: %s", err)
+	}
+	elasticsearch_logstash.Command = func() string {
+		clusterArg := ""
+		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
+			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
+		}
+		return fmt.Sprintf(`/opt/elasticsearch-1.3.1/bin/elasticsearch -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
 	}
 }
 

@@ -33,7 +33,7 @@ func TestManager(t *testing.T) {
 		Name:    "test1",
 		Repo:    "ubuntu",
 		Tag:     "latest",
-		Command: `/bin/sh -c "while true; do echo hello world; sleep 1; done"`,
+		Command: func() string { return `/bin/sh -c "while true; do echo hello world; sleep 1; done"` },
 	}
 	container, err := NewContainer(cd1)
 	if err != nil {
@@ -45,7 +45,7 @@ func TestManager(t *testing.T) {
 		Name:    "test2",
 		Repo:    "ubuntu",
 		Tag:     "latest",
-		Command: `/bin/sh -c "while true; do echo hello world; sleep 1; done"`,
+		Command: func() string { return `/bin/sh -c "while true; do echo hello world; sleep 1; done"` },
 	}
 	container2, err := NewContainer(cd2)
 	if err != nil {

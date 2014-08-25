@@ -87,6 +87,28 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 	return d, nil
 }
 
+func (d *daemon) getEsClusterName(Type string) string {
+
+	filename := path.Join(options.VarPath, "isvcs", Type+".clustername")
+	clusterName := ""
+	data, err := ioutil.ReadFile(filename)
+	if err != nil || len(data) <= 0 {
+		clusterName, err = utils.NewUUID36()
+		if err != nil {
+			glog.Fatalf("could not generate uuid: %s", err)
+		}
+		if err := os.MkdirAll(path.Dir(filename), 0770); err != nil {
+			glog.Fatalf("could not create dir %s: %s", path.Dir(filename), err)
+		}
+		if err := ioutil.WriteFile(filename, []byte(clusterName), 0600); err != nil {
+			glog.Fatalf("could not write clustername to %s: %s", filename, err)
+		}
+	} else {
+		clusterName = strings.TrimSpace(string(data))
+	}
+	return clusterName
+}
+
 func (d *daemon) run() error {
 	var err error
 	d.hostID, err = utils.HostID()
@@ -103,6 +125,12 @@ func (d *daemon) run() error {
 	//TODO: should this just be in startMaster
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(path.Join(options.VarPath, "isvcs"))
+	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
+		glog.Fatalf("could not set es-serviced option: %s", err)
+	}
+	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", d.getEsClusterName("elasticsearch-logstash")); err != nil {
+		glog.Fatalf("could not set es-logstash option: %s", err)
+	}
 
 	dockerVersion, err := node.GetDockerVersion()
 	if err != nil {
