@@ -741,8 +741,8 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		close(epchan)
 		timeout <- struct{}{}
 		return fmt.Errorf("RPC Service has gone away")
-	case endpoints := <-epchan:
-		glog.V(2).Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
+	case endpoints = <-epchan:
+		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
 	}
 
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
