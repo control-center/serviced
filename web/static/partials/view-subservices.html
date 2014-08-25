@@ -122,8 +122,6 @@
         <thead>
           <tr>
             <th>{{'path'|translate}}</th>
-            <th>{{'owner'|translate}}</th>
-            <th>{{'permissions'|translate}}</th>
             <th>{{'running_tbl_actions'|translate}}</th>
           </tr>
         </thead>
@@ -133,8 +131,6 @@
           </tr>
           <tr ng-repeat="configFile in services.current.ConfigFiles">
             <td>{{ configFile.Filename }}</td>
-            <td>{{ configFile.Owner }}</td>
-            <td>{{ configFile.Permissions }}</td>
             <td>
               <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
             </td>
