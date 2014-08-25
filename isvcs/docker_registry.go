@@ -18,12 +18,13 @@ const registryPort = 5000
 
 func init() {
 	var err error
+	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`
 	dockerRegistry, err = NewContainer(
 		ContainerDescription{
 			Name:        "docker-registry",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
-			Command:     `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`,
+			Command:     func() string {return command},
 			Ports:       []int{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
 			HealthCheck: registryHealthCheck,
