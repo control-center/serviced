@@ -3,7 +3,7 @@
 # license that can be found in the LICENSE file.
 
 TARGET := $(shell pwd)
-QUERY_VERSION := 0.0.10
+QUERY_VERSION := 0.0.11
 
 .PHONY: default tarball
 
