@@ -216,7 +216,7 @@ function updateLanguage($scope, $cookies, $translate) {
     if ($scope.user) {
         $scope.user.language = ln;
     }
-    $translate.uses(ln);
+    $translate.use(ln);
 }
 
 function ResourcesService($http, $location, $notification) {
@@ -1227,7 +1227,7 @@ function flattenTree(depth, current, sortFunction) {
         current.children.sort(sortFunction);
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]));
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i], sortFunction));
     }
     return retVal;
 }

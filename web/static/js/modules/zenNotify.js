@@ -54,7 +54,7 @@
                 this.$el.removeClass("bg-info").addClass("bg-success");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-ok-sign");
 
-                this.updateTitle(this.title || $translate("success"));
+                this.updateTitle(this.title || $translate.instant("success"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -70,7 +70,7 @@
                 this.$el.removeClass("bg-info").addClass("bg-warning");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-warning-sign");
 
-                this.updateTitle(this.title || $translate("warning"));
+                this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -82,7 +82,7 @@
             },
 
             info: function(){
-                this.updateTitle(this.title || $translate("info"));
+                this.updateTitle(this.title || $translate.instant("info"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -98,7 +98,7 @@
                 this.$el.removeClass("bg-info").addClass("bg-danger");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-remove-sign");
 
-                this.updateTitle(this.title || $translate("error"));
+                this.updateTitle(this.title || $translate.instant("error"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active

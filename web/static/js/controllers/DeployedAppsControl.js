@@ -131,7 +131,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.clickRemoveService = function(app) {
         $scope.appToRemove = app;
         $modalService.create({
-            template: $translate("warning_remove_service"),
+            template: $translate.instant("warning_remove_service"),
             model: $scope,
             title: "remove_service",
             actions: [
@@ -178,7 +178,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
-            template: $translate("confirm_"+ status +"_app"),
+            template: $translate.instant("confirm_"+ status +"_app"),
             model: $scope,
             title: displayStatus +" Services",
             actions: [
@@ -226,7 +226,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
     $scope.deleteTemplate = function(templateID){
         $modalService.create({
-            template: $translate("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
+            template: $translate.instant("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
             model: $scope,
             title: "template_remove",
             actions: [

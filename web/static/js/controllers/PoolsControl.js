@@ -28,7 +28,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     // Function to remove a pool
     $scope.clickRemovePool = function(poolID) {
         $modalService.create({
-            template: $translate("confirm_remove_pool") + "<strong>"+ poolID +"</strong>",
+            template: $translate.instant("confirm_remove_pool") + "<strong>"+ poolID +"</strong>",
             model: $scope,
             title: "remove_pool",
             actions: [
