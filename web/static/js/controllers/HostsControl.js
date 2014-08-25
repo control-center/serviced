@@ -54,7 +54,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     
     $scope.remove_host = function(hostId) {
         $modalService.create({
-            template: $translate("confirm_remove_host") + " <strong>"+ $scope.hosts.mapped[hostId].Name +"</strong>",
+            template: $translate.instant("confirm_remove_host") + " <strong>"+ $scope.hosts.mapped[hostId].Name +"</strong>",
             model: $scope,
             title: "remove_host",
             actions: [

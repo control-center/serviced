@@ -91,7 +91,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                         }
                         else {
                             this.close();
-                            $notification.create("", $translate("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
+                            $notification.create("", $translate.instant("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
                         }
                     }
                 }
@@ -239,7 +239,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
-            template: $translate("confirm_"+ status +"_app"),
+            template: $translate.instant("confirm_"+ status +"_app"),
             model: $scope,
             title: displayStatus +" Services",
             actions: [
@@ -263,7 +263,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
             bigModal: true,
             actions: [
                 {
@@ -285,7 +285,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
 
     $scope.clickRemoveVirtualHost = function(vhost) {
         $modalService.create({
-            template: $translate("confirm_remove_virtual_host") + " <strong>"+ vhost.Name +"</strong>",
+            template: $translate.instant("confirm_remove_virtual_host") + " <strong>"+ vhost.Name +"</strong>",
             model: $scope,
             title: "remove_virtual_host",
             actions: [
@@ -313,7 +313,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
             bigModal: true,
             actions: [
                 {
@@ -377,15 +377,15 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
           min = svc.InstanceLimits.Min,
           num = svc.Instances;
       if (typeof num == 'undefined' || (max > 0 && num > max) || (min > 0 && num < min)) {
-        var msg = $translate("instances_invalid") + " ";
+        var msg = $translate.instant("instances_invalid") + " ";
         if (min > 0) {
-          msg += $translate("minimum") + " " + min;
+          msg += $translate.instant("minimum") + " " + min;
           if (max > 0) {
             msg += ", "
           }
         }
         if (max > 0) {
-          msg += $translate("maximum") + " " + max;
+          msg += $translate.instant("maximum") + " " + max;
         }
         $notification.create("", msg).error();
         return false;

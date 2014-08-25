@@ -164,7 +164,7 @@
 
                 console.log("patching in unknown status for "+ appId);
                 
-                updateServiceStatus(services[appId], "unknown", $translate("container_unavailable"));
+                updateServiceStatus(services[appId], "unknown", $translate.instant("container_unavailable"));
             }
         }
 
@@ -181,29 +181,29 @@
                 // service should be up, but is failing. bad!
                 if(healthChecksRollup.failing){
                     status = "bad";
-                    description = $translate("failing_health_checks");
+                    description = $translate.instant("failing_health_checks");
 
                 // service should be up, but container has not
                 // yet loaded
                 } else if(healthChecksRollup.down){
                     status = "unknown";
-                    description = $translate("container_unavailable");
+                    description = $translate.instant("container_unavailable");
 
                 // service should be up, but seems unresponsive
                 // It could be just starting, or on its way down
                 } else if(!healthChecksRollup.passing && healthChecksRollup.unknown){
                     status = "unknown";
-                    description = $translate("missing_health_checks");
+                    description = $translate.instant("missing_health_checks");
 
                 // service is up and healthy
                 } else if(healthChecksRollup.passing && !healthChecksRollup.unknown){
                     status = "good";
-                    description = $translate("passing_health_checks");
+                    description = $translate.instant("passing_health_checks");
 
                 // TODO: This needs to be more representative of the health of a meta-service's children
                 } else {
                     status = "good";
-                    description = $translate("passing_health_checks");
+                    description = $translate.instant("passing_health_checks");
                 }
 
             // the following conditions are relevant when the service
@@ -213,7 +213,7 @@
                 // it should be off, but its still on... weird.
                 if(healthChecksRollup.passing){
                     status = "unknown";
-                    description = $translate("stopping_service");
+                    description = $translate.instant("stopping_service");
                     // TODO - enable stop control?
 
                 // service is off, as expected

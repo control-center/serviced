@@ -216,7 +216,7 @@ function updateLanguage($scope, $cookies, $translate) {
     if ($scope.user) {
         $scope.user.language = ln;
     }
-    $translate.uses(ln);
+    $translate.use(ln);
 }
 
 function ResourcesService($http, $location, $notification) {
