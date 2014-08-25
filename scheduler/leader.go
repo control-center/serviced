@@ -16,15 +16,11 @@ package scheduler
 import (
 	"fmt"
 
-	"sync"
-
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/snapshot"
@@ -33,31 +29,25 @@ import (
 )
 
 type leader struct {
-	sync.Mutex
-	facade       *facade.Facade
-	dao          dao.ControlPlane
 	conn         coordclient.Connection
-	context      datastore.Context
-	poolID       string
+	dao          dao.ControlPlane
 	hostRegistry *zkservice.HostRegistryListener
+	poolID       string
 }
 
 // Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, poolID string, shutdown <-chan interface{}) {
-	glog.V(0).Info("Entering Lead()!")
-	defer glog.V(0).Info("Exiting Lead()!")
-
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, dao dao.ControlPlane, poolID string) {
 	// creates a listener for the host registry
 	hostRegistry, err := zkservice.NewHostRegistryListener(conn)
 	if err != nil {
-		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
+		glog.Errorf("Could not initialize host registry for pool %s: %s", err)
 		return
 	}
 
-	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
+	leader := leader{conn, dao, hostRegistry, poolID}
 	glog.V(0).Info("Processing leader duties")
 
 	// creates a listener for snapshots with a function call to take snapshots
