@@ -157,7 +157,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	sd := &servicedefinition.ServiceDefinition{
 		Name:      config.Name,
 		Command:   config.Command,
-		Instances: domain.MinMax{Min: 1, Max: 1},
+		Instances: domain.MinMax{Min: 1, Max: 1, Default: 1},
 		ImageID:   config.ImageID,
 		Launch:    commons.AUTO,
 		Endpoints: endpoints,

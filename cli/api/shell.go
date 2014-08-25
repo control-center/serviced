@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/commons/layer"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/shell"
@@ -206,6 +207,14 @@ func (a *api) RunShell(config ShellConfig) error {
 		glog.V(0).Infof("Committing container")
 		if err := client.Commit(container.ID, &label); err != nil {
 			glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
+		}
+		var layers = 0
+		if err := client.ImageLayerCount(container.Image, &layers); err != nil {
+			glog.Errorf("Counting layers for image %s", svc.ImageID)
+		}
+		if layers > layer.WARN_LAYER_COUNT {
+			glog.Warningf("Image '%s' number of layers (%d) approaching maximum (%d).  Please squash image layers.",
+				svc.ImageID, layers, layer.MAX_LAYER_COUNT)
 		}
 	default:
 		// Delete the container

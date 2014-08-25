@@ -29,6 +29,11 @@ func (s *Service) ValidEntity() error {
 	vErr.Add(validation.StringIn(s.Launch, commons.AUTO, commons.MANUAL))
 	vErr.Add(validation.IntIn(s.DesiredState, SVCRun, SVCStop, SVCPause, SVCRestart))
 
+	// Validate the min/max/default instances
+	sCopy := &Service{InstanceLimits: s.InstanceLimits}
+	sCopy.InstanceLimits.Default = s.Instances
+	vErr.Add(sCopy.InstanceLimits.Validate())
+
 	if vErr.HasError() {
 		return vErr
 	}

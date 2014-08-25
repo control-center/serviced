@@ -17,6 +17,14 @@ import (
 	"archive/tar"
 )
 
+const (
+	// Maximum layer count is set and enforced by docker:
+	//  https://github.com/docker/docker/blob/101c749b6533ab309eccea6b6c6173a0c25f787d/image/image.go#L308
+	MAX_LAYER_COUNT int = 127 - 2
+	WARN_LAYER_COUNT int = MAX_LAYER_COUNT - 16
+)
+
+
 type byName []*tar.Header
 
 func (a byName) Len() int           { return len(a) }

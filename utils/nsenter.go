@@ -113,7 +113,7 @@ func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bo
 func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
 	_, err := exec.LookPath("nsenter")
 	if err != nil {
-		return RunNSInitWithRetry(containerID, bashcmd)
+		return nil, fmt.Errorf("unable to find nsenter exe:%v", err)
 	}
 
 	return RunNSEnter(containerID, bashcmd)
@@ -123,8 +123,25 @@ func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
 func AttachAndExec(containerID string, bashcmd []string) error {
 	_, err := exec.LookPath("nsenter")
 	if err != nil {
-		return ExecNSInitWithRetry(containerID, bashcmd)
+		return fmt.Errorf("unable to find nsenter exe:%v", err)
 	}
 
 	return ExecNSEnter(containerID, bashcmd)
+}
+
+// exePaths returns the full path to the given executables in a map
+func exePaths(exes []string) (map[string]string, error) {
+	exeMap := map[string]string{}
+
+	for _, exe := range exes {
+		path, err := exec.LookPath(exe)
+		if err != nil {
+			glog.Errorf("exe:'%v' not found error:%v\n", exe, err)
+			return nil, err
+		}
+
+		exeMap[exe] = path
+	}
+
+	return exeMap, nil
 }

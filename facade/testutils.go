@@ -100,3 +100,7 @@ func (z *zkMock) AddResourcePool(poolID string) error {
 func (z *zkMock) RemoveResourcePool(poolID string) error {
 	return nil
 }
+
+func (z *zkMock) CheckRunningVHost(vhostName, serviceID string) error {
+	return nil
+}

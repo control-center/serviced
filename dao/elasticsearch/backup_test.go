@@ -14,6 +14,7 @@
 package elasticsearch
 
 import (
+	"bytes"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -23,14 +24,16 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 	. "gopkg.in/check.v1"
 )
 
@@ -129,6 +132,77 @@ func TestBackup_writeAndReadJsonToAndFromFile(t *testing.T) {
 		t.Errorf("Expected data: %+v", original)
 		t.Errorf("Actual data  : %+v", retrieved)
 		t.Fatal("Unexpected difference")
+	}
+}
+
+func TestBackup_parseDisks(t *testing.T) {
+	output := bytes.NewBufferString(`
+	Filesystem                   1K-blocks     Used Available Use% Mounted on
+	/dev/mapper/vagrant--vg-root  36774596 33984408    899068  98% /
+	udev                           2010500        4   2010496   1% /dev
+	tmpfs                           404808      356    404452   1% /run
+	none                           2024036     1076   2022960   1% /run/shm
+	`)
+
+	expected := []DiskInfo{
+		{"/dev/mapper/vagrant--vg-root", 36774596, 33984408, 899068, 98, "/"},
+		{"udev", 2010500, 4, 2010496, 1, "/dev"},
+		{"tmpfs", 404808, 356, 404452, 1, "/run"},
+		{"none", 2024036, 1076, 2022960, 1, "/run/shm"},
+	}
+
+	actual, err := parseDisks(output.Bytes())
+	if err != nil {
+		t.Fatalf("Could not parse: %s", err)
+	} else if !reflect.DeepEqual(expected, actual) {
+		t.Errorf("Mismatch (Expected: %v) (Actual: %v)", expected, actual)
+	}
+}
+
+func TestBackup_parseTarInfo(t *testing.T) {
+	output := bytes.NewBufferString(`
+	drwxr-xr-x root/root         0 2014-08-22 13:04 ./
+	drwxr-xr-x root/root         0 2014-08-22 13:04 ./images/
+	-rw-r--r-- root/root 1801870336 2014-08-22 13:04 ./images/2.tar
+	-rw-r--r-- root/root  520972800 2014-08-22 13:04 ./images/0.tar
+	`)
+
+	tparse := func(ts string) time.Time {
+		result, err := time.Parse("2006-01-02 15:04", ts)
+		if err != nil {
+			t.Fatalf("Could not parse time: %s", err)
+		}
+		return result
+	}
+	expected := []TarInfo{
+		{"drwxr-xr-x", "root", "root", 0, tparse("2014-08-22 13:04"), "./"},
+		{"drwxr-xr-x", "root", "root", 0, tparse("2014-08-22 13:04"), "./images/"},
+		{"-rw-r--r--", "root", "root", 1801870336, tparse("2014-08-22 13:04"), "./images/2.tar"},
+		{"-rw-r--r--", "root", "root", 520972800, tparse("2014-08-22 13:04"), "./images/0.tar"},
+	}
+	actual, err := parseTarInfo(output.Bytes())
+	if err != nil {
+		glog.Fatalf("Could not parse: %s", err)
+	}
+
+	if len(expected) != len(actual) {
+		t.Fatalf("Mismatch (Expected: %v) (Actual: %v)", expected, actual)
+	}
+
+	for i := range expected {
+		if expected[i].Permission != actual[i].Permission {
+			t.Errorf("Mismatch (Expected: %v) (Actual: %v)", expected[i], actual[i])
+		} else if expected[i].Owner != actual[i].Owner {
+			t.Errorf("Mismatch (Expected: %v) (Actual: %v)", expected[i], actual[i])
+		} else if expected[i].Group != actual[i].Group {
+			t.Errorf("Mismatch (Expected: %v) (Actual: %v)", expected[i], actual[i])
+		} else if expected[i].Size != actual[i].Size {
+			t.Errorf("Mismatch (Expected: %v) (Actual: %v)", expected[i], actual[i])
+		} else if !expected[i].Timestamp.Equal(actual[i].Timestamp) {
+			t.Errorf("Mismatch (Expected: %v) (Actual: %v)", expected[i], actual[i])
+		} else if strings.TrimSpace(expected[i].Filename) != actual[i].Filename {
+			t.Errorf("Mismatch (Expected: \"%v\") (Actual: \"%v\")", expected[i].Filename, actual[i].Filename)
+		}
 	}
 }
 
@@ -308,7 +382,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 		Name:           "test_service",
 		Startup:        "echo",
 		Instances:      0,
-		InstanceLimits: domain.MinMax{Min: 0, Max: 0},
+		InstanceLimits: domain.MinMax{Min: 0, Max: 0, Default: 0},
 		ImageID:        imageId,
 		Launch:         commons.MANUAL,
 		PoolID:         "default",

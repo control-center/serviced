@@ -266,6 +266,7 @@
       <div ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
         <div class="zenchartContainer">
           <h4>{{graph.name}}</h4>
+          <div class="graphDescrip" ng-if="graph.yAxisLabel">{{graph.yAxisLabel}} over the past Hour</div>
           <div id="{{services.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
         </div>
       </div>

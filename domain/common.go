@@ -22,6 +22,7 @@ import (
 type MinMax struct {
 	Min int
 	Max int
+	Default int
 }
 
 type HostIPAndPort struct {
@@ -40,6 +41,19 @@ func (minmax *MinMax) Validate() error {
 	if minmax.Max != 0 && minmax.Min > minmax.Max {
 		return fmt.Errorf("Minimum instances larger than maximum instances: Min=%v; Max=%v", minmax.Min, minmax.Max)
 	}
+
+	// "Default" should be between min + max, inclusive if max is nonzero and default is set
+	if minmax.Default !=0 {
+		if minmax.Max !=0  {
+			if minmax.Default < minmax.Min || minmax.Default > minmax.Max {
+				return fmt.Errorf("Default instance spec must be between min and max, inclusive: Min=%v; Max=%v; Default=%v", minmax.Min, minmax.Max, minmax.Default)
+			}
+		} else {
+			if minmax.Default < minmax.Min {
+				return fmt.Errorf("Default instance spec cannot be less than the minimum: Min=%v; Max=%v; Default=%v", minmax.Min, minmax.Max, minmax.Default)	
+			}
+		} 
+	} 
 	return nil
 }
 

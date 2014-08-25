@@ -193,6 +193,22 @@ func (s *ImageTestSuite) TestTagImage(c *C) {
 	}
 }
 
+func (s *ImageTestSuite) TestInspectImage(c *C) {
+	img, err := FindImage(rawbase, true)
+	if err != nil {
+		c.Fatalf("can't find %s: %v ", rawbase, err)
+	}
+
+	imgInfo, err := InspectImage(img.UUID)
+	if err != nil {
+		c.Fatalf("can't inspect %s: %v ", rawbase, err)
+	}
+	// Minimal validation of image
+	if imgInfo.ID == "" {
+		c.Fatalf("Invalid docker image structure %+v", imgInfo)
+	}
+}
+
 func (s *ImageTestSuite) TestDoubleTagImage(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {

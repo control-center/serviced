@@ -298,7 +298,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
+		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
 		DesiredState:   service.SVCRun,
@@ -590,7 +590,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	h, err := host.Build("", "default", []string{}...)
 	t.Assert(err, IsNil)
 	h.ID = hostid
-	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname"}}
+	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname", "macaddress"}}
 	err = dt.Facade.AddHost(dt.CTX, h)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)
