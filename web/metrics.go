@@ -32,14 +32,14 @@ var (
 				Name:        "CPU Usage",
 				Description: "CPU Statistics",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "cpu.user", Name: "CPU User", Unit: "Percent"},
-					domain.Metric{ID: "cpu.nice", Name: "CPU Nice", Unit: "Percent"},
-					domain.Metric{ID: "cpu.system", Name: "CPU System", Unit: "Percent"},
-					domain.Metric{ID: "cpu.idle", Name: "CPU Idle", Unit: "Percent"},
-					domain.Metric{ID: "cpu.iowait", Name: "CPU IO Wait", Unit: "Percent"},
-					domain.Metric{ID: "cpu.irq", Name: "IRQ", Unit: "Percent"},
-					domain.Metric{ID: "cpu.softirq", Name: "Soft IRQ", Unit: "Percent"},
-					domain.Metric{ID: "cpu.steal", Name: "CPU Steal", Unit: "Percent"},
+					domain.Metric{ID: "cpu.user", Name: "CPU User", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.nice", Name: "CPU Nice", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.system", Name: "CPU System", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.idle", Name: "CPU Idle", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.iowait", Name: "CPU IO Wait", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.irq", Name: "IRQ", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.softirq", Name: "Soft IRQ", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.steal", Name: "CPU Steal", Unit: "Percent", Counter: true},
 				},
 			},
 			//Memory
@@ -64,8 +64,8 @@ var (
 				Name:        "Virtual Memory Usage",
 				Description: "Virtual Memory Usage Statistics -- /proc/vmstat",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "vmstat.pgfault", Name: "Minor Page Fault", Unit: "Page Faults"},
-					domain.Metric{ID: "vmstat.pgmajfault", Name: "Major Page Fault", Unit: "Page Faults"},
+					domain.Metric{ID: "vmstat.pgfault", Name: "Minor Page Fault", Unit: "Page Faults", Counter: true},
+					domain.Metric{ID: "vmstat.pgmajfault", Name: "Major Page Fault", Unit: "Page Faults", Counter: true},
 				},
 			},
 			//Files
@@ -147,12 +147,7 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 				MetricSource: "virtual.memory",
 				Name:         "Major Page Faults",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "line",
+				Type:         "line",
 			},
 		},
 		ID:     "memory.major.pagefault",
@@ -187,12 +182,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Nice",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -205,12 +195,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "User",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -223,12 +208,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Idle",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -241,12 +221,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "System",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -259,12 +234,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "IOWait",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -277,12 +247,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "IRQ",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -295,12 +260,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Steal",
 				Rate:         true,
-				RateOptions: &domain.DataPointRateOptions{
-					Counter:        true,
-					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
-					ResetThreshold: 0,
-				},
-				Type: "area",
+				Type:         "area",
 			},
 		},
 		ID:     "cpu.usage",
