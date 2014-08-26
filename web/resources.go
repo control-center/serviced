@@ -427,7 +427,6 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		restBadRequest(w, err)
 		return
 	} else {
-		// service.NewService()
 		svc.ID = id
 	}
 	now := time.Now()
@@ -450,6 +449,17 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		restServerError(w, err)
 		return
 	}
+
+	tags := map[string][]string{
+		"controlplane_service_id": []string{svc.ID},
+	}
+	profile, err := svc.MonitoringProfile.ReBuild("1h-ago", tags)
+	if err != nil {
+		glog.Errorf("Unable to rebuild service monitoring profile: %v", err)
+		restServerError(w, err)
+		return
+	}
+	svc.MonitoringProfile = *profile
 
 	//add the service to the data store
 	err = client.AddService(svc, &serviceID)
