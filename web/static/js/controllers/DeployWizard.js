@@ -49,7 +49,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             resetError();
             return true;
         }
-    }
+    };
 
     var resetStepPage = function() {
         step = 0;
@@ -78,7 +78,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                 template.Id = key;
                 templates[templates.length] = template;
             }
-            $scope.templates.data
 
             if($scope.templates.data.length === 0){
                 $scope.steps.unshift({
@@ -95,12 +94,12 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
     var showError = function(message){
         $("#deployWizardNotificationsContent").html(message);
         $("#deployWizardNotifications").removeClass("hide");
-    }
+    };
 
     var resetError = function(){
         $("#deployWizardNotifications").html("");
         $("#deployWizardNotifications").addClass("hide");
-    }
+    };
 
     $scope.steps = [
         {
@@ -148,13 +147,17 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
     $scope.getTemplateRequiredResources = function(template){
         var ret = {CPUCommitment:0, RAMCommitment:0};
-        for (var i=0; i<template.Services.length; ++i){
-            if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
-            if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+
+        // if Services, iterate and sum up their commitment values
+        if(template.Services){
+            for (var i=0; i<template.Services.length; ++i){
+                if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
+                if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+            }
         }
 
         return ret;
-    }
+    };
 
     $scope.addHostStart = function() {
         $scope.newHost = {};
