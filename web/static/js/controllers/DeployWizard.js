@@ -1,4 +1,4 @@
-function DeployWizard($scope, $notification, $translate, $http, resourcesService) {
+function DeployWizard($scope, $notification, $translate, resourcesService) {
     var step = 0;
     var nextClicked = false;
     $scope.name='wizard';
@@ -290,21 +290,20 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    $http.post('/templates/deploy/status', deploymentDefinition).
-                        success(function(data, status) {
-                            if(data.Detail === "timeout"){
-                                $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                    resourcesService.get_deployed_templates(deploymentDefinition, function(data){
+                        if(data.Detail === "timeout"){
+                            $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                        }else{
+                            var parts = data.Detail.split("|");
+                            if(parts[1]){
+                                $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
                             }else{
-                                var parts = data.Detail.split("|");
-                                if(parts[1]){
-                                    $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
-                                }else{
-                                    $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
-                                }
+                                $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
                             }
+                        }
 
-                            getStatus();
-                        });
+                        getStatus();
+                    });
                 }
             };
 

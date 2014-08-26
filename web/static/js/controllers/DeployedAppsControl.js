@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $http) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -6,25 +6,24 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.deployingServices = [];
     var lastPollResults = 0;
     var pollDeploying = function(){
-        $http.get('/templates/deploy/active').
-            success(function(data, status) {
-                if(data === "null"){
-                    $scope.services.deploying = [];
-                }else{
-                    $scope.services.deploying = data;
-                }
+        resourcesService.get_active_templates(function(data) {
+            if(data === "null"){
+                $scope.services.deploying = [];
+            }else{
+                $scope.services.deploying = data;
+            }
 
-                //if we have fewer results than last poll, we need to refresh our table
-                if(lastPollResults > $scope.services.deploying.length){
-                    // Get a list of deployed apps
-                    refreshServices($scope, resourcesService, false, function(){
-                        $serviceHealth.update();
-                    });
-                }
-                lastPollResults = $scope.services.deploying.length;
+            //if we have fewer results than last poll, we need to refresh our table
+            if(lastPollResults > $scope.services.deploying.length){
+                // Get a list of deployed apps
+                refreshServices($scope, resourcesService, false, function(){
+                    $serviceHealth.update();
+                });
+            }
+            lastPollResults = $scope.services.deploying.length;
 
-                setTimeout(pollDeploying, 3000);
-            });
+            setTimeout(pollDeploying, 3000);
+        });
     };
 
     $scope.name = "apps";
