@@ -360,6 +360,21 @@ KernelLoop:
 				continue
 			}
 
+			if useRegistry {
+				ppi <- pushpullreq{
+					request{req.errchan},
+					struct {
+						op       int
+						uuid     string
+						reponame string
+						registry string
+						tag      string
+					}{pushop, img.ID, req.args.imageID.BaseName(), req.args.imageID.Registry(), req.args.imageID.Tag},
+					req.respchan,
+				}
+				continue
+			}
+
 			close(req.errchan)
 			req.respchan <- &Image{img.ID, *req.args.imageID}
 		case req := <-cmds.Create:
