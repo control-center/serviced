@@ -147,7 +147,12 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 				MetricSource: "virtual.memory",
 				Name:         "Major Page Faults",
 				Rate:         true,
-				Type:         "line",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "line",
 			},
 		},
 		ID:     "memory.major.pagefault",
@@ -182,7 +187,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Nice",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -195,7 +205,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "User",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -208,7 +223,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Idle",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -221,7 +241,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "System",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -234,7 +259,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "IOWait",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -247,7 +277,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "IRQ",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -260,7 +295,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Steal",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter:        true,
+					CounterMax:     9223372036854775000, // Java Long.MaxValue is the default, googled and found this for it.
+					ResetThreshold: 0,
+				},
+				Type: "area",
 			},
 		},
 		ID:     "cpu.usage",
