@@ -304,7 +304,10 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 	}
 
 	visitor := func(svc *service.Service) error {
-		//start f service
+		// don't start the service if its Launch is 'manual' and it is a child
+		if svc.Launch == commons.MANUAL && svc.ID != serviceId {
+			return nil
+		}
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
 		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.ID, err)
@@ -340,8 +343,9 @@ func (f *Facade) StopService(ctx datastore.Context, id string) error {
 	glog.V(0).Info("Facade.StopService id=", id)
 
 	visitor := func(svc *service.Service) error {
-		//start f service
-		if svc.Launch == commons.MANUAL {
+		// if it's not the target service and its Launch is 'manual',
+		// then do not stop it
+		if svc.Launch == commons.MANUAL && svc.ID != id {
 			return nil
 		}
 		svc.DesiredState = service.SVCStop
