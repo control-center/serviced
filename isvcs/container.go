@@ -19,12 +19,12 @@
 package isvcs
 
 import (
-	"github.com/rcrowley/go-metrics"
-	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/control-center/serviced/commons/circular"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
+	"github.com/rcrowley/go-metrics"
+	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"bytes"
 	"encoding/json"
@@ -67,11 +67,11 @@ type ContainerDescription struct {
 	Name          string                              // name of the container (used for docker named containers)
 	Repo          string                              // the repository the image for this container uses
 	Tag           string                              // the repository tag this container uses
-	Command       string                              // the actual command to run inside the container
+	Command       func() string                       // the actual command to run inside the container
 	Volumes       map[string]string                   // Volumes to bind mount in to the containers
 	Ports         []int                               // Ports to expose to the host
 	HealthCheck   func() error                        // A function to verify that the service is healthy
-	Configuration interface{}                         // A container specific configuration
+	Configuration map[string]interface{}              // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 	volumesDir    string                              // directory to store volume data
 }
@@ -89,10 +89,13 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 		return nil, err
 	}
 
-	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || len(cd.Command) == 0 {
+	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || cd.Command == nil {
 		return nil, ErrBadContainerSpec
 	}
 
+	if cd.Configuration == nil {
+		cd.Configuration = make(map[string]interface{})
+	}
 	c := Container{
 		ContainerDescription: cd,
 
@@ -152,12 +155,24 @@ func (c *Container) loop() {
 				c.stop()                // stop the container, if it's not stoppped
 				c.rm()                  // remove it if it was not already removed
 				cmd, exitChan = c.run() // run the actual container
-				if c.HealthCheck != nil {
-					req.response <- c.HealthCheck() // run the HealthCheck if it exists
-				} else {
-					req.response <- nil
+
+				healthCheckChan := make(chan error)
+				go func() {
+					if c.HealthCheck != nil {
+						healthCheckChan <- c.HealthCheck() // run the HealthCheck if it exists
+					} else {
+						healthCheckChan <- nil
+					}
+				}()
+				select {
+				case exited := <-exitChan:
+					req.response <- exited
+				case healthCheck := <-healthCheckChan:
+					if healthCheck == nil {
+						go c.doStats(statsExitChan)
+					}
+					req.response <- healthCheck
 				}
-				go c.doStats(statsExitChan)
 			}
 		case exitErr := <-exitChan:
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
@@ -325,7 +340,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	// set the image and command to run
-	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
+	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command())
 
 	glog.V(1).Infof("Executing docker %s", args)
 	var cmd *exec.Cmd
@@ -351,7 +366,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 				glog.Errorf("Could not start: %s", c.Name)
 				c.stop()
 				c.rm()
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Second * 5)
 			} else {
 				break
 			}

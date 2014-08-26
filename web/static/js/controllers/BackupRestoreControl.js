@@ -11,15 +11,15 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
     });
 
     // localization messages
-    var BACKUP_RUNNING = $translate("backup_running"),
-        BACKUP_COMPLETE = $translate("backup_complete"),
-        RESTORE_RUNNING = $translate("restore_running"),
-        RESTORE_COMPLETE = $translate("restore_complete"),
-        ERROR = $translate("error");
+    var BACKUP_RUNNING = $translate.instant("backup_running"),
+        BACKUP_COMPLETE = $translate.instant("backup_complete"),
+        RESTORE_RUNNING = $translate.instant("restore_running"),
+        RESTORE_COMPLETE = $translate.instant("restore_complete"),
+        ERROR = $translate.instant("error");
 
     $scope.createBackup = function(){
         $modalService.create({
-            template: $translate("confirm_start_backup"),
+            template: $translate.instant("confirm_start_backup"),
             model: $scope,
             title: "backup_create",
             actions: [
@@ -43,7 +43,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
 
     $scope.restoreBackup = function(filename){
         $modalService.create({
-            template: $translate("confirm_start_restore"),
+            template: $translate.instant("confirm_start_restore"),
             model: $scope,
             title: "restore",
             actions: [

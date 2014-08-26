@@ -5,7 +5,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     var  validTemplateSelected = function() {
         if($scope.selectedTemplates().length <= 0){
-            showError($translate("label_wizard_select_app"));
+            showError($translate.instant("label_wizard_select_app"));
             return false;
         }else{
             resetError();
@@ -16,7 +16,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     var validDeploymentID = function() {
         if($scope.install.deploymentId === undefined || $scope.install.deploymentId === ""){
-            showError($translate("label_wizard_deployment_id"));
+            showError($translate.instant("label_wizard_deployment_id"));
             return false;
         }else{
             resetError();
@@ -28,7 +28,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
     var validTemplateUpload = function(){
         var uploadedFiles = $("#new_template_filename_wizard")[0].files;
         if(uploadedFiles.length === 0){
-            showError($translate("template_error"));
+            showError($translate.instant("template_error"));
             return false;
         }else{
             var data = new FormData();
@@ -297,9 +297,9 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
                             }else{
                                 var parts = data.Detail.split("|");
                                 if(parts[1]){
-                                    $status.html('<strong>' + $translate(parts[0]) + ":</strong> " + parts[1]);
+                                    $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
                                 }else{
-                                    $status.html('<strong>' + $translate(parts[0]) + '</strong>');
+                                    $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
                                 }
                             }
 

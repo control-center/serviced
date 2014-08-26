@@ -17,11 +17,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
+	"github.com/zenoss/glog"
 )
 
 // Server manages the exporting of a file system to clients.
@@ -68,22 +68,29 @@ func (s *Server) loop() {
 	var err error
 	var leadEventC <-chan client.Event
 	var e <-chan client.Event
-
-	conn, err := zzk.GetBasePathConnection("/")
-	if err != nil {
-		glog.Errorf("Error in getting a connection: %v", err)
-	}
-
 	var children []string
+
+	var (
+		conn        client.Connection
+		storageLead client.Leader
+	)
 	node := &Node{
 		Host:       *s.host,
 		ExportPath: fmt.Sprintf("%s:%s", s.host.IPAddr, s.driver.ExportPath()),
 		version:    nil,
 	}
+	reconnect := func() error {
+		conn, err = zzk.GetBasePathConnection("/")
+		if err != nil {
+			glog.Errorf("Error in getting a connection: %v", err)
+			return err
+		}
+		storageLead = conn.NewLeader("/storage/leader", node)
+		return nil
+	}
 
-	glog.Info("creating leader")
-	storageLead := conn.NewLeader("/storage/leader", node)
-	defer storageLead.ReleaseLead()
+	err = reconnect()
+restart:
 	for {
 		glog.V(2).Info("looping")
 		// keep from churning if we get errors
@@ -92,9 +99,10 @@ func (s *Server) loop() {
 			case <-s.closing:
 				return
 			case <-time.After(time.Second * 10):
+				err = reconnect()
+				continue restart
 			}
 		}
-		err = nil
 
 		if err = conn.CreateDir("/storage/clients"); err != nil && err != client.ErrNodeExists {
 			glog.Errorf("err creating /storage/clients: %s", err)
@@ -122,6 +130,7 @@ func (s *Server) loop() {
 		select {
 		case <-s.closing:
 			glog.Info("storage.server: received closing event")
+			storageLead.ReleaseLead()
 			return
 		case event := <-e:
 			glog.Info("storage.server: received event: %s", event)
@@ -129,6 +138,7 @@ func (s *Server) loop() {
 		case event := <-leadEventC:
 			glog.Info("storage.server: received event on lock: %s", event)
 			storageLead.ReleaseLead()
+			err = reconnect()
 			continue
 		}
 	}
