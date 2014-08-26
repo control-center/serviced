@@ -4,8 +4,8 @@
     'use strict';
 
     angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", "$q", "$http", "resourcesService", "$interval", "$translate",
-    function($rootScope, $q, $http, resourcesService, $interval, $translate){
+    factory("$serviceHealth", ["$rootScope", "$q", "resourcesService", "$interval", "$translate",
+    function($rootScope, $q, resourcesService, $interval, $translate){
 
         var servicesService = resourcesService;
 
@@ -50,7 +50,7 @@
             // don't so use our own promises
             var servicesDeferred = $q.defer();
             var runningServicesDeferred = $q.defer();
-            var healthCheckDeferred = $http({url: "/servicehealth", method: 'GET', params: {'time': new Date().getTime()}});
+            var healthCheckDeferred = $q.defer();
 
             servicesService.get_services(true, function(top, mapped){
                 servicesDeferred.resolve(mapped);
@@ -60,12 +60,16 @@
                 runningServicesDeferred.resolve(runningServices);
             });
 
+            servicesService.get_service_health(function(healthChecks){
+                healthCheckDeferred.resolve(healthChecks);
+            });
+
             $q.all({
                 services: servicesDeferred.promise,
-                health: healthCheckDeferred,
+                health: healthCheckDeferred.promise,
                 running: runningServicesDeferred.promise
             }).then(function(results){
-                evaluateServiceStatus(results.running, results.services, results.health.data, appId);
+                evaluateServiceStatus(results.running, results.services, results.health, appId);
             }).catch(function(err){
                 // something went awry
                 console.log("Promise err", err);
