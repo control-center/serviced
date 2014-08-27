@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -105,7 +105,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
 
-    statsService.is_collecting(function(status) {
+    resourcesService.get_stats(function(status) {
         if (status == 200) {
             $scope.collectingStats = true;
         } else {
