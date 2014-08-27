@@ -41,6 +41,10 @@ var empty interface{}
 type handlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient)
 
+func restDockerIsLoggedIn(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	w.WriteJson(&map[string]bool{"dockerLoggedIn": utils.DockerIsLoggedIn()})
+}
+
 func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var unused int
 	var templatesMap map[string]*servicetemplate.ServiceTemplate

@@ -66,6 +66,17 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         $location.path('/pools/' + id);
     };
 
+    $scope.addApp = function() {
+        $.getJSON('/dockerIsLoggedIn', function(data) {
+            if (data.dockerLoggedIn) {
+                $scope.modalAddApp();
+            }
+            else {
+                $notification.create("", "Please log into Docker Hub before adding an application.").error();
+            }
+        });
+    }
+
     $scope.modalAddApp = function() {
         $('#addApp').modal('show');
     };
