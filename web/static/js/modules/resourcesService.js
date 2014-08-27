@@ -1,19 +1,33 @@
 (function(){
 
   controlplane.
-  factory("resourcesService", ["$http", "$location", "$notification",
-  function($http, $location, $notification) {
+  factory("resourcesService", ["$http", "$location", "$notification", "DSCacheFactory", "$q",
+  function($http, $location, $notification, DSCacheFactory, $q) {
       // add function to $http service to allow for noCacheGet requests
       $http.noCacheGet = function(location){
           return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
       };
 
-      // minimum duration before requesting new data from server
-      var DIRTY_TIMER = 5000;
-      var timestamp = function(){ return new Date().valueOf(); };
-      // time last server batch was run, mapped by url endpoint
-      // TODO - append http method to the url to make unique
-      var dirtyTimestamps = {};
+      // caches for various endpoints
+      var healthcheckCache = DSCacheFactory.createCache("healthcheckCache", {
+        // only 1 healthcheck exists
+        capacity: 1,
+        // expire every 5 seconds
+        maxAge: 5000,
+        // delete expired stuff on request instead
+        // of aggressively checking for expiration
+        deleteOnExpire: "passive"
+      });
+      
+      var runningServicesCache = DSCacheFactory.createCache("runningServicesCache", {
+        // store only 10 top level services (still has many children)
+        capacity: 10,
+        // expire every 5 seconds
+        maxAge: 5000,
+        // delete expired stuff on request instead
+        // of aggressively checking for expiration
+        deleteOnExpire: "passive"
+      }); 
 
       var cached_pools;
       var cached_hosts_for_pool = {};
@@ -21,11 +35,6 @@
       var cached_app_templates;
       var cached_services; // top level services only
       var cached_services_map; // map of services by by Id, with children attached
-
-      // map of running services by id, with children
-      var cached_running_services = {};
-      // healthcheck request results
-      var cached_health_checks = {};
 
       var _get_services_tree = function(callback) {
           $http.noCacheGet('/services').
@@ -222,22 +231,16 @@
           get_running_services_for_service: function(serviceId, callback) {
 
               var url = '/services/' + serviceId + '/running';
-
-              // if the specified time hasnt passed, and the results
-              // are cached, use cached results
-              if(cached_running_services[serviceId] && timestamp() - dirtyTimestamps[url] < DIRTY_TIMER){
-                if(DEBUG) console.log('Using cached running services for %s', serviceId);
-                callback(cached_running_services[serviceId]);
-                return;
-              }
               
+              if(runningServicesCache.get(serviceId)){
+                console.log("Using cached running services");
+                callback(runningServicesCache.get(serviceId));
+              }
+
               $http.noCacheGet(url).
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved running services for %s', serviceId);
-                    if(data){
-                      cached_running_services[serviceId] = data;
-                    }
-                    dirtyTimestamps[url] = timestamp();
+                    runningServicesCache.put(serviceId, data);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -971,27 +974,26 @@
 
             var url = "/servicehealth";
 
-            // if the specified time hasnt passed, and the results
-            // are cached, use cached results
-            if(cached_health_checks && timestamp() - dirtyTimestamps[url] < DIRTY_TIMER){
-              if(DEBUG) console.log('Using cached health checks.');
-              callback(cached_health_checks);
-              return;
+            if(healthcheckCache.get("healtcheck")){
+              console.log("using cached healthcheck");
+              callback(healthcheckCache.get("healtcheck"));
+
+            } else {
+              $http.noCacheGet(url).
+                success(function(data, status) {
+                    if(DEBUG) console.log('Retrieved health checks.');
+                    healthcheckCache.put("healtcheck", data);
+                    callback(data);
+                }).
+                error(function(data, status) {
+                    $notification.create("", 'Failed retrieving health checks.').error();
+                    if (status === 401) {
+                        unauthorized($location);
+                    }
+                });
             }
 
-            $http.noCacheGet(url).
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved health checks.');
-                  cached_health_checks = data;
-                  dirtyTimestamps[url] = timestamp();
-                  callback(data);
-              }).
-              error(function(data, status) {
-                  $notification.create("", 'Failed retrieving health checks.').error();
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
-              });
+            
           },
 
           get_deployed_templates: function(deploymentDefinition, callback){

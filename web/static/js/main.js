@@ -14,9 +14,10 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
- var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService', 'angular-data.DSCacheFactory']);
 
-    controlplane.config(['$routeProvider', function($routeProvider) {
+controlplane.
+    config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/login', {
                 templateUrl: '/static/partials/login.html',
@@ -72,6 +73,25 @@
             suffix: '.json'
         });
         $translateProvider.preferredLanguage('en_US');
+    }]).
+    config(['DSCacheFactoryProvider', function(DSCacheFactory){
+        DSCacheFactory.setCacheDefaults({
+            // Items will be actively deleted when they expire
+            deleteOnExpire: 'aggressive',
+
+            // This cache will clear itself every hour
+            cacheFlushInterval: 3600000,
+
+            // This cache will sync itself with localStorage
+            storageMode: 'memory',
+
+            // This callback is executed when the item specified by "key" expires.
+            // At this point you could retrieve a fresh value for "key"
+            // from the server and re-insert it into the cache.
+            onExpire: function (key, value) {
+                console.log("this guy expired", key, value);
+            }
+         });
     }]).
     /**
      * This is a fix for https://jira.zenoss.com/browse/ZEN-10263
