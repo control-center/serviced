@@ -46,21 +46,13 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 }
 
 func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	controlClient, err := NewControlClient(a.master)
-	if err != nil {
-		glog.Errorf("Could not start ControlPlane client %v", err)
-		return
-	}
-	defer controlClient.Close()
+	myList := make(map[string][]*dao.ApplicationEndpoint)
 
-	err = controlClient.GetServiceEndpoints(serviceId, response)
-	if err != nil {
-		return err
-	}
+	a.addControlPlaneEndpoint(myList)
+	a.addControlPlaneConsumerEndpoint(myList)
+	a.addLogstashEndpoint(myList)
 
-	a.addControlPlaneEndpoint(*response)
-	a.addControlPlaneConsumerEndpoint(*response)
-	a.addLogstashEndpoint(*response)
+	*response = myList
 	return nil
 }
 

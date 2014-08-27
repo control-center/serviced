@@ -684,6 +684,8 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 
 	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
 	//       that returns only special "controlplane" imported endpoints
+	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
+	//		We should rename it and clean up the filtering code below.
 
 	epchan := make(chan map[string][]*dao.ApplicationEndpoint)
 	timeout := make(chan struct{})
