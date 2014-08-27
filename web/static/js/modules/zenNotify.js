@@ -245,7 +245,7 @@ var SEVERITY = {
                     }
                 }.bind(this);
 
-                if(notification.severity >= SEVERITY.ERROR || !isDuplicate()){
+                if(notification.severity === SEVERITY.ERROR || notification.severity === SEVERITY.SUCCESS || !isDuplicate()){
                     if(this.$storage.unshift(storable) > 100){
                         this.$storage.pop();
                     }
