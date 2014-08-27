@@ -832,6 +832,7 @@ svg {
 
 svg.tall {
   height: 1200px;
+  width: 1140px;
 }
 
 rect {

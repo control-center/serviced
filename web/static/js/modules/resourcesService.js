@@ -997,9 +997,9 @@
 
           get_stats: function(callback){
             $http.get("/stats").
-              success(function(data, stats) {
+              success(function(data, status) {
                   if(DEBUG) console.log('serviced is collecting stats.');
-                  callback(data);
+                  callback(status);
               }).
               error(function(data, status) {
                   // TODO error screen
@@ -1007,7 +1007,7 @@
                   if (status === 401) {
                       unauthorized($location);
                   }
-                  callback(data, status);
+                  callback(status);
               });
           },
       };
