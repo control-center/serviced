@@ -26,7 +26,7 @@ import (
 type ServiceTemplate struct {
 	ID          string                                  // Unique ID of this service template
 	Name        string                                  // Name of service template
-	Version     string									// Version of the service
+	Version     string                                  // Version of the service
 	Description string                                  // Meaningful description of service
 	Services    []servicedefinition.ServiceDefinition   // Child services
 	ConfigFiles map[string]servicedefinition.ConfigFile // Config file templates
@@ -108,8 +108,8 @@ func BuildFromPath(path string) (*ServiceTemplate, error) {
 	}
 	st := ServiceTemplate{
 		Services: []servicedefinition.ServiceDefinition{*sd},
-		Name:     sd.Name,
-		Version: sd.Version,
+		Name:        sd.Name,
+		Version:     sd.Version,
 		Description: sd.Description,
 	}
 	return &st, nil
