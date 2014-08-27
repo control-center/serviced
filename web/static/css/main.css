@@ -791,7 +791,7 @@ input.startup {
     position: relative;
     height: 200px;
 }
-/* Visualization.js api changes */
+/* Visualization.js style changes */
 .nodata:before {
   content: "No Data Available";
 }
