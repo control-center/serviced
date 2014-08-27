@@ -1,4 +1,4 @@
-function IsvcsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+function IsvcsControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
