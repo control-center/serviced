@@ -181,6 +181,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 
 // Get a service endpoint.
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]*dao.ApplicationEndpoint, error) {
+	// TODO: this function is obsolete.  Remove it.
 	glog.V(2).Infof("Facade.GetServiceEndpoints serviceId=%s", serviceId)
 	result := make(map[string][]*dao.ApplicationEndpoint)
 	myService, err := f.getService(ctx, serviceId)
