@@ -791,6 +791,21 @@ input.startup {
     position: relative;
     height: 200px;
 }
+/* Visualization.js style changes */
+.nodata:before {
+  content: "No Data Available";
+}
+
+.nodata {
+  display: block;
+  position: relative;
+  margin: auto;
+  top: 40px;
+  color: blue;
+  text-align: center;
+  font-size: 18pt;
+  font-style: italic;
+}
 
 /* d3 related below */
 
