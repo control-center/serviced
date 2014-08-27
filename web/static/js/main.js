@@ -680,7 +680,7 @@ function map_to_array(data) {
     return arr;
 }
 
-function unauthorized($location, $notification) {
+function unauthorized($location) {
     console.error('You don\'t appear to be logged in.');
     $location.path('/login');
 }
