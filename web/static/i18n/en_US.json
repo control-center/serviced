@@ -52,7 +52,7 @@
     "save": "Save",
     "close": "Close",
     "restore": "Restore",
-    "health_check": "Health",
+    "health_check": "Status",
 
     "hosts": "Hosts",
     "pools": "Resource Pools",

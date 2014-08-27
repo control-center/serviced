@@ -26,6 +26,7 @@ import (
 type ServiceTemplate struct {
 	ID          string                                  // Unique ID of this service template
 	Name        string                                  // Name of service template
+	Version     string									// Version of the service
 	Description string                                  // Meaningful description of service
 	Services    []servicedefinition.ServiceDefinition   // Child services
 	ConfigFiles map[string]servicedefinition.ConfigFile // Config file templates
@@ -37,6 +38,9 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 		return false
 	}
 	if a.Name != b.Name {
+		return false
+	}
+	if a.Version != b.Version{
 		return false
 	}
 	if a.Description != b.Description {
@@ -71,6 +75,7 @@ func FromJSON(data string) (*ServiceTemplate, error) {
 type serviceTemplateWrapper struct {
 	ID              string // Primary-key - Should match ServiceTemplate.ID
 	Name            string // Name of top level service
+	Version         string // Version of the service
 	Description     string // Description
 	Data            string // JSON encoded template definition
 	APIVersion      int    // Version of the ServiceTemplate API this expects
@@ -86,6 +91,7 @@ func newWrapper(st ServiceTemplate) (*serviceTemplateWrapper, error) {
 	var wrapper serviceTemplateWrapper
 	wrapper.ID = st.ID
 	wrapper.Name = st.Name
+	wrapper.Version = st.Version
 	wrapper.Description = st.Description
 	wrapper.Data = string(data)
 	wrapper.APIVersion = 1
@@ -103,6 +109,8 @@ func BuildFromPath(path string) (*ServiceTemplate, error) {
 	st := ServiceTemplate{
 		Services: []servicedefinition.ServiceDefinition{*sd},
 		Name:     sd.Name,
+		Version: sd.Version,
+		Description: sd.Description,
 	}
 	return &st, nil
 }

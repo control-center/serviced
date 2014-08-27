@@ -38,6 +38,7 @@ const (
 type Service struct {
 	ID                string
 	Name              string
+	Version           string
 	Context           string
 	Startup           string
 	Description       string
@@ -125,6 +126,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc := Service{}
 	svc.ID = svcuuid
 	svc.Name = sd.Name
+	svc.Version = sd.Version
 	svc.Context = string(ctx)
 	svc.Startup = sd.Command
 	svc.Description = sd.Description
@@ -336,6 +338,9 @@ func (s *Service) Equals(b *Service) bool {
 		return false
 	}
 	if s.Name != b.Name {
+		return false
+	}
+	if s.Version != b.Version {
 		return false
 	}
 	if s.Context != b.Context {
