@@ -242,7 +242,7 @@
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    $notification.create("Unable to acquire running services", data.Detail).error();
+                    $notification.create("Unable to acquire running services", data.Detail).warning();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -324,7 +324,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire running services", data.Detail).error();
+                      $notification.create("Unable to acquire running services", data.Detail).warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -344,7 +344,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire running services", data.Detail).error();
+                      $notification.create("Unable to acquire running services", data.Detail).warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -862,7 +862,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("", "Could not retrieve Serviced version from server.").error();
+                      $notification.create("", "Could not retrieve Serviced version from server.").warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -927,7 +927,7 @@
                       successCallback(data);
                   }).
                   error(function(data, status) {
-                      $notification.create("", 'Failed retrieving status of backup.').error();
+                      $notification.create("", 'Failed retrieving status of backup.').warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -944,7 +944,7 @@
                       successCallback(data);
                   }).
                   error(function(data, status) {
-                      $notification.create("", 'Failed retrieving status of restore.').error();
+                      $notification.create("", 'Failed retrieving status of restore.').warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
