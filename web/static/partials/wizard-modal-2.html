@@ -12,7 +12,7 @@
                    ng-model="install.selected[template.Id]"
                    ng-disabled="install.templateDisabled(template)"
                    ng-change="install.templateSelected(template)"></td>
-            <td>{{template.Name}}</td>
+            <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>
             <td>{{getTemplateRequiredResources(template).RAMCommitment | toGB}}</td>
             <td>{{getTemplateRequiredResources(template).CPUCommitment}}</td>
         </tr>
