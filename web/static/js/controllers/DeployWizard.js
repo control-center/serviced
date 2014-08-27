@@ -150,10 +150,20 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
         // if Services, iterate and sum up their commitment values
         if(template.Services){
-            for (var i=0; i<template.Services.length; ++i){
-                if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
-                if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
-            }
+            // recursively calculate cpu and ram commitments
+            (function calcCommitment(services){
+                services.forEach(function(service){
+                    // CPUCommitment should be equal to max number of
+                    // cores needed by any service
+                    ret.CPUCommitment = Math.max(ret.CPUCommitment, service.CPUCommitment);
+                    // RAMCommitment should be a sum of all ram needed
+                    // by all services
+                    ret.RAMCommitment += service.RAMCommitment;
+
+                    // recurse!
+                    if(service.Services) calcCommitment(service.Services);
+                });
+            })(template.Services);
         }
 
         return ret;
