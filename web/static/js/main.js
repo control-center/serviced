@@ -537,6 +537,10 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 }
 
 function toggleRunning(app, status, servicesService, serviceId) {
+    // possible values for app.Launch
+    // TODO - move this into a provider for constant values
+    var LAUNCH_MANUAL = "manual";
+
     serviceId = serviceId || app.ID;
 
     var newState = -1;
@@ -551,21 +555,26 @@ function toggleRunning(app, status, servicesService, serviceId) {
     }
 
     // recursively set service's children to its desired state
-    function updateApp(app) {
-        var i, child;
-        if (app.children && app.children.length) {
-            for (i=0; i<app.children.length;i++) {
-                app.children[i].DesiredState = app.DesiredState;
-                updateApp(app.children[i]);
+    // TODO - poll services from server which will automatically
+    // reflect the correct desired state and make this unnecessary
+    var updateApp = function(services, state){
+        if(!services) return;
+
+        services.forEach(function(service){
+            if(service.Launch !== LAUNCH_MANUAL){
+                service.DesiredState = state;
             }
-        }
-    }
+
+            // recurse!
+            if(service.children) updateApp(service.children, state);
+        });
+    };
 
     // stop service
     if ((newState === 0) || (newState === -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(serviceId, function() {
-            updateApp(app);
+            updateApp(app.children, newState);
         });
     }
 
@@ -573,7 +582,7 @@ function toggleRunning(app, status, servicesService, serviceId) {
     if ((newState === 1) || (newState === -1)) {
         app.DesiredState = newState;
         servicesService.start_service(serviceId, function() {
-            updateApp(app);
+            updateApp(app.children, newState);
         });
     }
 }
