@@ -20,7 +20,7 @@ import (
 	"github.com/docker/docker/registry"
 )
 
-func DockerLogin(username string, password string, email string) (string, error) {
+func DockerLogin(username, password, email string) (string, error) {
 
 	if username == "" && password == "" && email == "" {
 		// Attempt login with .dockercfg file.
