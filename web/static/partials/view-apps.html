@@ -41,7 +41,7 @@
             <td><span style="color:#AAA;font-style:italic;">{{'deploying'|translate}}...</span></td>
         </tr>
         <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.ID}}"  ng-model="services.data">
-          <td ng-click="click_app(app.ID)" class="link">{{app.Name}}</td>
+          <td ng-click="click_app(app.ID)" class="link">{{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span></td>
           <td>{{app.Description}}</td>
           <td style="text-align:center;">
             <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
@@ -93,7 +93,7 @@
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-repeat="template in templates.data | orderBy:templates.sort">
-            <td>{{template.Name}}</td>
+            <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>
             <td>{{template.ID}}</td>
             <td>{{template.Description}}</td>
             <td>

@@ -1,6 +1,6 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
 
-    <h3>{{services.current.Name}}</h3>
+    <h3>{{services.current.Name}}<span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span></h3>
 
     <div class="details" ng-if="services.current.ID.indexOf('isvc-') == -1">
       <div class="details-form">
@@ -158,7 +158,7 @@
         </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
           <td ng-click="click_app(app.ID)" class="link">
-            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}
+            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
           </td>
           <td style="text-align:center;">
             <div ng-if="app.children === undefined">
