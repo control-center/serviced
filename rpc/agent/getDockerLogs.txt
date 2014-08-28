@@ -1,0 +1,13 @@
+{"log":"2014-08-28 16:22:49,100 CRIT Supervisor running as root (no user in config file)\n","stream":"stdout","time":"2014-08-28T16:22:49.100381382Z"}
+{"log":"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/metric-consumer-app_supervisor.conf\" during parsing\n","stream":"stdout","time":"2014-08-28T16:22:49.10049524Z"}
+{"log":"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/opentsdb_supervisor.conf\" during parsing\n","stream":"stdout","time":"2014-08-28T16:22:49.10049524Z"}
+{"log":"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/central-query_supervisor.conf\" during parsing\n","stream":"stdout","time":"2014-08-28T16:22:49.10049524Z"}
+{"log":"2014-08-28 16:22:49,194 INFO RPC interface 'supervisor' initialized\n","stream":"stdout","time":"2014-08-28T16:22:49.194886331Z"}
+{"log":"2014-08-28 16:22:49,194 CRIT Server 'inet_http_server' running without any HTTP authentication checking\n","stream":"stdout","time":"2014-08-28T16:22:49.194981773Z"}
+{"log":"2014-08-28 16:22:49,195 INFO supervisord started with pid 1\n","stream":"stdout","time":"2014-08-28T16:22:49.195219173Z"}
+{"log":"2014-08-28 16:22:50,197 INFO spawned: 'metric-consumer-app' with pid 9\n","stream":"stdout","time":"2014-08-28T16:22:50.198163896Z"}
+{"log":"2014-08-28 16:22:50,199 INFO spawned: 'opentsdb' with pid 10\n","stream":"stdout","time":"2014-08-28T16:22:50.19956806Z"}
+{"log":"2014-08-28 16:22:50,200 INFO spawned: 'central-query' with pid 11\n","stream":"stdout","time":"2014-08-28T16:22:50.200968971Z"}
+{"log":"2014-08-28 16:22:55,272 INFO success: metric-consumer-app entered RUNNING state, process has stayed up for \u003e than 5 seconds (startsecs)\n","stream":"stdout","time":"2014-08-28T16:22:55.272439254Z"}
+{"log":"2014-08-28 16:22:55,272 INFO success: opentsdb entered RUNNING state, process has stayed up for \u003e than 5 seconds (startsecs)\n","stream":"stdout","time":"2014-08-28T16:22:55.272536167Z"}
+{"log":"2014-08-28 16:22:55,272 INFO success: central-query entered RUNNING state, process has stayed up for \u003e than 5 seconds (startsecs)\n","stream":"stdout","time":"2014-08-28T16:22:55.272536167Z"}
