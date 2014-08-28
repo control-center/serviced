@@ -14,10 +14,16 @@
 package agent
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/zenoss/glog"
 
-	"os/exec"
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"io"
+	"os"
+	"strings"
 )
 
 // NewServer returns a new AgentServer
@@ -55,17 +61,63 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	return nil
 }
 
+// getLastDockerLogs gets the last N bytes from the docker logs
+func getLastDockerLogs(logfile string, size int64) (output []string, err error) {
+	fi, err := os.Open(logfile)
+	if err != nil {
+		return output, err
+	}
+	stat, err := fi.Stat()
+	if err != nil {
+		return output, err
+	}
+
+	offset := stat.Size() - size
+	if offset < 0 {
+		offset = 0
+	}
+	if _, err := fi.Seek(offset, 0); err != nil {
+		return output, err
+	}
+
+	output = make([]string, 0)
+	reader := bufio.NewReader(fi)
+	var dec *json.Decoder
+	for {
+		l := jsonlog.JSONLog{}
+		if dec == nil {
+			// keep trying to decode a message on new line boundaries
+			// until we are successful
+			line, err := reader.ReadBytes('\n')
+			if err != nil {
+				if err == io.EOF {
+					return output, nil
+				}
+				return output, err
+			}
+			if err := json.Unmarshal(line, &l); err != nil {
+				continue
+			}
+			dec = json.NewDecoder(reader)
+		}
+		if err := dec.Decode(&l); err != nil {
+			break
+		}
+		output = append(output, fmt.Sprintf("%s", l.Log))
+	}
+	return output, nil
+}
+
 // GetDockerLogs returns the last 10k worth of logs from the docker container
 func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
-	cmd := exec.Command("docker", "logs", dockerID)
-	output, err := cmd.CombinedOutput()
+
+	//  TODO: revisit this after docker supports truncating logs
+	filename := fmt.Sprintf("/var/lib/docker/containers/%s/%s-json.log", dockerID, dockerID)
+
+	output, err := getLastDockerLogs(filename, 20000)
 	if err != nil {
-		glog.Errorf("Unable to return logs because: %v", err)
 		return err
 	}
-	if len(output) > 10000 {
-		output = output[len(output)-10000:]
-	}
-	*logs = string(output)
+	*logs = strings.Join(output, "")
 	return nil
 }
