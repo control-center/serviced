@@ -22,20 +22,18 @@ import (
 )
 
 var testDockerLogsFile = "getDockerLogs.txt"
-var testDockerLogsOutput []string
-
-func init() {
-	testDockerLogsOutput = strings.Split(`2014-08-28 16:22:49,100 WARN Included extra file "/opt/zenoss/etc/supervisor/opentsdb_supervisor.conf" during parsing
-                 2014-08-28 16:22:49,100 WARN Included extra file "/opt/zenoss/etc/supervisor/central-query_supervisor.conf" during parsing
-                 2014-08-28 16:22:49,194 INFO RPC interface 'supervisor' initialized
-                 2014-08-28 16:22:49,194 CRIT Server 'inet_http_server' running without any HTTP authentication checking
-                 2014-08-28 16:22:49,195 INFO supervisord started with pid 1
-                 2014-08-28 16:22:50,197 INFO spawned: 'metric-consumer-app' with pid 9
-                 2014-08-28 16:22:50,199 INFO spawned: 'opentsdb' with pid 10
-                 2014-08-28 16:22:50,200 INFO spawned: 'central-query' with pid 11
-                 2014-08-28 16:22:55,272 INFO success: metric-consumer-app entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
-                 2014-08-28 16:22:55,272 INFO success: opentsdb entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)
-                 2014-08-28 16:22:55,272 INFO success: central-query entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)`, "\n")
+var testDockerLogsOutput = []string{
+	"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/opentsdb_supervisor.conf\" during parsing\n",
+	"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/central-query_supervisor.conf\" during parsing\n",
+	"2014-08-28 16:22:49,194 INFO RPC interface 'supervisor' initialized\n",
+	"2014-08-28 16:22:49,194 CRIT Server 'inet_http_server' running without any HTTP authentication checking\n",
+	"2014-08-28 16:22:49,195 INFO supervisord started with pid 1\n",
+	"2014-08-28 16:22:50,197 INFO spawned: 'metric-consumer-app' with pid 9\n",
+	"2014-08-28 16:22:50,199 INFO spawned: 'opentsdb' with pid 10\n",
+	"2014-08-28 16:22:50,200 INFO spawned: 'central-query' with pid 11\n",
+	"2014-08-28 16:22:55,272 INFO success: metric-consumer-app entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)\n",
+	"2014-08-28 16:22:55,272 INFO success: opentsdb entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)\n",
+	"2014-08-28 16:22:55,272 INFO success: central-query entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)\n",
 }
 
 func TestGetLastDockerLogs(t *testing.T) {
@@ -56,6 +54,11 @@ func TestGetLastDockerLogs(t *testing.T) {
 		}
 		if len(logs) != len(testDockerLogsOutput) {
 			t.Fatalf("log lengths should match: \n%s", logs)
+		}
+		for i, line := range logs {
+			if line != testDockerLogsOutput[i] {
+				t.Fatalf("Docker logs differ '%s' vs '%s'", line, testDockerLogsOutput[i])
+			}
 		}
 	}
 
