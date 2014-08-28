@@ -1,6 +1,7 @@
 description "Zenoss ServiceD"
 
-start on (filesystem and started docker and net-device-up IFACE=docker0)
+start on (filesystem and started docker and (started network-interface or started network-manager or started networking) )
+
 stop on run level [!2345]
 kill timeout 60
 
