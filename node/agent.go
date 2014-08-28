@@ -709,7 +709,8 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
-		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID))
+		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
+		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
