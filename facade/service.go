@@ -376,12 +376,12 @@ func (f *Facade) retrievePoolIPs(ctx datastore.Context, poolID string) ([]assign
 	}
 
 	for _, hostIPResource := range poolIPs.HostIPs {
-		anAssignIPInfo := assignIPInfo{IP: hostIPResource.IPAddress, IPType: "static", HostID: hostIPResource.HostID}
+		anAssignIPInfo := assignIPInfo{IP: hostIPResource.IPAddress, IPType: commons.STATIC, HostID: hostIPResource.HostID}
 		assignIPInfoSlice = append(assignIPInfoSlice, anAssignIPInfo)
 	}
 
 	for _, virtualIP := range poolIPs.VirtualIPs {
-		anAssignIPInfo := assignIPInfo{IP: virtualIP.IP, IPType: "virtual", HostID: ""}
+		anAssignIPInfo := assignIPInfo{IP: virtualIP.IP, IPType: commons.VIRTUAL, HostID: ""}
 		assignIPInfoSlice = append(assignIPInfoSlice, anAssignIPInfo)
 	}
 

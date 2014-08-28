@@ -4,11 +4,12 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 
 	"fmt"
 )
@@ -63,14 +64,14 @@ func (f *Facade) AssignAddress(ctx datastore.Context, assignment addressassignme
 	}
 
 	switch assignment.AssignmentType {
-	case "static":
+	case commons.STATIC:
 		{
 			//check host and IP exist
 			if err = f.validStaticIp(ctx, assignment.HostID, assignment.IPAddr); err != nil {
 				return err
 			}
 		}
-	case "virtual":
+	case commons.VIRTUAL:
 		{
 			//verify the IP provided is contained in the pool
 			if err := f.validVirtualIp(assignment.PoolID, assignment.IPAddr); err != nil {
