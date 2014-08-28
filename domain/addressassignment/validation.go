@@ -14,6 +14,7 @@
 package addressassignment
 
 import (
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/validation"
 
 	"fmt"
@@ -27,11 +28,11 @@ func (a *AddressAssignment) ValidEntity() error {
 	v.Add(validation.IsIP(a.IPAddr))
 	v.Add(validation.ValidPort(int(a.Port)))
 	switch a.AssignmentType {
-	case "static":
+	case commons.STATIC:
 		{
 			v.Add(validation.NotEmpty("HostID", a.HostID))
 		}
-	case "virtual":
+	case commons.VIRTUAL:
 		{
 			v.Add(validation.NotEmpty("PoolID", a.PoolID))
 		}

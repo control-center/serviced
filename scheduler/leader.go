@@ -17,6 +17,7 @@ import (
 	"fmt"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -90,7 +91,7 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		}
 	}
 
-	if assignmentType == "virtual" {
+	if assignmentType == commons.VIRTUAL {
 		// populate hostid
 		var err error
 		hostid, err = virtualips.GetHostID(l.conn, ipAddr)
