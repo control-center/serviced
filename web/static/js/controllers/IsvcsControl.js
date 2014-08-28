@@ -67,7 +67,6 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
         return {
             "datapoints": [{
                 "aggregator": "avg",
-                "expression": "rpn:1024,/,1024,/,1024,/",
                 "fill": false,
                 "format": "%6.2f",
                 "id": "rssmemory",
@@ -86,7 +85,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "end": "0s-ago",
                 "start": "1h-ago"
             },
-            "yAxisLabel": "GB",
+            "yAxisLabel": "bytes",
             "returnset": "EXACT",
             height: 300,
             width: 300,

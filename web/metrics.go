@@ -281,12 +281,11 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 }
 
 func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.GraphConfig {
-	MaxY := int(totalMemory / 1024 / 1024 / 1024)
+	MaxY := int(totalMemory)
 	return domain.GraphConfig{
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#e8aec7",
 				Fill:         true,
 				Format:       "%6.2f",
@@ -299,7 +298,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#b2aee8",
 				Fill:         true,
 				Format:       "%6.2f",
@@ -312,7 +310,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#aec7e8",
 				Fill:         true,
 				Format:       "%6.2f",
@@ -325,7 +322,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#aee4e8",
 				Fill:         true,
 				Format:       "%6.2f",
@@ -347,7 +343,7 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
-		YAxisLabel:  "GB",
+		YAxisLabel:  "bytes",
 		ReturnSet:   "EXACT",
 		Type:        "area",
 		Tags:        tags,

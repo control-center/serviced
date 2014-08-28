@@ -102,7 +102,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "GB",
+					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
@@ -110,7 +110,6 @@ func init() {
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
-							Expression: "rpn:1024,/,1024,/,1024,/",
 							Aggregator: "avg",
 							Fill:       false,
 							Format:     "%6.2f",
@@ -198,7 +197,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "GB",
+					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
@@ -206,7 +205,6 @@ func init() {
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
-							Expression: "rpn:1024,/,1024,/,1024,/",
 							Aggregator: "avg",
 							Fill:       false,
 							Format:     "%6.2f",
@@ -294,7 +292,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "GB",
+					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
@@ -302,7 +300,6 @@ func init() {
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
-							Expression: "rpn:1024,/,1024,/,1024,/",
 							Aggregator: "avg",
 							Fill:       false,
 							Format:     "%6.2f",
@@ -390,7 +387,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "GB",
+					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
@@ -398,7 +395,6 @@ func init() {
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
-							Expression: "rpn:1024,/,1024,/,1024,/",
 							Aggregator: "avg",
 							Fill:       false,
 							Format:     "%6.2f",
@@ -486,7 +482,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "GB",
+					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
@@ -494,7 +490,6 @@ func init() {
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
-							Expression: "rpn:1024,/,1024,/,1024,/",
 							Aggregator: "avg",
 							Fill:       false,
 							Format:     "%6.2f",
@@ -582,7 +577,7 @@ func init() {
 						End:   "0s-ago",
 						Start: "1h-ago",
 					},
-					YAxisLabel: "GB",
+					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
@@ -590,7 +585,6 @@ func init() {
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
-							Expression: "rpn:1024,/,1024,/,1024,/",
 							Aggregator: "avg",
 							Fill:       false,
 							Format:     "%6.2f",
