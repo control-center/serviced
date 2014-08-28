@@ -14,11 +14,12 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/validation"
+
+	"github.com/zenoss/glog"
 
 	"errors"
 	"fmt"
@@ -42,7 +43,7 @@ type PoolIPs struct {
 }
 
 // AddResourcePool add resource pool to index
-func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) (err error) {
 	glog.V(2).Infof("Facade.AddResourcePool: %+v", entity)
 	exists, err := f.GetResourcePool(ctx, entity.ID)
 	if err != nil {
@@ -53,19 +54,21 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 	}
 
 	ec := newEventCtx()
-	err = f.beforeEvent(beforePoolAdd, ec, entity)
-	if err == nil {
-		now := time.Now()
-		entity.CreatedAt = now
-		entity.UpdatedAt = now
-		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
-	}
-	if err == nil {
-		err = zkAPI(f).AddResourcePool(entity.ID)
+	defer f.afterEvent(afterPoolAdd, ec, entity, err)
+
+	if err = f.beforeEvent(beforePoolAdd, ec, entity); err != nil {
+		return err
 	}
 
-	f.afterEvent(afterPoolAdd, ec, entity, err)
-	return err
+	now := time.Now()
+	entity.CreatedAt = now
+	entity.UpdatedAt = now
+	if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).AddResourcePool(entity); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (f *Facade) virtualIPExists(ctx datastore.Context, proposedVirtualIP pool.VirtualIP) (bool, error) {
@@ -146,20 +149,27 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 }
 
 // UpdateResourcePool updates a ResourcePool
-func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) (err error) {
 	glog.V(2).Infof("Facade.UpdateResourcePool: %+v", entity)
 	if err := f.validateVirtualIPs(ctx, entity); err != nil {
 		return err
 	}
 	ec := newEventCtx()
-	err := f.beforeEvent(beforePoolUpdate, ec, entity)
-	if err == nil {
-		now := time.Now()
-		entity.UpdatedAt = now
-		err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity)
+	defer f.afterEvent(afterPoolUpdate, ec, entity, err)
+
+	if err = f.beforeEvent(beforePoolUpdate, ec, entity); err != nil {
+		return err
 	}
-	f.afterEvent(afterPoolUpdate, ec, entity, err)
-	return err
+
+	now := time.Now()
+	entity.UpdatedAt = now
+	if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RemoveResourcePool removes a ResourcePool
@@ -211,19 +221,23 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 }
 
 //CreateDefaultPool creates the default pool if it does not exists, it is idempotent
-func (f *Facade) CreateDefaultPool(ctx datastore.Context) error {
-	entity, err := f.GetResourcePool(ctx, defaultPoolID)
+func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) (string, error) {
+	entity, err := f.GetResourcePool(ctx, id)
 	if err != nil {
-		return fmt.Errorf("could not create default pool: %v", err)
+		return "", fmt.Errorf("could not create default pool: %v", err)
 	}
 	if entity != nil {
-		glog.V(4).Infof("'%s' resource pool already exists", defaultPoolID)
-		return nil
+		glog.V(4).Infof("'%s' resource pool already exists", id)
+		return entity.Realm, nil
 	}
 
-	glog.V(4).Infof("'%s' resource pool not found; creating...", defaultPoolID)
-	entity = pool.New(defaultPoolID)
-	return f.AddResourcePool(ctx, entity)
+	glog.V(4).Infof("'%s' resource pool not found; creating...", id)
+	entity = pool.New(id)
+	entity.Realm = defaultRealm
+	if err := f.AddResourcePool(ctx, entity); err != nil {
+		return "", err
+	}
+	return entity.Realm, nil
 }
 
 func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool) error {
@@ -343,3 +357,4 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.
 }
 
 var defaultPoolID = "default"
+var defaultRealm = "default"

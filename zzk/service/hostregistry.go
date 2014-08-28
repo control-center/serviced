@@ -50,12 +50,12 @@ func (node *HostNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *HostNode) Create(conn client.Connection) error {
-	return RegisterHost(conn, node.ID)
+	return RegisterHost(conn, node.Host)
 }
 
 // Update implements zzk.Node
 func (node *HostNode) Update(conn client.Connection) error {
-	return nil
+	return UpdateHost(conn, node.Host)
 }
 
 // Version implements client.Node
@@ -189,24 +189,21 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	}
 }
 
-func GetPoolActiveHostIDs(poolID string) ([]string, error) {
-	hostids := []string{}
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		return nil, err
-	}
+// GetActiveHosts returns all active hosts
+func GetActiveHosts(conn client.Connection) ([]string, error) {
 	ehosts, err := conn.Children(hostregpath())
 	if err != nil {
 		return nil, err
 	}
-	for _, ehostID := range ehosts {
-		var ehost host.Host
-		if err := conn.Get(hostregpath(ehostID), &HostNode{Host: &ehost}); err != nil {
+	hostIDs := make([]string, len(ehosts))
+	for i, ehostID := range ehosts {
+		var node HostNode
+		if err := conn.Get(hostregpath(ehostID), &node); err != nil {
 			return nil, err
 		}
-		hostids = append(hostids, ehost.ID)
+		hostIDs[i] = node.ID
 	}
-	return hostids, nil
+	return hostIDs, nil
 }
 
 func SyncHosts(conn client.Connection, hosts []*host.Host) error {
@@ -217,22 +214,28 @@ func SyncHosts(conn client.Connection, hosts []*host.Host) error {
 	return zzk.Sync(conn, nodes, hostpath())
 }
 
-func RegisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
+func RegisterHost(conn client.Connection, host *host.Host) error {
+	var node HostNode
+	if err := conn.Create(hostpath(host.ID), &node); err != nil {
 		return err
-	} else if exists {
-		return nil
 	}
-
-	return conn.CreateDir(hostpath(hostID))
+	node.Host = host
+	return conn.Set(hostpath(host.ID), &node)
 }
 
 func UnregisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
-		return err
-	} else if !exists {
+	err := conn.Delete(hostpath(hostID))
+	if err == nil || err == client.ErrNoNode {
 		return nil
 	}
+	return err
+}
 
-	return conn.Delete(hostpath(hostID))
+func UpdateHost(conn client.Connection, host *host.Host) error {
+	var node HostNode
+	if err := conn.Get(hostpath(host.ID), &node); err != nil {
+		return err
+	}
+	node.Host = host
+	return conn.Set(hostpath(host.ID), &node)
 }

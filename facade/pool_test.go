@@ -33,6 +33,7 @@ func (ft *FacadeTest) Test_NewResourcePool(t *C) {
 	}
 
 	rp.ID = poolID
+	rp.Realm = "default"
 	err = ft.Facade.AddResourcePool(ft.CTX, &rp)
 	if err != nil {
 		t.Errorf("Failure creating resource pool %-v with error: %s", rp, err)
@@ -51,6 +52,7 @@ func (ft *FacadeTest) Test_UpdateResourcePool(t *C) {
 	defer ft.Facade.RemoveResourcePool(ft.CTX, poolID)
 
 	myPool := pool.New(poolID)
+	myPool.Realm = "default"
 	ft.Facade.AddResourcePool(ft.CTX, myPool)
 
 	myPool.Priority = 1
@@ -77,6 +79,7 @@ func (ft *FacadeTest) Test_GetResourcePool(t *C) {
 
 	ft.Facade.RemoveResourcePool(ft.CTX, poolID)
 	rp := pool.New(poolID)
+	rp.Realm = "default"
 	rp.Priority = 1
 	rp.CoreLimit = 1
 	rp.MemoryLimit = 1
@@ -106,6 +109,7 @@ func (ft *FacadeTest) Test_RemoveResourcePool(t *C) {
 	t.Assert(err, IsNil)
 
 	rp := pool.New(poolID)
+	rp.Realm = "default"
 	err = ft.Facade.AddResourcePool(ft.CTX, rp)
 	t.Assert(err, IsNil)
 
@@ -137,6 +141,7 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 	poolID := "Test_GetResourcePools"
 	defer ft.Facade.RemoveResourcePool(ft.CTX, poolID)
 	rp := pool.New(poolID)
+	rp.Realm = "default"
 	rp.Priority = 1
 	rp.CoreLimit = 2
 	rp.MemoryLimit = 3
@@ -156,6 +161,7 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 
 func (ft *FacadeTest) Test_GetPoolsIPs(t *C) {
 	assignIPsPool := pool.New("Test_GetPoolsIPs")
+	assignIPsPool.Realm = "default"
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
 		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
@@ -217,6 +223,7 @@ func (ft *FacadeTest) Test_VirtualIPs(t *C) {
 	fmt.Println(" ##### Test_VirtualIPs")
 	myPoolID := "Test_VirtualIPs"
 	assignIPsPool := pool.New(myPoolID)
+	assignIPsPool.Realm = "default"
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
 		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
@@ -319,6 +326,7 @@ func (ft *FacadeTest) Test_InvalidVirtualIPs(t *C) {
 	fmt.Println(" ##### Test_InvalidVirtualIPs")
 	myPoolID := "Test_InvalidVirtualIPs"
 	assignIPsPool := pool.New(myPoolID)
+	assignIPsPool.Realm = "default"
 	err := ft.Facade.AddResourcePool(ft.CTX, assignIPsPool)
 	defer func() {
 		ft.Facade.RemoveResourcePool(ft.CTX, assignIPsPool.ID)
@@ -416,6 +424,7 @@ func (ft *FacadeTest) Test_PoolCapacity(t *C) {
 
 	//create pool for test
 	rp := pool.New(poolid)
+	rp.Realm = "default"
 	if err := ft.Facade.AddResourcePool(ft.CTX, rp); err != nil {
 		t.Fatalf("Could not add pool for test: %v", err)
 	}
@@ -449,6 +458,7 @@ func (ft *FacadeTest) Test_PoolCommitment(t *C) {
 
 	//create pool for test
 	rp := pool.New(poolid)
+	rp.Realm = "default"
 	if err := ft.Facade.AddResourcePool(ft.CTX, rp); err != nil {
 		t.Fatalf("Could not add pool for test: %v", err)
 	}

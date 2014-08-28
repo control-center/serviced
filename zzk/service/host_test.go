@@ -110,7 +110,7 @@ func TestHostStateListener_Listen(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 	shutdown := make(chan interface{})
 	wait := make(chan interface{})
 	go func() {
@@ -203,7 +203,7 @@ func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the service
 	svc := &service.Service{
@@ -314,7 +314,7 @@ func TestHostStateListener_Spawn_AttachAndDelete(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the service
 	svc := &service.Service{
@@ -372,7 +372,7 @@ func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the service
 	svc := &service.Service{
@@ -421,7 +421,7 @@ func TestHostStateListener_pauseInstance(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
 	svc := &service.Service{
@@ -448,7 +448,7 @@ func TestHostStateListener_resumeInstance(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
 	svc := &service.Service{
@@ -479,7 +479,7 @@ func TestHostStateListener_stopInstance(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
 	svc := &service.Service{
@@ -510,7 +510,7 @@ func TestHostStateListener_detachInstance(t *testing.T) {
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
 	listener := NewHostStateListener(conn, handler, "test-host-1")
-	RegisterHost(conn, listener.hostID)
+	RegisterHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
 	svc := &service.Service{

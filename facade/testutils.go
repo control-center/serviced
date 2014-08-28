@@ -65,23 +65,27 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 type zkMock struct {
 }
 
-func (z *zkMock) updateService(svc *service.Service) error {
+func (z *zkMock) UpdateService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) removeService(svc *service.Service) error {
+func (z *zkMock) RemoveService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+func (z *zkMock) GetServiceStates(poolID string, serviceIds ...string) ([]*servicestate.ServiceState, error) {
+	return []*servicestate.ServiceState{}, nil
+}
+
+func (z *zkMock) AddHost(h *host.Host) error {
 	return nil
 }
 
-func (z *zkMock) RegisterHost(h *host.Host) error {
+func (z *zkMock) UpdateHost(h *host.Host) error {
 	return nil
 }
 
-func (z *zkMock) UnregisterHost(h *host.Host) error {
+func (z *zkMock) RemoveHost(h *host.Host) error {
 	return nil
 }
 
@@ -93,7 +97,11 @@ func (z *zkMock) RemoveVirtualIP(vip *pool.VirtualIP) error {
 	return nil
 }
 
-func (z *zkMock) AddResourcePool(poolID string) error {
+func (z *zkMock) AddResourcePool(pool *pool.ResourcePool) error {
+	return nil
+}
+
+func (z *zkMock) UpdateResourcePool(pool *pool.ResourcePool) error {
 	return nil
 }
 
@@ -103,4 +111,8 @@ func (z *zkMock) RemoveResourcePool(poolID string) error {
 
 func (z *zkMock) CheckRunningVHost(vhostName, serviceID string) error {
 	return nil
+}
+
+func (z *zkMock) GetActiveHosts(poolID string) ([]string, error) {
+	return []string{}, nil
 }

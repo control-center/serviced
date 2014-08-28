@@ -100,9 +100,9 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
 
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
-	dt.zkConn, err = zzk.GetBasePathConnection("/")
+	dt.zkConn, err = zzk.GetLocalConnection("/")
 	if err != nil {
 		c.Fatalf("could not get zk connection %v", err)
 	}
@@ -128,7 +128,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	dt.FacadeTest.SetUpTest(c)
 	//DAO tests expect default pool and system user
 
-	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
+	if _, err := dt.Facade.CreateDefaultPool(dt.CTX, "default"); err != nil {
 		c.Fatalf("could not create default pool:", err)
 	}
 
@@ -501,6 +501,7 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 
 func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignIPsPool := pool.New("assignIPsPoolID")
+	assignIPsPool.Realm = "default"
 	fmt.Printf("%s\n", assignIPsPool.ID)
 	err := dt.Facade.AddResourcePool(dt.CTX, assignIPsPool)
 	if err != nil {

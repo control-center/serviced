@@ -14,10 +14,10 @@
 package facade
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 )
 
@@ -41,6 +41,7 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 
 	//create pool for test
 	rp := pool.New(poolid)
+	rp.Realm = "default"
 	if err := s.Facade.AddResourcePool(s.CTX, rp); err != nil {
 		t.Fatalf("Could not add pool for test: %v", err)
 	}

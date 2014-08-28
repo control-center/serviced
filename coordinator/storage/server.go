@@ -80,7 +80,7 @@ func (s *Server) loop() {
 		version:    nil,
 	}
 	reconnect := func() error {
-		conn, err = zzk.GetBasePathConnection("/")
+		conn, err = zzk.GetLocalConnection("/")
 		if err != nil {
 			glog.Errorf("Error in getting a connection: %v", err)
 			return err
