@@ -3,6 +3,16 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
     var nextClicked = false;
     $scope.name='wizard';
 
+    $scope.dockerLoggedIn = true;
+
+    resourcesService.docker_is_logged_in(function(loggedIn) {
+        $scope.dockerLoggedIn = loggedIn;
+    })
+
+    $scope.dockerIsNotLoggedIn = function() {
+        return !$scope.dockerLoggedIn;
+    }
+
     var  validTemplateSelected = function() {
         if($scope.selectedTemplates().length <= 0){
             showError($translate.instant("label_wizard_select_app"));
