@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -127,10 +128,10 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	reassign := []string{}
 	for i := range services {
 		for j := range services[i].Endpoints {
-			if services[i].Endpoints[j].AddressAssignment.HostID == hostID {
+			aa := services[i].Endpoints[j].AddressAssignment
+			if aa.HostID == hostID && aa.AssignmentType == commons.STATIC {
 				//remove the services address assignment
-				assignmentID := services[i].Endpoints[j].AddressAssignment.ID
-				if err = f.RemoveAddressAssignment(ctx, assignmentID); err != nil {
+				if err = f.RemoveAddressAssignment(ctx, aa.ID); err != nil {
 					glog.Warningf("Failed to remove service %s:%s address assignment to host %s", services[i].Name, services[i].ID, hostID)
 				}
 				reassign = append(reassign, services[i].ID)
