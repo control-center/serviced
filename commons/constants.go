@@ -18,4 +18,6 @@ const (
 	MANUAL string = "manual"
 	TCP    string = "tcp"
 	UDP    string = "udp"
+	STATIC  string = "static"
+	VIRTUAL string = "virtual"
 )
