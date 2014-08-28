@@ -1,3 +1,7 @@
+# Copyright 2014, The Serviced Authors. All rights reserved.
+# Use of this source code is governed by the Apache 2.0
+# license that can be found in the LICENSE file.
+
 TARGET := $(shell pwd)
 ZK_VERSION := 3.4.5
 
@@ -6,8 +10,9 @@ ZK_VERSION := 3.4.5
 default: tarball
 
 tarball:
-	wget -qO- http://apache.cs.utah.edu/zookeeper/zookeeper-$(ZK_VERSION)/zookeeper-$(ZK_VERSION).tar.gz | tar -C /opt -xz
+	wget -qO- http://archive.apache.org/dist/zookeeper/zookeeper-$(ZK_VERSION)/zookeeper-$(ZK_VERSION).tar.gz | tar -C /opt -xz
 	cp /opt/zookeeper-$(ZK_VERSION)/conf/zoo_sample.cfg /opt/zookeeper-$(ZK_VERSION)/conf/zoo.cfg
+	echo maxClientCnxns=0 >> /opt/zookeeper-$(ZK_VERSION)/conf/zoo.cfg
 	mkdir /opt/exhibitor && \
 		wget -q -O /opt/exhibitor/pom.xml https://raw.github.com/Netflix/exhibitor/master/exhibitor-standalone/src/main/resources/buildscripts/standalone/maven/pom.xml && \
 		cd /opt/exhibitor && \

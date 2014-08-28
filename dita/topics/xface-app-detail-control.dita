@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Configuration and control area</title>
+  <refbody>
+    <section>
+      <image href="../images/xf-app-detail-control.png" scale="50"/>
+      <p>This area provides fields for renaming the application and editing its startup command, and
+        buttons for starting and stopping the application. </p>
+        <ul>
+          <li>Applications are not required to have startup commands.</li>
+          <li>The <uicontrol>Start</uicontrol> and <uicontrol>Stop</uicontrol> buttons affect all
+            child services.</li>
+        </ul>
+    </section>
+  </refbody>
+</reference>

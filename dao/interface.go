@@ -1,4 +1,18 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package dao
+
+import (
+	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/volume"
+)
 
 // A generic ControlPlane error
 type ControlPlaneError struct {
@@ -14,36 +28,28 @@ func (s ControlPlaneError) Error() string {
 type EntityRequest interface{}
 
 type ServiceStateRequest struct {
-	ServiceId      string
-	ServiceStateId string
+	ServiceID      string
+	ServiceStateID string
 }
 
 type HostServiceRequest struct {
-	HostId         string
-	ServiceStateId string
+	HostID         string
+	ServiceStateID string
+}
+
+type AttachRequest struct {
+	Running *RunningService
+	Command string
+	Args    []string
+}
+
+type FindChildRequest struct {
+	ServiceID string
+	ChildName string
 }
 
 // The ControlPlane interface is the API for a serviced master.
 type ControlPlane interface {
-
-	//---------------------------------------------------------------------------
-	// Host CRUD
-
-	// Register a host with serviced
-	AddHost(host Host, hostId *string) error
-
-	// Update Host information for a registered host
-	UpdateHost(host Host, ununsed *int) error
-
-	// Remove a Host from serviced
-	RemoveHost(hostId string, unused *int) error
-
-	//TODO Does this belong here?
-	// Get Host for a registered host
-	//GetHost(hostId int, host *Host) error
-
-	// Get a list of registered hosts
-	GetHosts(request EntityRequest, hosts *map[string]*Host) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD
@@ -52,28 +58,37 @@ type ControlPlane interface {
 	GetTenantId(serviceId string, tenantId *string) error
 
 	// Add a new service
-	AddService(service Service, serviceId *string) error
+	AddService(service service.Service, serviceId *string) error
+
+	// Deploy a new service
+	DeployService(service ServiceDeploymentRequest, serviceId *string) error
 
 	// Update an existing service
-	UpdateService(service Service, unused *int) error
+	UpdateService(service service.Service, unused *int) error
 
 	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error
 
 	// Get a service from serviced
-	GetService(serviceId string, service *Service) error
+	GetService(serviceId string, service *service.Service) error
 
 	// Get a list of services from serviced
-	GetServices(request EntityRequest, services *[]*Service) error
+	GetServices(request EntityRequest, services *[]*service.Service) error
+
+	// Find a child service with the given name
+	FindChildService(request FindChildRequest, service *service.Service) error
 
 	// Get services with the given tag(s)
-	GetTaggedServices(request EntityRequest, services *[]*Service) error
+	GetTaggedServices(request EntityRequest, services *[]*service.Service) error
 
 	// Find all service endpoint matches
-	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) (err error)
+	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) error
 
-	// Deploy a service
-	AddServiceDeployment(deployment ServiceDeployment, unused *int) (err error)
+	// Assign IP addresses to all services at and below the provided service
+	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
+
+	// Get the IP addresses assigned to an service
+	GetServiceAddressAssignments(serviceID string, addresses *[]*addressassignment.AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -91,10 +106,13 @@ type ControlPlane interface {
 	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Update the service state
-	UpdateServiceState(state ServiceState, unused *int) error
+	UpdateServiceState(state servicestate.ServiceState, unused *int) error
+
+	// Computes the status of the service based on its service instances
+	GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]Status) error
 
 	// Get the services instances for a given service
-	GetServiceStates(serviceId string, states *[]*ServiceState) error
+	GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error
@@ -111,62 +129,40 @@ type ControlPlane interface {
 	// Get the service instances for a given service
 	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
 
-	//---------------------------------------------------------------------------
-	// ResourcePool CRUD
-
-	// Add a new service pool to serviced
-	AddResourcePool(pool ResourcePool, poolId *string) error
-
-	// Update a service pool definition
-	UpdateResourcePool(pool ResourcePool, unused *int) error
-
-	// Remove a service pool
-	RemoveResourcePool(poolId string, unused *int) error
-
-	//TODO does this belong here
-	// Get a list of all the resource pools
-	//GetResourcePool(poolId string, pool *ResourcePool) error
-
-	// Get a list of all the resource pools
-	GetResourcePools(request EntityRequest, pool *map[string]*ResourcePool) error
-
-	// Get of a list of hosts that are in the given resource pool
-	GetHostsForResourcePool(poolId string, poolHosts *[]*PoolHost) error
+	// Attach to a running container with a predefined action
+	Action(request AttachRequest, unused *int) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD
 
 	// Deploy an application template in to production
-	DeployTemplate(request ServiceTemplateDeploymentRequest, unused *int) error
+	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantId *string) error
 
 	// Add a new service Template
-	AddServiceTemplate(serviceTemplate ServiceTemplate, templateId *string) error
+	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error
 
 	// Update a new service Template
-	UpdateServiceTemplate(serviceTemplate ServiceTemplate, unused *int) error
+	UpdateServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, unused *int) error
 
 	// Update a new service Template
-	RemoveServiceTemplate(serviceTemplateId string, unused *int) error
+	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
 
 	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *map[string]*ServiceTemplate) error
+	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD
-
-	// Start an interative shell in a service container
-	StartShell(service Service, unused *int) error
-
-	// Execute a service container shell command
-	ExecuteShell(service Service, command *string) error
-
-	// Show available commands
-	ShowCommands(service Service, unused *int) error
 
 	// Rollback DFS and service image
 	Rollback(snapshotId string, unused *int) error
 
 	// Commit DFS and service image
+	Commit(containerId string, label *string) error
+
+	// Performs a local snapshot from the host
+	TakeSnapshot(serviceId string, label *string) error
+
+	// Snapshots DFS and service image
 	Snapshot(serviceId string, label *string) error
 
 	// Delete a snapshot
@@ -175,15 +171,27 @@ type ControlPlane interface {
 	// List available snapshots
 	Snapshots(serviceId string, snapshotIds *[]string) error
 
-	// Download a file from a container
-	Get(service Service, file *string) error
+	// Delete snapshots for a given service
+	DeleteSnapshots(serviceId string, unused *int) error
 
-	// Upload file(s) to a container
-	Send(service Service, files *[]string) error
+	// Get the DFS volume
+	GetVolume(serviceId string, theVolume *volume.Volume) error
 
-	/*
-	 RegisterHostIPs registers the IP addresses for a host. Attempts to merge IPs if they have already
-	 been registered. Marks previously registered IPs as deleted if not included in subsequent register calls
-	*/
-	RegisterHostIPs(ips HostIPs, unused *int) error
+	//GetSystemUser retrieves the credentials for the system_user account
+	GetSystemUser(unused int, user *user.User) error
+
+	//ValidateCredentials verifies if the passed in user has the correct username and password
+	ValidateCredentials(user user.User, result *bool) error
+
+	// Waits for the DFS to be ready
+	ReadyDFS(bool, *int) error
+
+	// Write a tgz file containing all templates and services
+	Backup(backupDirectory string, backupFilePath *string) error
+
+	// Restore templates and services from a tgz file (inverse of Backup)
+	Restore(backupFilePath string, unused *int) error
+
+	// Register a health check result
+	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 }

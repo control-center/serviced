@@ -1,21 +1,23 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
 import (
-	"github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-dockerclient"
 
 	"errors"
 	"os"
 	"os/exec"
 	"path"
+	"strings"
 )
 
 // managerOp is a type of manager operation (stop, start, notify)
@@ -82,7 +84,9 @@ func init() {
 
 // checks to see if the given repo:tag exists in docker
 func (m *Manager) imageExists(repo, tag string) (bool, error) {
+	glog.V(1).Infof("Checking for imageExists %s:%s", repo, tag)
 	if client, err := newDockerClient(m.dockerAddress); err != nil {
+		glog.Errorf("unable to start docker client at docker address: %+v", m.dockerAddress)
 		return false, err
 	} else {
 		repoTag := repo + ":" + tag
@@ -91,7 +95,7 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 		} else {
 			for _, image := range images {
 				for _, tagi := range image.RepoTags {
-					if tagi == repoTag {
+					if string(tagi) == repoTag {
 						return true, nil
 					}
 				}
@@ -104,6 +108,16 @@ func (m *Manager) imageExists(repo, tag string) (bool, error) {
 // SetVolumesDir sets the volumes dir for *Manager
 func (m *Manager) SetVolumesDir(dir string) {
 	m.volumesDir = dir
+}
+
+func (m *Manager) SetConfigurationOption(container, key string, value interface{}) error {
+	c, found := m.containers[container]
+	if !found {
+		return errors.New("could not find container")
+	}
+	glog.Infof("setting %s, %s: %s", container, key, value)
+	c.Configuration[key] = value
+	return nil
 }
 
 // checks for the existence of all the container images
@@ -121,16 +135,29 @@ func (m *Manager) allImagesExist() error {
 }
 
 // loadImage() loads a docker image from a tar export
-func loadImage(tarball, dockerAddress string) error {
+func loadImage(tarball, dockerAddress, repoTag string) error {
 
 	if file, err := os.Open(tarball); err != nil {
 		return err
 	} else {
 		defer file.Close()
-		cmd := exec.Command("docker", "-H", dockerAddress, "load")
+		cmd := exec.Command("docker", "-H", dockerAddress, "import", "-")
 		cmd.Stdin = file
-		glog.Infof("Loading docker image")
-		return cmd.Run()
+		glog.Infof("Loading docker image %+v with docker import cmd: %+v", repoTag, cmd.Args)
+		output, err := cmd.CombinedOutput()
+		if err != nil {
+			glog.Errorf("unable to import docker image %+v with command:%+v output:%s err:%s", repoTag, cmd.Args, output, err)
+			return err
+		}
+
+		importedImageName := strings.Trim(string(output), "\n")
+		tagcmd := exec.Command("docker", "-H", dockerAddress, "tag", importedImageName, repoTag)
+		glog.Infof("Tagging imported docker image %s with tag %s using docker tag cmd: %+v", importedImageName, repoTag, tagcmd.Args)
+		output, err = tagcmd.CombinedOutput()
+		if err != nil {
+			glog.Errorf("unable to tag imported image %s using command:%+v output:%s err: %s\n", importedImageName, tagcmd.Args, output, err)
+			return err
+		}
 	}
 	return nil
 }
@@ -138,10 +165,20 @@ func loadImage(tarball, dockerAddress string) error {
 // wipe() removes the data directory associate with the manager
 func (m *Manager) wipe() error {
 
+	if err := os.RemoveAll(m.volumesDir); err != nil {
+		glog.V(2).Infof("could not remove %s: %v", m.volumesDir, err)
+	}
+	//nothing to wipe if the volumesDir doesn't exist
+	if _, err := os.Stat(m.volumesDir); os.IsNotExist(err) {
+		glog.V(2).Infof("Not using docker to remove directories as %s doesn't exist", m.volumesDir)
+		return nil
+	}
+	glog.Infof("Using docker to remove directories in %s", m.volumesDir)
+
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
 	cmd := exec.Command("docker", "-H", m.dockerAddress,
-		"run", "-rm", "-v", m.volumesDir+":/mnt/volumes", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
+		"run", "--rm", "-v", m.volumesDir+":/mnt/volumes:rw", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
 	return cmd.Run()
 }
 
@@ -149,19 +186,20 @@ func (m *Manager) wipe() error {
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
 	for _, c := range m.containers {
+		glog.Infof("Checking isvcs container %+v", c)
 		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
 			return err
 		} else {
 			if exists {
 				continue
 			}
-			localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar")
-			glog.Infof("Looking for %s", localTar)
+			localTar := path.Join(m.imagesDir, c.Repo, c.Tag+".tar.gz")
+			glog.Infof("Looking for image tar %s", localTar)
 			if _, exists := loadedImages[localTar]; exists {
 				continue
 			}
 			if _, err := os.Stat(localTar); err == nil {
-				if err := loadImage(localTar, m.dockerAddress); err != nil {
+				if err := loadImage(localTar, m.dockerAddress, c.Repo+":"+c.Tag); err != nil {
 					return err
 				}
 				loadedImages[localTar] = true
@@ -192,6 +230,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+				//TODO: didn't  we just check running for nil?
 				responses := make(chan error, len(running))
 				for _, c := range running {
 					go func(con *Container) {
@@ -226,6 +265,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerRunning
 					continue
 				}
+
 				if err := m.loadImages(); err != nil {
 					request.response <- err
 					continue

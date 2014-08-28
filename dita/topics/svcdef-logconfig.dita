@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>LogConfig object</title>
+  <refbody>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="1*"/>
+        <colspec colname="c2" colwidth="1*"/>
+        <colspec colname="c3" colwidth="5*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>Path</codeph></entry>
+            <entry>String</entry>
+            <entry>The absolute path of a log file on a container&#39;s file system. The path
+              can be a directory or a file, and <cmdname>bash</cmdname> pathname expansion
+              (globbing) is supported.</entry>
+          </row>
+          <row>
+            <entry><codeph>Type</codeph></entry>
+            <entry>String</entry>
+            <entry>A string that identifies the "types" of logs that come from this source. This
+              will be <draft-comment author="gemil">Que sera, sera?</draft-comment></entry>
+          </row>
+          <row>
+            <entry><codeph>Filters</codeph></entry>
+            <entry>Array of strings</entry>
+            <entry>A list of filters to apply to the log file. The filters listed here must be
+              defined in the <keyword>LogFilters</keyword> object of the current service, or a parent service.</entry>
+          </row>
+          <row>
+            <entry><codeph>LogTags</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>A list of tags to send to <cmdname>logstash</cmdname> with all log file entries.
+              Each object has two members:<dl>
+                <dlentry>
+                  <dt><codeph>Name</codeph> (string)</dt>
+                  <dd>The name of the tag to send.</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>Value</codeph> (integer)</dt>
+                  <dd>The value of the tag to send.</dd>
+                </dlentry>
+              </dl>
+            </entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </refbody>
+</reference>

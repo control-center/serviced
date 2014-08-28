@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Service template</title>
+  <shortdesc>A service template contains a ServiceDefinition object, in JavaScript Object Notation (JSON)
+    format.</shortdesc>
+  <refbody>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="1*"/>
+        <colspec colname="c2" colwidth="1*"/>
+        <colspec colname="c3" colwidth="3*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>ID</codeph></entry>
+            <entry>String</entry>
+            <entry>The identifier of this template.</entry>
+          </row>
+          <row>
+            <entry><codeph>Name</codeph></entry>
+            <entry>String</entry>
+            <entry>The name of this template.</entry>
+          </row>
+          <row>
+            <entry><codeph>Description</codeph></entry>
+            <entry>String</entry>
+            <entry>The description of this tempalte.</entry>
+          </row>
+          <row>
+            <entry><codeph>Services</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>One or more <xref keyref="ref-svcdef-object">ServiceDefinition</xref>
+              objects.</entry>
+          </row>
+          <row>
+            <entry><codeph>ConfigFile</codeph></entry>
+            <entry>Object </entry>
+            <entry>The configuration file for this service template (a <xref
+                keyref="ref-svcdef-configFile">ConfigFile</xref> object).</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </refbody>
+</reference>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Add Pool</uicontrol> dialog</title>
+  <shortdesc>The <uicontrol>Add Pool</uicontrol> dialog creates a new resource pool.</shortdesc>
+  <refbody>
+    <section>
+      <fig>
+        <image href="../images/xf-add-pool.png" scale="50"/>
+      </fig>
+      <table>
+        <tgroup cols="3">
+          <colspec colname="c1" colwidth="2*"/>
+          <colspec colname="c1" colwidth="1*"/>
+          <colspec colname="c2" colwidth="8*"/>
+          <thead>
+            <row>
+              <entry>Field</entry>
+              <entry>Type</entry>
+              <entry>Description</entry>
+            </row>
+          </thead>
+          <tbody>
+            <row>
+              <entry><uicontrol>Resource Pool</uicontrol></entry>
+              <entry>Required</entry>
+              <entry>The unique name of the pool. UTF-8 characters are accepted. Leading
+                and trailing spaces are ignored.</entry>
+            </row>
+            <row>
+              <entry><uicontrol>Description</uicontrol></entry>
+              <entry>Optional</entry>
+              <entry>A description of the pool.</entry>
+            </row>
+            <row>
+              <entry><uicontrol>Parent ID</uicontrol></entry>
+              <entry>Optional</entry>
+              <entry>The identifier of the parent resource pool,
+                if this pool is embedded.</entry>
+            </row>
+            <row>
+              <entry><uicontrol>Priority</uicontrol></entry>
+              <entry>Optional</entry>
+              <entry>The priority of the pool relative to other pools, as a postive integer. This
+                value is used for CPU priority. </entry>
+            </row>
+          </tbody>
+        </tgroup>
+      </table>
+    </section>
+  </refbody>
+</reference>

@@ -1,106 +1,148 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
-
+	"fmt"
 	"mime"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
+	"os"
+	"os/exec"
+
+	"github.com/gorilla/mux"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/master"
 )
 
+// ServiceConfig is the ui/rest handler for control center
 type ServiceConfig struct {
-	bindPort   string
-	agentPort  string
-	zookeepers []string
-	stats      bool
+	bindPort    string
+	agentPort   string
+	stats       bool
+	hostaliases []string
+	muxTLS      bool
+	muxPort     int
 }
 
-func NewServiceConfig(bindPort string, agentPort string, zookeepers []string, stats bool) *ServiceConfig {
-	cfg := ServiceConfig{bindPort, agentPort, zookeepers, stats}
-	if len(cfg.bindPort) == 0 {
-		cfg.bindPort = ":8787"
+var defaultHostAlias string
+
+// NewServiceConfig creates a new ServiceConfig
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+	cfg := ServiceConfig{
+		bindPort:    bindPort,
+		agentPort:   agentPort,
+		stats:       stats,
+		hostaliases: []string{},
+		muxTLS:      muxTLS,
+		muxPort:     muxPort,
 	}
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}
-	if len(cfg.zookeepers) == 0 {
-		cfg.zookeepers = []string{"127.0.0.1:2181"}
-	}
 	return &cfg
 }
 
-func (this *ServiceConfig) Serve() {
+// Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
+// The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
+// Virtual host routing to zenoss web based services is done by the vhosthandler function.
+func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
+
+	//start getting vhost endpoints
+	go sc.syncVhosts(shutdown)
+
+	// Reverse proxy to the web UI server.
+	uihandler := func(w http.ResponseWriter, r *http.Request) {
+		uiURL, err := url.Parse("http://127.0.0.1:7878")
+		if err != nil {
+			glog.Errorf("Can't parse UI URL: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ui := httputil.NewSingleHostReverseProxy(uiURL)
+		if ui == nil {
+			glog.Errorf("Can't proxy UI request: %v", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		ui.ServeHTTP(w, r)
+	}
+
+	r := mux.NewRouter()
+
+	if hnm, err := os.Hostname(); err == nil {
+		sc.hostaliases = append(sc.hostaliases, hnm)
+	}
+
+	cmd := exec.Command("hostname", "--fqdn")
+	if hnm, err := cmd.CombinedOutput(); err == nil {
+		sc.hostaliases = append(sc.hostaliases, string(hnm[:len(hnm)-1]))
+	}
+
+	defaultHostAlias = sc.hostaliases[0]
+
+	for _, ha := range sc.hostaliases {
+		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/{path:.*}", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+		r.HandleFunc("/", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
+	}
+
+	r.HandleFunc("/{path:.*}", uihandler)
+
+	http.Handle("/", r)
+
+	// FIXME: bubble up these errors to the caller
+	certfile, err := proxy.TempCertFile()
+	if err != nil {
+		glog.Fatalf("Could not prepare cert.pem file: %s", err)
+	}
+	keyfile, err := proxy.TempKeyFile()
+	if err != nil {
+		glog.Fatalf("Could not prepare key.pem file: %s", err)
+	}
+	err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
+	if err != nil {
+		glog.Fatalf("could not setup webserver: %s", err)
+	}
+}
+
+// ServeUI is a blocking call that runs the UI hander on port :7878
+func (sc *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
 	}
-	routes := []rest.Route{
-		rest.Route{"GET", "/", MainPage},
-		rest.Route{"GET", "/test", TestPage},
-		rest.Route{"GET", "/stats", this.IsCollectingStats()},
-		// Hosts
-		rest.Route{"GET", "/hosts", this.AuthorizedClient(RestGetHosts)},
-		rest.Route{"POST", "/hosts/add", this.AuthorizedClient(RestAddHost)},
-		rest.Route{"DELETE", "/hosts/:hostId", this.AuthorizedClient(RestRemoveHost)},
-		rest.Route{"PUT", "/hosts/:hostId", this.AuthorizedClient(RestUpdateHost)},
-		rest.Route{"GET", "/hosts/:hostId/running", this.AuthorizedClient(RestGetRunningForHost)},
-		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", this.AuthorizedClient(RestKillRunning)},
-		// Pools
-		rest.Route{"POST", "/pools/add", this.AuthorizedClient(RestAddPool)},
-		rest.Route{"GET", "/pools/:poolId/hosts", this.AuthorizedClient(RestGetHostsForResourcePool)},
-		rest.Route{"DELETE", "/pools/:poolId", this.AuthorizedClient(RestRemovePool)},
-		rest.Route{"PUT", "/pools/:poolId", this.AuthorizedClient(RestUpdatePool)},
-		rest.Route{"GET", "/pools", this.AuthorizedClient(RestGetPools)},
-		// Services (Apps)
-		rest.Route{"GET", "/services", this.AuthorizedClient(RestGetAllServices)},
-		rest.Route{"GET", "/services/:serviceId", this.AuthorizedClient(RestGetService)},
-		rest.Route{"GET", "/services/:serviceId/running", this.AuthorizedClient(RestGetRunningForService)},
-		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", this.AuthorizedClient(RestGetRunningService)},
-		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", this.AuthorizedClient(RestGetServiceStateLogs)},
-		rest.Route{"POST", "/services/add", this.AuthorizedClient(RestAddService)},
-		rest.Route{"DELETE", "/services/:serviceId", this.AuthorizedClient(RestRemoveService)},
-		rest.Route{"GET", "/services/:serviceId/logs", this.AuthorizedClient(RestGetServiceLogs)},
-		rest.Route{"PUT", "/services/:serviceId", this.AuthorizedClient(RestUpdateService)},
-		// Service templates (App templates)
-		rest.Route{"GET", "/templates", this.AuthorizedClient(RestGetAppTemplates)},
-		rest.Route{"POST", "/templates/deploy", this.AuthorizedClient(RestDeployAppTemplate)},
-		// Login
-		rest.Route{"POST", "/login", RestLogin},
-		rest.Route{"DELETE", "/login", RestLogout},
-		// "Misc" stuff
-		rest.Route{"GET", "/top/services", this.AuthorizedClient(RestGetTopServices)},
 
-		rest.Route{"GET", "/running", this.AuthorizedClient(RestGetAllRunning)},
-		// Generic static data
-		rest.Route{"GET", "/favicon.ico", FavIcon},
-		rest.Route{"GET", "/static*resource", StaticData},
-	}
-
-	// Hardcoding these target URLs for now.
-	// TODO: When internal services are allowed to run on other hosts, look that up.
-	routes = routeToInternalServiceProxy("/elastic", "http://127.0.0.1:9200/", routes)
-	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
-
+	routes := sc.getRoutes()
 	handler.SetRoutes(routes...)
 
-	http.ListenAndServe(this.bindPort, &handler)
+	// FIXME: bubble up these errors to the caller
+	if err := http.ListenAndServe(":7878", &handler); err != nil {
+		glog.Fatalf("could not setup internal web server: %s", err)
+	}
 }
 
-var methods []string = []string{"GET", "POST", "PUT", "DELETE"}
+var methods = []string{"GET", "POST", "PUT", "DELETE"}
 
 func routeToInternalServiceProxy(path string, target string, routes []rest.Route) []rest.Route {
-	targetUrl, err := url.Parse(target)
+	targetURL, err := url.Parse(target)
 	if err != nil {
 		glog.Errorf("Unable to parse proxy target URL: %s", target)
 		return routes
 	}
-	// Wrap the normal http.Handler in a rest.HandlerFunc
+	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
-		proxy := serviced.NewReverseProxy(path, targetUrl)
+		proxy := node.NewReverseProxy(path, targetURL)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
 	}
 	// Add on a glob to match subpaths
@@ -112,16 +154,12 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 	return routes
 }
 
-func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerFunc {
+func (sc *ServiceConfig) unAuthorizedClient(realfunc handlerClientFunc) handlerFunc {
 	return func(w *rest.ResponseWriter, r *rest.Request) {
-		if !LoginOk(r) {
-			RestUnauthorized(w)
-			return
-		}
-		client, err := this.getClient()
+		client, err := sc.getClient()
 		if err != nil {
 			glog.Errorf("Unable to acquire client: %v", err)
-			RestServerError(w)
+			restServerError(w, err)
 			return
 		}
 		defer client.Close()
@@ -129,23 +167,112 @@ func (this *ServiceConfig) AuthorizedClient(realfunc HandlerClientFunc) HandlerF
 	}
 }
 
-func (this *ServiceConfig) IsCollectingStats() HandlerFunc {
-	if this.stats {
-		return func(w *rest.ResponseWriter, r *rest.Request) {
-			w.WriteHeader(http.StatusOK)
+func (sc *ServiceConfig) authorizedClient(realfunc handlerClientFunc) handlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		if !loginOK(r) {
+			restUnauthorized(w)
+			return
 		}
-	} else {
-		return func(w *rest.ResponseWriter, r *rest.Request) {
-			w.WriteHeader(http.StatusNotImplemented)
+		client, err := sc.getClient()
+		if err != nil {
+			glog.Errorf("Unable to acquire client: %v", err)
+			restServerError(w, err)
+			return
 		}
+		defer client.Close()
+		realfunc(w, r, client)
 	}
 }
 
-func (this *ServiceConfig) getClient() (c *serviced.ControlClient, err error) {
+func (sc *ServiceConfig) isCollectingStats() handlerFunc {
+	if sc.stats {
+		return func(w *rest.ResponseWriter, r *rest.Request) {
+			w.WriteHeader(http.StatusOK)
+		}
+	}
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		w.WriteHeader(http.StatusNotImplemented)
+	}
+}
+
+func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	// setup the client
-	c, err = serviced.NewControlClient(this.agentPort)
+	c, err = node.NewControlClient(sc.agentPort)
 	if err != nil {
 		glog.Fatalf("Could not create a control plane client: %v", err)
 	}
 	return c, err
 }
+
+func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
+	glog.Info("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
+	c, err := master.NewClient(sc.agentPort)
+	if err != nil {
+		glog.Errorf("Could not create a control plane client to %v: %v", sc.agentPort, err)
+		return nil, err
+	}
+	glog.Info("end getMasterClient")
+	return c, nil
+}
+
+func (sc *ServiceConfig) newRequestHandler(check checkFunc, realfunc ctxhandlerFunc) handlerFunc {
+	return func(w *rest.ResponseWriter, r *rest.Request) {
+		if !check(w, r) {
+			return
+		}
+		reqCtx := newRequestContext(sc)
+		defer reqCtx.end()
+		realfunc(w, r, reqCtx)
+	}
+}
+
+func (sc *ServiceConfig) checkAuth(realfunc ctxhandlerFunc) handlerFunc {
+	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
+		if !loginOK(r) {
+			restUnauthorized(w)
+			return false
+		}
+		return true
+	}
+	return sc.newRequestHandler(check, realfunc)
+}
+
+func (sc *ServiceConfig) noAuth(realfunc ctxhandlerFunc) handlerFunc {
+	check := func(w *rest.ResponseWriter, r *rest.Request) bool {
+		return true
+	}
+	return sc.newRequestHandler(check, realfunc)
+}
+
+type requestContext struct {
+	sc     *ServiceConfig
+	master *master.Client
+}
+
+func newRequestContext(sc *ServiceConfig) *requestContext {
+	return &requestContext{sc: sc}
+}
+
+func (ctx *requestContext) getMasterClient() (*master.Client, error) {
+	if ctx.master == nil {
+		c, err := ctx.sc.getMasterClient()
+		if err != nil {
+			glog.Errorf("Could not create a control plane client: %v", err)
+			return nil, err
+		}
+		ctx.master = c
+	}
+	return ctx.master, nil
+}
+
+func (ctx *requestContext) end() error {
+	if ctx.master != nil {
+		return ctx.master.Close()
+	}
+	return nil
+}
+
+type ctxhandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext)
+type checkFunc func(w *rest.ResponseWriter, r *rest.Request) bool
+
+type getRoutes func(sc *ServiceConfig) []rest.Route

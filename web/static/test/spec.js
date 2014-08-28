@@ -128,7 +128,7 @@ describe('SubServiceControl', function() {
 
     it('Provides service logs', function() {
         $scope.editService = {};
-        $scope.viewLog({Id: 'fake123', ServiceId: 'fake1'});
+        $scope.viewLog({Id: 'fake123', ServiceID: 'fake1'});
         expect($scope.editService.log).toBe(fake_service_logs().Detail);
     });
 
@@ -137,6 +137,13 @@ describe('SubServiceControl', function() {
         expect($scope.breadcrumbs.length).toBe(2);
         expect($scope.breadcrumbs[1].label).toBe(fake1.Name);
     });
+
+    it('Snapshot service', function() {
+        spyOn(resourcesService,'snapshot_service');
+        $scope.snapshotService({Id: 'fakesvc123', Name: 'Fake Service 123'});
+        expect(resourcesService.snapshot_service).toHaveBeenCalled();
+    });
+
 });
 
 describe('HostsControl', function() {
@@ -196,6 +203,11 @@ describe('HostsControl', function() {
 
 });
 
+// HostDetailsControl needs zenoss.visualization
+var zenoss = {
+    visualization: {}
+};
+
 describe('HostDetails', function() {
     var $scope = null;
     var $location = null;
@@ -228,7 +240,7 @@ describe('HostDetails', function() {
 
     it('Provides a \'click_app\' function', function() {
         expect($scope.click_app).not.toBeUndefined();
-        $scope.click_app({ServiceId: 'test'});
+        $scope.click_app({ServiceID: 'test'});
         expect($location.path()).toBe('/services/test');
     });
 
@@ -448,10 +460,10 @@ describe('ResourcesService', function() {
         });
         $httpBackend.flush();
         ser_top.map(function(ser) {
-            expect(ser.ParentServiceId).toBe('');
+            expect(ser.ParentServiceID).toBe('');
             if (ser.children) {
                 ser.children.map(function(child) {
-                    expect(child.ParentServiceId).toBe(ser.Id);
+                    expect(child.ParentServiceID).toBe(ser.Id);
                 });
             }
         });
@@ -509,7 +521,7 @@ describe('ResourcesService', function() {
     });
 
     it('Can deploy templates to pools', function() {
-        var deployDef = { PoolId: 'bar', TemplateId: 'foo' };
+        var deployDef = { PoolID: 'bar', TemplateID: 'foo' };
         $httpBackend.expect('POST', '/templates/deploy', deployDef).
             respond({ Detail: 'Deployed' });
 
@@ -874,19 +886,20 @@ describe('toggleRunning', function() {
     it('Sets DesiredState and updates service', function() {
         var servicesService = fake_resources_service();
         var svc = {};
-        spyOn(servicesService, 'update_service');
-
+        spyOn(servicesService, 'start_service');
+        spyOn(servicesService, 'stop_service');
         toggleRunning(svc, 'start', servicesService);
         expect(svc.DesiredState).toBe(1);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.start_service).toHaveBeenCalled();
 
         toggleRunning(svc, 'stop', servicesService);
         expect(svc.DesiredState).toBe(0);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.stop_service).toHaveBeenCalled();
 
         toggleRunning(svc, 'restart', servicesService);
         expect(svc.DesiredState).toBe(-1);
-        expect(servicesService.update_service).toHaveBeenCalled();
+        expect(servicesService.start_service).toHaveBeenCalled();
+        expect(servicesService.stop_service).toHaveBeenCalled();
     });
 });
 
@@ -966,23 +979,23 @@ describe('fix_pool_paths', function() {
             },
             hosts: {
                 all: [
-                    { PoolId: 'a3' },
-                    { PoolId: 'a1' },
-                    { PoolId: 'a2' }
+                    { PoolID: 'a3' },
+                    { PoolID: 'a1' },
+                    { PoolID: 'a2' }
                 ]
             }
         };
         fix_pool_paths(scope);
         scope.hosts.all.map(function(host) {
-            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolId].fullPath);
+            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolID].fullPath);
         });
     });
 });
 
 function fake_hosts_for_pool(poolId) {
     var mappedHosts = {
-        "pool123": [{HostId: "host123", PoolId: "pool123"}],
-        "default": [{HostId: "abc", PoolId: "default"}, {HostId: "def", PoolId: "default"}]
+        "pool123": [{HostID: "host123", PoolID: "pool123"}],
+        "default": [{HostID: "abc", PoolID: "default"}, {HostID: "def", PoolID: "default"}]
     };
     return mappedHosts[poolId];
 }
@@ -1037,10 +1050,19 @@ function fake_resources_service() {
        add_service: function(service, callback) {
            callback({});
        },
+       snapshot_service: function(serviceId, callback) {
+           callback(fake_snapshot_service());
+       },
        update_service: function(serviceId, service, callback) {
            callback({});
        },
        remove_service: function(serviceId, callback) {
+           callback({});
+       },
+       start_service: function(serviceId, callback) {
+           callback({});
+       },
+       stop_service: function(serviceId, callback) {
            callback({});
        }
    };
@@ -1134,45 +1156,45 @@ function fake_running_for_host() {
     return [
         {
             Id: "fakeRunning1",
-            ServiceId: "fakeService1",
-            HostId: "fakeHost1",
+            ServiceID: "fakeService1",
+            HostID: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceFoo",
             Startup: "/bin/true",
             Description: "A fake service",
             Instances: 2,
-            ImageId: "fakeImage1",
-            PoolId: "default",
+            ImageID: "fakeImage1",
+            PoolID: "default",
             DesiredState: 1,
-            ParentServiceId: ""
+            ParentServiceID: ""
         },
         {
             Id: "fakeRunning2",
-            ServiceId: "fakeService1",
-            HostId: "fakeHost1",
+            ServiceID: "fakeService1",
+            HostID: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceFoo",
             Startup: "/bin/true",
             Description: "A fake service",
             Instances: 2,
-            ImageId: "fakeImage1",
-            PoolId: "default",
+            ImageID: "fakeImage1",
+            PoolID: "default",
             DesiredState: 1,
-            ParentServiceId: ""
+            ParentServiceID: ""
         },
         {
             Id: "fakeRunning3",
-            ServiceId: "fakeService3",
-            HostId: "fakeHost1",
+            ServiceID: "fakeService3",
+            HostID: "fakeHost1",
             StartedAt: "2013-10-22T15:16:49-05:00",
             Name: "ServiceBar",
             Startup: "/bin/false",
             Description: "Another fake service",
             Instances: 1,
-            ImageId: "fakeImage3",
-            PoolId: "default",
+            ImageID: "fakeImage3",
+            PoolID: "default",
             DesiredState: 1,
-            ParentServiceId: ""
+            ParentServiceID: ""
         }
     ];
 }
@@ -1187,7 +1209,7 @@ function fake_templates() {
                     "Name": "hellod",
                     "Command": "/bin/sh -c \"while true; do echo hello world; sleep 1; done\"",
                     "Description": "",
-                    "ImageId": "",
+                    "ImageID": "",
                     "Instances": null,
                     "Endpoints": [
                         {
@@ -1209,7 +1231,7 @@ function fake_templates() {
                     "Name": "hellod",
                     "Command": "/bin/sh -c \"while true; do echo hello; sleep 1; done\"",
                     "Description": "",
-                    "ImageId": "",
+                    "ImageID": "",
                     "Instances": null,
                     "Endpoints": [
                         {
@@ -1230,7 +1252,7 @@ function fake_hosts() {
     return {
         "abc": {
             Id: "abc",
-            PoolId: "default",
+            PoolID: "default",
             Name: "abchost",
             IpAddr: "192.168.33.12",
             Cores: 2,
@@ -1239,7 +1261,7 @@ function fake_hosts() {
         },
         "def": {
             Id: "def",
-            PoolId: "default",
+            PoolID: "default",
             Name: "defhost",
             IpAddr: "192.168.33.13",
             Cores: 1,
@@ -1248,7 +1270,7 @@ function fake_hosts() {
         },
         "host123": {
             Id: "host123",
-            PoolId: "pool123",
+            PoolID: "pool123",
             Name: "some fake host",
             IpAddr: "192.168.33.14",
             Cores: 2,
@@ -1256,7 +1278,7 @@ function fake_hosts() {
         },
         "fakeHost1": {
             Id: "fakeHost1",
-            PoolId: "pool123",
+            PoolID: "pool123",
             Name: "some fake host",
             IpAddr: "192.168.33.15",
             Cores: 2,
@@ -1271,8 +1293,8 @@ var fake1 = {
     "Startup": "/usr/libexec/mysqld",
     "Description": "Database service",
     "Instances": 0,
-    "ImageId": "default",
-    "PoolId": "default",
+    "ImageID": "default",
+    "PoolID": "default",
     "DesiredState": 1,
     "Endpoints": [
         {
@@ -1282,7 +1304,7 @@ var fake1 = {
             "Purpose": "remote"
         }
     ],
-    "ParentServiceId": ''
+    "ParentServiceID": ''
 };
 var service234 = {
     "Id": "service234",
@@ -1290,11 +1312,11 @@ var service234 = {
     "Startup": "/opt/zenoss/bin/zeneventd",
     "Description": "",
     "Instances": 0,
-    "ImageId": "",
-    "PoolId": "default",
+    "ImageID": "",
+    "PoolID": "default",
     "DesiredState": 0,
     "Endpoints": null,
-    "ParentServiceId": ''
+    "ParentServiceID": ''
 };
 
 var fake1Child = {
@@ -1303,11 +1325,11 @@ var fake1Child = {
     "Startup": "/opt/zenoss/bin/zeneventd",
     "Description": "",
     "Instances": 0,
-    "ImageId": "",
-    "PoolId": "default",
+    "ImageID": "",
+    "PoolID": "default",
     "DesiredState": 0,
     "Endpoints": null,
-    "ParentServiceId": "fakeId1"
+    "ParentServiceID": "fakeId1"
 };
 
 function fake_services() {
@@ -1323,5 +1345,9 @@ function fake_services_tree() {
         tree[e.Id] = e;
     });
     return tree;
+}
+
+function fake_snapshot_service() {
+    return { Detail: "once upon a time" };
 }
 

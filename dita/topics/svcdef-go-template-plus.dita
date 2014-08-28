@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>plus</keyword> function</title>
+  <shortdesc>Perform integer addition.</shortdesc>
+  <refbody>
+    <section>
+      <p>Syntax: <synph><kwd>plus</kwd>
+          <var>Item1</var>
+          <var>Item2</var></synph></p>
+      <p>Example: <codeph>{{ plus 1 .InstanceID }}</codeph></p>
+    </section>
+  </refbody>
+</reference>

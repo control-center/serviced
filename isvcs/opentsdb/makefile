@@ -1,10 +1,14 @@
+# Copyright 2014, The Serviced Authors. All rights reserved.
+# Use of this source code is governed by the Apache 2.0
+# license that can be found in the LICENSE file.
+
 TARGET := $(shell pwd)
-HBASE_VERSION := 0.94.14
+HBASE_VERSION := 0.94.16
 
 default: tarball
 
 tarball:
-	wget -qO- http://www.apache.org/dist/hbase/hbase-$(HBASE_VERSION)/hbase-$(HBASE_VERSION).tar.gz | tar -C /opt -xz
+	wget -qO- https://s3.amazonaws.com/pip.zenoss/binary_mirrors/hbase-$(HBASE_VERSION).tar.gz | tar -C /opt -xz
 	git clone git://github.com/OpenTSDB/opentsdb.git /opt/opentsdb
 	cd /opt/opentsdb && COMPRESSION=NONE HBASE_HOME=/opt/hbase-$(HBASE_VERSION) JAVA_HOME=/usr/lib/jvm/java-7-openjdk-amd64 ./build.sh
 	cp /tmp/in/hbase-site.xml /opt/hbase-$(HBASE_VERSION)/conf/hbase-site.xml

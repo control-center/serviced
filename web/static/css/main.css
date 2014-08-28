@@ -1,37 +1,142 @@
+/*
+    good: #0084DB
+    bad: #9C1200;
+
+    action/link: #325385;
+    action/link hover: #4F83D1;
+    action/link active: #8EA9D1;
+
+    header bar: #516685;
+    header bar secondary: #8090A8;
+    header bar tertiary: #C1CEE0;
+
+    zebra stripe bg: #F0F3F7;
+
+ */
+
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/roboto-regular-webfont.eot');
+    src: url('../fonts/roboto-regular-webfont.eot?#iefix') format('embedded-opentype'),
+         url('../fonts/roboto-regular-webfont.woff') format('woff'),
+         url('../fonts/roboto-regular-webfont.ttf') format('truetype'),
+         url('../fonts/roboto-regular-webfont.svg#Roboto') format('svg');
+    font-weight: normal;
+    font-style: normal;
+}
+@font-face {
+    font-family: 'Roboto';
+    src: url('../fonts/roboto-bold-webfont.eot');
+    src: url('../fonts/roboto-bold-webfont.eot?#iefix') format('embedded-opentype'),
+         url('../fonts/roboto-bold-webfont.woff') format('woff'),
+         url('../fonts/roboto-bold-webfont.ttf') format('truetype'),
+         url('../fonts/roboto-bold-webfont.svg#Roboto') format('svg');
+    font-weight: bold;
+    font-style: normal;
+}
+
 body {
     padding: 20px;
+    color: #666;
+    font-family: "Roboto";
 }
 .invisible {
     visibility: hidden;
 }
-.btn-link, a {
-    color: #404040;
+
+a, .btn-link {
     text-decoration: none;
+    color: #404040;
     cursor: pointer;
 }
-
-.btn-link:hover, a:hover {
+a:hover, a:active, a:focus,
+.btn-link:hover, .btn-link:active, .btn-link:focus {
+    color: #404040;
     text-decoration: none;
+    outline: 0;
+}
+
+.link {
     cursor: pointer;
+    color: #325385;
+    font-weight: bold;
+}
+
+.link:hover {
+    color: #4F83D1;
+}
+.link:active {
+    color: #8EA9D1;
+}
+
+.action {
+    font-weight: bold;
+    cursor: pointer;
+    color: #325385;
+    text-decoration: none;
+    padding-top: 0;
+    padding-left: 0;
+}
+.action:hover {
+    color: #4F83D1;
+}
+.action:active {
+    color: #8EA9D1;
+}
+.action[disabled="disabled"],
+.action.disabled {
+    text-decoration: none;
+    color: #777 !important;
 }
 
 table > thead {
-    background-color: #7890b6;
+    background-color: #516685;
     color: #ffffff;
+}
+
+table > thead.light {
+    background-color: white;
+    color: #999;
+}
+
+.table {
+    margin-bottom: 30px;
+    /* tables usually have headings and/or actions
+        which are floated and must be cleared */
+    clear: both;
 }
 
 .table-bordered > thead > tr > th {
     border: 0px;
 }
 
-.table-striped > tbody > tr:nth-child(odd) > td, .table-striped > tbody > tr:nth-child(odd) > th {
-    background-color: #ebf0f6;
+.table-striped > tbody > tr:nth-child(even) > td,
+.table-striped > tbody > tr:nth-child(even) > th {
+    background-color: white;
+}
+.table-striped > tbody > tr:nth-child(odd) > td,
+.table-striped > tbody > tr:nth-child(odd) > th {
+    background-color: #F0F3F7;
 }
 
 .table-bordered {
     border-left: 0px;
     border-top: 0px;
 }
+
+.table > thead > tr > th,
+.table > tbody > tr > th,
+.table > tfoot > tr > th,
+.table > thead > tr > td,
+.table > tbody > tr > td,
+.table > tfoot > tr > td {
+    border-bottom: solid 1px #DCE1E8;
+}
+
+.table-hover tbody tr:hover td, .table-hover tbody tr:hover th {
+    background-color: #ddffdd;
+}
+
 .toggle .btn.active {
     padding-right: 10px;
 }
@@ -53,27 +158,34 @@ table .btn,
 .toggle.btn-group > .btn.off:last-child:not(:first-child) {
     border-bottom-left-radius: 15px;
     border-top-left-radius: 15px;
-    border-color: #398439;
+    border-color: #3C91C9;
     padding-right: 20px;
     z-index:3;
 }
 
 .toggle.btn-group > .btn.active:last-child:not(:first-child) {
     padding-left: 15px;
-    width: 75px;
 }
 
 .toggle.btn-group > .btn.off:first-child:not(:last-child):not(.dropdown-toggle) {
     border-top-right-radius: 15px;
     border-bottom-right-radius: 15px;
-    border-color: #ac2925;
+    border-color: #999;
     padding-right: 20px;
     z-index:3;
 }
 
 .toggle.btn-group > .btn.active:first-child:not(:last-child):not(.dropdown-toggle) {
     padding-right: 15px;
-    width: 75px;
+}
+
+.toggle.btn-group .btn-danger {
+    background-color: #999;
+    border-color: #999;
+}
+.toggle.btn-group .btn-success {
+    background-color: #3C91C9;
+    border-color: #3C91C9;
 }
 
 .btn-group > .btn > input[type="radio"] {
@@ -125,6 +237,25 @@ table .btn,
 .navbar-zen li > a:hover {
     background-color: #969696;
     color: #f6f6f6;
+}
+
+.navbar-brand {
+    font-weight: bold;
+}
+
+.navbar-zen .navbar-right button{
+    font-weight: normal;
+    color: #EEE;
+    font-size: .9em;
+    line-height: 1.6em;
+}
+
+.navbar-zen .navbar-right .vr{
+    font-weight: normal;
+    color: #888;
+    font-size: .9em;
+    line-height: 1.6em;
+    padding: 15px 4px;
 }
 
 .nav > li > .item {
@@ -186,6 +317,7 @@ table .btn,
 
 .details {
     background-color: #f5f5f5;
+    margin-bottom: 30px;
 }
     
 .breadcrumb {
@@ -205,9 +337,7 @@ table .btn,
     background-color: #d0d0d0;
     font-weight: bold
 }
-.link {
-    cursor:pointer;
-}
+
 .box {
     padding: 40px 50px;
     background-color: #eeeeee;
@@ -217,16 +347,15 @@ table .btn,
     padding-top: 40px;
 }
 table .glyphicon {
-    cursor: pointer;
 }
 .sort.active {
-    color: #b0b0b0;
+    color: white !important;
 }
-.sort:active, .sort:focus, .sort:hover {
-    color: #c0c0c0;
+.sort:hover {
+    color: #DDD !important;
 }
 .sort {
-    color: #333333;
+    color: #8197B8 !important;
 }
 .form-signin {
     max-width: 330px;
@@ -318,10 +447,10 @@ li.current > .extended {
 }
 
 td.deploy-success {
-    color: #468847;
+    color: #0084DB;
 }
 td.deploy-error {
-    color: #b94a48;
+    color: #9C1200;
 }
 td.deploy-info {
     color: #3a87ad;
@@ -369,22 +498,17 @@ li.active > .pool-data {
     background-color: #eeeeee;
 }
 
-.btn-link:hover, .btn-link:active, .btn-link:focus,
-a:hover, a:active, a:focus {
-    color: #303030;
-}
-
 .sidebar-nav.flow {
     padding-left: 0;
     padding-right: 0;
 }
 
 .sidebar-nav > div {
-    padding: 5px 15px;
+    padding: 7px 15px;
 }
 
 .sidebar-nav > .top-info {
-    background-color: #a7bcd9;
+    background-color: #8090A8;
     color: #ffffff;
     font-weight: bold;
 }
@@ -440,7 +564,6 @@ a:hover, a:active, a:focus {
     content: "\00a0";
 }
 .disabled {
-    pointer-events: none;
     cursor: not-allowed;
     opacity: 0.65;
 }
@@ -452,7 +575,7 @@ div.side-flush {
 
 div.top-bar {
     margin: 0px;
-    background-color: #7890b6;
+    background-color: #516685;
     color: #d7e0ed;
     padding: 4px;
 }
@@ -467,8 +590,10 @@ div.top-bar {
 .top-bar label.active {
     font-size: 16px;
     padding: 0px 10px;
-    background-color: #647aa0;
-    border-radius: 15px;
+    margin: 2px 0 3px 0;
+    background-color: #C1CEE0;
+    color: #325385;
+    border-radius: 10px;
     -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
     box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
 }
@@ -481,7 +606,7 @@ input.search {
     font-size: 14px;
     border-radius: 15px;
     height: 27px;
-    line-height: 1.0;
+    /*line-height: 1.0;*/
 }
 
 input.instances {
@@ -571,10 +696,6 @@ input.startup {
     padding: 10px 30px;
 }
 
-.wizard .modal-footer {
-    text-align: left;
-}
-
 .wizard .block-data {
     padding: 6px 0px;
     display: block;
@@ -636,7 +757,7 @@ input.startup {
 }
 
 .flow {
-    background-color: #d6e0ed;
+    background-color: #F0F3F7;
     min-height: 600px;
     border-right: 1px solid #949494;
 }
@@ -652,7 +773,6 @@ input.startup {
 .wizard .content {
     border-left: 1px solid black;
     background-color: #ffffff;
-    padding: 0px 15px 15px 15px;
     min-height: 600px;
 }
 
@@ -665,6 +785,11 @@ input.startup {
     -moz-transform: rotate(90deg);
     -o-transform: rotate(90deg);
     writing-mode: lr-tb;
+}
+
+.medChart{
+    position: relative;
+    height: 200px;
 }
 
 /* d3 related below */
@@ -687,7 +812,6 @@ input.startup {
 
 svg {
   border: 0px;
-  width: 1140px;
   height: 600px;
 }
 
@@ -729,7 +853,7 @@ rect {
 }
 
 .node.service.notrunning rect { 
-    fill: red;
+    fill: #AAAAAA;
     stroke: black;
 }
 
@@ -740,4 +864,371 @@ rect {
 
 .node.service text { 
     fill: white;
+}
+
+.control-buttons {
+    margin-top: 20px;
+}
+
+.popover{
+    max-width: none;
+}
+
+.popover table{
+    white-space: nowrap;
+}
+
+.chartContainer {
+  position: relative;
+}
+
+.nvtooltip h3{
+    font-size: 12px;
+}
+
+.nvtooltip p{
+    font-weight: bold;
+}
+
+
+/* bootstrap override */
+.bg-primary{
+    background-color: #6b6b6b;
+}
+
+.btn-link {
+    font-weight: bold;
+    color: #325385;
+}
+.btn-link:hover {
+    color: #4F83D1;
+}
+
+.btn-danger {
+    background-color: #9C1200;
+    border-color: #9C1200;
+}
+
+.table > thead > tr > th,
+.table > tbody > tr > th,
+.table > tfoot > tr > th,
+.table > thead > tr > td,
+.table > tbody > tr > td,
+.table > tfoot > tr > td {
+    padding: 5px 10px;
+}
+
+.navbar-nav > li:last-child > button{
+    padding-right: 15px;
+}
+
+/* speed up bootstrap modals */
+.fade {
+   opacity: 0;
+   -webkit-transition: opacity .15s ease-out;
+      -moz-transition: opacity .15s ease-out;
+       -ms-transition: opacity .15s ease-out;
+        -o-transition: opacity .15s ease-out;
+           transition: opacity .15s ease-out;
+ }
+ .modal.fade .modal-dialog {
+  -webkit-transition: -webkit-transform .15s ease-out;
+     -moz-transition:    -moz-transform .15s ease-out;
+       -o-transition:      -o-transform .15s ease-out;
+          transition:         transform .15s ease-out;
+}
+
+/* notifications */
+
+/* this is the main notification holder */
+#notifications {
+    position: fixed;
+    top: 72px;
+    opacity: 0.9;
+    z-index: 999;
+}
+
+#loginNotifications {
+    width: 671px;
+    margin: auto;
+    position: relative;
+}
+
+.notification {
+    padding: 20px;
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    box-shadow: rgba(0,0,0,0.4) 0 3px 1px;
+}
+
+.notification > *{
+    vertical-align: middle;
+}
+.notification .close {
+    position: absolute;
+    padding: 15px;
+    top: 7px;
+    right: 0;
+}
+
+/* notification icons */
+.notification .dialogIcon {
+    font-size: 1.2em;
+    top: -1px;
+}
+
+.notification .title{
+    font-size: 1.3em;
+    font-weight: bold;
+}
+
+.notification .message {
+    padding-left: 10px;
+}
+
+.notification.bg-info .dialogIcon {
+    color: #7890b6;
+}
+.notification.bg-success .dialogIcon {
+    color: green;
+}
+.notification.bg-danger .dialogIcon {
+    color: #7A0000;
+}
+
+/* animate dialogIcon to show that it's working */
+.notification.bg-info .dialogIcon {
+    animation: throb 3s infinite;
+    -webkit-animation: throb 3s infinite;
+}
+@keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}
+@-webkit-keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}
+
+
+.spinner {
+    display: inline-block;
+    opacity: 0;
+    width: 0;
+
+    -webkit-transition: opacity 0.25s, width 0.25s;
+    -moz-transition: opacity 0.25s, width 0.25s;
+    -o-transition: opacity 0.25s, width 0.25s;
+    transition: opacity 0.25s, width 0.25s;
+}
+
+.has-spinner.active {
+    cursor:progress;
+}
+
+.has-spinner.active .spinner {
+    opacity: 1;
+    width: auto; /* This doesn't work, just fix for unkown width elements */
+}
+
+.has-spinner.active .spinner {
+    opacity: 1;
+    width: 16px;
+    max-width: 50px; /* More than it will ever come, notice that this affects on animation duration */
+}
+
+.icon-spin {
+    display: inline-block;
+    -moz-animation: spin 2s infinite linear;
+    -o-animation: spin 2s infinite linear;
+    -webkit-animation: spin 2s infinite linear;
+    animation: spin 2s infinite linear;
+}
+
+@-moz-keyframes spin {
+    from { -moz-transform: rotate(0deg); }
+    to { -moz-transform: rotate(360deg); }
+}
+@-webkit-keyframes spin {
+    from { -webkit-transform: rotate(0deg); }
+    to { -webkit-transform: rotate(360deg); }
+}
+@keyframes spin {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(360deg);}
+}
+
+
+
+.clearLink{
+    cursor: pointer;
+}
+
+.messagesTitle{
+    margin-bottom: 10px;
+}
+.unreadMessage{
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.message .glyphicon{
+    margin-right: 7px;
+}
+
+.readMessage .glyphicon{
+    color: #cccccc;
+}
+
+.healthIcon {
+    -webkit-transform: scale(1.4, 1.4);
+}
+.healthIcon.good {
+    color: #0084DB;
+}
+.healthIcon.unknown {
+    color: #94C0DB;
+}
+.healthIcon.disabled {
+    color: #666;
+}
+.healthIcon.bad {
+    color: #9C1200;
+}
+.healthIcon.zoom {
+    -webkit-animation: zoom .3s;
+}
+@-webkit-keyframes zoom {
+    0% { -webkit-transform: scale(1.4, 1.4); }
+    50% { -webkit-transform: scale(2.4, 2.4); }
+    100% { -webkit-transform: scale(1.4, 1.4);  }
+}
+
+.healthTooltipDetailRow {
+    font-size: .9em;
+}
+.healthTooltipDetailRow .healthTooltipDetailName,
+.healthTooltipDetailRow .healthIcon {
+    display: inline-block;
+}
+.healthTooltipDetailRow .healthIcon {
+    -webkit-transform: scale(1, 1);
+}
+.healthTooltipDetailRow .healthTooltipDetailName {
+    margin-left: 10px;
+}
+
+
+/* chart styles */
+.nv-axis .tick text,
+.nv-axis .nv-axisMaxMin {
+    fill: #999;
+}
+
+.nv-axis .tick line {
+    stroke-dasharray: 2,2;
+}
+
+/* hide x axis */
+.nv-axis.nv-x .tick{
+    opacity: 0 !important;
+}
+
+/* hide y axis label */
+.nv-axis.nv-y .nv-axislabel{
+    fill: transparent;
+}
+
+.zenchart {
+    margin-left: -50px;
+}
+
+.zenchartContainer {
+    width: calc(50% - 20px);
+    margin: 10px 20px 10px 0;
+    float: left;
+    padding: 10px;
+    box-shadow: rgba(0,0,0,.3) 0 1px 3px;
+    border: solid #EEE 1px;
+}
+.zenchartContainer h4{
+    margin: 0 0 10px 0;
+    display: inline-block;
+}
+.zenchartContainer .graphDescrip {
+    display: inline-block;
+    font-size: .9em;
+    color: #AAA;
+    padding-left: 10px;
+    border-left: solid 1px #CCC;
+    margin-left: 10px;
+}
+
+.graphsControls {
+    top: 0;
+    right: 0;
+    position: absolute;
+}
+.graphsControls .graphControl {
+    display: inline-block;
+    padding-right: 10px;
+    margin-right: 10px;
+    border-right: solid 1px #CCC;
+}
+.graphsControls .graphControl:last-of-type {
+    margin-right: 0;
+    padding-right: 0;
+    border-right: none;
+}
+.graphsControls .graphControl label {
+    font-weight: normal;
+    font-size: .9em;
+    font-color: #AAA;
+    padding-right: 5px;
+}
+.graphsControls .form-control {
+    display: inline-block;
+    width: 120px;
+    padding: 2px;
+    height: auto;
+}
+
+.infoWrapper {
+    position: relative;
+}
+
+
+
+input.ng-invalid.ng-dirty{
+    border-color: #9C1200 !important;
+}
+
+input.ng-invalid:focus.ng-dirty:focus{
+    box-shadow: inset 0 1px 1px rgba(0,0,0,.075), 0 0 8px rgba(156, 18, 0, .6) !important;
+}
+
+.error{
+    color: #9C1200;
+}
+
+.btn-link:hover{
+    color: #4F83D1;
+}
+
+.modal-footer{
+    margin-top: 0px;
+}
+
+.note{
+    color: #666666;
+    font-size: .7em;
+    font-weight: bold;
+}
+
+#deployStatus{
+    margin-top: 20px;
 }

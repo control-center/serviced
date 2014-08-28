@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Logs</uicontrol> page</title>
+  <shortdesc>The <uicontrol>Logs</uicontrol> page displays
+    the log information that <ph conkeyref="names/zcc"/> collects.</shortdesc>
+  <refbody>
+    <section>
+      <p>The log information is presented in <xref keyref="url-kibana">the 
+        Kibana JavaScript interface</xref>, which provides a variety of methods
+        for sorting, querying, and analyzing log data.</p>
+    </section>
+  </refbody>
+</reference>

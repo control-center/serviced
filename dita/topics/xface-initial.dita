@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Initial page</title>
+  <shortdesc>The first time the <ph conkeyref="names/zcc"/> interface is started, the
+      <uicontrol>Applications</uicontrol> page includes only <uicontrol>Internal
+      Services</uicontrol> in the <uicontrol>Applications</uicontrol> table.</shortdesc>
+  <refbody>
+    <section>
+      <p>The menu bar is at the top of each page. Click an item in the menu bar 
+        to display the page or dialog box associated with the item, or
+        to log out of the <ph conkeyref="names/zcc"/> interface.</p>
+      <fig>
+        <title>Initial <uicontrol>Applications</uicontrol> page</title>
+        <image href="../images/xf-start.png" scale="50"/>
+      </fig>
+    </section>
+  </refbody>
+</reference>

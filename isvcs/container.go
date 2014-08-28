@@ -1,23 +1,33 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014 all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
 import (
-	"github.com/fsouza/go-dockerclient"
+	"github.com/control-center/serviced/commons/circular"
+	"github.com/control-center/serviced/stats/cgroup"
+	"github.com/control-center/serviced/utils"
+	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
 	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -48,27 +58,40 @@ type ContainerDescription struct {
 	Name          string                              // name of the container (used for docker named containers)
 	Repo          string                              // the repository the image for this container uses
 	Tag           string                              // the repository tag this container uses
-	Command       string                              // the actual command to run inside the container
+	Command       func() string                       // the actual command to run inside the container
 	Volumes       map[string]string                   // Volumes to bind mount in to the containers
 	Ports         []int                               // Ports to expose to the host
 	HealthCheck   func() error                        // A function to verify that the service is healthy
-	Configuration interface{}                         // A container specific configuration
+	Configuration map[string]interface{}              // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 	volumesDir    string                              // directory to store volume data
 }
 
 type Container struct {
 	ContainerDescription
-	ops chan containerOpRequest // channel for communicating to the container's loop
+	client *dockerclient.Client
+	ops    chan containerOpRequest // channel for communicating to the container's loop
 }
 
 func NewContainer(cd ContainerDescription) (*Container, error) {
-	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || len(cd.Command) == 0 {
+	client, err := dockerclient.NewClient("unix:///var/run/docker.sock")
+	if err != nil {
+		glog.Errorf("Could not create docker client: %s", err)
+		return nil, err
+	}
+
+	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || cd.Command == nil {
 		return nil, ErrBadContainerSpec
+	}
+
+	if cd.Configuration == nil {
+		cd.Configuration = make(map[string]interface{})
 	}
 	c := Container{
 		ContainerDescription: cd,
-		ops:                  make(chan containerOpRequest),
+
+		ops:    make(chan containerOpRequest),
+		client: client,
 	}
 	go c.loop()
 	return &c, nil
@@ -94,6 +117,7 @@ func (c *Container) loop() {
 
 	var exitChan chan error
 	var cmd *exec.Cmd
+	statsExitChan := make(chan bool)
 
 	for {
 		select {
@@ -101,6 +125,7 @@ func (c *Container) loop() {
 			switch req.op {
 			case containerOpStop:
 				glog.Infof("containerOpStop(): %s", c.Name)
+				statsExitChan <- true
 				if exitChan == nil {
 					req.response <- ErrNotRunning
 					continue
@@ -112,7 +137,6 @@ func (c *Container) loop() {
 				c.stop()              // stop the container if it's not already stopped
 				c.rm()                // remove the container if it's not already gone
 				req.response <- nil
-
 			case containerOpStart:
 				glog.Infof("containerOpStart(): %s", c.Name)
 				if cmd != nil {
@@ -122,12 +146,24 @@ func (c *Container) loop() {
 				c.stop()                // stop the container, if it's not stoppped
 				c.rm()                  // remove it if it was not already removed
 				cmd, exitChan = c.run() // run the actual container
-				if c.HealthCheck != nil {
-					req.response <- c.HealthCheck() // run the HealthCheck if it exists
-				} else {
-					req.response <- nil
-				}
 
+				healthCheckChan := make(chan error)
+				go func() {
+					if c.HealthCheck != nil {
+						healthCheckChan <- c.HealthCheck() // run the HealthCheck if it exists
+					} else {
+						healthCheckChan <- nil
+					}
+				}()
+				select {
+				case exited := <-exitChan:
+					req.response <- exited
+				case healthCheck := <-healthCheckChan:
+					if healthCheck == nil {
+						go c.doStats(statsExitChan)
+					}
+					req.response <- healthCheck
+				}
 			}
 		case exitErr := <-exitChan:
 			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
@@ -138,9 +174,91 @@ func (c *Container) loop() {
 	}
 }
 
+type containerStat struct {
+	Metric    string            `json:"metric"`
+	Value     string            `json:"value"`
+	Timestamp int64             `json:"timestamp"`
+	Tags      map[string]string `json:"tags"`
+}
+
+// doStats
+func (c *Container) doStats(exitChan chan bool) {
+	registry := metrics.NewRegistry()
+	id := ""
+	tc := time.Tick(10 * time.Second)
+	for {
+		select {
+		case _ = <-exitChan:
+			return
+		case t := <-tc:
+			if id == "" {
+				ids, err := c.getMatchingContainersIds()
+				if err != nil {
+					glog.Warningf("Error collecting isvc container IDs.")
+				}
+				if len(*ids) < 1 {
+					break
+				}
+				id = (*ids)[0]
+			}
+			if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + id + "/cpuacct.stat"); err != nil {
+				glog.Warningf("Couldn't read CpuacctStat:", err)
+				id = ""
+				break
+			} else {
+				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
+				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
+			}
+			if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + id + "/memory.stat"); err != nil {
+				glog.Warningf("Couldn't read MemoryStat:", err)
+				id = ""
+				break
+			} else {
+				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", registry).Update(memoryStat.Pgfault)
+				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", registry).Update(memoryStat.TotalRss)
+				metrics.GetOrRegisterGauge("cgroup.memory.cache", registry).Update(memoryStat.Cache)
+			}
+			// Gather the stats.
+			stats := []containerStat{}
+			registry.Each(func(name string, i interface{}) {
+				if metric, ok := i.(metrics.Gauge); ok {
+					tagmap := make(map[string]string)
+					tagmap["isvcname"] = c.Name
+					stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+				}
+				if metricf64, ok := i.(metrics.GaugeFloat64); ok {
+					tagmap := make(map[string]string)
+					tagmap["isvcname"] = c.Name
+					stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
+				}
+			})
+			// Post the stats.
+			data, err := json.Marshal(stats)
+			if err != nil {
+				glog.Warningf("Error marshalling isvc stats json.")
+				break
+			}
+			req, err := http.NewRequest("POST", "http://127.0.0.1:4242/api/put", bytes.NewBuffer(data))
+			if err != nil {
+				glog.Warningf("Error creating isvc stats request.")
+				break
+			}
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				glog.Warningf("Error making isvc stats request.")
+				break
+			}
+			if strings.Contains(resp.Status, "204 No Content") == false {
+				glog.Warningf("Couldn't post stats:", resp.Status)
+				break
+			}
+		}
+	}
+}
+
 // getMatchingContainersIds
-func (c *Container) getMatchingContainersIds(client *docker.Client) (*[]string, error) {
-	containers, err := client.ListContainers(docker.ListContainersOptions{All: true})
+func (c *Container) getMatchingContainersIds() (*[]string, error) {
+	containers, err := c.client.ListContainers(dockerclient.ListContainersOptions{All: true})
 	if err != nil {
 		return nil, err
 	}
@@ -157,16 +275,11 @@ func (c *Container) getMatchingContainersIds(client *docker.Client) (*[]string, 
 
 // attempt to stop all matching containers
 func (c *Container) stop() error {
-	client, err := newDockerClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("Could not create docker client: %s", err)
-		return err
-	}
-	if ids, err := c.getMatchingContainersIds(client); err != nil {
+	if ids, err := c.getMatchingContainersIds(); err != nil {
 		return err
 	} else {
 		for _, id := range *ids {
-			client.StopContainer(id, 20)
+			c.client.StopContainer(id, 20)
 		}
 	}
 	return nil
@@ -174,16 +287,11 @@ func (c *Container) stop() error {
 
 // attempt to remove all matching containers
 func (c *Container) rm() error {
-	client, err := newDockerClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("Could not create docker client: %s", err)
-		return err
-	}
-	if ids, err := c.getMatchingContainersIds(client); err != nil {
+	if ids, err := c.getMatchingContainersIds(); err != nil {
 		return err
 	} else {
 		for _, id := range *ids {
-            client.RemoveContainer(docker.RemoveContainerOptions{ID: id})
+			c.client.RemoveContainer(dockerclient.RemoveContainerOptions{ID: id})
 		}
 	}
 	return nil
@@ -199,7 +307,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 
 	exitChan := make(chan error, 1)
 	args := make([]string, 0)
-	args = append(args, "run", "-rm", "-name", containerName)
+	args = append(args, "run", "--rm", "--name", containerName)
 
 	// attach all exported ports
 	for _, port := range c.Ports {
@@ -207,7 +315,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	// attach resources directory to all containers
-	args = append(args, "-v", resourcesDir()+":"+"/usr/local/serviced/resources")
+	args = append(args, "-v", utils.ResourcesDir()+":"+"/usr/local/serviced/resources")
 
 	// attach all exported volumes
 	for name, volume := range c.Volumes {
@@ -223,20 +331,33 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	// set the image and command to run
-	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command)
+	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command())
 
 	glog.V(1).Infof("Executing docker %s", args)
 	var cmd *exec.Cmd
 	tries := 5
 	var err error
+	const bufferSize = 1000
+	lastStdout := circular.NewBuffer(bufferSize)
+	lastStderr := circular.NewBuffer(bufferSize)
 	for {
 		if tries > 0 {
 			cmd = exec.Command("docker", args...)
+			if stdout, err := cmd.StdoutPipe(); err != nil {
+				glog.Fatal("Could not open stdout pipe for launching isvc %s: %s", c.Name, err)
+			} else {
+				go io.Copy(lastStdout, stdout)
+			}
+			if stderr, err := cmd.StderrPipe(); err != nil {
+				glog.Fatal("Could not open stderr pipe for launching isvc %s: %s", c.Name, err)
+			} else {
+				go io.Copy(lastStderr, stderr)
+			}
 			if err := cmd.Start(); err != nil {
 				glog.Errorf("Could not start: %s", c.Name)
 				c.stop()
 				c.rm()
-				time.Sleep(time.Second * 1)
+				time.Sleep(time.Second * 5)
 			} else {
 				break
 			}
@@ -248,6 +369,13 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 	go func() {
 		exitChan <- cmd.Wait()
+		results := make([]byte, bufferSize)
+		if n, err := lastStdout.Read(results); err == nil && n > 0 {
+			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
+		}
+		if n, err := lastStderr.Read(results); err == nil && n > 0 {
+			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
+		}
 	}()
 	return cmd, exitChan
 }

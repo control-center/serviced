@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic PUBLIC "-//OASIS//DTD DITA Topic//EN" "topic.dtd">
+<topic id="pubs">
+  <title>Official publications</title>
+  
+  <!-- Use <cite> unless in a title -->
+  
+  <body>
+
+    <!-- ================================================================================
+                                        Universal
+         ================================================================================  -->
+		 
+    <p><cite id="cite-zcc">Control Center Guide</cite></p>
+    <p><ph id="ph-zcc">Control Center Guide</ph></p>
+	
+	
+    <!-- ================================================================================
+                                    Generics for ZCC
+         ================================================================================  -->
+    
+    <p><cite id="cite-install">Control Center Installation Guide</cite></p>
+    <p><ph id="ph-install">Control Center Installation Guide</ph></p>
+    
+    <p><cite id="cite-admin">Control Center Administration Guide</cite></p>
+    <p><ph id="ph-admin">Control Center Administration Guide</ph></p>
+    
+    <p><cite id="cite-relnotes">Control Center Release Notes</cite></p>
+    <p><ph id="ph-relnotes">Control Center Release Notes</ph></p>
+ 
+  </body>
+</topic>

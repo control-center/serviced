@@ -1,20 +1,26 @@
   <p>{{'content_wizard_select_apps'|translate}}</p>
-  <div ng-class="install.templateSelectedFormDiv()">
+  <div>
+    <table class="table table-striped">
+        <tr>
+            <th>&nbsp;</th>
+            <th>{{"label_app_name"|translate}}</th>
+            <th>{{"memory_required"|translate}}</th>
+            <th>{{"cores_required"|translate}}</th>
+        </tr>
+        <tr ng-repeat="template in install.templateData | orderBy: 'Name'" ng-class="install.templateClass(template)">
+            <td><input type="checkbox"
+                   ng-model="install.selected[template.Id]"
+                   ng-disabled="install.templateDisabled(template)"
+                   ng-change="install.templateSelected(template)"></td>
+            <td>{{template.Name}}</td>
+            <td>{{getTemplateRequiredResources(template).RAMCommitment | toGB}}</td>
+            <td>{{getTemplateRequiredResources(template).CPUCommitment}}</td>
+        </tr>
+    </table>
 
-    <label class="control-label">{{'label_wizard_select_app'|translate}}</label>
-    <div ng-repeat="template in install.templateData" 
-         ng-class="install.templateClass(template)">
-      <label>
-        <input type="checkbox"
-               ng-model="install.selected[template.Id]" 
-               ng-disabled="install.templateDisabled(template)"
-               ng-change="install.templateSelected(template)">
-        {{template.Name}}
-      </label>
+    <div id="deployWizardNotifications" class="error hide">
+        <span class="dialogIcon glyphicon glyphicon-remove-sign"></span>
+        <span id="deployWizardNotificationsContent"></span>
     </div>
-	<label for="deploymentId">
-		{{'deployed_tbl_deployment_id'|translate}}		
-	</label>
-	<input ng-model="install.deploymentId" name="deploymentId" id="deploymentId" />
   </div>
 

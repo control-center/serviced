@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
@@ -16,13 +17,15 @@ var opentsdb *Container
 
 func init() {
 	var err error
+	command := `cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf`
 	opentsdb, err = NewContainer(
 		ContainerDescription{
 			Name:    "opentsdb",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: `cd /opt/zenoss && supervisord -n -c /opt/zenoss/etc/supervisor.conf`,
-			Ports:   []int{4242, 8443, 8888, 9090, 60000, 60010, 60020, 60030},
+			Command: func() string {return command},
+			//only expose 8443 (the consumer port to the host)
+			Ports:   []int{4242, 8443, 8888, 9090},
 			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
 		})
 	if err != nil {

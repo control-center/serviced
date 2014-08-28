@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE map PUBLIC "-//OASIS//DTD DITA Map//EN" "map.dtd">
+<map>
+    <!-- Gloss keydefs for this book; all gloss terms are maintained in docs.common -->
+    <title>Master Glossary Keydefs</title>
+	<topicgroup>
+	<keydef 
+	    href="common/glossary/service-definition.dita" 
+		keys="gloss-service-definition"
+		/>
+	<keydef 
+		href="common/glossary/service-template.dita" 
+		keys="gloss-service-template"
+		/>
+	</topicgroup>
+</map>

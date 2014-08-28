@@ -13,8 +13,8 @@
       </div>
 
       <ul class="nav-tree root">
-        <li ng-repeat="pool in pools.flattened" 
-            data-pool-id="{{pool.Id}}"
+        <li ng-repeat="pool in pools.flattened"
+            data-pool-id="{{pool.ID}}"
             data-drop="true" 
             data-jqyoui-options="{greedy: true, hoverClass: 'active'}"
             jqyoui-droppable="{onDrop: 'dropIt'}" 
@@ -22,16 +22,6 @@
             ng-class="itemClass(pool)">
             <span ng-class="indent(pool.zendepth)">&nbsp;</span>
             <a ng-class="pool.icon" ng-click="toggleCollapsed(pool)"></a>
-            <a class="main" ng-click="clickPool(pool.Id)">{{pool.Id}}</a>
-
-            <span class="dropdown extended pull-right" id="pool_menu_{{$index}}">
-              <!-- Link or button to toggle dropdown -->
-              <button class="btn-link glyphicon glyphicon-paperclip" data-toggle="dropdown"
-                      ng-click="clickMenu($index)"></button>
-              <ul class="dropdown-menu" role="menu">
-                <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="addSubpool(pool.Id)">{{'menu_add_subpool'|translate}} {{pool.Id}}</a></li>
-                <li role="presentation"><a role="menuitem" tabindex="-1" ng-click="delSubpool(pool.Id)">{{'menu_delete'|translate}} {{pool.Id}}</a></li>
-              </ul>
-            </span>
+            <a class="main" ng-click="clickPool(pool.ID)">{{pool.ID}}</a>
         </li>
       </ul>

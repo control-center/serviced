@@ -1,139 +1,159 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/serviced"
-	"github.com/zenoss/serviced/dao"
-
+	"bytes"
+	"io"
+	"io/ioutil"
+	"net/http"
 	"net/url"
+	"os"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
+
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 )
 
 var empty interface{}
 
-type HandlerFunc func(w *rest.ResponseWriter, r *rest.Request)
-type HandlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient)
+type handlerFunc func(w *rest.ResponseWriter, r *rest.Request)
+type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient)
 
-func RestGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var unused int
-	var templatesMap map[string]*dao.ServiceTemplate
+	var templatesMap map[string]*servicetemplate.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
 	w.WriteJson(&templatesMap)
 }
 
-func RestDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	// read uploaded file
+	file, _, err := r.FormFile("tpl")
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	defer file.Close()
+
+	var b bytes.Buffer
+	_, err = io.Copy(&b, file)
+
+	template, err := servicetemplate.FromJSON(b.String())
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	var templateId string
+	err = client.AddServiceTemplate(*template, &templateId)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(&simpleResponse{templateId, servicesLinks()})
+}
+
+func restRemoveAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	templateID, err := url.QueryUnescape(r.PathParam("templateId"))
+	var unused int
+
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+
+	err = client.RemoveServiceTemplate(templateID, &unused)
+
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	w.WriteJson(&simpleResponse{templateID, servicesLinks()})
+}
+
+func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var payload dao.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode deployment payload: ", err)
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	var unused int
-	err = client.DeployTemplate(payload, &unused)
+	var tenantID string
+	err = client.DeployTemplate(payload, &tenantID)
 	if err != nil {
 		glog.Error("Could not deploy template: ", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 	glog.V(0).Info("Deployed template ", payload)
-	w.WriteJson(&SimpleResponse{"Deployed app template", servicesLinks()})
-}
 
-func RestGetPools(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var poolsMap map[string]*dao.ResourcePool
-	err := client.GetResourcePools(&empty, &poolsMap)
-	if err != nil {
-		glog.Error("Could not get resource pools: ", err)
-		RestServerError(w)
+	assignmentRequest := dao.AssignmentRequest{tenantID, "", true}
+	if err := client.AssignIPs(assignmentRequest, nil); err != nil {
+		glog.Error("Could not automatically assign IPs: %v", err)
 		return
 	}
-	w.WriteJson(&poolsMap)
+
+	glog.Infof("Automatically assigned IP addresses to service: %v", tenantID)
+	// end of automatic IP assignment
+
+	w.WriteJson(&simpleResponse{tenantID, servicesLinks()})
 }
 
-func RestAddPool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.ResourcePool
-	var poolId string
+func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var payload dao.ServiceTemplateDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
-		glog.V(1).Info("Could not decode pool payload: ", err)
-		RestBadRequest(w)
+		glog.V(1).Info("Could not decode deployment payload: ", err)
+		restBadRequest(w, err)
 		return
 	}
-	err = client.AddResourcePool(payload, &poolId)
+	status := ""
+
+	err = client.DeployTemplateStatus(payload, &status)
 	if err != nil {
-		glog.Error("Unable to add pool: ", err)
-		RestServerError(w)
+		glog.Errorf("Unexpected error during template status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
 		return
 	}
-	glog.V(0).Info("Added pool ", poolId)
-	w.WriteJson(&SimpleResponse{"Added resource pool", poolLinks(poolId)})
+	w.WriteJson(&simpleResponse{status, servicesLinks()})
 }
 
-func RestUpdatePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var active []map[string]string
+
+	err := client.DeployTemplateActive("", &active)
 	if err != nil {
-		RestBadRequest(w)
+		glog.Errorf("Unexpected error during template status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
 		return
 	}
-	var payload dao.ResourcePool
-	var unused int
-	err = r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Info("Could not decode pool payload: ", err)
-		RestBadRequest(w)
-		return
-	}
-	err = client.UpdateResourcePool(payload, &unused)
-	if err != nil {
-		glog.Error("Unable to update pool: ", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(1).Info("Updated pool ", poolId)
-	w.WriteJson(&SimpleResponse{"Updated resource pool", poolLinks(poolId)})
+	w.WriteJson(&active)
 }
 
-func RestRemovePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-	var unused int
-	err = client.RemoveResourcePool(poolId, &unused)
-	if err != nil {
-		glog.Error("Could not remove resource pool: ", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Removed pool ", poolId)
-	w.WriteJson(&SimpleResponse{"Removed resource pool", poolsLinks()})
-}
-
-func RestGetHosts(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var hosts map[string]*dao.Host
-	err := client.GetHosts(&empty, &hosts)
-	if err != nil {
-		glog.Errorf("Could not get hosts: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(2).Infof("Returning %d hosts", len(hosts))
-	w.WriteJson(&hosts)
-}
-
-func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service, error) {
+func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {
 	r, err := regexp.Compile(nmregex)
 	if err != nil {
 		glog.Errorf("Bad name regexp :%s", nmregex)
 		return nil, err
 	}
 
-	matches := []*dao.Service{}
+	matches := []*service.Service{}
 	for _, service := range services {
 		if r.MatchString(service.Name) {
 			matches = append(matches, service)
@@ -143,8 +163,8 @@ func filterByNameRegex(nmregex string, services []*dao.Service) ([]*dao.Service,
 	return matches, nil
 }
 
-func getTaggedServices(client *serviced.ControlClient, tags, nmregex string) ([]*dao.Service, error) {
-	services := []*dao.Service{}
+func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]*service.Service, error) {
+	services := []*service.Service{}
 	var ts interface{}
 	ts = strings.Split(tags, ",")
 	if err := client.GetTaggedServices(&ts, &services); err != nil {
@@ -159,8 +179,8 @@ func getTaggedServices(client *serviced.ControlClient, tags, nmregex string) ([]
 	return services, nil
 }
 
-func getNamedServices(client *serviced.ControlClient, nmregex string) ([]*dao.Service, error) {
-	services := []*dao.Service{}
+func getNamedServices(client *node.ControlClient, nmregex string) ([]*service.Service, error) {
+	services := []*service.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get named services: %v", err)
 		return nil, err
@@ -169,8 +189,8 @@ func getNamedServices(client *serviced.ControlClient, nmregex string) ([]*dao.Se
 	return filterByNameRegex(nmregex, services)
 }
 
-func getServices(client *serviced.ControlClient) ([]*dao.Service, error) {
-	services := []*dao.Service{}
+func getServices(client *node.ControlClient) ([]*service.Service, error) {
+	services := []*service.Service{}
 	if err := client.GetServices(&empty, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		return nil, err
@@ -180,15 +200,30 @@ func getServices(client *serviced.ControlClient) ([]*dao.Service, error) {
 	return services, nil
 }
 
-func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func getISVCS() []*service.Service {
+	services := []*service.Service{}
+	services = append(services, &isvcs.InternalServicesISVC)
+	services = append(services, &isvcs.ElasticsearchISVC)
+	services = append(services, &isvcs.ZookeeperISVC)
+	services = append(services, &isvcs.LogstashISVC)
+	services = append(services, &isvcs.OpentsdbISVC)
+	services = append(services, &isvcs.CeleryISVC)
+	services = append(services, &isvcs.DockerRegistryISVC)
+	return services
+}
+
+func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
 		result, err := getTaggedServices(client, tags, nmregex)
 		if err != nil {
-			RestServerError(w)
+			restServerError(w, err)
 			return
 		}
 
+		for _, svc := range result {
+			fillBuiltinMetrics(svc)
+		}
 		w.WriteJson(&result)
 		return
 	}
@@ -196,416 +231,515 @@ func RestGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *service
 	if nmregex := r.URL.Query().Get("name"); nmregex != "" {
 		result, err := getNamedServices(client, nmregex)
 		if err != nil {
-			RestServerError(w)
+			restServerError(w, err)
 			return
 		}
 
+		for _, svc := range result {
+			fillBuiltinMetrics(svc)
+		}
 		w.WriteJson(&result)
 		return
 	}
 
 	result, err := getServices(client)
+	result = append(result, getISVCS()...)
 	if err != nil {
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 
+	for _, svc := range result {
+		fillBuiltinMetrics(svc)
+	}
 	w.WriteJson(&result)
 }
 
-func RestGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var services []*dao.RunningService
-	err = client.GetRunningServicesForHost(hostId, &services)
+	err = client.GetRunningServicesForHost(hostID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
 		services = []*dao.RunningService{}
 	}
-	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostId)
+	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
 	w.WriteJson(&services)
 }
 
-func RestGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if strings.Contains(serviceID, "isvc-") {
+		w.WriteJson([]*dao.RunningService{})
+		return
+	}
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var services []*dao.RunningService
-	err = client.GetRunningServicesForService(serviceId, &services)
+	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
 		services = []*dao.RunningService{}
 	}
-	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceId)
+	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
 	w.WriteJson(&services)
 }
 
-func RestGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var services []*dao.RunningService
 	err := client.GetRunningServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 	if services == nil {
 		glog.V(3).Info("Services was nil, returning empty list instead")
 		services = []*dao.RunningService{}
 	}
+
+	for _, rsvc := range services {
+		var svc service.Service
+		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
+			glog.Errorf("Could not get services: %v", err)
+			restServerError(w, err)
+		}
+		fillBuiltinMetrics(&svc)
+		rsvc.MonitoringProfile = svc.MonitoringProfile
+	}
+
 	glog.V(2).Infof("Return %d running services", len(services))
 	w.WriteJson(&services)
 }
 
-func RestKillRunning(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
+	hostID, err := url.QueryUnescape(r.PathParam("hostId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	request := dao.HostServiceRequest{hostId, serviceStateId}
+	request := dao.HostServiceRequest{hostID, serviceStateID}
 	glog.V(1).Info("Received request to kill ", request)
 
 	var unused int
 	err = client.StopRunningInstance(request, &unused)
 	if err != nil {
 		glog.Errorf("Unable to stop service: %v", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 
-	w.WriteJson(&SimpleResponse{"Marked for death", servicesLinks()})
+	w.WriteJson(&simpleResponse{"Marked for death", servicesLinks()})
 }
 
-func RestGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var allServices []*dao.Service
-	topServices := []*dao.Service{}
+func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var allServices []*service.Service
+	topServices := []*service.Service{}
 
 	err := client.GetServices(&empty, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
 	for _, service := range allServices {
-		if len(service.ParentServiceId) == 0 {
+		if len(service.ParentServiceID) == 0 {
 			topServices = append(topServices, service)
 		}
 	}
+	topServices = append(topServices, &isvcs.InternalServicesISVC)
 	glog.V(2).Infof("Returning %d services as top services", len(topServices))
 	w.WriteJson(&topServices)
 }
 
-func RestGetService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var allServices []*dao.Service
-
-	if err := client.GetServices(&empty, &allServices); err != nil {
-		glog.Errorf("Could not get services: %v", err)
-		RestServerError(w)
+func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
 		return
 	}
 
-	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if err != nil {
-		RestBadRequest(w)
+	if strings.Contains(sid, "isvc-") {
+		w.WriteJson(isvcs.ISVCSMap[sid])
+		return
+	}
+
+	var allServices []*service.Service
+
+	if err := client.GetServices(&empty, &allServices); err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		restServerError(w, err)
 		return
 	}
 
 	for _, service := range allServices {
-		if service.Id == sid {
+		if service.ID == sid {
+			fillBuiltinMetrics(service)
 			w.WriteJson(&service)
 			return
 		}
 	}
 
 	glog.Errorf("No such service [%v]", sid)
-	RestServerError(w)
+	restServerError(w, err)
 }
 
-func RestAddService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.Service
-	var serviceId string
+func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var svc service.Service
+	var serviceID string
+	err := r.DecodeJsonPayload(&svc)
+	if err != nil {
+		glog.V(1).Info("Could not decode service payload: ", err)
+		restBadRequest(w, err)
+		return
+
+	}
+	if id, err := utils.NewUUID36(); err != nil {
+		restBadRequest(w, err)
+		return
+	} else {
+		svc.ID = id
+	}
+	now := time.Now()
+	svc.CreatedAt = now
+	svc.UpdatedAt = now
+
+	//for each endpoint, evaluate it's EndpointTemplates
+	getSvc := func(svcID string) (service.Service, error) {
+		svc := service.Service{}
+		err := client.GetService(svcID, &svc)
+		return svc, err
+	}
+	findChild := func(svcID, childName string) (service.Service, error) {
+		svc := service.Service{}
+		err := client.FindChildService(dao.FindChildRequest{svcID, childName}, &svc)
+		return svc, err
+	}
+	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
+		glog.Errorf("Unable to evaluate service endpoints: %v", err)
+		restServerError(w, err)
+		return
+	}
+
+	tags := map[string][]string{
+		"controlplane_service_id": []string{svc.ID},
+	}
+	profile, err := svc.MonitoringProfile.ReBuild("1h-ago", tags)
+	if err != nil {
+		glog.Errorf("Unable to rebuild service monitoring profile: %v", err)
+		restServerError(w, err)
+		return
+	}
+	svc.MonitoringProfile = *profile
+
+	//add the service to the data store
+	err = client.AddService(svc, &serviceID)
+	if err != nil {
+		glog.Errorf("Unable to add service: %v", err)
+		restServerError(w, err)
+		return
+	}
+
+	//automatically assign virtual ips to new service
+	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
+	if err := client.AssignIPs(request, nil); err != nil {
+		glog.Error("Failed to automatically assign IPs: %+v -> %v", request, err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(0).Info("Added service ", serviceID)
+	w.WriteJson(&simpleResponse{"Added service", serviceLinks(serviceID)})
+}
+
+func restDeployService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var payload dao.ServiceDeploymentRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode service payload: ", err)
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	service, err := dao.NewService()
+
+	var serviceID string
+	err = client.DeployService(payload, &serviceID)
 	if err != nil {
-		glog.Errorf("Could not create service: %v", err)
-		RestServerError(w)
-		return
-	}
-	now := time.Now()
-	service.Name = payload.Name
-	service.Description = payload.Description
-	service.Context = payload.Context
-	service.Tags = payload.Tags
-	service.PoolId = payload.PoolId
-	service.ImageId = payload.ImageId
-	service.Startup = payload.Startup
-	service.Instances = payload.Instances
-	service.ParentServiceId = payload.ParentServiceId
-	service.DesiredState = payload.DesiredState
-	service.Launch = payload.Launch
-	service.Endpoints = payload.Endpoints
-	service.ConfigFiles = payload.ConfigFiles
-	service.Volumes = payload.Volumes
-	service.CreatedAt = now
-	service.UpdatedAt = now
-
-	//for each endpoint, evaluate it's Application
-	if err = service.EvaluateEndpointTemplates(client); err != nil {
-		glog.Errorf("Unable to evaluate service endpoints: %v", err)
-		RestServerError(w)
+		glog.Errorf("Unable to deploy service: %v", err)
+		restServerError(w, err)
 		return
 	}
 
-	//add the service to the data store
-	err = client.AddService(*service, &serviceId)
-	if err != nil {
-		glog.Errorf("Unable to add service: %v", err)
-		RestServerError(w)
-		return
-	}
-
-	//deploy the service, in other words start it
-	var unused int
-	sduuid, _ := dao.NewUuid()
-	deployment := dao.ServiceDeployment{sduuid, "", service.Id, now}
-	err = client.AddServiceDeployment(deployment, &unused)
-	if err != nil {
-		glog.Errorf("Unable to add service deployment: %v", err)
-		RestServerError(w)
-		return
-	}
-
-	glog.V(0).Info("Added service ", serviceId)
-	w.WriteJson(&SimpleResponse{"Added service", serviceLinks(serviceId)})
+	glog.V(0).Info("Deployed service ", serviceID)
+	w.WriteJson(&simpleResponse{"Deployed service", serviceLinks(serviceID)})
 }
 
-func RestUpdateService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
-	glog.V(3).Infof("Received update request for %s", serviceId)
+func restUpdateService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	glog.V(3).Infof("Received update request for %s", serviceID)
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	var payload dao.Service
+	var payload service.Service
 	var unused int
 	err = r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Info("Could not decode service payload: ", err)
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	err = client.UpdateService(payload, &unused)
 	if err != nil {
-		glog.Errorf("Unable to update service %s: %v", serviceId, err)
-		RestServerError(w)
+		glog.Errorf("Unable to update service %s: %v", serviceID, err)
+		restServerError(w, err)
 		return
 	}
-	glog.V(1).Info("Updated service ", serviceId)
-	w.WriteJson(&SimpleResponse{"Updated service", serviceLinks(serviceId)})
+	glog.V(1).Info("Updated service ", serviceID)
+	w.WriteJson(&simpleResponse{"Updated service", serviceLinks(serviceID)})
 }
 
-func RestRemoveService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
+func restRemoveService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var unused int
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	err = client.RemoveService(serviceId, &unused)
+	err = client.RemoveService(serviceID, &unused)
 	if err != nil {
 		glog.Errorf("Could not remove service: %v", err)
-		RestServerError(w)
+		restServerError(w, err)
 		return
 	}
-	glog.V(0).Info("Removed service ", serviceId)
-	w.WriteJson(&SimpleResponse{"Removed service", servicesLinks()})
+	glog.V(0).Info("Removed service ", serviceID)
+	w.WriteJson(&simpleResponse{"Removed service", servicesLinks()})
 }
 
-func RestGetHostsForResourcePool(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var poolHosts []*dao.PoolHost
-	poolId, err := url.QueryUnescape(r.PathParam("poolId"))
+func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		glog.V(1).Infof("Unable to acquire pool ID: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	err = client.GetHostsForResourcePool(poolId, &poolHosts)
-	if err != nil {
-		glog.Errorf("Could not get hosts: %v", err)
-		RestServerError(w)
-		return
-	}
-	if poolHosts == nil {
-		glog.V(3).Info("Pool hosts was nil, returning empty list instead")
-		poolHosts = []*dao.PoolHost{}
-	}
-	glog.V(2).Infof("Returning %d hosts for pool %s", len(poolHosts), poolId)
-	w.WriteJson(&poolHosts)
-}
-
-func RestAddHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var payload dao.Host
-	var hostId string
-	err := r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Infof("Could not decode host payload: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	// Save the pool ID and IP address for later. GetInfo wipes these
-	pool := payload.PoolId
-	ipAddr := payload.IpAddr
-	remoteClient, err := serviced.NewAgentClient(payload.IpAddr)
-	if err != nil {
-		glog.Errorf("Could not create connection to host %s: %v", payload.IpAddr, err)
-		RestServerError(w)
-		return
-	}
-
-	err = remoteClient.GetInfo(0, &payload)
-	if err != nil {
-		glog.Errorf("Unable to get remote host info: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	// Reset the pool ID and IP address
-	payload.PoolId = pool
-	parts := strings.Split(ipAddr, ":")
-	payload.IpAddr = parts[0]
-
-	err = client.AddHost(payload, &hostId)
-	if err != nil {
-		glog.Errorf("Unable to add host: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Added host ", hostId)
-	w.WriteJson(&SimpleResponse{"Added host", hostLinks(hostId)})
-}
-
-func RestUpdateHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-	glog.V(3).Infof("Received update request for %s", hostId)
-	var payload dao.Host
-	var unused int
-	err = r.DecodeJsonPayload(&payload)
-	if err != nil {
-		glog.V(1).Infof("Could not decode host payload: %v", err)
-		RestBadRequest(w)
-		return
-	}
-	err = client.UpdateHost(payload, &unused)
-	if err != nil {
-		glog.Errorf("Unable to update host: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(1).Info("Updated host ", hostId)
-	w.WriteJson(&SimpleResponse{"Updated host", hostLinks(hostId)})
-}
-
-func RestRemoveHost(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	var unused int
-	hostId, err := url.QueryUnescape(r.PathParam("hostId"))
-	if err != nil {
-		RestBadRequest(w)
-		return
-	}
-	err = client.RemoveHost(hostId, &unused)
-	if err != nil {
-		glog.Errorf("Could not remove host: %v", err)
-		RestServerError(w)
-		return
-	}
-	glog.V(0).Info("Removed host ", hostId)
-	w.WriteJson(&SimpleResponse{"Removed host", hostsLinks()})
-}
-
-func RestGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 	var logs string
-	err = client.GetServiceLogs(serviceId, &logs)
+	err = client.GetServiceLogs(serviceID, &logs)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
-		RestServerError(w)
+		glog.Errorf("Unexpected error getting service logs: %v", err)
+		restServerError(w, err)
+		return
 	}
-	w.WriteJson(&SimpleResponse{logs, serviceLinks(serviceId)})
+	w.WriteJson(&simpleResponse{logs, serviceLinks(serviceID)})
 }
 
-func RestGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+// restStartService starts the service with the given id and all of its children
+func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	var i string
+	err = client.StartService(serviceID, &i)
 	if err != nil {
-		RestBadRequest(w)
+		glog.Errorf("Unexpected error starting service: %v", err)
+		restServerError(w, err)
 		return
 	}
-	request := dao.ServiceStateRequest{serviceId, serviceStateId}
+	w.WriteJson(&simpleResponse{"Started service", serviceLinks(serviceID)})
+}
+
+// restStopService stop the service with the given id and all of its children
+func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	var i int
+	err = client.StopService(serviceID, &i)
+	if err != nil {
+		glog.Errorf("Unexpected error stopping service: %v", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{"Stopped service", serviceLinks(serviceID)})
+}
+
+func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	var label string
+	err = client.Snapshot(serviceID, &label)
+	if err != nil {
+		glog.Errorf("Unexpected error snapshotting service: %v", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{label, serviceLinks(serviceID)})
+}
+
+func restGetRunningService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	request := dao.ServiceStateRequest{serviceID, serviceStateID}
 
 	var running dao.RunningService
 	err = client.GetRunningService(request, &running)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
-		RestServerError(w)
+		glog.Errorf("Unexpected error retrieving services: %v", err)
+		restServerError(w, err)
+		return
 	}
 	w.WriteJson(running)
-
 }
 
-func RestGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *serviced.ControlClient) {
-	serviceStateId, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	serviceId, err := url.QueryUnescape(r.PathParam("serviceId"))
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
-	request := dao.ServiceStateRequest{serviceId, serviceStateId}
+	request := dao.ServiceStateRequest{serviceID, serviceStateID}
 
 	var logs string
 	err = client.GetServiceStateLogs(request, &logs)
 	if err != nil {
-		glog.Errorf("Unexpected error getting logs: %v", err)
-		RestServerError(w)
+		glog.Errorf("Unexpected error getting service state logs: %v", err)
+		restServerError(w, err)
+		return
 	}
-	w.WriteJson(&SimpleResponse{logs, servicesLinks()})
+	w.WriteJson(&simpleResponse{logs, servicesLinks()})
+}
+
+func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	w.WriteJson(servicedversion.GetVersion())
+}
+
+func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+
+	dir := home + "/backup"
+	filepath := ""
+	err := client.AsyncBackup(dir, &filepath)
+	if err != nil {
+		glog.Errorf("Unexpected error during backup: %v", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{filepath, servicesLinks()})
+}
+
+func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+
+	err := r.ParseForm()
+	filepath := r.FormValue("filename")
+
+	if err != nil || filepath == "" {
+		restBadRequest(w, err)
+		return
+	}
+
+	unused := 0
+
+	err = client.AsyncRestore(home+"/backup/"+filepath, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error during restore: %v", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
+}
+
+func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	type JsonizableFileInfo struct {
+		Name    string      `json:"name"`
+		Size    int64       `json:"size"`
+		Mode    os.FileMode `json:"mode"`
+		ModTime time.Time   `json:"mod_time"`
+	}
+
+	fileData := []JsonizableFileInfo{}
+	home := os.Getenv("SERVICED_HOME")
+	if home == "" {
+		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
+		home = "/tmp"
+	}
+	backupFiles, _ := ioutil.ReadDir(home + "/backup")
+
+	for _, backupFileInfo := range backupFiles {
+		if !backupFileInfo.IsDir() {
+			fileInfo := JsonizableFileInfo{backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
+			fileData = append(fileData, fileInfo)
+		}
+	}
+
+	w.WriteJson(&fileData)
+}
+
+func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	backupStatus := ""
+	err := client.BackupStatus("", &backupStatus)
+	if err != nil {
+		glog.Errorf("Unexpected error during backup status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&simpleResponse{backupStatus, servicesLinks()})
+}
+
+func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	restoreStatus := ""
+	err := client.RestoreStatus("", &restoreStatus)
+	if err != nil {
+		glog.Errorf("Unexpected error during restore status: %v", err)
+		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
+		return
+	}
+	w.WriteJson(&simpleResponse{restoreStatus, servicesLinks()})
 }

@@ -1,0 +1,39 @@
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
+<h3 class="pull-left">
+  {{'pools'|translate}}
+</h3>
+
+<div class="control-buttons pull-right">
+  <span class="add-control">
+    <button class="btn-link" ng-click="modalAddPool()">
+      <span class="glyphicon glyphicon-plus-sign"></span>
+      {{'pool'|translate}}
+    </button>
+  </span>
+</div>
+
+<table class="table table-striped" id="apps_data" >
+  <thead>
+    <tr>
+      <th ng-repeat="header in pools.headers">{{header.name|translate}}
+        <button ng-click="pools.set_order(header.id, pools)" 
+                ng-class="pools.get_order_class(header.id, pools)"></button>
+      </th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-hide="pools.data.length">
+        <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
+    <tr ng-repeat="pool in pools.data | orderBy:pools.sort">
+      <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID}}</td>
+      <td>{{pool.Priority}}</td>
+      <td>{{pool.CoreCapacity}}</td>
+      <td><span ng-class="{error: pool.MemoryCommitment>pool.MemoryCapacity}">{{pool.MemoryCommitment | toGB}}</span> / {{pool.MemoryCapacity | toGB}}</td>
+      <td>{{pool.CreatedAt | date : 'medium'}}</td>
+      <td>{{pool.UpdatedAt | date : 'medium'}}</td>
+      <td> <button ng-click="clickRemovePool(pool.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> {{'delete'|translate}}</button> </td>
+    </tr>
+  </tbody>
+</table>

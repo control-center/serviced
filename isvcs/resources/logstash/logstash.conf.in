@@ -1,0 +1,29 @@
+input {
+	lumberjack {
+	  # The port to listen on
+	  port => 5043
+	  # The paths to your ssl cert and key, these are from the perspective of the container
+	  ssl_certificate => "/usr/local/serviced/resources/logstash/logstash-forwarder.crt"
+	  ssl_key => "/usr/local/serviced/resources/logstash/logstash-forwarder.key"
+	}
+	tcp {
+		port => 5042
+		codec => "json_lines"
+	}
+}
+
+
+# 
+filter {
+# NOTE the filters are generated from the service definitions
+
+}
+
+
+output {
+	elasticsearch {
+		protocol => "http"
+		host => "172.17.42.1"
+		port => 9100
+	}
+}

@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Configuring <ph conkeyref="names/zcc"/></title>
+  <refbody>
+    <section>
+      <p><ph conkeyref="names/zcc"/> (<cmdname>serviced</cmdname>) is a single binary that behaves differently based
+        on the variables defined in its startup script, <filepath>/etc/init/serviced.conf</filepath>,
+        and in its defaults file, <filepath>/etc/default/serviced</filepath>. The values in the defaults 
+        file take precedence over the values defined in the startup script. </p>
+      
+      <p>The following list describes the contents of <filepath>/etc/default/serviced</filepath>
+        and their affects on the <cmdname>serviced</cmdname> daemon.</p>
+      <dl>
+        <dlentry>
+          <dt><codeph>HOME</codeph></dt>
+          <dd>Default: <filepath>/root</filepath></dd> 
+          <dd>The path <cmdname>serviced</cmdname> uses to locate 
+            the <filepath>.dockercfg</filepath> file. 
+            <p>This variable is included in the startup script, 
+              <filepath>/etc/init/serviced.conf</filepath>.</p></dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>GOMAXPROCS</codeph></dt>
+          <dd>Default: <codeph>2</codeph></dd> 
+          <dd>The maximum number of CPU cores <cmdname>serviced</cmdname> uses. 
+            <p>This variable is included in the startup script, 
+              <filepath>/etc/init/serviced.conf</filepath>.</p></dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_AGENT</codeph></dt>
+          <dd>Default: <codeph>1</codeph> (true)</dd> 
+          <dd>One of two variables that determine whether <cmdname>serviced</cmdname> assumes 
+            the role of agent or master. The other variable is SERVICED_MASTER.
+            <ul>
+              <li>To configure <cmdname>serviced</cmdname> as an agent:
+                <codeblock>SERVICED_AGENT=1
+SERVICED_MASTER=0</codeblock></li>
+              <li>To configure <cmdname>serviced</cmdname> as the master:
+                <codeblock>SERVICED_AGENT=1
+SERVICED_MASTER=1</codeblock></li>
+            </ul>
+            <p>This variable is included in the startup script, 
+              <filepath>/etc/init/serviced.conf</filepath>.</p>
+          </dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_MASTER</codeph></dt>
+          <dd>Default: <codeph>1</codeph> (true)</dd> 
+          <dd>One of two variables that determine whether <cmdname>serviced</cmdname> assumes the role of agent
+            or master. The other variable is SERVICED_AGENT.
+            <p>This variable is included in the startup script, 
+              <filepath>/etc/init/serviced.conf</filepath>.</p>
+          </dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_MASTER_POOLID</codeph></dt>
+          <dd>Default: <codeph>default</codeph></dd> 
+          <dd>The name of the resource pool in which the <cmdname>serviced</cmdname> instance 
+            configured as master is located.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_MASTER_IP</codeph></dt>
+          <dd>Default: <codeph>172.17.42.1</codeph></dd> 
+          <dd>The IP address of the <cmdname>serviced</cmdname> instance configured as master. This variable 
+            simplifies the configuration of multi-host deployments.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_ZK</codeph></dt>
+          <dd>Default: <codeph>$SERVICED_MASTER_IP:2181</codeph></dd> 
+          <dd>The list of endpoints in <cmdname>serviced</cmdname>&#39;s
+            <xref keyref="url-zookeeper">ZooKeeper</xref> ensemble, separated by the comma character (<codeph>,</codeph>).
+            Currently, the <cmdname>serviced</cmdname> instance configured as master is the only host in the ZooKeeper
+            ensemble.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_REGISTRY</codeph></dt>
+          <dd>Default: <codeph>1</codeph> (true)</dd> 
+          <dd>Determines whether <cmdname>serviced</cmdname> uses a local registry to store 
+            images.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_DOCKER_REGISTRY</codeph></dt>
+          <dd>Default: <codeph>$SERVICED_MASTER_IP:5000</codeph></dd> 
+          <dd>The IP address and port number of the <cmdname>serviced</cmdname> registry host.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_STATIC_IPS</codeph></dt>
+          <dd>Default: <codeph>10.0.0.30,10.0.0.31</codeph></dd> 
+          <dd>The list of static IP addresses reserved for 
+            <cmdname>serviced</cmdname> to use when it advertises external
+            IP addresses on behalf of services it manages, separated by the comma character
+            (<codeph>,</codeph>).</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_ENDPOINT</codeph></dt>
+          <dd>Default: <codeph>$SERVICED_MASTER_IP:4979</codeph></dd> 
+          <dd>The IP address and port number of the 
+            default <cmdname>serviced</cmdname> RPC endpoint.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_RPC_PORT</codeph></dt>
+          <dd>Default: <codeph>4979</codeph></dd> 
+          <dd>The port on which <cmdname>serviced</cmdname> listens for RPC requests.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_UI_PORT</codeph></dt>
+          <dd>Default: <codeph>443</codeph></dd> 
+          <dd>The port on which <cmdname>serviced</cmdname> listens for HTTPS requests. (The web interface
+            port.)</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_MUX_PORT</codeph></dt>
+          <dd>Default: <codeph>22250</codeph></dd> 
+          <dd>The port <cmdname>serviced</cmdname> uses for multiplexing 
+            on its private subnet.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_VARPATH</codeph></dt>
+          <dd>Default: <filepath>/opt/serviced/var</filepath></dd> 
+          <dd>The path of the local directory in which <cmdname>serviced</cmdname> 
+            stores its data files, including the distributed file system files.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_KEY_FILE</codeph></dt>
+          <dd>Default: <codeph>/etc/....</codeph></dd> 
+          <dd>The path of a TLS key file. By default, no key file is installed.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_CERT_FILE</codeph></dt>
+          <dd>Default: <codeph>/etc/....</codeph></dd> 
+          <dd>The path of a TLS certificate file. By default, no certificate file is installed.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_VFS</codeph></dt>
+          <dd>Default: <codeph>rsync</codeph></dd> 
+          <dd>The driver for virtual file system volumes. The supported drivers are 
+            <codeph>rsync</codeph> and <codeph>btrfs</codeph>.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_VHOST_ALIASES</codeph></dt>
+          <dd>Default: <codeph>foobar.com,example.com</codeph></dd> 
+          <dd>The list of virtual host aliases to use in virtual  
+            host multiplexing, separated by the comma character
+            (<codeph>,</codeph>).</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_MAX_CONTAINER_AGE</codeph></dt>
+          <dd>Default: <codeph>86400</codeph> (1 day)</dd> 
+          <dd>The maximum number of seconds <cmdname>serviced</cmdname>
+            waits before removing a stopped container.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_VIRTUAL_ADDRESS_SUBNET</codeph></dt>
+          <dd>Default: <codeph>10.3</codeph></dd> 
+          <dd>The 16-bit private subnet to use for <cmdname>serviced</cmdname>&#39;s virtual IPv4 addresses. 
+            <note>This value affects the values of SERVICED_STATIC_IPS.</note></dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_LOG_LEVEL</codeph></dt>
+          <dd>Default: <codeph>0</codeph></dd> 
+          <dd>The relative amount of debug information to write to the
+              <filepath>/var/log/upstart/serviced.log</filepath> file. The range is 0 (minimum) to 5
+            (maximum).</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_LOG_ADDRESS</codeph></dt>
+          <dd>Default: <codeph>$SERVICED_MASTER_IP:5042</codeph></dd> 
+          <dd>The endpoint of the <xref keyref="url-logstash">logstash</xref> service.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_STATS_PORT</codeph></dt>
+          <dd>Default: <codeph>$SERVICED_MASTER_IP:8443</codeph></dd> 
+          <dd>The endpoint of the OpenTSDB reader daemon, for <cmdname>serviced</cmdname>
+            statistics.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_STATS_PERIOD</codeph></dt>
+          <dd>Default: <codeph>10</codeph></dd> 
+          <dd>The number of seconds to wait between polls (health checks) of hosts in resource
+            pools.</dd>
+        </dlentry>
+        <dlentry>
+          <dt><codeph>SERVICED_OPTS</codeph></dt>
+          <dd>Default: (empty)</dd> 
+          <dd>Arbitrary options for the <cmdname>serviced</cmdname> startup command.</dd>
+        </dlentry>
+      </dl>
+    </section>
+  </refbody>
+</reference>

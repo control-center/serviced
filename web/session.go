@@ -1,8 +1,14 @@
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
 package web
 
 import (
-	"github.com/ant0ine/go-json-rest"
 	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
+	"github.com/control-center/serviced/node"
+	userdomain "github.com/control-center/serviced/domain/user"
 
 	"crypto/rand"
 	"encoding/base64"
@@ -11,24 +17,24 @@ import (
 	"time"
 )
 
-const SessionCookie = "ZCPToken"
-const UsernameCookie = "ZUsername"
+const sessionCookie = "ZCPToken"
+const usernameCookie = "ZUsername"
 
-type Session struct {
-	Id       string
+type sessionT struct {
+	ID       string
 	User     string
 	creation time.Time
 	access   time.Time
 }
 
-var sessions map[string]*Session
+var sessions map[string]*sessionT
 
 func init() {
-	sessions = make(map[string]*Session)
-	go purgeOldSessions()
+	sessions = make(map[string]*sessionT)
+	go purgeOldsessionTs()
 }
 
-func purgeOldSessions() {
+func purgeOldsessionTs() {
 	for {
 		time.Sleep(time.Second * 60)
 		if len(sessions) == 0 {
@@ -52,27 +58,27 @@ func purgeOldSessions() {
 /*
  * This function should be called by any secure REST resource
  */
-func LoginOk(r *rest.Request) bool {
-	cookie, err := r.Request.Cookie(SessionCookie)
+func loginOK(r *rest.Request) bool {
+	cookie, err := r.Request.Cookie(sessionCookie)
 	if err != nil {
 		glog.V(1).Info("Error getting cookie ", err)
 		return false
 	}
-	session, err := findSession(cookie.Value)
+	session, err := findsessionT(cookie.Value)
 	if err != nil {
 		glog.V(1).Info("Unable to find session ", cookie.Value)
 		return false
 	}
 	session.access = time.Now()
-	glog.V(2).Infof("Session %s used", session.Id)
+	glog.V(2).Infof("sessionT %s used", session.ID)
 	return true
 }
 
 /*
  * Perform logout, return JSON
  */
-func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
-	cookie, err := r.Request.Cookie(SessionCookie)
+func restLogout(w *rest.ResponseWriter, r *rest.Request) {
+	cookie, err := r.Request.Cookie(sessionCookie)
 	if err != nil {
 		glog.V(1).Info("Unable to read session cookie")
 	} else {
@@ -83,81 +89,99 @@ func RestLogout(w *rest.ResponseWriter, r *rest.Request) {
 	http.SetCookie(
 		w.ResponseWriter,
 		&http.Cookie{
-			Name:   SessionCookie,
+			Name:   sessionCookie,
 			Value:  "",
 			Path:   "/",
 			MaxAge: -1,
 		})
 
-	w.WriteJson(&SimpleResponse{"Logged out", loginLink()})
+	w.WriteJson(&simpleResponse{"Logged out", loginLink()})
 }
 
 /*
  * Perform login, return JSON
  */
-func RestLogin(w *rest.ResponseWriter, r *rest.Request) {
-	creds := Login{}
+func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	creds := login{}
 	err := r.DecodeJsonPayload(&creds)
 	if err != nil {
 		glog.V(1).Info("Unable to decode login payload ", err)
-		RestBadRequest(w)
+		restBadRequest(w, err)
 		return
 	}
 
-	if validateLogin(&creds) {
-		session, err := createSession(creds.Username)
+	if pamValidateLogin(&creds) || cpValidateLogin(&creds, client) {
+		session, err := createsessionT(creds.Username)
 		if err != nil {
-			WriteJson(w, &SimpleResponse{"Session could not be created", loginLink()}, http.StatusInternalServerError)
+			writeJSON(w, &simpleResponse{"sessionT could not be created", loginLink()}, http.StatusInternalServerError)
 			return
 		}
-		sessions[session.Id] = session
-		glog.V(1).Info("Created authenticated session: ", session.Id)
+		sessions[session.ID] = session
+		glog.V(1).Info("Created authenticated session: ", session.ID)
 		http.SetCookie(
 			w.ResponseWriter,
 			&http.Cookie{
-				Name:   SessionCookie,
-				Value:  session.Id,
+				Name:   sessionCookie,
+				Value:  session.ID,
 				Path:   "/",
 				MaxAge: 0,
 			})
 		http.SetCookie(
 			w.ResponseWriter,
 			&http.Cookie{
-				Name:   UsernameCookie,
+				Name:   usernameCookie,
 				Value:  creds.Username,
 				Path:   "/",
 				MaxAge: 0,
 			})
 
-		w.WriteJson(&SimpleResponse{"Accepted", homeLink()})
+		w.WriteJson(&simpleResponse{"Accepted", homeLink()})
 	} else {
-		WriteJson(w, &SimpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
+		writeJSON(w, &simpleResponse{"Login failed", loginLink()}, http.StatusUnauthorized)
 	}
 }
 
-func createSession(user string) (*Session, error) {
-	sid, err := randomSessionId()
+func cpValidateLogin(creds *login, client *node.ControlClient) bool {
+	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds)
+	// create a client
+	user := userdomain.User{
+		Name:     creds.Username,
+		Password: creds.Password,
+	}
+	// call validate token on it
+	var result bool
+	err := client.ValidateCredentials(user, &result)
+
+	if err != nil {
+		glog.Errorf("Unable to validate credentials %s", err)
+	}
+
+	return result
+}
+
+func createsessionT(user string) (*sessionT, error) {
+	sid, err := randomsessionTId()
 	if err != nil {
 		return nil, err
 	}
-	return &Session{sid, user, time.Now(), time.Now()}, nil
+	return &sessionT{sid, user, time.Now(), time.Now()}, nil
 }
 
-func findSession(sid string) (*Session, error) {
+func findsessionT(sid string) (*sessionT, error) {
 	session, ok := sessions[sid]
 	if !ok {
-		return nil, errors.New("Session not found")
+		return nil, errors.New("sessionT not found")
 	}
 	return session, nil
 }
 
-func randomSessionId() (string, error) {
+func randomsessionTId() (string, error) {
 	s, err := randomStr()
 	if err != nil {
 		return "", err
 	}
 	if sessions[s] != nil {
-		return "", errors.New("Session ID collided")
+		return "", errors.New("sessionT ID collided")
 	}
 	return s, nil
 }
@@ -166,7 +190,7 @@ func randomStr() (string, error) {
 	sid := make([]byte, 32)
 	n, err := rand.Read(sid)
 	if n != len(sid) {
-		return "", errors.New("Not enough random bytes")
+		return "", errors.New("not enough random bytes")
 	}
 	if err != nil {
 		return "", err

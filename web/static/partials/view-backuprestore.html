@@ -1,0 +1,48 @@
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
+<h3 class="pull-left">
+    {{'backuprestore'|translate}}
+</h3>
+
+<div class="control-buttons pull-right">
+  <span class="add-control">
+    <button class="btn-link createBackup" ng-click="createBackup()">
+        <span class="glyphicon glyphicon-plus-sign"></span>
+        {{'backup_create'|translate}}
+    </button>
+  </span>
+</div>
+
+<table class="table table-striped" id="backup_data" >
+    <thead>
+        <tr>
+            <th>{{'file_name'|translate}}</th>
+            <th>{{'modified'|translate}}</th>
+            <th>{{'actions'|translate}}</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr ng-hide="backupFiles !== undefined">
+            <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+        </tr>
+        <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
+            <td>{{fileInfo.name}}</td>
+            <td>{{fileInfo.mod_time | date: 'medium'}}</td>
+            <td>
+                    <button class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
+                        <span class="glyphicon glyphicon-refresh"></span>
+                        {{'backup_restore'|translate}}
+                    </button>
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<script type="text/ng-template" id="backupInfoNotification.html">
+    <div class="bg-info notification backupInfo" style="display:none;">
+        <span class="dialogIcon glyphicon glyphicon-info-sign"></span>
+        <span class="backupRunning"></span>
+        <span class="backupStatus"></span>
+        <button type="button" class="close" aria-hidden="true" style="display:none;">&times;</button>
+    </div>
+</script>

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>Go templates in JSON values</title>
+  <shortdesc>Most values of ServiceDefinition objects may
+    include Go template expressions, with both native and
+    <ph conkeyref="names/zcc"/> functions. </shortdesc>
+  <refbody>
+    <section>
+      <p>The <xref keyref="url-golang-text-template">Go template package</xref>
+        provides a rich catalog of methods for embedding variables in text. 
+        <ph conkeyref="names/zcc"/> provides the following, additional functions 
+        Go templates.</p>
+    </section>
+  </refbody>
+</reference>

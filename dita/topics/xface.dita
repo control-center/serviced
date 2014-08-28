@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE concept PUBLIC "-//OASIS//DTD DITA Concept//EN" "concept.dtd">
+<concept id="conceptid">
+  <title>Web interface reference</title>
+  <conbody>
+    <p>The <ph conkeyref="names/zcc"/> binary provides an RPC API, which the command-line interface utilizes, and
+    a REST API, which the web interface utilizes.</p>
+  </conbody>
+</concept>

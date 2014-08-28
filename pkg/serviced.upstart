@@ -1,12 +1,42 @@
 description "Zenoss ServiceD"
 
-start on filesystem or runlevel [2345]
+start on (filesystem and started docker and net-device-up IFACE=docker0)
 stop on run level [!2345]
+kill timeout 60
+
+limit nofile 1048576 1048576
+
+# this pre-start script is necessary to wait for docker
+pre-start script
+    echo "$(date): waiting for docker"
+    while ! /usr/bin/docker ps; do date ; sleep 1 ; done
+    echo "$(date): docker is now ready - done with pre-start"
+    sleep 1s
+    /sbin/ifconfig
+end script
 
 script
-    export SERVICED_HOME=/usr/local/serviced
-    . /etc/default/serviced
+    export SERVICED_HOME=/opt/serviced
+    export SERVICED_AGENT=1
+    export SERVICED_MASTER=1
+    export TZ=UTC
+    export HOME=/root
+    export GOMAXPROCS=2
 
-    cd $SERVICED_HOME && ./bin/serviced -agent -master
+    if [ -f /etc/default/serviced ]; then
+        . /etc/default/serviced
+    fi
+
+    cd $SERVICED_HOME 
+    ./bin/serviced $SERVICED_OPTS
+
+end script
+
+post-stop script
+    echo "$(date): waiting for serviced to stop"
+    while pgrep -fl 'bin/serviced -agent -master'; do
+        sleep 5
+    done
+    echo "$(date): serviced is now stopped - done with post-stop"
 end script
 

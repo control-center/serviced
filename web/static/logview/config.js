@@ -10,6 +10,7 @@ function (Settings) {
   /** @scratch /configuration/config.js/2
    * === Parameters
    */
+  var portString = window.location.port == "" ? "" : ":" + window.location.port;
   return new Settings({
 
     /** @scratch /configuration/config.js/5
@@ -21,7 +22,7 @@ function (Settings) {
      * kibana installed on. You probably want to set it to the FQDN of your
      * elasticsearch host
      */
-    elasticsearch: "http://"+window.location.hostname+":" + window.location.port + "/elastic",
+    elasticsearch: "https://" + window.location.hostname + portString + "/api/controlplane/elastic",
 
     /** @scratch /configuration/config.js/5
      * ==== default_route

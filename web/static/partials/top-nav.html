@@ -1,30 +1,52 @@
-      <!-- Static navbar -->
-      <div class="navbar navbar-zen" ng-controller="NavbarControl">
-        <div class="navbar-header">
-          <a class="navbar-brand" href="{{brand.url}}">{{brand.label|translate}}</a>
-        </div>
-        <div class="navbar-collapse collapse">
-          <ul class="nav navbar-nav">
-            <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}">{{navlink.label|translate}}</a></li>
-          </ul>
-          <ul class="nav navbar-nav navbar-right">
-            <li class="item">{{user.language}}</li>
-            <li>
-              <button class="btn-link" ng-click="modalUserDetails()">
-                <i class="glyphicon glyphicon-user"></i>
-                {{user.username}}
-              </button>
-            </li>
-            <li>
-              <button class="btn-link" ng-click="logout()">
-                {{'nav_logout'|translate}}
-              </button>
-            </li>
-            <li>
-              <a class="glyphicon glyphicon-question-sign" href="{{help.url()}}" target="_blank">&nbsp;</a>
-            </li>
-          </ul>
-        </div><!--/.nav-collapse -->
-      </div>
+<!-- Static navbar -->
+<div class="navbar navbar-zen" ng-controller="NavbarControl">
+  <div class="navbar-header navbar-brand">
+    {{brand.label|translate}}
+  </div>
+  <div class="navbar-collapse collapse">
+    <ul class="nav navbar-nav">
+      <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}">{{navlink.label|translate}}</a></li>
+    </ul>
+    <ul class="nav navbar-nav navbar-right">
+      <li>
+          <button class="btn-link" ng-click="modalUserDetails()">
+              <i class="glyphicon glyphicon-user"></i>
+              {{cookies.ZUsername}}&nbsp;&nbsp;
+              <i class="glyphicon glyphicon-envelope"></i>
+              <span ng-bind="messages.unreadCount"></span>
+          </button>
+      </li>
+      <li>
+        <button class="btn-link" ng-click="logout()">
+          {{'nav_logout'|translate}}
+        </button>
+      </li>
+      <li>
+        <div class="vr">|</div>
+      </li>
+      <li>
+          <button class="btn-link" ng-click="modalAbout()">
+              {{'title_about'|translate}}
+          </button>
+      </li>
+      <!--
+      <li>
+        <a class="glyphicon glyphicon-question-sign" href="{{help.url()}}" target="_blank">&nbsp;</a>
+      </li>
+      -->
+    </ul>
+  </div><!--/.nav-collapse -->
+</div>
 
-    <div ng-include="'/static/partials/user-details.html'"></div>
+<div class="details">
+  <div class="details">
+      <ol class="breadcrumb inline">
+          <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
+              <span ng-switch-when="undefined">{{crumb.label|translate}}</span>
+              <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label|translate}}</a>
+          </li>
+      </ol>
+  </div>
+</div>
+
+<div id="notifications"></div>

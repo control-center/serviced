@@ -5,20 +5,27 @@
 *.swp
 *~
 \#*
-.repo_tag_exists
-.build_repo_exists
+.repo_tag_exists*
+.build_repo_exists*
+serviced
+nsinit
 
 # Folders
 _obj
 _test
 pkg/build/
 pkg/pkgroot/
-pkg/serviced-0.1.0-1.x86_64.rpm
-pkg/serviced_0.1.0_amd64.deb
+pkg/serviced*.rpm
+pkg/serviced*.deb
 isvcs/images/
+isvcs/.isvcs_export_container_id
+pkg/templates/
+coordinator/storage/zookeeper-3.3.3
+coordinator/client/zookeeper/zookeeper-3.3.3
 
 # emacs tags file
 TAGS
+tags
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -41,3 +48,10 @@ isvcs/build/*.tar.gz
 !d3*/
 
 *.iml
+*.test
+
+web/node_modules/
+web/static/js/controlplane.js
+web/static/js/controlplane.min.js
+
+*.Godeps_restored

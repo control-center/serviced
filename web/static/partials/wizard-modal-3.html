@@ -1,8 +1,18 @@
 <p>{{'content_wizard_select_pool'|translate}}</p>
 
-<div ng-repeat="pool in pools.data">
-  <label>
-    <input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.Id">
-    {{pool.Id}}
-  </label>
-</div>
+<table class="table table-striped">
+    <tr>
+        <th>&nbsp;</th>
+        <th>{{"label_pool_name"|translate}}</th>
+        <th>{{"label_pool_description"|translate}}</th>
+        <th>{{"memory_capacity"|translate}}</th>
+        <th>{{"core_capacity"|translate}}</th>
+    </tr>
+    <tr ng-repeat="pool in pools.data | orderBy:'ID'">
+        <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>
+        <td>{{pool.ID}}</td>
+        <td>{{pool.Description}}</td>
+        <td>{{pool.MemoryLimit}} GB</td>
+        <td>{{pool.CoreLimit}}</td>
+    </tr>
+</table>

@@ -1,0 +1,42 @@
+# websequencediagrams.com
+# http://cmrepo.zenoss.loc:1086/
+
+title Snapshot Sequence for Simplest case
+
+
+participant CLI
+participant CLI_Agent
+participant Zookeeper
+participant Leader
+participant Proxy
+
+
+Leader->Zookeeper: start watch for pause request
+note left of Leader: block watch for pause request
+
+
+CLI->CLI_Agent: snapshot request with SERVICE_ID
+note right of CLI_Agent: traverse services tree and finds root service.
+CLI_Agent->Zookeeper: place snapshot pause request as root service info into /snapshots/requests
+note right of CLI_Agent: block watch for snapshot result
+
+
+Zookeeper->Leader: new pause request
+Leader->Proxy: nsinit quiesce pause
+note right of Leader: interpret exit status as ok or failure
+
+
+Leader->Zookeeper: if pause failure, snapshot failed
+Zookeeper->CLI_Agent: snapshot failed
+CLI_Agent->CLI: snapshot failed
+
+
+note right of Leader: snapshot volume
+Leader->Proxy: deferred nsinit quiesce resume
+note right of Leader: interpret exit status as ok or failure
+Leader->Zookeeper: snapshot result ok or failure
+
+
+Zookeeper->CLI_Agent: snapshot result
+CLI_Agent->CLI: snapshot result
+                                                                                  

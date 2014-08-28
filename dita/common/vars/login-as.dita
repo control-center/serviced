@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE topic PUBLIC "-//OASIS//DTD DITA Topic//EN" "topic.dtd">
+<topic id="login-as">
+  <title>...as (root|Administrator|...)</title>
+  <body>
+    <p><ph id="root">as <codeph>root</codeph>, or as a user with superuser privileges</ph></p>
+	<p><ph id="ms-admin">as Administrator, or as a user with Administrator privileges</ph></p>
+
+  </body>
+</topic>

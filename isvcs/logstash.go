@@ -1,10 +1,11 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package isvcs
 
@@ -16,13 +17,14 @@ var logstash *Container
 
 func init() {
 	var err error
+	command := "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	logstash, err = NewContainer(
 		ContainerDescription{
 			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: "java -jar /opt/logstash/logstash-1.3.2-flatjar.jar agent -f /usr/local/serviced/resources/logstash/logstash.conf -- web",
-			Ports:   []int{5043, 9292},
+			Command: func() string {return command},
+			Ports:   []int{5042, 5043, 9292},
 			Volumes: map[string]string{},
 			Notify:  notifyLogstashConfigChange,
 		})

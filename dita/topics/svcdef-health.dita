@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title>HealthCheck object</title>
+  <refbody>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="1*"/>
+        <colspec colname="c2" colwidth="1*"/>
+        <colspec colname="c3" colwidth="5*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>Script</codeph></entry>
+            <entry>String</entry>
+            <entry>The <cmdname>bash</cmdname> command to invoke inside the service&#39;s container,
+              to gather data about the health of the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>Interval</codeph></entry>
+            <entry>Float</entry>
+            <entry>The number of seconds to wait between invocations of the data-gathering
+              command.</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+  </refbody>
+</reference>

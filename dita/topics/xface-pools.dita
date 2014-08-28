@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Resource Pools</uicontrol> page</title>
+  <shortdesc>The <uicontrol>Resource Pools</uicontrol> page lists 
+    the resource pools <ph conkeyref="names/zcc"/> is employing, with
+    aggregate information about the hosts in each pool.</shortdesc>
+  <refbody>
+    <section>
+      <p>The <uicontrol>Resource Pools</uicontrol> table shows the total resources available in each
+        pool.</p>
+      <p>The <uicontrol>Resource Pool</uicontrol> button, located immediately above the right side
+        of the table, displays the <xref keyref="ref-xface-add-pool"><uicontrol>Add Pool</uicontrol> dialog</xref>.</p>
+    </section>
+  </refbody>
+</reference>
+

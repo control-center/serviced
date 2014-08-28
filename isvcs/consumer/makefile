@@ -1,5 +1,9 @@
+# Copyright 2014, The Serviced Authors. All rights reserved.
+# Use of this source code is governed by the Apache 2.0
+# license that can be found in the LICENSE file.
+
 TARGET := $(shell pwd)
-CONSUMER_VERSION := 0.0.5-SNAPSHOT
+CONSUMER_VERSION := 0.0.9
 
 .PHONY: default tarball
 
@@ -11,4 +15,11 @@ tarball:
 	@chmod a+x /opt/zenoss/bin/metric-consumer-app.sh
 	@ln -s /opt/zenoss/etc/metric-consumer-app/metric-consumer-app_supervisor.conf /opt/zenoss/etc/supervisor
 	@sed -i 's/\(authEnabled:.*\)true/\1false/' /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "httpParameterTags:" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "tagWhiteList:" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_service_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_tenant_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_host_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
+	@echo "  - controlplane_instance_id" >> /opt/zenoss/etc/metric-consumer-app/configuration.yaml
 	@tar czf $(TARGET)/consumer.tar.gz /opt

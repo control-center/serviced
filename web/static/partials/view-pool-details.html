@@ -1,0 +1,64 @@
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+
+<div class="details">
+
+  <div class="details-form">
+    <div class="vertical-info">
+      <label for="pool_data_id">{{'label_pool_id'|translate}}</label>
+      <div id="pool_data_id">{{pools.current.ID}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_priority">{{'label_pool_priority'|translate}}</label>
+      <div id="pool_data_priority">{{pools.current.Priority}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_core_limit">{{'core_capacity'|translate}}</label>
+      <div id="pool_data_core_limit">{{pools.current.CoreCapacity}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_memory_limit">{{'memory_capacity'|translate}}</label>
+      <div id="pool_data_memory_limit">{{pools.current.MemoryCapacity | toGB}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_created_at">{{'label_pool_created_at'|translate}}</label>
+      <div id="pool_data_created_at">{{pools.current.CreatedAt | date : 'medium'}}</div>
+    </div>
+
+    <div class="vertical-info">
+      <label for="pool_data_updated_at">{{'updated_at'|translate}}</label>
+      <div id="pool_data_updated_at">{{pools.current.UpdatedAt | date : 'medium'}}</div>
+    </div>
+  </div>
+</div>
+
+<h3 class="pull-left">{{'label_virtual_ip_addresses'|translate}}</h3>
+<div class="control-buttons pull-right">
+  <span class="add-control">
+    <button class="btn-link" ng-click="modalAddVirtualIp(pools.current)">
+      <span class="glyphicon glyphicon-plus-sign"></span>
+      {{'modal_add_virtual_ip'|translate}}
+    </button>
+  </span>
+</div>
+<table class="table table-striped side-flush">
+  <thead>
+    <tr>
+      <th ng-repeat="header in virtual_ip_addresses.headers">{{header.name|translate}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-hide="pools.current.VirtualIPs !== undefined">
+      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
+    <tr ng-repeat="address in pools.current.VirtualIPs | orderBy:virtual_ip_addresses.sort">
+      <td>{{address.IP}}</td>
+      <td>{{address.Netmask}}</td>
+      <td>{{address.BindInterface}}</td>
+      <td><button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button> </td>
+    </tr>
+  </tbody>
+</table>

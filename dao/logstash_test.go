@@ -1,14 +1,18 @@
-/*******************************************************************************
-* Copyright (C) Zenoss, Inc. 2013, 2014, all rights reserved.
-*
-* This content is made available according to terms specified in
-* License.zenoss under the directory where your Zenoss product is installed.
-*
-*******************************************************************************/
+// Copyright 2014, The Serviced Authors. All rights reserved.
+// Use of this source code is governed by the Apache 2.0
+// license that can be found in the LICENSE file.
+
+// Package agent implements a service that runs on a serviced node. It is
+// responsible for ensuring that a particular node is running the correct services
+// and reporting the state and health of those services back to the master
+// serviced.
 
 package dao
 
 import (
+	"github.com/control-center/serviced/domain/servicedefinition"
+	//	"github.com/control-center/serviced/domain/service"
+
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -16,40 +20,40 @@ import (
 	"testing"
 )
 
-func getTestingService() ServiceDefinition {
-	service := ServiceDefinition{
+func getTestingService() servicedefinition.ServiceDefinition {
+	service := servicedefinition.ServiceDefinition{
 		Name:        "testsvc",
 		Description: "Top level service. This directory is part of a unit test.",
 		LogFilters: map[string]string{
 			"Pepe": "My Test Filter",
 		},
-		Services: []ServiceDefinition{
-			ServiceDefinition{
+		Services: []servicedefinition.ServiceDefinition{
+			servicedefinition.ServiceDefinition{
 				Name:    "s1",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
-				ImageId: "ubuntu",
+				ImageID: "ubuntu",
 				LogFilters: map[string]string{
 					"Pepe2": "My Second Filter",
 				},
-				ConfigFiles: map[string]ConfigFile{
-					"/etc/my.cnf": ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
+				ConfigFiles: map[string]servicedefinition.ConfigFile{
+					"/etc/my.cnf": servicedefinition.ConfigFile{Filename: "/etc/my.cnf", Content: "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"},
 				},
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				Endpoints: []servicedefinition.EndpointDefinition{
+					servicedefinition.EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "www",
 						Purpose:     "export",
 					},
-					ServiceEndpoint{
+					servicedefinition.EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8081,
 						Application: "websvc",
 						Purpose:     "import",
 					},
 				},
-				LogConfigs: []LogConfig{
-					LogConfig{
+				LogConfigs: []servicedefinition.LogConfig{
+					servicedefinition.LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
 						Filters: []string{
@@ -58,20 +62,20 @@ func getTestingService() ServiceDefinition {
 					},
 				},
 			},
-			ServiceDefinition{
+			servicedefinition.ServiceDefinition{
 				Name:    "s2",
 				Command: "/usr/bin/python -m SimpleHTTPServer",
-				ImageId: "ubuntu",
-				Endpoints: []ServiceEndpoint{
-					ServiceEndpoint{
+				ImageID: "ubuntu",
+				Endpoints: []servicedefinition.EndpointDefinition{
+					servicedefinition.EndpointDefinition{
 						Protocol:    "tcp",
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
 					},
 				},
-				LogConfigs: []LogConfig{
-					LogConfig{
+				LogConfigs: []servicedefinition.LogConfig{
+					servicedefinition.LogConfig{
 						Path: "/tmp/foo",
 						Type: "foo",
 					},
@@ -84,7 +88,7 @@ func getTestingService() ServiceDefinition {
 }
 
 func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
-	services := make([]ServiceDefinition, 1)
+	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
 
@@ -100,10 +104,10 @@ func TestGettingFilterDefinitionsFromServiceDefinitions(t *testing.T) {
 }
 
 func TestConstructingFilterString(t *testing.T) {
-	services := make([]ServiceDefinition, 1)
+	services := make([]servicedefinition.ServiceDefinition, 1)
 	services[0] = getTestingService()
 	filterDefs := getFilterDefinitions(services)
-	filters := getFilters(services, filterDefs)
+	filters := getFilters(services, filterDefs, []string{})
 	testString := "My Test Filter"
 
 	// make sure our test filter definition is in the constructed filters
@@ -114,26 +118,40 @@ func TestConstructingFilterString(t *testing.T) {
 
 func TestWritingConfigFile(t *testing.T) {
 	filters := "This is my test filter"
-	tmpName := os.TempDir() + "/logstash_test.conf"
-	writeLogStashConfigFile(filters, tmpName)
-
-	// make sure the file exists
-	_, err := os.Stat(tmpName)
+	tmpfile, err := ioutil.TempFile("", "logstash_test.conf")
+	t.Logf("Created tempfile: %s", tmpfile.Name())
 	if err != nil {
-		t.Error(fmt.Sprintf("Was unable to stat %s", tmpName))
+		t.Logf("could not create tempfile: %s", err)
+		t.FailNow()
+	}
+	defer tmpfile.Close()
+	defer os.Remove(tmpfile.Name())
+	_, err = tmpfile.Write([]byte("${FILTER_SECTION}"))
+	if err != nil {
+		t.Logf("%s", err)
+		t.FailNow()
+	}
+	err = tmpfile.Sync()
+	if err != nil {
+		t.Logf("%s", err)
+		t.FailNow()
 	}
 
-	// attempt to clean up after ourselves
-	defer os.Remove(tmpName)
+	if err = writeLogStashConfigFile(filters, tmpfile.Name()); err != nil {
+		t.Error("error calling writeLogStashConfigFile: %s", err)
+		t.Fail()
+	}
 
 	// read the contents
-	contents, err := ioutil.ReadFile(tmpName)
+	contents, err := ioutil.ReadFile(tmpfile.Name())
 	if err != nil {
 		t.Error(fmt.Sprintf("Unable to read output file %v", err))
 	}
 
 	// make sure our filter string is in it
 	if !strings.Contains(string(contents), filters) {
+		t.Log("Read in contents: %s", string(contents))
+		t.Log(filters)
 		t.Error("Was unable to write the logstash conf file")
 	}
 }

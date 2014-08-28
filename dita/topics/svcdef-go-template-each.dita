@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>each</keyword> function</title>
+  <shortdesc>Iterate over items.</shortdesc>
+  <refbody>
+    <section>
+      <p>Syntax: <synph><kwd>each</kwd> <var>Item</var></synph></p>
+      <p>Example: <codeph>{{range (each $zks) }}</codeph></p>
+    </section>
+  </refbody>
+</reference>

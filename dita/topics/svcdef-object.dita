@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><keyword>ServiceDefinition</keyword> object</title>
+  <shortdesc>The information that <ph conkeyref="names/zcc"/> needs to start and manage a service,
+    in JavaScript Object Notation (JSON) format.</shortdesc>
+  <refbody>
+    <section>
+      <note>Most values may contain Go templates, with <ph conkeyref="names/zcc"/> functions. For
+        more information, see <xref keyref="ref-svcdef-go-template"/>.</note>
+    <table>
+      <tgroup cols="3">
+        <colspec colname="c1" colwidth="5*"/>
+        <colspec colname="c2" colwidth="2*"/>
+        <colspec colname="c3" colwidth="12*"/>
+        <thead>
+          <row>
+            <entry>Atttribute</entry>
+            <entry>Value</entry>
+            <entry>Description</entry>
+          </row>
+        </thead>
+        <tbody>
+          <row>
+            <entry><codeph>Name</codeph></entry>
+            <entry>String</entry>
+            <entry>The service name.</entry>
+          </row>
+          <row>
+            <entry><codeph>Command</codeph></entry>
+            <entry>String</entry>
+            <entry>The command that starts and runs the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>Description</codeph></entry>
+            <entry>String</entry>
+            <entry>The service description.</entry>
+          </row>
+          <row>
+            <entry><codeph>Tags</codeph></entry>
+            <entry>Array of strings</entry>
+            <entry>Searchable words or phrases for the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>ImageID</codeph></entry>
+            <entry>String</entry>
+            <entry>The Docker image ID for the service.</entry>
+          </row>
+          <row>
+            <entry><codeph>Instances</codeph></entry>
+            <entry>Object</entry>
+            <entry>The number of instances of the service to run at the same time, in different
+                containers. This object has two members. <dl>
+                  <dlentry>
+                    <dt><codeph>Min</codeph></dt>
+                    <dd>The minimum number of instances to run. If the value is zero, no instances
+                      are started. If non-zero, the value must be greater than or equal to
+                      zero.</dd>
+                  </dlentry>
+                  <dlentry>
+                    <dt><codeph>Max</codeph></dt>
+                    <dd>The maximum number of instances to run. If the value is zero, only
+                        <codeph>Min</codeph> is used. If non-zero, the value must be greater than or
+                      equal to <codeph>Min</codeph>.</dd>
+                  </dlentry>
+                </dl>
+              </entry>
+          </row>
+          <row>
+            <entry><codeph>ChangeOptions</codeph></entry>
+            <entry>Array of strings</entry>
+            <entry>Control options for what happens when a running instance of the service is
+              changed. <draft-comment author="gemil">Additional detail needed
+              here</draft-comment></entry>
+          </row>
+          <row>
+            <entry><codeph>Launch</codeph></entry>
+            <entry>String</entry>
+            <entry>Determines whether the service starts when its parent service starts. 
+              <dl>
+                <dlentry>
+                  <dt><codeph>AUTO</codeph></dt>
+                  <dd>(Default) Start the service when the parent service starts.</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>MANUAL</codeph></dt>
+                  <dd>Do not start the service when the parent service starts.</dd>
+                </dlentry>
+              </dl>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>HostPolicy</codeph></entry>
+            <entry>String</entry>
+            <entry>Determines how to schedule instances of the service on hosts in a resource pool. <dl>
+                  <dlentry>
+                    <dt><codeph>LeastCommitted</codeph></dt>
+                    <dd>(Default) Select the host with the smallest amount of memory committed to
+                      other services.</dd>
+                  </dlentry>
+                  <dlentry>
+                    <dt><codeph>PreferSeparate</codeph></dt>
+                    <dd>Attempt to schedule instances of the service on separate hosts.</dd>
+                  </dlentry>
+                  <dlentry>
+                    <dt><codeph>RequireSeparate</codeph></dt>
+                    <dd>Schedule instances of the service on separate hosts only.</dd>
+                  </dlentry>
+                </dl>
+              </entry>
+          </row>
+          <row>
+            <entry><codeph>Hostname</codeph></entry>
+            <entry>String</entry>
+            <entry>The virtual host name to use when an instance of the service is run.</entry>
+          </row>
+          <row>
+            <entry><codeph>Privileged</codeph></entry>
+            <entry><codeph>true</codeph> or <codeph>false</codeph></entry>
+            <entry>Determines whether containers (in which instances of the service run) have
+                extended privileges. </entry>
+          </row>
+          <row>
+            <entry><codeph>ConfigFiles</codeph></entry>
+            <entry>Objects</entry>
+            <entry>The configuration file templates to install in containers (in which instances of
+                the service run). <p>Each member of this object is a string containing the absolute
+                  path of a configuration file template and a <xref keyref="ref-svcdef-configFile"
+                    >ConfigFile</xref> object.</p>
+              </entry>
+          </row>
+          <row>
+            <entry><codeph>Context</codeph></entry>
+            <entry>Object</entry>
+            <entry>
+              <draft-comment author="gemil">I've no clue what this is</draft-comment>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>Endpoints</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>The network endpoints that the service uses, as 
+              <xref keyref="ref-svcdef-endpoint">Endpoint</xref> objects.</entry>
+          </row>
+          <row>
+            <entry><codeph>Services</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>The subservices that are part of the service, as <xref keyref="ref-svcdef-object"
+                >ServiceDefinition</xref> objects.</entry>
+          </row>
+          <row>
+            <entry><codeph>Tasks</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>
+              <draft-comment author="gemil">Unused so far</draft-comment>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>LogFilters</codeph></entry>
+            <entry>Object</entry>
+            <entry>Pairs of strings and values mapping log filter names to log filter definitions.
+                <draft-comment author="gemil">For consumption by logstash, I presume, which would
+                mean the log filter defs have to be what logstash expects. So it'd be good to say
+                that here if true.</draft-comment></entry>
+          </row>
+          <row>
+            <entry><codeph>Volumes</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>The list of file system directories to bind mount in containers (in which
+                instances of the service run). Each item is a <xref keyref="ref-svcdef-volume"
+                  >Volume</xref> object.</entry>
+          </row>
+          <row>
+            <entry><codeph>LogConfigs</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>A list of <cmdname>logstash</cmdname> configurations for the log files of the
+              service, as <xref keyref="ref-svcdef-logconfig">LogConfig</xref> objects.</entry>
+          </row>
+          <row>
+            <entry><codeph>Snapshot</codeph></entry>
+            <entry>Object</entry>
+            <entry>The <cmdname>bash</cmdname> commands to pause and resume the service. Between
+                commands, <ph conkeyref="names/zcc"/> copies the file system of the service&#39;s
+                container. <p>This object has two members:</p>
+                <dl>
+                  <dlentry>
+                    <dt><codeph>Pause</codeph></dt>
+                    <dd>The <cmdname>bash</cmdname> command to stop file system writes, or stop the
+                      service.</dd>
+                  </dlentry>
+                  <dlentry>
+                    <dt><codeph>Resume</codeph></dt>
+                    <dd>The <cmdname>bash</cmdname> command to return the service to normal
+                      processing.</dd>
+                  </dlentry>
+                </dl>
+              </entry>
+          </row>
+          <row>
+            <entry><codeph>RAMCommitment</codeph></entry>
+            <entry>Integer </entry>
+            <entry>The amount of main memory the service requires, in bytes. This value is used to
+              help schedule the service into the best available resource pool.</entry>
+          </row>
+          <row>
+            <entry><codeph>CPUCommitment</codeph></entry>
+            <entry>Integer</entry>
+            <entry>The number of CPU cores the service requires. This value is used to
+              help schedule the service into the best available resource pool.</entry>
+          </row>
+          <row>
+            <entry><codeph>Runs</codeph></entry>
+            <entry>Object</entry>
+            <entry>The commands the service executes inside its container when invoked with
+                  <codeph>serviced run <varname>Command</varname></codeph>. This object contains one
+                or more command names, each paired with the <cmdname>bash</cmdname> command to run
+                inside the containers.</entry>
+          </row>
+          <row>
+            <entry><codeph>Actions</codeph></entry>
+            <entry>Object</entry>
+            <entry>The commands the service executes inside its container when invoked with
+                  <codeph>serviced action <varname>Command</varname></codeph>. This object contains
+                one or more command names, each paired with the <cmdname>bash</cmdname> command to
+                run inside the containers.</entry>
+          </row>
+          <row>
+            <entry><codeph>HealthChecks</codeph></entry>
+            <entry>Object</entry>
+            <entry>The commands to invoke (at regular intervals) to gather data about health of the
+                service. Each member of this object is a health check name paired with a <xref
+                  keyref="ref-svcdef-health">HealthCheck</xref> object.</entry>
+          </row>
+          <row>
+            <entry><codeph>Prereqs</codeph></entry>
+            <entry>Array of objects</entry>
+            <entry>The scripts to run successfully inside a container before starting the
+                service in the container. Each item is an object with two members:
+              <dl>
+                <dlentry>
+                  <dt><codeph>Name</codeph></dt>
+                  <dd>The name of the prerequisite.</dd>
+                </dlentry>
+                <dlentry>
+                  <dt><codeph>Script</codeph></dt>
+                  <dd>The <cmdname>bash</cmdname> command to invoke inside the container.</dd>
+                </dlentry>
+              </dl>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>MonitoringProfile</codeph></entry>
+            <entry>Object</entry>
+            <entry>Metadata descriptions of the metrics, graphs, and thresholds the service makes
+                available to external monitoring services. The members of this object are the
+                following pairs, in order: <dl>
+                  <dlentry>
+                    <dt><codeph>MetricConfigs</codeph></dt>
+                    <dd>An array of <xref keyref="ref-svcdef-metricConfig">MetricConfig</xref>
+                      objects.</dd>
+                  </dlentry>
+                  <dlentry>
+                    <dt><codeph>GraphConfigs</codeph></dt>
+                    <dd>An array of <xref keyref="ref-svcdef-graphConfig">GraphConfig</xref>
+                      objects.</dd>
+                  </dlentry>
+                  <dlentry>
+                    <dt><codeph>ThresholdConfigs</codeph></dt>
+                    <dd>An array of <xref keyref="ref-svcdef-thresholdConfig">ThresholdConfig</xref>
+                      objects.</dd>
+                  </dlentry>
+                </dl>
+              </entry>
+          </row>
+          <row>
+            <entry><codeph>MemoryLimit</codeph></entry>
+            <entry>float64</entry>
+            <entry>
+              <draft-comment author="gemil">How used?</draft-comment>
+            </entry>
+          </row>
+          <row>
+            <entry><codeph>CPUShares</codeph></entry>
+            <entry>int64</entry>
+            <entry><draft-comment author="gemil">How used?</draft-comment></entry>
+          </row>
+          <row>
+            <entry><codeph>PIDFile</codeph></entry>
+            <entry>String</entry>
+            <entry>The path, or the command to generate the path, for the PID file to which signals
+                are copied.</entry>
+          </row>
+        </tbody>
+      </tgroup>
+    </table>
+    </section>
+  </refbody>
+</reference>

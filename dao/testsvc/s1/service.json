@@ -1,27 +1,36 @@
 {
-          "Command": "/usr/bin/python -m SimpleHTTPServer",
+          "Command": "/usr/bin/python3 -m http.server 8080",
           "Endpoints": [{
+              "Name": "www",
               "Application": "www",
               "PortNumber": 8080,
               "Protocol": "tcp",
-              "Purpose": "export"
+              "Purpose": "export",
+              "AddressConfig": {
+                              "Port": 1000,
+                              "Protocol": "tcp"
+                          }
             },{
+              "Name": "websvc",
               "Application": "websvc",
-              "PortNumber": 8081,
+              "PortNumber": 9090,
               "Protocol": "tcp",
-              "Porpose": "import"
+              "Purpose": "import"
             }
           ],
-          "ImageId": "ubuntu",
+          "ImageID": "zenoss/ubuntu:wget",
           "Instances": {
             "min": 1
           },
           "ConfigFiles": {
-            "/etc/my.cnf":  { "Filename": "/etc/my.cnf", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
+            "/etc/my.cnf":  { "Owner": "root:root", "Filename": "/etc/my.cnf", "Permissions": "0660", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
           },
           "LogConfigs":[ {
             "path": "/tmp/foo",
             "type": "foo"
           }],
-         "AddressResources":[{"Port":9000, "Protocol": "tcp"}, {"Port":8000, "Protocol":"udp"}]
+          "Snapshot": {
+            "Pause": "echo pause",
+            "Resume": "echo resume"
+          }
 }

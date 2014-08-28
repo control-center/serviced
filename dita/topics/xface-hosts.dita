@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Hosts</uicontrol> page</title>
+  <shortdesc>The <uicontrol>Hosts</uicontrol> page displays information about  
+    the individual hosts that are included in all of the resource pools
+    that <ph conkeyref="names/zcc"/> is employing.</shortdesc>
+  <refbody>
+    <section>
+      <p>The <uicontrol>Hosts</uicontrol> table lists each machine that is assigned to a resource pool.</p>
+      <p>Two buttons are located immediately above the right side of the table.</p>
+      <ul>
+        <li>The <uicontrol>Hosts Map</uicontrol> button displays a graphical representation 
+        of the relative sizes of the hosts in the table, either by the amount of RAM or the
+        number of CPUs in each host.</li>
+        <li>The <uicontrol>Host</uicontrol> button displays the 
+          <xref keyref="ref-xface-add-host"><uicontrol>Add Host</uicontrol> dialog</xref>.</li>
+      </ul>
+    </section>
+  </refbody>
+</reference>
+
