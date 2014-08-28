@@ -94,6 +94,9 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"POST", "/login", sc.unAuthorizedClient(restLogin)},
 		rest.Route{"DELETE", "/login", restLogout},
 
+		// DockerLogin
+		rest.Route{"GET", "/dockerIsLoggedIn", sc.authorizedClient(restDockerIsLoggedIn)},
+
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", sc.authorizedClient(restGetTopServices)},
 		rest.Route{"GET", "/running", sc.authorizedClient(restGetAllRunning)},

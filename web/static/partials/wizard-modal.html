@@ -16,6 +16,7 @@
             </ol>
           </div>
           <div class="col-md-8 content">
+            <div ng-show="dockerIsNotLoggedIn()" class="error">{{'docker_login_warning'|translate}}</div>
             <div ng-include="step_page" class="scroll">
             </div>
           </div>

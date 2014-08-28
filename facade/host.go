@@ -17,7 +17,9 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
@@ -113,17 +115,61 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
 		return err
 	}
+
+	//assert valid host
 	var _host *host.Host
 	if _host, err = f.GetHost(ctx, hostID); err != nil {
 		return err
 	} else if _host == nil {
 		return nil
-	} else if err = zkAPI(f).RemoveHost(_host); err != nil {
-		return err
-	} else if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
+	}
+
+	//grab all services that are address assigned this HostID
+	query := []string{fmt.Sprintf("Endpoints.AddressAssignment.HostID:%s", hostID)}
+	services, err := f.GetTaggedServices(ctx, query)
+	if err != nil {
+		glog.Errorf("Failed to grab servies with endpoints assigned to host %s: %s", _host.Name, err)
 		return err
 	}
-	return err
+
+	//remove all service endpoint address assignments to this host
+	reassign := []string{}
+	for i := range services {
+		for j := range services[i].Endpoints {
+			aa := services[i].Endpoints[j].AddressAssignment
+			if aa.HostID == hostID && aa.AssignmentType == commons.STATIC {
+				//remove the services address assignment
+				if err = f.RemoveAddressAssignment(ctx, aa.ID); err != nil {
+					glog.Warningf("Failed to remove service %s:%s address assignment to host %s", services[i].Name, services[i].ID, hostID)
+				}
+				reassign = append(reassign, services[i].ID)
+			}
+		}
+	}
+
+	//remove host from zookeeper
+	if err = zkAPI(f).RemoveHost(_host); err != nil {
+		return err
+	}
+
+	//remove host from datastore
+	if err = f.hostStore.Delete(ctx, host.HostKey(hostID)); err != nil {
+		return err
+	}
+
+	//update address assignments
+	for i := range reassign {
+		request := dao.AssignmentRequest{
+			ServiceID:      reassign[i],
+			IPAddress:      "",
+			AutoAssignment: true,
+		}
+		if err = f.AssignIPs(ctx, request); err != nil {
+			glog.Warningf("Failed assigning another ip to service %s: %s", reassign[i], err)
+		}
+	}
+
+	return nil
 }
 
 // GetHost gets a host by id. Returns nil if host not found

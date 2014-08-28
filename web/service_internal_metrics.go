@@ -141,14 +141,13 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
-			YAxisLabel:  "GB",
-			Description: "GB Memory Used Over Last Hour",
+			YAxisLabel:  "bytes",
+			Description: "Memory Used Over Last Hour",
 			MinY:        &zero,
 			Range:       &tRange,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:1024,/,1024,/,1024,/",
 					Fill:         true,
 					Format:       "%6.2f",
 					Legend:       "RSS",
@@ -161,7 +160,6 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:1024,/,1024,/,1024,/",
 					Fill:         true,
 					Format:       "%6.2f",
 					Legend:       "Cache",
@@ -187,13 +185,12 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
-			YAxisLabel:  "kbps",
+			YAxisLabel:  "Bps",
 			Range:       &tRange,
-			Description: "kbps over last hour",
+			Description: "Bytes per second over last hour",
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:8,/,1024,/",
 					Fill:         true,
 					Format:       "%6.2f",
 					Legend:       "TX",
@@ -206,7 +203,6 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:8,/,1024,/",
 					Fill:         true,
 					Format:       "%6.2f",
 					Legend:       "RX",

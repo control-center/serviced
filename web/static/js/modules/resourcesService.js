@@ -664,6 +664,21 @@
           },
 
           /*
+           * Determine if the user is logged into Docker Hub.
+           * @param {function} callback boolean passed to callback on success.          
+          */
+
+          docker_is_logged_in: function(callback) {
+            $http.noCacheGet('/dockerIsLoggedIn').
+            success(function(data, status){
+              callback(data.dockerLoggedIn);
+            }).
+            error(function(data, status) {
+              $notification.create("", "Unable to retrieve Docker Hub login status.").warning();
+            });
+          },
+
+          /*
            * Retrieve all defined service (a.k.a. application) templates
            *
            * @param {boolean} cacheOk Whether or not cached data is OK to use.
