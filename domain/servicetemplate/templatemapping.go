@@ -31,6 +31,10 @@ var (
         "type"  : "string",
         "index" : "not_analyzed"
       },
+      "Version" : {
+        "type"  : "string",
+        "index" : "not_analyzed"
+      },
       "Description" : {
         "type"  : "string",
         "index" : "not_analyzed"

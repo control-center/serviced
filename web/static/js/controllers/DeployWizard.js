@@ -1,4 +1,4 @@
-function DeployWizard($scope, $notification, $translate, $http, resourcesService) {
+function DeployWizard($scope, $notification, $translate, resourcesService) {
     var step = 0;
     var nextClicked = false;
     $scope.name='wizard';
@@ -49,7 +49,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             resetError();
             return true;
         }
-    }
+    };
 
     var resetStepPage = function() {
         step = 0;
@@ -78,7 +78,6 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
                 template.Id = key;
                 templates[templates.length] = template;
             }
-            $scope.templates.data
 
             if($scope.templates.data.length === 0){
                 $scope.steps.unshift({
@@ -95,12 +94,12 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
     var showError = function(message){
         $("#deployWizardNotificationsContent").html(message);
         $("#deployWizardNotifications").removeClass("hide");
-    }
+    };
 
     var resetError = function(){
         $("#deployWizardNotifications").html("");
         $("#deployWizardNotifications").addClass("hide");
-    }
+    };
 
     $scope.steps = [
         {
@@ -148,13 +147,27 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     $scope.getTemplateRequiredResources = function(template){
         var ret = {CPUCommitment:0, RAMCommitment:0};
-        for (var i=0; i<template.Services.length; ++i){
-            if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
-            if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+
+        // if Services, iterate and sum up their commitment values
+        if(template.Services){
+            // recursively calculate cpu and ram commitments
+            (function calcCommitment(services){
+                services.forEach(function(service){
+                    // CPUCommitment should be equal to max number of
+                    // cores needed by any service
+                    ret.CPUCommitment = Math.max(ret.CPUCommitment, service.CPUCommitment);
+                    // RAMCommitment should be a sum of all ram needed
+                    // by all services
+                    ret.RAMCommitment += service.RAMCommitment;
+
+                    // recurse!
+                    if(service.Services) calcCommitment(service.Services);
+                });
+            })(template.Services);
         }
 
         return ret;
-    }
+    };
 
     $scope.addHostStart = function() {
         $scope.newHost = {};
@@ -290,21 +303,20 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    $http.post('/templates/deploy/status', deploymentDefinition).
-                        success(function(data, status) {
-                            if(data.Detail === "timeout"){
-                                $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                    resourcesService.get_deployed_templates(deploymentDefinition, function(data){
+                        if(data.Detail === "timeout"){
+                            $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                        }else{
+                            var parts = data.Detail.split("|");
+                            if(parts[1]){
+                                $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
                             }else{
-                                var parts = data.Detail.split("|");
-                                if(parts[1]){
-                                    $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
-                                }else{
-                                    $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
-                                }
+                                $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
                             }
+                        }
 
-                            getStatus();
-                        });
+                        getStatus();
+                    });
                 }
             };
 

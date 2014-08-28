@@ -640,7 +640,7 @@ describe('AuthService', function() {
 
         // Check basic internal state
         $location.path('/before');
-        authService.login(true);
+        authService.setLoggedIn(true);
         authService.checkLogin(scope);
         expect($location.path()).toBe('/before');
         expect(scope.loggedIn).toBe(true);

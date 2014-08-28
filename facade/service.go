@@ -180,6 +180,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 
 // Get a service endpoint.
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]*dao.ApplicationEndpoint, error) {
+	// TODO: this function is obsolete.  Remove it.
 	glog.V(2).Infof("Facade.GetServiceEndpoints serviceId=%s", serviceId)
 	result := make(map[string][]*dao.ApplicationEndpoint)
 	myService, err := f.getService(ctx, serviceId)
@@ -304,7 +305,10 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 	}
 
 	visitor := func(svc *service.Service) error {
-		//start f service
+		// don't start the service if its Launch is 'manual' and it is a child
+		if svc.Launch == commons.MANUAL && svc.ID != serviceId {
+			return nil
+		}
 		svc.DesiredState = service.SVCRun
 		err = f.updateService(ctx, svc)
 		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.ID, err)
@@ -340,8 +344,9 @@ func (f *Facade) StopService(ctx datastore.Context, id string) error {
 	glog.V(0).Info("Facade.StopService id=", id)
 
 	visitor := func(svc *service.Service) error {
-		//start f service
-		if svc.Launch == commons.MANUAL {
+		// if it's not the target service and its Launch is 'manual',
+		// then do not stop it
+		if svc.Launch == commons.MANUAL && svc.ID != id {
 			return nil
 		}
 		svc.DesiredState = service.SVCStop

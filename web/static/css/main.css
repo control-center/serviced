@@ -791,6 +791,21 @@ input.startup {
     position: relative;
     height: 200px;
 }
+/* Visualization.js style changes */
+.nodata:before {
+  content: "No Data Available";
+}
+
+.nodata {
+  display: block;
+  position: relative;
+  margin: auto;
+  top: 40px;
+  color: blue;
+  text-align: center;
+  font-size: 18pt;
+  font-style: italic;
+}
 
 /* d3 related below */
 
@@ -817,6 +832,7 @@ svg {
 
 svg.tall {
   height: 1200px;
+  width: 1140px;
 }
 
 rect {
@@ -1231,4 +1247,8 @@ input.ng-invalid:focus.ng-dirty:focus{
 
 #deployStatus{
     margin-top: 20px;
+}
+
+.version{
+    font-size: .75em;
 }
