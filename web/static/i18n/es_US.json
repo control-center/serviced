@@ -84,6 +84,8 @@
     "deploy_loading_image": "Cargando imagen",
     "deploy_tagging_image": "Etiquetando imagen (Por favor espere)",
 
+    "docker_login_warning": "Usted no está conectado para Docker Hub . Cualquier dependencias de aplicaciones en repositorios privados causarán despliegue falle.",
+
     "breadcrumb_deployed": "Aplicaciones Instaladas",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Servidores",
