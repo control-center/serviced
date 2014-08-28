@@ -23,7 +23,6 @@ import (
 
 var testDockerLogsFile = "getDockerLogs.txt"
 var testDockerLogsOutput = []string{
-	"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/opentsdb_supervisor.conf\" during parsing\n",
 	"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/central-query_supervisor.conf\" during parsing\n",
 	"2014-08-28 16:22:49,194 INFO RPC interface 'supervisor' initialized\n",
 	"2014-08-28 16:22:49,194 CRIT Server 'inet_http_server' running without any HTTP authentication checking\n",
@@ -46,7 +45,7 @@ func TestGetLastDockerLogs(t *testing.T) {
 	}
 
 	// attempt to break deserialization by seeking on a non json object boundary
-	if logs, err := getLastDockerLogs(testDockerLogsFile, 2190); err != nil {
+	if logs, err := getLastDockerLogs(testDockerLogsFile, 2019); err != nil {
 		t.Fatal("should no break when seeking to non-json object boundary: %s", err)
 	} else {
 		if logs == nil {
