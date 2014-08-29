@@ -14,12 +14,12 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/zenoss/glog"
 
 	"fmt"
 )
@@ -34,7 +34,7 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 	}
 
 	for _, aPool := range allPools {
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(aPool.ID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(aPool.ID))
 		if err != nil {
 			glog.Error("runningservice.go Failed to get connection based on pool: %v", aPool.ID)
 			return err
@@ -62,7 +62,7 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 		return nil
 	}
 
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myHost.PoolID))
+	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myHost.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myHost.PoolID, err)
 		return err
@@ -84,7 +84,7 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
+	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
@@ -108,7 +108,7 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
+	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err

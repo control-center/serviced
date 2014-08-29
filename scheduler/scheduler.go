@@ -242,7 +242,7 @@ func connectZK(path string) <-chan coordclient.Connection {
 
 	go func() {
 		defer close(connc)
-		c, err := zzk.GetBasePathConnection(path)
+		c, err := zzk.GetLocalConnection(path)
 		if err != nil {
 			glog.Errorf("Could not acquire connection to %s: %s", path, err)
 		} else {

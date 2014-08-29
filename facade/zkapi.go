@@ -56,7 +56,7 @@ type zkf struct {
 }
 
 func (zk *zkf) UpdateService(service *service.Service) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
 		return err
 	}
@@ -65,7 +65,7 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 }
 
 func (zk *zkf) RemoveService(service *service.Service) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
 		return err
 	}
@@ -86,7 +86,7 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]*servicestate.ServiceState, serviceIDs ...string) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func (zk *zkf) GetServiceStates(poolID string, states *[]*servicestate.ServiceSt
 }
 
 func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
-	rootBasedConnection, err := zzk.GetBasePathConnection("/")
+	rootBasedConnection, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
 }
 
 func (z *zkf) AddHost(host *host.Host) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(host.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(host.PoolID))
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func (z *zkf) AddHost(host *host.Host) error {
 }
 
 func (z *zkf) RemoveHost(host *host.Host) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(host.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(host.PoolID))
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		return err
 	}
@@ -156,7 +156,7 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 }
 
 func (z *zkf) AddResourcePool(pool *pool.ResourcePool) error {
-	conn, err := zzk.GetBasePathConnection("/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
@@ -164,7 +164,7 @@ func (z *zkf) AddResourcePool(pool *pool.ResourcePool) error {
 }
 
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
-	conn, err := zzk.GetBasePathConnection("/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
@@ -172,7 +172,7 @@ func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
 }
 
 func (z *zkf) RemoveResourcePool(poolID string) error {
-	conn, err := zzk.GetBasePathConnection("/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
@@ -180,7 +180,7 @@ func (z *zkf) RemoveResourcePool(poolID string) error {
 }
 
 func (z *zkf) AddVirtualIP(virtualIP *pool.VirtualIP) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(virtualIP.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(virtualIP.PoolID))
 	if err != nil {
 		return err
 	}
@@ -188,7 +188,7 @@ func (z *zkf) AddVirtualIP(virtualIP *pool.VirtualIP) error {
 }
 
 func (z *zkf) RemoveVirtualIP(virtualIP *pool.VirtualIP) error {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(virtualIP.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(virtualIP.PoolID))
 	if err != nil {
 		return err
 	}

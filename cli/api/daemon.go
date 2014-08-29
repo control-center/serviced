@@ -233,7 +233,7 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("failed create a new coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	d.facade = d.initFacade()
 
@@ -413,9 +413,9 @@ func (d *daemon) startAgent() error {
 		if err != nil {
 			glog.Errorf("failed create a new coordclient: %v", err)
 		}
-		zzk.InitializeGlobalCoordClient(zClient)
+		zzk.InitializeLocalClient(zClient)
 
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
