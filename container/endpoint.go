@@ -139,12 +139,12 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		return err
 	}
 
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	// get zookeeper connection
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
-		return fmt.Errorf("getEndpoints zzk.GetBasePathConnection failed: %v", err)
+		return fmt.Errorf("getEndpoints zzk.GetLocalConnection failed: %v", err)
 	}
 
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
@@ -348,7 +348,7 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 
-	zkConn, err := zzk.GetBasePathConnection("/")
+	zkConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
@@ -599,7 +599,7 @@ func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) 
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
 func (c *Controller) registerExportedEndpoints() {
-	conn, err := zzk.GetBasePathConnection("/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return
 	}

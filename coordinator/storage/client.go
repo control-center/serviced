@@ -18,11 +18,11 @@ import (
 	"os"
 	"time"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dfs/nfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/zzk"
+	"github.com/zenoss/glog"
 )
 
 type nfsMountT func(string, string) error
@@ -94,7 +94,7 @@ func (c *Client) loop() {
 		err = nil
 		if leader == nil {
 			// /storage/leader needs to be at the root
-			conn, err = zzk.GetBasePathConnection("/")
+			conn, err = zzk.GetLocalConnection("/")
 
 			if err != nil {
 				continue

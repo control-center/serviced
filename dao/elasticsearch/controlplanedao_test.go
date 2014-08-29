@@ -100,9 +100,9 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
 
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
-	dt.zkConn, err = zzk.GetBasePathConnection("/")
+	dt.zkConn, err = zzk.GetLocalConnection("/")
 	if err != nil {
 		c.Fatalf("could not get zk connection %v", err)
 	}

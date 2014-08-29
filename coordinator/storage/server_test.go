@@ -16,12 +16,12 @@ package storage
 import (
 	zklib "github.com/samuel/go-zookeeper/zk"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
+	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"fmt"
@@ -75,7 +75,7 @@ func TestServer(t *testing.T) {
 	if err != nil {
 		t.Fatal("unexpected error getting zk client")
 	}
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	defer func(orig func(string, string) error) {
 		nfsMount = orig

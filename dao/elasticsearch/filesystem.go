@@ -14,12 +14,12 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkSnapshot "github.com/control-center/serviced/zzk/snapshot"
+	"github.com/zenoss/glog"
 
 	"errors"
 	"os"
@@ -71,7 +71,7 @@ func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
 		return err
 	}
 
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(myService.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
 	if err != nil {
 		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
 		return err
