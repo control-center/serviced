@@ -13,6 +13,8 @@
 
 package addressassignment
 
+import "github.com/control-center/serviced/datastore"
+
 //AddressAssignment is used to track Ports that have been assigned to a Service.
 type AddressAssignment struct {
 	ID             string //Generated id
@@ -23,4 +25,5 @@ type AddressAssignment struct {
 	Port           uint16 //Actual assigned port
 	ServiceID      string //Service using this assignment
 	EndpointName   string //Endpoint in the service using the assignment
+	datastore.VersionedEntity
 }

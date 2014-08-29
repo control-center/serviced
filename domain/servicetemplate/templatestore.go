@@ -14,9 +14,9 @@
 package servicetemplate
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/datastore"
 
 	"fmt"
 )

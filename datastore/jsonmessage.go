@@ -21,19 +21,25 @@ import (
 type JSONMessage interface {
 	// Bytes return the JSON bytes of an entity
 	Bytes() json.RawMessage
+	Version() int
 }
 
 // NewJSONMessage creates a JSONMessage using the provided bytes. The bytes should represent valid JSON
-func NewJSONMessage(data []byte) JSONMessage {
-	return &jsonMessage{data}
+func NewJSONMessage(data []byte, version int) JSONMessage {
+	return &jsonMessage{data, version}
 }
 
 type jsonMessage struct {
-	data json.RawMessage
+	data    json.RawMessage
+	version int
 }
 
 func (m *jsonMessage) Bytes() json.RawMessage {
 	return m.data
+}
+
+func (m *jsonMessage) Version() int {
+	return m.version
 }
 
 // MarshalJSON returns *m as the JSON encoding of m.

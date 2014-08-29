@@ -13,8 +13,11 @@
 
 package user
 
+import "github.com/control-center/serviced/datastore"
+
 // User for the system???
 type User struct {
 	Name     string // the unique identifier for a user
 	Password string // no requirements on passwords yet
+	datastore.VersionedEntity
 }

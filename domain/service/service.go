@@ -20,6 +20,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -75,6 +76,7 @@ type Service struct {
 	MemoryLimit       float64
 	CPUShares         int64
 	PIDFile           string
+	datastore.VersionedEntity
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
@@ -132,7 +134,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
 	if sd.Instances.Default != 0 {
-		svc.Instances = sd.Instances.Default	
+		svc.Instances = sd.Instances.Default
 	} else {
 		svc.Instances = sd.Instances.Min
 	}

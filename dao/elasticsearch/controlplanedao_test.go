@@ -25,6 +25,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -53,6 +54,7 @@ var unused int
 var unusedStr string
 var id string
 var addresses []string
+var version datastore.VersionedEntity
 
 var err error
 
@@ -620,7 +622,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	t.Assert(err, IsNil)
 
 	//test for bad service id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint, version}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || "No such entity {kind:service, id:blamsvc}" != err.Error() {
@@ -628,7 +630,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	//test for bad endpoint id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam", version}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
@@ -636,7 +638,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// Valid assignment
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err != nil {
@@ -645,7 +647,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// try to reassign; should fail
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
 	other_aid := ""
 	err = dt.Dao.AssignAddress(aa, &other_aid)
 	if err == nil || "Address Assignment already exists" != err.Error() {

@@ -37,8 +37,12 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	} else if err == nil {
 		return fmt.Errorf("error adding service; %v already exists", svc.ID)
 	}
+	// Strip the database version; we already know this is a create
+	svc.DatabaseVersion = 0
 
+	// Save a copy for checking configs later
 	svcCopy := svc
+
 	err = store.Put(ctx, &svc)
 	if err != nil {
 		glog.V(2).Infof("Facade.AddService: %+v", err)
@@ -46,7 +50,20 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 	glog.V(2).Infof("Facade.AddService: id %+v", svc.ID)
 
-	if svcCopy.OriginalConfigs != nil && !reflect.DeepEqual(svcCopy.OriginalConfigs, svc.ConfigFiles) {
+	// Compare the incoming config files to see if there are modifications from
+	// the original. If there are, we need to perform an update to add those
+	// modifications to the service.
+	if svcCopy.OriginalConfigs != nil && !reflect.DeepEqual(svcCopy.OriginalConfigs, svcCopy.ConfigFiles) {
+		// Get the current service in order to get the database version. We
+		// don't save this because it won't have any of the updated config
+		// files, among other things.
+		cursvc, err := store.Get(ctx, svc.ID)
+		if err != nil {
+			glog.V(2).Infof("Facade.AddService: %+v", err)
+			return err
+		}
+		svcCopy.DatabaseVersion = cursvc.DatabaseVersion
+
 		for key, _ := range svcCopy.OriginalConfigs {
 			glog.V(2).Infof("Facade.AddService: calling updateService for %s due to OriginalConfigs of %+v", svc.Name, key)
 		}
