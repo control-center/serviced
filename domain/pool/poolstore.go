@@ -14,9 +14,13 @@
 package pool
 
 import (
+	"errors"
+	"fmt"
+	"strings"
+
+	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/datastore"
 )
 
 //NewStore creates a ResourcePool store
@@ -32,19 +36,34 @@ type Store struct {
 //GetResourcePools Get a list of all the resource pools
 func (ps *Store) GetResourcePools(ctx datastore.Context) ([]*ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePools")
-	q := datastore.NewQuery(ctx)
-	query := search.Query().Search("_exists_:ID")
-	search := search.Search("controlplane").Type(kind).Query(query)
-	results, err := q.Execute(search)
-	if err != nil {
-		return nil, err
+	return query(ctx, "_exists_:ID")
+}
+
+// GetResourcePoolsByRealm gets a list of resource pools for a given realm
+func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]*ResourcePool, error) {
+	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
+	id := strings.TrimSpace(realm)
+	if id == "" {
+		return nil, errors.New("empty realm not allowed")
 	}
-	return convert(results)
+	queryString := fmt.Sprintf("Realm:%s", id)
+	return query(ctx, queryString)
 }
 
 //Key creates a Key suitable for getting, putting and deleting ResourcePools
 func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
+}
+
+func query(ctx datastore.Context, query string) ([]*ResourcePool, error) {
+	q := datastore.NewQuery(ctx)
+	elasticQuery := search.Query().Search(query)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 func convert(results datastore.Results) ([]*ResourcePool, error) {

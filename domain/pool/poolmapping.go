@@ -14,8 +14,8 @@
 package pool
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/zenoss/glog"
 )
 
 var (
@@ -24,6 +24,7 @@ var (
     "resourcepool": {
       "properties":{
         "ID" :          {"type": "string", "index":"not_analyzed"},
+        "Realm":        {"type": "string", "index":"not_analyzed"},
         "Description" : {"type": "string", "index":"not_analyzed"},
         "ParentID":     {"type": "string", "index":"not_analyzed"},
         "CoreLimit":    {"type": "long", "index":"not_analyzed"},
