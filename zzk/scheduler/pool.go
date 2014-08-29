@@ -18,6 +18,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/zzk"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -41,7 +42,7 @@ func (node *PoolNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *PoolNode) Create(conn client.Connection) error {
-	return AddResourcePool(conn, node.ID)
+	return AddResourcePool(conn, node.ResourcePool)
 }
 
 // Update implements zzk.Node
@@ -49,7 +50,10 @@ func (node *PoolNode) Update(conn client.Connection) error {
 	return nil
 }
 
-func (node *PoolNode) Version() interface{}           { return node.version }
+// Version implements client.Node
+func (node *PoolNode) Version() interface{} { return node.version }
+
+// SetVersion implements client.Node
 func (node *PoolNode) SetVersion(version interface{}) { node.version = version }
 
 func SyncResourcePools(conn client.Connection, pools []*pool.ResourcePool) error {
@@ -60,10 +64,46 @@ func SyncResourcePools(conn client.Connection, pools []*pool.ResourcePool) error
 	return zzk.Sync(conn, nodes, poolpath())
 }
 
-func AddResourcePool(conn client.Connection, poolID string) error {
-	return conn.CreateDir(poolpath(poolID))
+func AddResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
+	var node PoolNode
+	if err := conn.Create(poolpath(pool.ID), &node); err != nil {
+		return err
+	}
+	node.ResourcePool = pool
+	return conn.Set(poolpath(pool.ID), &node)
+}
+
+func UpdateResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
+	var node PoolNode
+	if err := conn.Get(poolpath(pool.ID), &node); err != nil {
+		return err
+	}
+	node.ResourcePool = pool
+	return conn.Set(poolpath(pool.ID), &node)
 }
 
 func RemoveResourcePool(conn client.Connection, poolID string) error {
 	return conn.Delete(poolpath(poolID))
+}
+
+func MonitorResourcePool(shutdown <-chan interface{}, conn client.Connection, poolID string) <-chan *pool.ResourcePool {
+	monitor := make(chan *pool.ResourcePool)
+	go func() {
+		defer close(monitor)
+		for {
+			var node PoolNode
+			event, err := conn.GetW(poolpath(poolID), &node)
+			if err != nil {
+				glog.V(2).Infof("Could not get pool %s: %s", poolID, err)
+				return
+			}
+			monitor <- node.ResourcePool
+			select {
+			case <-event:
+			case <-shutdown:
+				return
+			}
+		}
+	}()
+	return monitor
 }

@@ -128,7 +128,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	dt.FacadeTest.SetUpTest(c)
 	//DAO tests expect default pool and system user
 
-	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
+	if _, err := dt.Facade.CreateDefaultPool(dt.CTX, "default"); err != nil {
 		c.Fatalf("could not create default pool:", err)
 	}
 

@@ -14,8 +14,8 @@
 package pool
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/validation"
+	"github.com/zenoss/glog"
 
 	"strings"
 )
@@ -28,6 +28,10 @@ func (p *ResourcePool) ValidEntity() error {
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("Pool.ID", p.ID))
 	violations.Add(validation.StringsEqual(p.ID, trimmedID, "leading and trailing spaces not allowed for pool id"))
+
+	trimmedRealm := strings.TrimSpace(p.Realm)
+	violations.Add(validation.NotEmpty("Pool.Realm", p.Realm))
+	violations.Add(validation.StringsEqual(p.Realm, trimmedRealm, "leading and trailing spaces not allowed for pool realm"))
 
 	if len(violations.Errors) > 0 {
 		return violations

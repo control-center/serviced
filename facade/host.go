@@ -20,7 +20,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -80,7 +79,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
 	}
 
-	if err = zkAPI(f).RegisterHost(entity); err != nil {
+	if err = zkAPI(f).AddHost(entity); err != nil {
 		return err
 	}
 
@@ -146,7 +145,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	}
 
 	//remove host from zookeeper
-	if err = zkAPI(f).UnregisterHost(_host); err != nil {
+	if err = zkAPI(f).RemoveHost(_host); err != nil {
 		return err
 	}
 
@@ -199,8 +198,8 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 		return nil, err
 	}
 	for _, p := range pools {
-		active, err := zkservice.GetPoolActiveHostIDs(p.ID)
-		if err != nil {
+		var active []string
+		if err := zkAPI(f).GetActiveHosts(p.ID, &active); err != nil {
 			glog.Errorf("Could not get active host ids for pool: %v", err)
 			return nil, err
 		}
