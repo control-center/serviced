@@ -77,6 +77,7 @@ type daemon struct {
 	dsContext        datastore.Context
 	facade           *facade.Facade
 	hostID           string
+	realm            string
 	zClient          *coordclient.Client
 	storageHandler   *storage.Server
 	masterPoolID     string
@@ -232,7 +233,7 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("failed create a new coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	d.facade = d.initFacade()
 
@@ -240,7 +241,19 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.facade.CreateDefaultPool(d.dsContext); err != nil {
+	agentIP := options.OutboundIP
+	if agentIP == "" {
+		var err error
+		if agentIP, err = utils.GetIPAddress(); err != nil {
+			glog.Fatalf("Failed to acquire ip address: %s", err)
+		}
+	}
+	thisHost, err := host.Build(agentIP, d.masterPoolID)
+	if err != nil {
+		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		return err
+	}
+	if d.realm, err = d.facade.CreateDefaultPool(d.dsContext, thisHost.PoolID); err != nil {
 		return err
 	}
 
@@ -252,22 +265,7 @@ func (d *daemon) startMaster() error {
 	d.startScheduler()
 	d.addTemplates()
 
-	agentIP := options.OutboundIP
-	if agentIP == "" {
-		var err error
-		agentIP, err = utils.GetIPAddress()
-		if err != nil {
-			glog.Fatalf("Failed to acquire ip address: %s", err)
-		}
-	}
-
 	// This is storage related
-	thisHost, err := host.Build(agentIP, d.masterPoolID)
-	if err != nil {
-		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
-		return err
-	}
-
 	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
 		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
 		return err
@@ -412,9 +410,9 @@ func (d *daemon) startAgent() error {
 		if err != nil {
 			glog.Errorf("failed create a new coordclient: %v", err)
 		}
-		zzk.InitializeGlobalCoordClient(zClient)
+		zzk.InitializeLocalClient(zClient)
 
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
@@ -626,7 +624,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
+		sched, err := scheduler.NewScheduler(d.realm, d.hostID, d.cpDao, d.facade)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return

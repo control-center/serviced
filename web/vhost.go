@@ -168,7 +168,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 	glog.Info("watchVhosts starting")
 
 	// vhosts are at the root level (not pool aware)
-	poolBasedConn, err := zzk.GetBasePathConnection("/")
+	poolBasedConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
 		return err

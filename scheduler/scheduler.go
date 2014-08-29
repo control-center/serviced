@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// C/opyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -33,8 +33,8 @@ type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlan
 type scheduler struct {
 	sync.Mutex                    // only one process can stop and start the scheduler at a time
 	cpDao        dao.ControlPlane // ControlPlane interface
-	cluster_path string           // path to the cluster node
-	instance_id  string           // unique id for this node instance
+	realm        string           // realm where this master governs
+	hostID       string           // unique id for this node instance
 	shutdown     chan interface{} // Shuts down all the pools
 	started      bool             // is the loop running
 	zkleaderFunc leaderFunc       // multiple implementations of leader function possible
@@ -46,11 +46,11 @@ type scheduler struct {
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(cluster_path string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
+func NewScheduler(realm string, hostID string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:        cpDao,
-		cluster_path: cluster_path,
-		instance_id:  instance_id,
+		realm:        realm,
+		hostID:       hostID,
 		shutdown:     make(chan interface{}),
 		stopped:      make(chan interface{}),
 		zkleaderFunc: Lead, // random scheduler implementation
@@ -105,7 +105,7 @@ func (s *scheduler) Start() {
 // mainloop acquires the leader lock and initializes the listener
 func (s *scheduler) mainloop() {
 	// become the leader
-	leader := zzk.NewHostLeader(s.conn, s.instance_id, "/scheduler")
+	leader := zzk.NewHostLeader(s.conn, s.hostID, "/scheduler/"+s.realm)
 	event, err := leader.TakeLead()
 	if err != nil {
 		glog.Errorf("Could not become the leader: %s", err)
@@ -147,6 +147,12 @@ func (s *scheduler) mainloop() {
 	<-stopped
 }
 
+func (s *scheduler) localsync() {
+}
+
+func (s *scheduler) remotesync() {
+}
+
 // Stop stops all scheduler processes for the master
 func (s *scheduler) Stop() {
 	s.Lock()
@@ -181,6 +187,22 @@ func (s *scheduler) Done() {
 
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
+	// is this pool in my realm?
+	if pool, err := s.facade.GetResourcePool(datastore.Get(), poolID); err != nil {
+		glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
+		return
+	} else if pool == nil {
+		glog.Errorf("Pool %s not found: %s", poolID, err)
+		return
+	} else if pool.Realm != s.realm {
+		// pool is not in my realm, so just wait for shutdown
+		// NOTE: if a pool's realm changes, the server(s) involved must be bounced
+		// to observe the change
+		glog.V(2).Infof("Pool %s is not in my realm; waiting for shutdown")
+		<-shutdown
+		return
+	}
+
 	// acquire a pool-based connection
 	connc := connectZK(zzk.GeneratePoolPath(poolID))
 	var conn coordclient.Connection
@@ -203,7 +225,7 @@ func connectZK(path string) <-chan coordclient.Connection {
 
 	go func() {
 		for {
-			c, err := zzk.GetBasePathConnection(path)
+			c, err := zzk.GetLocalConnection(path)
 			if err != nil {
 				glog.Errorf("Could not acquire connection to %s: %s", path, err)
 				close(connc)

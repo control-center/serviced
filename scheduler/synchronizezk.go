@@ -50,7 +50,7 @@ func (s *Synchronizer) syncPools() error {
 	}
 
 	// retrieve the pools found in zookeeper
-	rootConn, err := zzk.GetBasePathConnection("/")
+	rootConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("could not get root zk connection: %v", err)
 		return err
@@ -88,7 +88,7 @@ func (s *Synchronizer) syncServices() error {
 
 	// sync services by PoolID
 	for poolID, services := range servicesMap {
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("could not get pool based zk connection to %v: %v", poolID, err)
 			return err
@@ -132,7 +132,7 @@ func (s *Synchronizer) syncHosts() error {
 
 	// sync hosts by PoolID
 	for poolID, hosts := range hostsMap {
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("could not get pool based zk connection to %v: %v", poolID, err)
 			return err
@@ -155,7 +155,7 @@ func (s *Synchronizer) syncVirtualIPs() error {
 	}
 
 	for _, aPool := range allPools {
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(aPool.ID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(aPool.ID))
 		if err != nil {
 			glog.Errorf("Could not get pool based zk connection to %v: %v", aPool.ID, err)
 			return err

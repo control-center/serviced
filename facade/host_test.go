@@ -45,6 +45,7 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 
 	//create pool for test
 	rp := pool.New(poolid)
+	rp.Realm = "default"
 	if err := s.Facade.AddResourcePool(s.CTX, rp); err != nil {
 		t.Fatalf("Could not add pool for test: %v", err)
 	}

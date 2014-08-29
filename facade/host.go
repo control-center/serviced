@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,17 +14,17 @@
 package facade
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
-	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/zenoss/glog"
 
-	"fmt"
-	"time"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -38,9 +38,8 @@ const (
 
 //---------------------------------------------------------------------------
 // Host CRUD
-
 // AddHost register a host with serviced. Returns an error if host already exists
-func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
+func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) (err error) {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	exists, err := f.GetHost(ctx, entity.ID)
 	if err != nil {
@@ -49,19 +48,16 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	if exists != nil {
 		return fmt.Errorf("host already exists: %s", entity.ID)
 	}
-
 	// only allow hostid of master if SERVICED_REGISTRY is false
 	if !docker.UseRegistry() {
 		masterHostID, err := utils.HostID()
 		if err != nil {
 			return fmt.Errorf("unable to retrieve hostid %s: %s", entity.ID, err)
 		}
-
 		if entity.ID != masterHostID {
 			return fmt.Errorf("SERVICED_REGISTRY is false and hostid %s does not match master %s", entity.ID, masterHostID)
 		}
 	}
-
 	// validate Pool exists
 	pool, err := f.GetResourcePool(ctx, entity.PoolID)
 	if err != nil {
@@ -72,41 +68,53 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	}
 
 	ec := newEventCtx()
-	err = f.beforeEvent(beforeHostAdd, ec, entity)
-	if err == nil {
-		now := time.Now()
-		entity.CreatedAt = now
-		entity.UpdatedAt = now
-		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
-	}
+	defer f.afterEvent(afterHostAdd, ec, entity, err)
 
-	if err = zkAPI(f).RegisterHost(entity); err != nil {
+	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
 		return err
 	}
 
-	defer f.afterEvent(afterHostAdd, ec, entity, err)
-	return err
+	now := time.Now()
+	entity.CreatedAt = now
+	entity.UpdatedAt = now
+	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).AddHost(entity); err != nil {
+		return err
+	}
 
+	return nil
 }
 
 // UpdateHost information for a registered host
-func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
+func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) (err error) {
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
 	//TODO: make sure pool exists
 	ec := newEventCtx()
-	err := f.beforeEvent(beforeHostAdd, ec, entity)
-	if err == nil {
-		now := time.Now()
-		entity.UpdatedAt = now
-		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
-	}
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
-	return err
+
+	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
+		return err
+	}
+
+	entity.UpdatedAt = time.Now()
+	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).UpdateHost(entity); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // RemoveHost removes a Host from serviced
 func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	glog.V(2).Infof("Facade.RemoveHost: %s", hostID)
+	ec := newEventCtx()
+	defer f.afterEvent(afterHostDelete, ec, hostID, err)
+	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
+		return err
+	}
 
 	//assert valid host
 	var _host *host.Host
@@ -139,14 +147,8 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		}
 	}
 
-	ec := newEventCtx()
-	defer f.afterEvent(afterHostDelete, ec, hostID, err)
-	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
-		return err
-	}
-
 	//remove host from zookeeper
-	if err = zkAPI(f).UnregisterHost(_host); err != nil {
+	if err = zkAPI(f).RemoveHost(_host); err != nil {
 		return err
 	}
 
@@ -173,7 +175,6 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 // GetHost gets a host by id. Returns nil if host not found
 func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, error) {
 	glog.V(2).Infof("Facade.GetHost: id=%s", hostID)
-
 	var value host.Host
 	err := f.hostStore.Get(ctx, host.HostKey(hostID), &value)
 	glog.V(4).Infof("Facade.GetHost: get error %v", err)
@@ -190,7 +191,6 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 func (f *Facade) GetHosts(ctx datastore.Context) ([]*host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
 }
-
 func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	hostids := []string{}
 	pools, err := f.GetResourcePools(ctx)
@@ -199,7 +199,7 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 		return nil, err
 	}
 	for _, p := range pools {
-		active, err := zkservice.GetPoolActiveHostIDs(p.ID)
+		active, err := zkAPI(f).GetActiveHosts(p.ID)
 		if err != nil {
 			glog.Errorf("Could not get active host ids for pool: %v", err)
 			return nil, err

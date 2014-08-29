@@ -55,6 +55,7 @@ func (s *S) Test_PoolCRUD(t *C) {
 		t.Errorf("Expected ErrNoSuchEntity, got: %v", err)
 	}
 
+	pool.Realm = "test_realm"
 	err := s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected failure creating pool %-v", pool)
@@ -93,6 +94,7 @@ func (s *S) Test_GetPools(t *C) {
 	}
 
 	pool := New("Test_GetPools1")
+	pool.Realm = "test_realm"
 	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
