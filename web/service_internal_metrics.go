@@ -97,6 +97,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			Description: "% CPU Used Over Last Hour",
 			MinY:        &zero,
 			Range:       &tRange,
+			Units:       "Time",
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
@@ -145,6 +146,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			Description: "Memory Used Over Last Hour",
 			MinY:        &zero,
 			Range:       &tRange,
+			Units:       "Bytes",
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
@@ -188,6 +190,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			YAxisLabel:  "Bps",
 			Range:       &tRange,
 			Description: "Bytes per second over last hour",
+			Units:       "Bytes per second",
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
