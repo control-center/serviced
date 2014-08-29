@@ -19,20 +19,12 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/host"
-	"github.com/control-center/serviced/domain/pool"
+
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/zzk"
-	zkregistry "github.com/control-center/serviced/zzk/registry"
-	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
-	zkservice "github.com/control-center/serviced/zzk/service"
-	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 )
-
-var zkAPI func(f *Facade) zkfuncs = getZKAPI
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
@@ -62,7 +54,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 
 	glog.V(2).Infof("Facade.AddService: calling zk.updateService for %s %d ConfigFiles", svc.Name, len(svc.ConfigFiles))
-	return zkAPI(f).updateService(&svc)
+	return zkAPI(f).UpdateService(&svc)
 }
 
 //
@@ -91,7 +83,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
 
 	err := f.walkServices(ctx, id, func(svc *service.Service) error {
-		zkAPI(f).removeService(svc)
+		zkAPI(f).RemoveService(svc)
 		return nil
 	})
 
@@ -137,6 +129,21 @@ func (f *Facade) GetServices(ctx datastore.Context) ([]*service.Service, error) 
 	results, err := store.GetServices(ctx)
 	if err != nil {
 		glog.Error("Facade.GetServices: err=", err)
+		return results, err
+	}
+	if err = f.fillOutServices(ctx, results); err != nil {
+		return results, err
+	}
+	return results, nil
+}
+
+// GetServicesByPool looks up all services in a particular pool
+func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]*service.Service, error) {
+	glog.V(3).Infof("Facade.GetServicesByPool")
+	store := f.serviceStore
+	results, err := store.GetServicesByPool(ctx, poolID)
+	if err != nil {
+		glog.Error("Facade.GetServicesByPool: err=", err)
 		return results, err
 	}
 	if err = f.fillOutServices(ctx, results); err != nil {
@@ -206,7 +213,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 		//build 'OR' query to grab all service states with in "service" tree
 		relatedServiceIDs := walkTree(topService)
 		var states []*servicestate.ServiceState
-		err = zkAPI(f).getSvcStates(myService.PoolID, &states, relatedServiceIDs...)
+		err = zkAPI(f).GetServiceStates(myService.PoolID, &states, relatedServiceIDs...)
 		if err != nil {
 			return result, err
 		}
@@ -815,162 +822,12 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	// Remove the service from zookeeper if the pool ID has changed
 	err = nil
 	if oldSvc.PoolID != svc.PoolID {
-		err = zkAPI(f).removeService(oldSvc)
+		err = zkAPI(f).RemoveService(oldSvc)
 	}
 	if err == nil {
-		err = zkAPI(f).updateService(svc)
+		err = zkAPI(f).UpdateService(svc)
 	}
 	return err
-}
-
-func getZKAPI(f *Facade) zkfuncs {
-	return &zkf{f}
-}
-
-type zkfuncs interface {
-	updateService(svc *service.Service) error
-	removeService(svc *service.Service) error
-	getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error
-	RegisterHost(h *host.Host) error
-	UnregisterHost(h *host.Host) error
-	AddVirtualIP(vip *pool.VirtualIP) error
-	RemoveVirtualIP(vip *pool.VirtualIP) error
-	AddResourcePool(poolID string) error
-	RemoveResourcePool(poolID string) error
-	CheckRunningVHost(vhostName, serviceID string) error
-}
-
-type zkf struct {
-	f *Facade
-}
-
-func (z *zkf) updateService(svc *service.Service) error {
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
-		return err
-	}
-	return zkservice.UpdateService(poolBasedConn, svc)
-}
-
-func (z *zkf) removeService(svc *service.Service) error {
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", svc.PoolID, err)
-		return err
-	}
-
-	var (
-		cancel = make(chan interface{})
-		done   = make(chan interface{})
-	)
-
-	go func() {
-		defer close(done)
-		err = zkservice.RemoveService(cancel, poolBasedConn, svc.ID)
-	}()
-
-	go func() {
-		defer close(cancel)
-		<-time.After(30 * time.Second)
-	}()
-
-	<-done
-	return err
-}
-
-func (z *zkf) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIDs ...string) error {
-	poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
-		return err
-	}
-	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceIDs...)
-	return err
-}
-
-func (z *zkf) RegisterHost(h *host.Host) error {
-	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(h.PoolID))
-	if err != nil {
-		return err
-	}
-
-	return zkservice.RegisterHost(poolBasedConnection, h.ID)
-}
-
-func (z *zkf) UnregisterHost(h *host.Host) error {
-	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(h.PoolID))
-	if err != nil {
-		return err
-	}
-	return zkservice.UnregisterHost(poolBasedConnection, h.ID)
-}
-
-func (z *zkf) AddVirtualIP(vip *pool.VirtualIP) error {
-	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(vip.PoolID))
-	if err != nil {
-		return err
-	}
-	return zkvirtualip.AddVirtualIP(poolBasedConnection, vip)
-}
-
-func (z *zkf) RemoveVirtualIP(vip *pool.VirtualIP) error {
-	poolBasedConnection, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(vip.PoolID))
-	if err != nil {
-		return err
-	}
-	return zkvirtualip.RemoveVirtualIP(poolBasedConnection, vip.IP)
-}
-
-func (z *zkf) AddResourcePool(poolID string) error {
-	rootBasedConnection, err := zzk.GetBasePathConnection("/")
-	if err != nil {
-		return err
-	}
-	return zkscheduler.AddResourcePool(rootBasedConnection, poolID)
-}
-
-func (z *zkf) RemoveResourcePool(poolID string) error {
-	rootBasedConnection, err := zzk.GetBasePathConnection("/")
-	if err != nil {
-		return err
-	}
-	return zkscheduler.RemoveResourcePool(rootBasedConnection, poolID)
-}
-
-func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
-	rootBasedConnection, err := zzk.GetBasePathConnection("/")
-	if err != nil {
-		return err
-	}
-
-	vr, err := zkregistry.VHostRegistry(rootBasedConnection)
-	if err != nil {
-		glog.Errorf("Error getting vhost registry: %v", err)
-		return err
-	}
-
-	vhostEphemeralNodes, err := vr.GetVHostKeyChildren(rootBasedConnection, vhostName)
-	if err != nil {
-		glog.Errorf("GetVHostKeyChildren failed %v: %v", vhostName, err)
-		return err
-	}
-	if len(vhostEphemeralNodes) == 0 {
-		glog.Warningf("Currently, there are no ephemeral nodes for vhost: %v", vhostName)
-		return nil
-	} else if len(vhostEphemeralNodes) > 1 {
-		return fmt.Errorf("There is more than one ephemeral node for vhost: %v", vhostName)
-	}
-
-	for _, vhostEphemeralNode := range vhostEphemeralNodes {
-		if vhostEphemeralNode.ServiceID == serviceID {
-			glog.Infof("validated: vhost %v is already running under THIS servicedID: %v", vhostName, serviceID)
-			return nil
-		}
-		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID")
-	}
-
-	return nil
 }
 
 func lookUpTenant(svcID string) (string, bool) {

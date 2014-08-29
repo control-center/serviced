@@ -189,24 +189,20 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	}
 }
 
-func GetPoolActiveHostIDs(poolID string) ([]string, error) {
-	hostids := []string{}
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		return nil, err
-	}
+func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
 	ehosts, err := conn.Children(hostregpath())
 	if err != nil {
 		return nil, err
 	}
+	hostIDs := make([]string, len(ehosts))
 	for _, ehostID := range ehosts {
 		var ehost host.Host
 		if err := conn.Get(hostregpath(ehostID), &HostNode{Host: &ehost}); err != nil {
 			return nil, err
 		}
-		hostids = append(hostids, ehost.ID)
+		hostIDs = append(hostIDs, ehost.ID)
 	}
-	return hostids, nil
+	return hostIDs, nil
 }
 
 func SyncHosts(conn client.Connection, hosts []*host.Host) error {

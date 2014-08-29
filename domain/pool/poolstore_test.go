@@ -49,6 +49,7 @@ func (s *S) Test_PoolCRUD(t *C) {
 	defer s.ps.Delete(s.ctx, Key("testid"))
 
 	pool := New("testID")
+	pool.Realm = "default"
 	pool2 := ResourcePool{}
 
 	if err := s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err) {
