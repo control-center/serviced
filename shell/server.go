@@ -379,6 +379,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		"service",
 		"proxy",
 		"--autorestart=false",
+		"--disable-metric-forwarding",
 		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
 		fmt.Sprintf("--logstash-idle-flush-time=%s", cfg.LogStash.IdleFlushTime),
 		fmt.Sprintf("--logstash-settle-time=%s", cfg.LogStash.SettleTime),

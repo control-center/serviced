@@ -88,6 +88,7 @@ type ControllerOptions struct {
 		RemoteEndoint string // The url to forward metric queries
 	}
 	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
+	MetricForwarding	bool // Whether or not the Controller should forward metrics
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -340,6 +341,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	metricRedirect := options.Metric.RemoteEndoint
 	if len(metricRedirect) == 0 {
 		glog.V(1).Infof("container.Controller does not have metric forwarding")
+	} else if ! options.MetricForwarding {
+		glog.V(1).Infof("Not forwarding metrics for this container (%v)", c.tenantID)
 	} else {
 		if len(c.tenantID) <= 0 {
 			return nil, ErrInvalidTenantID
