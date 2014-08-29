@@ -93,6 +93,7 @@ func (s *S) Test_GetPools(t *C) {
 	}
 
 	pool := New("Test_GetPools1")
+	pool.Realm = "test_realm1"
 	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -104,7 +105,8 @@ func (s *S) Test_GetPools(t *C) {
 		t.Errorf("Expected %v results, got %v :%v", 1, len(pools), pools)
 	}
 
-	pool.ID = "Test_GetHosts2"
+	pool.ID = "Test_GetPools2"
+	pool.Realm = "test_realm2"
 	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -117,4 +119,31 @@ func (s *S) Test_GetPools(t *C) {
 		t.Errorf("Expected %v results, got %v :%v", 2, len(pools), pools)
 	}
 
+	pool.ID = "Test_GetPools3"
+	pool.Realm = "test_realm2"
+	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+
+	pools, err = s.ps.GetResourcePoolsByRealm(s.ctx, "test_realm0")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(pools) != 0 {
+		t.Errorf("Expected %v results, got %v: %#v", 0, len(pools), pools)
+	}
+
+	pools, err = s.ps.GetResourcePoolsByRealm(s.ctx, "test_realm1")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(pools) != 1 {
+		t.Errorf("Expected %v results, got %v: %#v", 1, len(pools), pools)
+	}
+
+	pools, err = s.ps.GetResourcePoolsByRealm(s.ctx, "test_realm2")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if len(pools) != 2 {
+		t.Errorf("Expected %v results, got %v: %#v", 2, len(pools), pools)
+	}
 }
