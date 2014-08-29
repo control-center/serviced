@@ -68,6 +68,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
 					DownSample: "1m-avg",
+          Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "system",
@@ -107,6 +108,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
 					DownSample: "1m-avg",
+          Units:      "Bytes",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -163,6 +165,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
 					DownSample: "1m-avg",
+          Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "system",
@@ -202,6 +205,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
 					DownSample: "1m-avg",
+          Units:      "Bytes",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -258,6 +262,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
 					DownSample: "1m-avg",
+          Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "system",
@@ -297,6 +302,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
 					DownSample: "1m-avg",
+          Units:      "Bytes",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -353,6 +359,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
 					DownSample: "1m-avg",
+          Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "system",
@@ -392,6 +399,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
 					DownSample: "1m-avg",
+          Units:      "Bytes",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -448,6 +456,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
 					DownSample: "1m-avg",
+          Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "system",
@@ -487,6 +496,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
 					DownSample: "1m-avg",
+          Units:      "Bytes",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -543,6 +553,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
 					DownSample: "1m-avg",
+          Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "system",
@@ -582,6 +593,7 @@ func init() {
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
 					DownSample: "1m-avg",
+          Units:      "Bytes",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
