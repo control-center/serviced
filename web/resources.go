@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
@@ -672,14 +673,14 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	}
 
 	dir := home + "/backup"
-	filepath := ""
-	err := client.AsyncBackup(dir, &filepath)
+	filePath := ""
+	err := client.AsyncBackup(dir, &filePath)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
 		restServerError(w, err)
 		return
 	}
-	w.WriteJson(&simpleResponse{filepath, servicesLinks()})
+	w.WriteJson(&simpleResponse{filePath, servicesLinks()})
 }
 
 func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -690,16 +691,16 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	}
 
 	err := r.ParseForm()
-	filepath := r.FormValue("filename")
+	filePath := r.FormValue("filename")
 
-	if err != nil || filepath == "" {
+	if err != nil || filePath == "" {
 		restBadRequest(w, err)
 		return
 	}
 
 	unused := 0
 
-	err = client.AsyncRestore(home+"/backup/"+filepath, &unused)
+	err = client.AsyncRestore(home+"/backup/"+filePath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		restServerError(w, err)
@@ -708,12 +709,15 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
 }
 
+// RestBackupFileList implements a rest call that will return a list of the current backup files.
+// The return value is a JSON struct of type JsonizableFileInfo.
 func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	type JsonizableFileInfo struct {
-		Name    string      `json:"name"`
-		Size    int64       `json:"size"`
-		Mode    os.FileMode `json:"mode"`
-		ModTime time.Time   `json:"mod_time"`
+		FullPath string      `json:"full_path"`
+		Name     string      `json:"name"`
+		Size     int64       `json:"size"`
+		Mode     os.FileMode `json:"mode"`
+		ModTime  time.Time   `json:"mod_time"`
 	}
 
 	fileData := []JsonizableFileInfo{}
@@ -722,11 +726,20 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
 		home = "/tmp"
 	}
-	backupFiles, _ := ioutil.ReadDir(home + "/backup")
+	backupDir := home + "/backup"
+	backupFiles, _ := ioutil.ReadDir(backupDir)
+
+	hostIP, err := utils.GetIPAddress()
+	if err != nil {
+		glog.Errorf("Unable to get host IP: %v", err)
+		restServerError(w, err)
+		return
+	}
 
 	for _, backupFileInfo := range backupFiles {
 		if !backupFileInfo.IsDir() {
-			fileInfo := JsonizableFileInfo{backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
+			fullPath := hostIP + ":" + filepath.Join(backupDir, backupFileInfo.Name())
+			fileInfo := JsonizableFileInfo{ fullPath, backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
 			fileData = append(fileData, fileInfo)
 		}
 	}
