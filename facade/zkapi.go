@@ -42,6 +42,7 @@ type zkfuncs interface {
 	GetServiceStates(poolID string, states *[]*servicestate.ServiceState, serviceIDs ...string) error
 	CheckRunningVHost(vhostName, serviceID string) error
 	AddHost(host *host.Host) error
+	UpdateHost(host *host.Host) error
 	RemoveHost(host *host.Host) error
 	GetActiveHosts(poolID string, hosts *[]string) error
 	AddResourcePool(pool *pool.ResourcePool) error
@@ -135,7 +136,15 @@ func (z *zkf) AddHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-	return zkhost.RegisterHost(conn, host.ID)
+	return zkhost.AddHost(conn, host)
+}
+
+func (z *zkf) UpdateHost(host *host.Host) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(host.PoolID))
+	if err != nil {
+		return err
+	}
+	return zkhost.UpdateHost(conn, host)
 }
 
 func (z *zkf) RemoveHost(host *host.Host) error {
@@ -143,7 +152,7 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-	return zkhost.UnregisterHost(conn, host.ID)
+	return zkhost.RemoveHost(conn, host.ID)
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {

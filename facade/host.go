@@ -71,35 +71,54 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	}
 
 	ec := newEventCtx()
-	err = f.beforeEvent(beforeHostAdd, ec, entity)
-	if err == nil {
-		now := time.Now()
-		entity.CreatedAt = now
-		entity.UpdatedAt = now
-		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
-	}
-
-	if err = zkAPI(f).AddHost(entity); err != nil {
+	err = nil
+	defer f.afterEvent(afterHostAdd, ec, entity, err)
+	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
 		return err
 	}
 
-	defer f.afterEvent(afterHostAdd, ec, entity, err)
-	return err
+	now := time.Now()
+	entity.CreatedAt = now
+	entity.UpdatedAt = now
 
+	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+		return err
+	}
+	err = zkAPI(f).AddHost(entity)
+	return err
 }
 
 // UpdateHost information for a registered host
 func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.UpdateHost: %+v", entity)
-	//TODO: make sure pool exists
-	ec := newEventCtx()
-	err := f.beforeEvent(beforeHostAdd, ec, entity)
-	if err == nil {
-		now := time.Now()
-		entity.UpdatedAt = now
-		err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity)
+	// validate the host exists
+	if host, err := f.GetHost(ctx, entity.ID); err != nil {
+		return err
+	} else if host == nil {
+		return fmt.Errorf("host does not exist: %s", entity.ID)
 	}
+
+	// validate the pool exists
+	if pool, err := f.GetResourcePool(ctx, entity.PoolID); err != nil {
+		return err
+	} else if pool == nil {
+		return fmt.Errorf("pool does not exist: %s", entity.PoolID)
+	}
+
+	var err error
+	ec := newEventCtx()
 	defer f.afterEvent(afterHostAdd, ec, entity, err)
+
+	if err = f.beforeEvent(beforeHostAdd, ec, entity); err != nil {
+		return err
+	}
+
+	entity.UpdatedAt = time.Now()
+	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
+		return err
+	}
+
+	err = zkAPI(f).UpdateHost(entity)
 	return err
 }
 

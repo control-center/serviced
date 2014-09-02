@@ -81,6 +81,10 @@ func (z *zkMock) AddHost(h *host.Host) error {
 	return nil
 }
 
+func (z *zkMock) UpdateHost(h *host.Host) error {
+	return nil
+}
+
 func (z *zkMock) RemoveHost(h *host.Host) error {
 	return nil
 }
