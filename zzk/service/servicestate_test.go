@@ -19,6 +19,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 )
@@ -36,7 +37,7 @@ func TestGetServiceStatus(t *testing.T) {
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not add service %s: %s", svc.ID, err)
 	}
-	if err := RegisterHost(conn, "test-host-1"); err != nil {
+	if err := AddHost(conn, &host.Host{ID: "test-host-1"}); err != nil {
 		t.Fatalf("Could not register host: %s", err)
 	}
 

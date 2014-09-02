@@ -61,7 +61,7 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	hosts := make(map[string]*host.Host)
 	for i := 0; i < numHosts; i++ {
 		host := &host.Host{ID: fmt.Sprintf("test-host-%d", i)}
-		if err := RegisterHost(conn, host.ID); err != nil {
+		if err := AddHost(conn, host); err != nil {
 			t.Fatalf("Could not register host %s: %s", host.ID, err)
 		}
 		ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
@@ -150,7 +150,7 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 
 	// Register the host
 	host := &host.Host{ID: "test-host-1"}
-	if err := RegisterHost(conn, host.ID); err != nil {
+	if err := AddHost(conn, host); err != nil {
 		t.Fatalf("Could not register host %s: %s", host.ID, err)
 	}
 
