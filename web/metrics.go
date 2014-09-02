@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -175,19 +175,6 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Color:        "#729ed7",
-				Fill:         false,
-				Format:       "%6.2f",
-				ID:           "nice",
-				Legend:       "Nice",
-				Metric:       "cpu.nice",
-				MetricSource: "cpu",
-				Name:         "Nice",
-				Rate:         true,
-				Type:         "area",
-			},
-			domain.DataPoint{
-				Aggregator:   "avg",
 				Color:        "#aee8cf",
 				Fill:         false,
 				Format:       "%6.2f",
@@ -201,20 +188,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Color:        "#eaf0f9",
-				Fill:         false,
-				Format:       "%6.2f",
-				ID:           "idle",
-				Legend:       "Idle",
-				Metric:       "cpu.idle",
-				MetricSource: "cpu",
-				Name:         "Idle",
-				Rate:         true,
-				Type:         "area",
-			},
-			domain.DataPoint{
-				Aggregator:   "avg",
-				Color:        "#d7729e",
+				Color:        "#729ed7",
 				Fill:         false,
 				Format:       "%6.2f",
 				ID:           "system",
@@ -222,6 +196,19 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				Metric:       "cpu.system",
 				MetricSource: "cpu",
 				Name:         "System",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Fill:         false,
+				Color:        "#d7729e",
+				Format:       "%6.2f",
+				ID:           "nice",
+				Legend:       "Nice",
+				Metric:       "cpu.nice",
+				MetricSource: "cpu",
+				Name:         "Nice",
 				Rate:         true,
 				Type:         "area",
 			},
