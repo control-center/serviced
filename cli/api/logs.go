@@ -89,6 +89,13 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		}
 	}
 
+	parts := strings.Split(options.LogstashES, ":")
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid logstatsh-es host:port %s", options.LogstashES)
+	}
+	elastigo.Domain = parts[0]
+	elastigo.Port = parts[1]
+
 	query := "*"
 	if len(config.ServiceIDs) > 0 {
 		services, e := a.GetServices()

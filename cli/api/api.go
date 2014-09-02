@@ -62,6 +62,7 @@ type Options struct {
 	MaxDFSTimeout        int    // max timeout for snapshot
 	VirtualAddressSubnet string
 	MasterPoolID         string
+	LogstashES           string //logstatsh elasticsearch host:port
 }
 
 // LoadOptions overwrites the existing server options

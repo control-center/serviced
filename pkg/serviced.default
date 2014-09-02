@@ -68,6 +68,9 @@
 # Set the address to which to send logs
 # export SERVICED_LOG_ADDRESS=$SERVICED_MASTER_IP:5042
 
+# Set the address for the logstash elastic search
+# export SERVICED_LOGSTASH_ES=$SERVICED_MASTER_IP:9100
+
 # Set the default serviced stats endpoint to use
 # export SERVICED_STATS_PORT=$SERVICED_MASTER_IP:8443
 
