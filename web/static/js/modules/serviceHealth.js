@@ -262,7 +262,7 @@
                 tooltipsDetailsHTML;
 
             // remove any existing popover if not currently visible            
-            if(!$el.next('div.popover:visible').length){
+            if($el.popover && !$el.next('div.popover:visible').length){
                 $el.popover('destroy');
             }
 
