@@ -89,7 +89,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalusage",
 			Name:        "CPU Usage",
 			BuiltIn:     true,
-			Format:      "%6.2f",
+			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
@@ -101,7 +101,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "System",
 					Metric:       "cgroup.cpuacct.system",
 					MetricSource: "metrics",
@@ -138,7 +138,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalMemoryUsage",
 			Name:        "Memory Usage",
 			BuiltIn:     true,
-			Format:      "%6.2f",
+			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
@@ -151,7 +151,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				domain.DataPoint{
 					Aggregator:   "avg",
 					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "RSS",
 					Metric:       "cgroup.memory.totalrss",
 					MetricSource: "metrics",
@@ -163,7 +163,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				domain.DataPoint{
 					Aggregator:   "avg",
 					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "Cache",
 					Metric:       "cgroup.memory.cache",
 					MetricSource: "metrics",
@@ -183,7 +183,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalNetworkUsage",
 			Name:        "Network Usage",
 			BuiltIn:     true,
-			Format:      "%6.2f",
+			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
@@ -195,7 +195,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				domain.DataPoint{
 					Aggregator:   "avg",
 					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "TX",
 					Metric:       "net.tx_bytes",
 					MetricSource: "metrics",
@@ -207,7 +207,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				domain.DataPoint{
 					Aggregator:   "avg",
 					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "RX",
 					Metric:       "net.rx_bytes",
 					MetricSource: "metrics",
