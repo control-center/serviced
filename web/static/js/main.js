@@ -76,21 +76,15 @@ controlplane.
     }]).
     config(['DSCacheFactoryProvider', function(DSCacheFactory){
         DSCacheFactory.setCacheDefaults({
-            // Items will be actively deleted when they expire
-            deleteOnExpire: 'aggressive',
+            // Items will not be deleted until they are requested
+            // and have expired
+            deleteOnExpire: 'passive',
 
             // This cache will clear itself every hour
             cacheFlushInterval: 3600000,
 
             // This cache will sync itself with localStorage
-            storageMode: 'memory',
-
-            // This callback is executed when the item specified by "key" expires.
-            // At this point you could retrieve a fresh value for "key"
-            // from the server and re-insert it into the cache.
-            onExpire: function (key, value) {
-                console.log("this guy expired", key, value);
-            }
+            storageMode: 'memory'
          });
     }]).
     /**

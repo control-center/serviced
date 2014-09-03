@@ -13,21 +13,20 @@
         // only 1 healthcheck exists
         capacity: 1,
         // expire every 5 seconds
-        maxAge: 5000,
-        // delete expired stuff on request instead
-        // of aggressively checking for expiration
-        deleteOnExpire: "passive"
+        maxAge: 5000
       });
       
       var runningServicesCache = DSCacheFactory.createCache("runningServicesCache", {
         // store only 10 top level services (still has many children)
         capacity: 10,
         // expire every 5 seconds
-        maxAge: 5000,
-        // delete expired stuff on request instead
-        // of aggressively checking for expiration
-        deleteOnExpire: "passive"
-      }); 
+        maxAge: 5000
+      });
+      
+      var templatesCache = DSCacheFactory.createCache("templatesCache", {
+        capacity: 25,
+        maxAge: 15000
+      });
 
       var cached_pools;
       var cached_hosts_for_pool = {};
@@ -231,16 +230,10 @@
           get_running_services_for_service: function(serviceId, callback) {
 
               var url = '/services/' + serviceId + '/running';
-              
-              if(runningServicesCache.get(serviceId)){
-                console.log("Using cached running services");
-                callback(runningServicesCache.get(serviceId));
-              }
 
-              $http.noCacheGet(url).
+              $http.get(url, { cache: runningServicesCache }).
                 success(function(data, status) {
                     if(DEBUG) console.log('Retrieved running services for %s', serviceId);
-                    runningServicesCache.put(serviceId, data);
                     callback(data);
                 }).
                 error(function(data, status) {
@@ -974,24 +967,17 @@
 
             var url = "/servicehealth";
 
-            if(healthcheckCache.get("healtcheck")){
-              console.log("using cached healthcheck");
-              callback(healthcheckCache.get("healtcheck"));
-
-            } else {
-              $http.noCacheGet(url).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved health checks.');
-                    healthcheckCache.put("healtcheck", data);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    $notification.create("", 'Failed retrieving health checks.').error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-            }
+            $http.get(url, { cache: healthcheckCache }).
+              success(function(data, status) {
+                  if(DEBUG) console.log('Retrieved health checks.');
+                  callback(data);
+              }).
+              error(function(data, status) {
+                  $notification.create("", 'Failed retrieving health checks.').error();
+                  if (status === 401) {
+                      unauthorized($location);
+                  }
+              });
 
             
           },
@@ -1005,7 +991,7 @@
           },
 
           get_active_templates: function(callback){
-            $http.get('/templates/deploy/active').
+            $http.get('/templates/deploy/active', {cache: templatesCache}).
               success(function(data, status) {
                   if(DEBUG) console.log('Retrieved deployed template status.');
                   callback(data);
