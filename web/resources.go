@@ -225,6 +225,18 @@ func getISVCS() []*service.Service {
 	return services
 }
 
+func getIRS() []*dao.RunningService {
+	services := []*dao.RunningService{}
+	services = append(services, &isvcs.InternalServicesIRS)
+	services = append(services, &isvcs.ElasticsearchIRS)
+	services = append(services, &isvcs.ZookeeperIRS)
+	services = append(services, &isvcs.LogstashIRS)
+	services = append(services, &isvcs.OpentsdbIRS)
+	services = append(services, &isvcs.CeleryIRS)
+	services = append(services, &isvcs.DockerRegistryIRS)
+	return services
+}
+
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
@@ -337,6 +349,7 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 		rsvc.MonitoringProfile = svc.MonitoringProfile
 	}
 
+	services = append(services, getIRS()...)
 	glog.V(2).Infof("Return %d running services", len(services))
 	w.WriteJson(&services)
 }

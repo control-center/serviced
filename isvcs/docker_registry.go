@@ -33,7 +33,7 @@ func init() {
 			Name:        "docker-registry",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
-			Command:     func() string {return command},
+			Command:     func() string { return command },
 			Ports:       []int{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
 			HealthCheck: registryHealthCheck,

@@ -103,7 +103,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     };
 
     // given a service application find all of it's virtual host names
-    $scope.collect_vhosts = function( app) {
+    $scope.collect_vhosts = function(app) {
         var vhosts = [];
 	
         if (app.Endpoints) {
@@ -122,7 +122,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     };
 
     // given a vhost, return a url to it
-    $scope.vhost_url = function( vhost) {
+    $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     };
