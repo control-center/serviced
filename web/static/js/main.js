@@ -14,9 +14,10 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
- var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService', 'angular-data.DSCacheFactory']);
 
-    controlplane.config(['$routeProvider', function($routeProvider) {
+controlplane.
+    config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/login', {
                 templateUrl: '/static/partials/login.html',
@@ -72,6 +73,19 @@
             suffix: '.json'
         });
         $translateProvider.preferredLanguage('en_US');
+    }]).
+    config(['DSCacheFactoryProvider', function(DSCacheFactory){
+        DSCacheFactory.setCacheDefaults({
+            // Items will not be deleted until they are requested
+            // and have expired
+            deleteOnExpire: 'passive',
+
+            // This cache will clear itself every hour
+            cacheFlushInterval: 3600000,
+
+            // This cache will sync itself with localStorage
+            storageMode: 'memory'
+         });
     }]).
     /**
      * This is a fix for https://jira.zenoss.com/browse/ZEN-10263
