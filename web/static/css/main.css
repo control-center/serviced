@@ -1096,8 +1096,18 @@ rect {
     margin-right: 7px;
 }
 
+.messageCounter {
+    display: inline-block;
+    width: 25px;
+    text-align: center;
+    background-color: #AAA;
+    color: white;
+    border-radius: 15px;
+    margin-right: 10px;
+}
+
 .readMessage .glyphicon{
-    color: #cccccc;
+    color: #CCC;
 }
 
 .healthIcon {
