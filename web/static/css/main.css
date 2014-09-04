@@ -801,7 +801,7 @@ input.startup {
   position: relative;
   margin: auto;
   top: 40px;
-  color: blue;
+  color: #AAA;
   text-align: center;
   font-size: 18pt;
   font-style: italic;
