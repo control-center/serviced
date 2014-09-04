@@ -399,6 +399,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
               console.log('Updated %s', $scope.services.current.ID);
               var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
               lastCrumb.label = $scope.services.current.Name;
+              refreshServices($scope, resourcesService, false);
           });
         }
     };

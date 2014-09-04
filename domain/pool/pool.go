@@ -14,6 +14,7 @@
 package pool
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 
 	"reflect"
@@ -44,6 +45,7 @@ type ResourcePool struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 	MonitoringProfile domain.MonitorProfile
+	datastore.VersionedEntity
 }
 
 type ByIP []VirtualIP

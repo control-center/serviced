@@ -13,9 +13,7 @@
 
 package datastore
 
-import (
-	"errors"
-)
+import "errors"
 
 // Query is a query used to search for and return entities from a datastore
 type Query interface {
@@ -37,7 +35,7 @@ var ErrNoSuchElement = errors.New("no such element")
 type Results interface {
 	// Next retrieves the next available result into entity and advances the Results to the next available entity.
 	// ErrNoSuchElement is returned if no more results.
-	Next(entity interface{}) error
+	Next(entity ValidEntity) error
 
 	// HasNext returns true if a call to next would yield a value or false if no more entities are available
 	HasNext() bool
@@ -46,7 +44,7 @@ type Results interface {
 	Len() int
 
 	//Len return the length of the results
-	Get(idx int, entity interface{}) error
+	Get(idx int, entity ValidEntity) error
 }
 
 type query struct {
@@ -77,23 +75,29 @@ func (r *results) Len() int {
 	return len(r.data)
 }
 
-func (r *results) Get(idx int, entity interface{}) error {
+func (r *results) Get(idx int, entity ValidEntity) error {
 	if idx >= len(r.data) {
 		return ErrNoSuchElement
 	}
 	v := r.data[idx]
-	err := SafeUnmarshal(v.Bytes(), entity)
-	return err
+	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
+		return err
+	}
+	entity.SetDatabaseVersion(v.Version())
+	return nil
 }
 
-func (r *results) Next(entity interface{}) error {
+func (r *results) Next(entity ValidEntity) error {
 	if !r.HasNext() {
 		return ErrNoSuchElement
 	}
 	v := r.data[r.idx]
 	r.idx = r.idx + 1
-	err := SafeUnmarshal(v.Bytes(), entity)
-	return err
+	if err := SafeUnmarshal(v.Bytes(), entity); err != nil {
+		return err
+	}
+	entity.SetDatabaseVersion(v.Version())
+	return nil
 }
 
 func (r *results) HasNext() bool {

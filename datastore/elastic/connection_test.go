@@ -14,10 +14,10 @@
 package elastic_test
 
 import (
-	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	. "github.com/control-center/serviced/datastore/elastic"
+	"github.com/zenoss/elastigo/search"
+	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 
 	"encoding/json"
@@ -56,7 +56,7 @@ func (s *S) TestPutGetDelete(t *C) {
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJSON, err := json.Marshal(tweet)
-	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, 0))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -110,7 +110,7 @@ func (s *S) TestQuery(t *C) {
 		"message":   "trying out Elasticsearch",
 	}
 	tweetJSON, err := json.Marshal(tweet)
-	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, 0))
 	if err != nil {
 		t.Errorf("%v", err)
 	}
@@ -123,7 +123,7 @@ func (s *S) TestQuery(t *C) {
 		"message":   "trying out Elasticsearch again",
 	}
 	tweetJSON, err = json.Marshal(tweet)
-	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON))
+	err = conn.Put(k, datastore.NewJSONMessage(tweetJSON, 0))
 	if err != nil {
 		t.Errorf("%v", err)
 	}

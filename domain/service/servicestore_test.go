@@ -18,8 +18,9 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"testing"
+
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // This plumbs gocheck into testing
@@ -119,4 +120,30 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 2)
 
+}
+
+func (s *S) Test_VersionConflicts(t *C) {
+	svc := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	err := s.store.Put(s.ctx, svc)
+	t.Assert(err, IsNil)
+
+	svcs, err := s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
+	t.Assert(svcs[0].DatabaseVersion, Equals, 1)
+
+	svc2 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	svc2.DatabaseVersion = 1
+	err = s.store.Put(s.ctx, svc2)
+	t.Assert(err, IsNil)
+
+	svcs, err = s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
+	t.Assert(svcs[0].DatabaseVersion, Equals, 2)
+
+	svc3 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	svc3.DatabaseVersion = 1
+	err = s.store.Put(s.ctx, svc3)
+	t.Assert(err, Not(IsNil))
 }

@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
@@ -30,6 +31,7 @@ type ServiceTemplate struct {
 	Description string                                  // Meaningful description of service
 	Services    []servicedefinition.ServiceDefinition   // Child services
 	ConfigFiles map[string]servicedefinition.ConfigFile // Config file templates
+	datastore.VersionedEntity
 }
 
 // Equals checks the equality of two service templates
@@ -40,7 +42,7 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 	if a.Name != b.Name {
 		return false
 	}
-	if a.Version != b.Version{
+	if a.Version != b.Version {
 		return false
 	}
 	if a.Description != b.Description {
@@ -80,6 +82,7 @@ type serviceTemplateWrapper struct {
 	Data            string // JSON encoded template definition
 	APIVersion      int    // Version of the ServiceTemplate API this expects
 	TemplateVersion int    // Version of the template
+	datastore.VersionedEntity
 }
 
 func newWrapper(st ServiceTemplate) (*serviceTemplateWrapper, error) {
@@ -107,7 +110,7 @@ func BuildFromPath(path string) (*ServiceTemplate, error) {
 		return nil, err
 	}
 	st := ServiceTemplate{
-		Services: []servicedefinition.ServiceDefinition{*sd},
+		Services:    []servicedefinition.ServiceDefinition{*sd},
 		Name:        sd.Name,
 		Version:     sd.Version,
 		Description: sd.Description,

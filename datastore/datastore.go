@@ -47,11 +47,25 @@ type EntityStore interface {
 //ValidEntity interface for entities that can be stored in the EntityStore
 type ValidEntity interface {
 	ValidEntity() error
+	GetDatabaseVersion() int
+	SetDatabaseVersion(int)
 }
 
 //New returns a new EntityStore
 func New() EntityStore {
 	return &DataStore{}
+}
+
+type VersionedEntity struct {
+	DatabaseVersion int `json:",omitempty"`
+}
+
+func (e *VersionedEntity) GetDatabaseVersion() int {
+	return e.DatabaseVersion
+}
+
+func (e *VersionedEntity) SetDatabaseVersion(i int) {
+	e.DatabaseVersion = i
 }
 
 //DataStore EntityStore type
@@ -135,18 +149,23 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 	return conn.Delete(key)
 }
 
-func (ds *DataStore) serialize(kind string, entity interface{}) (JSONMessage, error) {
+func (ds *DataStore) serialize(kind string, entity ValidEntity) (JSONMessage, error) {
 	// hook for looking up serializers by kind; default json Marshal for now
 	data, err := json.Marshal(entity)
 	if err != nil {
 		return nil, err
 	}
-	return NewJSONMessage(data), nil
+	msg := NewJSONMessage(data, entity.GetDatabaseVersion())
+	return msg, nil
 }
 
-func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity interface{}) error {
+func (ds *DataStore) deserialize(kind string, jsonMsg JSONMessage, entity ValidEntity) error {
 	// hook for looking up deserializers by kind; default json Unmarshal for now
-	return SafeUnmarshal(jsonMsg.Bytes(), entity)
+	if err := SafeUnmarshal(jsonMsg.Bytes(), entity); err != nil {
+		return err
+	}
+	entity.SetDatabaseVersion(jsonMsg.Version())
+	return nil
 }
 
 func validKey(k Key) error {

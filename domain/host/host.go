@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/zenoss/glog"
@@ -47,6 +48,7 @@ type Host struct {
 		Buildtag  string
 	}
 	MonitoringProfile domain.MonitorProfile
+	datastore.VersionedEntity
 }
 
 // Equals verifies whether two host objects are equal

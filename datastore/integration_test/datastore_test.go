@@ -14,16 +14,18 @@
 package integration_test
 
 import (
-	"github.com/zenoss/elastigo/search"
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/zenoss/elastigo/search"
+	"github.com/zenoss/glog"
 
 	. "gopkg.in/check.v1"
 
 	"reflect"
 	"testing"
 )
+
+var version datastore.VersionedEntity
 
 // This plumbs gocheck into testing
 func Test(t *testing.T) {
@@ -47,7 +49,7 @@ func (s *S) TestPutGetDelete(t *C) {
 	ds := datastore.New()
 
 	key := datastore.NewKey("tweet", "1")
-	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch"}
+	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch", version}
 
 	err := ds.Put(ctx, key, &tweet)
 	if err != nil {
@@ -82,21 +84,60 @@ func (s *S) TestPutGetDelete(t *C) {
 	}
 }
 
+func (s *S) TestVersionConflict(t *C) {
+	ctx := s.ctx
+	ds := datastore.New()
+
+	key := datastore.NewKey("tweet", "666")
+	tweet := tweettest{"kimchy", "", "2009-11-15T14:12:12", "trying out Elasticsearch", version}
+
+	err := ds.Put(ctx, key, &tweet)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	//Get tweet
+	var storedtweet tweettest
+	err = ds.Get(ctx, key, &storedtweet)
+	if err != nil {
+		t.Fatalf("Unexpected: %v", err)
+	}
+	if storedtweet.DatabaseVersion != 1 {
+		t.Fatalf("Version was not incremented")
+	}
+
+	// Update something and send it back with the same version; it should succeed
+	storedtweet.Message = "This is a different message"
+	err = ds.Put(ctx, key, &storedtweet)
+	if err != nil {
+		t.Errorf("%v", err)
+	}
+
+	// Make a new tweet with a 1 version, which should conflict (since version
+	// in the database is now 2)
+	tweet.DatabaseVersion = 1
+	err = ds.Put(ctx, key, &tweet)
+	if err == nil {
+		t.Errorf("Did not get a conflict")
+	}
+
+}
+
 func (s *S) TestQuery(t *C) {
 	ctx := s.ctx
 
 	ds := datastore.New()
 
-	k := datastore.NewKey("tweet", "1")
-	tweet := &tweettest{"kimchy", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch"}
+	k := datastore.NewKey("tweet", "123")
+	tweet := &tweettest{"kimchy", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch", version}
 
 	err := ds.Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
 	}
 
-	k = datastore.NewKey("tweet", "2")
-	tweet = &tweettest{"kimchy2", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch again"}
+	k = datastore.NewKey("tweet", "234")
+	tweet = &tweettest{"kimchy2", "NY", "2010-11-15T14:12:12", "trying out Elasticsearch again", version}
 	err = ds.Put(ctx, k, tweet)
 	if err != nil {
 		t.Errorf("%v", err)
@@ -136,6 +177,7 @@ type tweettest struct {
 	State    string
 	PostDate string
 	Message  string
+	datastore.VersionedEntity
 }
 
 func (t *tweettest) ValidEntity() error {

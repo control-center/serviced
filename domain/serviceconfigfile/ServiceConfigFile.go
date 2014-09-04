@@ -14,6 +14,7 @@
 package serviceconfigfile
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
 )
@@ -24,6 +25,7 @@ type SvcConfigFile struct {
 	ServiceTenantID string
 	ServicePath     string
 	ConfFile        servicedefinition.ConfigFile
+	datastore.VersionedEntity
 }
 
 //New creates a SvcConfigFile
