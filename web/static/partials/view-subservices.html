@@ -2,16 +2,18 @@
 
     <h3>{{services.current.Name}}<span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span></h3>
 
-    <div class="details" ng-if="services.current.ID.indexOf('isvc-') == -1">
+    <div class="details">
       <div class="details-form">
         <div class="vertical-info">
             <label for="app_data_name">{{'label_service_name'|translate}}</label>
-            <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
+            <input type="text" id="app_data_name" ng-disabled="services.current.ID.indexOf('isvc-') != -1"
+            ng-model="services.current.Name"></input>
         </div>
 
         <div class="vertical-info">
             <label for="app_data_description">{{'label_service_description'|translate}}</label>
-            <input type="text" id="app_data_description" ng-model="services.current.Description"></input>
+            <input type="text" id="app_data_description" ng-disabled="services.current.ID.indexOf('isvc-') != -1"
+            ng-model="services.current.Description"></input>
         </div>
 
         <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
@@ -21,10 +23,10 @@
                  ng-model="services.current.Instances" ng-disabled="services.current.InstanceLimits.Max == services.current.InstanceLimits.Min"></input>
         </div>
 
-        <div class="vertical-info">
+        <div class="vertical-info" ng-if="services.current.ID.indexOf('isvc-') == -1">
           <label for="app_data_startup">{{'label_service_startup'|translate}}</label>
           <input type="text" id="app_data_startup" class="startup"
-                 ng-model="services.current.Startup"></input>
+          ng-model="services.current.Startup"></input>
         </div>
 
         <div class="vertical-info" ng-show="dev">
@@ -33,7 +35,7 @@
                  ng-model="services.current.ImageID"></input>
         </div>
 
-        <div class="vertical-info">
+        <div class="vertical-info" ng-if="services.current.ID.indexOf('isvc-') == -1">
           <label>{{'running_tbl_actions'|translate}}</label>
           <div ng-if="services.current.DesiredState !== 2">
             <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
@@ -43,9 +45,8 @@
             <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
           </div>
         </div>
-
       </div>
-      <div class="details-actions">	    
+      <div class="details-actions" ng-if="services.current.ID.indexOf('isvc-') == -1">
         <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="showAddService()">{{'btn_add_service'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>

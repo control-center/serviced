@@ -1252,3 +1252,8 @@ input.ng-invalid:focus.ng-dirty:focus{
 .version{
     font-size: .75em;
 }
+
+.ntsh {
+    color: #CCC;
+    font-style: italic;
+}
