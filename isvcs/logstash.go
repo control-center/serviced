@@ -32,7 +32,7 @@ func init() {
 			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: func() string {return command},
+			Command: func() string { return command },
 			Ports:   []int{5042, 5043, 9292},
 			Volumes: map[string]string{},
 			Notify:  notifyLogstashConfigChange,

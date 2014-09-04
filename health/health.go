@@ -14,11 +14,11 @@
 package health
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"sync"
 	"time"
 )
@@ -37,6 +37,21 @@ type messagePacket struct {
 var healthStatuses = make(map[string]map[string]*healthStatus)
 var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
+
+func init() {
+	foreverHealthy := &healthStatus{
+		Status:    "passed",
+		Timestamp: time.Now().UTC().Unix(),
+		Interval:  3.156e9, // One century in seconds.
+	}
+	healthStatuses["isvc-internalservices"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-elasticsearch"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-zookeeper"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-opentsdb"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-logstash"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-celery"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-dockerRegistry"] = map[string]*healthStatus{"alive": foreverHealthy}
+}
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
