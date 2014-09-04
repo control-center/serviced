@@ -23,7 +23,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "aggregator": "avg",
                 "color": "#aec7e8",
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%4.2f",
                 "id": "system",
                 "legend": "CPU (System)",
                 "metric": "cgroup.cpuacct.system",
@@ -35,7 +35,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "aggregator": "avg",
                 "color": "#98df8a",
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%4.2f",
                 "id": "user",
                 "legend": "CPU (User)",
                 "metric": "cgroup.cpuacct.user",
@@ -68,7 +68,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             "datapoints": [{
                 "aggregator": "avg",
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%4.2f",
                 "id": "rssmemory",
                 "legend": "Memory Usage",
                 "metric": "cgroup.memory.totalrss",
@@ -78,7 +78,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "fill": true
             }],
             "footer": false,
-            "format": "%6.2f",
+            "format": "%4.2f",
             "maxy": null,
             "miny": 0,
             "range": {
