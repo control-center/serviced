@@ -44,6 +44,7 @@ type Options struct {
 	VarPath              string
 	ResourcePath         string
 	Zookeepers           []string
+	RemoteZookeepers     []string // remote zookeeper addresses (for access across WANs)
 	ReportStats          bool
 	HostStats            string
 	StatsPeriod          int

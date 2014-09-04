@@ -809,7 +809,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	}()
 
 	for {
-		connc := make(chan coordclient.Connection)
+		connc := make(chan coordclient.Connection, 1)
 		go func() {
 			for {
 				c, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(a.poolID))

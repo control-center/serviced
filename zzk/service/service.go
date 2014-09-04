@@ -99,6 +99,9 @@ func (l *ServiceListener) Ready() (err error) { return }
 // Done implements zzk.Listener
 func (l *ServiceListener) Done() { return }
 
+// PostProcess implements zzk.Listener
+func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
+
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {

@@ -89,6 +89,15 @@ func (v *EndpointNode) Version() interface{} { return v.version }
 // SetVersion is an implementation of client.Node
 func (v *EndpointNode) SetVersion(version interface{}) { v.version = version }
 
+// GetID is an implementation of zzk.Node
+func (v *EndpointNode) GetID() string { return hostContainerKey(v.HostID, v.ContainerID) }
+
+// Create is an implementation of zzk.Node
+func (v *EndpointNode) Create(conn client.Connection) error { return nil }
+
+// Update is an implementation of zzk.Node
+func (v *EndpointNode) Update(conn client.Connection) error { return nil }
+
 // EndpointRegistry holds exported ApplicationEndpoint in EndpointNode nodes
 type EndpointRegistry struct {
 	registryType
@@ -140,7 +149,12 @@ func (ar *EndpointRegistry) SetItem(conn client.Connection, node EndpointNode) (
 	if err := validateEndpointNode(node); err != nil {
 		return "", err
 	}
-	return ar.setItem(conn, TenantEndpointKey(node.TenantID, node.EndpointID), hostContainerKey(node.HostID, node.ContainerID), &node)
+	key, _ := ar.FindItem(conn, node.TenantID, node.EndpointID, node.HostID, node.ContainerID)
+	if key == "" {
+		key = hostContainerKey(node.HostID, node.ContainerID)
+	}
+
+	return ar.setItem(conn, TenantEndpointKey(node.TenantID, node.EndpointID), key, &node)
 }
 
 // GetItem gets EndpointNode at the given path.
@@ -153,6 +167,47 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 	return &ep, nil
 }
 
+// GetItems gets all EndpointNodes at the given path
+func (ar *EndpointRegistry) GetItems(conn client.Connection, parentPath string) ([]*EndpointNode, error) {
+	nodeIDs, err := conn.Children(parentPath)
+	if err != nil {
+		glog.Errorf("Could not get Endpoints at %s: %s", parentPath, err)
+		return nil, err
+	}
+	items := make([]*EndpointNode, len(nodeIDs))
+	for i, nodeID := range nodeIDs {
+		ep, err := ar.GetItem(conn, path.Join(parentPath, nodeID))
+		if err != nil {
+			glog.Errorf("Could not get endpoint at %s: %s", path.Join(parentPath, nodeID), err)
+		}
+		items[i] = ep
+	}
+
+	return items, nil
+}
+
+// FindItem returns the key of the EndpointNode
+func (ar *EndpointRegistry) FindItem(conn client.Connection, tenantID, endpointID, hostID, containerID string) (string, error) {
+	tenantEndpointKey := TenantEndpointKey(tenantID, endpointID)
+	hostContainerKey := hostContainerKey(hostID, containerID)
+
+	nodeIDs, err := conn.Children(zkEndpointsPath(tenantEndpointKey))
+	if err != nil {
+		glog.Errorf("Could not find nodes at key %s: %s", tenantEndpointKey, err)
+		return "", err
+	}
+	for _, nodeID := range nodeIDs {
+		if ep, err := ar.GetItem(conn, zkEndpointsPath(tenantEndpointKey, nodeID)); err != nil {
+			glog.Errorf("Could not look up node %s: %s", hostContainerKey, err)
+			return "", err
+		} else if ep.GetID() == hostContainerKey {
+			return nodeID, nil
+		}
+	}
+
+	return "", client.ErrNoNode
+}
+
 // RemoveTenantEndpointKey removes a tenant endpoint key from the registry
 func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tenantID, endpointID string) error {
 	return ar.removeKey(conn, TenantEndpointKey(tenantID, endpointID))
@@ -160,7 +215,11 @@ func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tena
 
 // RemoveItem removes an item from the registry
 func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpointID, hostID, containerID string) error {
-	return ar.removeItem(conn, TenantEndpointKey(tenantID, endpointID), hostContainerKey(hostID, containerID))
+	key, err := ar.FindItem(conn, tenantID, endpointID, hostID, containerID)
+	if err != nil {
+		return err
+	}
+	return ar.removeItem(conn, TenantEndpointKey(tenantID, endpointID), key)
 }
 
 // WatchTenantEndpoint watches a tenant endpoint directory

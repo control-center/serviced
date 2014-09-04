@@ -36,6 +36,8 @@ var (
 	manager = make(map[string]*zclient)
 )
 
+type GetConnection func(string) (client.Connection, error)
+
 // zclient is the coordinator client manager
 type zclient struct {
 	*client.Client
@@ -87,6 +89,22 @@ func ShutdownConnections() {
 	for _, client := range manager {
 		client.Shutdown()
 	}
+}
+
+// Connect generates an client connection asynchronously
+func Connect(path string, getConnection GetConnection) <-chan client.Connection {
+	connc := make(chan client.Connection, 1)
+	go func() {
+		if c, err := getConnection(path); err == ErrNotInitialized {
+			// (remote) connection not initialized, so don't send anything
+			return
+		} else if err != nil {
+			close(connc)
+		} else {
+			connc <- c
+		}
+	}()
+	return connc
 }
 
 // GetConnection creates a new path-based connection or acquires a stored connection

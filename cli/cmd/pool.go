@@ -45,7 +45,7 @@ func (c *ServicedCli) initPool() {
 				Name:  "add",
 				Usage: "Adds a new resource pool",
 				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY",
-				Description:  "serviced pool add POOLID PRIORITY",
+				Description:  "serviced pool add POOLID PRIORITY [REALM]",
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
 			}, {
@@ -163,7 +163,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 	}
 }
 
-// serviced pool add POOLID PRIORITY
+// serviced pool add POOLID PRIORITY [REALM]
 func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -195,6 +195,10 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	if err != nil {
 		fmt.Println("PRIORITY must be a number")
 		return
+	}
+
+	if len(args) > 2 {
+		cfg.Realm = args[2]
 	}
 
 	if pool, err := c.driver.AddResourcePool(cfg); err != nil {
