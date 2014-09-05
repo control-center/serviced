@@ -19,7 +19,9 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 
+	"net"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 	"time"
 )
 
@@ -36,9 +38,12 @@ var _ LoadBalancer = &LBClient{}
 func NewLBClient(addr string) (s *LBClient, err error) {
 	s = new(LBClient)
 	s.addr = addr
-	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
-	s.rpcClient = rpcClient
-	return s, err
+	conn, err := net.Dial("tcp", s.addr)
+	if err != nil {
+		return nil, err
+	}
+	s.rpcClient = jsonrpc.NewClient(conn)
+	return s, nil
 }
 
 func (a *LBClient) Close() error {
