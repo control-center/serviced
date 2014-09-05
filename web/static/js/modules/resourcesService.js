@@ -44,6 +44,8 @@
                   // Map by id
                   data.map(function(svc) {
                       cached_services_map[svc.ID] = svc;
+                      // Flag internal services as such.
+                      svc.isvc = svc.ID.indexOf('isvc-') != -1;
                   });
                   data.map(function(svc) {
                       if (svc.ParentServiceID !== '') {
