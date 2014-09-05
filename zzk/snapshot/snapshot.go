@@ -16,8 +16,8 @@ package snapshot
 import (
 	"path"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -68,11 +68,14 @@ func (l *SnapshotListener) GetConnection() client.Connection { return l.conn }
 // GetPath implements zzk.Listener
 func (l *SnapshotListener) GetPath(nodes ...string) string { return snapshotPath(nodes...) }
 
-// Ready implements zzk.Ready
+// Ready implements zzk.Listener
 func (l *SnapshotListener) Ready() (err error) { return }
 
-// Done implements zzk.Done
+// Done implements zzk.Listener
 func (l *SnapshotListener) Done() { return }
+
+// PostProcess implements zzk.Listener
+func (l *SnapshotListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn takes a snapshot of a service and waits for the node to be deleted.  If
 // the node is not removed, then no action is performed.

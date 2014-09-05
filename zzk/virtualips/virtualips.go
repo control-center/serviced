@@ -126,6 +126,9 @@ func (l *VirtualIPListener) Ready() error {
 // Done implements zzk.Listener
 func (l *VirtualIPListener) Done() {}
 
+// PostProcess implements zzk.Listener
+func (l *VirtualIPListener) PostProcess(p map[string]struct{}) {}
+
 // Spawn implements zzk.Listener
 func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 

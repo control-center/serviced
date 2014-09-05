@@ -97,7 +97,12 @@ func MonitorResourcePool(shutdown <-chan interface{}, conn client.Connection, po
 				glog.V(2).Infof("Could not get pool %s: %s", poolID, err)
 				return
 			}
-			monitor <- node.ResourcePool
+			select {
+			case monitor <- node.ResourcePool:
+			case <-shutdown:
+				return
+			}
+
 			select {
 			case <-event:
 			case <-shutdown:

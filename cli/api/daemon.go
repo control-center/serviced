@@ -235,6 +235,18 @@ func (d *daemon) startMaster() error {
 	}
 	zzk.InitializeLocalClient(zClient)
 
+	if len(options.RemoteZookeepers) > 0 {
+		rootBasePath := "/"
+		dsn := coordzk.NewDSN(options.RemoteZookeepers, time.Second*15).String()
+		glog.Infof("zookeeper dsn: %s", dsn)
+		zClient, err := coordclient.New("zookeeper", dsn, rootBasePath, nil)
+		if err != nil {
+			glog.Errorf("failed create a remote coordclient: %v", err)
+			return err
+		}
+		zzk.InitializeRemoteClient(zClient)
+	}
+
 	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {

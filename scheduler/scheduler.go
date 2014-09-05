@@ -19,7 +19,6 @@ import (
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -79,9 +78,8 @@ func (s *scheduler) Start() {
 
 	restart:
 		for {
-			connc := connectZK("/")
 			select {
-			case s.conn = <-connc:
+			case s.conn = <-zzk.Connect("/", zzk.GetLocalConnection):
 				if s.conn == nil {
 					// wait a second and try again
 					<-time.After(time.Second)
@@ -126,10 +124,18 @@ func (s *scheduler) mainloop() {
 		stopped   = make(chan interface{})
 	)
 
-	registry.CreateEndpointRegistry(s.conn)
+	er, err := registry.CreateEndpointRegistry(s.conn)
+	if err != nil {
+		glog.Errorf("Could not initialize endpoint registry: %s", err)
+		return
+	}
 
-	// synchronize elastic with zookeeper
-	go NewSynchronizer(s.facade, datastore.Get()).SyncLoop(_shutdown)
+	// remote synchronization
+	go doRemoteSync(_shutdown, s.facade, er)
+
+	// local synchronization
+	go doLocalSync(_shutdown, s.facade)
+
 	go func() {
 		defer close(stopped)
 		zzk.Listen(_shutdown, make(chan error, 1), s)
@@ -180,6 +186,9 @@ func (s *scheduler) Done() {
 	return
 }
 
+// PostProcess implements zzk.Listener
+func (s *scheduler) PostProcess(processing map[string]struct{}) {}
+
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	// is this pool in my realm?
@@ -199,10 +208,9 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	}
 
 	// acquire a pool-based connection
-	connc := connectZK(zzk.GeneratePoolPath(poolID))
 	var conn coordclient.Connection
 	select {
-	case conn = <-connc:
+	case conn = <-zzk.Connect(zzk.GeneratePoolPath(poolID), zzk.GetLocalConnection):
 		if conn == nil {
 			return
 		}
@@ -234,20 +242,4 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	}
 
 	wg.Wait()
-}
-
-// connectZK creates an asynchronous pool-based connection
-func connectZK(path string) <-chan coordclient.Connection {
-	connc := make(chan coordclient.Connection)
-
-	go func() {
-		defer close(connc)
-		c, err := zzk.GetLocalConnection(path)
-		if err != nil {
-			glog.Errorf("Could not acquire connection to %s: %s", path, err)
-		} else {
-			connc <- c
-		}
-	}()
-	return connc
 }
