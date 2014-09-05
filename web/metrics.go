@@ -175,6 +175,19 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
 				Aggregator:   "avg",
+				Color:        "#C0C0C0",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "idle",
+				Legend:       "Idle",
+				Metric:       "cpu.idle",
+				MetricSource: "cpu",
+				Name:         "Idle",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
 				Color:        "#aee8cf",
 				Fill:         false,
 				Format:       "%4.2f",
