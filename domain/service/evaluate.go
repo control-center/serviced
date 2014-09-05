@@ -19,6 +19,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"runtime"
+	"strings"
 	"text/template"
 )
 
@@ -44,13 +45,13 @@ func child(fc FindChildService) func(s *runtimeContext, childName string) (*runt
 	}
 }
 
-func flattenContext (svc Service, gs GetService, ctx *map[string]interface{}) error {
+func flattenContext (svc Service, gs GetService, prefix string, ctx *map[string]interface{}) error {
 	if svc.ParentServiceID != "" {
 		parent, err := gs(svc.ParentServiceID)
 		if err != nil {
 			return err
 		}
-		err = flattenContext(parent, gs, ctx)
+		err = flattenContext(parent, gs, prefix, ctx)
 		if err != nil {
 			return err
 		}
@@ -62,7 +63,9 @@ func flattenContext (svc Service, gs GetService, ctx *map[string]interface{}) er
 			return err
 		}
 		for k,v := range svcCtx {
-			(*ctx)[k] = v
+			if strings.HasPrefix(k, prefix) {
+				(*ctx)[strings.TrimPrefix(k, prefix)] = v
+			}
 		}
 	}
 	return nil
@@ -71,7 +74,18 @@ func flattenContext (svc Service, gs GetService, ctx *map[string]interface{}) er
 func context(gs GetService) func(s *runtimeContext) (map[string]interface{}, error) {
 	return func(s *runtimeContext) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
-		err := flattenContext(s.Service, gs, &ctx)
+		err := flattenContext(s.Service, gs, "", &ctx)
+		if err != nil {
+			glog.Errorf("Flattening context for %s (%s): %s", s.Name, s.ID, err)
+		}
+		return ctx, err
+	}
+}
+
+func contextFilter(gs GetService) func (s *runtimeContext, prefix string) (map[string]interface{}, error) {
+	return func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
+		ctx := make(map[string]interface{})
+		err := flattenContext(s.Service, gs, prefix, &ctx)
 		if err != nil {
 			glog.Errorf("Flattening context for %s (%s): %s", s.Name, s.ID, err)
 		}
@@ -161,6 +175,7 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 		"parent":       parent(gs),
 		"child":        child(fc),
 		"context":      context(gs),
+		"contextFilter":contextFilter(gs),
 		"percentScale": percentScale,
 		"bytesToMB":    bytesToMB,
 		"plus":         plus,

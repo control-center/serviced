@@ -192,7 +192,7 @@ var context_testcases = []Service {
 		Name: "200",
 		PoolID: "default",
 		Launch: "manual",
-		Context: `{"A": "a_200", "B": "b_200"}`,
+		Context: `{"A": "a_200", "B": "b_200", "g.w":"W"}`,
 	},
 	{
 		ID: "201",
@@ -207,6 +207,22 @@ var context_testcases = []Service {
 				// Note that B comes from the parent context
 				Owner: `a_201, b_200, c_201`,
 				Content:`{{(context .).A}}, {{(context .).B}}, {{(context .).C}}`,
+			},
+		},
+	},
+	{
+		ID: "202",
+		Name: "202",
+		PoolID: "default",
+		Launch: "manual",
+		Context: `{"g.y": "Y", "g.x": "X", "g.z": "Z", "foo": "bar"}`,
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile {
+				// We store the expected value in the Owner field
+				// Note the keys are filtered, trimmed and sorted
+				Owner: `w:W, x:X, y:Y, z:Z, `,
+				Content:`{{range $key,$val:=contextFilter . "g."}}{{$key}}:{{$val}}, {{end}}`,
 			},
 		},
 	},
