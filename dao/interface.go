@@ -121,7 +121,7 @@ type ControlPlane interface {
 	GetServiceStatus(serviceID string, statusmap *map[string]ServiceStatus) error
 
 	// Get the services instances for a given service
-	GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) error
+	GetServiceStates(serviceId string, states *[]servicestate.ServiceState) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error
@@ -205,5 +205,5 @@ type ControlPlane interface {
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 
 	// Return the number of layers in an image
-	ImageLayerCount(imageUUID string, layers* int) error
+	ImageLayerCount(imageUUID string, layers *int) error
 }

@@ -14,15 +14,15 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/rpc/agent"
+	"github.com/zenoss/glog"
 )
 
 func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) error {
 	glog.V(3).Info("ControlPlaneDao.GetServiceLogs serviceID=", serviceID)
-	var serviceStates []*servicestate.ServiceState
+	var serviceStates []servicestate.ServiceState
 	if err := this.GetServiceStates(serviceID, &serviceStates); err != nil {
 		glog.Errorf("ControlPlaneDao.GetServiceLogs failed: %v", err)
 		return err

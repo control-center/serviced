@@ -74,13 +74,13 @@ func (a *api) GetServices() ([]service.Service, error) {
 }
 
 // Gets all of the available services
-func (a *api) GetServiceStates(serviceID string) ([]*servicestate.ServiceState, error) {
+func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var states []*servicestate.ServiceState
+	var states []servicestate.ServiceState
 	if err := client.GetServiceStates(serviceID, &states); err != nil {
 		return nil, err
 	}

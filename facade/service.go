@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math/rand"
 	"reflect"
-	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -23,7 +22,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/control-center/serviced/domain/servicestate"
 )
 
 // AddService adds a service; return error if service already exists
@@ -205,86 +203,8 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 // Get a service endpoint.
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]dao.ApplicationEndpoint, error) {
 	// TODO: this function is obsolete.  Remove it.
-	glog.V(2).Infof("Facade.GetServiceEndpoints serviceId=%s", serviceId)
 	result := make(map[string][]dao.ApplicationEndpoint)
-	myService, err := f.getService(ctx, serviceId)
-	if err != nil {
-		glog.V(2).Infof("Facade.GetServiceEndpoints service=%+v err=%s", myService, err)
-		return result, err
-	}
-
-	service_imports := myService.GetServiceImports()
-	if len(service_imports) > 0 {
-		glog.V(2).Infof("%+v service imports=%+v", myService, service_imports)
-
-		servicesList, err := f.getServices(ctx)
-		if err != nil {
-			return result, err
-		}
-
-		// Map all services by Id so we can construct a tree for the current service ID
-		glog.V(2).Infof("ServicesList: %d", len(servicesList))
-		topService := f.getServiceTree(serviceId, &servicesList)
-		// We should now have the top-level service for the current service ID
-
-		//build 'OR' query to grab all service states with in "service" tree
-		relatedServiceIDs := walkTree(topService)
-		var states []*servicestate.ServiceState
-		err = zkAPI(f).GetServiceStates(myService.PoolID, &states, relatedServiceIDs...)
-		if err != nil {
-			return result, err
-		}
-
-		//delay getting addresses as long as possible
-		f.fillServiceAddr(ctx, &myService)
-
-		// for each proxied port, find list of potential remote endpoints
-		for _, endpoint := range service_imports {
-			glog.V(2).Infof("Finding exports for import: %s %+v", endpoint.Application, endpoint)
-			matchedEndpoint := false
-			applicationRegex, err := regexp.Compile(fmt.Sprintf("^%s$", endpoint.Application))
-			if err != nil {
-				continue //Don't spam error message; it was reported at validation time
-			}
-			for _, ss := range states {
-				hostPort, containerPort, protocol, match := ss.GetHostEndpointInfo(applicationRegex)
-				if match {
-					glog.V(1).Infof("Matched endpoint: %s.%s -> %s:%d (%s/%d)",
-						myService.Name, endpoint.Application, ss.HostIP, hostPort, protocol, containerPort)
-					// if port/protocol undefined in the import, use the export's values
-					if endpoint.PortNumber != 0 {
-						containerPort = endpoint.PortNumber
-					}
-					if endpoint.Protocol != "" {
-						protocol = endpoint.Protocol
-					}
-					var ep dao.ApplicationEndpoint
-					ep.Application = endpoint.Application
-					ep.ServiceID = ss.ServiceID
-					ep.ContainerPort = containerPort
-					ep.HostPort = hostPort
-					ep.HostIP = ss.HostIP
-					ep.ContainerIP = ss.PrivateIP
-					ep.Protocol = protocol
-					ep.VirtualAddress = endpoint.VirtualAddress
-					ep.InstanceID = ss.InstanceID
-
-					key := fmt.Sprintf("%s:%d", protocol, containerPort)
-					if _, exists := result[key]; !exists {
-						result[key] = make([]dao.ApplicationEndpoint, 0)
-					}
-					result[key] = append(result[key], ep)
-					matchedEndpoint = true
-				}
-			}
-			if !matchedEndpoint {
-				glog.V(1).Infof("Unmatched endpoint %s.%s", myService.Name, endpoint.Application)
-			}
-		}
-
-		glog.V(2).Infof("Return for %s is %+v", serviceId, result)
-	}
-	return result, nil
+	return result, fmt.Errorf("facade.GetServiceEndpoints is obsolete - do not use it")
 }
 
 // foundchild is an error used exclusively to short-circuit the service walking

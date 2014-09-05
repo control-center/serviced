@@ -71,7 +71,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, ti
 func (d *DistributedFileSystem) waitpause(cancel <-chan interface{}, serviceID string) error {
 
 	for {
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(serviceID, &states); err != nil {
 			return err
 		}
@@ -381,7 +381,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 	for _, service := range services {
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(service.ID, &states); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
@@ -574,7 +574,7 @@ func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit ti
 			continue
 		}
 
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(svc.ID, &states); err != nil {
 			return err
 		}
@@ -582,7 +582,7 @@ func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit ti
 			// check if the instance has been running since before the commit
 			if state.IsRunning() && state.Started.Before(commit) {
 				state.InSync = false
-				if err := d.client.UpdateServiceState(*state, new(int)); err != nil {
+				if err := d.client.UpdateServiceState(state, new(int)); err != nil {
 					return err
 				}
 			}

@@ -141,7 +141,7 @@ func (s *ControlClient) GetRunningService(request dao.ServiceStateRequest, runni
 	return s.rpcClient.Call("ControlPlane.GetRunningService", request, running)
 }
 
-func (s *ControlClient) GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) (err error) {
+func (s *ControlClient) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
 

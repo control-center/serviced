@@ -88,7 +88,7 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 }
 
 // getServiceState gets the service states for a serviceID
-func getServiceStates(conn coordclient.Connection, serviceID string) ([]*servicestate.ServiceState, error) {
+func getServiceStates(conn coordclient.Connection, serviceID string) ([]servicestate.ServiceState, error) {
 	return zkservice.GetServiceStates(conn, serviceID)
 }
 
@@ -110,7 +110,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 
 		for ii, ss := range serviceStates {
 			if ss.InstanceID == instanceID && ss.PrivateIP != "" {
-				return serviceStates[ii], nil
+				return &serviceStates[ii], nil
 			}
 		}
 

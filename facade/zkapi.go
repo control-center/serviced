@@ -39,7 +39,7 @@ var zkAPI func(f *Facade) zkfuncs = getZKAPI
 type zkfuncs interface {
 	UpdateService(service *service.Service) error
 	RemoveService(service *service.Service) error
-	GetServiceStates(poolID string, states *[]*servicestate.ServiceState, serviceIDs ...string) error
+	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
 	CheckRunningVHost(vhostName, serviceID string) error
 	AddHost(host *host.Host) error
 	UpdateHost(host *host.Host) error
@@ -86,7 +86,7 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 	return <-errC
 }
 
-func (zk *zkf) GetServiceStates(poolID string, states *[]*servicestate.ServiceState, serviceIDs ...string) error {
+func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
 		return err
