@@ -6,13 +6,13 @@
       <div class="details-form">
         <div class="vertical-info">
             <label for="app_data_name">{{'label_service_name'|translate}}</label>
-            <input type="text" id="app_data_name" ng-disabled="services.current.ID.indexOf('isvc-') != -1"
+            <input type="text" id="app_data_name" ng-disabled="services.current.isvc"
             ng-model="services.current.Name"></input>
         </div>
 
         <div class="vertical-info">
             <label for="app_data_description">{{'label_service_description'|translate}}</label>
-            <input type="text" id="app_data_description" ng-disabled="services.current.ID.indexOf('isvc-') != -1"
+            <input type="text" id="app_data_description" ng-disabled="services.current.isvc"
             ng-model="services.current.Description"></input>
         </div>
 
@@ -23,7 +23,7 @@
                  ng-model="services.current.Instances" ng-disabled="services.current.InstanceLimits.Max == services.current.InstanceLimits.Min"></input>
         </div>
 
-        <div class="vertical-info" ng-if="services.current.ID.indexOf('isvc-') == -1">
+        <div class="vertical-info" ng-if="!services.current.isvc">
           <label for="app_data_startup">{{'label_service_startup'|translate}}</label>
           <input type="text" id="app_data_startup" class="startup"
           ng-model="services.current.Startup"></input>
@@ -35,7 +35,7 @@
                  ng-model="services.current.ImageID"></input>
         </div>
 
-        <div class="vertical-info" ng-if="services.current.ID.indexOf('isvc-') == -1">
+        <div class="vertical-info" ng-if="!services.current.isvc">
           <label>{{'running_tbl_actions'|translate}}</label>
           <div ng-if="services.current.DesiredState !== 2">
             <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
@@ -46,7 +46,7 @@
           </div>
         </div>
       </div>
-      <div class="details-actions" ng-if="services.current.ID.indexOf('isvc-') == -1">
+      <div class="details-actions" ng-if="!services.current.isvc">
         <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="showAddService()">{{'btn_add_service'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>
@@ -54,7 +54,7 @@
     </div>
 
 	<!-- Virtual Host Names -->
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1 && anyServicesExported(services.current)">
+  <div ng-if="!services.current.isvc && anyServicesExported(services.current)">
   	<h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
@@ -89,7 +89,7 @@
   </div>
 
 	<!-- IP Assignments -->
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  <div ng-if="!services.current.isvc">
   	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
   	<table class="table table-striped" id="ips_data">
   		<thead>
@@ -117,7 +117,7 @@
   </div>
 
 	<!-- Config Files -->
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  <div ng-if="!services.current.isvc">
   	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
   	<table class="table table-striped" >
         <thead>
@@ -141,16 +141,16 @@
   </div>
 	
   <!-- This table has sub service definitions -->
-	<h3 ng-show="services.subservices.length > 0" ng-if="services.current.ID.indexOf('isvc-') == -1">{{'title_services'|translate}}</h3>
+	<h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
     <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
           <th style="white-space: nowrap; width:200px;">{{'label_application'|translate}}</th>
           <th style="width: 40px;">{{'label_service_status'|translate}}</th>
-          <th style="width: 200px;">{{'host'|translate}}</th>
+          <th style="width: 200px;" ng-if="!services.current.isvc">{{'host'|translate}}</th>
           <th style="width: 500px;">{{'deployed_tbl_description'|translate}}</th>
-          <th>{{'running_tbl_actions'|translate}}</th>
+          <th ng-if="!services.current.isvc">{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
@@ -166,15 +166,15 @@
               <i class="healthIcon" ng-class="app.healthIconClass"></i>
             </div>
           </td>
-          <td>
+          <td ng-if="!services.current.isvc">
             <a ng-click="click_host(app.runningHosts[0].ID)" class="link">{{app.runningHosts[0].HostName}}</a>
             <span class="note" ng-show="app.runningHosts.length > 1">&nbsp;(+{{app.runningHosts.length -1}} {{'more' | translate}})</span>
           </td>
           <td>
             <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Description}}">
           </td>
-          <td >
-            <div ng-if="app.ID.indexOf('isvc-') == -1">
+          <td ng-if="!services.current.isvc">
+            <div ng-if="!app.isvc">
               <div ng-if="app.DesiredState !== 2">
                 <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
                 <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
@@ -217,7 +217,7 @@
     </tbody>
   </table>
   
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
+  <div ng-if="!services.current.isvc">
   	<h3>{{'scheduled_tasks'|translate}}</h3>
       <table class="table table-striped">
           <thead>

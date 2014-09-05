@@ -51,19 +51,22 @@
             </span>
           </td>
           <td>{{app.DeploymentID}}</td>
-          <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
-          <td>
+          <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID}}</td>
+          <td ng-if="app.isvc" class="ntsh">N/A</td>
+          <td ng-if="!app.isvc">
               <p ng-repeat="vhost in collect_vhosts(app) track by $index">
                   <a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a>
               </p>
           </td>
-		  <td>
-            <div ng-if="app.ID.indexOf('isvc-') == -1">
+          <td ng-if="app.isvc" class="ntsh">N/A</td>
+		      <td ng-if="!app.isvc">
+            <div>
               <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
               <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
               <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
             </div>
           </td>
+          <td ng-if="app.isvc" class="ntsh">N/A</td>
       </tr>
       </tbody>
     </table>
