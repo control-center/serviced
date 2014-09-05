@@ -225,15 +225,15 @@ func getISVCS() []service.Service {
 	return services
 }
 
-func getIRS() []*dao.RunningService {
-	services := []*dao.RunningService{}
-	services = append(services, &isvcs.InternalServicesIRS)
-	services = append(services, &isvcs.ElasticsearchIRS)
-	services = append(services, &isvcs.ZookeeperIRS)
-	services = append(services, &isvcs.LogstashIRS)
-	services = append(services, &isvcs.OpentsdbIRS)
-	services = append(services, &isvcs.CeleryIRS)
-	services = append(services, &isvcs.DockerRegistryIRS)
+func getIRS() []dao.RunningService {
+	services := []dao.RunningService{}
+	services = append(services, isvcs.InternalServicesIRS)
+	services = append(services, isvcs.ElasticsearchIRS)
+	services = append(services, isvcs.ZookeeperIRS)
+	services = append(services, isvcs.LogstashIRS)
+	services = append(services, isvcs.OpentsdbIRS)
+	services = append(services, isvcs.CeleryIRS)
+	services = append(services, isvcs.DockerRegistryIRS)
 	return services
 }
 
@@ -247,7 +247,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		}
 
 		for _, svc := range result {
-			fillBuiltinMetrics(svc)
+			fillBuiltinMetrics(&svc)
 		}
 		w.WriteJson(&result)
 		return
@@ -261,7 +261,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		}
 
 		for _, svc := range result {
-			fillBuiltinMetrics(svc)
+			fillBuiltinMetrics(&svc)
 		}
 		w.WriteJson(&result)
 		return
@@ -275,7 +275,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	}
 
 	for _, svc := range result {
-		fillBuiltinMetrics(svc)
+		fillBuiltinMetrics(&svc)
 	}
 	w.WriteJson(&result)
 }
@@ -419,10 +419,10 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		return
 	}
 
-	for _, service := range allServices {
-		if service.ID == sid {
-			fillBuiltinMetrics(service)
-			w.WriteJson(&service)
+	for _, svc := range allServices {
+		if svc.ID == sid {
+			fillBuiltinMetrics(&svc)
+			w.WriteJson(&svc)
 			return
 		}
 	}

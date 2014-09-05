@@ -155,7 +155,7 @@ func (f *Facade) GetServices(ctx datastore.Context) ([]service.Service, error) {
 }
 
 // GetServicesByPool looks up all services in a particular pool
-func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]*service.Service, error) {
+func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServicesByPool")
 	store := f.serviceStore
 	results, err := store.GetServicesByPool(ctx, poolID)
