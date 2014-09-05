@@ -16,8 +16,8 @@ package scheduler
 import (
 	"fmt"
 
-	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/commons"
+	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -42,24 +42,23 @@ type leader struct {
 //    virtual IPs
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, dao dao.ControlPlane, poolID string) {
 	// creates a listener for the host registry
-	hostRegistry, err := zkservice.NewHostRegistryListener(conn)
-	if err != nil {
+	if err := zkservice.InitHostRegistry(conn); err != nil {
 		glog.Errorf("Could not initialize host registry for pool %s: %s", err)
 		return
 	}
-
+	hostRegistry := zkservice.NewHostRegistryListener()
 	leader := leader{conn, dao, hostRegistry, poolID}
 	glog.V(0).Info("Processing leader duties")
 
 	// creates a listener for snapshots with a function call to take snapshots
 	// and return the label and error message
-	snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+	snapshotListener := snapshot.NewSnapshotListener(&leader)
 
 	// creates a listener for services
-	serviceListener := zkservice.NewServiceListener(conn, &leader)
+	serviceListener := zkservice.NewServiceListener(&leader)
 
 	// starts all of the listeners
-	zzk.Start(shutdown, serviceListener, hostRegistry, snapshotListener)
+	zzk.Start(shutdown, conn, serviceListener, hostRegistry, snapshotListener)
 }
 
 func (l *leader) TakeSnapshot(serviceID string) (string, error) {

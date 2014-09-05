@@ -83,16 +83,15 @@ type HostStateListener struct {
 }
 
 // NewHostListener instantiates a HostListener object
-func NewHostStateListener(conn client.Connection, handler HostStateHandler, hostID string) *HostStateListener {
+func NewHostStateListener(handler HostStateHandler, hostID string) *HostStateListener {
 	return &HostStateListener{
-		conn:    conn,
 		handler: handler,
 		hostID:  hostID,
 	}
 }
 
 // GetConnection implements zzk.Listener
-func (l *HostStateListener) GetConnection() client.Connection { return l.conn }
+func (l *HostStateListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
 func (l *HostStateListener) GetPath(nodes ...string) string {
@@ -131,6 +130,9 @@ func (l *HostStateListener) Done() {
 		glog.Warningf("Could not unregister host %s: %s", l.hostID, err)
 	}
 }
+
+// PostProcess implements zzk.Listener
+func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {

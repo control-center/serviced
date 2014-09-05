@@ -15,7 +15,6 @@ package scheduler
 
 import (
 	"sync"
-	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
@@ -77,21 +76,16 @@ func (s *scheduler) Start() {
 			s.started = false
 		}()
 
-	restart:
 		for {
-			connc := connectZK("/")
+			var conn coordclient.Connection
 			select {
-			case s.conn = <-connc:
-				if s.conn == nil {
-					// wait a second and try again
-					<-time.After(time.Second)
-					continue restart
+			case conn = <-zzk.Connect("/", zzk.GetLocalConnection):
+				if conn != nil {
+					s.mainloop(conn)
 				}
 			case <-s.shutdown:
 				return
 			}
-
-			s.mainloop()
 
 			select {
 			case <-s.shutdown:
@@ -104,9 +98,9 @@ func (s *scheduler) Start() {
 }
 
 // mainloop acquires the leader lock and initializes the listener
-func (s *scheduler) mainloop() {
+func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// become the leader
-	leader := zzk.NewHostLeader(s.conn, s.instance_id, "/scheduler")
+	leader := zzk.NewHostLeader(conn, s.instance_id, "/scheduler")
 	event, err := leader.TakeLead()
 	if err != nil {
 		glog.Errorf("Could not become the leader: %s", err)
@@ -126,13 +120,13 @@ func (s *scheduler) mainloop() {
 		stopped   = make(chan interface{})
 	)
 
-	registry.CreateEndpointRegistry(s.conn)
+	registry.CreateEndpointRegistry(conn)
 
 	// synchronize elastic with zookeeper
 	go NewSynchronizer(s.facade, datastore.Get()).SyncLoop(_shutdown)
 	go func() {
 		defer close(stopped)
-		zzk.Listen(_shutdown, make(chan error, 1), s)
+		zzk.Listen(_shutdown, make(chan error, 1), conn, s)
 	}()
 
 	// wait for something to happen
@@ -160,8 +154,11 @@ func (s *scheduler) Stop() {
 	<-s.stopped
 }
 
-// GetConnection implements zzk.Listener
-func (s *scheduler) GetConnection() coordclient.Connection { return s.conn }
+// SetConnection implements zzk.Listener
+func (s *scheduler) SetConnection(conn coordclient.Connection) { s.conn = conn }
+
+// PostProcess implements zzk.Listener
+func (s *scheduler) PostProcess(p map[string]struct{}) {}
 
 // GetPath implements zzk.Listener
 func (s *scheduler) GetPath(nodes ...string) string {
@@ -199,10 +196,9 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	}
 
 	// acquire a pool-based connection
-	connc := connectZK(zzk.GeneratePoolPath(poolID))
 	var conn coordclient.Connection
 	select {
-	case conn = <-connc:
+	case conn = <-zzk.Connect(zzk.GeneratePoolPath(poolID), zzk.GetLocalConnection):
 		if conn == nil {
 			return
 		}
@@ -234,20 +230,4 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	}
 
 	wg.Wait()
-}
-
-// connectZK creates an asynchronous pool-based connection
-func connectZK(path string) <-chan coordclient.Connection {
-	connc := make(chan coordclient.Connection)
-
-	go func() {
-		defer close(connc)
-		c, err := zzk.GetLocalConnection(path)
-		if err != nil {
-			glog.Errorf("Could not acquire connection to %s: %s", path, err)
-		} else {
-			connc <- c
-		}
-	}()
-	return connc
 }

@@ -59,8 +59,8 @@ func TestSnapshotListener_Listen(t *testing.T) {
 
 	t.Log("Create snapshots and shutdown")
 	shutdown := make(chan interface{})
-	listener := NewSnapshotListener(conn, handler)
-	go zzk.Listen(shutdown, make(chan error, 1), listener)
+	listener := NewSnapshotListener(handler)
+	go zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 
 	// send success snapshot
 	if err := Send(conn, "service-id-success"); err != nil {
@@ -116,7 +116,8 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 			"service-id-failure": SnapshotResult{time.Second, "", fmt.Errorf("failure-label")},
 		},
 	}
-	listener := NewSnapshotListener(conn, handler)
+	listener := NewSnapshotListener(handler)
+	listener.SetConnection(conn)
 	var wg sync.WaitGroup
 
 	// send snapshots

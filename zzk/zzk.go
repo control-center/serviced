@@ -22,6 +22,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
+const retryLimit = 2
+
 // Errors
 var (
 	ErrTimeout  = errors.New("connection timeout")
@@ -56,8 +58,8 @@ func GetHostID(leader client.Leader) (string, error) {
 
 // Listener is zookeeper node listener type
 type Listener interface {
-	// GetConnection expects a client.Connection object
-	GetConnection() client.Connection
+	// SetConnection sets the connection object
+	SetConnection(conn client.Connection)
 	// GetPath concatenates the base path with whatever child nodes that are specified
 	GetPath(nodes ...string) string
 	// Ready verifies that the listener can start listening
@@ -66,6 +68,8 @@ type Listener interface {
 	Done()
 	// Spawn is the action to be performed when a child node is found on the parent
 	Spawn(<-chan interface{}, string)
+	// PostProcess performs additional action based on the nodes that are in processing
+	PostProcess(p map[string]struct{})
 }
 
 // PathExists verifies if a path exists and does not raise an exception if the
@@ -112,14 +116,14 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 // ready:		signal to indicate that the listener has started watching its
 //				child nodes (must set buffer size >= 1)
 // l:			object that manages the zk interface for a specific path
-func Listen(shutdown <-chan interface{}, ready chan<- error, l Listener) {
+func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connection, l Listener) {
 	var (
 		_shutdown  = make(chan interface{})
 		done       = make(chan string)
-		processing = make(map[string]interface{})
-		conn       = l.GetConnection()
+		processing = make(map[string]struct{})
 	)
 
+	l.SetConnection(conn)
 	glog.Infof("Starting a listener at %s", l.GetPath())
 	if err := Ready(shutdown, conn, l.GetPath()); err != nil {
 		glog.Errorf("Could not start listener at %s: %s", l.GetPath(), err)
@@ -153,7 +157,7 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, l Listener) {
 		for _, node := range nodes {
 			if _, ok := processing[node]; !ok {
 				glog.V(1).Infof("Spawning a goroutine for %s", l.GetPath(node))
-				processing[node] = nil
+				processing[node] = struct{}{}
 				go func(node string) {
 					defer func() {
 						glog.V(1).Infof("Goroutine at %s was shutdown", l.GetPath(node))
@@ -163,6 +167,8 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, l Listener) {
 				}(node)
 			}
 		}
+
+		l.PostProcess(processing)
 
 		select {
 		case e := <-event:
@@ -183,18 +189,21 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, l Listener) {
 // Start starts a group of listeners that are governed by a master listener.
 // When the master exits, it shuts down all of the child listeners and waits
 // for all of the subprocesses to exit
-func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) {
+func Start(shutdown <-chan interface{}, conn client.Connection, master Listener, listeners ...Listener) {
 	var (
 		wg        sync.WaitGroup
 		_shutdown = make(chan interface{})
 		done      = make(chan interface{})
+		childDone = make(chan interface{})
 		ready     = make(chan error, 1)
 	)
 
 	// Start up the master
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(done)
-		Listen(_shutdown, ready, master)
+		Listen(_shutdown, ready, conn, master)
 	}()
 
 	// Wait for the master to be ready and start the slave listeners
@@ -204,13 +213,21 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 			break
 		}
 
-		for _, listener := range listeners {
-			wg.Add(1)
-			go func(l Listener) {
-				defer wg.Done()
-				Listen(_shutdown, make(chan error, 1), l)
-			}(listener)
-		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			defer close(childDone)
+			for i := 0; i <= retryLimit; i++ {
+				// this handles restarts; retryLimit to reduce flapping
+				start(_shutdown, conn, listeners...)
+				select {
+				case <-_shutdown:
+					return
+				default:
+				}
+			}
+		}()
+
 	case <-done:
 	case <-shutdown:
 	}
@@ -218,12 +235,42 @@ func Start(shutdown <-chan interface{}, master Listener, listeners ...Listener) 
 	// Wait for the master to shutdown or shutdown signal
 	select {
 	case <-done:
+	case <-childDone:
 	case <-shutdown:
 	}
 
 	// Wait for everything to stop
 	close(_shutdown)
 	wg.Wait()
+}
+
+func start(shutdown <-chan interface{}, conn client.Connection, listeners ...Listener) {
+	var (
+		count     = 0
+		done      = make(chan bool)
+		_shutdown = make(chan interface{})
+	)
+
+	defer func() {
+		close(_shutdown)
+		for count < len(listeners) {
+			<-done
+			count++
+		}
+	}()
+
+	for _, listener := range listeners {
+		go func(l Listener) {
+			defer func() { done <- true }()
+			Listen(_shutdown, make(chan error, 1), conn, l)
+		}(listener)
+	}
+
+	select {
+	case <-done:
+		count++
+	case <-shutdown:
+	}
 }
 
 // Node manages zookeeper actions

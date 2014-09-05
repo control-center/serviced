@@ -809,49 +809,33 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	}()
 
 	for {
-		connc := make(chan coordclient.Connection)
-		go func() {
-			for {
-				c, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(a.poolID))
-				if err == nil {
-					connc <- c
-					return
-				}
-
-				select {
-				case <-shutdown:
-					return
-				case <-time.After(time.Second):
-				}
-			}
-		}()
-
-		var conn coordclient.Connection
-
 		// handle shutdown if we are waiting for a zk connection
+		var conn coordclient.Connection
 		select {
-		case conn = <-connc:
-			break
+		case conn = <-zzk.Connect(zzk.GeneratePoolPath(a.poolID), zzk.GetLocalConnection):
 		case <-shutdown:
 			return
+		}
+		if conn == nil {
+			continue
 		}
 
 		glog.Info("Got a connected client")
 
 		// watch virtual IP zookeeper nodes
-		virtualIPListener := virtualips.NewVirtualIPListener(conn, a, a.hostID)
+		virtualIPListener := virtualips.NewVirtualIPListener(a, a.hostID)
 
 		// watch docker action nodes
-		actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+		actionListener := zkdocker.NewActionListener(a, a.hostID)
 
 		// watch the host state nodes
 		// this blocks until
 		// 1) has a connection
 		// 2) its node is registered
 		// 3) receieves signal to shutdown or breaks
-		hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
-		zzk.Start(shutdown, hsListener, virtualIPListener, actionListener)
+		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
 		glog.Infof("Host Agent Listeners are done")
 
 		select {

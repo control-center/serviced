@@ -30,17 +30,18 @@ import (
 func TestHostRegistryListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener, err := NewHostRegistryListener(conn)
-	if err != nil {
+
+	if err := InitHostRegistry(conn); err != nil {
 		t.Fatalf("Could not initialize host registry: %s", err)
 	}
 
+	listener := NewHostRegistryListener()
 	var (
 		shutdown = make(chan interface{})
 		wait     = make(chan interface{})
 	)
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(wait)
 	}()
 
@@ -143,8 +144,10 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 func TestHostRegistryListener_Spawn(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener, err := NewHostRegistryListener(conn)
-	if err != nil {
+
+	listener := NewHostRegistryListener()
+	listener.SetConnection(conn)
+	if err := InitHostRegistry(conn); err != nil {
 		t.Fatalf("Could not initialize host registry: %s", err)
 	}
 
@@ -243,8 +246,9 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 func TestHostRegistryListener_unregister(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener, err := NewHostRegistryListener(conn)
-	if err != nil {
+	listener := NewHostRegistryListener()
+	listener.SetConnection(conn)
+	if err := InitHostRegistry(conn); err != nil {
 		t.Fatalf("Could not initialize host registry: %s", err)
 	}
 
