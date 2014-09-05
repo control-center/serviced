@@ -75,22 +75,22 @@ type HostRegistryListener struct {
 	shutdown chan interface{}
 }
 
-// NewHostRegistryListener instantiates a new HostRegistryListener
-func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
-	// initialize the hostregistry
-	if exists, err := zzk.PathExists(conn, hostregpath()); err != nil {
-		return nil, err
-	} else if exists {
-		// pass
-	} else if err := conn.CreateDir(hostregpath()); err != nil {
-		return nil, err
+// InitHostRegistry initializes the host registry
+func InitHostRegistry(conn client.Connection) error {
+	err := conn.CreateDir(hostregpath())
+	if err == client.ErrNodeExists {
+		return nil
 	}
-
-	return &HostRegistryListener{conn, make(chan interface{})}, nil
+	return err
 }
 
-// GetConnection implements zzk.Listener
-func (l *HostRegistryListener) GetConnection() client.Connection { return l.conn }
+// NewHostRegistryListener instantiates a new HostRegistryListener
+func NewHostRegistryListener() *HostRegistryListener {
+	return &HostRegistryListener{shutdown: make(chan interface{})}
+}
+
+// SetConnection implements zzk.Listener
+func (l *HostRegistryListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
 func (l *HostRegistryListener) GetPath(nodes ...string) string { return hostregpath(nodes...) }
@@ -100,6 +100,9 @@ func (l *HostRegistryListener) Ready() (err error) { return }
 
 // Done shuts down any running processes outside of the main listener, like l.GetHosts()
 func (l *HostRegistryListener) Done() { close(l.shutdown) }
+
+// PostProcess implments zzk.Listener
+func (l *HostRegistryListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn listens on the host registry and waits til the node is deleted to unregister
 func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string) {

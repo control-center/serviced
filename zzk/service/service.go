@@ -83,12 +83,12 @@ type ServiceListener struct {
 }
 
 // NewServiceListener instantiates a new ServiceListener
-func NewServiceListener(conn client.Connection, handler ServiceHandler) *ServiceListener {
-	return &ServiceListener{conn: conn, handler: handler}
+func NewServiceListener(handler ServiceHandler) *ServiceListener {
+	return &ServiceListener{handler: handler}
 }
 
-// GetConnection implements zzk.Listener
-func (l *ServiceListener) GetConnection() client.Connection { return l.conn }
+// SetConnection implements zzk.Listener
+func (l *ServiceListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
 func (l *ServiceListener) GetPath(nodes ...string) string { return servicepath(nodes...) }
@@ -98,6 +98,9 @@ func (l *ServiceListener) Ready() (err error) { return }
 
 // Done implements zzk.Listener
 func (l *ServiceListener) Done() { return }
+
+// PostProcess implements zzk.Listener
+func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {

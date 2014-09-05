@@ -109,12 +109,12 @@ func TestHostStateListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
 	AddHost(conn, &host.Host{ID: listener.hostID})
 	shutdown := make(chan interface{})
 	wait := make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(wait)
 	}()
 
@@ -202,7 +202,8 @@ func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the service
@@ -313,7 +314,8 @@ func TestHostStateListener_Spawn_AttachAndDelete(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the service
@@ -371,7 +373,8 @@ func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the service
@@ -420,7 +423,8 @@ func TestHostStateListener_pauseInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
@@ -447,7 +451,8 @@ func TestHostStateListener_resumeInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
@@ -478,7 +483,8 @@ func TestHostStateListener_stopInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance
@@ -509,7 +515,8 @@ func TestHostStateListener_detachInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
 	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(conn, handler, "test-host-1")
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
 
 	// Create the instance

@@ -42,9 +42,9 @@ func TestServiceListener_Listen(t *testing.T) {
 	t.Log("Start and stop listener with no services")
 	shutdown := make(chan interface{})
 	done := make(chan interface{})
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(done)
 	}()
 
@@ -57,7 +57,7 @@ func TestServiceListener_Listen(t *testing.T) {
 	shutdown = make(chan interface{})
 	done = make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(done)
 	}()
 
@@ -115,7 +115,8 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -243,7 +244,8 @@ func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
 		t.Fatalf("Error while cresting node %s: %s", spath, err)
 	}
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 
 	// Start 5 instances and verify
@@ -282,7 +284,8 @@ func TestServiceListener_sync(t *testing.T) {
 	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
 		t.Fatalf("Error while creating node %s: %s", spath, err)
 	}
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 	if err != nil {
@@ -423,7 +426,8 @@ func TestServiceListener_start(t *testing.T) {
 		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
 	}
 
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	listener.start(svc, []int{1})
 
 	// Look up service instance
@@ -492,7 +496,8 @@ func TestServiceListener_pause(t *testing.T) {
 		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
 	}
 
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	listener.start(svc, []int{1})
 
 	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)
@@ -528,7 +533,8 @@ func TestServiceListener_stop(t *testing.T) {
 		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
 	}
 
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	listener.start(svc, []int{1, 2})
 
 	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)
