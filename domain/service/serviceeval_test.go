@@ -226,6 +226,21 @@ var context_testcases = []Service {
 			},
 		},
 	},
+	{
+		ID: "203",
+		Name: "203",
+		PoolID: "default",
+		Launch: "manual",
+		Context: `{"foo.bar-baz": "qux"}`,
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile {
+				// We store the expected value in the Owner field
+				Owner: `qux!`,
+				Content:`{{(contextFilter . "foo.bar-").baz}}!`,
+			},
+		},
+	},
 }
 
 var addresses []string
@@ -320,7 +335,10 @@ func (s *S) TestEvaluateConfigFilesTemplateContext(t *C) {
 	var instanceID = 5
 
 	for _, testcase := range context_testcases {
-		testcase.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
+		err := testcase.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
+		if err != nil {
+			t.Errorf("Failed to eval template %s", err)
+		}
 		for name, cf := range testcase.ConfigFiles {
 			// We store the expected value in the Owner field
 			expected := cf.Owner
