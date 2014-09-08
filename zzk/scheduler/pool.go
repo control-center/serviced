@@ -90,6 +90,10 @@ func MonitorResourcePool(shutdown <-chan interface{}, conn client.Connection, po
 	monitor := make(chan *pool.ResourcePool)
 	go func() {
 		defer close(monitor)
+		if err := zzk.Ready(shutdown, conn, poolpath(poolID)); err != nil {
+			glog.V(2).Infof("Could not watch pool %s: %s", poolID, err)
+			return
+		}
 		for {
 			var node PoolNode
 			event, err := conn.GetW(poolpath(poolID), &node)

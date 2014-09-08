@@ -186,6 +186,48 @@ var endpoint_testcases = []struct {
 	}, "hostname_collector"},
 }
 
+var context_testcases = []Service {
+	{
+		ID: "200",
+		Name: "200",
+		PoolID: "default",
+		Launch: "manual",
+		Context: `{"A": "a_200", "B": "b_200", "g.w":"W"}`,
+	},
+	{
+		ID: "201",
+		Name: "201",
+		PoolID: "default",
+		Launch: "manual",
+		Context: `{"A": "a_201", "C": "c_201"}`,
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"inherited": servicedefinition.ConfigFile{
+				// We store the expected value in the Owner field
+				// Note that B comes from the parent context
+				Owner: `a_201, b_200, c_201`,
+				Content:`{{(context .).A}}, {{(context .).B}}, {{(context .).C}}`,
+			},
+		},
+	},
+	{
+		ID: "202",
+		Name: "202",
+		PoolID: "default",
+		Launch: "manual",
+		Context: `{"g.y": "Y", "g.x": "X", "g.z": "Z", "foo": "bar"}`,
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile {
+				// We store the expected value in the Owner field
+				// Note the keys are filtered, trimmed and sorted
+				Owner: `w:W, x:X, y:Y, z:Z, `,
+				Content:`{{range $key,$val:=contextFilter . "g."}}{{$key}}:{{$val}}, {{end}}`,
+			},
+		},
+	},
+}
+
 var addresses []string
 
 func createSvcs(store *Store, ctx datastore.Context) error {
@@ -197,6 +239,15 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 	for _, testcase := range endpoint_testcases {
 		if err := store.Put(ctx, &testcase.service); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+func createContextSvcs (store *Store, ctx datastore.Context) error {
+	for _, testcase := range context_testcases {
+		if err := store.Put(ctx, &testcase); err != nil {
+				return err
 		}
 	}
 	return nil
@@ -259,6 +310,23 @@ func (s *S) TestEvaluateConfigFilesTemplate(t *C) {
 		}
 		if !strings.Contains(configFile.Content, fmt.Sprintf("%s %d", testcase.service.Name, instanceID)) {
 			t.Errorf("Was expecting configFile.Content to include the service name instead it was %s", configFile.Content)
+		}
+	}
+}
+
+func (s *S) TestEvaluateConfigFilesTemplateContext(t *C) {
+	err := createContextSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+	var instanceID = 5
+
+	for _, testcase := range context_testcases {
+		testcase.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
+		for name, cf := range testcase.ConfigFiles {
+			// We store the expected value in the Owner field
+			expected := cf.Owner
+			if cf.Content != expected {
+				t.Errorf(`Config file "%s" contents were "%s" expecting "%s"`, name, cf.Content, expected)
+			}
 		}
 	}
 }
@@ -347,7 +415,7 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 		DesiredState:    SVCRun,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceID: "0987654321",
+		ParentServiceID: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}
