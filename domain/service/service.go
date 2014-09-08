@@ -39,6 +39,7 @@ const (
 type Service struct {
 	ID                string
 	Name              string
+	Title             string                 // Title is a label used when describing this service in the context of a service tree
 	Version           string
 	Context           string
 	Startup           string
@@ -128,6 +129,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc := Service{}
 	svc.ID = svcuuid
 	svc.Name = sd.Name
+	svc.Title = sd.Title
 	svc.Version = sd.Version
 	svc.Context = string(ctx)
 	svc.Startup = sd.Command
