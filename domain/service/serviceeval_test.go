@@ -266,7 +266,7 @@ func (s *S) findChild(svcID, childName string) (Service, error) {
 	}
 	for _, x := range svcs {
 		if x.Name == childName {
-			return *x, nil
+			return x, nil
 		}
 	}
 	return svc, nil

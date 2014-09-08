@@ -19,7 +19,7 @@ import (
 )
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
-func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceID string, assignments *[]*addressassignment.AddressAssignment) error {
+func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceID string, assignments *[]addressassignment.AddressAssignment) error {
 	return this.facade.GetServiceAddressAssignments(datastore.Get(), serviceID, assignments)
 }
 

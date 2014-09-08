@@ -72,8 +72,8 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 }
 
 // LoadRunningServicesByHost returns a slice of RunningServices given a host(s)
-func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]*dao.RunningService, error) {
-	var rss []*dao.RunningService
+func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao.RunningService, error) {
+	var rss []dao.RunningService
 	for _, hostID := range hostIDs {
 		if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
 			return nil, err
@@ -96,15 +96,15 @@ func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]*da
 				return nil, err
 			}
 
-			rss = append(rss, rs)
+			rss = append(rss, *rs)
 		}
 	}
 	return rss, nil
 }
 
 // LoadRunningServicesByService returns a slice of RunningServices per service id(s)
-func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) ([]*dao.RunningService, error) {
-	var rss []*dao.RunningService
+func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) ([]dao.RunningService, error) {
+	var rss []dao.RunningService
 	for _, serviceID := range serviceIDs {
 		if exists, err := zzk.PathExists(conn, servicepath(serviceID)); err != nil {
 			return nil, err
@@ -121,18 +121,18 @@ func LoadRunningServicesByService(conn client.Connection, serviceIDs ...string) 
 			if err != nil {
 				return nil, err
 			}
-			rss = append(rss, rs)
+			rss = append(rss, *rs)
 		}
 	}
 	return rss, nil
 }
 
 // LoadRunningServices gets all RunningServices
-func LoadRunningServices(conn client.Connection) ([]*dao.RunningService, error) {
+func LoadRunningServices(conn client.Connection) ([]dao.RunningService, error) {
 	if exists, err := zzk.PathExists(conn, servicepath()); err != nil {
 		return nil, err
 	} else if !exists {
-		return []*dao.RunningService{}, nil
+		return []dao.RunningService{}, nil
 	}
 
 	serviceIDs, err := conn.Children(servicepath())
