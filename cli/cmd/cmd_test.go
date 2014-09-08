@@ -81,12 +81,9 @@ func ExampleServicedCLI_CmdInit_logging() {
 	InitAPITest("serviced", "--log_backtrace_at", "file.go:123", "--master", "--agent")
 
 	// Output:
-	// This master has been configured to be in pool: default
 	// starting server
 	// starting server
-	// This master has been configured to be in pool: default
 	// starting server
-	// This master has been configured to be in pool: default
 	// starting server
 }
 
