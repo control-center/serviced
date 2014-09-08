@@ -73,7 +73,7 @@ func (z *zkMock) RemoveService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) GetServiceStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+func (z *zkMock) GetServiceStates(poolID string, serviceStates *[]servicestate.ServiceState, serviceIds ...string) error {
 	return nil
 }
 

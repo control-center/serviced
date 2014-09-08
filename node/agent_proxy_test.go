@@ -32,7 +32,7 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	agent := &HostAgent{}
 	agent.master = "127.0.0.1:0"
 	agent.uiport = ":443"
-	endpoints := make(map[string][]*dao.ApplicationEndpoint)
+	endpoints := make(map[string][]dao.ApplicationEndpoint)
 
 	consumer_endpoint := dao.ApplicationEndpoint{}
 	consumer_endpoint.ServiceID = "controlplane_consumer"
@@ -71,11 +71,11 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 		t.Fatalf(" mapping failed len(\"tcp:443\"])=%d expected 1", len(endpoints["tcp:443"]))
 	}
 
-	if *endpoints["tcp:8444"][0] != consumer_endpoint {
-		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:8444"][0], consumer_endpoint)
+	if endpoints["tcp:8444"][0] != consumer_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", endpoints["tcp:8444"][0], consumer_endpoint)
 	}
 
-	if *endpoints["tcp:443"][0] != controlplane_endpoint {
-		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:443"][0], controlplane_endpoint)
+	if endpoints["tcp:443"][0] != controlplane_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", endpoints["tcp:443"][0], controlplane_endpoint)
 	}
 }

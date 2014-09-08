@@ -29,15 +29,15 @@ import (
 type HostInfo interface {
 	AvailableRAM(*host.Host, chan *hostitem, <-chan bool)
 	PrioritizeByMemory([]*host.Host) ([]*host.Host, error)
-	ServicesOnHost(*host.Host) []*dao.RunningService
+	ServicesOnHost(*host.Host) []dao.RunningService
 }
 
 type DAOHostInfo struct {
 	dao dao.ControlPlane
 }
 
-func (hi *DAOHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
-	rss := []*dao.RunningService{}
+func (hi *DAOHostInfo) ServicesOnHost(h *host.Host) []dao.RunningService {
+	rss := []dao.RunningService{}
 	if err := hi.dao.GetRunningServicesForHost(h.ID, &rss); err != nil {
 		glog.Errorf("cannot retrieve running services for host: %s (%v)", h.ID, err)
 	}
@@ -48,7 +48,7 @@ func (hi *DAOHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
 // subtracting the sum of the RAM commitments of each of its running services
 // from its total memory.
 func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done <-chan bool) {
-	rss := []*dao.RunningService{}
+	rss := []dao.RunningService{}
 	if err := hi.dao.GetRunningServicesForHost(host.ID, &rss); err != nil {
 		glog.Errorf("cannot retrieve running services for host: %s (%v)", host.ID, err)
 		return // this host won't be scheduled

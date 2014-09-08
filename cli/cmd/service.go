@@ -296,7 +296,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return nil, err
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	for _, svc := range svcs {
 		switch strings.ToLower(keyword) {
 		case svc.ID, strings.ToLower(svc.Name):
@@ -312,7 +312,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	case 0:
 		return nil, fmt.Errorf("service not found")
 	case 1:
-		return services[0], nil
+		return &services[0], nil
 	}
 
 	matches := newtable(0, 8, 2)
@@ -358,6 +358,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	lines := make(map[string]map[string]string)
 	for _, svc := range services {
+		glog.V(2).Infof("Getting service status for %s %s", svc.ID, svc.Name)
 		statemap, err := c.driver.GetServiceStatus(svc.ID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -388,23 +389,23 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 				delete(lines, iid)
 			}
 
-			for state, status := range statemap {
+			for _, svcstatus := range statemap {
 				if svc.Instances > 1 {
-					iid = fmt.Sprintf("%s_%d", svc.ID, state.InstanceID)
+					iid = fmt.Sprintf("%s_%d", svc.ID, svcstatus.State.InstanceID)
 					lines[iid] = map[string]string{
 						"ID":        iid,
 						"ServiceID": svc.ID,
-						"Name":      fmt.Sprintf("%s_%d", svc.Name, state.InstanceID),
+						"Name":      fmt.Sprintf("%s_%d", svc.Name, svcstatus.State.InstanceID),
 						"ParentID":  svc.ParentServiceID,
 					}
 				}
-				lines[iid]["Hostname"] = hostmap[state.HostID].Name
-				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", state.DockerID)
-				lines[iid]["Uptime"] = state.Uptime().String()
-				lines[iid]["Status"] = status.String()
+				lines[iid]["Hostname"] = hostmap[svcstatus.State.HostID].Name
+				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", svcstatus.State.DockerID)
+				lines[iid]["Uptime"] = svcstatus.State.Uptime().String()
+				lines[iid]["Status"] = svcstatus.Status.String()
 
 				insync := "Y"
-				if !state.InSync {
+				if !svcstatus.State.InSync {
 					insync = "N"
 				}
 				lines[iid]["InSync"] = insync
@@ -843,7 +844,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		hostmap[host.ID] = host
 	}
 
-	var states []*dao.RunningService
+	var states []dao.RunningService
 	for _, rs := range rss {
 		if rs.DockerID == "" {
 			continue
@@ -865,7 +866,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	case 0:
 		return nil, fmt.Errorf("no matches found")
 	case 1:
-		return states[0], nil
+		return &states[0], nil
 	}
 
 	matches := newtable(0, 8, 2)

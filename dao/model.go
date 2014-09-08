@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/utils"
 )
 
@@ -106,6 +107,11 @@ var (
 	Stopping  = Status{7, "Stopping"}
 	Stopped   = Status{8, "Stopped"}
 )
+
+type ServiceStatus struct {
+	State  servicestate.ServiceState
+	Status Status
+}
 
 // An instantiation of a Snapshot request
 type SnapshotRequest struct {

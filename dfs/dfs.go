@@ -71,7 +71,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, ti
 func (d *DistributedFileSystem) waitpause(cancel <-chan interface{}, serviceID string) error {
 
 	for {
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(serviceID, &states); err != nil {
 			return err
 		}
@@ -110,7 +110,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	var servicesList []*service.Service
+	var servicesList []service.Service
 	if err := d.client.GetServices(unused, &servicesList); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
@@ -370,7 +370,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	timestamp := parts[1]
 
 	var (
-		services  []*service.Service
+		services  []service.Service
 		theVolume volume.Volume
 	)
 
@@ -381,7 +381,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 	for _, service := range services {
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(service.ID, &states); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
@@ -434,12 +434,12 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	glog.Infof("DistributedFileSystem.RollbackServices from path: %s", restorePath)
 
 	var (
-		existingServices []*service.Service
-		services         []*service.Service
+		existingServices []service.Service
+		services         []service.Service
 	)
 
 	// Verify there are no running service instances
-	var rss []*dao.RunningService
+	var rss []dao.RunningService
 	if err := d.client.GetRunningServices(unused, &rss); err != nil {
 		glog.Errorf("Could not get running services: %s", err)
 		return err
@@ -472,7 +472,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 		}
 	}
 
-	existingServiceMap := make(map[string]*service.Service)
+	existingServiceMap := make(map[string]service.Service)
 	for _, service := range existingServices {
 		existingServiceMap[service.ID] = service
 	}
@@ -483,14 +483,14 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 			svc.DesiredState = service.SVCStop
 		}
 
-		if existingService := existingServiceMap[svc.ID]; existingService != nil {
+		if existingService, ok := existingServiceMap[svc.ID]; ok {
 			var unused *int
 			svc.PoolID = existingService.PoolID
 			if existingPools[svc.PoolID] == nil {
 				glog.Infof("Changing PoolID of service %s from %s to default", svc.ID, svc.PoolID)
 				svc.PoolID = "default"
 			}
-			if e := d.client.UpdateService(*svc, unused); e != nil {
+			if e := d.client.UpdateService(svc, unused); e != nil {
 				glog.Errorf("Could not update service %s: %v", svc.ID, e)
 				return e
 			}
@@ -500,7 +500,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 				svc.PoolID = "default"
 			}
 			var serviceId string
-			if e := d.client.AddService(*svc, &serviceId); e != nil {
+			if e := d.client.AddService(svc, &serviceId); e != nil {
 				glog.Errorf("Could not add service %s: %v", svc.ID, e)
 				return e
 			}
@@ -574,7 +574,7 @@ func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit ti
 			continue
 		}
 
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(svc.ID, &states); err != nil {
 			return err
 		}
@@ -582,7 +582,7 @@ func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit ti
 			// check if the instance has been running since before the commit
 			if state.IsRunning() && state.Started.Before(commit) {
 				state.InSync = false
-				if err := d.client.UpdateServiceState(*state, new(int)); err != nil {
+				if err := d.client.UpdateServiceState(state, new(int)); err != nil {
 					return err
 				}
 			}
