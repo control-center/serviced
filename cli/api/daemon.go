@@ -80,7 +80,6 @@ type daemon struct {
 	zClient          *coordclient.Client
 	storageHandler   *storage.Server
 	masterPoolID     string
-	masterRealm      string
 	hostAgent        *node.HostAgent
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
@@ -241,7 +240,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if d.masterRealm, err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
+	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		return err
 	}
 
@@ -627,7 +626,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler(d.masterRealm, d.hostID, d.cpDao, d.facade)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.cpDao, d.facade)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return

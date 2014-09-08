@@ -240,23 +240,23 @@ func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.Resour
 }
 
 //CreateDefaultPool creates the default pool if it does not exists, it is idempotent
-func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) (string, error) {
+func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	entity, err := f.GetResourcePool(ctx, id)
 	if err != nil {
-		return "", fmt.Errorf("could not create default pool: %v", err)
+		return fmt.Errorf("could not create default pool %s: %v", id, err)
 	}
 	if entity != nil {
 		glog.V(4).Infof("'%s' resource pool already exists", id)
-		return entity.Realm, nil
+		return nil
 	}
 
 	glog.V(4).Infof("'%s' resource pool not found; creating...", id)
 	entity = pool.New(id)
 	entity.Realm = defaultRealm
 	if err := f.AddResourcePool(ctx, entity); err != nil {
-		return "", err
+		return err
 	}
-	return entity.Realm, nil
+	return nil
 }
 
 func (f *Facade) calcPoolCapacity(ctx datastore.Context, pool *pool.ResourcePool) error {
