@@ -237,7 +237,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	if options.Master {
-		fmt.Println("This master has been configured to be in pool: " + options.MasterPoolID)
+		fmt.Fprintf(os.Stderr, "This master has been configured to be in pool: %s\n", options.MasterPoolID)
 	}
 
 	// Start server mode
