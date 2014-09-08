@@ -312,11 +312,11 @@ func (s Service) GetPath(gs GetService) (string, error) {
 }
 
 //SetAssignment sets the AddressAssignment for the endpoint
-func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment) error {
+func (se *ServiceEndpoint) SetAssignment(aa addressassignment.AddressAssignment) error {
 	if se.AddressConfig.Port == 0 {
 		return errors.New("cannot assign address to endpoint without AddressResourceConfig")
 	}
-	se.AddressAssignment = *aa
+	se.AddressAssignment = aa
 	return nil
 }
 

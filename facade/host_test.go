@@ -145,7 +145,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	s1.Endpoints[0].Name = "name"
 	s1.Endpoints[0].AddressConfig = servicedefinition.AddressResourceConfig{Port: 123, Protocol: "tcp"}
 	aa := addressassignment.AddressAssignment{ID: "id", HostID: "h1"}
-	s1.Endpoints[0].SetAssignment(&aa)
+	s1.Endpoints[0].SetAssignment(aa)
 	err = s.Facade.AddService(s.CTX, *s1)
 	if err != nil {
 		t.Fatalf("Failed to add service %+v: %s", s1, err)

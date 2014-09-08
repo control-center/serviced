@@ -176,7 +176,7 @@ func (sr StatsReporter) updateStats() {
 	// Stats for host.
 	sr.updateHostStats()
 	// Stats for the containers.
-	var running []*dao.RunningService
+	var running []dao.RunningService
 	running, err := zkservice.LoadRunningServicesByHost(sr.conn, sr.hostID)
 	if err != nil {
 		glog.Errorf("updateStats: zkservice.LoadRunningServicesByHost (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)

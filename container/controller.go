@@ -88,7 +88,7 @@ type ControllerOptions struct {
 		RemoteEndoint string // The url to forward metric queries
 	}
 	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
-	MetricForwarding	bool // Whether or not the Controller should forward metrics
+	MetricForwarding     bool   // Whether or not the Controller should forward metrics
 }
 
 // Controller is a object to manage the operations withing a container. For example,
@@ -341,7 +341,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	metricRedirect := options.Metric.RemoteEndoint
 	if len(metricRedirect) == 0 {
 		glog.V(1).Infof("container.Controller does not have metric forwarding")
-	} else if ! options.MetricForwarding {
+	} else if !options.MetricForwarding {
 		glog.V(1).Infof("Not forwarding metrics for this container (%v)", c.tenantID)
 	} else {
 		if len(c.tenantID) <= 0 {
@@ -699,11 +699,11 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
 	//		We should rename it and clean up the filtering code below.
 
-	epchan := make(chan map[string][]*dao.ApplicationEndpoint)
+	epchan := make(chan map[string][]dao.ApplicationEndpoint)
 	timeout := make(chan struct{})
 
-	go func(c *node.LBClient, svcid string, epc chan map[string][]*dao.ApplicationEndpoint, timeout chan struct{}) {
-		var endpoints map[string][]*dao.ApplicationEndpoint
+	go func(c *node.LBClient, svcid string, epc chan map[string][]dao.ApplicationEndpoint, timeout chan struct{}) {
+		var endpoints map[string][]dao.ApplicationEndpoint
 	RetryGetServiceEndpoints:
 		for {
 			err = c.GetServiceEndpoints(svcid, &endpoints)
@@ -735,7 +735,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		}
 	}(client, c.options.Service.ID, epchan, timeout)
 
-	var endpoints map[string][]*dao.ApplicationEndpoint
+	var endpoints map[string][]dao.ApplicationEndpoint
 	select {
 	case <-time.After(1 * time.Minute):
 		close(epchan)
@@ -751,7 +751,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	}
 
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
-	tmp := make(map[string][]*dao.ApplicationEndpoint)
+	tmp := make(map[string][]dao.ApplicationEndpoint)
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
 			glog.Warningf("ignoring key: %s with empty endpointList", key)

@@ -55,10 +55,10 @@ func (t *TestHostInfo) PrioritizeByMemory(hosts []*host.Host) ([]*host.Host, err
 }
 
 // Don't go to ZooKeeper, just look at our local manually constructed service state.
-func (t *TestHostInfo) ServicesOnHost(h *host.Host) []*dao.RunningService {
-	result := []*dao.RunningService{}
+func (t *TestHostInfo) ServicesOnHost(h *host.Host) []dao.RunningService {
+	result := []dao.RunningService{}
 	for _, s := range t.services[h] {
-		result = append(result, &dao.RunningService{ServiceID: s})
+		result = append(result, dao.RunningService{ServiceID: s})
 	}
 	return result
 }
