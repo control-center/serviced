@@ -233,7 +233,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
+		fmt.Println(err)
 	}
 
 	if options.Master {

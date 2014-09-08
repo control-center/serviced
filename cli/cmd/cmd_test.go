@@ -94,11 +94,9 @@ func ExampleServicedCLI_CmdInit_logerr() {
 
 	// Output:
 	// strconv.ParseInt: parsing "abc": invalid syntax
-	// This master has been configured to be in pool: default
 	// starting server
 	// syntax error: expect comma-separated list of filename=N
 	// starting server
 	// syntax error: expect file.go:234
-	// This master has been configured to be in pool: default
 	// starting server
 }
