@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"testing"
 
@@ -694,11 +695,17 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 }
 
 func ExampleServicedCLI_CmdServiceRun_list() {
-	InitServiceAPITest("serviced", "service", "run", "test-service-1")
+	output := pipe(InitServiceAPITest, "serviced", "service", "run", "test-service-1")
+	actual := strings.Split(string(output[:]), "\n")
+	sort.Strings(actual)
+
+	for _, item := range actual {
+		fmt.Printf("%s\n", item)
+	}
 
 	// Output:
-	// hello
 	// goodbye
+	// hello
 }
 
 func ExampleServicedCLI_CmdServiceRun_exec() {
