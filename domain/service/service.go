@@ -14,9 +14,9 @@
 package service
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -40,7 +40,7 @@ type Service struct {
 	ID                string
 	Name              string
 	Version           string
-	Context           string
+	Context           map[string]interface{}
 	Startup           string
 	Description       string
 	Tags              []string
@@ -118,18 +118,13 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		return nil, err
 	}
 
-	ctx, err := json.Marshal(sd.Context)
-	if err != nil {
-		return nil, err
-	}
-
 	now := time.Now()
 
 	svc := Service{}
 	svc.ID = svcuuid
 	svc.Name = sd.Name
 	svc.Version = sd.Version
-	svc.Context = string(ctx)
+	svc.Context = sd.Context
 	svc.Startup = sd.Command
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
@@ -345,7 +340,7 @@ func (s *Service) Equals(b *Service) bool {
 	if s.Version != b.Version {
 		return false
 	}
-	if s.Context != b.Context {
+	if !reflect.DeepEqual(s.Context, b.Context) {
 		return false
 	}
 	if s.Startup != b.Startup {
