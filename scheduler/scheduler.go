@@ -18,7 +18,6 @@ import (
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -33,6 +32,7 @@ type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlan
 type scheduler struct {
 	sync.Mutex                    // only one process can stop and start the scheduler at a time
 	cpDao        dao.ControlPlane // ControlPlane interface
+	poolID       string           // pool where the master resides
 	realm        string           // realm for which the scheduler will run
 	instance_id  string           // unique id for this node instance
 	shutdown     chan interface{} // Shuts down all the pools
@@ -41,15 +41,14 @@ type scheduler struct {
 	facade       *facade.Facade
 	stopped      chan interface{}
 
-	conn   coordclient.Connection
-	leader coordclient.Leader
+	conn coordclient.Connection
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(realm string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
+func NewScheduler(poolID string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:        cpDao,
-		realm:        realm,
+		poolID:       poolID,
 		instance_id:  instance_id,
 		shutdown:     make(chan interface{}),
 		stopped:      make(chan interface{}),
@@ -108,6 +107,8 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	}
 	defer leader.ReleaseLead()
 
+	registry.CreateEndpointRegistry(conn)
+
 	// did I shut down before I became the leader?
 	select {
 	case <-s.shutdown:
@@ -116,30 +117,57 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	}
 
 	var (
-		_shutdown = make(chan interface{})
+		wg        sync.WaitGroup
 		stopped   = make(chan interface{})
+		_shutdown = make(chan interface{})
 	)
+	defer func() {
+		close(_shutdown)
+		wg.Wait()
+	}()
 
-	registry.CreateEndpointRegistry(conn)
+	// TODO: synchronize with the remote
 
-	// synchronize elastic with zookeeper
-	go NewSynchronizer(s.facade, datastore.Get()).SyncLoop(_shutdown)
+	// synchronize locally
+	go doLocalSync(_shutdown, s.facade)
+
+	// where do I preside?
+	monitor := zkscheduler.MonitorResourcePool(_shutdown, conn, s.poolID)
+	select {
+	case pool := <-monitor:
+		if pool == nil {
+			return
+		}
+		s.realm = pool.Realm
+	case <-s.shutdown:
+		return
+	}
+
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		defer close(stopped)
 		zzk.Listen(_shutdown, make(chan error, 1), conn, s)
 	}()
 
 	// wait for something to happen
-	select {
-	case <-event:
-		glog.Warningf("Coup d'etat, re-electing...")
-	case <-stopped:
-		glog.Warningf("Leader died, re-electing...")
-	case <-s.shutdown:
+	for {
+		select {
+		case <-event:
+			glog.Warningf("Coup d'etat, re-electing...")
+			return
+		case <-stopped:
+			glog.Warningf("Leader died, re-electing...")
+			return
+		case pool := <-monitor:
+			if pool == nil || pool.Realm != s.realm {
+				glog.Warningf("Realm changed, re-electing...")
+				return
+			}
+		case <-s.shutdown:
+			return
+		}
 	}
-
-	close(_shutdown)
-	<-stopped
 }
 
 // Stop stops all scheduler processes for the master
