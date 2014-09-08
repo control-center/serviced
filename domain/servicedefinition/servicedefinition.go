@@ -24,6 +24,7 @@ import (
 //ServiceDefinition is the definition of a service hierarchy.
 type ServiceDefinition struct {
 	Name              string                 // Name of the defined service
+	Title             string                 // Title is a label used when describing this service in the context of a service tree
 	Version           string                 // Version of the defined service
 	Command           string                 // Command which runs the service
 	Description       string                 // Description of the service
