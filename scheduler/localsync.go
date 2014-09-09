@@ -15,8 +15,7 @@ package scheduler
 import (
 	"time"
 
-	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
 	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -29,8 +28,7 @@ const (
 	maxWait = 3 * time.Hour
 )
 
-func doLocalSync(shutdown <-chan interface{}, f *facade.Facade) {
-	ctx := datastore.Get()
+func (s *scheduler) localSync(shutdown <-chan interface{}, rootConn client.Connection) {
 	wait := time.After(0)
 
 retry:
@@ -41,13 +39,9 @@ retry:
 			return
 		}
 
-		pools, err := f.GetResourcePools(ctx)
+		pools, err := s.GetResourcePools()
 		if err != nil {
 			glog.Errorf("Could not get resource pools: %s", err)
-			wait = time.After(minWait)
-			continue
-		} else if rootConn, err := zzk.GetLocalConnection("/"); err != nil {
-			glog.Errorf("Could not get a local connection to zookeeper: %s", err)
 			wait = time.After(minWait)
 			continue
 		} else if err := zkscheduler.SyncResourcePools(rootConn, pools); err != nil {
@@ -65,7 +59,7 @@ retry:
 			}
 
 			// Update the hosts
-			if hosts, err := f.FindHostsInPool(ctx, pool.ID); err != nil {
+			if hosts, err := s.GetHostsByPool(pool.ID); err != nil {
 				glog.Errorf("Could not get hosts in pool %s: %s", pool.ID, err)
 				wait = time.After(minWait)
 				continue retry
@@ -76,7 +70,7 @@ retry:
 			}
 
 			// Update the services
-			if svcs, err := f.GetServicesByPool(ctx, pool.ID); err != nil {
+			if svcs, err := s.GetServicesByPool(pool.ID); err != nil {
 				glog.Errorf("Could not get services: %s", err)
 				wait = time.After(minWait)
 				continue retry
