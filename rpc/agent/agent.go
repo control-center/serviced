@@ -14,14 +14,10 @@
 package agent
 
 import (
-	"github.com/control-center/serviced/domain/host"
-	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/domain/host"
 
-	"encoding/json"
-	"fmt"
-	"os"
-	"strings"
+	"os/exec"
 )
 
 // NewServer returns a new AgentServer
@@ -59,58 +55,17 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	return nil
 }
 
-// getLastDockerLogs gets the last N bytes from the docker logs
-func getLastDockerLogs(logfile string, size int64) (output []string, err error) {
-	fi, err := os.Open(logfile)
-	if err != nil {
-		return output, err
-	}
-	stat, err := fi.Stat()
-	if err != nil {
-		return output, err
-	}
-
-	offset := stat.Size() - size
-	if offset < 0 {
-		offset = 0
-	}
-
-	output = make([]string, 0)
-	if _, err := fi.Seek(offset, 0); err != nil {
-		return output, err
-	}
-
-	// keep seeking until next new line char
-	buf := make([]byte,1)
-	for {
-		if _, err := fi.Read(buf); err != nil {
-			return output, err
-		}
-		if buf[0] == '\n' {
-			break
-		}
-	}
-	dec := json.NewDecoder(fi)
-	for {
-		l := jsonlog.JSONLog{}
-		if err := dec.Decode(&l); err != nil {
-			break
-		}
-		output = append(output, fmt.Sprintf("%s", l.Log))
-	}
-	return output, nil
-}
-
 // GetDockerLogs returns the last 10k worth of logs from the docker container
 func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
-
-	//  TODO: revisit this after docker supports truncating logs
-	filename := fmt.Sprintf("/var/lib/docker/containers/%s/%s-json.log", dockerID, dockerID)
-
-	output, err := getLastDockerLogs(filename, 20000)
+	cmd := exec.Command("docker", "logs", dockerID)
+	output, err := cmd.CombinedOutput()
 	if err != nil {
+		glog.Errorf("Unable to return logs because: %v", err)
 		return err
 	}
-	*logs = strings.Join(output, "")
+	if len(output) > 10000 {
+		output = output[len(output)-10000:]
+	}
+	*logs = string(output)
 	return nil
 }
