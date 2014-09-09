@@ -17,7 +17,6 @@ import (
 	"github.com/zenoss/glog"
 
 	"bytes"
-	"encoding/json"
 	"runtime"
 	"strings"
 	"text/template"
@@ -45,7 +44,7 @@ func child(fc FindChildService) func(s *runtimeContext, childName string) (*runt
 	}
 }
 
-func flattenContext (svc Service, gs GetService, prefix string, ctx *map[string]interface{}) error {
+func flattenContext(svc Service, gs GetService, prefix string, ctx *map[string]interface{}) error {
 	if svc.ParentServiceID != "" {
 		parent, err := gs(svc.ParentServiceID)
 		if err != nil {
@@ -56,13 +55,8 @@ func flattenContext (svc Service, gs GetService, prefix string, ctx *map[string]
 			return err
 		}
 	}
-	if svc.Context != "" {
-		svcCtx := make(map[string]interface{})
-		err := json.Unmarshal([]byte(svc.Context), &svcCtx)
-		if err != nil {
-			return err
-		}
-		for k,v := range svcCtx {
+	if svc.Context != nil {
+		for k, v := range svc.Context {
 			if strings.HasPrefix(k, prefix) {
 				(*ctx)[strings.TrimPrefix(k, prefix)] = v
 			}
@@ -82,12 +76,12 @@ func context(gs GetService) func(s *runtimeContext) (map[string]interface{}, err
 	}
 }
 
-func contextFilter(gs GetService) func (s *runtimeContext, prefix string) (map[string]interface{}, error) {
+func contextFilter(gs GetService) func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
 	return func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
 		err := flattenContext(s.Service, gs, prefix, &ctx)
 		if err != nil {
-			glog.Errorf("Flattening context for %s (%s): %s", s.Name, s.ID, err)
+			glog.Errorf("Flattening context for %s (%s prefix:%s): %s", s.Name, s.ID, prefix, err)
 		}
 		return ctx, err
 	}
@@ -172,14 +166,14 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 	}()
 
 	functions := template.FuncMap{
-		"parent":       parent(gs),
-		"child":        child(fc),
-		"context":      context(gs),
-		"contextFilter":contextFilter(gs),
-		"percentScale": percentScale,
-		"bytesToMB":    bytesToMB,
-		"plus":         plus,
-		"each":         each,
+		"parent":        parent(gs),
+		"child":         child(fc),
+		"context":       context(gs),
+		"contextFilter": contextFilter(gs),
+		"percentScale":  percentScale,
+		"bytesToMB":     bytesToMB,
+		"plus":          plus,
+		"each":          each,
 	}
 
 	// parse the template

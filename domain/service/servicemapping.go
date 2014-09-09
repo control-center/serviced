@@ -14,8 +14,8 @@
 package service
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/zenoss/glog"
 )
 
 var (
@@ -26,7 +26,7 @@ var (
 		"ID" :             {"type": "string", "index":"not_analyzed"},
 		"Name":            {"type": "string", "index":"not_analyzed"},
 		"Startup":         {"type": "string", "index":"not_analyzed"},
-		"Context":         {"type": "string", "index":"not_analyzed"},
+		"Context":         {"type": "object", "index":"not_analyzed"},
 		"Description":     {"type": "string", "index":"not_analyzed"},
 		"DeploymentID":    {"type": "string", "index":"not_analyzed"},
 		"Tags":            {"type": "string", "index_name": "tag"},

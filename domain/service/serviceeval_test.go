@@ -38,7 +38,7 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "0",
 		Name:            "Zenoss",
-		Context:         "",
+		Context:         nil,
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
@@ -80,7 +80,7 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "1",
 		Name:            "Collector",
-		Context:         "{\"RemoteHost\":\"a_hostname\"}",
+		Context:         map[string]interface{}{"RemoteHost": "a_hostname"},
 		Startup:         "",
 		Description:     "",
 		Instances:       0,
@@ -100,7 +100,7 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "2",
 		Name:            "pinger",
-		Context:         "{\"Count\": 32}",
+		Context:         map[string]interface{}{"Count": 32},
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context (parent .)).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
@@ -119,7 +119,7 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "3",
 		Name:            "/bin/sh",
-		Context:         "",
+		Context:         nil,
 		Startup:         "{{.Name}} ls -l .",
 		Description:     "Execute ls -l on .",
 		Instances:       1,
@@ -144,7 +144,7 @@ var endpoint_testcases = []struct {
 	{Service{
 		ID:              "100",
 		Name:            "Zenoss",
-		Context:         "{\"RemoteHost\":\"hostname\"}",
+		Context:         map[string]interface{}{"RemoteHost": "hostname"},
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
@@ -161,7 +161,7 @@ var endpoint_testcases = []struct {
 	{Service{
 		ID:             "101",
 		Name:           "Collector",
-		Context:        "",
+		Context:        nil,
 		Startup:        "",
 		Description:    "",
 		Instances:      0,
@@ -186,43 +186,58 @@ var endpoint_testcases = []struct {
 	}, "hostname_collector"},
 }
 
-var context_testcases = []Service {
+var context_testcases = []Service{
 	{
-		ID: "200",
-		Name: "200",
-		PoolID: "default",
-		Launch: "manual",
-		Context: `{"A": "a_200", "B": "b_200", "g.w":"W"}`,
+		ID:      "200",
+		Name:    "200",
+		PoolID:  "default",
+		Launch:  "manual",
+		Context: map[string]interface{}{"A": "a_200", "B": "b_200", "g.w": "W"},
 	},
 	{
-		ID: "201",
-		Name: "201",
-		PoolID: "default",
-		Launch: "manual",
-		Context: `{"A": "a_201", "C": "c_201"}`,
+		ID:              "201",
+		Name:            "201",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{"A": "a_201", "C": "c_201"},
 		ParentServiceID: "200",
 		ConfigFiles: map[string]servicedefinition.ConfigFile{
 			"inherited": servicedefinition.ConfigFile{
 				// We store the expected value in the Owner field
 				// Note that B comes from the parent context
-				Owner: `a_201, b_200, c_201`,
-				Content:`{{(context .).A}}, {{(context .).B}}, {{(context .).C}}`,
+				Owner:   `a_201, b_200, c_201`,
+				Content: `{{(context .).A}}, {{(context .).B}}, {{(context .).C}}`,
 			},
 		},
 	},
 	{
-		ID: "202",
-		Name: "202",
-		PoolID: "default",
-		Launch: "manual",
-		Context: `{"g.y": "Y", "g.x": "X", "g.z": "Z", "foo": "bar"}`,
+		ID:              "202",
+		Name:            "202",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{"g.y": "Y", "g.x": "X", "g.z": "Z", "foo": "bar"},
 		ParentServiceID: "200",
 		ConfigFiles: map[string]servicedefinition.ConfigFile{
-			"range": servicedefinition.ConfigFile {
+			"range": servicedefinition.ConfigFile{
 				// We store the expected value in the Owner field
 				// Note the keys are filtered, trimmed and sorted
-				Owner: `w:W, x:X, y:Y, z:Z, `,
-				Content:`{{range $key,$val:=contextFilter . "g."}}{{$key}}:{{$val}}, {{end}}`,
+				Owner:   `w:W, x:X, y:Y, z:Z, `,
+				Content: `{{range $key,$val:=contextFilter . "g."}}{{$key}}:{{$val}}, {{end}}`,
+			},
+		},
+	},
+	{
+		ID:              "203",
+		Name:            "203",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{"foo.bar-baz": "qux"},
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile{
+				// We store the expected value in the Owner field
+				Owner:   `qux!`,
+				Content: `{{(contextFilter . "foo.bar-").baz}}!`,
 			},
 		},
 	},
@@ -244,10 +259,10 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 	return nil
 }
 
-func createContextSvcs (store *Store, ctx datastore.Context) error {
+func createContextSvcs(store *Store, ctx datastore.Context) error {
 	for _, testcase := range context_testcases {
 		if err := store.Put(ctx, &testcase); err != nil {
-				return err
+			return err
 		}
 	}
 	return nil
@@ -320,7 +335,10 @@ func (s *S) TestEvaluateConfigFilesTemplateContext(t *C) {
 	var instanceID = 5
 
 	for _, testcase := range context_testcases {
-		testcase.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
+		err := testcase.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
+		if err != nil {
+			t.Errorf("Failed to eval template %s", err)
+		}
 		for name, cf := range testcase.ConfigFiles {
 			// We store the expected value in the Owner field
 			expected := cf.Owner
@@ -405,7 +423,7 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 	svc := Service{
 		ID:              "1000",
 		Name:            "pinger",
-		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
+		Context:         map[string]interface{}{"RemoteHost": "zenoss.com"},
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
