@@ -17,14 +17,6 @@
             "disabled": ""
         };
 
-        // auto update all service health statuses
-        var updateInterval = $interval(function(){
-            // NOTE: can't use update directly because $interval
-            // passes an argument to the function it calls,
-            // which breaks the update function
-            update();
-        }, 3000);
-
         // simple array search util
         function findInArray(key, arr, val){
             for(var i = 0; i < arr.length; i++){

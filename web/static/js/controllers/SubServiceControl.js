@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $q, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
+function SubServiceControl($scope, $q, $routeParams, $location, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -406,7 +406,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
 
 
     // Update the running instances so it is reflected when we save the changes
-    //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
     function updateRunning() {
         if ($scope.params.serviceId) {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
@@ -414,10 +413,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                 mashHostsToInstances();
             });
         }
-    }
-
-    if(!angular.isDefined($scope.updateRunningInterval)) {
-        $scope.updateRunningInterval = $interval(updateRunning, 3000);
     }
 
     // Get a list of deployed apps
@@ -439,11 +434,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
 
         loadSubServiceHosts();
         $serviceHealth.update();
-    });
-
-    $scope.$on('$destroy', function() {
-        $interval.cancel($scope.updateRunningInterval);
-        $scope.updateRunningInterval = undefined;
     });
 
     var wait = { hosts: false, running: false };
@@ -592,6 +582,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $scope.updateGraphs();
     };
 
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
+
     function loadSubServiceHosts(){
         // to pull host data for running services, we need to make seperate "running" requests for each subservice
         // and add the host data to the subservice. We do this synchronously using promises here.
@@ -618,5 +612,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         }
 
         runningServiceDeferred.resolve();
+
+
+        resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
+        resourcesService.registerPoll("running", updateRunning, 3000);
     }
 }
