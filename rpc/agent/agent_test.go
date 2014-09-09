@@ -21,49 +21,6 @@ import (
 	"testing"
 )
 
-var testDockerLogsFile = "getDockerLogs.txt"
-var testDockerLogsOutput = []string{
-	"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/opentsdb_supervisor.conf\" during parsing\n",
-	"2014-08-28 16:22:49,100 WARN Included extra file \"/opt/zenoss/etc/supervisor/central-query_supervisor.conf\" during parsing\n",
-	"2014-08-28 16:22:49,194 INFO RPC interface 'supervisor' initialized\n",
-	"2014-08-28 16:22:49,194 CRIT Server 'inet_http_server' running without any HTTP authentication checking\n",
-	"2014-08-28 16:22:49,195 INFO supervisord started with pid 1\n",
-	"2014-08-28 16:22:50,197 INFO spawned: 'metric-consumer-app' with pid 9\n",
-	"2014-08-28 16:22:50,199 INFO spawned: 'opentsdb' with pid 10\n",
-	"2014-08-28 16:22:50,200 INFO spawned: 'central-query' with pid 11\n",
-	"2014-08-28 16:22:55,272 INFO success: metric-consumer-app entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)\n",
-	"2014-08-28 16:22:55,272 INFO success: opentsdb entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)\n",
-	"2014-08-28 16:22:55,272 INFO success: central-query entered RUNNING state, process has stayed up for > than 5 seconds (startsecs)\n",
-}
-
-func TestGetLastDockerLogs(t *testing.T) {
-	if _, err := getLastDockerLogs("should not exist", 1000); err == nil {
-		t.Fatalf("expected error, file should not exist")
-	}
-
-	if _, err := getLastDockerLogs(testDockerLogsFile, 1000000000000); err != nil {
-		t.Fatalf("should not blow up getting more data than exists: %s", err)
-	}
-
-	// attempt to break deserialization by seeking on a non json object boundary
-	if logs, err := getLastDockerLogs(testDockerLogsFile, 2019); err != nil {
-		t.Fatal("should no break when seeking to non-json object boundary: %s", err)
-	} else {
-		if logs == nil {
-			t.Fatalf("logs should not be nil")
-		}
-		if len(logs) != len(testDockerLogsOutput) {
-			t.Fatalf("log lengths should match: \n%s", logs)
-		}
-		for i, line := range logs {
-			if line != testDockerLogsOutput[i] {
-				t.Fatalf("Docker logs differ '%s' vs '%s'", line, testDockerLogsOutput[i])
-			}
-		}
-	}
-
-}
-
 func TestGetInfo(t *testing.T) {
 
 	ip, err := utils.GetIPAddress()

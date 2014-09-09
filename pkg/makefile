@@ -127,7 +127,7 @@ deb: stage_deb
 		-d nfs-kernel-server \
 		-d net-tools \
 		-d nfs-common \
-		-d 'lxc-docker >= 1.0.0' \
+		-d 'lxc-docker >= 1.1.0' \
 		-d 'docker-smuggle >= 2.24' \
 		-t deb \
 		-a x86_64 \
