@@ -302,6 +302,13 @@ func init() {
 	go kernel(client, done)
 }
 
+func sendError(errc chan error, err error) {
+	go func() {
+		errc <- err
+		close(errc)
+	}()
+}
+
 // SetUseRegistry sets the value of useRegistry
 func SetUseRegistry(ur bool) {
 	useRegistry = ur
@@ -375,7 +382,7 @@ KernelLoop:
 			img, err := dc.CommitContainer(opts)
 			if err != nil {
 				glog.V(1).Infof("unable to commit container %s: %v", req.args.containerID, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -403,7 +410,7 @@ KernelLoop:
 			err := dc.RemoveContainer(req.args.removeOptions)
 			if err != nil {
 				glog.V(1).Infof("unable to remove %#v: %v", req.args.removeOptions, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -412,7 +419,7 @@ KernelLoop:
 			err := dc.RemoveImage(req.args.repotag)
 			if err != nil {
 				glog.V(1).Infof("unable to remove %s: %v", req.args.repotag, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -422,7 +429,7 @@ KernelLoop:
 			err := dc.ExportContainer(dockerclient.ExportContainerOptions{req.args.id, req.args.outfile})
 			if err != nil {
 				glog.V(1).Infof("unable to export container %s: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -432,14 +439,14 @@ KernelLoop:
 			glog.V(1).Infof("importing image %s from %s", req.args.repotag, req.args.filename)
 			f, err := os.Open(req.args.filename)
 			if err != nil {
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			defer f.Close()
 
 			iid, err := commons.ParseImageID(req.args.repotag)
 			if err != nil {
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -452,7 +459,7 @@ KernelLoop:
 
 			if err = dc.ImportImage(opts); err != nil {
 				glog.V(1).Infof("unable to import %s: %v", req.args.repotag, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -462,7 +469,7 @@ KernelLoop:
 			imgs, err := dc.ListImages(false)
 			if err != nil {
 				glog.V(1).Infof("unable to retrieve image list: ", err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -477,7 +484,7 @@ KernelLoop:
 
 					iid, err := commons.ParseImageID(repotag)
 					if err != nil {
-						req.errchan <- err
+						sendError(req.errchan, err)
 						continue KernelLoop
 					}
 					resp = append(resp, &Image{img.ID, *iid})
@@ -493,7 +500,7 @@ KernelLoop:
 			img, err := dc.InspectImage(req.args.id)
 			if err != nil {
 				glog.V(1).Infof("unable to inspect image %s: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -503,7 +510,7 @@ KernelLoop:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
 				glog.V(1).Infof("unable to inspect container %s: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -513,7 +520,7 @@ KernelLoop:
 			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGKILL})
 			if err != nil {
 				glog.V(1).Infof("unable to kill container %s: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -522,7 +529,7 @@ KernelLoop:
 			apictrs, err := dc.ListContainers(dockerclient.ListContainersOptions{All: true})
 			if err != nil {
 				glog.V(1).Infof("unable to retrieve list of containers: %v", err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			resp := []*Container{}
@@ -556,7 +563,7 @@ KernelLoop:
 			err := dc.RestartContainer(req.args.id, req.args.timeout)
 			if err != nil {
 				glog.V(1).Infof("unable to restart container %s: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -565,7 +572,7 @@ KernelLoop:
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
 				glog.V(1).Infof("unable to inspect container %s prior to starting it: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -581,7 +588,7 @@ KernelLoop:
 			err := dc.StopContainer(req.args.id, req.args.timeout)
 			if err != nil {
 				glog.V(1).Infof("unable to stop container %s: %v", req.args.id, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 			close(req.errchan)
@@ -590,7 +597,7 @@ KernelLoop:
 			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
 			if err != nil {
 				glog.V(1).Infof("unable to tag image %s: %v", req.args.repo, err)
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -611,7 +618,7 @@ KernelLoop:
 
 			iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.repo, req.args.tag))
 			if err != nil {
-				req.errchan <- err
+				sendError(req.errchan, err)
 				continue
 			}
 
@@ -624,7 +631,7 @@ KernelLoop:
 				rc, err := dc.WaitContainer(req.args.id)
 				if err != nil {
 					glog.V(1).Infof("wait for container %s failed: %v", req.args.id, err)
-					req.errchan <- err
+					sendError(req.errchan, err)
 				}
 				close(req.errchan)
 				req.respchan <- rc
@@ -661,7 +668,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 
 				iid, err := commons.ParseImageID(req.args.containerOptions.Config.Image)
 				if err != nil {
-					req.errchan <- err
+					sendError(req.errchan, err)
 					return
 				}
 
@@ -676,7 +683,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						dockerclient.AuthConfiguration{})
 					if err != nil {
 						glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 				}
@@ -694,18 +701,18 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						dockerclient.AuthConfiguration{})
 					if pullerr != nil {
 						glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 					ctr, err = dc.CreateContainer(*req.args.containerOptions)
 					if err != nil {
 						glog.V(2).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 				case err != nil:
 					glog.V(2).Infof("container creation failed %+v: %v", *req.args.containerOptions, err)
-					req.errchan <- err
+					sendError(req.errchan, err)
 					return
 				}
 
@@ -718,7 +725,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				if req.args.start {
 					ss, err := em.Subscribe(ctr.ID)
 					if err != nil {
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 
@@ -737,7 +744,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					err = dc.StartContainer(ctr.ID, req.args.hostConfig)
 					if err != nil {
 						glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 
@@ -753,7 +760,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 							ctr, err = dc.InspectContainer(ctrID)
 							if err != nil {
 								glog.V(1).Infof("failed to update container %s state post start: %v", ctrID, err)
-								req.errchan <- err
+								sendError(req.errchan, err)
 								return
 							}
 
@@ -763,7 +770,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 							nctr, err := dc.InspectContainer(ctr.ID)
 							if err != nil {
 								glog.V(2).Infof("can't inspect container %s: %v", ctr.ID, err)
-								req.errchan <- err
+								sendError(req.errchan, err)
 								return
 							}
 							ctr = nctr
@@ -808,7 +815,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				err := dc.StartContainer(req.args.id, req.args.hostConfig)
 				if err != nil {
 					glog.V(2).Infof("unable to start %s: %v", req.args.id, err)
-					req.errchan <- err
+					sendError(req.errchan, err)
 					return
 				}
 
@@ -816,7 +823,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				ctr, err := dc.InspectContainer(req.args.id)
 				if err != nil {
 					glog.V(2).Infof("failed to update container %s state post start: %v", req.args.id, err)
-					req.errchan <- err
+					sendError(req.errchan, err)
 					return
 				}
 
@@ -853,7 +860,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					err := dc.PullImage(opts, dockerclient.AuthConfiguration{})
 					if err != nil {
 						glog.V(2).Infof("failed to pull %s: %v", req.args.reponame, err)
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 
@@ -876,13 +883,13 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 					if err != nil {
 						glog.V(2).Infof("failed to push %s: %v", req.args.reponame, err)
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 
 					iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.reponame, req.args.tag))
 					if err != nil {
-						req.errchan <- err
+						sendError(req.errchan, err)
 						return
 					}
 
