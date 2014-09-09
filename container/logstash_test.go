@@ -18,10 +18,10 @@
 package container
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"io/ioutil"
@@ -35,7 +35,7 @@ func getTestService() service.Service {
 	return service.Service{
 		ID:              "0",
 		Name:            "Zenoss",
-		Context:         "",
+		Context:         nil,
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
@@ -149,7 +149,7 @@ func TestDontWriteToNilMap(t *testing.T) {
 	service := service.Service{
 		ID:              "0",
 		Name:            "Zenoss",
-		Context:         "",
+		Context:         nil,
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
