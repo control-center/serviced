@@ -55,16 +55,13 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	return nil
 }
 
-// GetDockerLogs returns the last 10k worth of logs from the docker container
+// GetDockerLogs returns the last 2000 lines of logs from the docker container
 func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
-	cmd := exec.Command("docker", "logs", dockerID)
+	cmd := exec.Command("docker", "logs", "--tail=2000", dockerID)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		glog.Errorf("Unable to return logs because: %v", err)
 		return err
-	}
-	if len(output) > 10000 {
-		output = output[len(output)-10000:]
 	}
 	*logs = string(output)
 	return nil
