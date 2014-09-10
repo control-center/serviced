@@ -64,7 +64,7 @@ class ServicedTest(object):
         if l is None:
             print "could not verify if services were started"
             sys.exit(1)
-        print "lookging at %d services" % (len(l))
+        print "looking at %d services" % (len(l))
         running = self._docker_each_running()
         for svc in l:
             if len(svc["Startup"]) == 0:
