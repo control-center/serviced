@@ -217,6 +217,12 @@ func (d *daemon) initContext() (datastore.Context, error) {
 	return ctx, nil
 }
 
+func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
+	dsn := coordzk.NewDSN(zks, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
+	return coordclient.New("zookeeper", dsn, "/", nil)
+}
+
 func (d *daemon) startMaster() error {
 	if err := d.initISVCS(); err != nil {
 		return err
@@ -231,15 +237,21 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	rootBasePath := "/"
-	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
-	glog.Infof("zookeeper dsn: %s", dsn)
-	zClient, err := coordclient.New("zookeeper", dsn, rootBasePath, nil)
+	localClient, err := d.initZK(options.Zookeepers)
 	if err != nil {
-		glog.Errorf("failed create a new coordclient: %v", err)
+		glog.Errorf("failed to create a local coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeLocalClient(zClient)
+	zzk.InitializeLocalClient(localClient)
+
+	if len(options.RemoteZookeepers) > 0 {
+		remoteClient, err := d.initZK(options.RemoteZookeepers)
+		if err != nil {
+			glog.Warningf("failed to create a remote coordclient; running in disconnected mode: %v", err)
+		} else {
+			zzk.InitializeRemoteClient(remoteClient)
+		}
+	}
 
 	d.facade = d.initFacade()
 

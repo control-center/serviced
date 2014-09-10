@@ -19,6 +19,7 @@ import (
 	"sync"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/glog"
 )
 
@@ -33,6 +34,7 @@ var (
 // HostLeader is the node to store leader information for a host
 type HostLeader struct {
 	HostID  string
+	Realm   string
 	version interface{}
 }
 
@@ -43,8 +45,8 @@ func (node *HostLeader) Version() interface{} { return node.version }
 func (node *HostLeader) SetVersion(version interface{}) { node.version = version }
 
 // NewHostLeader initializes a new host leader
-func NewHostLeader(conn client.Connection, hostID, path string) client.Leader {
-	return conn.NewLeader(path, &HostLeader{HostID: hostID})
+func NewHostLeader(conn client.Connection, hostID, realm, path string) client.Leader {
+	return conn.NewLeader(path, &HostLeader{HostID: hostID, Realm: realm})
 }
 
 // GetHostID finds the host of a led node
@@ -54,6 +56,45 @@ func GetHostID(leader client.Leader) (string, error) {
 		return "", err
 	}
 	return hl.HostID, nil
+}
+
+func MonitorRealm(shutdown <-chan interface{}, conn client.Connection, path string) <-chan string {
+	realmC := make(chan string)
+
+	go func() {
+		defer close(realmC)
+		var realm string
+		leader := conn.NewLeader(path, &HostLeader{})
+		for {
+			// monitor path for changes
+			_, event, err := conn.ChildrenW(path)
+			if err != nil {
+				return
+			}
+
+			// Get the current leader and check for changes in its realm
+			var hl HostLeader
+			if err := leader.Current(&hl); err == zookeeper.ErrNoLeaderFound {
+				// pass
+			} else if err != nil {
+				return
+			} else if hl.Realm != realm {
+				realm = hl.Realm
+				select {
+				case realmC <- realm:
+				case <-shutdown:
+					return
+				}
+			}
+
+			select {
+			case <-event:
+			case <-shutdown:
+				return
+			}
+		}
+	}()
+	return realmC
 }
 
 // Listener is zookeeper node listener type
@@ -271,55 +312,4 @@ func start(shutdown <-chan interface{}, conn client.Connection, listeners ...Lis
 		count++
 	case <-shutdown:
 	}
-}
-
-// Node manages zookeeper actions
-type Node interface {
-	// GetID relates to the child node mapping in zookeeper
-	GetID() string
-	// Create creates the object in zookeeper
-	Create(conn client.Connection) error
-	// Update updates the object in zookeeper
-	Update(conn client.Connection) error
-}
-
-// Sync synchronizes zookeeper data with what is in elastic or any other storage facility
-func Sync(conn client.Connection, data []Node, zkpath string) error {
-	var current []string
-	if exists, err := PathExists(conn, zkpath); err != nil {
-		return err
-	} else if !exists {
-		// pass
-	} else if current, err = conn.Children(zkpath); err != nil {
-		return err
-	}
-
-	datamap := make(map[string]Node)
-	for i, node := range data {
-		datamap[node.GetID()] = data[i]
-	}
-
-	for _, id := range current {
-		if node, ok := datamap[id]; ok {
-			glog.V(2).Infof("Updating id:'%s' at zkpath:%s with: %+v", id, zkpath, node)
-			if err := node.Update(conn); err != nil {
-				return err
-			}
-			delete(datamap, id)
-		} else {
-			glog.V(2).Infof("Deleting id:'%s' at zkpath:%s not found in elastic\nzk current children: %v", id, zkpath, current)
-			if err := conn.Delete(path.Join(zkpath, id)); err != nil {
-				return err
-			}
-		}
-	}
-
-	for id, node := range datamap {
-		glog.V(2).Infof("Creating id:'%s' at zkpath:%s with: %+v", id, zkpath, node)
-		if err := node.Create(conn); err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

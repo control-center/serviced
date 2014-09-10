@@ -19,6 +19,18 @@ import (
 	"github.com/zenoss/glog"
 )
 
+type KeyNode struct {
+	ID       string
+	IsRemote bool
+	version  interface{}
+}
+
+func (node *KeyNode) Version() interface{}                { return node.version }
+func (node *KeyNode) SetVersion(version interface{})      { node.version = version }
+func (node *KeyNode) GetID() string                       { return node.ID }
+func (node *KeyNode) Create(conn client.Connection) error { return nil }
+func (node *KeyNode) Update(conn client.Connection) error { return nil }
+
 type registryType struct {
 	getPath   func(nodes ...string) string
 	ephemeral bool
@@ -51,7 +63,8 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 	}
 
 	if !exists {
-		if err := conn.CreateDir(path); err != nil {
+		key := &KeyNode{ID: key}
+		if err := conn.Create(path, key); err != nil {
 			return "", err
 		}
 	}
@@ -73,7 +86,7 @@ func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool,
 
 //Add node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+	if err := r.ensureKey(conn, key); err != nil {
 		glog.Errorf("error with addItem.ensureDir(%s) %+v", r.getPath(key), err)
 		return "", err
 	}
@@ -98,7 +111,7 @@ func (r *registryType) addItem(conn client.Connection, key string, nodeID string
 
 //Set node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) setItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+	if err := r.ensureKey(conn, r.getPath(key)); err != nil {
 		return "", err
 	}
 
@@ -155,6 +168,24 @@ func removeNode(conn client.Connection, path string) error {
 	}
 
 	return nil
+}
+
+func (r *registryType) ensureKey(conn client.Connection, key string) error {
+	lock_path := r.getPath("endpoint_lock")
+	lock := conn.NewLock(lock_path)
+	if err := lock.Lock(); err != nil {
+		glog.Errorf("Unable to lock on %s: %+v", lock_path, err)
+		return err
+	}
+
+	defer lock.Unlock()
+	node := &KeyNode{ID: key, IsRemote: false}
+	err := conn.Create(r.getPath(key), node)
+	if err == client.ErrNodeExists {
+		return nil
+	}
+
+	return err
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
