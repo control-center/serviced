@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -33,9 +42,9 @@ func TestServiceListener_Listen(t *testing.T) {
 	t.Log("Start and stop listener with no services")
 	shutdown := make(chan interface{})
 	done := make(chan interface{})
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(done)
 	}()
 
@@ -48,7 +57,7 @@ func TestServiceListener_Listen(t *testing.T) {
 	shutdown = make(chan interface{})
 	done = make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(done)
 	}()
 
@@ -106,7 +115,8 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -234,7 +244,8 @@ func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
 		t.Fatalf("Error while cresting node %s: %s", spath, err)
 	}
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 
 	// Start 5 instances and verify
@@ -273,7 +284,8 @@ func TestServiceListener_sync(t *testing.T) {
 	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
 		t.Fatalf("Error while creating node %s: %s", spath, err)
 	}
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 	if err != nil {
@@ -414,7 +426,8 @@ func TestServiceListener_start(t *testing.T) {
 		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
 	}
 
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	listener.start(svc, []int{1})
 
 	// Look up service instance
@@ -483,7 +496,8 @@ func TestServiceListener_pause(t *testing.T) {
 		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
 	}
 
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	listener.start(svc, []int{1})
 
 	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)
@@ -519,7 +533,8 @@ func TestServiceListener_stop(t *testing.T) {
 		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
 	}
 
-	listener := NewServiceListener(conn, handler)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
 	listener.start(svc, []int{1, 2})
 
 	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)

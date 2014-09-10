@@ -1,16 +1,24 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService']).
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService', 'angular-data.DSCacheFactory']);
+
+controlplane.
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
-            when('/entry', {
-                templateUrl: '/static/partials/main.html',
-                controller: EntryControl}).
             when('/login', {
                 templateUrl: '/static/partials/login.html',
                 controller: LoginControl}).
@@ -56,7 +64,7 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 templateUrl: '/static/partials/view-isvcs.html',
                 controller: IsvcsControl
             }).
-            otherwise({redirectTo: '/entry'});
+            otherwise({redirectTo: '/apps'});
     }]).
     config(['$translateProvider', function($translateProvider) {
 
@@ -65,6 +73,19 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
             suffix: '.json'
         });
         $translateProvider.preferredLanguage('en_US');
+    }]).
+    config(['DSCacheFactoryProvider', function(DSCacheFactory){
+        DSCacheFactory.setCacheDefaults({
+            // Items will not be deleted until they are requested
+            // and have expired
+            deleteOnExpire: 'passive',
+
+            // This cache will clear itself every hour
+            cacheFlushInterval: 3600000,
+
+            // This cache will sync itself with localStorage
+            storageMode: 'memory'
+         });
     }]).
     /**
      * This is a fix for https://jira.zenoss.com/browse/ZEN-10263
@@ -101,44 +122,6 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 html: true,
                 content: attrs.popover
             });
-        };
-    }).
-    factory('resourcesService', ResourcesService).
-    factory('authService', AuthService).
-    factory('statsService', StatsService).
-    filter('treeFilter', function() {
-        /*
-         * @param items The array from ng-repeat
-         * @param field Field on items to check for validity
-         * @param validData Object with allowed objects
-         */
-        return function(items, field, validData) {
-            if (!validData) {
-                return items;
-            }
-            return items.filter(function(elem) {
-                return validData[elem[field]] != null;
-            });
-        };
-    }).
-    filter('page', function() {
-        return function(items, hosts) {
-            if (!items) return;
-
-            var pageSize = hosts.pageSize? hosts.pageSize : 5;
-            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
-            if (!hosts.page || hosts.page >= hosts.pages) {
-                hosts.page = 0;
-            }
-            var page = hosts.page? hosts.page : 0;
-
-            var start = page * pageSize;
-            return items.splice(start, pageSize);
-        };
-    }).
-    filter('toGB', function(){
-        return function(input){
-            return (input/1073741824).toFixed(2) + " GB";
         };
     }).
     directive('scroll', function($rootScope, $window, $timeout) {
@@ -178,7 +161,44 @@ angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprech
                 }), 100);
             }
         };
-    });
+    }).
+    factory('authService', AuthService).
+    filter('treeFilter', function() {
+        /*
+         * @param items The array from ng-repeat
+         * @param field Field on items to check for validity
+         * @param validData Object with allowed objects
+         */
+        return function(items, field, validData) {
+            if (!validData) {
+                return items;
+            }
+            return items.filter(function(elem) {
+                return validData[elem[field]] !== null;
+            });
+        };
+    }).
+    filter('page', function() {
+        return function(items, hosts) {
+            if (!items) return;
+
+            var pageSize = hosts.pageSize? hosts.pageSize : 5;
+            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
+            if (!hosts.page || hosts.page >= hosts.pages) {
+                hosts.page = 0;
+            }
+            var page = hosts.page? hosts.page : 0;
+
+            var start = page * pageSize;
+            return items.splice(start, pageSize);
+        };
+    }).
+    filter('toGB', function(){
+        return function(input){
+            return (input/1073741824).toFixed(2) + " GB";
+        };
+    }
+);
 
 /* begin constants */
 var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
@@ -209,903 +229,17 @@ function updateLanguage($scope, $cookies, $translate) {
     if ($scope.user) {
         $scope.user.language = ln;
     }
-    $translate.uses(ln);
+    $translate.use(ln);
 }
 
-function ResourcesService($http, $location, $notification) {
-    var cached_pools;
-    var cached_hosts_for_pool = {};
-    var cached_hosts;
-    var cached_app_templates;
-    var cached_services; // top level services only
-    var cached_services_map; // map of services by by Id, with children attached
-
-    var _get_services_tree = function(callback) {
-        $http.get('/services').
-            success(function(data, status) {
-                if(DEBUG) console.log('Retrieved list of services');
-                cached_services = [];
-                cached_services_map = {};
-                // Map by id
-                data.map(function(svc) {
-                    cached_services_map[svc.ID] = svc;
-                });
-                data.map(function(svc) {
-                    if (svc.ParentServiceID !== '') {
-                        var parent = cached_services_map[svc.ParentServiceID];
-                        if (!parent.children) {
-                            parent.children = [];
-                        }
-                        parent.children.push(svc);
-                    } else {
-                        cached_services.push(svc);
-                    }
-                });
-                callback(cached_services, cached_services_map);
-            }).
-            error(function(data, status) {
-                // TODO error screen
-                $notification.create("",'Unable to retrieve services').error();
-                if (status === 401) {
-                    unauthorized($location);
-                }
-            });
-    };
-
-    var _get_app_templates = function(callback) {
-        $http.get('/templates').
-            success(function(data, status) {
-                if(DEBUG) console.log('Retrieved list of app templates');
-                cached_app_templates = data;
-                callback(data);
-            }).
-            error(function(data, status) {
-                // TODO error screen
-                $notification.create("",'Unable to retrieve app templates').error();
-                if (status === 401) {
-                    unauthorized($location);
-                }
-            });
-    };
-
-    // Real implementation for acquiring list of resource pools
-    var _get_pools = function(callback) {
-        $http.get('/pools').
-            success(function(data, status) {
-                if(DEBUG) console.log('Retrieved list of pools');
-                cached_pools = data;
-                callback(data);
-            }).
-            error(function(data, status) {
-                // TODO error screen
-                $notification.create("",'Unable to retrieve list of pools').error();
-                if (status === 401) {
-                    unauthorized($location);
-                }
-            });
-    };
-
-    var _get_hosts_for_pool = function(poolID, callback) {
-        $http.get('/pools/' + poolID + '/hosts').
-            success(function(data, status) {
-                if(DEBUG) console.log('Retrieved hosts for pool %s', poolID);
-                cached_hosts_for_pool[poolID] = data;
-                callback(data);
-            }).
-            error(function(data, status) {
-                // TODO error screen
-                $notification.create("",('Unable to retrieve hosts for pool ' + poolID)).error();
-                if (status === 401) {
-                    unauthorized($location);
-                }
-            });
-    };
-
-    var _get_hosts = function(callback) {
-        $http.get('/hosts').
-            success(function(data, status) {
-                if(DEBUG) console.log('Retrieved host details');
-                cached_hosts = data;
-                callback(data);
-            }).
-            error(function(data, status) {
-                // TODO error screen
-                $notification.create("",('Unable to retrieve host details')).error();
-                if (status === 401) {
-                    unauthorized($location);
-                }
-            });
-    };
-
-    return {
-
-        /*
-         * Assign an ip address to a service endpoint and it's children.  Leave IP parameter
-         * null for automatic assignment.
-         *
-         * @param {serviceID} string the serviceID to assign an ip address
-         * @param {ip} string ip address to assign to service, set as null for automatic assignment
-         * @param {function} callback data is passed to a callback on success.
-         */
-        assign_ip: function(serviceID, ip, callback) {
-          var url = '/services/' + serviceID + "/ip";
-          if (ip != null) {
-            url = url + "/" + ip;
-          }
-          $http.put(url).
-              success(function(data, status) {
-                  $notification.create("Assigned IP", ip).success();
-                  if (callback) {
-                    callback(data);
-                  }
-              }).
-              error(function(data, status) {
-                  // TODO error screen
-                  $notification.create("Unable to assign ip", ip).error();
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
-              });
-        },
-
-        /*
-         * Get the most recently retrieved map of resource pools.
-         * This will also retrieve the data if it has not yet been
-         * retrieved.
-         *
-         * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {function} callback Pool data is passed to a callback on success.
-         */
-        get_pools: function(cacheOk, callback) {
-            if (cacheOk && cached_pools) {
-                if(DEBUG) console.log('Using cached pools');
-                callback(cached_pools);
-            } else {
-                _get_pools(callback);
-            }
-        },
-
-        /*
-         * Get a Pool
-         * @param {string} poolID the pool id
-         * @param {function} callback Pool data is passed to a callback on success.
-         */
-        get_pool: function(poolID, callback) {
-            $http.get('/pools/' + poolID).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire pool", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Get all possible ips for a resource pool
-         *
-         * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {function} callback Pool data is passed to a callback on success.
-         */
-        get_pool_ips: function(poolID, callback) {
-            $http.get('/pools/' + poolID + "/ips").
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire pool", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Get the list of services instances currently running for a given service.
-         *
-         * @param {string} serviceId The ID of the service to retrieve running instances for.
-         * @param {function} callback Running services are passed to callback on success.
-         */
-        get_running_services_for_service: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/running').
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved running services for %s', serviceId);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire running services", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-
-        /*
-         * Get a list of virtual hosts
-         *
-         * @param {function} callback virtual hosts are passed to callback on success.
-         */
-        get_vhosts: function(callback) {
-            $http.get('/vhosts').
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved list of virtual hosts');
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire virtual hosts", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * add a virtual host,
-         */
-        add_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
-            var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
-            var payload = JSON.stringify( object);
-            $http.put(ep, payload).
-                success(function(data, status) {
-                    $notification.create("Added virtual host", ep + data.Detail).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to add virtual hosts", ep + data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Remove a virtual host
-         */
-        delete_vhost: function(serviceId, application, virtualhost, callback) {
-            var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
-            $http.delete(ep).
-                success(function(data, status) {
-                    $notification.create("Removed virtual host", ep + data.Detail).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to remove virtual hosts", ep + data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Get the list of services currently running on a particular host.
-         *
-         * @param {string} hostId The ID of the host to retrieve running services for.
-         * @param {function} callback Running services are passed to callback on success.
-         */
-        get_running_services_for_host: function(hostId, callback) {
-            $http.get('/hosts/' + hostId + '/running').
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved running services for %s', hostId);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire running services", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-
-        /*
-         * Get the list of all services currently running.
-         *
-         * @param {function} callback Running services are passed to callback on success.
-         */
-        get_running_services: function(callback) {
-            $http.get('/running').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire running services", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Posts new resource pool information to the server.
-         *
-         * @param {object} pool New pool details to be added.
-         * @param {function} callback Add result passed to callback on success.
-         */
-        add_pool: function(pool, callback) {
-            if(DEBUG) console.log('Adding detail: %s', JSON.stringify(pool));
-            $http.post('/pools/add', pool).
-                success(function(data, status) {
-                    $notification.create("", "Added new pool").success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Adding pool failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Updates existing resource pool.
-         *
-         * @param {string} poolID Unique identifier for pool to be edited.
-         * @param {object} editedPool New pool details for provided poolID.
-         * @param {function} callback Update result passed to callback on success.
-         */
-        update_pool: function(poolID, editedPool, callback) {
-            $http.put('/pools/' + poolID, editedPool).
-                success(function(data, status) {
-                    $notification.create("Updated pool", poolID).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Updating pool failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Deletes existing resource pool.
-         *
-         * @param {string} poolID Unique identifier for pool to be removed.
-         * @param {function} callback Delete result passed to callback on success.
-         */
-        remove_pool: function(poolID, callback) {
-            $http.delete('/pools/' + poolID).
-                success(function(data, status) {
-                    $notification.create("Removed pool", poolID).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Removing pool failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-        /*
-         * Puts new resource pool virtual ip
-         *
-         * @param {string} pool id to add virtual ip
-         * @param {string} ip virtual ip to add to pool
-         * @param {function} callback Add result passed to callback on success.
-         */
-        add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
-            var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
-            if(DEBUG) console.log('Adding pool virtual ip: %s', payload);
-            $http.put('/pools/' + pool + '/virtualip', payload).
-                success(function(data, status) {
-                    $notification.create("Added new pool virtual ip", ip).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Adding pool virtual ip failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-        /*
-         * Delete resource pool virtual ip
-         *
-         * @param {string} pool id of pool which contains the virtual ip
-         * @param {string} ip virtual ip to remove
-         * @param {function} callback Add result passed to callback on success.
-         */
-        remove_pool_virtual_ip: function(pool, ip, callback) {
-            if(DEBUG) console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
-            $http.delete('/pools/' + pool + '/virtualip/' + ip).
-                success(function(data, status) {
-                    $notification.create("Removed pool virtual ip", ip).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Remove pool virtual ip failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Stop a running instance of a service.
-         *
-         * @param {string} serviceStateId Unique identifier for a service instance.
-         * @param {function} callback Result passed to callback on success.
-         */
-        kill_running: function(hostId, serviceStateId, callback) {
-            $http.delete('/hosts/' + hostId + '/' + serviceStateId).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Terminated %s', serviceStateId);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Terminating instance failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Get the most recently retrieved host data.
-         * This will also retrieve the data if it has not yet been
-         * retrieved.
-         *
-         * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {function} callback Data passed to callback on success.
-         */
-        get_hosts: function(cacheOk, callback) {
-            if (cacheOk && cached_hosts) {
-                if(DEBUG) console.log('Using cached hosts');
-                callback(cached_hosts);
-            } else {
-                _get_hosts(callback);
-            }
-        },
-
-        /*
-         * Get a host
-         * @param {string} hostID the host id
-         * @param {function} callback host data is passed to a callback on success.
-         */
-        get_host: function(hostID, callback) {
-            $http.get('/hosts/' + hostID).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved %s for %s', data, hostID);
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to acquire host", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Posts new host information to the server.
-         *
-         * @param {object} host New host details to be added.
-         * @param {function} callback Add result passed to callback on success.
-         */
-        add_host: function(host, callback) {
-            $http.post('/hosts/add', host).
-                success(function(data, status) {
-                    $notification.create("", data.Detail).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Updates existing host.
-         *
-         * @param {string} hostId Unique identifier for host to be edited.
-         * @param {object} editedHost New host details for provided hostId.
-         * @param {function} callback Update result passed to callback on success.
-         */
-        update_host: function(hostId, editedHost, callback) {
-            $http.put('/hosts/' + hostId, editedHost).
-                success(function(data, status) {
-                    $notification.create("Updated host", hostId).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Updating host failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-
-                });
-        },
-
-        /*
-         * Deletes existing host.
-         *
-         * @param {string} hostId Unique identifier for host to be removed.
-         * @param {function} callback Delete result passed to callback on success.
-         */
-        remove_host: function(hostId, callback) {
-            $http.delete('/hosts/' + hostId).
-                success(function(data, status) {
-                    $notification.create("Removed host", hostId).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Removing host failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Get the list of hosts belonging to a specified pool.
-         *
-         * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {string} poolID Unique identifier for pool to use.
-         * @param {function} callback List of hosts pass to callback on success.
-         */
-        get_hosts_for_pool: function(cacheOk, poolID, callback) {
-            if (cacheOk && cached_hosts_for_pool[poolID]) {
-                callback(cached_hosts_for_pool[poolID]);
-            } else {
-                _get_hosts_for_pool(poolID, callback);
-            }
-        },
-
-        /*
-         * Get all defined services. Note that 2 arguments will be passed
-         * to the callback function instead of the usual 1.
-         *
-         * The first argument to the callback is an array of all top level
-         * services, with children attached.
-         *
-         * The second argument to the callback is a Map(Id -> Object) of all
-         * services, with children attached.
-         *
-         * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {function} callback Executed on success.
-         */
-        get_services: function(cacheOk, callback) {
-            if (cacheOk && cached_services && cached_services_map) {
-                if(DEBUG) console.log('Using cached services');
-                callback(cached_services, cached_services_map);
-            } else {
-                _get_services_tree(callback);
-            }
-        },
-
-        /*
-         * Retrieve some (probably not the one you want) set of logs for a
-         * defined service. To get more specific logs, use
-         * get_service_state_logs.
-         *
-         * @param {string} serviceId ID of the service to retrieve logs for.
-         * @param {function} callback Log data passed to callback on success.
-         */
-        get_service_logs: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/logs').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to retrieve service logs", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Retrieve logs for a particular host running a particular service.
-         *
-         * @param {string} serviceStateId ID to retrieve logs for.
-         * @param {function} callback Log data passed to callback on success.
-         */
-        get_service_state_logs: function(serviceId, serviceStateId, callback) {
-            $http.get('/services/' + serviceId + '/' + serviceStateId + '/logs').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to retrieve service logs", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Retrieve all defined service (a.k.a. application) templates
-         *
-         * @param {boolean} cacheOk Whether or not cached data is OK to use.
-         * @param {function} callback Templates passed to callback on success.
-         */
-        get_app_templates: function(cacheOk, callback) {
-            if (cacheOk && cached_app_templates) {
-                if(DEBUG) console.log('Using cached app templates');
-                callback(cached_app_templates);
-            } else {
-                _get_app_templates(callback);
-            }
-        },
-
-        /*
-         * Create a new service definition.
-         *
-         * @param {object} service The service definition to create.
-         * @param {function} callback Response passed to callback on success.
-         */
-        add_service: function(service, callback) {
-            if(DEBUG) console.log('Adding detail: %s', JSON.stringify(service));
-            $http.post('/services/add', service).
-                success(function(data, status) {
-                    $notification.create("", "Added new service").success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Adding service failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Update an existing service
-         *
-         * @param {string} serviceId The ID of the service to update.
-         * @param {object} editedService The modified service.
-         * @param {function} callback Response passed to callback on success.
-         */
-        update_service: function(serviceId, editedService, callback) {
-            $http.put('/services/' + serviceId, editedService).
-                success(function(data, status) {
-                    $notification.create("Updated service", serviceId).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Updating service failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Deploy a service (application) template to a resource pool.
-         *
-         * @param {object} deployDef The template definition to deploy.
-         * @param {function} callback Response passed to callback on success.
-         */
-        deploy_app_template: function(deployDef, callback, failCallback) {
-            $http.post('/templates/deploy', deployDef).
-                success(function(data, status) {
-                    $notification.create("", "Deployed app template").success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Deploying app template failed", data.Detail).error();
-                    failCallback(data);
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Snapshot a running service
-         *
-         * @param {string} serviceId ID of the service to snapshot.
-         * @param {function} callback Response passed to callback on success.
-         */
-        snapshot_service: function(serviceId, callback) {
-            $http.get('/services/' + serviceId + '/snapshot').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Snapshot service failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Remove a service definition.
-         *
-         * @param {string} serviceId The ID of the service to remove.
-         * @param {function} callback Response passed to callback on success.
-         */
-        remove_service: function(serviceId, callback) {
-            $http.delete('/services/' + serviceId).
-                success(function(data, status) {
-                    $notification.create("Removed service", serviceId).success();
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Removing service failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /*
-         * Starts a service and all of its children
-         *
-         * @param {string} serviceId The ID of the service to start.
-         * @param {function} callback Response passed to callback on success.
-         */
-        start_service: function(serviceId, callback) {
-            $http.put('/services/' + serviceId + '/startService').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Was unable to start service", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-        /*
-         * Stops a service and all of its children
-         *
-         * @param {string} serviceId The ID of the service to stop.
-         * @param {function} callback Response passed to callback on success.
-         */
-        stop_service: function(serviceId, callback) {
-            $http.put('/services/' + serviceId + '/stopService').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Was unable to stop service", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-        /**
-         * Gets the Serviced version from the server
-         */
-        get_version: function(callback){
-            $http.get('/version').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("", "Could not retrieve Serviced version from server.").error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /**
-         * Creates a backup file of serviced
-         */
-        create_backup: function(callback){
-            $http.get('/backup/create').
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Removing service failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        /**
-         * Restores a backup file of serviced
-         */
-        restore_backup: function(filename, callback){
-            $http.get('/backup/restore?filename=' + filename).
-                success(function(data, status) {
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Removing service failed", data.Detail).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        get_backup_files: function(callback){
-            $http.get('/backup/list').
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved list of backup files.');
-                    callback(data);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("", "Failed retrieving list of backup files.").error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                });
-        },
-
-        get_backup_status: function(successCallback, failCallback){
-            failCallback = failCallback || angular.noop;
-
-            $http({url: '/backup/status', method: "GET", params: {'time': new Date().getTime()}}).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved status of backup.');
-                    successCallback(data);
-                }).
-                error(function(data, status) {
-                    $notification.create("", 'Failed retrieving status of backup.').error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                    failCallback(data, status);
-                });
-        },
-
-        get_restore_status: function(successCallback, failCallback){
-            failCallback = failCallback || angular.noop;
-
-            $http({url: '/backup/restore/status', method: "GET", params: {'time': new Date().getTime()}}).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved status of restore.');
-                    successCallback(data);
-                }).
-                error(function(data, status) {
-                    $notification.create("", 'Failed retrieving status of restore.').error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
-                    failCallback(data, status);
-                });
-        }
-    };
-}
-
-function AuthService($cookies, $cookieStore, $location, $notification) {
+function AuthService($cookies, $cookieStore, $location, $http, $notification) {
     var loggedIn = false;
     var userName = null;
+
+    var setLoggedIn = function(truth, username) {
+        loggedIn = truth;
+        userName = username;
+    };
     return {
 
         /*
@@ -1114,9 +248,35 @@ function AuthService($cookies, $cookieStore, $location, $notification) {
          *
          * @param {boolean} truth Whether the user is logged in.
          */
-        login: function(truth, username) {
-            loggedIn = truth;
-            userName = username;
+        setLoggedIn: setLoggedIn,
+
+        login: function(creds, successCallback, failCallback){
+            $http.post('/login', creds).
+                success(function(data, status) {
+                    // Ensure that the auth service knows that we are logged in
+                    setLoggedIn(true, creds.Username);
+
+                    successCallback();
+                }).
+                error(function(data, status) {
+                    // Ensure that the auth service knows that the login failed
+                    setLoggedIn(false);
+                    
+                    failCallback();
+                });
+        },
+
+        logout: function(){
+            $http.delete('/login').
+                success(function(data, status) {
+                    // On successful logout, redirect to /login
+                    $location.path('/login');
+                }).
+                error(function(data, status) {
+                    // On failure to logout, note the error
+                    // TODO error screen
+                    console.error('Unable to log out. Were you logged in to begin with?');
+                });
         },
 
         /*
@@ -1146,29 +306,6 @@ function AuthService($cookies, $cookieStore, $location, $notification) {
     };
 }
 
-function StatsService($http, $location, $notification) {
-    return {
-        /*
-         * Get the list of services currently running on a particular host.
-         *
-         * @param {string} hostId The ID of the host to retrieve running services for.
-         * @param {function} callback Running services are passed to callback on success.
-         */
-        is_collecting: function(callback) {
-            $http.get('/stats').
-                success(function(data, status) {
-                    if(DEBUG) console.log('serviced is collecting stats');
-                    callback(status);
-                }).
-                error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("", 'serviced is not collecting stats').error();
-                    callback(status);
-                });
-        }
-    };
-}
-
 /*
  * Starting at some root node, recurse through children,
  * building a flattened array where each node has a depth
@@ -1186,7 +323,7 @@ function flattenTree(depth, current, sortFunction) {
         current.children.sort(sortFunction);
     }
     for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i]));
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i], sortFunction));
     }
     return retVal;
 }
@@ -1215,8 +352,10 @@ function aggregateVhosts(service) {
     var child_service = service.children[i];
     vhosts = vhosts.concat( aggregateVhosts( child_service));
   }
+  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); })
   return vhosts;
 }
+
 // collect all address assignments for a service
 function aggregateAddressAssigments(service, api) {
   var assignments = [];
@@ -1412,6 +551,10 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 }
 
 function toggleRunning(app, status, servicesService, serviceId) {
+    // possible values for app.Launch
+    // TODO - move this into a provider for constant values
+    var LAUNCH_MANUAL = "manual";
+
     serviceId = serviceId || app.ID;
 
     var newState = -1;
@@ -1426,21 +569,26 @@ function toggleRunning(app, status, servicesService, serviceId) {
     }
 
     // recursively set service's children to its desired state
-    function updateApp(app) {
-        var i, child;
-        if (app.children && app.children.length) {
-            for (i=0; i<app.children.length;i++) {
-                app.children[i].DesiredState = app.DesiredState;
-                updateApp(app.children[i]);
+    // TODO - poll services from server which will automatically
+    // reflect the correct desired state and make this unnecessary
+    var updateApp = function(services, state){
+        if(!services) return;
+
+        services.forEach(function(service){
+            if(service.Launch !== LAUNCH_MANUAL){
+                service.DesiredState = state;
             }
-        }
-    }
+
+            // recurse!
+            if(service.children) updateApp(service.children, state);
+        });
+    };
 
     // stop service
     if ((newState === 0) || (newState === -1)) {
         app.DesiredState = newState;
         servicesService.stop_service(serviceId, function() {
-            updateApp(app);
+            updateApp(app.children, newState);
         });
     }
 
@@ -1448,7 +596,7 @@ function toggleRunning(app, status, servicesService, serviceId) {
     if ((newState === 1) || (newState === -1)) {
         app.DesiredState = newState;
         servicesService.start_service(serviceId, function() {
-            updateApp(app);
+            updateApp(app.children, newState);
         });
     }
 }
@@ -1546,7 +694,7 @@ function map_to_array(data) {
     return arr;
 }
 
-function unauthorized($location, $notification) {
+function unauthorized($location) {
     console.error('You don\'t appear to be logged in.');
     $location.path('/login');
 }

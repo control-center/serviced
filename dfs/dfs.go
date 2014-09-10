@@ -1,12 +1,22 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package dfs
 
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/layer"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/pool"
@@ -61,7 +71,7 @@ func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, ti
 func (d *DistributedFileSystem) waitpause(cancel <-chan interface{}, serviceID string) error {
 
 	for {
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(serviceID, &states); err != nil {
 			return err
 		}
@@ -100,7 +110,7 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 		return "", err
 	}
 
-	var servicesList []*service.Service
+	var servicesList []service.Service
 	if err := d.client.GetServices(unused, &servicesList); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
@@ -306,10 +316,27 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 		return "", err
 	}
 
+	// Check the number of image layers
+	layers, err := image.History()
+	if err != nil {
+		glog.Errorf("Checking history on %s: %s", image.ID, err)
+	}
+	if len(layers) > layer.WARN_LAYER_COUNT {
+		glog.Warningf("Image %s number of layers (%d) approaching maximum (%d).  Please squash image layers.",
+			image.ID, len(layers), layer.MAX_LAYER_COUNT)
+	} else {
+		glog.Infof("Image '%s' number of layers: %d", image.ID, len(layers))
+	}
+
 	// Commit the container to the image and tag
 	if _, err := container.Commit(image.ID.BaseName()); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Commit container=%+v err=%s", dockerId, err)
 		return "", err
+	}
+
+	// Mark any running containers as out of sync
+	if err := d.desynchronize(image.ID, time.Now()); err != nil {
+		glog.Warningf("Could not mark all desynchronized services: %s", err)
 	}
 
 	// Update the dfs
@@ -343,7 +370,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	timestamp := parts[1]
 
 	var (
-		services  []*service.Service
+		services  []service.Service
 		theVolume volume.Volume
 	)
 
@@ -354,7 +381,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 		return err
 	}
 	for _, service := range services {
-		var states []*servicestate.ServiceState
+		var states []servicestate.ServiceState
 		if err := d.client.GetServiceStates(service.ID, &states); err != nil {
 			glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 			return err
@@ -407,12 +434,12 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	glog.Infof("DistributedFileSystem.RollbackServices from path: %s", restorePath)
 
 	var (
-		existingServices []*service.Service
-		services         []*service.Service
+		existingServices []service.Service
+		services         []service.Service
 	)
 
 	// Verify there are no running service instances
-	var rss []*dao.RunningService
+	var rss []dao.RunningService
 	if err := d.client.GetRunningServices(unused, &rss); err != nil {
 		glog.Errorf("Could not get running services: %s", err)
 		return err
@@ -445,7 +472,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 		}
 	}
 
-	existingServiceMap := make(map[string]*service.Service)
+	existingServiceMap := make(map[string]service.Service)
 	for _, service := range existingServices {
 		existingServiceMap[service.ID] = service
 	}
@@ -456,14 +483,14 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 			svc.DesiredState = service.SVCStop
 		}
 
-		if existingService := existingServiceMap[svc.ID]; existingService != nil {
+		if existingService, ok := existingServiceMap[svc.ID]; ok {
 			var unused *int
 			svc.PoolID = existingService.PoolID
 			if existingPools[svc.PoolID] == nil {
 				glog.Infof("Changing PoolID of service %s from %s to default", svc.ID, svc.PoolID)
 				svc.PoolID = "default"
 			}
-			if e := d.client.UpdateService(*svc, unused); e != nil {
+			if e := d.client.UpdateService(svc, unused); e != nil {
 				glog.Errorf("Could not update service %s: %v", svc.ID, e)
 				return e
 			}
@@ -473,7 +500,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 				svc.PoolID = "default"
 			}
 			var serviceId string
-			if e := d.client.AddService(*svc, &serviceId); e != nil {
+			if e := d.client.AddService(svc, &serviceId); e != nil {
 				glog.Errorf("Could not add service %s: %v", svc.ID, e)
 				return e
 			}
@@ -526,6 +553,40 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 		}
 
 		tagged = append(tagged, ti)
+	}
+
+	return nil
+}
+
+// desynchronize marks all service states using a particular ImageID as out of
+// sync if started before the time of commit
+func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit time.Time) error {
+	svcs, err := d.facade.GetServices(datastore.Get())
+	if err != nil {
+		return err
+	}
+
+	for _, svc := range svcs {
+		// figure out which services use the provided image
+		if svcImage, err := commons.ParseImageID(svc.ImageID); err != nil {
+			return err
+		} else if !svcImage.Equals(imageID) {
+			continue
+		}
+
+		var states []servicestate.ServiceState
+		if err := d.client.GetServiceStates(svc.ID, &states); err != nil {
+			return err
+		}
+		for _, state := range states {
+			// check if the instance has been running since before the commit
+			if state.IsRunning() && state.Started.Before(commit) {
+				state.InSync = false
+				if err := d.client.UpdateServiceState(state, new(int)); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return nil

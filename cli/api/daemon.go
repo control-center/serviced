@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package api
 
@@ -48,6 +57,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 	"os"
 	"os/signal"
 	"path"
@@ -74,6 +84,7 @@ type daemon struct {
 	hostAgent        *node.HostAgent
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
+	rpcServer        *rpc.Server
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
@@ -83,6 +94,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		masterPoolID:     masterPoolID,
 		shutdown:         make(chan interface{}),
 		waitGroup:        &sync.WaitGroup{},
+		rpcServer:        rpc.NewServer(),
 	}
 	return d, nil
 }
@@ -157,13 +169,17 @@ func (d *daemon) run() error {
 		}
 	}
 
-	rpc.HandleHTTP()
+	d.rpcServer.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	go func() {
-		// start the server
-		http.Serve(l, nil)
-		glog.Infof("http server done")
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				glog.Fatalf("Error accepting connections: %s", err)
+			}
+			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+		}
 	}()
 
 	signalChan := make(chan os.Signal, 10)
@@ -187,6 +203,8 @@ func (d *daemon) run() error {
 		glog.Info("Timed out waiting for shutdown")
 		//Return error???
 	}
+	// finally, close all connections to zookeeper
+	zzk.ShutdownConnections()
 	return nil
 }
 
@@ -221,7 +239,7 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("failed create a new coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	d.facade = d.initFacade()
 
@@ -229,7 +247,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.facade.CreateDefaultPool(d.dsContext); err != nil {
+	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		return err
 	}
 
@@ -273,7 +291,7 @@ func (d *daemon) startMaster() error {
 		go func() {
 			defer d.waitGroup.Done()
 			<-d.shutdown
-			glog.Infof("Shuttding down storage handler")
+			glog.Infof("Shutting down storage handler")
 			d.storageHandler.Close()
 		}()
 	}
@@ -401,9 +419,9 @@ func (d *daemon) startAgent() error {
 		if err != nil {
 			glog.Errorf("failed create a new coordclient: %v", err)
 		}
-		zzk.InitializeGlobalCoordClient(zClient)
+		zzk.InitializeLocalClient(zClient)
 
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
@@ -466,7 +484,7 @@ func (d *daemon) startAgent() error {
 
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
-		if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
+		if err = d.rpcServer.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 		}
 
@@ -487,7 +505,7 @@ func (d *daemon) startAgent() error {
 	}()
 
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
-	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
+	if err = d.rpcServer.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 	if err != nil {
@@ -507,16 +525,16 @@ func (d *daemon) startAgent() error {
 func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
-	if err := rpc.RegisterName("Master", master.NewServer(d.facade)); err != nil {
+	if err := d.rpcServer.RegisterName("Master", master.NewServer(d.facade)); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
 	// register the deprecated rpc servers
-	if err := rpc.RegisterName("LoadBalancer", d.cpDao); err != nil {
+	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
-	if err := rpc.RegisterName("ControlPlane", d.cpDao); err != nil {
+	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 	return nil
@@ -615,7 +633,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.cpDao, d.facade)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return

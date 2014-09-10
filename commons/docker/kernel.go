@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package docker
 
@@ -108,7 +117,15 @@ type imglistreq struct {
 	respchan chan []*Image
 }
 
-type inspectreq struct {
+type imginspectreq struct {
+	request
+	args struct {
+		id string
+	}
+	respchan chan *dockerclient.Image
+}
+
+type continspectreq struct {
 	request
 	args struct {
 		id string
@@ -204,27 +221,28 @@ type waitreq struct {
 
 var (
 	cmds = struct {
-		AddAction       chan addactionreq
-		CancelAction    chan cancelactionreq
-		Commit          chan commitreq
-		Create          chan createreq
-		Delete          chan deletereq
-		DeleteImage     chan delimgreq
-		Export          chan exportreq
-		ImageImport     chan impimgreq
-		ImageList       chan imglistreq
-		Inspect         chan inspectreq
-		Kill            chan killreq
-		List            chan listreq
-		OnContainerStop chan onstopreq
-		OnEvent         chan oneventreq
-		PullImage       chan pushpullreq
-		PushImage       chan pushpullreq
-		Restart         chan restartreq
-		Start           chan startreq
-		Stop            chan stopreq
-		TagImage        chan tagimgreq
-		Wait            chan waitreq
+		AddAction        chan addactionreq
+		CancelAction     chan cancelactionreq
+		Commit           chan commitreq
+		Create           chan createreq
+		Delete           chan deletereq
+		DeleteImage      chan delimgreq
+		Export           chan exportreq
+		ImageImport      chan impimgreq
+		ImageList        chan imglistreq
+		ImageInspect     chan imginspectreq
+		ContainerInspect chan continspectreq
+		Kill             chan killreq
+		List             chan listreq
+		OnContainerStop  chan onstopreq
+		OnEvent          chan oneventreq
+		PullImage        chan pushpullreq
+		PushImage        chan pushpullreq
+		Restart          chan restartreq
+		Start            chan startreq
+		Stop             chan stopreq
+		TagImage         chan tagimgreq
+		Wait             chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
@@ -235,7 +253,8 @@ var (
 		make(chan exportreq),
 		make(chan impimgreq),
 		make(chan imglistreq),
-		make(chan inspectreq),
+		make(chan imginspectreq),
+		make(chan continspectreq),
 		make(chan killreq),
 		make(chan listreq),
 		make(chan onstopreq),
@@ -469,7 +488,17 @@ KernelLoop:
 
 			close(req.errchan)
 			req.respchan <- resp
-		case req := <-cmds.Inspect:
+		case req := <- cmds.ImageInspect:
+			glog.V(1).Info("inspecting image: ", req.args.id)
+			img, err := dc.InspectImage(req.args.id)
+			if err != nil {
+				glog.V(1).Infof("unable to inspect image %s: %v", req.args.id, err)
+				req.errchan <- err
+				continue
+			}
+			close(req.errchan)
+			req.respchan <- img
+		case req := <-cmds.ContainerInspect :
 			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {

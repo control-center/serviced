@@ -1,7 +1,7 @@
 
 
 
-function SubServiceControl($scope, $q, $routeParams, $location, $interval, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
+function SubServiceControl($scope, $q, $routeParams, $location, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -91,7 +91,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                         }
                         else {
                             this.close();
-                            $notification.create("", $translate("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
+                            $notification.create("", $translate.instant("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
                         }
                     }
                 }
@@ -192,18 +192,20 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
     };
 
     $scope.anyServicesExported = function(service) {
-        for (var i in service.Endpoints) {
-            if (service.Endpoints[i].Purpose == "export") {
-                return true;
+        if(service){
+            for (var i in service.Endpoints) {
+                if (service.Endpoints[i].Purpose == "export") {
+                    return true;
+                }
             }
-        }
-        for (var i in service.children) {
-            if ($scope.anyServicesExported(service.children[i])) {
-                return true;
+            for (var i in service.children) {
+                if ($scope.anyServicesExported(service.children[i])) {
+                    return true;
+                }
             }
         }
         return false;
-    }
+    };
 
 
     $scope.AssignIP = function() {
@@ -239,7 +241,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
-            template: $translate("confirm_"+ status +"_app"),
+            template: $translate.instant("confirm_"+ status +"_app"),
             model: $scope,
             title: displayStatus +" Services",
             actions: [
@@ -263,7 +265,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
             bigModal: true,
             actions: [
                 {
@@ -285,7 +287,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
 
     $scope.clickRemoveVirtualHost = function(vhost) {
         $modalService.create({
-            template: $translate("confirm_remove_virtual_host") + " <strong>"+ vhost.Name +"</strong>",
+            template: $translate.instant("confirm_remove_virtual_host") + " <strong>"+ vhost.Name +"</strong>",
             model: $scope,
             title: "remove_virtual_host",
             actions: [
@@ -313,7 +315,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
             bigModal: true,
             actions: [
                 {
@@ -377,15 +379,15 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
           min = svc.InstanceLimits.Min,
           num = svc.Instances;
       if (typeof num == 'undefined' || (max > 0 && num > max) || (min > 0 && num < min)) {
-        var msg = $translate("instances_invalid") + " ";
+        var msg = $translate.instant("instances_invalid") + " ";
         if (min > 0) {
-          msg += $translate("minimum") + " " + min;
+          msg += $translate.instant("minimum") + " " + min;
           if (max > 0) {
             msg += ", "
           }
         }
         if (max > 0) {
-          msg += $translate("maximum") + " " + max;
+          msg += $translate.instant("maximum") + " " + max;
         }
         $notification.create("", msg).error();
         return false;
@@ -399,13 +401,13 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
               console.log('Updated %s', $scope.services.current.ID);
               var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
               lastCrumb.label = $scope.services.current.Name;
+              refreshServices($scope, resourcesService, false);
           });
         }
     };
 
 
     // Update the running instances so it is reflected when we save the changes
-    //TODO: Destroy/cancel this interval when we are not on the subservices page, or get rid of it all together
     function updateRunning() {
         if ($scope.params.serviceId) {
             refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
@@ -413,10 +415,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
                 mashHostsToInstances();
             });
         }
-    }
-
-    if(!angular.isDefined($scope.updateRunningInterval)) {
-        $scope.updateRunningInterval = $interval(updateRunning, 3000);
     }
 
     // Get a list of deployed apps
@@ -438,11 +436,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
 
         loadSubServiceHosts();
         $serviceHealth.update();
-    });
-
-    $scope.$on('$destroy', function() {
-        $interval.cancel($scope.updateRunningInterval);
-        $scope.updateRunningInterval = undefined;
     });
 
     var wait = { hosts: false, running: false };
@@ -591,6 +584,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         $scope.updateGraphs();
     };
 
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
+
     function loadSubServiceHosts(){
         // to pull host data for running services, we need to make seperate "running" requests for each subservice
         // and add the host data to the subservice. We do this synchronously using promises here.
@@ -617,5 +614,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, $interval, resou
         }
 
         runningServiceDeferred.resolve();
+
+
+        resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
+        resourcesService.registerPoll("running", updateRunning, 3000);
     }
 }

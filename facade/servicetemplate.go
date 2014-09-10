@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package facade
 
@@ -80,16 +89,16 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 	return nil
 }
 
-func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]*servicetemplate.ServiceTemplate, error) {
+func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
 	glog.V(2).Infof("Facade.GetServiceTemplates")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
-	templateMap := make(map[string]*servicetemplate.ServiceTemplate)
+	templateMap := make(map[string]servicetemplate.ServiceTemplate)
 	if err != nil {
 		glog.V(2).Infof("Facade.GetServiceTemplates: err=%s", err)
 		return templateMap, err
 	}
 	for _, st := range results {
-		templateMap[st.ID] = st
+		templateMap[st.ID] = *st
 	}
 	return templateMap, nil
 }
@@ -298,7 +307,7 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 			UpdateDeployTemplateStatus(deploymentId, "deploy_loading_image|"+name)
 			image, err := docker.FindImage(svc.ImageID, false)
 			if err != nil {
-				msg := fmt.Errorf("could not look up image %s: %s", svc.ImageID, err)
+				msg := fmt.Errorf("could not look up image %s: %s. Check your docker login and retry application deployment.", svc.ImageID, err)
 				glog.Error(err.Error())
 				return "", msg
 			}
@@ -329,7 +338,7 @@ func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicede
 	for imageId, _ := range imageIds {
 		_, err := docker.FindImage(imageId, false)
 		if err != nil {
-			msg := fmt.Errorf("could not look up image %s: %s", imageId, err)
+			msg := fmt.Errorf("could not look up image %s: %s. Check your docker login and retry service deployment.", imageId, err)
 			glog.Error(err.Error())
 			return msg
 		}
@@ -369,7 +378,7 @@ func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 // writeLogstashConfiguration takes all the available
 // services and writes out the filters section for logstash.
 // This is required before logstash startsup
-func writeLogstashConfiguration(templates map[string]*servicetemplate.ServiceTemplate) error {
+func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemplate) error {
 	// FIXME: eventually this file should live in the DFS or the config should
 	// live in zookeeper to allow the agents to get to this
 	if err := dao.WriteConfigurationFile(templates); err != nil {

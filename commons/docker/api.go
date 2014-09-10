@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package docker
 
@@ -247,7 +256,7 @@ func (c *Container) Inspect() (*dockerclient.Container, error) {
 	ec := make(chan error)
 	rc := make(chan *dockerclient.Container)
 
-	cmds.Inspect <- inspectreq{
+	cmds.ContainerInspect <- continspectreq{
 		request{ec},
 		struct {
 			id string
@@ -544,6 +553,53 @@ func (img *Image) Tag(tag string) (*Image, error) {
 			return nil, fmt.Errorf("docker: request failed: %v", err)
 		}
 	}
+}
+
+func InspectImage(uuid string) (*dockerclient.Image, error) {
+	ec := make(chan error)
+	rc := make(chan *dockerclient.Image)
+
+	cmds.ImageInspect <- imginspectreq{
+		request{ec},
+		struct {
+			id string
+		}{uuid},
+		rc,
+	}
+
+	select {
+	case <-done:
+		return nil, ErrKernelShutdown
+	case err, ok := <-ec:
+		switch {
+		case !ok:
+			dci := <-rc
+			return dci, nil
+		default:
+			return nil, fmt.Errorf("docker: request failed: %v", err)
+		}
+	}
+}
+
+func (img *Image) Inspect() (*dockerclient.Image, error) {
+	return InspectImage(img.UUID)
+}
+
+func ImageHistory(uuid string) ([]*dockerclient.Image, error) {
+	layers := make([]*dockerclient.Image, 0, 64)
+	for uuid != "" {
+		imageInfo, err := InspectImage(uuid)
+		if err != nil {
+			return layers, err
+		}
+		layers = append(layers, imageInfo)
+		uuid = imageInfo.Parent
+	}
+	return layers, nil
+}
+
+func (img *Image) History() ([]*dockerclient.Image, error) {
+	return ImageHistory(img.UUID)
 }
 
 func onContainerEvent(event, id string, action ContainerActionFunc) error {

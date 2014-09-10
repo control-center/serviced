@@ -1,16 +1,26 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -29,7 +39,9 @@ const (
 type Service struct {
 	ID                string
 	Name              string
-	Context           string
+	Title             string                 // Title is a label used when describing this service in the context of a service tree
+	Version           string
+	Context           map[string]interface{}
 	Startup           string
 	Description       string
 	Tags              []string
@@ -65,6 +77,7 @@ type Service struct {
 	MemoryLimit       float64
 	CPUShares         int64
 	PIDFile           string
+	datastore.VersionedEntity
 }
 
 //ServiceEndpoint endpoint exported or imported by a service
@@ -106,21 +119,22 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 		return nil, err
 	}
 
-	ctx, err := json.Marshal(sd.Context)
-	if err != nil {
-		return nil, err
-	}
-
 	now := time.Now()
 
 	svc := Service{}
 	svc.ID = svcuuid
 	svc.Name = sd.Name
-	svc.Context = string(ctx)
+	svc.Title = sd.Title
+	svc.Version = sd.Version
+	svc.Context = sd.Context
 	svc.Startup = sd.Command
 	svc.Description = sd.Description
 	svc.Tags = sd.Tags
-	svc.Instances = sd.Instances.Min
+	if sd.Instances.Default != 0 {
+		svc.Instances = sd.Instances.Default
+	} else {
+		svc.Instances = sd.Instances.Min
+	}
 	svc.InstanceLimits = sd.Instances
 	svc.ChangeOptions = sd.ChangeOptions
 	svc.ImageID = sd.ImageID
@@ -293,11 +307,11 @@ func (s Service) GetPath(gs GetService) (string, error) {
 }
 
 //SetAssignment sets the AddressAssignment for the endpoint
-func (se *ServiceEndpoint) SetAssignment(aa *addressassignment.AddressAssignment) error {
+func (se *ServiceEndpoint) SetAssignment(aa addressassignment.AddressAssignment) error {
 	if se.AddressConfig.Port == 0 {
 		return errors.New("cannot assign address to endpoint without AddressResourceConfig")
 	}
-	se.AddressAssignment = *aa
+	se.AddressAssignment = aa
 	return nil
 }
 
@@ -325,7 +339,10 @@ func (s *Service) Equals(b *Service) bool {
 	if s.Name != b.Name {
 		return false
 	}
-	if s.Context != b.Context {
+	if s.Version != b.Version {
+		return false
+	}
+	if !reflect.DeepEqual(s.Context, b.Context) {
 		return false
 	}
 	if s.Startup != b.Startup {

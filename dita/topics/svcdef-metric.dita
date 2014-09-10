@@ -46,10 +46,7 @@
           <row>
             <entry><codeph>ResetValue</codeph></entry>
             <entry>Integer</entry>
-            <entry>
-              <draft-comment author="gemil">my guess won't be as good as the real
-                deal</draft-comment>
-            </entry>
+            <entry></entry>
           </row>
           <row>
             <entry><codeph>Unit</codeph></entry>

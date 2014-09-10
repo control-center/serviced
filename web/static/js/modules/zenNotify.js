@@ -1,5 +1,11 @@
 /* global: $ */
 /* jshint multistr: true */
+var SEVERITY = {
+    SUCCESS: 0,
+    INFO: 1,
+    WARNING: 2,
+    ERROR: 3
+};
 
 (function() {
     'use strict';
@@ -39,6 +45,7 @@
             this.title = title;
             this.msg = msg;
             this.$attachPoint = $attachPoint;
+            this.severity = SEVERITY.INFO;
 
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
@@ -50,11 +57,13 @@
             constructor: Notification,
 
             success: function(){
+                this.severity = SEVERITY.SUCCESS;
+
                 // change notification color, icon, text, etc
                 this.$el.removeClass("bg-info").addClass("bg-success");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-ok-sign");
 
-                this.updateTitle(this.title || $translate("success"));
+                this.updateTitle(this.title || $translate.instant("success"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -62,15 +71,18 @@
                 if(notificationFactory.store(this)){
                     this.show();
                 }
+
                 return this;
             },
 
             warning: function(){
+                this.severity = SEVERITY.WARNING;
+
                 // change notification color, icon, text, etc
                 this.$el.removeClass("bg-info").addClass("bg-warning");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-warning-sign");
 
-                this.updateTitle(this.title || $translate("warning"));
+                this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -78,11 +90,14 @@
                 if(notificationFactory.store(this)){
                     this.show();
                 }
+
                 return this;
             },
 
             info: function(){
-                this.updateTitle(this.title || $translate("info"));
+                this.severity = SEVERITY.INFO;
+
+                this.updateTitle(this.title || $translate.instant("info"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -90,15 +105,18 @@
                 if(notificationFactory.store(this)){
                     this.show();
                 }
+
                 return this;
             },
 
             error: function(){
+                this.severity = SEVERITY.ERROR;
+
                 // change notification color, icon, text, etc
                 this.$el.removeClass("bg-info").addClass("bg-danger");
                 this.$el.find(".dialogIcon").removeClass("glyphicon-info-sign").addClass("glyphicon-remove-sign");
 
-                this.updateTitle(this.title || $translate("error"));
+                this.updateTitle(this.title || $translate.instant("error"));
                 this.updateStatus(this.msg || "");
 
                 // show close button and make it active
@@ -106,6 +124,7 @@
                 if(notificationFactory.store(this)){
                     this.show(false);
                 }
+
                 return this;
             },
 
@@ -196,7 +215,7 @@
             markRead: function(notification){
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
-                        el.read = true;
+                        el.read = el.count;
                     }
                 }.bind(this));
 
@@ -209,29 +228,33 @@
              * @param  {Notification} notification  the Notification object to store
              */
             store: function(notification){
-                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
+                var storable = {id: notification.id, read: 0, date: new Date(), title: notification.title, msg: notification.msg, count: 1};
+                var newMessage = false;
 
-                // de-dup messages
-                var lastMessage = this.$storage[0];
-                if(!lastMessage){
-                    lastMessage = {id: 9999, read: false, date: new Date(), title: "", msg: ""};
-                }
-                var lastMessageTime = new Date(lastMessage.date).getTime();
-                var now = new Date().getTime();
+                var isDuplicate = function(){
+                    // de-dup messages
+                    for(var i=0; i<this.$storage.length; ++i){
+                        var message = this.$storage[i];
+                        console.log(notification.msg + " === " + message.msg);
+                        if(message && notification.msg === message.msg){
+                            ++message.count;
+                            return true;
+                        }else{
+                            return false;
+                        }
+                    }
+                }.bind(this);
 
-                // Duplicate message is the same message within 5 seconds of the last message
-                if(notification.msg != lastMessage.msg ||
-                    now - lastMessageTime > 5000){
-                    if(this.$storage.unshift(storable) > 20){
+                if(!isDuplicate() && (notification.severity === SEVERITY.ERROR || notification.severity === SEVERITY.SUCCESS)){
+                    if(this.$storage.unshift(storable) > 100){
                         this.$storage.pop();
                     }
-
-                    localStorage.setItem('messages', JSON.stringify(this.$storage));
-                    $rootScope.$broadcast("messageUpdate");
-                    return true;
-                }else{
-                    return false;
+                    newMessage = true;
                 }
+
+                localStorage.setItem('messages', JSON.stringify(this.$storage));
+                $rootScope.$broadcast("messageUpdate");
+                return newMessage;
             },
 
             /**
@@ -239,7 +262,7 @@
              * @param  {Notification} notification  the Notification object to update
              */
             update: function(notification){
-                var storable = {id: notification.id, read: false, date: new Date(), title: notification.title, msg: notification.msg};
+                var storable = {id: notification.id, read: 0, date: new Date(), title: notification.title, msg: notification.msg};
 
                 this.$storage.forEach(function(el, idx){
                     if(el.id === notification.id){
@@ -260,7 +283,7 @@
                 var unreadCount;
 
                 unreadCount = this.$storage.reduce(function(acc, el){
-                    return !el.read ? acc+1 : acc;
+                    return acc+(el.count-el.read);
                 }, 0);
 
                 return {

@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -29,11 +38,11 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "0",
 		Name:            "Zenoss",
-		Context:         "",
+		Context:         nil,
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
-		InstanceLimits:  domain.MinMax{0, 0},
+		InstanceLimits:  domain.MinMax{0, 0, 0},
 		ImageID:         "",
 		PoolID:          "default",
 		DesiredState:    SVCStop,
@@ -71,11 +80,11 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "1",
 		Name:            "Collector",
-		Context:         "{\"RemoteHost\":\"a_hostname\"}",
+		Context:         map[string]interface{}{"RemoteHost": "a_hostname"},
 		Startup:         "",
 		Description:     "",
 		Instances:       0,
-		InstanceLimits:  domain.MinMax{0, 0},
+		InstanceLimits:  domain.MinMax{0, 0, 0},
 		ImageID:         "",
 		PoolID:          "default",
 		DesiredState:    SVCStop,
@@ -91,11 +100,11 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "2",
 		Name:            "pinger",
-		Context:         "{\"Count\": 32}",
+		Context:         map[string]interface{}{"Count": 32},
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context (parent .)).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
-		InstanceLimits:  domain.MinMax{1, 1},
+		InstanceLimits:  domain.MinMax{1, 1, 1},
 		ImageID:         "test/pinger",
 		PoolID:          "default",
 		DesiredState:    SVCRun,
@@ -110,11 +119,11 @@ var startup_testcases = []struct {
 	{Service{
 		ID:              "3",
 		Name:            "/bin/sh",
-		Context:         "",
+		Context:         nil,
 		Startup:         "{{.Name}} ls -l .",
 		Description:     "Execute ls -l on .",
 		Instances:       1,
-		InstanceLimits:  domain.MinMax{1, 1},
+		InstanceLimits:  domain.MinMax{1, 1, 1},
 		ImageID:         "test/bin_sh",
 		PoolID:          "default",
 		DesiredState:    SVCRun,
@@ -135,11 +144,11 @@ var endpoint_testcases = []struct {
 	{Service{
 		ID:              "100",
 		Name:            "Zenoss",
-		Context:         "{\"RemoteHost\":\"hostname\"}",
+		Context:         map[string]interface{}{"RemoteHost": "hostname"},
 		Startup:         "",
 		Description:     "Zenoss 5.x",
 		Instances:       0,
-		InstanceLimits:  domain.MinMax{0, 0},
+		InstanceLimits:  domain.MinMax{0, 0, 0},
 		ImageID:         "",
 		PoolID:          "default",
 		DesiredState:    SVCStop,
@@ -152,11 +161,11 @@ var endpoint_testcases = []struct {
 	{Service{
 		ID:             "101",
 		Name:           "Collector",
-		Context:        "",
+		Context:        nil,
 		Startup:        "",
 		Description:    "",
 		Instances:      0,
-		InstanceLimits: domain.MinMax{0, 0},
+		InstanceLimits: domain.MinMax{0, 0, 0},
 		ImageID:        "",
 		PoolID:         "default",
 		DesiredState:   SVCStop,
@@ -177,6 +186,63 @@ var endpoint_testcases = []struct {
 	}, "hostname_collector"},
 }
 
+var context_testcases = []Service{
+	{
+		ID:      "200",
+		Name:    "200",
+		PoolID:  "default",
+		Launch:  "manual",
+		Context: map[string]interface{}{"A": "a_200", "B": "b_200", "g.w": "W"},
+	},
+	{
+		ID:              "201",
+		Name:            "201",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{"A": "a_201", "C": "c_201"},
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"inherited": servicedefinition.ConfigFile{
+				// We store the expected value in the Owner field
+				// Note that B comes from the parent context
+				Owner:   `a_201, b_200, c_201`,
+				Content: `{{(context .).A}}, {{(context .).B}}, {{(context .).C}}`,
+			},
+		},
+	},
+	{
+		ID:              "202",
+		Name:            "202",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{"g.y": "Y", "g.x": "X", "g.z": "Z", "foo": "bar"},
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile{
+				// We store the expected value in the Owner field
+				// Note the keys are filtered, trimmed and sorted
+				Owner:   `w:W, x:X, y:Y, z:Z, `,
+				Content: `{{range $key,$val:=contextFilter . "g."}}{{$key}}:{{$val}}, {{end}}`,
+			},
+		},
+	},
+	{
+		ID:              "203",
+		Name:            "203",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{"foo.bar-baz": "qux"},
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile{
+				// We store the expected value in the Owner field
+				Owner:   `qux!`,
+				Content: `{{(contextFilter . "foo.bar-").baz}}!`,
+			},
+		},
+	},
+}
+
 var addresses []string
 
 func createSvcs(store *Store, ctx datastore.Context) error {
@@ -187,6 +253,15 @@ func createSvcs(store *Store, ctx datastore.Context) error {
 	}
 	for _, testcase := range endpoint_testcases {
 		if err := store.Put(ctx, &testcase.service); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func createContextSvcs(store *Store, ctx datastore.Context) error {
+	for _, testcase := range context_testcases {
+		if err := store.Put(ctx, &testcase); err != nil {
 			return err
 		}
 	}
@@ -206,7 +281,7 @@ func (s *S) findChild(svcID, childName string) (Service, error) {
 	}
 	for _, x := range svcs {
 		if x.Name == childName {
-			return *x, nil
+			return x, nil
 		}
 	}
 	return svc, nil
@@ -250,6 +325,26 @@ func (s *S) TestEvaluateConfigFilesTemplate(t *C) {
 		}
 		if !strings.Contains(configFile.Content, fmt.Sprintf("%s %d", testcase.service.Name, instanceID)) {
 			t.Errorf("Was expecting configFile.Content to include the service name instead it was %s", configFile.Content)
+		}
+	}
+}
+
+func (s *S) TestEvaluateConfigFilesTemplateContext(t *C) {
+	err := createContextSvcs(s.store, s.ctx)
+	t.Assert(err, IsNil)
+	var instanceID = 5
+
+	for _, testcase := range context_testcases {
+		err := testcase.EvaluateConfigFilesTemplate(s.getSVC, s.findChild, instanceID)
+		if err != nil {
+			t.Errorf("Failed to eval template %s", err)
+		}
+		for name, cf := range testcase.ConfigFiles {
+			// We store the expected value in the Owner field
+			expected := cf.Owner
+			if cf.Content != expected {
+				t.Errorf(`Config file "%s" contents were "%s" expecting "%s"`, name, cf.Content, expected)
+			}
 		}
 	}
 }
@@ -328,17 +423,17 @@ func (s *S) TestIncompleteStartupInjection(t *C) {
 	svc := Service{
 		ID:              "1000",
 		Name:            "pinger",
-		Context:         "{\"RemoteHost\": \"zenoss.com\"}",
+		Context:         map[string]interface{}{"RemoteHost": "zenoss.com"},
 		Startup:         "/usr/bin/ping -c {{(context .).Count}} {{(context .).RemoteHost}}",
 		Description:     "Ping a remote host a fixed number of times",
 		Instances:       1,
-		InstanceLimits:  domain.MinMax{1, 1},
+		InstanceLimits:  domain.MinMax{1, 1, 1},
 		ImageID:         "test/pinger",
 		PoolID:          "default",
 		DesiredState:    SVCRun,
 		Launch:          "auto",
 		Endpoints:       []ServiceEndpoint{},
-		ParentServiceID: "0987654321",
+		ParentServiceID: "",
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 	}

@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService, $interval, $translate){
+function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService, $modalService, $interval, $translate){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -54,7 +54,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     
     $scope.remove_host = function(hostId) {
         $modalService.create({
-            template: $translate("confirm_remove_host") + " <strong>"+ $scope.hosts.mapped[hostId].Name +"</strong>",
+            template: $translate.instant("confirm_remove_host") + " <strong>"+ $scope.hosts.mapped[hostId].Name +"</strong>",
             model: $scope,
             title: "remove_host",
             actions: [
@@ -131,6 +131,10 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
 
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
+
     var hostCallback = function() {
         $scope.hosts.page = 1;
         $scope.hosts.pageSize = 10;
@@ -154,9 +158,7 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
         }
     }
 
-    if(!angular.isDefined($scope.updateActiveHostsInterval)) {
-        $scope.updateActiveHostsInterval = $interval(updateActiveHosts, 3000);
-    }
+    resourcesService.registerPoll("activeHosts", updateActiveHosts, 3000);
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
@@ -164,3 +166,4 @@ function HostsControl($scope, $routeParams, $location, $filter, $timeout, resour
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, hostCallback);
 }
+

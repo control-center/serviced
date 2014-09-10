@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -45,8 +54,8 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	myList := make(map[string][]*dao.ApplicationEndpoint)
+func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
+	myList := make(map[string][]dao.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
 	a.addControlPlaneConsumerEndpoint(myList)
@@ -180,7 +189,7 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
@@ -199,7 +208,7 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.Applicat
 }
 
 // addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
@@ -213,7 +222,7 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.
 }
 
 // addLogstashEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	tcp_endpoint := dao.ApplicationEndpoint{
 		ServiceID:     "controlplane_logstash_tcp",
 		Application:   "controlplane_logstash_tcp",
@@ -238,18 +247,18 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationE
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
-func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]dao.ApplicationEndpoint) {
 	if _, ok := endpoints[key]; !ok {
-		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+		endpoints[key] = make([]dao.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
 			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
 			for _, ep := range endpoints[key] {
-				glog.Warningf(" %+v", *ep)
+				glog.Warningf(" %+v", ep)
 			}
 		}
 	}
-	endpoints[key] = append(endpoints[key], &endpoint)
+	endpoints[key] = append(endpoints[key], endpoint)
 }
 
 // GetHostID returns the agent's host id

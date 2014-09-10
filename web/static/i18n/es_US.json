@@ -84,6 +84,8 @@
     "deploy_loading_image": "Cargando imagen",
     "deploy_tagging_image": "Etiquetando imagen (Por favor espere)",
 
+    "docker_login_warning": "Usted no está conectado para Docker Hub . Cualquier dependencias de aplicaciones en repositorios privados causarán despliegue falle.",
+
     "breadcrumb_deployed": "Aplicaciones Instaladas",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Servidores",
@@ -119,6 +121,7 @@
     "ctl_running_stopped": "parado",
     "deployed_tbl_deployment": "Estado de la Instalaci\u00f3n",
     "deployed_tbl_details": "Detalles",
+    "deployed_tbl_description": "Descripci\u00f3n",
     "deployed_tbl_deployment_id": "ID de la Instalaci\u00f3n",
     "deployed_tbl_name": "Aplicaci\u00f3n",
     "deployed_tbl_pool": "Grupo de Recursos",
@@ -130,6 +133,7 @@
     "host": "Servidore",
     "info": "Info",
     "ip_addresses": "IPs",
+    "ip_addresses_mac": "Dirección Ethernet",
     "ip_addresses_interface": "Interfaz",
     "ip_addresses_ip": "IP",
     "label_application": "Aplicaci\u00f3n",
@@ -263,6 +267,18 @@
     "tbl_virtual_ip": "IP",
     "tbl_virtual_ip_port": "Servidore de Puerto",
     "tbl_virtual_ip_actions":"Acciones",
+
+    "template": "Plantilla de la aplicación",
+    "templates": "Plantillas de la aplicación",
+    "template_name": "Plantilla de la aplicación",
+    "template_id": "ID",
+    "template_description": "Descripci\u00f3n",
+    "template_add": "A\u00f1adir plantilla de la aplicación",
+    "template_file": "Archivo de plantilla de la aplicación",
+    "template_error": "Debe proporcionar una plantilla de aplicación válida",
+    "template_remove": "Quitar plantilla de la aplicación",
+    "template_remove_confirm": "Esto eliminará el siguiente plantilla de la aplicación, y no puede ser desecho: ",
+
     "title_about": "Sobre",
     "title_add_config_file": "A\u00f1adir archivos de configuraci\u00f3n",
     "title_add_host": "A\u00f1adir servidor",

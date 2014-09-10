@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package facade
 
@@ -56,23 +65,31 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 type zkMock struct {
 }
 
-func (z *zkMock) updateService(svc *service.Service) error {
+func (z *zkMock) UpdateService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) removeService(svc *service.Service) error {
+func (z *zkMock) RemoveService(svc *service.Service) error {
 	return nil
 }
 
-func (z *zkMock) getSvcStates(poolID string, serviceStates *[]*servicestate.ServiceState, serviceIds ...string) error {
+func (z *zkMock) GetServiceStates(poolID string, serviceStates *[]servicestate.ServiceState, serviceIds ...string) error {
 	return nil
 }
 
-func (z *zkMock) RegisterHost(h *host.Host) error {
+func (z *zkMock) AddHost(h *host.Host) error {
 	return nil
 }
 
-func (z *zkMock) UnregisterHost(h *host.Host) error {
+func (z *zkMock) UpdateHost(h *host.Host) error {
+	return nil
+}
+
+func (z *zkMock) RemoveHost(h *host.Host) error {
+	return nil
+}
+
+func (z *zkMock) GetActiveHosts(poolID string, hosts *[]string) error {
 	return nil
 }
 
@@ -84,10 +101,18 @@ func (z *zkMock) RemoveVirtualIP(vip *pool.VirtualIP) error {
 	return nil
 }
 
-func (z *zkMock) AddResourcePool(poolID string) error {
+func (z *zkMock) AddResourcePool(pool *pool.ResourcePool) error {
+	return nil
+}
+
+func (z *zkMock) UpdateResourcePool(pool *pool.ResourcePool) error {
 	return nil
 }
 
 func (z *zkMock) RemoveResourcePool(poolID string) error {
+	return nil
+}
+
+func (z *zkMock) CheckRunningVHost(vhostName, serviceID string) error {
 	return nil
 }

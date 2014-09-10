@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cmd
 
@@ -123,12 +132,12 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
+					cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
 					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "shell",
@@ -141,7 +150,6 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "run",
@@ -157,7 +165,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "attach",
@@ -289,7 +296,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return nil, err
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	for _, svc := range svcs {
 		switch strings.ToLower(keyword) {
 		case svc.ID, strings.ToLower(svc.Name):
@@ -305,7 +312,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	case 0:
 		return nil, fmt.Errorf("service not found")
 	case 1:
-		return services[0], nil
+		return &services[0], nil
 	}
 
 	matches := newtable(0, 8, 2)
@@ -351,6 +358,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	lines := make(map[string]map[string]string)
 	for _, svc := range services {
+		glog.V(2).Infof("Getting service status for %s %s", svc.ID, svc.Name)
 		statemap, err := c.driver.GetServiceStatus(svc.ID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -381,20 +389,26 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 				delete(lines, iid)
 			}
 
-			for state, status := range statemap {
+			for _, svcstatus := range statemap {
 				if svc.Instances > 1 {
-					iid = fmt.Sprintf("%s_%d", svc.ID, state.InstanceID)
+					iid = fmt.Sprintf("%s_%d", svc.ID, svcstatus.State.InstanceID)
 					lines[iid] = map[string]string{
 						"ID":        iid,
 						"ServiceID": svc.ID,
-						"Name":      fmt.Sprintf("%s_%d", svc.Name, state.InstanceID),
+						"Name":      fmt.Sprintf("%s_%d", svc.Name, svcstatus.State.InstanceID),
 						"ParentID":  svc.ParentServiceID,
 					}
 				}
-				lines[iid]["Hostname"] = hostmap[state.HostID].Name
-				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", state.DockerID)
-				lines[iid]["Uptime"] = state.Uptime().String()
-				lines[iid]["Status"] = status.String()
+				lines[iid]["Hostname"] = hostmap[svcstatus.State.HostID].Name
+				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", svcstatus.State.DockerID)
+				lines[iid]["Uptime"] = svcstatus.State.Uptime().String()
+				lines[iid]["Status"] = svcstatus.Status.String()
+
+				insync := "Y"
+				if !svcstatus.State.InSync {
+					insync = "N"
+				}
+				lines[iid]["InSync"] = insync
 			}
 		}
 	}
@@ -419,10 +433,10 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID")
+	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID", "IN_SYNC")
 	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
 		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"])
+		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"], s["InSync"])
 	}, func(row []interface{}) string {
 		return strings.ToLower(row[1].(string))
 	})
@@ -687,30 +701,26 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		return nil
 	}
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	args := ctx.Args()
 	options := api.ControllerOptions{
-		MuxPort:               ctx.GlobalInt("muxport"),
-		Mux:                   ctx.GlobalBool("mux"),
-		TLS:                   ctx.GlobalBool("tls"),
-		KeyPEMFile:            ctx.GlobalString("keyfile"),
-		CertPEMFile:           ctx.GlobalString("certfile"),
-		ServicedEndpoint:      ctx.GlobalString("endpoint"),
-		Autorestart:           ctx.GlobalBool("autorestart"),
-		MetricForwarderPort:   ctx.GlobalString("metric-forwarder-port"),
-		Logstash:              ctx.GlobalBool("logstash"),
-		LogstashIdleFlushTime: ctx.GlobalString("logstash-idle-flush-time"),
-		LogstashSettleTime:    ctx.GlobalString("logstash-settle-time"),
-		LogstashBinary:        ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:        ctx.GlobalString("forwarder-config"),
-		VirtualAddressSubnet:  ctx.GlobalString("virtual-address-subnet"),
-		ServiceID:             args[0],
-		InstanceID:            args[1],
-		Command:               args[2:],
+		MuxPort:               		ctx.GlobalInt("muxport"),
+		Mux:                   		ctx.GlobalBool("mux"),
+		TLS:                   		ctx.GlobalBool("tls"),
+		KeyPEMFile:            		ctx.GlobalString("keyfile"),
+		CertPEMFile:           		ctx.GlobalString("certfile"),
+		ServicedEndpoint:      		ctx.GlobalString("endpoint"),
+		Autorestart:           		ctx.GlobalBool("autorestart"),
+		MetricForwarderPort:   		ctx.GlobalString("metric-forwarder-port"),
+		Logstash:              		ctx.GlobalBool("logstash"),
+		LogstashIdleFlushTime: 		ctx.GlobalString("logstash-idle-flush-time"),
+		LogstashSettleTime:    		ctx.GlobalString("logstash-settle-time"),
+		LogstashBinary:        		ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:        		ctx.GlobalString("forwarder-config"),
+		VirtualAddressSubnet:  		ctx.GlobalString("virtual-address-subnet"),
+		ServiceID:             		args[0],
+		InstanceID:            		args[1],
+		Command:               		args[2:],
+		MetricForwardingEnabled:	! ctx.GlobalBool("disable-metric-forwarding"),
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {
@@ -731,11 +741,6 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
-	}
-
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
 	}
 
 	var (
@@ -791,11 +796,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -844,7 +844,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		hostmap[host.ID] = host
 	}
 
-	var states []*dao.RunningService
+	var states []dao.RunningService
 	for _, rs := range rss {
 		if rs.DockerID == "" {
 			continue
@@ -866,7 +866,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	case 0:
 		return nil, fmt.Errorf("no matches found")
 	case 1:
-		return states[0], nil
+		return &states[0], nil
 	}
 
 	matches := newtable(0, 8, 2)

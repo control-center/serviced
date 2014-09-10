@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -10,6 +19,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 )
@@ -27,7 +37,7 @@ func TestGetServiceStatus(t *testing.T) {
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not add service %s: %s", svc.ID, err)
 	}
-	if err := RegisterHost(conn, "test-host-1"); err != nil {
+	if err := AddHost(conn, &host.Host{ID: "test-host-1"}); err != nil {
 		t.Fatalf("Could not register host: %s", err)
 	}
 
@@ -81,12 +91,12 @@ func TestGetServiceStatus(t *testing.T) {
 	}
 
 	// Verify
-	for state, status := range statusmap {
-		expect, ok := expected[state.ID]
+	for _, svcstatus := range statusmap {
+		expect, ok := expected[svcstatus.State.ID]
 		if !ok {
-			t.Fatalf("Missing service state %s", state.ID)
-		} else if expect != status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, status)
+			t.Fatalf("Missing service state %s", svcstatus.State.ID)
+		} else if expect != svcstatus.Status {
+			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
 		}
 	}
 
@@ -108,12 +118,12 @@ func TestGetServiceStatus(t *testing.T) {
 	}
 
 	// Verify
-	for state, status := range statusmap {
-		expect, ok := expected[state.ID]
+	for _, svcstatus := range statusmap {
+		expect, ok := expected[svcstatus.State.ID]
 		if !ok {
-			t.Fatalf("Missing service state %s", state.ID)
-		} else if expect != status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, status)
+			t.Fatalf("Missing service state %s", svcstatus.State.ID)
+		} else if expect != svcstatus.Status {
+			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
 		}
 	}
 
@@ -135,12 +145,12 @@ func TestGetServiceStatus(t *testing.T) {
 	}
 
 	// Verify
-	for state, status := range statusmap {
-		expect, ok := expected[state.ID]
+	for _, svcstatus := range statusmap {
+		expect, ok := expected[svcstatus.State.ID]
 		if !ok {
-			t.Fatalf("Missing service state %s", state.ID)
-		} else if expect != status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, status)
+			t.Fatalf("Missing service state %s", svcstatus.State.ID)
+		} else if expect != svcstatus.Status {
+			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
 		}
 	}
 

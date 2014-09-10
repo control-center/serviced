@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package serviced - agent implements a service that runs on a serviced node.
 // It is responsible for ensuring that a particular node is running the correct
@@ -700,7 +709,8 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_VIRTUAL_ADDRESS_SUBNET=%s", virtualAddressSubnet),
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
-		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID))
+		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
+		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
@@ -799,49 +809,33 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	}()
 
 	for {
-		connc := make(chan coordclient.Connection)
-		go func() {
-			for {
-				c, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(a.poolID))
-				if err == nil {
-					connc <- c
-					return
-				}
-
-				select {
-				case <-shutdown:
-					return
-				case <-time.After(time.Second):
-				}
-			}
-		}()
-
+		// handle shutdown if we are waiting for a zk connection
 		var conn coordclient.Connection
-
-		//handle shutdown if we are waiting fo a zk connection
 		select {
-		case conn = <-connc:
-			break
+		case conn = <-zzk.Connect(zzk.GeneratePoolPath(a.poolID), zzk.GetLocalConnection):
 		case <-shutdown:
 			return
 		}
+		if conn == nil {
+			continue
+		}
+
 		glog.Info("Got a connected client")
-		// defer conn.Close()
 
 		// watch virtual IP zookeeper nodes
-		virtualIPListener := virtualips.NewVirtualIPListener(conn, a, a.hostID)
+		virtualIPListener := virtualips.NewVirtualIPListener(a, a.hostID)
 
 		// watch docker action nodes
-		actionListener := zkdocker.NewActionListener(conn, a, a.hostID)
+		actionListener := zkdocker.NewActionListener(a, a.hostID)
 
 		// watch the host state nodes
 		// this blocks until
 		// 1) has a connection
 		// 2) its node is registered
 		// 3) receieves signal to shutdown or breaks
-		hsListener := zkservice.NewHostStateListener(conn, a, a.hostID)
+		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
-		zzk.Start(shutdown, hsListener, virtualIPListener, actionListener)
+		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
 		glog.Infof("Host Agent Listeners are done")
 
 		select {

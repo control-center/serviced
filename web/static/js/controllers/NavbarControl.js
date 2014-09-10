@@ -1,6 +1,6 @@
-function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $translate, $notification, authService, resourcesService, $modalService) {
+function NavbarControl($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesService, $modalService) {
     $scope.name = 'navbar';
-    $scope.brand = { url: '#/entry', label: 'brand_cp' };
+    $scope.brand = { url: '#/apps', label: 'brand_cp' };
 
     $rootScope.messages = $notification.getMessages();
     $scope.$on('messageUpdate', function(){
@@ -41,19 +41,7 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
 
     // Create a logout function
     $scope.logout = function() {
-        // Set internal state to logged out.
-        authService.login(false);
-        // Make http call to logout from server
-        $http.delete('/login').
-            success(function(data, status) {
-                // On successful logout, redirect to /login
-                $location.path('/login');
-            }).
-            error(function(data, status) {
-                // On failure to logout, note the error
-                // TODO error screen
-                console.error('Unable to log out. Were you logged in to begin with?');
-            });
+        authService.logout();
     };
 
     $scope.modalUserDetails = function() {
@@ -80,7 +68,6 @@ function NavbarControl($scope, $rootScope, $http, $cookies, $location, $route, $
     updateLanguage($scope, $cookies, $translate);
 
     var helpMap = {
-        '/static/partials/main.html': 'main.html',
         '/static/partials/login.html': 'login.html',
         '/static/partials/view-subservices.html': 'subservices.html',
         '/static/partials/view-apps.html': 'apps.html',

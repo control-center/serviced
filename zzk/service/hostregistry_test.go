@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -21,17 +30,18 @@ import (
 func TestHostRegistryListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener, err := NewHostRegistryListener(conn)
-	if err != nil {
+
+	if err := InitHostRegistry(conn); err != nil {
 		t.Fatalf("Could not initialize host registry: %s", err)
 	}
 
+	listener := NewHostRegistryListener()
 	var (
 		shutdown = make(chan interface{})
 		wait     = make(chan interface{})
 	)
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), listener)
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 		close(wait)
 	}()
 
@@ -52,7 +62,7 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 	hosts := make(map[string]*host.Host)
 	for i := 0; i < numHosts; i++ {
 		host := &host.Host{ID: fmt.Sprintf("test-host-%d", i)}
-		if err := RegisterHost(conn, host.ID); err != nil {
+		if err := AddHost(conn, host); err != nil {
 			t.Fatalf("Could not register host %s: %s", host.ID, err)
 		}
 		ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
@@ -134,14 +144,16 @@ func TestHostRegistryListener_Listen(t *testing.T) {
 func TestHostRegistryListener_Spawn(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener, err := NewHostRegistryListener(conn)
-	if err != nil {
+
+	listener := NewHostRegistryListener()
+	listener.SetConnection(conn)
+	if err := InitHostRegistry(conn); err != nil {
 		t.Fatalf("Could not initialize host registry: %s", err)
 	}
 
 	// Register the host
 	host := &host.Host{ID: "test-host-1"}
-	if err := RegisterHost(conn, host.ID); err != nil {
+	if err := AddHost(conn, host); err != nil {
 		t.Fatalf("Could not register host %s: %s", host.ID, err)
 	}
 
@@ -234,8 +246,9 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 func TestHostRegistryListener_unregister(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	listener, err := NewHostRegistryListener(conn)
-	if err != nil {
+	listener := NewHostRegistryListener()
+	listener.SetConnection(conn)
+	if err := InitHostRegistry(conn); err != nil {
 		t.Fatalf("Could not initialize host registry: %s", err)
 	}
 

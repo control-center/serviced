@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package container
 
@@ -45,7 +54,7 @@ var funcmap = template.FuncMap{
 }
 
 type export struct {
-	endpoint     *dao.ApplicationEndpoint
+	endpoint     dao.ApplicationEndpoint
 	vhosts       []string
 	endpointName string
 }
@@ -79,7 +88,7 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 }
 
 // getServiceState gets the service states for a serviceID
-func getServiceStates(conn coordclient.Connection, serviceID string) ([]*servicestate.ServiceState, error) {
+func getServiceStates(conn coordclient.Connection, serviceID string) ([]servicestate.ServiceState, error) {
 	return zkservice.GetServiceStates(conn, serviceID)
 }
 
@@ -101,7 +110,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 
 		for ii, ss := range serviceStates {
 			if ss.InstanceID == instanceID && ss.PrivateIP != "" {
-				return serviceStates[ii], nil
+				return &serviceStates[ii], nil
 			}
 		}
 
@@ -130,12 +139,12 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		return err
 	}
 
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	// get zookeeper connection
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
-		return fmt.Errorf("getEndpoints zzk.GetBasePathConnection failed: %v", err)
+		return fmt.Errorf("getEndpoints zzk.GetLocalConnection failed: %v", err)
 	}
 
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
@@ -238,7 +247,7 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 }
 
 // buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
-func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (*dao.ApplicationEndpoint, error) {
+func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (dao.ApplicationEndpoint, error) {
 	var ae dao.ApplicationEndpoint
 
 	ae.ServiceID = state.ServiceID
@@ -270,7 +279,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 			port, err := strconv.Atoi(pm[0].HostPort)
 			if err != nil {
 				glog.Errorf("Unable to interpret HostPort: %s", pm[0].HostPort)
-				return nil, err
+				return ae, err
 			}
 			ae.HostPort = uint16(port)
 		}
@@ -280,7 +289,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 
 	glog.V(2).Infof("  built ApplicationEndpoint: %+v", ae)
 
-	return &ae, nil
+	return ae, nil
 }
 
 // setImportedEndpoint sets an imported endpoint
@@ -339,7 +348,7 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 
-	zkConn, err := zzk.GetBasePathConnection("/")
+	zkConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
@@ -438,14 +447,14 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	tenantEndpointID := parts[len(parts)-1]
 
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
-		endpoints := make([]*dao.ApplicationEndpoint, len(hostContainerIDs))
+		endpoints := make([]dao.ApplicationEndpoint, len(hostContainerIDs))
 		for ii, hostContainerID := range hostContainerIDs {
 			path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
 			endpointNode, err := endpointRegistry.GetItem(conn, path)
 			if err != nil {
 				glog.Errorf("error getting endpoint node at %s: %v", path, err)
 			}
-			endpoints[ii] = &endpointNode.ApplicationEndpoint
+			endpoints[ii] = endpointNode.ApplicationEndpoint
 			if ep.port != 0 {
 				glog.V(2).Infof("overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
 				endpoints[ii].ContainerPort = ep.port
@@ -458,7 +467,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
+func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
 	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
 	proxiesLock.Lock()
 	defer proxiesLock.Unlock()
@@ -510,7 +519,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 	} else if purpose == "import_all" {
 		// Need to create a proxy per instance of the service whose endpoint is
 		// being imported
-		for _, instance := range endpoints {
+		for ii, instance := range endpoints {
 			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
 			if _, conflict := exported[containerPort]; conflict {
@@ -518,7 +527,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
-			instance.ContainerPort = containerPort
+			endpoints[ii].ContainerPort = containerPort
 		}
 	}
 
@@ -526,7 +535,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 	for instanceID, proxyKey := range proxyKeys {
 		prxy, ok := proxies[proxyKey]
 		if !ok {
-			var endpoint *dao.ApplicationEndpoint
+			var endpoint dao.ApplicationEndpoint
 			for _, ep := range endpoints {
 				if ep.InstanceID == instanceID {
 					endpoint = ep
@@ -565,7 +574,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 }
 
 // createNewProxy creates a new proxy
-func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) (*proxy, error) {
+func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
@@ -590,7 +599,7 @@ func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) 
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
 func (c *Controller) registerExportedEndpoints() {
-	conn, err := zzk.GetBasePathConnection("/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return
 	}
@@ -615,16 +624,16 @@ func (c *Controller) registerExportedEndpoints() {
 			for _, vhost := range export.vhosts {
 				epName := fmt.Sprintf("%s_%v", export.endpointName, export.endpoint.InstanceID)
 				var path string
-				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
+				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, endpoint)); err != nil {
 					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
 				}
 				glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
 			}
 
-			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, *endpoint))
+			glog.Infof("Registering exported endpoint[%s]: %+v", key, endpoint)
+			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, endpoint))
 			if err != nil {
-				glog.Errorf("  unable to add endpoint: %+v %v", *endpoint, err)
+				glog.Errorf("  unable to add endpoint: %+v %v", endpoint, err)
 				continue
 			}
 

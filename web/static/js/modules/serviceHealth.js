@@ -4,8 +4,8 @@
     'use strict';
 
     angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", "$q", "$http", "resourcesService", "$interval", "$translate",
-    function($rootScope, $q, $http, resourcesService, $interval, $translate){
+    factory("$serviceHealth", ["$rootScope", "$q", "resourcesService", "$interval", "$translate",
+    function($rootScope, $q, resourcesService, $interval, $translate){
 
         var servicesService = resourcesService;
 
@@ -16,14 +16,6 @@
             // "disabled": "glyphicon-minus-sign disabled",
             "disabled": ""
         };
-
-        // auto update all service health statuses
-        var updateInterval = $interval(function(){
-            // NOTE: can't use update directly because $interval
-            // passes an argument to the function it calls,
-            // which breaks the update function
-            update();
-        }, 3000);
 
         // simple array search util
         function findInArray(key, arr, val){
@@ -50,7 +42,7 @@
             // don't so use our own promises
             var servicesDeferred = $q.defer();
             var runningServicesDeferred = $q.defer();
-            var healthCheckDeferred = $http.get("/servicehealth");
+            var healthCheckDeferred = $q.defer();
 
             servicesService.get_services(true, function(top, mapped){
                 servicesDeferred.resolve(mapped);
@@ -60,12 +52,16 @@
                 runningServicesDeferred.resolve(runningServices);
             });
 
+            servicesService.get_service_health(function(healthChecks){
+                healthCheckDeferred.resolve(healthChecks);
+            });
+
             $q.all({
                 services: servicesDeferred.promise,
-                health: healthCheckDeferred,
+                health: healthCheckDeferred.promise,
                 running: runningServicesDeferred.promise
             }).then(function(results){
-                evaluateServiceStatus(results.running, results.services, results.health.data, appId);
+                evaluateServiceStatus(results.running, results.services, results.health, appId);
             }).catch(function(err){
                 // something went awry
                 console.log("Promise err", err);
@@ -164,7 +160,7 @@
 
                 console.log("patching in unknown status for "+ appId);
                 
-                updateServiceStatus(services[appId], "unknown", $translate("container_unavailable"));
+                updateServiceStatus(services[appId], "unknown", $translate.instant("container_unavailable"));
             }
         }
 
@@ -181,29 +177,29 @@
                 // service should be up, but is failing. bad!
                 if(healthChecksRollup.failing){
                     status = "bad";
-                    description = $translate("failing_health_checks");
+                    description = $translate.instant("failing_health_checks");
 
                 // service should be up, but container has not
                 // yet loaded
                 } else if(healthChecksRollup.down){
                     status = "unknown";
-                    description = $translate("container_unavailable");
+                    description = $translate.instant("container_unavailable");
 
                 // service should be up, but seems unresponsive
                 // It could be just starting, or on its way down
                 } else if(!healthChecksRollup.passing && healthChecksRollup.unknown){
                     status = "unknown";
-                    description = $translate("missing_health_checks");
+                    description = $translate.instant("missing_health_checks");
 
                 // service is up and healthy
                 } else if(healthChecksRollup.passing && !healthChecksRollup.unknown){
                     status = "good";
-                    description = $translate("passing_health_checks");
+                    description = $translate.instant("passing_health_checks");
 
                 // TODO: This needs to be more representative of the health of a meta-service's children
                 } else {
                     status = "good";
-                    description = $translate("passing_health_checks");
+                    description = $translate.instant("passing_health_checks");
                 }
 
             // the following conditions are relevant when the service
@@ -213,7 +209,7 @@
                 // it should be off, but its still on... weird.
                 if(healthChecksRollup.passing){
                     status = "unknown";
-                    description = $translate("stopping_service");
+                    description = $translate.instant("stopping_service");
                     // TODO - enable stop control?
 
                 // service is off, as expected
@@ -258,7 +254,7 @@
                 tooltipsDetailsHTML;
 
             // remove any existing popover if not currently visible            
-            if(!$el.next('div.popover:visible').length){
+            if($el.popover && !$el.next('div.popover:visible').length){
                 $el.popover('destroy');
             }
 

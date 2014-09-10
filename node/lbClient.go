@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package node
 
@@ -10,7 +19,9 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 
+	"net"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 	"time"
 )
 
@@ -27,9 +38,12 @@ var _ LoadBalancer = &LBClient{}
 func NewLBClient(addr string) (s *LBClient, err error) {
 	s = new(LBClient)
 	s.addr = addr
-	rpcClient, err := rpc.DialHTTP("tcp", s.addr)
-	s.rpcClient = rpcClient
-	return s, err
+	conn, err := net.Dial("tcp", s.addr)
+	if err != nil {
+		return nil, err
+	}
+	s.rpcClient = jsonrpc.NewClient(conn)
+	return s, nil
 }
 
 func (a *LBClient) Close() error {
@@ -49,7 +63,7 @@ func (a *LBClient) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) er
 }
 
 // GetServiceEndpoints returns a list of endpoints for the given service endpoint request.
-func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]*dao.ApplicationEndpoint) error {
+func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]dao.ApplicationEndpoint) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, endpoints)
 }

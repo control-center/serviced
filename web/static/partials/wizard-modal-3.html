@@ -12,7 +12,7 @@
         <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>
         <td>{{pool.ID}}</td>
         <td>{{pool.Description}}</td>
-        <td>{{pool.MemoryLimit}} GB</td>
-        <td>{{pool.CoreLimit}}</td>
+        <td>{{pool.MemoryCapacity | toGB}}</td>
+        <td>{{pool.CoreCapacity}}</td>
     </tr>
 </table>

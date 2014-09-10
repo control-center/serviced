@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//	   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package web
 
@@ -23,14 +32,14 @@ var (
 				Name:        "CPU Usage",
 				Description: "CPU Statistics",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "cpu.user", Name: "CPU User"},
-					domain.Metric{ID: "cpu.nice", Name: "CPU Nice"},
-					domain.Metric{ID: "cpu.system", Name: "CPU System"},
-					domain.Metric{ID: "cpu.idle", Name: "CPU Idle"},
-					domain.Metric{ID: "cpu.iowait", Name: "CPU IO Wait"},
-					domain.Metric{ID: "cpu.irq", Name: "IRQ"},
-					domain.Metric{ID: "cpu.softirq", Name: "Soft IRQ"},
-					domain.Metric{ID: "cpu.steal", Name: "CPU Steal"},
+					domain.Metric{ID: "cpu.user", Name: "CPU User", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.nice", Name: "CPU Nice", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.system", Name: "CPU System", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.idle", Name: "CPU Idle", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.iowait", Name: "CPU IO Wait", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.irq", Name: "IRQ", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.softirq", Name: "Soft IRQ", Unit: "Percent", Counter: true},
+					domain.Metric{ID: "cpu.steal", Name: "CPU Steal", Unit: "Percent", Counter: true},
 				},
 			},
 			//Memory
@@ -39,14 +48,14 @@ var (
 				Name:        "Memory Usage",
 				Description: "Memory Usage Statistics -- /proc/meminfo",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "memory.buffers", Name: "Memory Buffer"},
-					domain.Metric{ID: "memory.cached", Name: "Memory Cache"},
-					domain.Metric{ID: "memory.free", Name: "Memory Free"},
-					domain.Metric{ID: "memory.total", Name: "Total Memory"},
-					domain.Metric{ID: "memory.actualfree", Name: "Actual Free Memory"},
-					domain.Metric{ID: "memory.actualused", Name: "Actual Used Memory"},
-					domain.Metric{ID: "swap.total", Name: "Total Swap"},
-					domain.Metric{ID: "swap.free", Name: "Free Swap"},
+					domain.Metric{ID: "memory.buffers", Name: "Memory Buffer", Unit: "Bytes"},
+					domain.Metric{ID: "memory.cached", Name: "Memory Cache", Unit: "Bytes"},
+					domain.Metric{ID: "memory.free", Name: "Memory Free", Unit: "Bytes"},
+					domain.Metric{ID: "memory.total", Name: "Total Memory", Unit: "Bytes"},
+					domain.Metric{ID: "memory.actualfree", Name: "Actual Free Memory", Unit: "Bytes"},
+					domain.Metric{ID: "memory.actualused", Name: "Actual Used Memory", Unit: "Bytes"},
+					domain.Metric{ID: "swap.total", Name: "Total Swap", Unit: "Bytes"},
+					domain.Metric{ID: "swap.free", Name: "Free Swap", Unit: "Bytes"},
 				},
 			},
 			//Virtual Memory
@@ -55,8 +64,8 @@ var (
 				Name:        "Virtual Memory Usage",
 				Description: "Virtual Memory Usage Statistics -- /proc/vmstat",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "vmstat.pgfault", Name: "Minor Page Fault"},
-					domain.Metric{ID: "vmstat.pgmajfault", Name: "Major Page Fault"},
+					domain.Metric{ID: "vmstat.pgfault", Name: "Minor Page Fault", Unit: "Page Faults", Counter: true},
+					domain.Metric{ID: "vmstat.pgmajfault", Name: "Major Page Fault", Unit: "Page Faults", Counter: true},
 				},
 			},
 			//Files
@@ -65,7 +74,7 @@ var (
 				Name:        "File Usage",
 				Description: "File Statistics",
 				Metrics: []domain.Metric{
-					domain.Metric{ID: "Serviced.OpenFileDescriptors", Name: "OpenFileDescriptors"},
+					domain.Metric{ID: "Serviced.OpenFileDescriptors", Name: "OpenFileDescriptors", Unit: "Open File Descriptors"},
 				},
 			},
 		},
@@ -98,7 +107,7 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 				Aggregator:   "avg",
 				Color:        "#aec7e8",
 				Fill:         false,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				Legend:       "Serviced Open File Descriptors",
 				Metric:       "Serviced.OpenFileDescriptors",
 				MetricSource: "files",
@@ -119,6 +128,7 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 		ReturnSet:   "EXACT",
 		Type:        "line",
 		Tags:        tags,
+		Units:       "File Descriptors",
 		Description: "Graph of serviced's total open file descriptors over time",
 	}
 }
@@ -154,6 +164,7 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		ReturnSet:   "EXACT",
 		Type:        "line",
 		Tags:        tags,
+		Units:       "Page Faults",
 		Description: "Graph of major memory page faults over time",
 	}
 }
@@ -164,22 +175,9 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Color:        "#729ed7",
-				Fill:         false,
-				Format:       "%6.2f",
-				ID:           "nice",
-				Legend:       "Nice",
-				Metric:       "cpu.nice",
-				MetricSource: "cpu",
-				Name:         "Nice",
-				Rate:         true,
-				Type:         "area",
-			},
-			domain.DataPoint{
-				Aggregator:   "avg",
 				Color:        "#aee8cf",
 				Fill:         false,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				ID:           "user",
 				Legend:       "User",
 				Metric:       "cpu.user",
@@ -190,22 +188,9 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Color:        "#eaf0f9",
+				Color:        "#729ed7",
 				Fill:         false,
-				Format:       "%6.2f",
-				ID:           "idle",
-				Legend:       "Idle",
-				Metric:       "cpu.idle",
-				MetricSource: "cpu",
-				Name:         "Idle",
-				Rate:         true,
-				Type:         "area",
-			},
-			domain.DataPoint{
-				Aggregator:   "avg",
-				Color:        "#d7729e",
-				Fill:         false,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				ID:           "system",
 				Legend:       "System",
 				Metric:       "cpu.system",
@@ -216,9 +201,22 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
+				Fill:         false,
+				Color:        "#d7729e",
+				Format:       "%4.2f",
+				ID:           "nice",
+				Legend:       "Nice",
+				Metric:       "cpu.nice",
+				MetricSource: "cpu",
+				Name:         "Nice",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
 				Color:        "#e8aec7",
 				Fill:         false,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				ID:           "iowait",
 				Legend:       "IOWait",
 				Metric:       "cpu.iowait",
@@ -231,7 +229,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				Aggregator:   "avg",
 				Color:        "#e8cfae",
 				Fill:         false,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				ID:           "irq",
 				Legend:       "IRQ",
 				Metric:       "cpu.irq",
@@ -244,12 +242,25 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				Aggregator:   "avg",
 				Color:        "#ff0000",
 				Fill:         false,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				ID:           "steal",
 				Legend:       "Steal",
 				Metric:       "cpu.steal",
 				MetricSource: "cpu",
 				Name:         "Steal",
+				Rate:         true,
+				Type:         "area",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				Color:        "#EBE6EA",
+				Fill:         false,
+				Format:       "%6.2f",
+				ID:           "idle",
+				Legend:       "Idle",
+				Metric:       "cpu.idle",
+				MetricSource: "cpu",
+				Name:         "Idle",
 				Rate:         true,
 				Type:         "area",
 			},
@@ -267,20 +278,20 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		ReturnSet:   "EXACT",
 		Type:        "area",
 		Tags:        tags,
+		Units:       "Percent",
 		Description: "Graph of system and user cpu usage over time",
 	}
 }
 
 func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.GraphConfig {
-	MaxY := int(totalMemory / 1024 / 1024 / 1024)
+	MaxY := int(totalMemory)
 	return domain.GraphConfig{
 		DataPoints: []domain.DataPoint{
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#e8aec7",
 				Fill:         true,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				Legend:       "Used",
 				Metric:       "memory.actualused",
 				MetricSource: "memory",
@@ -290,10 +301,9 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#b2aee8",
 				Fill:         true,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				Legend:       "Cached",
 				Metric:       "memory.cached",
 				MetricSource: "memory",
@@ -303,10 +313,9 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#aec7e8",
 				Fill:         true,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				Legend:       "Buffers",
 				Metric:       "memory.buffers",
 				MetricSource: "memory",
@@ -316,10 +325,9 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
-				Expression:   "rpn:1024,/,1024,/,1024,/",
 				Color:        "#aee4e8",
 				Fill:         true,
-				Format:       "%6.2f",
+				Format:       "%4.2f",
 				Legend:       "Free",
 				Metric:       "memory.free",
 				MetricSource: "memory",
@@ -331,17 +339,18 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		ID:     "memory.usage",
 		Name:   "Memory Usage",
 		Footer: false,
-		Format: "%6.2f",
+		Format: "%4.2f",
 		MaxY:   &MaxY,
 		MinY:   &zero,
 		Range: &domain.GraphConfigRange{
 			End:   "0s-ago",
 			Start: "1h-ago",
 		},
-		YAxisLabel:  "GB",
+		YAxisLabel:  "bytes",
 		ReturnSet:   "EXACT",
 		Type:        "area",
 		Tags:        tags,
+		Units:       "bytes",
 		Description: "Graph of memory free (-buffers/+cache) vs used (total - free) over time",
 	}
 }

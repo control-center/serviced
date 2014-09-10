@@ -1,11 +1,21 @@
-function DeployWizard($scope, $notification, $translate, $http, resourcesService) {
+function DeployWizard($scope, $notification, $translate, resourcesService) {
     var step = 0;
     var nextClicked = false;
     $scope.name='wizard';
 
+    $scope.dockerLoggedIn = true;
+
+    resourcesService.docker_is_logged_in(function(loggedIn) {
+        $scope.dockerLoggedIn = loggedIn;
+    })
+
+    $scope.dockerIsNotLoggedIn = function() {
+        return !$scope.dockerLoggedIn;
+    }
+
     var  validTemplateSelected = function() {
         if($scope.selectedTemplates().length <= 0){
-            showError($translate("label_wizard_select_app"));
+            showError($translate.instant("label_wizard_select_app"));
             return false;
         }else{
             resetError();
@@ -16,7 +26,7 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     var validDeploymentID = function() {
         if($scope.install.deploymentId === undefined || $scope.install.deploymentId === ""){
-            showError($translate("label_wizard_deployment_id"));
+            showError($translate.instant("label_wizard_deployment_id"));
             return false;
         }else{
             resetError();
@@ -25,9 +35,34 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
         return true;
     };
 
+    var validTemplateUpload = function(){
+        var uploadedFiles = $("#new_template_filename_wizard")[0].files;
+        if(uploadedFiles.length === 0){
+            showError($translate.instant("template_error"));
+            return false;
+        }else{
+            var data = new FormData();
+            $.each(uploadedFiles, function(key, value){
+                data.append("tpl", value);
+            });
+            resourcesService.add_app_template(data, function(data){
+                resourcesService.get_app_templates(false, function(templatesMap) {
+                    var templates = [];
+                    for (var key in templatesMap) {
+                        var template = templatesMap[key];
+                        template.Id = key;
+                        templates[templates.length] = template;
+                    }
+                    $scope.templates.data = templates;
+                });
+            });
+            resetError();
+            return true;
+        }
+    };
+
     var resetStepPage = function() {
         step = 0;
-        $scope.step_page = $scope.steps[step].content;
 
         $scope.install = {
             selected: {
@@ -53,22 +88,30 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
                 template.Id = key;
                 templates[templates.length] = template;
             }
-            $scope.install.templateData = templates;
+
+            if($scope.templates.data.length === 0){
+                $scope.steps.unshift({
+                    content: '/static/partials/wizard-modal-add-template.html',
+                    label: 'template_add',
+                    validate: validTemplateUpload
+                });
+            }
+
+            $scope.step_page = $scope.steps[step].content;
         });
     };
 
     var showError = function(message){
         $("#deployWizardNotificationsContent").html(message);
         $("#deployWizardNotifications").removeClass("hide");
-    }
+    };
 
     var resetError = function(){
         $("#deployWizardNotifications").html("");
         $("#deployWizardNotifications").addClass("hide");
-    }
+    };
 
     $scope.steps = [
-        /*        { content: '/static/partials/wizard-modal-1.html', label: 'label_step_select_hosts' }, */
         {
             content: '/static/partials/wizard-modal-2.html',
             label: 'label_step_select_app',
@@ -103,8 +146,8 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     $scope.selectedTemplates = function() {
         var templates = [];
-        for (var i=0; i < $scope.install.templateData.length; i++) {
-            var template = $scope.install.templateData[i];
+        for (var i=0; i < $scope.templates.data.length; i++) {
+            var template = $scope.templates.data[i];
             if ($scope.install.selected[template.Id]) {
                 templates[templates.length] = template;
             }
@@ -114,13 +157,27 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
 
     $scope.getTemplateRequiredResources = function(template){
         var ret = {CPUCommitment:0, RAMCommitment:0};
-        for (var i=0; i<template.Services.length; ++i){
-            if(template.Services[i].CPUCommitment) ret.CPUCommitment += template.Services[i].CPUCommitment;
-            if(template.Services[i].RAMCommitment) ret.RAMCommitment += template.Services[i].RAMCommitment;
+
+        // if Services, iterate and sum up their commitment values
+        if(template.Services){
+            // recursively calculate cpu and ram commitments
+            (function calcCommitment(services){
+                services.forEach(function(service){
+                    // CPUCommitment should be equal to max number of
+                    // cores needed by any service
+                    ret.CPUCommitment = Math.max(ret.CPUCommitment, service.CPUCommitment);
+                    // RAMCommitment should be a sum of all ram needed
+                    // by all services
+                    ret.RAMCommitment += service.RAMCommitment;
+
+                    // recurse!
+                    if(service.Services) calcCommitment(service.Services);
+                });
+            })(template.Services);
         }
 
         return ret;
-    }
+    };
 
     $scope.addHostStart = function() {
         $scope.newHost = {};
@@ -256,21 +313,20 @@ function DeployWizard($scope, $notification, $translate, $http, resourcesService
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    $http.post('/templates/deploy/status', deploymentDefinition).
-                        success(function(data, status) {
-                            if(data.Detail === "timeout"){
-                                $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                    resourcesService.get_deployed_templates(deploymentDefinition, function(data){
+                        if(data.Detail === "timeout"){
+                            $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                        }else{
+                            var parts = data.Detail.split("|");
+                            if(parts[1]){
+                                $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
                             }else{
-                                var parts = data.Detail.split("|");
-                                if(parts[1]){
-                                    $status.html('<strong>' + $translate(parts[0]) + ":</strong> " + parts[1]);
-                                }else{
-                                    $status.html('<strong>' + $translate(parts[0]) + '</strong>');
-                                }
+                                $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
                             }
+                        }
 
-                            getStatus();
-                        });
+                        getStatus();
+                    });
                 }
             };
 

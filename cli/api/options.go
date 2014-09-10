@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package api
 
@@ -99,10 +108,10 @@ func (m *PortMap) String() string {
 }
 
 // ServiceMap maps services by its service id
-type ServiceMap map[string]*service.Service
+type ServiceMap map[string]service.Service
 
 // NewServiceMap creates a new service map from a slice of services
-func NewServiceMap(services []*service.Service) ServiceMap {
+func NewServiceMap(services []service.Service) ServiceMap {
 	var smap = make(ServiceMap)
 	for _, s := range services {
 		smap.Add(s)
@@ -111,10 +120,10 @@ func NewServiceMap(services []*service.Service) ServiceMap {
 }
 
 // Get gets a service from the service map identified by its service id
-func (m ServiceMap) Get(serviceID string) *service.Service { return m[serviceID] }
+func (m ServiceMap) Get(serviceID string) service.Service { return m[serviceID] }
 
 // Add appends a service to the service map
-func (m ServiceMap) Add(service *service.Service) error {
+func (m ServiceMap) Add(service service.Service) error {
 	if _, ok := m[service.ID]; ok {
 		return fmt.Errorf("service already exists")
 	}
@@ -124,7 +133,7 @@ func (m ServiceMap) Add(service *service.Service) error {
 
 // Update updates an existing service within the ServiceMap.  If the service
 // not exist, it gets created.
-func (m ServiceMap) Update(service *service.Service) {
+func (m ServiceMap) Update(service service.Service) {
 	m[service.ID] = service
 }
 
