@@ -391,11 +391,11 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 			for _, svcstatus := range statemap {
 				if svc.Instances > 1 {
-					iid = fmt.Sprintf("%s_%d", svc.ID, svcstatus.State.InstanceID)
+					iid = fmt.Sprintf("%s/%d", svc.ID, svcstatus.State.InstanceID)
 					lines[iid] = map[string]string{
 						"ID":        iid,
 						"ServiceID": svc.ID,
-						"Name":      fmt.Sprintf("%s_%d", svc.Name, svcstatus.State.InstanceID),
+						"Name":      fmt.Sprintf("%s/%d", svc.Name, svcstatus.State.InstanceID),
 						"ParentID":  svc.ParentServiceID,
 					}
 				}
@@ -433,10 +433,10 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID", "IN_SYNC")
+	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "IN_SYNC", "DOCKER_ID")
 	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
 		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"], s["InSync"])
+		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["InSync"], s["DockerID"])
 	}, func(row []interface{}) string {
 		return strings.ToLower(row[1].(string))
 	})
@@ -703,24 +703,24 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 
 	args := ctx.Args()
 	options := api.ControllerOptions{
-		MuxPort:               		ctx.GlobalInt("muxport"),
-		Mux:                   		ctx.GlobalBool("mux"),
-		TLS:                   		ctx.GlobalBool("tls"),
-		KeyPEMFile:            		ctx.GlobalString("keyfile"),
-		CertPEMFile:           		ctx.GlobalString("certfile"),
-		ServicedEndpoint:      		ctx.GlobalString("endpoint"),
-		Autorestart:           		ctx.GlobalBool("autorestart"),
-		MetricForwarderPort:   		ctx.GlobalString("metric-forwarder-port"),
-		Logstash:              		ctx.GlobalBool("logstash"),
-		LogstashIdleFlushTime: 		ctx.GlobalString("logstash-idle-flush-time"),
-		LogstashSettleTime:    		ctx.GlobalString("logstash-settle-time"),
-		LogstashBinary:        		ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:        		ctx.GlobalString("forwarder-config"),
-		VirtualAddressSubnet:  		ctx.GlobalString("virtual-address-subnet"),
-		ServiceID:             		args[0],
-		InstanceID:            		args[1],
-		Command:               		args[2:],
-		MetricForwardingEnabled:	! ctx.GlobalBool("disable-metric-forwarding"),
+		MuxPort:                 ctx.GlobalInt("muxport"),
+		Mux:                     ctx.GlobalBool("mux"),
+		TLS:                     ctx.GlobalBool("tls"),
+		KeyPEMFile:              ctx.GlobalString("keyfile"),
+		CertPEMFile:             ctx.GlobalString("certfile"),
+		ServicedEndpoint:        ctx.GlobalString("endpoint"),
+		Autorestart:             ctx.GlobalBool("autorestart"),
+		MetricForwarderPort:     ctx.GlobalString("metric-forwarder-port"),
+		Logstash:                ctx.GlobalBool("logstash"),
+		LogstashIdleFlushTime:   ctx.GlobalString("logstash-idle-flush-time"),
+		LogstashSettleTime:      ctx.GlobalString("logstash-settle-time"),
+		LogstashBinary:          ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:          ctx.GlobalString("forwarder-config"),
+		VirtualAddressSubnet:    ctx.GlobalString("virtual-address-subnet"),
+		ServiceID:               args[0],
+		InstanceID:              args[1],
+		Command:                 args[2:],
+		MetricForwardingEnabled: !ctx.GlobalBool("disable-metric-forwarding"),
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {
