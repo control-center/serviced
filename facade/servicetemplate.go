@@ -158,6 +158,8 @@ func UpdateDeployTemplateStatus(deploymentID string, status string) {
 
 // gather a list of all active DeploymentIDs
 func (f *Facade) DeployTemplateActive(active *[]map[string]string) error {
+	// we initialize the data container to something here in case it has not been initialized yet
+	*active = make([]map[string]string, 0)
 	for _, v := range deployments {
 		*active = append(*active, v)
 	}

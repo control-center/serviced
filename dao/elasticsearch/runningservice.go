@@ -25,6 +25,8 @@ import (
 )
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) error {
+	// we initialize the data container to something here in case it has not been initialized yet
+	*allRunningServices = make([]dao.RunningService, 0)
 	allPools, err := this.facade.GetResourcePools(datastore.Get())
 	if err != nil {
 		glog.Error("runningservice.go failed to get resource pool")
