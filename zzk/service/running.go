@@ -73,7 +73,7 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 
 // LoadRunningServicesByHost returns a slice of RunningServices given a host(s)
 func LoadRunningServicesByHost(conn client.Connection, hostIDs ...string) ([]dao.RunningService, error) {
-	var rss []dao.RunningService
+	var rss []dao.RunningService = make([]dao.RunningService, 0)
 	for _, hostID := range hostIDs {
 		if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
 			return nil, err
