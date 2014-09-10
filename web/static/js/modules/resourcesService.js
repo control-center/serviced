@@ -1027,7 +1027,7 @@
 
           unregisterAllPolls: function(){
               for(key in pollingFunctions){
-                  $interval.clear(pollingFunctions[key]);
+                  $interval.cancel(pollingFunctions[key]);
               }
 
               pollingFunctions = {};
