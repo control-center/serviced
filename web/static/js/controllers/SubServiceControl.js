@@ -192,18 +192,20 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.anyServicesExported = function(service) {
-        for (var i in service.Endpoints) {
-            if (service.Endpoints[i].Purpose == "export") {
-                return true;
+        if(service){
+            for (var i in service.Endpoints) {
+                if (service.Endpoints[i].Purpose == "export") {
+                    return true;
+                }
             }
-        }
-        for (var i in service.children) {
-            if ($scope.anyServicesExported(service.children[i])) {
-                return true;
+            for (var i in service.children) {
+                if ($scope.anyServicesExported(service.children[i])) {
+                    return true;
+                }
             }
         }
         return false;
-    }
+    };
 
 
     $scope.AssignIP = function() {
