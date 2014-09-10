@@ -111,7 +111,8 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 	}
 
 	var servicesList []service.Service
-	if err := d.client.GetServices(unused, &servicesList); err != nil {
+	var unusedServiceRequest dao.ServiceRequest
+	if err := d.client.GetServices(unusedServiceRequest, &servicesList); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
@@ -376,7 +377,8 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 
 	// Fail if any services have running instances
 	glog.V(3).Infof("DistributedFileSystem.Rollback checking service states")
-	if err := d.client.GetServices(unused, &services); err != nil {
+	var unusedServiceRequest dao.ServiceRequest
+	if err := d.client.GetServices(unusedServiceRequest, &services); err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 		return err
 	}
@@ -456,7 +458,8 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	}
 
 	// Restore the services ...
-	if err := d.client.GetServices(unused, &existingServices); err != nil {
+	var unusedServiceRequest dao.ServiceRequest
+	if err := d.client.GetServices(unusedServiceRequest, &existingServices); err != nil {
 		glog.Errorf("Could not get existing services: %s", err)
 		return err
 	}
@@ -561,7 +564,8 @@ func (d *DistributedFileSystem) tag(id, oldtag, newtag string) error {
 // desynchronize marks all service states using a particular ImageID as out of
 // sync if started before the time of commit
 func (d *DistributedFileSystem) desynchronize(imageID commons.ImageID, commit time.Time) error {
-	svcs, err := d.facade.GetServices(datastore.Get())
+	var serviceRequest dao.ServiceRequest
+	svcs, err := d.facade.GetServices(datastore.Get(), serviceRequest)
 	if err != nil {
 		return err
 	}

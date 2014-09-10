@@ -36,6 +36,12 @@ func (s ControlPlaneError) Error() string {
 // An request for a control plane object.
 type EntityRequest interface{}
 
+type ServiceRequest struct {
+	Tags      []string
+	TenantID  string
+	NameRegex string
+}
+
 type ServiceStateRequest struct {
 	ServiceID      string
 	ServiceStateID string
@@ -82,13 +88,13 @@ type ControlPlane interface {
 	GetService(serviceId string, service *service.Service) error
 
 	// Get a list of services from serviced
-	GetServices(request EntityRequest, services *[]service.Service) error
+	GetServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find a child service with the given name
 	FindChildService(request FindChildRequest, service *service.Service) error
 
 	// Get services with the given tag(s)
-	GetTaggedServices(request EntityRequest, services *[]service.Service) error
+	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find all service endpoint matches
 	GetServiceEndpoints(serviceId string, response *map[string][]ApplicationEndpoint) error

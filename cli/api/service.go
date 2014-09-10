@@ -66,7 +66,8 @@ func (a *api) GetServices() ([]service.Service, error) {
 	}
 
 	var services []service.Service
-	if err := client.GetServices(&empty, &services); err != nil {
+	var serviceRequest dao.ServiceRequest
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		return nil, err
 	}
 

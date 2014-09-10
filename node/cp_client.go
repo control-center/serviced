@@ -65,11 +65,11 @@ func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[stri
 	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
 }
 
-func (s *ControlClient) GetServices(request dao.EntityRequest, replyServices *[]service.Service) (err error) {
+func (s *ControlClient) GetServices(request dao.ServiceRequest, replyServices *[]service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }
 
-func (s *ControlClient) GetTaggedServices(request dao.EntityRequest, replyServices *[]service.Service) (err error) {
+func (s *ControlClient) GetTaggedServices(request dao.ServiceRequest, replyServices *[]service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetTaggedServices", request, replyServices)
 }
 

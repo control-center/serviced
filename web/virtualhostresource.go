@@ -14,10 +14,11 @@
 package web
 
 import (
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/node"
-	"github.com/control-center/serviced/domain/service"
 
 	"net/url"
 	"strings"
@@ -40,7 +41,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	}
 
 	var services []service.Service
-	if err := client.GetServices(&empty, &services); err != nil {
+	var serviceRequest dao.ServiceRequest
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
 		return
@@ -154,7 +156,8 @@ type virtualHost struct {
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
 func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var services []service.Service
-	err := client.GetServices(&empty, &services)
+	var serviceRequest dao.ServiceRequest
+	err := client.GetServices(serviceRequest, &services)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
 		restServerError(w, err)

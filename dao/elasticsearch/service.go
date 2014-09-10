@@ -46,24 +46,18 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 
 //
 func (this *ControlPlaneDao) GetService(id string, myService *service.Service) error {
-	*myService = service.Service{}
 	if svc, err := this.facade.GetService(datastore.Get(), id); err == nil {
-		if svc != nil {
-			*myService = *svc
-		}
+		*myService = *svc
 		return nil
 	} else {
 		return err
 	}
 }
 
-// TODO FIXME no need for the request argument
-func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]service.Service) error {
-	*services = make([]service.Service, 0)
-	if svcs, err := this.facade.GetServices(datastore.Get()); err == nil {
-		if svcs != nil {
-			*services = svcs
-		}
+// Get the services (can filter by name and/or tenantID)
+func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
+	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
+		*services = svcs
 		return nil
 	} else {
 		return err
@@ -71,25 +65,19 @@ func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]
 }
 
 //
-func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, myService *service.Service) error {
-	*myService = service.Service{}
+func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
 	if svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName); err == nil {
-		if svc != nil {
-			*myService = *svc
-		}
+		*service = *svc
 		return nil
 	} else {
 		return err
 	}
 }
 
-//
-func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, services *[]service.Service) error {
-	*services = make([]service.Service, 0)
+// Get tagged services (can also filter by name and/or tenantID)
+func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
 	if svcs, err := this.facade.GetTaggedServices(datastore.Get(), request); err == nil {
-		if svcs != nil {
-			*services = svcs
-		}
+		*services = svcs
 		return nil
 	} else {
 		return err
@@ -108,11 +96,8 @@ func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) err
 
 // Get a service endpoint.
 func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]dao.ApplicationEndpoint) (err error) {
-	*response = make(map[string][]dao.ApplicationEndpoint, 0)
 	if result, err := this.facade.GetServiceEndpoints(datastore.Get(), serviceID); err == nil {
-		if response != nil {
-			*response = result
-		}
+		*response = result
 		return nil
 	} else {
 		return err

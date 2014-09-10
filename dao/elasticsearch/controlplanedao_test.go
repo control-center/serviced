@@ -289,7 +289,8 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	t.Assert(err, IsNil)
 
 	var result []service.Service
-	err = dt.Dao.GetServices(new(dao.EntityRequest), &result)
+	var serviceRequest dao.ServiceRequest
+	err = dt.Dao.GetServices(serviceRequest, &result)
 	t.Assert(err, IsNil)
 	t.Assert(len(result), Equals, 1)
 	//XXX the time.Time types fail comparison despite being equal...
@@ -360,15 +361,14 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
-	query := fmt.Sprintf("ParentServiceID:%s AND NOT Launch:manual", id)
 	var services []service.Service
-	err = dt.Dao.GetServices(query, &services)
+	var serviceRequest dao.ServiceRequest
+	err = dt.Dao.GetServices(serviceRequest, &services)
 	for _, subService := range services {
 		if subService.DesiredState == service.SVCRun && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
-
 }
 
 func (dt *DaoTest) TestDao_StartService(t *C) {
