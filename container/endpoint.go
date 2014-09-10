@@ -519,7 +519,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 	} else if purpose == "import_all" {
 		// Need to create a proxy per instance of the service whose endpoint is
 		// being imported
-		for _, instance := range endpoints {
+		for ii, instance := range endpoints {
 			// Port for this instance is base port + instanceID
 			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
 			if _, conflict := exported[containerPort]; conflict {
@@ -527,7 +527,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
-			instance.ContainerPort = containerPort
+			endpoints[ii].ContainerPort = containerPort
 		}
 	}
 
