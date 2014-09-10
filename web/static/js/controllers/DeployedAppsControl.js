@@ -21,11 +21,11 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                 });
             }
             lastPollResults = $scope.services.deploying.length;
-
-            setTimeout(pollDeploying, 3000);
         });
     };
-
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
     $scope.name = "apps";
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
@@ -273,5 +273,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     }
 
     refreshTemplates();
-    pollDeploying();
+
+    //register polls
+    resourcesService.registerPoll("deployingApps", pollDeploying, 3000);
+    resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
 }

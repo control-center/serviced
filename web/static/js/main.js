@@ -124,42 +124,6 @@ controlplane.
             });
         };
     }).
-    factory('authService', AuthService).
-    filter('treeFilter', function() {
-        /*
-         * @param items The array from ng-repeat
-         * @param field Field on items to check for validity
-         * @param validData Object with allowed objects
-         */
-        return function(items, field, validData) {
-            if (!validData) {
-                return items;
-            }
-            return items.filter(function(elem) {
-                return validData[elem[field]] !== null;
-            });
-        };
-    }).
-    filter('page', function() {
-        return function(items, hosts) {
-            if (!items) return;
-
-            var pageSize = hosts.pageSize? hosts.pageSize : 5;
-            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
-            if (!hosts.page || hosts.page >= hosts.pages) {
-                hosts.page = 0;
-            }
-            var page = hosts.page? hosts.page : 0;
-
-            var start = page * pageSize;
-            return items.splice(start, pageSize);
-        };
-    }).
-    filter('toGB', function(){
-        return function(input){
-            return (input/1073741824).toFixed(2) + " GB";
-        };
-    }).
     directive('scroll', function($rootScope, $window, $timeout) {
         return {
             link: function(scope, elem, attr) {
@@ -197,7 +161,44 @@ controlplane.
                 }), 100);
             }
         };
-    });
+    }).
+    factory('authService', AuthService).
+    filter('treeFilter', function() {
+        /*
+         * @param items The array from ng-repeat
+         * @param field Field on items to check for validity
+         * @param validData Object with allowed objects
+         */
+        return function(items, field, validData) {
+            if (!validData) {
+                return items;
+            }
+            return items.filter(function(elem) {
+                return validData[elem[field]] !== null;
+            });
+        };
+    }).
+    filter('page', function() {
+        return function(items, hosts) {
+            if (!items) return;
+
+            var pageSize = hosts.pageSize? hosts.pageSize : 5;
+            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
+            if (!hosts.page || hosts.page >= hosts.pages) {
+                hosts.page = 0;
+            }
+            var page = hosts.page? hosts.page : 0;
+
+            var start = page * pageSize;
+            return items.splice(start, pageSize);
+        };
+    }).
+    filter('toGB', function(){
+        return function(input){
+            return (input/1073741824).toFixed(2) + " GB";
+        };
+    }
+);
 
 /* begin constants */
 var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
@@ -208,7 +209,6 @@ var POOL_CHILDREN_OPEN = 'nav-tree';
 
 // set verbosity of console.logs
 var DEBUG = false;
-
 
 function addChildren(allowed, parent) {
     allowed[parent.Id] = true;

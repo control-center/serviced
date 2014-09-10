@@ -131,6 +131,10 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         { id: 'fullPath', name: 'Assigned Resource Pool'},
     ]);
 
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
+
     var hostCallback = function() {
         $scope.hosts.page = 1;
         $scope.hosts.pageSize = 10;
@@ -154,9 +158,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         }
     }
 
-    if(!angular.isDefined($scope.updateActiveHostsInterval)) {
-        $scope.updateActiveHostsInterval = $interval(updateActiveHosts, 3000);
-    }
+    resourcesService.registerPoll("activeHosts", updateActiveHosts, 3000);
 
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
@@ -164,3 +166,4 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     // Also ensure we have a list of hosts
     refreshHosts($scope, resourcesService, false, hostCallback);
 }
+

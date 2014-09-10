@@ -1,8 +1,8 @@
 (function(){
 
   controlplane.
-  factory("resourcesService", ["$http", "$location", "$notification", "DSCacheFactory", "$q",
-  function($http, $location, $notification, DSCacheFactory, $q) {
+  factory("resourcesService", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval",
+  function($http, $location, $notification, DSCacheFactory, $q, $interval) {
       // add function to $http service to allow for noCacheGet requests
       $http.noCacheGet = function(location){
           return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
@@ -28,6 +28,7 @@
         maxAge: 15000
       });
 
+      var pollingFunctions = {};
       var cached_pools;
       var cached_hosts_for_pool = {};
       var cached_hosts;
@@ -1015,6 +1016,22 @@
                   callback(status);
               });
           },
+
+          registerPoll: function(label, callback, interval){
+              if(pollingFunctions[label] !== undefined){
+                  clearInterval(pollingFunctions[label]);
+              }
+
+              pollingFunctions[label] = $interval(callback, interval);
+          },
+
+          unregisterAllPolls: function(){
+              for(key in pollingFunctions){
+                  $interval.clear(pollingFunctions[key]);
+              }
+
+              pollingFunctions = {};
+          }
       };
   }]);
 
