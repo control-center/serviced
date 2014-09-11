@@ -88,7 +88,7 @@
                 // determine the status of each individual healthcheck
                 for (var name in healthCheck) {
                     // get the time this service was started
-                    startTime = healthCheck ? new Date(healthCheck[name].StartedAt) : 0;
+                    startTime = healthCheck[name].StartedAt;
 
                     healthCheckStatus = determineHealthCheckStatus(healthCheck[name], serverTimestamp, startTime);
 
