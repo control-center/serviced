@@ -25,8 +25,9 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, serviceState *servicestate.ServiceState) error {
+func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
 	glog.V(3).Infof("ControlPlaneDao.GetServiceState: request=%v", request)
+	*state = servicestate.ServiceState{}
 
 	var myService service.Service
 	if err := this.GetService(request.ServiceID, &myService); err != nil {
@@ -40,11 +41,16 @@ func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, se
 		return err
 	}
 
-	return zkservice.GetServiceState(poolBasedConn, serviceState, request.ServiceID, request.ServiceStateID)
+	err = zkservice.GetServiceState(poolBasedConn, state, request.ServiceID, request.ServiceStateID)
+	if state == nil {
+		*state = servicestate.ServiceState{}
+	}
+	return err
 }
 
-func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[]servicestate.ServiceState) error {
+func (this *ControlPlaneDao) GetServiceStates(serviceId string, states *[]servicestate.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
+	*states = make([]servicestate.ServiceState, 0)
 
 	myService, err := this.facade.GetService(datastore.Get(), serviceId)
 	if err != nil {
@@ -58,7 +64,10 @@ func (this *ControlPlaneDao) GetServiceStates(serviceId string, serviceStates *[
 		return err
 	}
 
-	*serviceStates, err = zkservice.GetServiceStates(poolBasedConn, serviceId)
+	serviceStates, err := zkservice.GetServiceStates(poolBasedConn, serviceId)
+	if serviceStates != nil {
+		*states = serviceStates
+	}
 	return err
 }
 
@@ -123,6 +132,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 }
 
 func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[string]dao.ServiceStatus) error {
+	*status = make(map[string]dao.ServiceStatus, 0)
 	svc, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %s: %s", serviceID, err)
@@ -135,10 +145,14 @@ func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[stri
 		return err
 	}
 
-	*status, err = zkservice.GetServiceStatus(poolBasedConn, svc.ID)
+	st, err := zkservice.GetServiceStatus(poolBasedConn, svc.ID)
 	if err != nil {
 		glog.Errorf("zkservice.GetServiceStatus failed (conn: %+v serviceID: %s): %s", poolBasedConn, serviceID, err)
 		return err
+	}
+
+	if st != nil {
+		*status = st
 	}
 
 	return nil

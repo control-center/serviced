@@ -14,8 +14,8 @@
 package agent
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/zenoss/glog"
 
 	"os/exec"
 )
@@ -45,13 +45,16 @@ type BuildHostRequest struct {
 
 // BuildHost creates a Host object from the current host.
 func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Host) error {
+	*hostResponse = host.Host{}
 
 	glog.Infof("local static ips %v [%d]", a.staticIPs, len(a.staticIPs))
 	h, err := host.Build(request.IP, request.PoolID, a.staticIPs...)
 	if err != nil {
 		return err
 	}
-	*hostResponse = *h
+	if h != nil {
+		*hostResponse = *h
+	}
 	return nil
 }
 

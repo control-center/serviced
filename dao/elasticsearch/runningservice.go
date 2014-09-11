@@ -113,6 +113,7 @@ func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, serv
 
 func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, running *dao.RunningService) error {
 	glog.V(3).Infof("ControlPlaneDao.GetRunningService: request=%v", request)
+	*running = dao.RunningService{}
 
 	var myService service.Service
 	if err := this.GetService(request.ServiceID, &myService); err != nil {
@@ -130,7 +131,9 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 		glog.Errorf("zkservice.LoadRunningService failed (conn: %+v serviceID: %v): %v", poolBasedConn, request.ServiceID, err)
 		return err
 	} else {
-		*running = *thisRunning
+		if thisRunning != nil {
+			*running = *thisRunning
+		}
 	}
 
 	return nil

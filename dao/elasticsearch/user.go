@@ -19,10 +19,10 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/datastore"
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 
 	"crypto/sha1"
 	"errors"
@@ -80,6 +80,9 @@ func (this *ControlPlaneDao) GetUser(userName string, user *userdomain.User) err
 	store := userdomain.NewStore()
 	err := store.Get(datastore.Get(), userdomain.Key(userName), user)
 	glog.V(2).Infof("ControlPlaneDao.GetUser: userName=%s, user=%+v, err=%s", userName, user, err)
+	if user == nil {
+		*user = userdomain.User{}
+	}
 	return err
 }
 
