@@ -66,6 +66,8 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 }
 
 func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
+	*response = service.Service{}
+
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -74,6 +76,9 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 	defer controlClient.Close()
 
 	err = controlClient.GetService(serviceID, response)
+	if response == nil {
+		*response = service.Service{}
+	}
 	if err != nil {
 		return err
 	}
@@ -94,6 +99,8 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 }
 
 func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
+	*response = service.Service{}
+
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -102,6 +109,9 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 	defer controlClient.Close()
 
 	err = controlClient.GetService(req.ServiceID, response)
+	if response == nil {
+		*response = service.Service{}
+	}
 	if err != nil {
 		return err
 	}
@@ -148,6 +158,8 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 // GetHealthCheck returns the health check configuration for a service, if it exists
 func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
+	*healthChecks = make(map[string]domain.HealthCheck, 0)
+
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -172,7 +184,9 @@ func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[str
 		return svc, err
 	}
 	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
-	*healthChecks = svc.HealthChecks
+	if svc.HealthChecks != nil {
+		*healthChecks = svc.HealthChecks
+	}
 	return nil
 }
 
@@ -280,6 +294,7 @@ func (a *HostAgent) GetZkInfo(_ string, zkInfo *ZkInfo) error {
 // GetServiceBindMounts returns the service bindmounts
 func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
+	*bindmounts = make(map[string]string, 0)
 
 	var tenantID string
 	if err := a.GetTenantId(serviceID, &tenantID); err != nil {

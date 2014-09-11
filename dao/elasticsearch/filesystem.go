@@ -122,7 +122,10 @@ func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error
 	}
 	return nil
 }
+
 func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volume) error {
+	*theVolume = volume.Volume{}
+
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)

@@ -35,7 +35,11 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 
 func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]servicetemplate.ServiceTemplate) error {
 	templatemap, err := this.facade.GetServiceTemplates(datastore.Get())
-	*templates = templatemap
+	if templatemap != nil {
+		*templates = templatemap
+	} else {
+		*templates = make(map[string]servicetemplate.ServiceTemplate, 0)
+	}
 	return err
 }
 
@@ -54,6 +58,9 @@ func (this *ControlPlaneDao) DeployTemplateStatus(request dao.ServiceTemplateDep
 func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[string]string) error {
 	var err error
 	err = this.facade.DeployTemplateActive(active)
+	if active == nil {
+		*active = make([]map[string]string, 0)
+	}
 	return err
 }
 
