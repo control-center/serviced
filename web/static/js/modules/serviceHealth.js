@@ -26,14 +26,6 @@
             }
         }
 
-        function getRunningServiceById(serviceId){
-            // subservices isn't defined if we're on a single
-            // service page, so just skip this service alltogether
-            if(!running) return;
-            
-            return findInArray("ServiceID", running, serviceId);
-        }
-
         // updates health check data for all services
         // `appId` is the id of the specific service being clicked
         function update(appId) {
@@ -41,15 +33,10 @@
             // TODO - these methods should return promises, but they
             // don't so use our own promises
             var servicesDeferred = $q.defer();
-            var runningServicesDeferred = $q.defer();
             var healthCheckDeferred = $q.defer();
 
             servicesService.get_services(true, function(top, mapped){
                 servicesDeferred.resolve(mapped);
-            });
-
-            servicesService.get_running_services(function(runningServices){
-                runningServicesDeferred.resolve(runningServices);
             });
 
             servicesService.get_service_health(function(healthChecks){
@@ -58,22 +45,21 @@
 
             $q.all({
                 services: servicesDeferred.promise,
-                health: healthCheckDeferred.promise,
-                running: runningServicesDeferred.promise
+                health: healthCheckDeferred.promise
             }).then(function(results){
-                evaluateServiceStatus(results.running, results.services, results.health, appId);
+                evaluateServiceStatus(results.services, results.health, appId);
             }).catch(function(err){
                 // something went awry
                 console.log("Promise err", err);
             });
         }
 
-        function evaluateServiceStatus(running, services, healthCheckData, appId) {
+        function evaluateServiceStatus(services, healthCheckData, appId) {
 
             var healths = healthCheckData.Statuses,
                 serverTimestamp = healthCheckData.Timestamp;
 
-            var service, healthCheck, runningService, startTime,
+            var service, healthCheck, startTime,
                 healthChecksRollup,
                 tooltipDetails,
                 serviceStatus, healthCheckStatus, healthCheckStatusIcon;
@@ -81,20 +67,10 @@
             for (var ServiceId in services) {
 
                 service = services[ServiceId];
-                runningService = findInArray("ServiceID", running, ServiceId);
                 healthCheck = healths[ServiceId];
 
                 if(!service){
                     return;
-                }
-
-                // get the time this service was started
-                if(runningService){
-                    startTime = new Date(runningService.StartedAt).getTime();
-
-                // otherwise service hasn't been started
-                } else {
-                    startTime = 0;
                 }
 
                 // all the healthcheck statuses for this service
@@ -111,6 +87,8 @@
 
                 // determine the status of each individual healthcheck
                 for (var name in healthCheck) {
+                    // get the time this service was started
+                    startTime = healthCheck[name].StartedAt;
 
                     healthCheckStatus = determineHealthCheckStatus(healthCheck[name], serverTimestamp, startTime);
 
@@ -150,7 +128,7 @@
 
             // if a specific appId was provided, its status may not
             // yet be part of health checks, so give it unknown status
-            if(appId && !findInArray("ServiceID", running, appId)){
+            if(appId && !findInArray("ServiceID", healths, appId)){
 
                 // if this appId doesn't exist in the services list, then
                 // something must be pretty messed up
