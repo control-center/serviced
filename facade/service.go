@@ -173,9 +173,10 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 
 	store := f.serviceStore
 
+	var v []string
 	switch vals := request.(type) {
 	case []interface{}:
-		v := make([]string, len(vals))
+		v = make([]string, len(vals))
 		for i, s := range vals {
 			if sval, ok := s.(string); ok {
 				v[i] = sval
@@ -184,21 +185,23 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 			glog.Error("Facade.GetTaggedServices: entity request item is not string: %s", reflect.TypeOf(s))
 			return []service.Service{}, fmt.Errorf("entity request item not a string")
 		}
-		results, err := store.GetTaggedServices(ctx, v...)
-		if err != nil {
-			glog.Error("Facade.GetTaggedServices: err=", err)
-			return results, err
-		}
-		if err = f.fillOutServices(ctx, results); err != nil {
-			return results, err
-		}
-		glog.V(2).Infof("Facade.GetTaggedServices: services=%v", results)
-		return results, nil
+	case []string:
+		v = vals
 	default:
 		err := fmt.Errorf("Bad request type: %v", reflect.TypeOf(request))
 		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
 		return []service.Service{}, err
 	}
+	results, err := store.GetTaggedServices(ctx, v...)
+	if err != nil {
+		glog.Error("Facade.GetTaggedServices: err=", err)
+		return results, err
+	}
+	if err = f.fillOutServices(ctx, results); err != nil {
+		return results, err
+	}
+	glog.V(2).Infof("Facade.GetTaggedServices: services=%v", results)
+	return results, nil
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
