@@ -1022,7 +1022,9 @@
                   clearInterval(pollingFunctions[label]);
               }
 
-              pollingFunctions[label] = $interval(callback, interval);
+              pollingFunctions[label] = $interval(function(){
+                  callback();
+              }, interval);
           },
 
           unregisterAllPolls: function(){

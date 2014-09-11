@@ -25,6 +25,7 @@ var ()
 // PoolConfig is the deserialized data from the command-line
 type PoolConfig struct {
 	PoolID      string
+	Realm       string
 	CoreLimit   int
 	MemoryLimit uint64
 	Priority    int
@@ -59,6 +60,7 @@ func (a *api) AddResourcePool(config PoolConfig) (*pool.ResourcePool, error) {
 
 	p := pool.ResourcePool{
 		ID:          config.PoolID,
+		Realm:       config.Realm,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
 		Priority:    config.Priority,

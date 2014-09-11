@@ -493,12 +493,13 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 			// If we're a load-balanced endpoint, we don't care about instance
 			// ID; just put everything on 0, since we will have 1 proxy
 			addressMap[0] = append(addressMap[0], address)
+			glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", 0, addressMap[0], endpoint)
 		} else if purpose == "import_all" {
 			// In this case, we care about instance ID -> address, because we
 			// will have a proxy per instance
 			addressMap[endpoint.InstanceID] = append(addressMap[endpoint.InstanceID], address)
+			glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 		}
-		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
 	// Build a list of ports exported by this container, so we can check for
@@ -536,12 +537,17 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 		prxy, ok := proxies[proxyKey]
 		if !ok {
 			var endpoint dao.ApplicationEndpoint
-			for _, ep := range endpoints {
-				if ep.InstanceID == instanceID {
-					endpoint = ep
-					break
+			if purpose == "import" {
+				endpoint = endpoints[0]
+			} else {
+				for _, ep := range endpoints {
+					if ep.InstanceID == instanceID {
+						endpoint = ep
+						break
+					}
 				}
 			}
+
 			var err error
 			prxy, err = createNewProxy(proxyKey, endpoint)
 			if err != nil {

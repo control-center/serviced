@@ -18,6 +18,7 @@ import (
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -40,6 +41,7 @@ type scheduler struct {
 	zkleaderFunc leaderFunc       // multiple implementations of leader function possible
 	facade       *facade.Facade
 	stopped      chan interface{}
+	registry     *registry.EndpointRegistry
 
 	conn coordclient.Connection
 }
@@ -67,6 +69,13 @@ func (s *scheduler) Start() {
 		return
 	}
 	s.started = true
+
+	pool, err := s.facade.GetResourcePool(datastore.Get(), s.poolID)
+	if err != nil {
+		glog.Errorf("Could not acquire resource pool %s: %s", s.poolID, err)
+		return
+	}
+	s.realm = pool.Realm
 
 	go func() {
 
@@ -99,7 +108,7 @@ func (s *scheduler) Start() {
 // mainloop acquires the leader lock and initializes the listener
 func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// become the leader
-	leader := zzk.NewHostLeader(conn, s.instance_id, "/scheduler")
+	leader := zzk.NewHostLeader(conn, s.instance_id, s.realm, "/scheduler")
 	event, err := leader.TakeLead()
 	if err != nil {
 		glog.Errorf("Could not become the leader: %s", err)
@@ -107,7 +116,11 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	}
 	defer leader.ReleaseLead()
 
-	registry.CreateEndpointRegistry(conn)
+	s.registry, err = registry.CreateEndpointRegistry(conn)
+	if err != nil {
+		glog.Errorf("Error initializing endpoint registry: %s", err)
+		return
+	}
 
 	// did I shut down before I became the leader?
 	select {
@@ -126,22 +139,22 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		wg.Wait()
 	}()
 
-	// TODO: synchronize with the remote
+	// monitor the resource pool
+	monitor := zkscheduler.MonitorResourcePool(_shutdown, conn, s.poolID)
+
+	// synchronize with the remote
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.remoteSync(_shutdown, conn)
+	}()
 
 	// synchronize locally
-	go doLocalSync(_shutdown, s.facade)
-
-	// where do I preside?
-	monitor := zkscheduler.MonitorResourcePool(_shutdown, conn, s.poolID)
-	select {
-	case pool := <-monitor:
-		if pool == nil {
-			return
-		}
-		s.realm = pool.Realm
-	case <-s.shutdown:
-		return
-	}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.localSync(_shutdown, conn)
+	}()
 
 	wg.Add(1)
 	go func() {

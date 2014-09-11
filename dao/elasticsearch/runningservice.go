@@ -25,6 +25,8 @@ import (
 )
 
 func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRunningServices *[]dao.RunningService) error {
+	// we initialize the data container to something here in case it has not been initialized yet
+	*allRunningServices = make([]dao.RunningService, 0)
 	allPools, err := this.facade.GetResourcePools(datastore.Get())
 	if err != nil {
 		glog.Error("runningservice.go failed to get resource pool")
@@ -56,6 +58,8 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
+	// we initialize the data container to something here in case it has not been initialized yet
+	*services = make([]dao.RunningService, 0)
 	myHost, err := this.facade.GetHost(datastore.Get(), hostID)
 	if err != nil {
 		glog.Errorf("Unable to get host %v: %v", hostID, err)
@@ -80,6 +84,8 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
+	// we initialize the data container to something here in case it has not been initialized yet
+	*services = make([]dao.RunningService, 0)
 	myService, err := this.facade.GetService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %v: %v", serviceID, err)
