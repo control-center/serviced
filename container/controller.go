@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
 
@@ -94,20 +95,23 @@ type ControllerOptions struct {
 // Controller is a object to manage the operations withing a container. For example,
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
-	options            ControllerOptions
-	hostID             string
-	tenantID           string
-	dockerID           string
-	metricForwarder    *MetricForwarder
-	logforwarder       *subprocess.Instance
-	logforwarderExited chan error
-	closing            chan chan error
-	prereqs            []domain.Prereq
-	zkInfo             node.ZkInfo
-	zkConn             coordclient.Connection
-	exportedEndpoints  map[string][]export
-	importedEndpoints  map[string]importedEndpoint
-	PIDFile            string
+	options                 ControllerOptions
+	hostID                  string
+	tenantID                string
+	dockerID                string
+	metricForwarder         *MetricForwarder
+	logforwarder            *subprocess.Instance
+	logforwarderExited      chan error
+	closing                 chan chan error
+	prereqs                 []domain.Prereq
+	zkInfo                  node.ZkInfo
+	zkConn                  coordclient.Connection
+	exportedEndpoints       map[string][]export
+	importedEndpoints       map[string]importedEndpoint
+	PIDFile                 string
+	exportedEndpointZKPaths []string
+	vhostZKPaths            []string
+	exitStatus              int
 }
 
 // Close shuts down the controller
@@ -464,10 +468,19 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 	return gone, nil
 }
 
+func (c *Controller) shutdown() {
+	glog.V(1).Infof("controller for %v shutting down\n", c.dockerID)
+	//defers run in LIFO order
+	defer os.Exit(c.exitStatus)
+	defer zzk.ShutdownConnections()
+	defer c.unregisterVhosts()
+	defer c.unregisterEndpoints()
+}
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
-
+	defer c.shutdown()
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -510,8 +523,8 @@ func (c *Controller) Run() (err error) {
 	go c.checkPrereqs(prereqsPassed, rpcDead)
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
-
-	for {
+	exited := false
+	for !exited {
 		select {
 		case sig := <-sigc:
 			switch sig {
@@ -543,11 +556,16 @@ func (c *Controller) Run() (err error) {
 				if c.options.Logforwarder.Enabled {
 					time.Sleep(c.options.Logforwarder.SettleTime)
 				}
-				glog.Infof("Exiting with status:%d due to %+v", exitStatus, exitError)
-				os.Exit(exitStatus)
+				glog.Infof("Service Exited with status:%d due to %+v", exitStatus, exitError)
+				//set loop to end
+				exited = true
+				//exit with exit code, defer so that other cleanup can happen
+				c.exitStatus = exitStatus
+
+			} else {
+				glog.Infof("Restarting service process in 10 seconds.")
+				startAfter = time.After(time.Second * 10)
 			}
-			glog.Infof("Restarting service process in 10 seconds.")
-			startAfter = time.After(time.Second * 10)
 
 		case <-startAfter:
 			glog.Infof("Starting service process.")

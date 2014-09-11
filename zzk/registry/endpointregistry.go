@@ -164,6 +164,12 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 	return &ep, nil
 }
 
+// GetChildren gets all child paths for a tenant and endpoint
+func (ar *EndpointRegistry) GetChildren(conn client.Connection, tenantID string, endpointID string) ([]string, error) {
+	tenantName := TenantEndpointKey(tenantID, endpointID)
+	return ar.getChildren(conn, tenantName)
+}
+
 // RemoveTenantEndpointKey removes a tenant endpoint key from the registry
 func (ar *EndpointRegistry) RemoveTenantEndpointKey(conn client.Connection, tenantID, endpointID string) error {
 	return ar.removeKey(conn, TenantEndpointKey(tenantID, endpointID))
