@@ -246,8 +246,8 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 			return
 		}
 
-		for _, svc := range result {
-			fillBuiltinMetrics(&svc)
+		for ii, _ := range result {
+			fillBuiltinMetrics(&result[ii])
 		}
 		w.WriteJson(&result)
 		return
@@ -260,8 +260,8 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 			return
 		}
 
-		for _, svc := range result {
-			fillBuiltinMetrics(&svc)
+		for ii, _ := range result {
+			fillBuiltinMetrics(&result[ii])
 		}
 		w.WriteJson(&result)
 		return
@@ -274,8 +274,8 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	for _, svc := range result {
-		fillBuiltinMetrics(&svc)
+	for ii, _ := range result {
+		fillBuiltinMetrics(&result[ii])
 	}
 	w.WriteJson(&result)
 }
@@ -339,14 +339,14 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 		services = []dao.RunningService{}
 	}
 
-	for _, rsvc := range services {
+	for ii, rsvc := range services {
 		var svc service.Service
 		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
 			glog.Errorf("Could not get services: %v", err)
 			restServerError(w, err)
 		}
 		fillBuiltinMetrics(&svc)
-		rsvc.MonitoringProfile = svc.MonitoringProfile
+		services[ii].MonitoringProfile = svc.MonitoringProfile
 	}
 
 	services = append(services, getIRS()...)
@@ -419,10 +419,10 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		return
 	}
 
-	for _, svc := range allServices {
+	for ii, svc := range allServices {
 		if svc.ID == sid {
-			fillBuiltinMetrics(&svc)
-			w.WriteJson(&svc)
+			fillBuiltinMetrics(&allServices[ii])
+			w.WriteJson(&allServices[ii])
 			return
 		}
 	}
