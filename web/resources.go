@@ -180,7 +180,7 @@ func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]serv
 	services := []service.Service{}
 	var ts interface{}
 	ts = strings.Split(tags, ",")
-	if err := client.GetTaggedServices(&ts, &services); err != nil {
+	if err := client.GetTaggedServices(ts, &services); err != nil {
 		glog.Errorf("Could not get tagged services: %v", err)
 		return nil, err
 	}

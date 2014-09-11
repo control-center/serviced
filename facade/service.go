@@ -172,8 +172,18 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 	glog.V(3).Infof("Facade.GetTaggedServices")
 
 	store := f.serviceStore
-	switch v := request.(type) {
-	case []string:
+
+	switch vals := request.(type) {
+	case []interface{}:
+		v := make([]string, len(vals))
+		for i, s := range vals {
+			if sval, ok := s.(string); ok {
+				v[i] = sval
+				continue
+			}
+			glog.Error("Facade.GetTaggedServices: entity request item is not string: %s", reflect.TypeOf(s))
+			return []service.Service{}, fmt.Errorf("entity request item not a string")
+		}
 		results, err := store.GetTaggedServices(ctx, v...)
 		if err != nil {
 			glog.Error("Facade.GetTaggedServices: err=", err)
@@ -185,7 +195,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 		glog.V(2).Infof("Facade.GetTaggedServices: services=%v", results)
 		return results, nil
 	default:
-		err := fmt.Errorf("Bad request type: %v", v)
+		err := fmt.Errorf("Bad request type: %v", reflect.TypeOf(request))
 		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
 		return []service.Service{}, err
 	}
