@@ -260,7 +260,7 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced pool add POOLID PRIORITY [REALM]
+	//    serviced pool add POOLID PRIORITY
 	//
 	// OPTIONS:
 }

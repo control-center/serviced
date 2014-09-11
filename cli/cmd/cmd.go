@@ -116,10 +116,12 @@ func New(driver api.API) *ServicedCli {
 		zks = cli.StringSlice(strings.Split(configEnv("ZK", ""), ","))
 	}
 
+	/* TODO: 1.1
 	remotezks := cli.StringSlice{}
 	if len(configEnv("REMOTE_ZK", "")) > 0 {
 		zks = cli.StringSlice(strings.Split(configEnv("REMOTE_ZK", ""), ","))
 	}
+	*/
 
 	aliases := cli.StringSlice{}
 	if len(configEnv("VHOST_ALIASES", "")) > 0 {
@@ -142,7 +144,8 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", &zks, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
-		cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
+		// TODO: 1.1
+		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
