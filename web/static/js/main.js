@@ -88,6 +88,18 @@ controlplane.
          });
     }]).
     /**
+     * Default Get requests to no caching
+     **/
+    config(["$httpProvider", function($httpProvider){
+        //initialize get if not there
+        if (!$httpProvider.defaults.headers.get) {
+            $httpProvider.defaults.headers.get = {};    
+        }
+        $httpProvider.defaults.headers.get['Cache-Control'] = 'no-cache';
+        $httpProvider.defaults.headers.get['Pragma'] = 'no-cache';
+        $httpProvider.defaults.headers.get['If-Modified-Since'] = 'Mon, 26 Jul 1997 05:00:00 GMT';
+    }]).
+    /**
      * This is a fix for https://jira.zenoss.com/browse/ZEN-10263
      * It makes sure that inputs that are filled in by autofill (like when the browser remembers the password)
      * are updated in the $scope. See the partials/login.html for an example
@@ -352,7 +364,7 @@ function aggregateVhosts(service) {
     var child_service = service.children[i];
     vhosts = vhosts.concat( aggregateVhosts( child_service));
   }
-  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); })
+  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); });
   return vhosts;
 }
 
@@ -378,7 +390,7 @@ function aggregateAddressAssigments(service, api) {
         if (assignment.HostID !== "") {
           api.get_host( assignment.HostID, function(data) {
             assignment.HostName = data.Name;
-          })
+          });
         }
         assignments.push( assignment);
       }
