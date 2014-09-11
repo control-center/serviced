@@ -27,6 +27,7 @@ type healthStatus struct {
 	Status    string
 	Timestamp int64
 	Interval  float64
+	StartedAt int64
 }
 
 type messagePacket struct {
@@ -73,6 +74,7 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 	thisStatus, ok := serviceStatus[name]
 	if !ok {
 		var service service.Service
+
 		err := d.GetService(serviceID, &service)
 		if err != nil {
 			glog.Errorf("Unable to acquire services.")
@@ -81,7 +83,7 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 		for iname, icheck := range service.HealthChecks {
 			_, ok = serviceStatus[iname]
 			if !ok {
-				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds()}
+				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix()}
 			}
 		}
 	}
@@ -92,4 +94,9 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 	}
 	thisStatus.Status = passed
 	thisStatus.Timestamp = time.Now().UTC().Unix()
+
+
+	var runningServices []dao.RunningService
+	d.GetRunningServicesForService(serviceID, &runningServices)
+	thisStatus.StartedAt = runningServices[0].StartedAt.Unix()
 }
