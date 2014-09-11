@@ -1170,14 +1170,14 @@ rect {
 }
 
 .zenchart {
-    margin-left: -50px;
+    margin-left: -45px;
 }
 
 .zenchartContainer {
     width: calc(50% - 20px);
     margin: 10px 20px 10px 0;
     float: left;
-    padding: 10px;
+    padding: 20px;
     box-shadow: rgba(0,0,0,.3) 0 1px 3px;
     border: solid #EEE 1px;
 }
