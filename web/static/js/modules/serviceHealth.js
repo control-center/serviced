@@ -210,7 +210,7 @@
             var missedIntervals = (serverTimestamp - Math.max(healthCheck.Timestamp, startTime)) / healthCheck.Interval;
 
             // if service hasn't started yet
-            if(!startTime){
+            if(startTime === undefined){
                 status = "down";
             
             // if service has missed 2 updates, mark unknown
