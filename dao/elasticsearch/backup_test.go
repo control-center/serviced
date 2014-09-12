@@ -320,7 +320,7 @@ func (dt *DaoTest) TestBackup_IntegrationTest(t *C) {
 	t.Skip("TODO: Fix this broken test. Maybe a race condition?")
 	var (
 		unused         int
-		request        dao.EntityRequest
+		request        dao.ServiceRequest
 		templateId     string
 		serviceId      string
 		backupFilePath string

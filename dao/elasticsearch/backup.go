@@ -510,7 +510,7 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	// Retrieve all service definitions
-	var request dao.EntityRequest
+	var request dao.ServiceRequest
 	if e := cp.GetServices(request, &services); e != nil {
 		glog.Errorf("Could not get services: %v", e)
 		backupError <- e.Error()

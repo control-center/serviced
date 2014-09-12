@@ -21,7 +21,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -159,52 +158,48 @@ func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client
 	w.WriteJson(&active)
 }
 
-func filterByNameRegex(nmregex string, services []service.Service) ([]service.Service, error) {
-	r, err := regexp.Compile(nmregex)
-	if err != nil {
-		glog.Errorf("Bad name regexp :%s", nmregex)
-		return nil, err
-	}
-
-	matches := []service.Service{}
-	for _, service := range services {
-		if r.MatchString(service.Name) {
-			matches = append(matches, service)
-		}
-	}
-	glog.V(2).Infof("Returning %d named services", len(matches))
-	return matches, nil
-}
-
-func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]service.Service, error) {
+func getTaggedServices(client *node.ControlClient, tags, nmregex string, tenantID string) ([]service.Service, error) {
 	services := []service.Service{}
-	var ts interface{}
-	ts = strings.Split(tags, ",")
-	if err := client.GetTaggedServices(ts, &services); err != nil {
+	tagsSlice := strings.Split(tags, ",")
+	serviceRequest := dao.ServiceRequest{
+		Tags:      tagsSlice,
+		TenantID:  tenantID,
+		NameRegex: nmregex,
+	}
+	if err := client.GetTaggedServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get tagged services: %v", err)
 		return nil, err
 	}
 
-	if nmregex != "" {
-		return filterByNameRegex(nmregex, services)
-	}
 	glog.V(2).Infof("Returning %d tagged services", len(services))
 	return services, nil
 }
 
-func getNamedServices(client *node.ControlClient, nmregex string) ([]service.Service, error) {
+func getNamedServices(client *node.ControlClient, nmregex string, tenantID string) ([]service.Service, error) {
 	services := []service.Service{}
-	if err := client.GetServices(&empty, &services); err != nil {
+	var emptySlice []string
+	serviceRequest := dao.ServiceRequest{
+		Tags:      emptySlice,
+		TenantID:  tenantID,
+		NameRegex: nmregex,
+	}
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get named services: %v", err)
 		return nil, err
 	}
 
-	return filterByNameRegex(nmregex, services)
+	return services, nil
 }
 
-func getServices(client *node.ControlClient) ([]service.Service, error) {
+func getServices(client *node.ControlClient, tenantID string) ([]service.Service, error) {
 	services := []service.Service{}
-	if err := client.GetServices(&empty, &services); err != nil {
+	var emptySlice []string
+	serviceRequest := dao.ServiceRequest{
+		Tags:      emptySlice,
+		TenantID:  tenantID,
+		NameRegex: "",
+	}
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		return nil, err
 	}
@@ -238,9 +233,10 @@ func getIRS() []dao.RunningService {
 }
 
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
-		result, err := getTaggedServices(client, tags, nmregex)
+		result, err := getTaggedServices(client, tags, nmregex, tenantID)
 		if err != nil {
 			restServerError(w, err)
 			return
@@ -254,7 +250,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	}
 
 	if nmregex := r.URL.Query().Get("name"); nmregex != "" {
-		result, err := getNamedServices(client, nmregex)
+		result, err := getNamedServices(client, nmregex, tenantID)
 		if err != nil {
 			restServerError(w, err)
 			return
@@ -267,7 +263,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	result, err := getServices(client)
+	result, err := getServices(client, tenantID)
 	result = append(result, getISVCS()...)
 	if err != nil {
 		restServerError(w, err)
@@ -382,8 +378,8 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var allServices []service.Service
 	topServices := []service.Service{}
-
-	err := client.GetServices(&empty, &allServices)
+	var serviceRequest dao.ServiceRequest
+	err := client.GetServices(serviceRequest, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
@@ -412,8 +408,8 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	var allServices []service.Service
-
-	if err := client.GetServices(&empty, &allServices); err != nil {
+	var serviceRequest dao.ServiceRequest
+	if err := client.GetServices(serviceRequest, &allServices); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
 		return

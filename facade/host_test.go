@@ -157,7 +157,8 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 		t.Fatalf("Failed assigning ip to service: %s", err)
 	}
 
-	services, _ := s.Facade.GetServices(s.CTX)
+	var serviceRequest dao.ServiceRequest
+	services, _ := s.Facade.GetServices(s.CTX, serviceRequest)
 	if len(services) <= 0 {
 		t.Fatalf("Expected one service in context")
 	}
@@ -174,7 +175,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	if err != nil {
 		t.Fatalf("Failed to remove host: %s", err)
 	}
-	services, _ = s.Facade.GetServices(s.CTX)
+	services, _ = s.Facade.GetServices(s.CTX, serviceRequest)
 
 	if len(services) <= 0 {
 		t.Fatalf("Expected one service in context")
