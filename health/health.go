@@ -95,8 +95,9 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 	thisStatus.Status = passed
 	thisStatus.Timestamp = time.Now().UTC().Unix()
 
-
 	var runningServices []dao.RunningService
-	d.GetRunningServicesForService(serviceID, &runningServices)
-	thisStatus.StartedAt = runningServices[0].StartedAt.Unix()
+	err := d.GetRunningServicesForService(serviceID, &runningServices)
+	if err == nil && len(runningServices) > 0 {
+		thisStatus.StartedAt = runningServices[0].StartedAt.Unix()
+	}
 }
