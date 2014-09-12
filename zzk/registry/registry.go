@@ -134,10 +134,12 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 			return "", err
 		}
 	} else {
-		glog.V(3).Infof("Add to %s: %#v", path, node)
-		if _, err := r.addItem(conn, key, nodeID, node); err != nil {
+		if addPath, err := r.addItem(conn, key, nodeID, node); err != nil {
 			return "", err
+		} else {
+			path = addPath
 		}
+		glog.V(3).Infof("Add to %s: %#v", path, node)
 	}
 	return path, nil
 }
@@ -206,6 +208,21 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 		}
 	}
 	return nil
+}
+
+// getChildren gets all child paths for the given nodeID
+func (r *registryType) getChildren(conn client.Connection, nodeID string) ([]string, error) {
+	path := r.getPath(nodeID)
+	glog.V(4).Infof("Getting children for %v", path)
+	names, err := conn.Children(path)
+	if err != nil {
+		return []string{}, err
+	}
+	result := []string{}
+	for _, name := range names {
+		result = append(result, r.getPath(nodeID, name))
+	}
+	return result, nil
 }
 
 func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {

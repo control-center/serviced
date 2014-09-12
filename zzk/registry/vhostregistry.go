@@ -103,6 +103,11 @@ func (vr *VhostRegistry) GetItem(conn client.Connection, path string) (*VhostEnd
 	return &vep, nil
 }
 
+// GetChildren gets all child paths for a tenant and endpoint
+func (vr *VhostRegistry) GetChildren(conn client.Connection, vhostKey string) ([]string, error) {
+	return vr.getChildren(conn, vhostKey)
+}
+
 // GetVHostKeyChildren gets the ephemeral nodes of a vhost key (example of a key is 'hbase')
 func (vr *VhostRegistry) GetVHostKeyChildren(conn client.Connection, vhostKey string) ([]VhostEndpoint, error) {
 	var vhostEphemeralNodes []VhostEndpoint

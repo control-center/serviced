@@ -21,9 +21,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/validation"
+	"github.com/zenoss/glog"
 )
 
 const defaultSubnet string = "10.3" // /16 subnet for virtual addresses

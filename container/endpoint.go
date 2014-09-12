@@ -629,22 +629,86 @@ func (c *Controller) registerExportedEndpoints() {
 			endpoint := export.endpoint
 			for _, vhost := range export.vhosts {
 				epName := fmt.Sprintf("%s_%v", export.endpointName, export.endpoint.InstanceID)
-				var path string
-				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, endpoint)); err != nil {
-					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
+				//delete any existing vhost that hasn't been cleaned up
+				vhostEndpoint := registry.NewVhostEndpoint(epName, endpoint)
+				if paths, err := vhostRegistry.GetChildren(conn, vhost); err != nil {
+					glog.V(1).Infof("error trying to clean out previous vhosts", err)
+				} else {
+					glog.V(1).Infof("cleaning vhost paths %v", paths)
+					//clean paths
+					for _, path := range paths {
+						if vep, err := vhostRegistry.GetItem(conn, path); err != nil {
+							glog.V(1).Infof("Could not read %s", path)
+						} else {
+							glog.V(4).Infof("checking instance id of %#v equal %v", vep, c.options.Service.InstanceID)
+							if strconv.Itoa(vep.InstanceID) == c.options.Service.InstanceID {
+								glog.V(1).Infof("Deleting stale vhost registration for %v at %v ", vhost, path)
+								conn.Delete(path)
+							}
+						}
+					}
 				}
-				glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
-			}
 
+				var path string
+				if path, err = vhostRegistry.SetItem(conn, vhost, vhostEndpoint); err != nil {
+					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
+				} else {
+					glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
+					c.vhostZKPaths = append(c.vhostZKPaths, path)
+				}
+
+			}
+			//delete any exisiting endpoint that hasn't been cleaned up
+			if paths, err := endpointRegistry.GetChildren(conn, c.tenantID, export.endpoint.Application); err != nil {
+				glog.V(1).Infof("error trying to clean previous endpoints: %s", err)
+			} else {
+				glog.V(1).Infof("cleaning endpoint paths %v", paths)
+				//clean paths
+				for _, path := range paths {
+					if epn, err := endpointRegistry.GetItem(conn, path); err != nil {
+						glog.V(1).Infof("Could not read %s", path)
+					} else {
+						glog.V(4).Infof("checking instance id of %#v equal %v", epn, c.options.Service.InstanceID)
+						if strconv.Itoa(epn.InstanceID) == c.options.Service.InstanceID {
+							glog.V(1).Infof("Deleting stale endpoint registration for %v at %v ", export.endpointName, path)
+							conn.Delete(path)
+						}
+					}
+				}
+			}
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, endpoint)
 			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, endpoint))
 			if err != nil {
 				glog.Errorf("  unable to add endpoint: %+v %v", endpoint, err)
 				continue
 			}
-
+			c.exportedEndpointZKPaths = append(c.exportedEndpointZKPaths, path)
 			glog.V(1).Infof("  endpoint successfully added to path: %s", path)
 		}
+	}
+}
+
+func (c *Controller) unregisterVhosts() {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return
+	}
+	for _, path := range c.vhostZKPaths {
+		glog.V(1).Infof("controller shutdown deleting vhost %v", path)
+		conn.Delete(path)
+	}
+
+}
+
+func (c *Controller) unregisterEndpoints() {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return
+	}
+
+	for _, path := range c.exportedEndpointZKPaths {
+		glog.V(1).Infof("controller shutdown deleting endpoint %v", path)
+		conn.Delete(path)
 	}
 }
 
