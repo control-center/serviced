@@ -282,8 +282,9 @@ var SEVERITY = {
             getMessages: function(){
                 var unreadCount;
 
-                unreadCount = this.$storage.reduce(function(acc, el){
-                    return acc+(el.count-el.read);
+                unreadCount = this.$storage.reduce(function(prev, cur, idx, storage){
+                    cur.count = cur.count || 0;
+                    return prev+(cur.count-cur.read);
                 }, 0);
 
                 return {
