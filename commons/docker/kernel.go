@@ -488,7 +488,7 @@ KernelLoop:
 
 			close(req.errchan)
 			req.respchan <- resp
-		case req := <- cmds.ImageInspect:
+		case req := <-cmds.ImageInspect:
 			glog.V(1).Info("inspecting image: ", req.args.id)
 			img, err := dc.InspectImage(req.args.id)
 			if err != nil {
@@ -498,7 +498,7 @@ KernelLoop:
 			}
 			close(req.errchan)
 			req.respchan <- img
-		case req := <-cmds.ContainerInspect :
+		case req := <-cmds.ContainerInspect:
 			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -1060,7 +1060,7 @@ func routeEventsToKernel(dc *dockerclient.Client) {
 
 func eventToKernel(e dockerclient.Event) error {
 	glog.V(2).Infof("sending %+v to kernel", e)
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.OnEvent <- oneventreq{
 		request{ec},
