@@ -169,7 +169,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "attach",
 				Usage:        "Run an arbitrary command in a running service container",
-				Description:  "serviced service attach { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } [COMMAND]",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 				Flags: []cli.Flag{
@@ -178,7 +178,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
-				Description:  "serviced service action { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } ACTION",
+				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
 			}, {
@@ -829,6 +829,57 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
+// buildRunningServicePaths returns a map where map[rs.ID] = fullpath
+func (c *ServicedCli) buildRunningServicePaths(rss []dao.RunningService) (map[string]string, error) {
+	pathmap := make(map[string]string)
+
+	// generate parentmap and namemap for all running services with key of serviceid/inst
+	parentmap := make(map[string]string)
+	namemap := make(map[string]string)
+	for _, rs := range rss {
+		rskey := path.Join(rs.ServiceID, fmt.Sprintf("%d", rs.InstanceID))
+		namemap[rskey] = rs.Name
+		parentmap[rskey] = rs.ParentServiceID
+
+		// populate namemap and parentmap for parent services
+		parentID := rs.ParentServiceID
+		for parentID != "" {
+			pakey := path.Join(parentID, fmt.Sprintf("%d", 0))
+			_, ok := namemap[parentID]
+			if ok {
+				break // break from inner for loop
+			}
+
+			svc, err := c.driver.GetService(parentID)
+			if err != nil || svc == nil {
+				return pathmap, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
+			}
+			namemap[pakey] = svc.Name
+			parentmap[pakey] = svc.ParentServiceID
+
+			parentID = svc.ParentServiceID
+		}
+	}
+
+	// recursively build full path for all running services
+	for _, rs := range rss {
+		fullpath := path.Join(rs.Name, fmt.Sprintf("%d", rs.InstanceID))
+		parentServiceID := rs.ParentServiceID
+
+		for parentServiceID != "" {
+			pakey := path.Join(parentServiceID, fmt.Sprintf("%d", 0))
+			fullpath = path.Join(namemap[pakey], fullpath)
+			parentServiceID = parentmap[pakey]
+		}
+
+		pathmap[rs.ID] = strings.ToLower(fullpath)
+		glog.V(2).Infof("========= rs:%s %s  path[%s]:%s", rs.ServiceID, rs.Name, rs.ID, pathmap[rs.ID])
+	}
+
+	return pathmap, nil
+}
+
+// searches for a running service from running services given keyword
 func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningService, error) {
 	rss, err := c.driver.GetRunningServices()
 	if err != nil {
@@ -844,19 +895,26 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		hostmap[host.ID] = host
 	}
 
+	pathmap, err := c.buildRunningServicePaths(rss)
+	if err != nil {
+		return nil, err
+	}
+
 	var states []dao.RunningService
 	for _, rs := range rss {
 		if rs.DockerID == "" {
 			continue
 		}
 
-		nameInstance := path.Join(strings.ToLower(rs.Name), fmt.Sprintf("%d", rs.InstanceID))
-		poolNameInstance := path.Join(strings.ToLower(rs.PoolID), nameInstance)
+		poolPathInstance := path.Join(strings.ToLower(rs.PoolID), pathmap[rs.ID])
+		serviceIDInstance := path.Join(rs.ServiceID, fmt.Sprintf("%d", rs.InstanceID))
 		switch strings.ToLower(keyword) {
-		case rs.ServiceID, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12], poolNameInstance, nameInstance:
+		case rs.ServiceID, serviceIDInstance, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12], pathmap[rs.ID], poolPathInstance:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
+				states = append(states, rs)
+			} else if strings.HasSuffix(pathmap[rs.ID], keyword) {
 				states = append(states, rs)
 			}
 		}
@@ -870,15 +928,21 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "INST", "POOL", "HOST", "HOSTIP", "DOCKERID")
+	matches.printrow("NAME", "ID", "HOST", "HOSTIP", "DOCKERID", "POOL/PATH")
 	for _, row := range states {
-		matches.printrow(row.Name, row.ServiceID, row.InstanceID, row.PoolID, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12])
+		svcid := row.ServiceID
+		name := row.Name
+		if row.Instances > 1 {
+			svcid = fmt.Sprintf("%s/%d", row.ServiceID, row.InstanceID)
+			name = fmt.Sprintf("%s/%d", row.Name, row.InstanceID)
+		}
+		matches.printrow(name, svcid, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12], path.Join(row.PoolID, pathmap[row.ID]))
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; specify unique item from list")
 }
 
-// serviced service attach { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } [COMMAND ...]
+// serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -944,7 +1008,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service attach")
 }
 
-// serviced service action { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } ACTION
+// serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
 func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
