@@ -289,6 +289,51 @@ func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 	fmt.Println(strings.Join(output, "\n"))
 }
 
+// buildServicePaths returns a map where map[service.ID] = fullpath
+func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]string, error) {
+	svcMap := make(map[string]service.Service)
+	for _, svc := range svcs {
+		svcMap[svc.ID] = svc
+	}
+
+	// likely that svcs contains all services since it was likely populated with getServices()
+	// however, ensure that parent services are in svcMap
+	for _, svc := range svcs {
+		parentID := svc.ParentServiceID
+		for parentID != "" {
+			if _, ok := svcMap[parentID]; ok {
+				break // break from inner for loop
+			}
+			glog.Warningf("should not have to retrieve parent service %s", parentID)
+
+			svc, err := c.driver.GetService(parentID)
+			if err != nil || svc == nil {
+				return nil, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
+			}
+			svcMap[parentID] = *svc
+
+			parentID = svc.ParentServiceID
+		}
+	}
+
+	// recursively build full path for all services
+	pathmap := make(map[string]string)
+	for _, svc := range svcs {
+		fullpath := svc.Name
+		parentServiceID := svc.ParentServiceID
+
+		for parentServiceID != "" {
+			fullpath = path.Join(svcMap[parentServiceID].Name, fullpath)
+			parentServiceID = svcMap[parentServiceID].ParentServiceID
+		}
+
+		pathmap[svc.ID] = strings.ToLower(fullpath)
+		glog.V(2).Infof("service: %-16s  %s  path: %s", svc.Name, svc.ID, pathmap[svc.ID])
+	}
+
+	return pathmap, nil
+}
+
 // searches for service from definitions given keyword
 func (c *ServicedCli) searchForService(keyword string) (*service.Service, error) {
 	svcs, err := c.driver.GetServices()
@@ -296,13 +341,21 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return nil, err
 	}
 
+	pathmap, err := c.buildServicePaths(svcs)
+	if err != nil {
+		return nil, err
+	}
+
 	var services []service.Service
 	for _, svc := range svcs {
+		poolPath := path.Join(strings.ToLower(svc.PoolID), pathmap[svc.ID])
 		switch strings.ToLower(keyword) {
-		case svc.ID, strings.ToLower(svc.Name):
+		case svc.ID, strings.ToLower(svc.Name), pathmap[svc.ID], poolPath:
 			services = append(services, svc)
 		default:
 			if keyword == "" {
+				services = append(services, svc)
+			} else if strings.HasSuffix(pathmap[svc.ID], keyword) {
 				services = append(services, svc)
 			}
 		}
@@ -316,9 +369,9 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "POOL", "DEPID")
+	matches.printrow("NAME", "SERVICEID", "DEPID", "POOL/PATH")
 	for _, row := range services {
-		matches.printrow(row.Name, row.ID, row.PoolID, row.DeploymentID)
+		matches.printrow(row.Name, row.ID, row.DeploymentID, path.Join(row.PoolID, pathmap[row.ID]))
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
