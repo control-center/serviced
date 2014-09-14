@@ -64,7 +64,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:        "status",
 				Usage:       "Displays the status of deployed services",
-				Description: "serviced service status",
+				Description: "serviced service status { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
 				Action:      c.cmdServiceStatus,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
@@ -390,13 +390,43 @@ func cmdSetTreeCharset(ctx *cli.Context) {
 
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
-	services, err := c.driver.GetServices()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	} else if services == nil || len(services) == 0 {
-		fmt.Fprintln(os.Stderr, "no services found")
-		return
+	var services []service.Service
+	if len(ctx.Args()) > 0 {
+		svc, err := c.searchForService(ctx.Args()[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else if svc == nil {
+			fmt.Fprintln(os.Stderr, "service not found")
+			return
+		}
+
+		services = []service.Service{*svc}
+
+		// ensure that parent services are in services
+		for _, s := range services {
+			parentID := s.ParentServiceID
+			for parentID != "" {
+				svc, err := c.driver.GetService(parentID)
+				if err != nil || svc == nil {
+					fmt.Fprintln(os.Stderr, "unable to retrieve service for id:%s %s", parentID, err)
+					return
+				}
+				services = append(services, *svc)
+
+				parentID = svc.ParentServiceID
+			}
+		}
+	} else {
+		var err error
+		services, err = c.driver.GetServices()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else if services == nil || len(services) == 0 {
+			fmt.Fprintln(os.Stderr, "no services found")
+			return
+		}
 	}
 
 	hosts, err := c.driver.GetHosts()
