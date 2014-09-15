@@ -129,7 +129,7 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 		Type:        "line",
 		Tags:        tags,
 		Units:       "File Descriptors",
-		Description: "Graph of serviced's total open file descriptors over time",
+		Description: "For the serviced process",
 	}
 }
 
@@ -165,7 +165,7 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		Type:        "line",
 		Tags:        tags,
 		Units:       "Page Faults",
-		Description: "Graph of major memory page faults over time",
+		Description: "Faults per minute",
 	}
 }
 
@@ -279,7 +279,7 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		Type:        "area",
 		Tags:        tags,
 		Units:       "Percent",
-		Description: "Graph of system and user cpu usage over time",
+		Description: "Total cpu utilization (all cores)",
 	}
 }
 
@@ -351,6 +351,6 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		Type:        "area",
 		Tags:        tags,
 		Units:       "bytes",
-		Description: "Graph of memory free (-buffers/+cache) vs used (total - free) over time",
+		Description: "Bytes used",
 	}
 }
