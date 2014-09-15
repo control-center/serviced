@@ -112,7 +112,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  if(DEBUG) console.log(('Unable to retrieve hosts for pool ' + poolID));
+                  if(DEBUG) console.log('Unable to retrieve hosts for pool ' + poolID);
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -196,7 +196,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to acquire pool", data.Detail).error();
+                      if(DEBUG) console.log("Unable to acquire pool", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -217,7 +217,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to acquire pool", data.Detail).error();
+                      if(DEBUG) console.log("Unable to acquire pool", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -241,7 +241,7 @@
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    //$notification.create("Unable to acquire running services", data.Detail).warning();
+                      if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -262,7 +262,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to acquire virtual hosts", data.Detail).error();
+                      if(DEBUG) console.log("Unable to acquire virtual hosts", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -323,7 +323,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to acquire running services", data.Detail).warning();
+                      if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -343,7 +343,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to acquire running services", data.Detail).warning();
+                      if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -635,7 +635,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to retrieve service logs", data.Detail).error();
+                      if(DEBUG) console.log("Unable to retrieve service logs", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -655,7 +655,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      //$notification.create("Unable to retrieve service logs", data.Detail).error();
+                      if(DEBUG) console.log("Unable to retrieve service logs", data.Detail);
                       if (status === 401) {
                           unauthorized($location);
                       }
