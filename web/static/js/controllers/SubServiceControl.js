@@ -261,12 +261,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     $scope.clickEditContext = function(app, servicesService) {
         //first turn the context into a presentable value
-        $scope.codemirrorOptions = {
-            lineWrapping : false,
-            lineNumbers: true,
-            mode: 'nginx'
-        };
-
         $scope.editableContext = makeEditableContext($scope.services.current.Context);
 
         $modalService.create({
@@ -286,8 +280,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 }
             ]
         });
-
-        $scope.refreshCodemirror = false;
     };
 
     function makeEditableContext(context){
