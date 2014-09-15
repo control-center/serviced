@@ -39,7 +39,7 @@ const (
 type Service struct {
 	ID                string
 	Name              string
-	Title             string                 // Title is a label used when describing this service in the context of a service tree
+	Title             string // Title is a label used when describing this service in the context of a service tree
 	Version           string
 	Context           map[string]interface{}
 	Startup           string
@@ -77,6 +77,7 @@ type Service struct {
 	MemoryLimit       float64
 	CPUShares         int64
 	PIDFile           string
+	Locked            bool
 	datastore.VersionedEntity
 }
 
@@ -376,6 +377,9 @@ func (s *Service) Equals(b *Service) bool {
 		return false
 	}
 	if s.ParentServiceID != b.ParentServiceID {
+		return false
+	}
+	if s.Locked != b.Locked {
 		return false
 	}
 	if s.CreatedAt.Unix() != b.CreatedAt.Unix() {
