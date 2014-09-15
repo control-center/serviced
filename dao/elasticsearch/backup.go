@@ -437,6 +437,9 @@ func (this *ControlPlaneDao) BackupStatus(notUsed string, backupStatus *string) 
 
 // Backup saves the service templates, services, and related docker images and shared filesystems to a tgz file.
 func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *string) (err error) {
+	cp.dfs.Lock()
+	defer cp.dfs.Unlock()
+
 	// Lock the error and output channels to ensure that only one backup runs at any given time.
 	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
 	err = func() error {
@@ -632,11 +635,12 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	glog.Infof("Snapshot all top level services (count:%d)", len(services))
+	if err := cp.serviceLock.Lock(); err != nil {
+		return err
+	}
+	defer cp.serviceLock.Unlock()
 
 	for _, svc := range services {
-		// Make sure you back up the service with desired state as stopped
-		svc.DesiredState = service.SVCStop
-
 		if svc.ParentServiceID == "" {
 			if _, e := snapshotToTgzFile(svc); e != nil {
 				glog.Errorf("Could not save snapshot of service %s: %v", svc.ID, e)
@@ -689,6 +693,9 @@ func (this *ControlPlaneDao) RestoreStatus(notUsed string, restoreStatus *string
 // Restore replaces or restores the service templates, services, and related
 // docker images and shared file systmes, as extracted from a tgz backup file.
 func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err error) {
+	cp.dfs.Lock()
+	defer cp.dfs.Unlock()
+
 	// Lock the error and output channels to ensure that only one restore runs at any given time.
 	// Done in an anonymous function so we can ensure unlocking of the channel when we are done.
 	err = func() error {
@@ -732,6 +739,11 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		restoreError <- e.Error()
 		return e
 	}
+
+	if err := cp.serviceLock.Lock(); err != nil {
+		return err
+	}
+	defer cp.serviceLock.Unlock()
 
 	restoreOutput <- "Starting restore"
 

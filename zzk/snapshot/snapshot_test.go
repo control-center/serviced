@@ -63,13 +63,10 @@ func TestSnapshotListener_Listen(t *testing.T) {
 	go zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 
 	// send success snapshot
-	if err := Send(conn, "service-id-success"); err != nil {
-		t.Fatalf("Could not send success snapshot")
-	}
-
-	// wait for result
 	var snapshot Snapshot
-	if err := Recv(conn, "service-id-success", &snapshot); err != nil {
+	if nodeID, err := Send(conn, "service-id-success"); err != nil {
+		t.Fatalf("Could not send success snapshot")
+	} else if err := Recv(conn, nodeID, &snapshot); err != nil {
 		t.Fatalf("Could not receieve success snapshot")
 	}
 
@@ -84,12 +81,9 @@ func TestSnapshotListener_Listen(t *testing.T) {
 	}
 
 	// send fail snapshot and shutdown
-	if err := Send(conn, "service-id-failure"); err != nil {
+	if nodeID, err := Send(conn, "service-id-failure"); err != nil {
 		t.Fatal("Could not send failure snapshot: ", err)
-	}
-
-	// shutdown and wait for result
-	if err := Recv(conn, "service-id-failure", &snapshot); err != nil {
+	} else if err := Recv(conn, nodeID, &snapshot); err != nil {
 		t.Fatal("Could not receive failure snapshot: ", err)
 	}
 
@@ -122,11 +116,12 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 
 	// send snapshots
 	t.Log("Sending successful snapshot")
-	if err := Send(conn, "service-id-success"); err != nil {
+	nodeID, err := Send(conn, "service-id-success")
+	if err != nil {
 		t.Fatalf("Could not send success snapshot")
 	}
 	var snapshot Snapshot
-	event, err := conn.GetW(listener.GetPath("service-id-success"), &snapshot)
+	event, err := conn.GetW(listener.GetPath(nodeID), &snapshot)
 	if err != nil {
 		t.Fatalf("Could not look up %s: %s", listener.GetPath("service-id-success"), err)
 	}
@@ -155,7 +150,8 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 	}
 
 	t.Log("Sending failure snapshot")
-	if err := Send(conn, "service-id-failure"); err != nil {
+	nodeID, err = Send(conn, "service-id-failure")
+	if err != nil {
 		t.Fatalf("Could not send success snapshot")
 	}
 	wg.Add(1)
@@ -163,7 +159,7 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 		defer wg.Done()
 		listener.Spawn(make(<-chan interface{}), "service-id-failure")
 	}()
-	if err := Recv(conn, "service-id-failure", &snapshot); err != nil {
+	if err := Recv(conn, nodeID, &snapshot); err != nil {
 		t.Fatalf("Could not receive success snapshot")
 	}
 	wg.Wait()

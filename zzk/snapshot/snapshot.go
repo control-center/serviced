@@ -79,12 +79,12 @@ func (l *SnapshotListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn takes a snapshot of a service and waits for the node to be deleted.  If
 // the node is not removed, then no action is performed.
-func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, serviceID string) {
+func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, nodeID string) {
 	for {
 		var snapshot Snapshot
-		event, err := l.conn.GetW(l.GetPath(serviceID), &snapshot)
+		event, err := l.conn.GetW(l.GetPath(nodeID), &snapshot)
 		if err != nil {
-			glog.Errorf("Could not get snapshot %s: %s", serviceID, err)
+			glog.Errorf("Could not get snapshot %s: %s", nodeID, err)
 			return
 		}
 
@@ -97,7 +97,7 @@ func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, serviceID string) 
 			}
 
 			// Update request
-			if err := l.conn.Set(l.GetPath(serviceID), &snapshot); err != nil {
+			if err := l.conn.Set(l.GetPath(nodeID), &snapshot); err != nil {
 				glog.Errorf("Could not update snapshot for service %s: %s", snapshot.ServiceID, err)
 			}
 			glog.V(1).Infof("Finished taking snapshot for service %s", snapshot.ServiceID)
@@ -116,19 +116,23 @@ func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, serviceID string) 
 }
 
 // Send sends a new snapshot request to the queue
-func Send(conn client.Connection, serviceID string) error {
-	var node Snapshot
-	path := snapshotPath(serviceID)
-	if err := conn.Create(path, &node); err != nil {
-		return err
+func Send(conn client.Connection, serviceID string) (string, error) {
+	if err := conn.CreateDir(snapshotPath()); err != nil && err != client.ErrNodeExists {
+		return "", nil
 	}
-	node.ServiceID = serviceID
-	return conn.Set(path, &node)
+
+	node := &Snapshot{ServiceID: serviceID}
+	p, err := conn.CreateEphemeral(snapshotPath(serviceID), node)
+	if err != nil {
+		return "", err
+	}
+
+	return path.Base(p), nil
 }
 
 // Recv waits for a snapshot to be complete
-func Recv(conn client.Connection, serviceID string, snapshot *Snapshot) error {
-	node := snapshotPath(serviceID)
+func Recv(conn client.Connection, nodeID string, snapshot *Snapshot) error {
+	node := snapshotPath(nodeID)
 
 	for {
 		event, err := conn.GetW(node, snapshot)

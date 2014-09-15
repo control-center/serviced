@@ -39,7 +39,7 @@ const (
 type Service struct {
 	ID                string
 	Name              string
-	Title             string                 // Title is a label used when describing this service in the context of a service tree
+	Title             string // Title is a label used when describing this service in the context of a service tree
 	Version           string
 	Context           map[string]interface{}
 	Startup           string
