@@ -5,13 +5,16 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
     $scope.dockerLoggedIn = true;
 
+    // start with empty templates list
+    $scope.templates = { data: [] };
+
     resourcesService.docker_is_logged_in(function(loggedIn) {
         $scope.dockerLoggedIn = loggedIn;
-    })
+    });
 
     $scope.dockerIsNotLoggedIn = function() {
         return !$scope.dockerLoggedIn;
-    }
+    };
 
     var  validTemplateSelected = function() {
         if($scope.selectedTemplates().length <= 0){
