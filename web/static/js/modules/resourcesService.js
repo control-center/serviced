@@ -63,7 +63,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  $notification.create("",'Unable to retrieve services').error();
+                  //$notification.create("",'Unable to retrieve services').error();
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -79,7 +79,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  $notification.create("",'Unable to retrieve application templates').error();
+                  //$notification.create("",'Unable to retrieve application templates').error();
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -96,7 +96,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  $notification.create("",'Unable to retrieve list of pools').error();
+                  //$notification.create("",'Unable to retrieve list of pools').error();
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -112,7 +112,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  $notification.create("",('Unable to retrieve hosts for pool ' + poolID)).error();
+                  //$notification.create("",('Unable to retrieve hosts for pool ' + poolID)).error();
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -128,7 +128,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  $notification.create("",('Unable to retrieve host details')).error();
+                  //$notification.create("",('Unable to retrieve host details')).error();
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -196,7 +196,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire pool", data.Detail).error();
+                      //$notification.create("Unable to acquire pool", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -217,7 +217,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire pool", data.Detail).error();
+                      //$notification.create("Unable to acquire pool", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -241,7 +241,7 @@
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                    $notification.create("Unable to acquire running services", data.Detail).warning();
+                    //$notification.create("Unable to acquire running services", data.Detail).warning();
                     if (status === 401) {
                         unauthorized($location);
                     }
@@ -262,7 +262,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire virtual hosts", data.Detail).error();
+                      //$notification.create("Unable to acquire virtual hosts", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -323,7 +323,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire running services", data.Detail).warning();
+                      //$notification.create("Unable to acquire running services", data.Detail).warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -343,7 +343,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to acquire running services", data.Detail).warning();
+                      //$notification.create("Unable to acquire running services", data.Detail).warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -635,7 +635,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to retrieve service logs", data.Detail).error();
+                      //$notification.create("Unable to retrieve service logs", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -655,7 +655,7 @@
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      $notification.create("Unable to retrieve service logs", data.Detail).error();
+                      //$notification.create("Unable to retrieve service logs", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -976,7 +976,7 @@
                   callback(data);
               }).
               error(function(data, status) {
-                  $notification.create("", 'Failed retrieving health checks.').error();
+                  //$notification.create("", 'Failed retrieving health checks.').error();
                   if (status === 401) {
                       unauthorized($location);
                   }
