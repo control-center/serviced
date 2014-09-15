@@ -95,6 +95,9 @@
     "deploy_loading_image": "Loading image",
     "deploy_tagging_image": "Tagging image (this may take a while)",
 
+    "edit_context": "Settings",
+    "context_directions": "Enter each key/value pair, separated by a space. One entry per line.",
+
     "breadcrumb_deployed": "Applications",
     "breadcrumb_home": "Home",
     "breadcrumb_hosts": "Hosts",

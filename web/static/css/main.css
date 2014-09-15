@@ -40,6 +40,12 @@ body {
     color: #666;
     font-family: "Roboto";
 }
+
+textarea {
+    width: 100%;
+    padding: 5px 10px;
+}
+
 .invisible {
     visibility: hidden;
 }

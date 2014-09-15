@@ -259,6 +259,60 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         });
     };
 
+    $scope.clickEditContext = function(app, servicesService) {
+        //first turn the context into a presentable value
+        $scope.editableContext = makeEditableContext($scope.services.current.Context);
+
+        $modalService.create({
+            templateUrl: "edit-context.html",
+            model: $scope,
+            title: $translate.instant("edit_context"),
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: $translate.instant("btn_save_changes"),
+                    action: function(){
+                        saveContext(app, servicesService);
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
+
+    function makeEditableContext(context){
+        var editableContext = "";
+        for(key in context){
+            editableContext += key + " " + context[key] + "\r\n";
+        }
+
+        return editableContext;
+    }
+
+    function saveContext(){
+        //turn editableContext into a JSON object
+        var lines = $scope.editableContext.split("\n");
+        var parts = [];
+        var context = {};
+        for (var i=0; i<lines.length; ++i){
+            var line = lines[i];
+            if(line !== ""){
+                var breakIndex = line.indexOf(' ');
+                if(breakIndex !== -1){
+                    var key = line.substr(0, breakIndex);
+                    var value = line.substr(breakIndex+1);
+                    context[key] = value;
+                }else{
+                    context[line] = "";
+                }
+            }
+        }
+        $scope.services.current.Context = context;
+        $scope.updateService();
+    }
+
     $scope.viewConfig = function(service) {
         $scope.editService = $.extend({}, service);
         $scope.editService.config = 'TODO: Implement';
