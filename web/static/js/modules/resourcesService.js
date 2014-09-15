@@ -63,7 +63,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  //$notification.create("",'Unable to retrieve services').error();
+                  if(DEBUG) console.log('Unable to retrieve services');
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -79,7 +79,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  //$notification.create("",'Unable to retrieve application templates').error();
+                  if(DEBUG) console.log('Unable to retrieve application templates');
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -96,7 +96,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  //$notification.create("",'Unable to retrieve list of pools').error();
+                  if(DEBUG) console.log('Unable to retrieve list of pools');
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -112,7 +112,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  //$notification.create("",('Unable to retrieve hosts for pool ' + poolID)).error();
+                  if(DEBUG) console.log(('Unable to retrieve hosts for pool ' + poolID));
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -128,7 +128,7 @@
               }).
               error(function(data, status) {
                   // TODO error screen
-                  //$notification.create("",('Unable to retrieve host details')).error();
+                  if(DEBUG) console.log('Unable to retrieve host details');
                   if (status === 401) {
                       unauthorized($location);
                   }
@@ -976,7 +976,7 @@
                   callback(data);
               }).
               error(function(data, status) {
-                  //$notification.create("", 'Failed retrieving health checks.').error();
+                  if(DEBUG) console.log('Failed retrieving health checks.');
                   if (status === 401) {
                       unauthorized($location);
                   }
