@@ -241,7 +241,7 @@
                 }).
                 error(function(data, status) {
                     // TODO error screen
-                      if(DEBUG) console.log("Unable to acquire running services", data.Detail);
+                    if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                     if (status === 401) {
                         unauthorized($location);
                     }
