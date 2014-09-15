@@ -1292,3 +1292,7 @@ input.ng-invalid:focus.ng-dirty:focus{
     color: #CCC;
     font-style: italic;
 }
+
+input[type=file] {
+    height: auto;
+}
