@@ -5,9 +5,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
     $scope.dockerLoggedIn = true;
 
-    // start with empty templates list
-    $scope.templates = { data: [] };
-
     resourcesService.docker_is_logged_in(function(loggedIn) {
         $scope.dockerLoggedIn = loggedIn;
     });
@@ -349,7 +346,21 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
     $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
 
+    //make sure we have template data before setting up the wizard
+    if($scope.templates.data === undefined){
+        resourcesService.get_app_templates(false, function(templatesMap) {
+            var templates = [];
+            for (var key in templatesMap) {
+                var template = templatesMap[key];
+                template.Id = key;
+                templates.push(template);
+            }
+            $scope.templates.data = templates;
+            resetStepPage();
+        });
+    }else{
+        resetStepPage();
+    }
 
-    resetStepPage();
     refreshPools($scope, resourcesService, true);
 }
