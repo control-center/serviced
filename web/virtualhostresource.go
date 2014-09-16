@@ -52,6 +52,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	for _, _service := range services {
 		if _service.ID == request.ServiceID {
 			service = &_service
+			break
 		}
 	}
 
