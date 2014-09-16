@@ -117,7 +117,7 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 			},
 		},
 		ID:     "serviced.ofd",
-		Name:   "Serviced Open File Descriptors",
+		Name:   "Open File Descriptors",
 		Footer: false,
 		Format: "%d",
 		MinY:   &zero,
