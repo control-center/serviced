@@ -513,7 +513,7 @@ func (c *Controller) Run() (err error) {
 
 	prereqsPassed := make(chan bool)
 	var startAfter <-chan time.Time
-	service := &subprocess.Instance{}
+	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
@@ -527,20 +527,20 @@ func (c *Controller) Run() (err error) {
 	for !exited {
 		select {
 		case sig := <-sigc:
-			switch sig {
-			case syscall.SIGTERM:
-				c.options.Service.Autorestart = false
-			case syscall.SIGQUIT:
-				c.options.Service.Autorestart = false
-			case syscall.SIGINT:
-				c.options.Service.Autorestart = false
-			}
+			c.options.Service.Autorestart = false
+
 			glog.Infof("notifying subprocess of signal %v", sig)
-			if c.PIDFile != "" {
+			fmt.Fprintf(os.Stderr, "notifying subprocess of signal %v\n", sig)
+			switch {
+			case c.PIDFile != "":
 				c.forwardSignal(sig)
-			} else {
+			case service != nil:
 				service.Notify(sig)
+			default:
+				c.exitStatus = 1
+				exited = true
 			}
+
 			select {
 			case <-serviceExited:
 				return
@@ -579,7 +579,7 @@ func (c *Controller) Run() (err error) {
 		case <-rpcDead:
 			if c.PIDFile != "" {
 				c.forwardSignal(syscall.SIGTERM)
-			} else {
+			} else if service != nil {
 				service.Notify(syscall.SIGTERM)
 			}
 			glog.Fatalf("RPC Server has gone away, exiting: %s", err)
@@ -605,11 +605,13 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 		case <-healthCheckInterval:
 			failedAny := false
 			for _, script := range c.prereqs {
-				glog.Infof("Running command: %s", script.Script)
+				glog.Infof("Running prereq command: %s", script.Script)
 				cmd := exec.Command("sh", "-c", script.Script)
 				err := cmd.Run()
 				if err != nil {
-					glog.Warningf("Not starting service yet, waiting on prereq: %s", script.Name)
+					msg := fmt.Sprintf("Not starting service yet, waiting on prereq: %s", script.Name)
+					glog.Warning(msg)
+					fmt.Fprintln(os.Stderr, msg)
 					failedAny = true
 					break
 				} else {
