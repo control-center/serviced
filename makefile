@@ -37,7 +37,7 @@ sysconfdir        = /etc
 # Specify if we want service definition templates (picked up from
 # pkg/templates) to be included as part of the serviced packaging.
 #
-INSTALL_TEMPLATES      = 1
+INSTALL_TEMPLATES      ?= 1
 
 #
 # When packaging just the templates, throw this option.
