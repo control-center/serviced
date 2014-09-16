@@ -37,7 +37,7 @@
 
     "file_name": "Nombre del archivo",
     "modified": "Modificado",
-    "actions": "Ccciones",
+    "actions": "Acciones",
     "path": "Camino",
     "owner": "Propietario",
     "permissions": "Permisos",
@@ -139,6 +139,7 @@
     "ip_addresses_mac": "Dirección Ethernet",
     "ip_addresses_interface": "Interfaz",
     "ip_addresses_ip": "IP",
+    "label_active": "Activo",
     "label_application": "Aplicaci\u00f3n",
     "label_assign": "Asignar",
     "label_clear": "Borrar",
