@@ -104,15 +104,14 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 	}()
 
 	// Get the service
-	var myService service.Service
-	if err := d.client.GetService(tenantId, &myService); err != nil {
+	myService, err := d.facade.GetService(datastore.Get(), tenantId)
+	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot tenant=%+v err=%s", tenantId, err)
 		return "", err
 	}
 
-	var servicesList []service.Service
-	var unusedServiceRequest dao.ServiceRequest
-	if err := d.client.GetServices(unusedServiceRequest, &servicesList); err != nil {
+	servicesList, err := d.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Snapshot service=%+v err=%s", myService.ID, err)
 		return "", err
 	}
@@ -133,6 +132,8 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 				return "", err
 			}
 		}
+		// Reset the running state
+		svc.DesiredState = service.SVCStop
 	}
 
 	// create a snapshot
@@ -181,9 +182,6 @@ func (d *DistributedFileSystem) Snapshot(tenantId string) (string, error) {
 
 // Deletes a snapshot from the DFS
 func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
-	d.Lock()
-	defer d.Unlock()
-
 	parts := strings.SplitN(snapshotId, "_", 2)
 	if len(parts) < 2 {
 		err := errors.New("malformed snapshot")
@@ -194,8 +192,8 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 	tenantId := parts[0]
 	timestamp := parts[1]
 
-	var service service.Service
-	if err := d.client.GetService(tenantId, &service); err != nil {
+	service, err := d.facade.GetService(datastore.Get(), tenantId)
+	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.DeleteSnapshot snapshotId=%s err=%s", snapshotId, err)
 		return err
 	}
@@ -234,9 +232,6 @@ func (d *DistributedFileSystem) DeleteSnapshot(snapshotId string) error {
 
 // Deletes snapshots of a service
 func (d *DistributedFileSystem) DeleteSnapshots(tenantId string) error {
-	d.Lock()
-	defer d.Unlock()
-
 	// Delete the snapshot subvolume
 	var theVolume volume.Volume
 	if err := d.client.GetVolume(tenantId, &theVolume); err != nil {
@@ -271,9 +266,6 @@ func (d *DistributedFileSystem) DeleteSnapshots(tenantId string) error {
 
 // Commits a container to docker image and updates the DFS
 func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
-	d.Lock()
-	defer d.Unlock()
-
 	// Get the container, and verify that it is not running
 	container, err := docker.FindContainer(dockerId)
 	if err != nil {
@@ -357,9 +349,6 @@ func (d *DistributedFileSystem) Commit(dockerId string) (string, error) {
 
 // Rolls back the DFS to a specified state and retags the images
 func (d *DistributedFileSystem) Rollback(snapshotId string) error {
-	d.Lock()
-	defer d.Unlock()
-
 	// Get the tenant and the timestamp from the snapshotId
 	parts := strings.SplitN(snapshotId, "_", 2)
 	if len(parts) < 2 {
@@ -371,14 +360,13 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 	timestamp := parts[1]
 
 	var (
-		services  []service.Service
 		theVolume volume.Volume
 	)
 
 	// Fail if any services have running instances
 	glog.V(3).Infof("DistributedFileSystem.Rollback checking service states")
-	var unusedServiceRequest dao.ServiceRequest
-	if err := d.client.GetServices(unusedServiceRequest, &services); err != nil {
+	services, err := d.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 		return err
 	}
@@ -397,8 +385,7 @@ func (d *DistributedFileSystem) Rollback(snapshotId string) error {
 
 	// Validate existence of images for this snapshot
 	glog.V(3).Infof("DistributedFileSystem.Rollback validating image for service instance: %s", tenantId)
-	var service service.Service
-	err := d.client.GetService(tenantId, &service)
+	service, err := d.facade.GetService(datastore.Get(), tenantId)
 	if err != nil {
 		glog.V(2).Infof("DistributedFileSystem.Rollback tenant=%+v err=%s", tenantId, err)
 		return err
@@ -436,8 +423,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	glog.Infof("DistributedFileSystem.RollbackServices from path: %s", restorePath)
 
 	var (
-		existingServices []service.Service
-		services         []service.Service
+		services []service.Service
 	)
 
 	// Verify there are no running service instances
@@ -458,8 +444,8 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 	}
 
 	// Restore the services ...
-	var unusedServiceRequest dao.ServiceRequest
-	if err := d.client.GetServices(unusedServiceRequest, &existingServices); err != nil {
+	existingServices, err := d.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	if err != nil {
 		glog.Errorf("Could not get existing services: %s", err)
 		return err
 	}
@@ -480,6 +466,7 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 		existingServiceMap[service.ID] = service
 	}
 	for _, svc := range services {
+		svc.DatabaseVersion = 0
 		// Change the service read from file to have desired state of stopped
 		if svc.DesiredState != service.SVCStop {
 			glog.V(2).Infof("Service %s (%s) was running (svc.DesiredState:%v).  Setting desired state to SVCStop", svc.Name, svc.ID, svc.DesiredState)
@@ -487,15 +474,14 @@ func (d *DistributedFileSystem) RollbackServices(restorePath string) error {
 		}
 
 		if existingService, ok := existingServiceMap[svc.ID]; ok {
-			var unused *int
 			svc.PoolID = existingService.PoolID
 			if existingPools[svc.PoolID] == nil {
 				glog.Infof("Changing PoolID of service %s from %s to default", svc.ID, svc.PoolID)
 				svc.PoolID = "default"
 			}
-			if e := d.client.UpdateService(svc, unused); e != nil {
-				glog.Errorf("Could not update service %s: %v", svc.ID, e)
-				return e
+			if err := d.facade.UpdateService(datastore.Get(), svc); err != nil {
+				glog.Errorf("Could not update service %s: %v", svc.ID, err)
+				return err
 			}
 		} else {
 			if existingPools[svc.PoolID] == nil {

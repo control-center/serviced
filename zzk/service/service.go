@@ -29,7 +29,8 @@ import (
 )
 
 const (
-	zkService = "/services"
+	zkService     = "/services"
+	zkServiceLock = "/locks/service"
 )
 
 func servicepath(nodes ...string) string {
@@ -105,6 +106,17 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {
+		var lockEvent <-chan client.Event
+		if exists, err := zzk.PathExists(l.conn, zkServiceLock); err != nil {
+			glog.Errorf("Could not monitor service lock: %s", err)
+			return
+		} else if !exists {
+			// pass
+		} else if _, lockEvent, err = l.conn.ChildrenW(zkServiceLock); err != nil {
+			glog.Errorf("Could not monitor service lock: %s", err)
+			return
+		}
+
 		var svc service.Service
 		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
 		if err != nil {
@@ -136,6 +148,8 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		}
 
 		select {
+		case <-lockEvent:
+			// passthrough
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
@@ -225,6 +239,14 @@ func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) {
 }
 
 func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
+	if locked, err := IsServiceLocked(l.conn); err != nil {
+		glog.Errorf("Could not check service lock: %s", err)
+		return
+	} else if locked {
+		glog.Warningf("Could not start %d instances; service %s (%s) is locked", len(instanceIDs), svc.Name, svc.ID)
+		return
+	}
+
 	for _, i := range instanceIDs {
 		host, err := l.handler.SelectHost(svc)
 		if err != nil {
@@ -265,6 +287,20 @@ func (l *ServiceListener) pause(rss []dao.RunningService) {
 		}
 		glog.V(2).Infof("Pausing service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
 	}
+}
+
+// IsServiceLocked verifies whether services are locked
+func IsServiceLocked(conn client.Connection) (bool, error) {
+	locks, err := conn.Children(zkServiceLock)
+	if err == client.ErrNoNode {
+		return false, nil
+	}
+	return len(locks) > 0, err
+}
+
+// ServiceLock returns the lock for services
+func ServiceLock(conn client.Connection) client.Lock {
+	return conn.NewLock(zkServiceLock)
 }
 
 // StartService schedules a service to start

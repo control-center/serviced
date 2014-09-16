@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -31,6 +32,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
 )
@@ -52,6 +54,60 @@ type ControlPlaneDao struct {
 	dockerRegistry string
 	backupLock     sync.RWMutex
 	restoreLock    sync.RWMutex
+	serviceLock    *serviceLock
+}
+
+type serviceLock struct {
+	mutex sync.RWMutex
+	f     *facade.Facade
+	locks map[client.Connection]client.Lock
+}
+
+func newServiceLock(f *facade.Facade) *serviceLock {
+	return &serviceLock{f: f, locks: make(map[client.Connection]client.Lock)}
+}
+
+func (l *serviceLock) Lock() error {
+	l.mutex.Lock()
+	pools, err := l.f.GetResourcePools(datastore.Get())
+	if err != nil {
+		l.mutex.Unlock()
+		return err
+	} else if pools == nil {
+		return nil
+	}
+
+	for _, p := range pools {
+		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(p.ID))
+		if err != nil {
+			glog.Errorf("Could not acquire connection: %s", err)
+			l.Unlock()
+			return err
+		}
+
+		lock := zkservice.ServiceLock(conn)
+		if err := lock.Lock(); err != nil {
+			glog.Errorf("Could not acquire lock: %s", err)
+			l.Unlock()
+			return err
+		}
+
+		l.locks[conn] = lock
+	}
+
+	return nil
+}
+
+func (l *serviceLock) Unlock() error {
+	defer l.mutex.Unlock()
+	for conn, lock := range l.locks {
+		if err := lock.Unlock(); err != nil {
+			glog.Errorf("Could not remove lock; cycling connection %v: %s", conn, err)
+			conn.Close()
+		}
+	}
+	l.locks = make(map[client.Connection]client.Lock)
+	return nil
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
@@ -125,6 +181,7 @@ func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfs
 		hostName:       hostName,
 		port:           port,
 		dockerRegistry: dockerRegistry,
+		serviceLock:    newServiceLock(facade),
 	}
 	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, maxdfstimeout); err != nil {
 		return nil, err

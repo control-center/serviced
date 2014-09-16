@@ -29,10 +29,15 @@ import (
 )
 
 func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
 	return this.dfs.DeleteSnapshot(snapshotId)
 }
 
 func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+
 	var tenantId string
 	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
@@ -48,11 +53,27 @@ func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) erro
 }
 
 func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+
+	if err := this.serviceLock.Lock(); err != nil {
+		return err
+	}
+	defer this.serviceLock.Unlock()
+
 	return this.dfs.Rollback(snapshotId)
 }
 
 // Takes a snapshot of the DFS via the host
 func (this *ControlPlaneDao) TakeSnapshot(serviceID string, label *string) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+
+	if err := this.serviceLock.Lock(); err != nil {
+		return err
+	}
+	defer this.serviceLock.Unlock()
+
 	var tenantID string
 	var err error
 	if err = this.GetTenantId(serviceID, &tenantID); err != nil {
@@ -77,14 +98,13 @@ func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
 		return err
 	}
 
-	if err := zkSnapshot.Send(conn, serviceID); err != nil {
-		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
-		return err
-	}
-
 	var snapshot zkSnapshot.Snapshot
-	if err := zkSnapshot.Recv(conn, serviceID, &snapshot); err != nil {
-		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
+
+	if nodeID, err := zkSnapshot.Send(conn, serviceID); err != nil {
+		glog.Errorf("Could not send snapshot for service %s: %s", serviceID, err)
+		return err
+	} else if err := zkSnapshot.Recv(conn, nodeID, &snapshot); err != nil {
+		glog.Errorf("Could not receieve snapshot for service %s (%s): %s", serviceID, nodeID, err)
 		return err
 	}
 
@@ -156,6 +176,14 @@ func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volum
 
 // Commits a container to an image and saves it on the DFS
 func (this *ControlPlaneDao) Commit(containerId string, label *string) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+
+	if err := this.serviceLock.Lock(); err != nil {
+		return err
+	}
+	defer this.serviceLock.Unlock()
+
 	if id, err := this.dfs.Commit(containerId); err != nil {
 		glog.V(2).Infof("ControlPlaneDao.GetVolume containerId=%s err=%s", containerId, err)
 		return err
