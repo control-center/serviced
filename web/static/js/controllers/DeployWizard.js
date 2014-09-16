@@ -353,7 +353,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             for (var key in templatesMap) {
                 var template = templatesMap[key];
                 template.Id = key;
-                templates[templates.length] = template;
+                templates.push(template);
             }
             $scope.templates.data = templates;
             resetStepPage();
