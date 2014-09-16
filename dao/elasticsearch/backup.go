@@ -632,11 +632,14 @@ func (cp *ControlPlaneDao) Backup(backupsDirectory string, backupFilePath *strin
 	}
 
 	glog.Infof("Snapshot all top level services (count:%d)", len(services))
-
+	if err := cp.dfs.LockServices(); err != nil {
+		e := fmt.Errorf("failed to lock all services: %s", err)
+		glog.Errorf("Backup failed: %s", e)
+		backupError <- e.Error()
+		return e
+	}
+	defer cp.dfs.UnlockServices()
 	for _, svc := range services {
-		// Make sure you back up the service with desired state as stopped
-		svc.DesiredState = service.SVCStop
-
 		if svc.ParentServiceID == "" {
 			if _, e := snapshotToTgzFile(svc); e != nil {
 				glog.Errorf("Could not save snapshot of service %s: %v", svc.ID, e)
@@ -732,6 +735,14 @@ func (cp *ControlPlaneDao) Restore(backupFilePath string, unused *int) (err erro
 		restoreError <- e.Error()
 		return e
 	}
+
+	if err := cp.dfs.LockServices(); err != nil {
+		e := fmt.Errorf("could not lock services: %s", err)
+		glog.Errorf("Could not restore from backup: %s", e)
+		restoreError <- e.Error()
+		return e
+	}
+	defer cp.dfs.UnlockServices()
 
 	restoreOutput <- "Starting restore"
 

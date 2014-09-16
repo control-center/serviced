@@ -38,7 +38,8 @@ var (
 		  }
 		},
 		"DesiredState":    {"type": "long", "index":"not_analyzed"},
-		"ImageID":           {"type": "string", "index":"not_analyzed"},
+		"Locked":          {"type": "boolean", "index":"not_analyzed"},
+		"ImageID":         {"type": "string", "index":"not_analyzed"},
 		"PoolID":          {"type": "string", "index":"not_analyzed"},
 		"Launch":          {"type": "string", "index":"not_analyzed"},
 		"HostPolicy":      {"type": "string", "index":"not_analyzed"},

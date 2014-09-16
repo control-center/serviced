@@ -300,6 +300,54 @@ func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, child
 	return child, nil
 }
 
+// lock the provided service
+func (f *Facade) LockService(ctx datastore.Context, serviceId string) error {
+	glog.V(4).Infof("Facade.LockService %s", serviceId)
+	// f will traverse all the services
+	err := f.validateService(ctx, serviceId)
+	glog.V(4).Infof("Facade.LockService validate service result %v", err)
+	if err != nil {
+		return err
+	}
+
+	visitor := func(svc *service.Service) error {
+		svc.Locked = true
+		err = f.updateService(ctx, svc)
+		glog.V(4).Infof("Facade.LockService update service %v, %v: %v", svc.Name, svc.ID, err)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// traverse all the services
+	return f.walkServices(ctx, serviceId, visitor)
+}
+
+// unlock the provided service
+func (f *Facade) UnlockService(ctx datastore.Context, serviceId string) error {
+	glog.V(4).Infof("Facade.UnlockService %s", serviceId)
+	// f will traverse all the services
+	err := f.validateService(ctx, serviceId)
+	glog.V(4).Infof("Facade.UnlockService validate service result %v", err)
+	if err != nil {
+		return err
+	}
+
+	visitor := func(svc *service.Service) error {
+		svc.Locked = false
+		err = f.updateService(ctx, svc)
+		glog.V(4).Infof("Facade.UnlockService update service %v, %v: %v", svc.Name, svc.ID, err)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	// traverse all the services
+	return f.walkServices(ctx, serviceId, visitor)
+}
+
 // start the provided service
 func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 	glog.V(4).Infof("Facade.StartService %s", serviceId)

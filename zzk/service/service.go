@@ -225,6 +225,11 @@ func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) {
 }
 
 func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
+	if svc.Locked {
+		glog.Warningf("Could not start %d instances; service %s (%s) is locked", len(instanceIDs), svc.Name, svc.ID)
+		return
+	}
+
 	for _, i := range instanceIDs {
 		host, err := l.handler.SelectHost(svc)
 		if err != nil {
