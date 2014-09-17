@@ -31,6 +31,7 @@ const (
 	sdr              = "SERVICED_REGISTRY"
 	maxStartAttempts = 24
 	Wildcard         = "*"
+	maxBuffer        = 8
 )
 
 const (
@@ -327,6 +328,10 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	so := make(chan startreq)
 	go startq(si, so)
 
+	rsi := make(chan restartreq)
+	rso := make(chan restartreq)
+	go restartq(rsi, rso)
+
 	ci := make(chan createreq)
 	co := make(chan createreq)
 	go createq(ci, co)
@@ -335,7 +340,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	ppo := make(chan pushpullreq)
 	go pushpullq(ppi, ppo)
 
-	go scheduler(dc, so, co, ppo, done)
+	go scheduler(dc, so, rso, co, ppo, done)
 
 KernelLoop:
 	for {
@@ -556,15 +561,7 @@ KernelLoop:
 		case req := <-cmds.PushImage:
 			ppi <- req
 		case req := <-cmds.Restart:
-			// FIXME: this should really be done by the scheduler since the timeout could be long.
-			glog.V(1).Info("restarting container: ", req.args.id)
-			err := dc.RestartContainer(req.args.id, req.args.timeout)
-			if err != nil {
-				glog.V(1).Infof("unable to restart container %s: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
+			rsi <- req
 		case req := <-cmds.Start:
 			// check to see if the container is already running
 			ctr, err := dc.InspectContainer(req.args.id)
@@ -644,7 +641,7 @@ KernelLoop:
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
+func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restartreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -839,6 +836,23 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					break
 				}
 			}(req, dc)
+		case req := <-rsrc:
+			glog.V(0).Infof("new client")
+			dc, err := dockerclient.NewClient(dockerep)
+			if err != nil {
+				panic(fmt.Errorf("can't get docker client: %v", err))
+			}
+			go func(req restartreq, dc *dockerclient.Client) {
+				glog.V(0).Infof("restarting container %s", req.args.id)
+				err := dc.RestartContainer(req.args.id, req.args.timeout)
+				if err != nil {
+					glog.V(0).Infof("unable to restart %s: %v", req.args.id, err)
+					req.errchan <- err
+					return
+				}
+				glog.Infof("restarted container!")
+				close(req.errchan)
+			}(req, dc)
 		case req := <-pprc:
 			switch req.args.op {
 			case pullop:
@@ -931,7 +945,7 @@ restart:
 			pending = append(pending, v)
 
 			// don't let a burst of requests starve the outgoing channel
-			if len(pending) > 8 {
+			if len(pending) > maxBuffer {
 				for _, v := range pending {
 					next <- v
 				}
@@ -977,7 +991,7 @@ restart:
 			pending = append(pending, v)
 
 			// don't let a burst of requests starve the outgoing channel
-			if len(pending) > 8 {
+			if len(pending) > maxBuffer {
 				for _, v := range pending {
 					next <- v
 				}
@@ -985,6 +999,52 @@ restart:
 			}
 		case next <- pending[0]:
 			glog.V(2).Infof("delivered create request: %+v", pending[0])
+			pending = pending[1:]
+		}
+	}
+
+	for _, v := range pending {
+		next <- v
+	}
+}
+
+// restartq implements an inifinite buffered channel of create requests. Requests are added via the
+// in channel and received on the next channel.
+func restartq(in <-chan restartreq, next chan<- restartreq) {
+	defer close(next)
+
+	pending := []restartreq{}
+
+restart:
+	for {
+		if len(pending) == 0 {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			glog.V(0).Infof("received first create request: %+v", v)
+			pending = append(pending, v)
+		}
+
+		select {
+		case v, ok := <-in:
+			if !ok {
+				break restart
+			}
+
+			glog.V(0).Infof("received create request: %+v", v)
+			pending = append(pending, v)
+
+			// don't let a burst of requests starve the outgoing channel
+			if len(pending) > maxBuffer {
+				for _, v := range pending {
+					next <- v
+				}
+				pending = []restartreq{}
+			}
+		case next <- pending[0]:
+			glog.V(0).Infof("delivered create request: %+v", pending[0])
 			pending = pending[1:]
 		}
 	}
@@ -1021,7 +1081,7 @@ restart:
 			pending = append(pending, v)
 
 			// don't let a burst of requests starve the outgoing channel
-			if len(pending) > 8 {
+			if len(pending) > maxBuffer {
 				for _, v := range pending {
 					next <- v
 				}

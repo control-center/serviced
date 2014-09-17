@@ -308,7 +308,7 @@ func (c *Container) Restart(timeout time.Duration) error {
 
 	select {
 	case <-time.After(timeout):
-		return nil
+		return ErrRequestTimeout
 	case <-done:
 		return ErrKernelShutdown
 	case err, ok := <-ec:
