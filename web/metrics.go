@@ -268,7 +268,6 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 		ID:     "cpu.usage",
 		Name:   "CPU Usage",
 		Footer: false,
-		Format: "%d",
 		MinY:   &zero,
 		Range: &domain.GraphConfigRange{
 			End:   "0s-ago",
