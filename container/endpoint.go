@@ -591,6 +591,7 @@ func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint) (
 	}
 	prxy, err := newProxy(
 		fmt.Sprintf("%v", endpoint),
+		tenantEndpointID,
 		cMuxPort,
 		cMuxTLS,
 		listener)

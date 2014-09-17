@@ -126,8 +126,15 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 	// restore deadline
 	conn.SetReadDeadline(time.Time{})
 	line = strings.TrimSpace(line)
+	parts := strings.Split(line, ":")
+	if len(parts) < 2 {
+		glog.Errorf("malformed mux line: %s", line)
+		conn.Close()
+		return
+	}
+	address := fmt.Sprintf("%s:%s", parts[len(parts)-2], parts[len(parts)-1])
 
-	svc, err := net.Dial("tcp4", line)
+	svc, err := net.Dial("tcp4", address)
 	if err != nil {
 		glog.Errorf("got %s => %s, could not dial to '%s' : %s", conn.LocalAddr(), conn.RemoteAddr(), line, err)
 		conn.Close()

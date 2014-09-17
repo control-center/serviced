@@ -63,26 +63,28 @@ The netcat (nc) command is particularly useful for this:
 */
 
 type proxy struct {
-	name         string          // Name of the remote service
-	addresses    []string        // Public IP:Port of the remote service
-	tcpMuxPort   uint16          // the port to use for TCP Muxing, 0 is disabled
-	useTLS       bool            // use encryption over mux port
-	closing      chan chan error // internal shutdown signal
-	newAddresses chan []string   // a stream of updates to the addresses
-	listener     net.Listener    // handle on the listening socket
+	name             string          // Name of the remote service
+	tenantEndpointID string          // Tenant endpoint ID
+	addresses        []string        // Public IP:Port of the remote service
+	tcpMuxPort       uint16          // the port to use for TCP Muxing, 0 is disabled
+	useTLS           bool            // use encryption over mux port
+	closing          chan chan error // internal shutdown signal
+	newAddresses     chan []string   // a stream of updates to the addresses
+	listener         net.Listener    // handle on the listening socket
 }
 
 // Newproxy create a new proxy object. It starts listening on the prxy port asynchronously.
-func newProxy(name string, tcpMuxPort uint16, useTLS bool, listener net.Listener) (p *proxy, err error) {
+func newProxy(name, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, listener net.Listener) (p *proxy, err error) {
 	if len(name) == 0 {
 		return nil, fmt.Errorf("prxy: name can not be empty")
 	}
 	p = &proxy{
-		name:       name,
-		addresses:  make([]string, 0),
-		tcpMuxPort: tcpMuxPort,
-		useTLS:     useTLS,
-		listener:   listener,
+		name:             name,
+		tenantEndpointID: tenantEndpointID,
+		addresses:        make([]string, 0),
+		tcpMuxPort:       tcpMuxPort,
+		useTLS:           useTLS,
+		listener:         listener,
 	}
 	p.newAddresses = make(chan []string, 2)
 	go p.listenAndproxy()
@@ -190,7 +192,7 @@ func (p *proxy) prxy(local net.Conn, address string) {
 	}
 
 	if p.tcpMuxPort > 0 {
-		io.WriteString(remote, fmt.Sprintf("%s\n", address))
+		io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address))
 	}
 
 	glog.V(2).Infof("Using   hostAgent:%v to prxy %v<->%v<->%v<->%v",
