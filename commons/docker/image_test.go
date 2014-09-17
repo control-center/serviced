@@ -40,6 +40,9 @@ const (
 )
 
 func TestImageAPI(t *testing.T) {
+	StartKernel()
+	defer close(done)
+
 	TestingT(t)
 }
 

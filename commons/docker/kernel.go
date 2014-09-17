@@ -279,12 +279,14 @@ var (
 		dockerclient.Stop,
 		dockerclient.Untag,
 	}
-	done = make(chan struct{})
+	done chan struct{}
 )
 
 // init starts up the kernel loop that is responsible for handling all the API calls
 // in a goroutine.
 func init() {
+	glog.Infof("Starting docker kernel")
+
 	trues := []string{"1", "true", "t", "yes"}
 	if v := strings.ToLower(os.Getenv(sdr)); v != "" {
 		for _, t := range trues {
@@ -293,12 +295,15 @@ func init() {
 			}
 		}
 	}
+}
 
+func StartKernel() {
 	client, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		panic(fmt.Sprintf("can't create Docker client: %v", err))
 	}
 
+	done = make(chan struct{})
 	go kernel(client, done)
 }
 
@@ -313,7 +318,7 @@ func UseRegistry() bool {
 }
 
 // kernel is responsible for executing all the Docker client commands.
-func kernel(dc *dockerclient.Client, done chan struct{}) error {
+func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	routeEventsToKernel(dc)
 
 	eventactions := mkEventActionTable()
@@ -488,7 +493,7 @@ KernelLoop:
 
 			close(req.errchan)
 			req.respchan <- resp
-		case req := <- cmds.ImageInspect:
+		case req := <-cmds.ImageInspect:
 			glog.V(1).Info("inspecting image: ", req.args.id)
 			img, err := dc.InspectImage(req.args.id)
 			if err != nil {
@@ -498,7 +503,7 @@ KernelLoop:
 			}
 			close(req.errchan)
 			req.respchan <- img
-		case req := <-cmds.ContainerInspect :
+		case req := <-cmds.ContainerInspect:
 			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -639,7 +644,7 @@ KernelLoop:
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done chan struct{}) {
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -1060,7 +1065,7 @@ func routeEventsToKernel(dc *dockerclient.Client) {
 
 func eventToKernel(e dockerclient.Event) error {
 	glog.V(2).Infof("sending %+v to kernel", e)
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.OnEvent <- oneventreq{
 		request{ec},

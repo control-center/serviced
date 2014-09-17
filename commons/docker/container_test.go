@@ -23,6 +23,10 @@ import (
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
+func init() {
+	StartKernel()
+}
+
 func TestContainerCommit(t *testing.T) {
 	t.Skip()
 	cd := &ContainerDefinition{
@@ -701,4 +705,9 @@ func TestContainerExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't remove %s: %v", cf.Name(), err)
 	}
+}
+
+/** RUN THIS TEST LAST **/
+func TestShutdown(t *testing.T) {
+	close(done)
 }
