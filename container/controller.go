@@ -541,12 +541,6 @@ func (c *Controller) Run() (err error) {
 				exited = true
 			}
 
-			select {
-			case <-serviceExited:
-				return
-			default:
-			}
-
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
 
@@ -564,6 +558,7 @@ func (c *Controller) Run() (err error) {
 
 			} else {
 				glog.Infof("Restarting service process in 10 seconds.")
+				service = nil
 				startAfter = time.After(time.Second * 10)
 			}
 
