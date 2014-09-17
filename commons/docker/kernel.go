@@ -180,6 +180,7 @@ type restartreq struct {
 		id      string
 		timeout uint
 	}
+	respchan chan *dockerclient.Container
 }
 
 type startreq struct {
@@ -650,6 +651,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 	for {
 		select {
 		case req := <-crc:
+			glog.Infof("Got create request")
 			dc, err := dockerclient.NewClient(dockerep)
 			if err != nil {
 				panic(fmt.Errorf("can't get docker client: %v", err))
@@ -660,6 +662,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 				if err != nil {
 					panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
 				}
+				glog.V(0).Infof("monitoring events")
 
 				iid, err := commons.ParseImageID(req.args.containerOptions.Config.Image)
 				if err != nil {
@@ -734,6 +737,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 						sc <- struct{}{}
 						return nil
 					})
+					defer ss.Cancel()
 
 					glog.V(2).Infof("post creation start of %s: %+v", ctr.ID, req.args.hostConfig)
 					err = dc.StartContainer(ctr.ID, req.args.hostConfig)
@@ -843,6 +847,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 			if err != nil {
 				panic(fmt.Errorf("can't get docker client: %v", err))
 			}
+
 			go func(req restartreq, dc *dockerclient.Client) {
 				glog.V(0).Infof("restarting container %s", req.args.id)
 				err := dc.RestartContainer(req.args.id, req.args.timeout)
@@ -851,8 +856,24 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 					req.errchan <- err
 					return
 				}
-				glog.Infof("restarted container!")
+
+				glog.V(2).Infof("update container %s state post start", req.args.id)
+				ctr, err := dc.InspectContainer(req.args.id)
+				if err != nil {
+					glog.V(2).Infof("failed to update container %s state post start: %v", req.args.id, err)
+					req.errchan <- err
+					return
+				}
+
 				close(req.errchan)
+
+				// don't hang around forever waiting for the caller to get the result
+				select {
+				case req.respchan <- ctr:
+					break
+				case <-time.After(100 * time.Millisecond):
+					break
+				}
 			}(req, dc)
 		case req := <-pprc:
 			switch req.args.op {

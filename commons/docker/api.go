@@ -297,13 +297,15 @@ func (c *Container) OnEvent(event string, action ContainerActionFunc) error {
 // Restart stops and then restarts a container.
 func (c *Container) Restart(timeout time.Duration) error {
 	ec := make(chan error, 1)
+	rc := make(chan *dockerclient.Container)
 
 	cmds.Restart <- restartreq{
 		request{ec},
 		struct {
 			id      string
 			timeout uint
-		}{c.ID, uint(timeout)},
+		}{c.ID, uint(timeout.Seconds())},
+		rc,
 	}
 
 	select {
@@ -314,6 +316,8 @@ func (c *Container) Restart(timeout time.Duration) error {
 	case err, ok := <-ec:
 		switch {
 		case !ok:
+			dcc := <-rc
+			c.Container = dcc
 			return nil
 		default:
 			return fmt.Errorf("docker: request failed: %v", err)
@@ -369,7 +373,7 @@ func (c *Container) Stop(timeout time.Duration) error {
 		struct {
 			id      string
 			timeout uint
-		}{c.ID, 10},
+		}{c.ID, uint(timeout.Seconds())},
 	}
 
 	select {

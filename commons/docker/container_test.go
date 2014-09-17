@@ -20,6 +20,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
@@ -240,15 +241,18 @@ func TestRestartContainer(t *testing.T) {
 		t.Fatal("can't start container: ", err)
 	}
 
-	restartch := make(chan struct{})
-	diech := make(chan struct{})
+	restartch := make(chan struct{}, 1)
+	diech := make(chan struct{}, 1)
 
 	ctr.OnEvent(Die, func(id string) {
+		glog.Warningf("GOT A DIE!")
 		diech <- struct{}{}
 	})
 
 	ctr.OnEvent(Restart, func(id string) {
+		glog.Warningf("GOT A RESTART!")
 		restartch <- struct{}{}
+		glog.Warningf("DONE WITH THIS")
 	})
 
 	ctr.Restart(10 * time.Second)
@@ -261,12 +265,13 @@ func TestRestartContainer(t *testing.T) {
 
 	select {
 	case <-restartch:
-		//case <-time.After(10 * time.Second):
-		//t.Fatal("Timed out waiting for Start event")
+	case <-time.After(10 * time.Second):
+		t.Fatal("Timed out waiting for Restart event")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
+
 }
 
 func TestListContainers(t *testing.T) {
