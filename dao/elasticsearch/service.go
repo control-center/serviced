@@ -45,14 +45,13 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	return nil
 }
 
-//
+// GetService gets a service.
 func (this *ControlPlaneDao) GetService(id string, myService *service.Service) error {
-	if svc, err := this.facade.GetService(datastore.Get(), id); err == nil {
+	svc, err := this.facade.GetService(datastore.Get(), id)
+	if svc != nil {
 		*myService = *svc
-		return nil
-	} else {
-		return err
 	}
+	return err
 }
 
 // Get the services (can filter by name and/or tenantID)
