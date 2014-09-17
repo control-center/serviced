@@ -683,7 +683,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 					}
 				}
 
-				glog.V(2).Infof("creating container: %#v", *req.args.containerOptions)
+				glog.V(0).Infof("creating container: %#v", *req.args.containerOptions)
 				ctr, err := dc.CreateContainer(*req.args.containerOptions)
 				switch {
 				case err == dockerclient.ErrNoSuchImage:
