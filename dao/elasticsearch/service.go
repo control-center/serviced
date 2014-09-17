@@ -67,7 +67,7 @@ func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[
 //
 func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
 	svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName)
-	if err == nil {
+	if err != nil {
 		return err
 	}
 
