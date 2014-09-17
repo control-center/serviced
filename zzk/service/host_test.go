@@ -198,6 +198,58 @@ func TestHostStateListener_Listen(t *testing.T) {
 	}
 }
 
+func TestHostStateListener_Listen_BadState(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := NewTestHostStateHandler()
+	listener := NewHostStateListener(handler, "test-host-1")
+	AddHost(conn, &host.Host{ID: listener.hostID})
+	shutdown := make(chan interface{})
+	var wg sync.WaitGroup
+
+	// Create the service
+	svc := &service.Service{
+		ID: "test-service-1",
+	}
+	if err := UpdateService(conn, svc); err != nil {
+		t.Fatalf("Could not add service %s: %s", svc.ID, err)
+	}
+
+	// Create a host state without a service instance (this should not spin!)
+	badstate := &HostState{
+		HostID:         listener.hostID,
+		ServiceID:      svc.ID,
+		ServiceStateID: "fail123",
+		DesiredState:   service.SVCRun,
+	}
+	if err := conn.Create(hostpath(badstate.HostID, badstate.ServiceStateID), badstate); err != nil {
+		t.Fatalf("Could not add host state %s: %s", badstate.ServiceStateID, err)
+	}
+
+	// Set up a watch
+	event, err := conn.GetW(hostpath(badstate.HostID, badstate.ServiceStateID), &HostState{})
+	if err != nil {
+		t.Fatalf("Could not watch host state %s: %s", badstate.ServiceStateID, err)
+	}
+
+	// Start the listener
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+	}()
+
+	// Wait for the event
+	if e := <-event; e.Type != client.EventNodeDeleted {
+		t.Errorf("Expected %v; Got %v", client.EventNodeDeleted, e.Type)
+	}
+
+	// Shut down the listener
+	<-time.After(3 * time.Second)
+	close(shutdown)
+	wg.Wait()
+}
+
 func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()

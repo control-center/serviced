@@ -141,14 +141,17 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		state       *servicestate.ServiceState
 	)
 
+	hpath := l.GetPath(stateID)
+
 	defer func() {
 		if state != nil {
 			glog.V(0).Infof("Stopping service instance: %s", state.ID)
 			l.stopInstance(processDone, state)
+		} else if err := l.conn.Delete(hpath); err != nil {
+			glog.Errorf("Could not delete state %s for host %s: %s", stateID, l.hostID, err)
 		}
 	}()
 
-	hpath := l.GetPath(stateID)
 	for {
 		var hs HostState
 		event, err := l.conn.GetW(hpath, &hs)
