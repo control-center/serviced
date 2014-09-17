@@ -711,7 +711,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 					return
 				}
 
-				glog.V(2).Infof("created container: %+v", *ctr)
+				glog.V(0).Infof("created container: %+v", *ctr)
 
 				if req.args.createaction != nil {
 					req.args.createaction(ctr.ID)
@@ -786,7 +786,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 					}
 				}
 
-				glog.V(2).Infof("success. closing errchan")
+				glog.V(0).Infof("success. closing errchan")
 				close(req.errchan)
 
 				// don't hang around forever waiting for the caller to get the result
@@ -798,6 +798,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, rsrc <-chan restart
 					glog.V(2).Infof("timed out waiting for call to get result")
 					break
 				}
+				glog.Infof("Done!")
 			}(req, dc)
 		case req := <-src:
 			dc, err := dockerclient.NewClient(dockerep)

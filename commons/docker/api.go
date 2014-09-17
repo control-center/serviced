@@ -69,7 +69,7 @@ var (
 // false the container won't be started and the start action will not be executed.
 func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
 	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
+	rc := make(chan *dockerclient.Container, 1)
 
 	cmds.Create <- createreq{
 		request{ec},
