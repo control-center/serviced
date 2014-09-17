@@ -137,3 +137,12 @@ func elasticsearchHealthCheck(port int) func() error {
 		return nil
 	}
 }
+
+func PurgeLogstashIndices(days int) error {
+	container := elasticsearch_logstash
+	port := container.Ports[0]
+	glog.Infof("Purging logstash entries older than %d days", days)
+	return container.RunCommand([]string{
+		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
+		"delete", "--older-than", fmt.Sprintf("%d", days)})
+}

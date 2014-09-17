@@ -167,6 +167,7 @@ func New(driver api.API) *ServicedCli {
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
 		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "127.0.0.1:5042"), "logstash url and port"},
 		cli.StringFlag{"logstash-es", configEnv("LOGSTASH_ES", "127.0.0.1:9100"), "host and port for logstash elastic search"},
+		cli.IntFlag{"logstash-max-days", configInt("LOGSTASH_MAX_DAYS", 14), "days to keep Logstash data"},
 		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
@@ -226,6 +227,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		MasterPoolID:         ctx.GlobalString("master-pool-id"),
 		OutboundIP:           ctx.GlobalString("outbound"),
 		LogstashES:           ctx.GlobalString("logstash-es"),
+		LogstashMaxDays:      ctx.GlobalInt("logstash-max-days"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true

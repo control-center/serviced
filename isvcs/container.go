@@ -408,3 +408,23 @@ func (c *Container) Stop() error {
 	c.ops <- req
 	return <-req.response
 }
+
+// RunCommand runs a command inside the container.
+func (c *Container) RunCommand(command []string) error {
+	var id string
+	ids, err := c.getMatchingContainersIds()
+	if err != nil {
+		glog.Warningf("Error collecting isvc container IDs.")
+	}
+	if len(*ids) == 0 {
+		// Container hasn't started yet
+		return fmt.Errorf("No docker container found for %s", c.Name)
+	}
+	id = (*ids)[0]
+	output, err := utils.AttachAndRun(id, command)
+	if err != nil {
+		return err
+	}
+	os.Stdout.Write(output)
+	return nil
+}
