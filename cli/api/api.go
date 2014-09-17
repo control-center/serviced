@@ -64,6 +64,7 @@ type Options struct {
 	VirtualAddressSubnet string
 	MasterPoolID         string
 	LogstashES           string //logstatsh elasticsearch host:port
+	LogstashMaxDays      int    // Days to keep logstash indices
 }
 
 // LoadOptions overwrites the existing server options

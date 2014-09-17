@@ -71,6 +71,9 @@
 # Set the address for the logstash elastic search
 # export SERVICED_LOGSTASH_ES=$SERVICED_MASTER_IP:9100
 
+# Set the age (in days) of logstash data to keep
+# export SERVICED_LOGSTASH_MAX_DAYS=14
+
 # Set the default serviced stats endpoint to use
 # export SERVICED_STATS_PORT=$SERVICED_MASTER_IP:8443
 

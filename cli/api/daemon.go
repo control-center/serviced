@@ -578,6 +578,26 @@ func (d *daemon) initISVCS() error {
 		return err
 	}
 
+	// Start the logstash purger
+	go func() {
+		// Run the first time after 10 minutes
+		select {
+		case <-d.shutdown:
+			return
+		case <-time.After(10 * time.Minute):
+			isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+		}
+		// Now run every 6 hours
+		for {
+			select {
+			case <-d.shutdown:
+				return
+			case <-time.After(6 * time.Hour):
+				isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+			}
+		}
+	}()
+
 	d.waitGroup.Add(1)
 	go func() {
 		defer d.waitGroup.Done()
