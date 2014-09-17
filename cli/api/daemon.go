@@ -14,6 +14,7 @@
 package api
 
 import (
+	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -127,6 +128,8 @@ func (d *daemon) run() error {
 	if err != nil {
 		glog.Fatalf("could not get hostid: %s", err)
 	}
+
+	docker.StartKernel()
 
 	l, err := net.Listen("tcp", options.Listen)
 	if err != nil {

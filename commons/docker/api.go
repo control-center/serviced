@@ -68,8 +68,8 @@ var (
 // it will be executed after the container has been started. Note, if the start parameter is
 // false the container won't be started and the start action will not be executed.
 func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
-	ec := make(chan error)
-	rc := make(chan *dockerclient.Container)
+	ec := make(chan error, 1)
+	rc := make(chan *dockerclient.Container, 1)
 
 	cmds.Create <- createreq{
 		request{ec},
@@ -119,7 +119,7 @@ func FindContainer(id string) (*Container, error) {
 
 // Containers retrieves a list of all the Docker containers.
 func Containers() ([]*Container, error) {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan []*Container)
 
 	cmds.List <- listreq{
@@ -152,7 +152,7 @@ func (c *Container) Commit(iidstr string) (*Image, error) {
 		return nil, err
 	}
 
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan *Image)
 
 	cmds.Commit <- commitreq{
@@ -179,7 +179,7 @@ func (c *Container) Commit(iidstr string) (*Image, error) {
 
 // Delete removes the container.
 func (c *Container) Delete(volumes bool) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.Delete <- deletereq{
 		request{ec},
@@ -203,7 +203,7 @@ func (c *Container) Delete(volumes bool) error {
 
 // Export writes the contents of the container's filesystem as a tar archive to outfile.
 func (c *Container) Export(outfile *os.File) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.Export <- exportreq{
 		request{ec},
@@ -229,7 +229,7 @@ func (c *Container) Export(outfile *os.File) error {
 // Kill sends a SIGKILL signal to the container. If the container is not started
 // no action is taken.
 func (c *Container) Kill() error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.Kill <- killreq{
 		request{ec},
@@ -253,7 +253,7 @@ func (c *Container) Kill() error {
 
 // Inspect returns information about the container specified by id.
 func (c *Container) Inspect() (*dockerclient.Container, error) {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan *dockerclient.Container)
 
 	cmds.ContainerInspect <- continspectreq{
@@ -296,24 +296,28 @@ func (c *Container) OnEvent(event string, action ContainerActionFunc) error {
 
 // Restart stops and then restarts a container.
 func (c *Container) Restart(timeout time.Duration) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
+	rc := make(chan *dockerclient.Container)
 
 	cmds.Restart <- restartreq{
 		request{ec},
 		struct {
 			id      string
 			timeout uint
-		}{c.ID, uint(timeout)},
+		}{c.ID, uint(timeout.Seconds())},
+		rc,
 	}
 
 	select {
 	case <-time.After(timeout):
-		return nil
+		return ErrRequestTimeout
 	case <-done:
 		return ErrKernelShutdown
 	case err, ok := <-ec:
 		switch {
 		case !ok:
+			dcc := <-rc
+			c.Container = dcc
 			return nil
 		default:
 			return fmt.Errorf("docker: request failed: %v", err)
@@ -329,7 +333,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 		return nil
 	}
 
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan *dockerclient.Container)
 
 	cmds.Start <- startreq{
@@ -362,14 +366,14 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 // Stop stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
 func (c *Container) Stop(timeout time.Duration) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.Stop <- stopreq{
 		request{ec},
 		struct {
 			id      string
 			timeout uint
-		}{c.ID, 10},
+		}{c.ID, uint(timeout.Seconds())},
 	}
 
 	select {
@@ -389,7 +393,7 @@ func (c *Container) Stop(timeout time.Duration) error {
 
 // Wait blocks until the container stops or the timeout expires and then returns its exit code.
 func (c *Container) Wait(timeout time.Duration) (int, error) {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan int)
 
 	cmds.Wait <- waitreq{
@@ -436,7 +440,7 @@ type Image struct {
 
 // Images returns a list of all the named images in the local repository
 func Images() ([]*Image, error) {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan []*Image)
 
 	cmds.ImageList <- imglistreq{
@@ -459,7 +463,7 @@ func Images() ([]*Image, error) {
 
 // ImportImage creates a new image in the local repository from a file system archive.
 func ImportImage(repotag, filename string) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.ImageImport <- impimgreq{
 		request{ec},
@@ -498,7 +502,7 @@ func FindImage(repotag string, pull bool) (*Image, error) {
 
 // Delete remove the image from the local repository
 func (img *Image) Delete() error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.DeleteImage <- delimgreq{
 		request{ec},
@@ -522,7 +526,7 @@ func (img *Image) Delete() error {
 
 // Tag tags an image in the local repository
 func (img *Image) Tag(tag string) (*Image, error) {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan *Image)
 
 	iid, err := commons.ParseImageID(tag)
@@ -556,7 +560,7 @@ func (img *Image) Tag(tag string) (*Image, error) {
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 	rc := make(chan *dockerclient.Image)
 
 	cmds.ImageInspect <- imginspectreq{
@@ -603,7 +607,7 @@ func (img *Image) History() ([]*dockerclient.Image, error) {
 }
 
 func onContainerEvent(event, id string, action ContainerActionFunc) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.AddAction <- addactionreq{
 		request{ec},
@@ -628,7 +632,7 @@ func onContainerEvent(event, id string, action ContainerActionFunc) error {
 }
 
 func cancelOnContainerEvent(event, id string) error {
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.CancelAction <- cancelactionreq{
 		request{ec},
@@ -682,7 +686,7 @@ func pullImage(repotag string) error {
 		return err
 	}
 
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.PullImage <- pushpullreq{
 		request{ec},
@@ -729,7 +733,7 @@ func pushImage(repotag string) error {
 		return err
 	}
 
-	ec := make(chan error)
+	ec := make(chan error, 1)
 
 	cmds.PushImage <- pushpullreq{
 		request{ec},

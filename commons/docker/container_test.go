@@ -20,10 +20,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
+func init() {
+	StartKernel()
+}
+
 func TestContainerCommit(t *testing.T) {
+	t.Skip()
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -219,8 +225,6 @@ func TestCancelOnEvent(t *testing.T) {
 	ctr.Delete(true)
 }
 
-/*
-TODO FIXME: TestRestartContainer is causing all unit tests following it to fail
 func TestRestartContainer(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
@@ -237,15 +241,18 @@ func TestRestartContainer(t *testing.T) {
 		t.Fatal("can't start container: ", err)
 	}
 
-	restartch := make(chan struct{})
-	diech := make(chan struct{})
+	restartch := make(chan struct{}, 1)
+	diech := make(chan struct{}, 1)
 
 	ctr.OnEvent(Die, func(id string) {
+		glog.Warningf("GOT A DIE!")
 		diech <- struct{}{}
 	})
 
 	ctr.OnEvent(Restart, func(id string) {
+		glog.Warningf("GOT A RESTART!")
 		restartch <- struct{}{}
+		glog.Warningf("DONE WITH THIS")
 	})
 
 	ctr.Restart(10 * time.Second)
@@ -259,13 +266,13 @@ func TestRestartContainer(t *testing.T) {
 	select {
 	case <-restartch:
 	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for Start event")
+		t.Fatal("Timed out waiting for Restart event")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
+
 }
-*/
 
 func TestListContainers(t *testing.T) {
 	cd := &ContainerDefinition{
@@ -415,7 +422,7 @@ func TestInspectContainer(t *testing.T) {
 }
 
 func TestRepeatedStart(t *testing.T) {
-	t.Skip("skip this until the build box issues get sorted out")
+	t.Skip()
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -578,7 +585,6 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 }
 
 func TestNewContainerOnStartedAction(t *testing.T) {
-	t.Skip("skip this until the build box issues get sorted out")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
@@ -704,4 +710,9 @@ func TestContainerExport(t *testing.T) {
 	if err != nil {
 		t.Fatalf("can't remove %s: %v", cf.Name(), err)
 	}
+}
+
+/** RUN THIS TEST LAST **/
+func TestShutdown(t *testing.T) {
+	close(done)
 }
