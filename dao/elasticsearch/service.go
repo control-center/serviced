@@ -17,6 +17,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
 )
 
 // AddService add a service. Return error if service already exists
@@ -66,12 +67,17 @@ func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[
 
 //
 func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
-	if svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName); err == nil {
-		*service = *svc
-		return nil
-	} else {
+	svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName)
+	if err == nil {
 		return err
 	}
+
+	if svc != nil {
+		*service = *svc
+	} else {
+		glog.Warningf("unable to find child of service: %+v", service)
+	}
+	return nil
 }
 
 // Get tagged services (can also filter by name and/or tenantID)
