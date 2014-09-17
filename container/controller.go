@@ -505,6 +505,18 @@ func (c *Controller) Run() (err error) {
 		return service, serviceExited
 	}
 
+	sendSignal := func(service *subprocess.Instance, sig os.Signal) bool {
+		switch {
+		case c.PIDFile != "":
+			c.forwardSignal(sig)
+		case service != nil:
+			service.Notify(sig)
+		default:
+			return false
+		}
+		return true
+	}
+
 	rpcDead, err := c.rpcHealthCheck()
 	if err != nil {
 		glog.Error("Could not setup RPC ping check: %s", err)
@@ -513,6 +525,7 @@ func (c *Controller) Run() (err error) {
 
 	prereqsPassed := make(chan bool)
 	var startAfter <-chan time.Time
+	var exitAfter <-chan time.Time
 	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
@@ -530,16 +543,18 @@ func (c *Controller) Run() (err error) {
 			c.options.Service.Autorestart = false
 
 			glog.Infof("notifying subprocess of signal %v", sig)
-			fmt.Fprintf(os.Stderr, "notifying subprocess of signal %v\n", sig)
-			switch {
-			case c.PIDFile != "":
-				c.forwardSignal(sig)
-			case service != nil:
-				service.Notify(sig)
-			default:
+			if sendSignal(service, sig){
+				exitAfter = time.After(time.Second * 30)
+		    } else {
 				c.exitStatus = 1
 				exited = true
 			}
+
+		case <-exitAfter:
+			glog.Infof("killing subprocess")
+			sendSignal(service, syscall.SIGKILL)
+			c.exitStatus = 1
+			exited = true
 
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
@@ -572,11 +587,7 @@ func (c *Controller) Run() (err error) {
 			startAfter = nil
 
 		case <-rpcDead:
-			if c.PIDFile != "" {
-				c.forwardSignal(syscall.SIGTERM)
-			} else if service != nil {
-				service.Notify(syscall.SIGTERM)
-			}
+			sendSignal(service, syscall.SIGTERM)
 			glog.Fatalf("RPC Server has gone away, exiting: %s", err)
 		}
 	}
