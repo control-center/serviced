@@ -195,11 +195,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    // Get a list of deployed apps
-    refreshServices($scope, resourcesService, false, function(){
-        $serviceHealth.update();
-    });
-
     var setupNewService = function() {
         $scope.newService = {
             poolID: 'default',
@@ -272,7 +267,18 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     }
 
+    // Get a list of templates
     refreshTemplates();
+
+    // Get a list of deployed apps
+    refreshServices($scope, resourcesService, false, function(){
+        $serviceHealth.update();
+
+        // if only isvcs are deployed, show the deploy apps modal
+        if($scope.services.data.length === 1){
+            $scope.modalAddApp();
+        }
+    });
 
     //register polls
     resourcesService.registerPoll("deployingApps", pollDeploying, 3000);
