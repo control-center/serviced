@@ -35,6 +35,18 @@
     font-style: normal;
 }
 
+/* disable breakpoints */
+@media (min-width: 768px) {
+  .container {
+    width: 1170px;
+  }
+}
+@media (min-width: 992px) {
+  .container {
+    width: 1170px;
+  }
+}
+
 body {
     padding: 20px;
     color: #666;
@@ -106,6 +118,7 @@ table > thead.light {
 }
 
 .table {
+    min-width: 1140px;
     margin-bottom: 30px;
     /* tables usually have headings and/or actions
         which are floated and must be cleared */
