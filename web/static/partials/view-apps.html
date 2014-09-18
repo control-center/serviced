@@ -21,7 +21,7 @@
       <thead>
         <tr>
           <th ng-repeat="header in services.headers">{{header.name|translate}}
-            <button ng-click="services.set_order(header.id, services)" 
+            <button ng-if="!(header.hideSort === true)" ng-click="services.set_order(header.id, services)"
                     ng-class="services.get_order_class(header.id, services)"></button>
           </th>
           <th>{{'running_tbl_actions'|translate}}</th>
@@ -59,7 +59,7 @@
               </p>
           </td>
           <td ng-if="app.isvc" class="ntsh">N/A</td>
-		      <td ng-if="!app.isvc">
+              <td ng-if="!app.isvc">
             <div>
               <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
               <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>

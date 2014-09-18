@@ -54,9 +54,9 @@
       </div>
     </div>
 
-	<!-- Virtual Host Names -->
+    <!-- Virtual Host Names -->
   <div ng-if="!services.current.isvc && anyServicesExported(services.current)">
-  	<h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
+    <h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddVHost()">
@@ -65,16 +65,17 @@
             </button>
         </span>
     </div>
-  	<table class="table table-striped" id="vhosts_data">
-  		<thead>
-  			<tr>
-  				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
-  					<button ng-click="vhosts.set_order(header.id, vhosts)" 
-  									ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
-  				</th>
-  			</tr>
-  		</thead>
-  		<tbody>
+    <table class="table table-striped" id="vhosts_data">
+        <thead>
+            <tr>
+                <th ng-repeat="header in vhosts.headers">{{header.name|translate}}
+                    <button ng-click="vhosts.set_order(header.id, vhosts)"
+                                    ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
+                </th>
+                <th>{{'vhost_actions'|translate}}</th>
+            </tr>
+        </thead>
+        <tbody>
             <tr ng-hide="vhosts.data !== undefined">
                 <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
             </tr>
@@ -86,22 +87,23 @@
                 <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
             </tr>
         </tbody>
-  	</table>
+    </table>
   </div>
 
-	<!-- IP Assignments -->
+    <!-- IP Assignments -->
   <div ng-if="!services.current.isvc">
-  	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
-  	<table class="table table-striped" id="ips_data">
-  		<thead>
-  			<tr>
-  				<th ng-repeat="header in ips.headers">{{header.name|translate}}
-  					<button ng-click="ips.set_order(header.id, ips)" 
-  									ng-class="ips.get_order_class(header.id, ips)"></button>
-  				</th>
-  			</tr>
-  		</thead>
-  		<tbody>
+    <h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
+    <table class="table table-striped" id="ips_data">
+        <thead>
+            <tr>
+                <th ng-repeat="header in ips.headers">{{header.name|translate}}
+                    <button ng-click="ips.set_order(header.id, ips)"
+                                    ng-class="ips.get_order_class(header.id, ips)"></button>
+                </th>
+                <th>{{'tbl_virtual_ip_actions'|translate}}</th>
+            </tr>
+        </thead>
+        <tbody>
             <tr ng-hide="ips.data !== undefined">
                 <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
             </tr>
@@ -114,13 +116,13 @@
                 <td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
             </tr>
         </tbody>
-  	</table>
+    </table>
   </div>
 
-	<!-- Config Files -->
+    <!-- Config Files -->
   <div ng-if="!services.current.isvc">
-  	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
-  	<table class="table table-striped" >
+    <h3 class="pull-left">{{'title_config_files' | translate }}</h3>
+    <table class="table table-striped" >
         <thead>
           <tr>
             <th>{{'path'|translate}}</th>
@@ -140,9 +142,9 @@
         </tbody>
       </table>
   </div>
-	
+
   <!-- This table has sub service definitions -->
-	<h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
+    <h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
     <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
@@ -190,15 +192,15 @@
     </table>
 
   <!-- This table has running instances -->
-	<h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
+    <h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
   <table class="table table-striped" ng-show="running.data.length > 0">
     <thead>
       <tr>
         <th>{{'running_tbl_instance_id'|translate}}</th>
         <th>{{'label_service_name'|translate}}</th>
-	  <th>{{'host'|translate}}</th>
-	  <th>{{'running_tbl_docker_id'|translate}}</th>
-	  <th>{{'running_tbl_actions'|translate}}</th>
+      <th>{{'host'|translate}}</th>
+      <th>{{'running_tbl_docker_id'|translate}}</th>
+      <th>{{'running_tbl_actions'|translate}}</th>
       </tr>
     </thead>
     <tbody>
@@ -217,16 +219,16 @@
       </tr>
     </tbody>
   </table>
-  
+
   <div ng-if="!services.current.isvc">
-  	<h3>{{'scheduled_tasks'|translate}}</h3>
+    <h3>{{'scheduled_tasks'|translate}}</h3>
       <table class="table table-striped">
           <thead>
               <tr>
                   <th>{{'task_schedule'|translate}}</th>
-  				<th>{{'task_command' |translate}}</th>
-  				<th>{{'task_last_run'|translate}}</th>
-  				<th>{{'task_run_count'|translate}}</th>                
+                <th>{{'task_command' |translate}}</th>
+                <th>{{'task_last_run'|translate}}</th>
+                <th>{{'task_run_count'|translate}}</th>
               </tr>
           </thead>
           <tbody>
@@ -238,7 +240,7 @@
               <td>{{ task.Command }}</td>
               <td>{{ task.LastRunAt }}</td>
               <td>{{ task.TotalRunCount }}</td>
-          </tr>          
+          </tr>
           </tbody>
       </table>
   </div>
