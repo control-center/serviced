@@ -151,7 +151,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 }
 
 func cpValidateLogin(creds *login, client *node.ControlClient) bool {
-	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds)
+	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds.Username)
 	// create a client
 	user := userdomain.User{
 		Name:     creds.Username,
