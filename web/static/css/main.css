@@ -1135,7 +1135,8 @@ rect {
     color: #94C0DB;
 }
 .healthIcon.disabled {
-    color: #666;
+    color: #AAA;
+    cursor: auto;
 }
 .healthIcon.bad {
     color: #9C1200;

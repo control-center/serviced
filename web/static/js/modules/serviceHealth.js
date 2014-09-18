@@ -13,8 +13,7 @@
             "bad": "glyphicon-exclamation-sign bad",
             "good": "glyphicon-ok-sign good",
             "unknown": "glyphicon-question-sign unknown",
-            // "disabled": "glyphicon-minus-sign disabled",
-            "disabled": ""
+            "disabled": "glyphicon-minus-sign disabled"
         };
 
         // simple array search util
@@ -184,8 +183,13 @@
             // *should* be off
             } else if(desiredState === 0){
 
+                // no healthchecks, container is down - this is as expected
+                if(healthChecksRollup.down){
+                    status = "down";
+                    description = $translate.instant("");
+                
                 // it should be off, but its still on... weird.
-                if(healthChecksRollup.passing){
+                } else if(healthChecksRollup.passing){
                     status = "unknown";
                     description = $translate.instant("stopping_service");
                     // TODO - enable stop control?
