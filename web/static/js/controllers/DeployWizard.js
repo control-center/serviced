@@ -61,6 +61,23 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
         }
     };
 
+    var validHost = function(){
+        if($("#new_host_name").val() === ""){
+            showError($translate.instant("invalid_host_error"));
+            return false;
+        }
+
+        resourcesService.add_host($scope.newHost, function(){
+            step += 1;
+            resetError();
+            $scope.step_page = $scope.steps[step].content;
+        }, function(data){
+            showError(data.Detail);
+        });
+
+        return false;
+    }
+
     var resetStepPage = function() {
         step = 0;
 
@@ -81,24 +98,25 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             }
         };
 
-        resourcesService.get_app_templates(false, function(templatesMap) {
-            var templates = [];
-            for (var key in templatesMap) {
-                var template = templatesMap[key];
-                template.Id = key;
-                templates[templates.length] = template;
-            }
+        if($scope.templates.data.length === 0){
+            $scope.steps.unshift({
+                content: '/static/partials/wizard-modal-add-template.html',
+                label: 'template_add',
+                validate: validTemplateUpload
+            });
+        }
 
-            if($scope.templates.data.length === 0){
-                $scope.steps.unshift({
-                    content: '/static/partials/wizard-modal-add-template.html',
-                    label: 'template_add',
-                    validate: validTemplateUpload
-                });
-            }
+        //make sure we have at least 1 host
+        if($scope.hosts.all && $scope.hosts.all.length === 0){
+            $scope.newHost = {};
+            $scope.steps.unshift({
+                content: '/static/partials/wizard-modal-add-host.html',
+                label: 'add_host',
+                validate: validHost
+            });
+        }
 
-            $scope.step_page = $scope.steps[step].content;
-        });
+        $scope.step_page = $scope.steps[step].content;
     };
 
     var showError = function(message){
@@ -227,11 +245,13 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
         if ($scope.step_page !== $scope.steps[step].content) {
             $scope.step_page = $scope.steps[step].content;
+            nextClicked = false;
             return;
         }
 
         if ($scope.steps[step].validate) {
             if (!$scope.steps[step].validate()) {
+                nextClicked = false;
                 return;
             }
         }
@@ -342,25 +362,16 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
         $scope.wizard_finish();
     };
 
-    $scope.detected_hosts = [];
-
-    $scope.no_detected_hosts = ($scope.detected_hosts.length < 1);
-
-    //make sure we have template data before setting up the wizard
-    if($scope.templates.data === undefined){
-        resourcesService.get_app_templates(false, function(templatesMap) {
-            var templates = [];
-            for (var key in templatesMap) {
-                var template = templatesMap[key];
-                template.Id = key;
-                templates.push(template);
-            }
-            $scope.templates.data = templates;
-            resetStepPage();
-        });
-    }else{
-        resetStepPage();
-    }
+    resourcesService.get_app_templates(false, function(templatesMap) {
+        var templates = [];
+        for (var key in templatesMap) {
+            var template = templatesMap[key];
+            template.Id = key;
+            templates.push(template);
+        }
+        $scope.templates.data = templates;
+        refreshHosts($scope, resourcesService, true, resetStepPage);
+    });
 
     refreshPools($scope, resourcesService, true);
 }

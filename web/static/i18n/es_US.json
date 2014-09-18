@@ -134,6 +134,8 @@
     "entry_content": "",
     "error": "Error",
     "graphs": "Gráfica",
+    "graph_tbl_cpu": "CPU",
+    "graph_tbl_mem": "Memoria",
     "host": "Servidor",
     "info": "Info",
     "ip_addresses": "IPs",

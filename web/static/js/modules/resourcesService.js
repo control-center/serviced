@@ -524,7 +524,7 @@
            * @param {object} host New host details to be added.
            * @param {function} callback Add result passed to callback on success.
            */
-          add_host: function(host, callback) {
+          add_host: function(host, callback, errorCallback) {
               $http.post('/hosts/add', host).
                   success(function(data, status) {
                       $notification.create("", data.Detail).success();
@@ -535,6 +535,10 @@
                       $notification.create("", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
+                      }
+
+                      if(errorCallback){
+                          errorCallback(data);
                       }
                   });
           },
