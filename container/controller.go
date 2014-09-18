@@ -537,27 +537,36 @@ func (c *Controller) Run() (err error) {
 	healthExits := c.kickOffHealthChecks()
 	doRegisterEndpoints := true
 	exited := false
+
+	var shutdownService = func(service *subprocess.Instance, sig os.Signal) {
+		c.options.Service.Autorestart = false
+		if sendSignal(service, sig) {
+			sigc = nil
+			prereqsPassed = nil
+			startAfter = nil
+			rpcDead = nil
+			exitAfter = time.After(time.Second * 30)
+		} else {
+			c.exitStatus = 1
+			exited = true
+		}
+	}
+
 	for !exited {
 		select {
 		case sig := <-sigc:
-			c.options.Service.Autorestart = false
-
-			glog.Infof("notifying subprocess of signal %v", sig)
-			if sendSignal(service, sig){
-				exitAfter = time.After(time.Second * 30)
-		    } else {
-				c.exitStatus = 1
-				exited = true
-			}
+			glog.Infof("Notifying subprocess of signal %v", sig)
+			shutdownService(service, sig)
 
 		case <-exitAfter:
-			glog.Infof("killing subprocess")
+			glog.Infof("Killing unresponsive subprocess")
 			sendSignal(service, syscall.SIGKILL)
 			c.exitStatus = 1
 			exited = true
 
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
+			prereqsPassed = nil
 
 		case exitError := <-serviceExited:
 			if !c.options.Service.Autorestart {
@@ -587,8 +596,8 @@ func (c *Controller) Run() (err error) {
 			startAfter = nil
 
 		case <-rpcDead:
-			sendSignal(service, syscall.SIGTERM)
-			glog.Fatalf("RPC Server has gone away, exiting: %s", err)
+			glog.Infof("RPC Server has gone away, cleaning up")
+			shutdownService(service, syscall.SIGTERM)
 		}
 	}
 	for _, exitChannel := range healthExits {
