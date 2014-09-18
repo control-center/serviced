@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -66,7 +66,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     };
 
     $scope.modalAddApp = function() {
-        $('#addApp').modal('show');
+        // the modal occasionally won't show on page load, so we use a timeout to get around that.
+        $timeout(function(){$('#addApp').modal('show');});
     };
 
     $scope.modalAddTemplate = function() {
