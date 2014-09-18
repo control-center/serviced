@@ -313,7 +313,7 @@ func UseRegistry() bool {
 }
 
 // kernel is responsible for executing all the Docker client commands.
-func kernel(dc *dockerclient.Client, done chan struct{}) error {
+func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	routeEventsToKernel(dc)
 
 	eventactions := mkEventActionTable()
@@ -488,7 +488,7 @@ KernelLoop:
 
 			close(req.errchan)
 			req.respchan <- resp
-		case req := <- cmds.ImageInspect:
+		case req := <-cmds.ImageInspect:
 			glog.V(1).Info("inspecting image: ", req.args.id)
 			img, err := dc.InspectImage(req.args.id)
 			if err != nil {
@@ -498,7 +498,7 @@ KernelLoop:
 			}
 			close(req.errchan)
 			req.respchan <- img
-		case req := <-cmds.ContainerInspect :
+		case req := <-cmds.ContainerInspect:
 			glog.V(1).Info("inspecting container: ", req.args.id)
 			ctr, err := dc.InspectContainer(req.args.id)
 			if err != nil {
@@ -639,7 +639,7 @@ KernelLoop:
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done chan struct{}) {
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -732,6 +732,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 						sc <- struct{}{}
 						return nil
 					})
+					defer ss.Cancel()
 
 					glog.V(2).Infof("post creation start of %s: %+v", ctr.ID, req.args.hostConfig)
 					err = dc.StartContainer(ctr.ID, req.args.hostConfig)
