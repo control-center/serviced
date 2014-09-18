@@ -246,7 +246,7 @@ func init() {
 	}
 	ElasticsearchServicedISVC = Service{
 		Name:            "Elastic Search - Serviced",
-		ID:              "isvc-elasticsearch-logstash",
+		ID:              "isvc-elasticsearch-serviced",
 		Startup:         "/opt/elasticsearch-1.3.1/bin/elasticsearch",
 		Description:     "Internal Elastic Search - Serviced",
 		ParentServiceID: "isvc-internalservices",

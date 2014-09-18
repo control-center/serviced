@@ -46,7 +46,8 @@ func init() {
 		Interval:  3.156e9, // One century in seconds.
 	}
 	healthStatuses["isvc-internalservices"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-elasticsearch"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-elasticsearch-logstash"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-elasticsearch-serviced"] = map[string]*healthStatus{"alive": foreverHealthy}
 	healthStatuses["isvc-zookeeper"] = map[string]*healthStatus{"alive": foreverHealthy}
 	healthStatuses["isvc-opentsdb"] = map[string]*healthStatus{"alive": foreverHealthy}
 	healthStatuses["isvc-logstash"] = map[string]*healthStatus{"alive": foreverHealthy}
