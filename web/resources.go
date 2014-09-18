@@ -406,21 +406,17 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		w.WriteJson(isvcs.ISVCSMap[sid])
 		return
 	}
-
-	var allServices []service.Service
-	var serviceRequest dao.ServiceRequest
-	if err := client.GetServices(serviceRequest, &allServices); err != nil {
-		glog.Errorf("Could not get services: %v", err)
+	svc := service.Service{}
+	if err := client.GetService(sid, &svc); err != nil {
+		glog.Errorf("Could not get service %v: %v", sid, err)
 		restServerError(w, err)
 		return
 	}
 
-	for ii, svc := range allServices {
-		if svc.ID == sid {
-			fillBuiltinMetrics(&allServices[ii])
-			w.WriteJson(&allServices[ii])
-			return
-		}
+	if svc.ID == sid {
+		fillBuiltinMetrics(&svc)
+		w.WriteJson(&svc)
+		return
 	}
 
 	glog.Errorf("No such service [%v]", sid)
