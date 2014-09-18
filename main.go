@@ -13,13 +13,12 @@
 
 package main
 
-
 import (
 	"os"
 
-	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/cli/cmd"
+	"github.com/control-center/serviced/servicedversion"
 )
 
 var Version string
@@ -28,7 +27,6 @@ var Gitcommit string
 var Gitbranch string
 var Giturl string
 var Buildtag string
-
 
 func main() {
 	servicedversion.Version = Version

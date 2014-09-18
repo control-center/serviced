@@ -14,6 +14,8 @@
 package web
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
@@ -21,6 +23,10 @@ import (
 
 // fillBuiltinMetrics adds internal metrics to the monitoring profile
 func fillBuiltinMetrics(svc *service.Service) {
+	if strings.HasPrefix(svc.ID, "isvc-") {
+		return
+	}
+
 	if svc.MonitoringProfile.MetricConfigs == nil {
 		builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 		if err != nil {

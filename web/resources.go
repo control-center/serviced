@@ -211,7 +211,8 @@ func getServices(client *node.ControlClient, tenantID string) ([]service.Service
 func getISVCS() []service.Service {
 	services := []service.Service{}
 	services = append(services, isvcs.InternalServicesISVC)
-	services = append(services, isvcs.ElasticsearchISVC)
+	services = append(services, isvcs.ElasticsearchServicedISVC)
+	services = append(services, isvcs.ElasticsearchLogStashISVC)
 	services = append(services, isvcs.ZookeeperISVC)
 	services = append(services, isvcs.LogstashISVC)
 	services = append(services, isvcs.OpentsdbISVC)
@@ -223,7 +224,8 @@ func getISVCS() []service.Service {
 func getIRS() []dao.RunningService {
 	services := []dao.RunningService{}
 	services = append(services, isvcs.InternalServicesIRS)
-	services = append(services, isvcs.ElasticsearchIRS)
+	services = append(services, isvcs.ElasticsearchServicedIRS)
+	services = append(services, isvcs.ElasticsearchLogStashIRS)
 	services = append(services, isvcs.ZookeeperIRS)
 	services = append(services, isvcs.LogstashIRS)
 	services = append(services, isvcs.OpentsdbIRS)
