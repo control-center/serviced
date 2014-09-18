@@ -718,7 +718,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
-	// this function is currently needed to handle special control plane imports
+	// this function is currently needed to handle special control center imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 
 	// get service endpoints
@@ -799,7 +799,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	}
 	endpoints = tmp
 
-	cc_endpoint_purpose := "import" // Punting on control plane dynamic imports for now
+	cc_endpoint_purpose := "import" // Punting on control center dynamic imports for now
 
 	for key, endpointList := range endpoints {
 		// ignore endpoints that are not special controlplane imports

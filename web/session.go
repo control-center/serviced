@@ -14,10 +14,10 @@
 package web
 
 import (
+	userdomain "github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/node"
-	userdomain "github.com/control-center/serviced/domain/user"
 
 	"crypto/rand"
 	"encoding/base64"
@@ -151,7 +151,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 }
 
 func cpValidateLogin(creds *login, client *node.ControlClient) bool {
-	glog.V(0).Infof("Attempting to validate user %v against the control plane api", creds.Username)
+	glog.V(0).Infof("Attempting to validate user %v against the control center api", creds.Username)
 	// create a client
 	user := userdomain.User{
 		Name:     creds.Username,

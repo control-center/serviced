@@ -332,13 +332,13 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	var svc service.Service
 
-	// Create a control plane client to look up the service
+	// Create a control center client to look up the service
 	cp, err := node.NewControlClient(port)
 	if err != nil {
-		glog.Errorf("could not create a control plane client %v", err)
+		glog.Errorf("could not create a control center client %v", err)
 		return nil, err
 	}
-	glog.Infof("Connected to the control plane at port %s", port)
+	glog.Infof("Connected to the control center at port %s", port)
 
 	if err := cp.GetService(cfg.ServiceID, &svc); err != nil {
 		glog.Errorf("unable to find service %s", cfg.ServiceID)

@@ -36,7 +36,7 @@ type leader struct {
 	poolID       string
 }
 
-// Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
+// Lead is executed by the "leader" of the control center cluster to handle its management responsibilities of:
 //    services
 //    snapshots
 //    virtual IPs

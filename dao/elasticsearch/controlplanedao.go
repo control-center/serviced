@@ -171,7 +171,7 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 	return dao.ControlPlaneError{Msg: "unimplemented"}
 }
 
-// Create a elastic search control plane data access object
+// Create a elastic search control center data access object
 func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName

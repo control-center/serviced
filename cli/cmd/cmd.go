@@ -136,7 +136,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
 		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
-		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
+		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
 		cli.BoolTFlag{"tls", "enable TLS"},
