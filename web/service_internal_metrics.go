@@ -115,7 +115,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Format:       "%d",
+					Format:       "%4.2f",
 					Legend:       "User",
 					Metric:       "cgroup.cpuacct.user",
 					MetricSource: "metrics",
