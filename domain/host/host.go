@@ -25,7 +25,7 @@ import (
 	"github.com/zenoss/glog"
 )
 
-//Host that runs the control plane agent.
+//Host that runs the control center agent.
 type Host struct {
 	ID             string // Unique identifier, default to hostid
 	Name           string // A label for the host, eg hostname, role

@@ -33,7 +33,7 @@ func (s ControlPlaneError) Error() string {
 	return s.Msg
 }
 
-// An request for a control plane object.
+// An request for a control center object.
 type EntityRequest interface{}
 
 type ServiceRequest struct {

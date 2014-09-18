@@ -58,7 +58,7 @@ type DistributedFileSystem struct {
 	timeout time.Duration
 }
 
-// Initiates a New Distributed Filesystem Object given an implementation of a control plane object
+// Initiates a New Distributed Filesystem Object given an implementation of a control center object
 func NewDistributedFileSystem(client dao.ControlPlane, facade *facade.Facade, timeout time.Duration) (*DistributedFileSystem, error) {
 	return &DistributedFileSystem{
 		client:  client,

@@ -202,7 +202,7 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 	return err
 }
 
-// addControlPlaneEndpoint adds an application endpoint mapping for the master control plane api
+// addControlPlaneEndpoint adds an application endpoint mapping for the master control center api
 func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
@@ -221,7 +221,7 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.Applicati
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
-// addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
+// addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control center api
 func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
@@ -235,7 +235,7 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.A
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
-// addLogstashEndpoint adds an application endpoint mapping for the master control plane api
+// addLogstashEndpoint adds an application endpoint mapping for the master control center api
 func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	tcp_endpoint := dao.ApplicationEndpoint{
 		ServiceID:     "controlplane_logstash_tcp",

@@ -151,7 +151,7 @@ func (service *Service) EvaluateRunsTemplate(gs GetService, fc FindChildService)
 	return
 }
 
-// evaluateTemplate takes a control plane client and template string and evaluates
+// evaluateTemplate takes a control center client and template string and evaluates
 // the template using the service as the context. If the template is invalid or there is an error
 // then an empty string is returned.
 func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, instanceID int, serviceTemplate string) (err error, result string) {

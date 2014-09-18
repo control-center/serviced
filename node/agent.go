@@ -73,7 +73,7 @@ const (
 	circularBufferSize = 1000
 )
 
-// HostAgent is an instance of the control plane Agent.
+// HostAgent is an instance of the control center Agent.
 type HostAgent struct {
 	poolID               string
 	master               string               // the connection string to the master agent
@@ -470,7 +470,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 	return nil
 }
 
-// StartService starts a new instance of the specified service and updates the control plane state accordingly.
+// StartService starts a new instance of the specified service and updates the control center state accordingly.
 func (a *HostAgent) StartService(done chan<- interface{}, service *service.Service, serviceState *servicestate.ServiceState) error {
 	glog.V(2).Infof("About to start service %s with name %s", service.ID, service.Name)
 	client, err := NewControlClient(a.master)
@@ -899,7 +899,7 @@ func (a *HostAgent) VirtualInterfaceMap(prefix string) (map[string]*pool.Virtual
 		glog.Warningf("Determining virtual interfaces failed: %v", err)
 		return interfaceMap, err
 	}
-	glog.V(2).Infof("Control plane virtual interfaces: %v", string(virtualInterfaceNames))
+	glog.V(2).Infof("Control center virtual interfaces: %v", string(virtualInterfaceNames))
 
 	for _, virtualInterfaceName := range strings.Fields(string(virtualInterfaceNames)) {
 		bindInterfaceAndIndex := strings.Split(virtualInterfaceName, prefix)
