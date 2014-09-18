@@ -13,8 +13,7 @@
             "bad": "glyphicon-exclamation-sign bad",
             "good": "glyphicon-ok-sign good",
             "unknown": "glyphicon-question-sign unknown",
-            // "disabled": "glyphicon-minus-sign disabled",
-            "disabled": ""
+            "down": "glyphicon-minus-sign disabled"
         };
 
         // simple array search util
@@ -192,7 +191,8 @@
 
                 // service is off, as expected
                 } else {
-                    status = "disabled";
+                    status = "down";
+                    description = $translate.instant("container_down");
                 }
             }
 
@@ -236,39 +236,30 @@
                 $el.popover('destroy');
             }
 
-            // if service is not disabled, add a new popover
-            if(status !== "disabled"){
-                tooltipsDetailsHTML = null;
+            tooltipsDetailsHTML = tooltipDetails.reduce(function(acc, detail){
+                return acc += "<div class='healthTooltipDetailRow'>\
+                    <i class='healthIcon glyphicon "+ STATUS_STYLES[detail.status] +"'></i>\
+                    <div class='healthTooltipDetailName'>"+ detail.name +"</div>\
+                </div>";
+            }, "");
 
-                // create the healthchecks tooltip html if the service
-                // should be running
-                if(service.DesiredState === 1){
-                    tooltipsDetailsHTML = tooltipDetails.reduce(function(acc, detail){
-                        return acc += "<div class='healthTooltipDetailRow'>\
-                            <i class='healthIcon glyphicon "+ STATUS_STYLES[detail.status] +"'></i>\
-                            <div class='healthTooltipDetailName'>"+ detail.name +"</div>\
-                        </div>";
-                    }, "");
-                }
+            // configure popover
+            // TODO - dont touch dom!
+            $el.popover({
+                trigger: "hover",
+                placement: "right",
+                delay: 0,
+                title: description,
+                html: true,
+                content: tooltipsDetailsHTML,
 
-                // configure popover
-                // TODO - dont touch dom!
-                $el.popover({
-                    trigger: "hover",
-                    placement: "right",
-                    delay: 0,
-                    title: description,
-                    html: true,
-                    content: tooltipsDetailsHTML,
-
-                    // if DesiredState is 0 or there are no healthchecks, the
-                    // popover should be only a title with no content
-                    template: service.DesiredState === 0 || !tooltipsDetailsHTML ?
-                        '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3></div>' :
-                        undefined
-                });
-            }
-            
+                // if DesiredState is 0 or there are no healthchecks, the
+                // popover should be only a title with no content
+                template: service.DesiredState === 0 || !tooltipsDetailsHTML ?
+                    '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3></div>' :
+                    undefined
+            });
+        
             // update the main health icon
             setStatus(service, status);
 

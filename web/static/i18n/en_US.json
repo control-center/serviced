@@ -31,6 +31,7 @@
     "passing_health_checks": "Passing All Health Checks",
     "container_unavailable": "Container Unavailable",
     "stopping_service": "Stopping Service...",
+    "container_down": "Not Started",
 
     "core_capacity": "CPU Cores",
     "memory_capacity": "Memory",
