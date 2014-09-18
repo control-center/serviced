@@ -66,7 +66,7 @@
     "remove_service": "Remove Service",
     "remove_pool": "Remove Pool",
     "add_host": "Add Host",
-    "add_pool": "Add Pool",
+    "add_pool": "Add Resource Pool",
     "add_virtual_ip": "Add Virtual IP",
     "add_virtual_host": "Add Virtual Host",
     "add_host": "Add Host",
