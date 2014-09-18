@@ -36,8 +36,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         { id: 'Name', name: 'vhost_name'},
         { id: 'Application', name: 'vhost_application'},
         { id: 'ServiceEndpoint', name: 'vhost_service_endpoint'},
-        { id: 'Name', name: 'vhost_url'},
-        { id: 'Action', name: 'vhost_actions'},
+        { id: 'Name', name: 'vhost_url'}
     ]);
 
     $scope.ips = buildTable('ServiceName', [
@@ -45,8 +44,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
         { id: 'HostName', name: 'tbl_virtual_ip_host'},
         { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
-        { id: 'IPAddr', name: 'tbl_virtual_ip'},
-        { id: 'Actions', name: 'tbl_virtual_ip_actions'}
+        { id: 'IPAddr', name: 'tbl_virtual_ip'}
     ]);
 
     //add vhost data (includes name, app & service endpoint)

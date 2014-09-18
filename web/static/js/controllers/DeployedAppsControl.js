@@ -42,13 +42,13 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
-    $scope.services = buildTable('poolID', [
+    $scope.services = buildTable('PoolID', [
         { id: 'Name', name: 'deployed_tbl_name'},
         { id: 'Description', name: 'deployed_tbl_description'},
-        { id: 'Health', name: 'health_check'},
-        { id: 'Id', name: 'deployed_tbl_deployment_id'},
-        { id: 'poolID', name: 'deployed_tbl_pool'},
-        { id: 'VirtualHost', name: 'vhost_names'}
+        { id: 'Health', name: 'health_check', hideSort: true},
+        { id: 'DeploymentID', name: 'deployed_tbl_deployment_id'},
+        { id: 'PoolID', name: 'deployed_tbl_pool'},
+        { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
     ]);
 
     $scope.templates = buildTable('Name', [
@@ -105,7 +105,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     // given a service application find all of it's virtual host names
     $scope.collect_vhosts = function(app) {
         var vhosts = [];
-	
+
         if (app.Endpoints) {
             for (var i in app.Endpoints) {
                 var endpoint = app.Endpoints[i];
