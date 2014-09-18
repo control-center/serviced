@@ -159,6 +159,7 @@
     "ip_addresses_interface": "Interface",
     "ip_addresses_mac": "MAC Address",
     "ip_addresses_ip": "IP",
+    "label_active": "Active",
     "label_assign": "Assign",
     "label_edit": "Edit",
     "label_application": "Application",
