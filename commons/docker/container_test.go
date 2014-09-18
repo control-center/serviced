@@ -219,8 +219,6 @@ func TestCancelOnEvent(t *testing.T) {
 	ctr.Delete(true)
 }
 
-/*
-TODO FIXME: TestRestartContainer is causing all unit tests following it to fail
 func TestRestartContainer(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
@@ -265,7 +263,6 @@ func TestRestartContainer(t *testing.T) {
 	ctr.Kill()
 	ctr.Delete(true)
 }
-*/
 
 func TestListContainers(t *testing.T) {
 	cd := &ContainerDefinition{
@@ -578,7 +575,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 }
 
 func TestNewContainerOnStartedAction(t *testing.T) {
-	t.Skip("skip this until the build box issues get sorted out")
+	//t.Skip("skip this until the build box issues get sorted out")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
