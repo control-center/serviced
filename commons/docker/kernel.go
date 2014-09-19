@@ -322,6 +322,10 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	so := make(chan startreq)
 	go startq(si, so)
 
+	stopi := make(chan stopreq)
+	stopo := make(chan stopreq)
+	go stopq(stopi, stopo)
+
 	ci := make(chan createreq)
 	co := make(chan createreq)
 	go createq(ci, co)
@@ -330,7 +334,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	ppo := make(chan pushpullreq)
 	go pushpullq(ppi, ppo)
 
-	go scheduler(dc, so, co, ppo, done)
+	go scheduler(dc, so, stopo, co, ppo, done)
 
 KernelLoop:
 	for {
@@ -577,14 +581,7 @@ KernelLoop:
 			// schedule the start only if the container is not running
 			si <- req
 		case req := <-cmds.Stop:
-			glog.V(1).Info("stopping container: ", req.args.id)
-			err := dc.StopContainer(req.args.id, req.args.timeout)
-			if err != nil {
-				glog.V(1).Infof("unable to stop container %s: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
+			stopi <- req
 		case req := <-cmds.TagImage:
 			glog.V(1).Infof("tagging image %s as: %s", req.args.repo, req.args.tag)
 			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
@@ -639,7 +636,7 @@ KernelLoop:
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
+func scheduler(dc *dockerclient.Client, src <-chan startreq, stoprc <-chan stopreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -835,6 +832,22 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					break
 				}
 			}(req, dc)
+		case req := <-stoprc:
+			dc, err := dockerclient.NewClient(dockerep)
+			if err != nil {
+				panic(fmt.Errorf("can't get docker client: %v", err))
+			}
+
+			go func(req stopreq, dc *dockerclient.Client) {
+				glog.V(2).Infof("stopping container %s", req.args.id)
+				err := dc.StopContainer(req.args.id, req.args.timeout)
+				if err != nil {
+					glog.V(1).Infof("unable to stop container %s: %v", req.args.id, err)
+					req.errchan <- err
+					return
+				}
+				close(req.errchan)
+			}(req, dc)
 		case req := <-pprc:
 			switch req.args.op {
 			case pullop:
@@ -978,6 +991,52 @@ restart:
 					next <- v
 				}
 				pending = []createreq{}
+			}
+		case next <- pending[0]:
+			glog.V(2).Infof("delivered create request: %+v", pending[0])
+			pending = pending[1:]
+		}
+	}
+
+	for _, v := range pending {
+		next <- v
+	}
+}
+
+// stopq implements an inifinite buffered channel of create requests. Requests are added via the
+// in channel and received on the next channel.
+func stopq(in <-chan stopreq, next chan<- stopreq) {
+	defer close(next)
+
+	pending := []stopreq{}
+
+restart:
+	for {
+		if len(pending) == 0 {
+			v, ok := <-in
+			if !ok {
+				break
+			}
+
+			glog.V(2).Infof("received first create request: %+v", v)
+			pending = append(pending, v)
+		}
+
+		select {
+		case v, ok := <-in:
+			if !ok {
+				break restart
+			}
+
+			glog.V(2).Infof("received create request: %+v", v)
+			pending = append(pending, v)
+
+			// don't let a burst of requests starve the outgoing channel
+			if len(pending) > 8 {
+				for _, v := range pending {
+					next <- v
+				}
+				pending = []stopreq{}
 			}
 		case next <- pending[0]:
 			glog.V(2).Infof("delivered create request: %+v", pending[0])
