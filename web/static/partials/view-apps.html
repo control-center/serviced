@@ -54,9 +54,9 @@
           <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID}}</td>
           <td ng-if="app.isvc" class="ntsh">N/A</td>
           <td ng-if="!app.isvc">
-              <p ng-repeat="vhost in collect_vhosts(app) track by $index">
+              <span ng-repeat="vhost in collect_vhosts(app) track by $index">
                   <a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a>
-              </p>
+              </span>
           </td>
           <td ng-if="app.isvc" class="ntsh">N/A</td>
               <td ng-if="!app.isvc">
