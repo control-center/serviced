@@ -209,8 +209,11 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		glog.Errorf("unable to validate deploymentID %v while deploying %v", deploymentID, templateID)
 		return "", err
 	}
-	if len(svcs) > 0 {
-		return "", fmt.Errorf("deployment ID %v is already in use", deploymentID)
+	for _, svc := range svcs {
+		glog.Warningf("%s %s", svc.DeploymentID, deploymentID)
+		if svc.DeploymentID == deploymentID {
+			return "", fmt.Errorf("deployment ID %v is already in use", deploymentID)
+		}
 	}
 
 	//now that we know the template name, set it in the status
