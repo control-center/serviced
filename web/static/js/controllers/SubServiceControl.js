@@ -219,7 +219,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     };
 
-    $scope.indent = indentClass;
+    $scope.indent = function(depth){
+        return {'padding-left': (20*depth) + "px"};
+    };
 
     $scope.clickRunning = function(app, status, servicesService){
         toggleRunning(app, status, servicesService);

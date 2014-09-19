@@ -162,8 +162,9 @@
         </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
           <td>
-            <span ng-class="indent(app.zendepth)"></span>
+            <span ng-style="indent(app.zendepth)"></span>
             <span ng-if="app.children !== undefined" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
+            <span ng-if="app.children === undefined" ng-style="indent(1)"></span>
             <span ng-click="click_app(app.ID)" class="link">
                 {{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
             </span>
