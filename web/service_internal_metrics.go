@@ -191,7 +191,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			BuiltIn:     true,
 			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
-			Type:        "area",
+			Type:        "line",
 			Tags:        tags,
 			YAxisLabel:  "Bps",
 			Range:       &tRange,
@@ -200,7 +200,6 @@ func addInternalGraphConfigs(svc *service.Service) {
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Fill:         true,
 					Format:       "%4.2f",
 					Legend:       "TX",
 					Metric:       "net.tx_bytes",
@@ -212,7 +211,6 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Fill:         true,
 					Format:       "%4.2f",
 					Legend:       "RX",
 					Metric:       "net.rx_bytes",
