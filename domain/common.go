@@ -20,8 +20,8 @@ import (
 )
 
 type MinMax struct {
-	Min int
-	Max int
+	Min     int
+	Max     int
 	Default int
 }
 
@@ -43,17 +43,17 @@ func (minmax *MinMax) Validate() error {
 	}
 
 	// "Default" should be between min + max, inclusive if max is nonzero and default is set
-	if minmax.Default !=0 {
-		if minmax.Max !=0  {
+	if minmax.Default != 0 {
+		if minmax.Max != 0 {
 			if minmax.Default < minmax.Min || minmax.Default > minmax.Max {
 				return fmt.Errorf("Default instance spec must be between min and max, inclusive: Min=%v; Max=%v; Default=%v", minmax.Min, minmax.Max, minmax.Default)
 			}
 		} else {
 			if minmax.Default < minmax.Min {
-				return fmt.Errorf("Default instance spec cannot be less than the minimum: Min=%v; Max=%v; Default=%v", minmax.Min, minmax.Max, minmax.Default)	
+				return fmt.Errorf("Default instance spec cannot be less than the minimum: Min=%v; Max=%v; Default=%v", minmax.Min, minmax.Max, minmax.Default)
 			}
-		} 
-	} 
+		}
+	}
 	return nil
 }
 
@@ -61,19 +61,23 @@ func (minmax *MinMax) Validate() error {
 type HealthCheck struct {
 	Script   string        // A script to execute to verify the health of a service.
 	Interval time.Duration // The interval at which to execute the script.
+	Timeout  time.Duration // A timeout in which to complete the health check.
 }
 
 type jsonHealthCheck struct {
 	Script   string
 	Interval float64 // the serialzed version will be in seconds
+	Timeout  float64
 }
 
 func (hc HealthCheck) MarshalJSON() ([]byte, error) {
 	// in json, the interval is represented in seconds
 	interval := float64(hc.Interval) / 1000000000.0
+	timeout := float64(hc.Timeout) / 1000000000.0
 	return json.Marshal(jsonHealthCheck{
 		Script:   hc.Script,
 		Interval: interval,
+		Timeout:  timeout,
 	})
 }
 
@@ -85,6 +89,7 @@ func (hc *HealthCheck) UnmarshalJSON(data []byte) error {
 	hc.Script = tempHc.Script
 	// interval in js is in seconds, convert to nanoseconds, then duration
 	hc.Interval = time.Duration(tempHc.Interval * 1000000000.0)
+	hc.Timeout = time.Duration(tempHc.Timeout * 1000000000.0)
 	return nil
 }
 
