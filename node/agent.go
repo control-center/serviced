@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
@@ -322,23 +321,6 @@ func getDockerState(dockerID string) (*docker.Container, error) {
 	return docker.FindContainer(dockerID)
 }
 
-func dumpOut(stdout, stderr io.Reader, size int) {
-	dumpBuffer(stdout, size, "stdout")
-	dumpBuffer(stderr, size, "stderr")
-}
-
-func dumpBuffer(reader io.Reader, size int, name string) {
-	buffer := make([]byte, size)
-	if n, err := reader.Read(buffer); err != nil {
-		glog.V(1).Infof("Unable to read %s of dump", name)
-	} else {
-		message := strings.TrimSpace(string(buffer[:n]))
-		if len(message) > 0 {
-			glog.V(0).Infof("Process %s:\n%s", name, message)
-		}
-	}
-}
-
 func (a *HostAgent) waitInstance(procFinished chan<- interface{}, ctr *docker.Container, svc *service.Service, state *servicestate.ServiceState) {
 	exited := make(chan int)
 
@@ -350,14 +332,10 @@ func (a *HostAgent) waitInstance(procFinished chan<- interface{}, ctr *docker.Co
 			// TODO: output of docker logs is potentially very large
 			// this should be implemented another way, perhaps a docker attach
 			// or extend docker to give last N seconds
-			if output, err := exec.Command("docker", "logs", state.DockerID).CombinedOutput(); err != nil {
+			if output, err := exec.Command("docker", "logs", "--tail", "10000", state.DockerID).CombinedOutput(); err != nil {
 				glog.Errorf("Could not get logs for container %s", state.DockerID)
 			} else {
-				var buffersize = 1000
-				if index := len(output) - buffersize; index > 0 {
-					output = output[index:]
-				}
-				glog.Warningf("Last %d bytes of container %s: %s", buffersize, state.DockerID, string(output))
+				glog.Warningf("Last 10000 lines of container %s: %s", state.DockerID, string(output))
 			}
 		}
 
