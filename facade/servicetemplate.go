@@ -210,7 +210,6 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		return "", err
 	}
 	for _, svc := range svcs {
-		glog.Warningf("%s %s", svc.DeploymentID, deploymentID)
 		if svc.DeploymentID == deploymentID {
 			return "", fmt.Errorf("deployment ID %v is already in use", deploymentID)
 		}
