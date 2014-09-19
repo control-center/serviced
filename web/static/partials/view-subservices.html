@@ -161,8 +161,13 @@
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
-          <td ng-click="click_app(app.ID)" class="link">
-            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
+          <td>
+            <span ng-style="indent(app.zendepth - 1)"></span>
+            <span ng-if="app.children !== undefined" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
+            <span ng-if="app.children === undefined" ng-style="indent(1)"></span>
+            <span ng-click="click_app(app.ID)" class="link">
+                {{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
+            </span>
           </td>
           <td style="text-align:center;">
             <div ng-if="app.children === undefined">

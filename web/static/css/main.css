@@ -1316,3 +1316,10 @@ input.ng-invalid:focus.ng-dirty:focus{
 input[type=file] {
     height: auto;
 }
+
+.table-collapse {
+    font-size: 8px;
+    padding: 0px 5px 5px 5px;
+    vertical-align: middle;
+    cursor: pointer;
+}
