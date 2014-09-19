@@ -691,7 +691,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         }
 
         //update icons
-        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon");
+        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon-chevron-down");
         $e.removeClass("glyphicon-chevron-down");
         $e.addClass("glyphicon-chevron-right");
     }
@@ -708,7 +708,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         }
 
         //update icons
-        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon");
+        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon-chevron-right");
         $e.removeClass("glyphicon-chevron-right");
         $e.addClass("glyphicon-chevron-down");
     }
