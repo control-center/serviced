@@ -14,13 +14,15 @@
 package health
 
 import (
+	"sync"
+	"time"
+
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"sync"
-	"time"
 )
 
 type healthStatus struct {
@@ -62,7 +64,7 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceID string, name string, passed string, d dao.ControlPlane) {
+func RegisterHealthCheck(serviceID string, name string, passed string, d dao.ControlPlane, f *facade.Facade) {
 	lock.Lock()
 	defer lock.Unlock()
 
@@ -74,14 +76,12 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 	}
 	thisStatus, ok := serviceStatus[name]
 	if !ok {
-		var service service.Service
-
-		err := d.GetService(serviceID, &service)
+		healthChecks, err := f.GetHealthChecksForService(datastore.Get(), serviceID)
 		if err != nil {
-			glog.Errorf("Unable to acquire services.")
+			glog.Errorf("Unable to acquire health checks: %+v", err)
 			return
 		}
-		for iname, icheck := range service.HealthChecks {
+		for iname, icheck := range healthChecks {
 			_, ok = serviceStatus[iname]
 			if !ok {
 				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix()}
@@ -96,9 +96,11 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 	thisStatus.Status = passed
 	thisStatus.Timestamp = time.Now().UTC().Unix()
 
-	var runningServices []dao.RunningService
-	err := d.GetRunningServicesForService(serviceID, &runningServices)
-	if err == nil && len(runningServices) > 0 {
-		thisStatus.StartedAt = runningServices[0].StartedAt.Unix()
+	if thisStatus.StartedAt == 0 {
+		var runningServices []dao.RunningService
+		err := d.GetRunningServicesForService(serviceID, &runningServices)
+		if err == nil && len(runningServices) > 0 {
+			thisStatus.StartedAt = runningServices[0].StartedAt.Unix()
+		}
 	}
 }

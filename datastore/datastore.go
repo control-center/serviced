@@ -16,6 +16,9 @@ package datastore
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+
+	"github.com/control-center/serviced/commons"
 )
 
 var (
@@ -51,6 +54,10 @@ type ValidEntity interface {
 	SetDatabaseVersion(int)
 }
 
+func getcachekey(key Key) string {
+	return fmt.Sprintf("%s|%s", key.Kind(), key.ID())
+}
+
 //New returns a new EntityStore
 func New() EntityStore {
 	return &DataStore{}
@@ -67,6 +74,8 @@ func (e *VersionedEntity) GetDatabaseVersion() int {
 func (e *VersionedEntity) SetDatabaseVersion(i int) {
 	e.DatabaseVersion = i
 }
+
+var cache = commons.NewCache()
 
 //DataStore EntityStore type
 type DataStore struct{}
@@ -98,7 +107,11 @@ func (ds *DataStore) Put(ctx Context, key Key, entity ValidEntity) error {
 	if err != nil {
 		return err
 	}
-	return conn.Put(key, jsonMsg)
+	err = conn.Put(key, jsonMsg)
+	if err == nil {
+		cache.Add(getcachekey(key), entity)
+	}
+	return err
 }
 
 // Get an entity. Return ErrNoSuchEntity if nothing found for the key.
@@ -113,6 +126,10 @@ func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 		return ErrNilEntity
 	}
 	if err := validKey(key); err != nil {
+		return err
+	}
+
+	if ok, err := cache.GetInto(getcachekey(key), entity); ok {
 		return err
 	}
 
@@ -145,6 +162,7 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 	if err != nil {
 		return err
 	}
+	cache.Invalidate(getcachekey(key))
 
 	return conn.Delete(key)
 }
