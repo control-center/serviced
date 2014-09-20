@@ -16,7 +16,6 @@ package elasticsearch
 import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -86,15 +85,16 @@ func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *
 func (this *ControlPlaneDao) GetRunningServicesForService(serviceID string, services *[]dao.RunningService) error {
 	// we initialize the data container to something here in case it has not been initialized yet
 	*services = make([]dao.RunningService, 0)
-	myService, err := this.facade.GetService(datastore.Get(), serviceID)
+
+	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
 	if err != nil {
 		glog.Errorf("Unable to get service %v: %v", serviceID, err)
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
+	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
+		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err
 	}
 
@@ -115,15 +115,16 @@ func (this *ControlPlaneDao) GetRunningService(request dao.ServiceStateRequest, 
 	glog.V(3).Infof("ControlPlaneDao.GetRunningService: request=%v", request)
 	*running = dao.RunningService{}
 
-	var myService service.Service
-	if err := this.GetService(request.ServiceID, &myService); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetServiceLogs service=%+v err=%s", request.ServiceID, err)
+	serviceID := request.ServiceID
+	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
+	if err != nil {
+		glog.Errorf("Unable to get service %v: %v", serviceID, err)
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
+	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
+		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		return err
 	}
 

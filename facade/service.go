@@ -18,6 +18,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 
 	"github.com/control-center/serviced/domain/service"
@@ -122,6 +123,26 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	}
 	//TODO: remove AddressAssignments with f Service
 	return nil
+}
+
+func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {
+	glog.V(3).Infof("Facade.GetPoolForService: id=%s", id)
+	store := f.serviceStore
+	svc, err := store.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return svc.PoolID, nil
+}
+
+func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]domain.HealthCheck, error) {
+	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
+	store := f.serviceStore
+	svc, err := store.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	return svc.HealthChecks, nil
 }
 
 func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service, error) {
