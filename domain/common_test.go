@@ -19,9 +19,9 @@ import (
 	"time"
 )
 
-const testHcJSON = `{"Script":"foo","Interval":1.5}`
+const testHcJSON = `{"Script":"foo","Interval":1.5,"Timeout":1.2}`
 
-var testHc = HealthCheck{Script: "foo", Interval: time.Millisecond * 1500}
+var testHc = HealthCheck{Timeout: time.Millisecond * 1200, Script: "foo", Interval: time.Millisecond * 1500}
 
 func TestHealthCheck(t *testing.T) {
 	var hc HealthCheck
