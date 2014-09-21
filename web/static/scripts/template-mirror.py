@@ -29,6 +29,10 @@ import urllib2
 logging.basicConfig()
 LOG = logging.getLogger(__name__)
 
+def fatal(*args, **kwargs):
+    LOG.fatal(*args, **kwargs)
+    sys.exit(1)
+
 def get_images(service):
     imageIDs = set()
     if service["ImageID"]:
@@ -44,82 +48,35 @@ def remap_image_id(service, oldImageID, newImageID):
         remap_image_id(svc, oldImageID, newImageID)
 
 def docker_pull(imageID):
-    subprocess.check_call(["docker", "pull", imageID])
+    _docker_op("pull", imageID)
 
 def docker_push(imageID):
-    subprocess.check_call(["docker", "push", imageID])
-
-def ping_registry(registry):
-    urllib2.urlopen("http://%s/v1/_ping" % (registry)).read()
+    _docker_op("push", imageID)
 
 def docker_tag(imageID, newImageID):
-    subprocess.check_call(["docker", "tag", imageID, newImageID])
-   
+    _docker_op("tag", imageID, newImageID)
+
+def _docker_op(op, *args):
+    try:
+        sargs = ["docker", op]
+        sargs.extend(args)
+        subprocess.check_call(sargs)
+    except Exception as ex:
+        fatal("could not docker %s %s: %s", op, " ".join(args), ex)
+
+def ping_registry(registry):
+    try:
+        url = "http://%s/v1/_ping" % (registry)
+        urllib2.urlopen(url).read()
+    except Exception as ex:
+        fatal("could not ping registry %s: %s", url, ex)
+
 class Main(object):
+
     def __init__(self, input_template, output_template, mirror):
         self._input_template = input_template
         self._output_template = output_template
         self._mirror = mirror
-
-    def run(self):
-
-        if os.path.isfile(self._output_template):
-            LOG.fatal("destination template file should not exist: %s", self._output_template)
-            sys.exit(1)
-
-        print "Pinging destination registry: %s" % (self._mirror)
-        try:
-            ping_registry(self._mirror)
-        except Exception as ex:
-            LOG.fatal("could not ping destination registry %s: %s", self._mirror, ex)
-            sys.exit(1)
-
-        print "Extracting imageIDs from template"
-        imageIDs = set()
-        try:
-            template = self._load_template()
-            for svc in template['Services']:
-               imageIDs.update(get_images(svc))
-        except Exception as ex:
-            LOG.fatal("could not process template: %s", ex)
-            sys.exit(1)
-
-        try:
-            for imageID in imageIDs:
-                print "Pulling image %s" % (imageID)
-                docker_pull(imageID)
-        except Exception as ex:
-            LOG.fatal("could not pull image %s: %s", imageID, ex)
-            sys.exit(1)
-
-        try:
-            newImageIDs = []
-            for imageID in imageIDs:
-                newImageID = self._mirror + "/" + imageID
-                print "Retagging %s to %s" % (imageID, newImageID)
-                docker_tag(imageID, newImageID)
-                newImageIDs.append(newImageID)
-                for svc in template['Services']:
-                    remap_image_id(svc, imageID, newImageID)
-
-        except Exception as ex:
-            LOG.fatal("could not retag %s to %s: %s", imageID, newImageID, ex)
-            sys.exit(1)
-
-        try:
-            for imageID in newImageIDs:
-                docker_push(imageID)
-        except Exception as ex:
-            LOG.fatal("could not docker push %s: %s", imageID, ex)
-            sys.exit(1)
-
-        try:
-            print "writing new template to %s" % (self._output_template)
-            with open(self._output_template, "w") as f:
-                json.dump(template, f, sort_keys=True, indent=4, separators=(',', ': '))
-        except Exception as ex:
-            LOG.fatal("could not write new template to %s: %s", self._output_template, ex)
-            sys.exit(1)
 
     def _load_template(self):
         try:
@@ -128,6 +85,48 @@ class Main(object):
         except Exception as ex:
             LOG.fatal("could not load template: %s", ex)
             sys.exit(1)
+
+    def _dump_template(self, template):
+        try:
+            with open(self._output_template, "w") as f:
+                json.dump(template, f, sort_keys=True, indent=4, separators=(',', ': '))
+        except Exception as ex:
+            LOG.fatal("could not write new template to %s: %s", self._output_template, ex)
+            sys.exit(1)
+
+    def run(self):
+
+        if os.path.isfile(self._output_template):
+            LOG.fatal("destination template file should not exist: %s", self._output_template)
+            sys.exit(1)
+
+        print "Pinging destination registry: %s" % (self._mirror)
+        ping_registry(self._mirror)
+
+        print "Extracting imageIDs from template"
+        imageIDs = set()
+        template = self._load_template()
+        for svc in template['Services']:
+            imageIDs.update(get_images(svc))
+
+        for imageID in imageIDs:
+            print "Pulling image %s" % (imageID)
+            docker_pull(imageID)
+
+        newImageIDs = []
+        for imageID in imageIDs:
+            newImageID = self._mirror + "/" + imageID
+            print "Retagging %s to %s" % (imageID, newImageID)
+            docker_tag(imageID, newImageID)
+            newImageIDs.append(newImageID)
+            for svc in template['Services']:
+                remap_image_id(svc, imageID, newImageID)
+
+        for imageID in newImageIDs:
+            docker_push(imageID)
+
+        print "writing new template to %s" % (self._output_template)
+        self._dump_template(template)
 
 if __name__=="__main__":
     parser = argparse.ArgumentParser(description="a tool to mirror images referenced in serviced templates")
