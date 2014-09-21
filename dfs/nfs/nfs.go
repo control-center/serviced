@@ -15,16 +15,26 @@ package nfs
 
 import (
 	"fmt"
+	"os"
 	"os/exec"
 
 	"github.com/zenoss/glog"
 )
 
-var nfsServiceName = "nfs-kernel-server"
+var nfsServiceName = determineNfsServiceName()
 var usrBinService = "/usr/sbin/service"
 
 var start = startImpl
 var reload = reloadImpl
+
+func determineNfsServiceName() string {
+    // In RHEL-based releases, the 'nfs' service is used
+    if _, err := os.Stat("/etc/redhat-release"); err == nil {
+        return "nfs"
+    } else {
+        return "nfs-kernel-server"
+    }
+}
 
 // reload triggers the kernel to reread its NFS exports.
 func reloadImpl() error {
