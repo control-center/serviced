@@ -64,7 +64,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -104,7 +104,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -173,7 +173,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -214,7 +214,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -268,7 +268,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -309,7 +309,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -378,7 +378,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -419,7 +419,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -488,7 +488,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -529,7 +529,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -598,7 +598,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -639,7 +639,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -708,7 +708,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -749,7 +749,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -818,7 +818,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -859,7 +859,7 @@ func init() {
 				domain.GraphConfig{
 					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{

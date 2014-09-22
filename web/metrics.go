@@ -119,7 +119,7 @@ func newOpenFileDescriptorsGraph(tags map[string][]string) domain.GraphConfig {
 		ID:     "serviced.ofd",
 		Name:   "Open File Descriptors",
 		Footer: false,
-		Format: "%d",
+		Format: "%4.2f",
 		MinY:   &zero,
 		Range: &domain.GraphConfigRange{
 			End:   "0s-ago",
@@ -142,7 +142,7 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 				ID:           "pgfault",
 				Color:        "#aec7e8",
 				Fill:         false,
-				Format:       "%.2f",
+				Format:       "%4.2f",
 				Legend:       "Major Page Faults",
 				Metric:       "vmstat.pgmajfault",
 				MetricSource: "virtual.memory",
