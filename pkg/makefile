@@ -149,6 +149,10 @@ rpm: stage_rpm
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d nfs-utils \
+		-d net-tools \
+		-d util-linux \
+		-d 'docker >= 1.2.0' \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
