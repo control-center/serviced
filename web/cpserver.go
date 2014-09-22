@@ -18,6 +18,7 @@ import (
 	"mime"
 	"net/http"
 	"net/http/httputil"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/exec"
@@ -48,7 +49,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		bindPort:    bindPort,
 		agentPort:   agentPort,
 		stats:       stats,
-		hostaliases: []string{},
+		hostaliases: hostaliases,
 		muxTLS:      muxTLS,
 		muxPort:     muxPort,
 	}
