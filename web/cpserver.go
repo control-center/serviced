@@ -18,6 +18,7 @@ import (
 	"mime"
 	"net/http"
 	"net/http/httputil"
+	_ "net/http/pprof"
 	"net/url"
 	"os"
 	"os/exec"
