@@ -126,6 +126,8 @@ class Main(object):
             docker_push(imageID)
 
         print "writing new template to %s" % (self._output_template)
+        description = template["Description"].split("|")[0]
+        template["Description"] = description.strip() + " | %s mirror" % self._mirror
         self._dump_template(template)
 
 if __name__=="__main__":
