@@ -973,6 +973,14 @@ rect {
        -o-transition:      -o-transform .15s ease-out;
           transition:         transform .15s ease-out;
 }
+/* make modal content scroll when too tall */
+.modal-body {
+    max-height: 600px;
+    overflow-y: auto;
+}
+.modal {
+    overflow: auto;
+}
 
 /* notifications */
 
