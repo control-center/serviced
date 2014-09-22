@@ -721,9 +721,11 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 			sysProcAttr := &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGTERM}
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
 			cmd.SysProcAttr = sysProcAttr
-			go func(c *exec.Cmd) {
-				exited <- c.Run()
-			}(cmd)
+			if err := cmd.Start(); err != nil {
+				glog.Errorf("Could not run cmd %v: %s", cmd, err)
+				break
+			}
+			go func(c *exec.Cmd) { exited <- c.Wait() }(cmd)
 			select {
 			case err := <-exited:
 				if err == nil {
