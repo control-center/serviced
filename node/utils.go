@@ -328,6 +328,7 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	var output []byte
 	command := [...]string{
 		"docker", "run",
+		"--rm",
 		"-v", hostPath + ":/mnt/dfs",
 		imageSpec,
 		"/bin/bash", "-c",
