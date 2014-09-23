@@ -21,7 +21,7 @@ import (
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/daniel-garcia/go-procfs/linux"
+	"github.com/control-center/go-procfs/linux"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 
