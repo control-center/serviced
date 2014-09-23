@@ -84,7 +84,7 @@
 			"Rev": "6ffbdf30ba7072d9f9e2afe57ad651a75a544a83"
 		},
 		{
-			"ImportPath": "github.com/daniel-garcia/go-procfs/linux",
+			"ImportPath": "github.com/control-center/go-procfs/linux",
 			"Rev": "0a9f26d22621f19cefe9832f66919a4d86b00c6d"
 		},
 		{
