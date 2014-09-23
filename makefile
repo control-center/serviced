@@ -176,7 +176,6 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build ${LDFLAGS}
 	go install ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
