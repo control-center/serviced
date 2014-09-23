@@ -153,6 +153,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			MinY:        &zero,
 			Range:       &tRange,
 			Units:       "Bytes",
+			Base:        1024,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
@@ -197,6 +198,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			Range:       &tRange,
 			Description: "Bytes per second over last hour",
 			Units:       "Bytes per second",
+			Base:        1024,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
