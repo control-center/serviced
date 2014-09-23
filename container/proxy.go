@@ -171,7 +171,10 @@ func (p *proxy) prxy(local net.Conn, address string) {
 	//       in play that port will be replaced with the TCPMux port, so
 	//       we grab it here in order to be able to create a proper Zen-Service
 	//       header later.
-	if p.tcpMuxPort > 0 {
+	isMux := false
+	hostIP := strings.Split(remoteAddr, ":")[0]
+	if p.tcpMuxPort > 0 && !isLocalAddress(hostIP) {
+		isMux = true
 		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], p.tcpMuxPort)
 	}
 
@@ -180,7 +183,7 @@ func (p *proxy) prxy(local net.Conn, address string) {
 
 	glog.V(2).Infof("Dialing hostAgent:%v to prxy %v<->%v<->%v",
 		remoteAddr, local.LocalAddr(), local.RemoteAddr(), address)
-	if p.useTLS && (p.tcpMuxPort > 0) { // Only do TLS if connecting to a TCPMux
+	if p.useTLS && isMux { // Only do TLS if connecting to a TCPMux
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", remoteAddr, &config)
 	} else {
@@ -191,11 +194,11 @@ func (p *proxy) prxy(local net.Conn, address string) {
 		return
 	}
 
-	if p.tcpMuxPort > 0 {
+	if isMux {
 		io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address))
 	}
 
-	glog.V(2).Infof("Using   hostAgent:%v to prxy %v<->%v<->%v<->%v",
+	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
 	go func(address string) {
 		defer local.Close()
