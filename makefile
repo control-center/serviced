@@ -16,7 +16,7 @@ DATE := '$(shell date -u)'
 
 # GIT_URL ?= $(shell git remote show origin | grep 'Fetch URL' | awk '{ print $$3 }')
 # assume it will get set because the above can cause network traffic on every run
-GIT_COMMIT ?= $(shell ./gitstatus.sh)
+GIT_COMMIT ?= $(shell ./hack/gitstatus.sh)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
@@ -177,13 +177,13 @@ FORCE:
 serviced: $(Godeps_restored)
 serviced: FORCE
 	go build ${LDFLAGS}
-	go install ${LDFLAGS}
+	./hack/cpToBin serviced
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
 	go build ${LDFLAGS}
-	go install ${LDFLAGS}
+	./hack/cpToBin serviced
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
