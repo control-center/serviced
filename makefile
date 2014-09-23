@@ -181,6 +181,7 @@ serviced: FORCE
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
+	go build ${LDFLAGS}
 	go install ${LDFLAGS}
 
 .PHONY: docker_build
