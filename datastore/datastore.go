@@ -115,7 +115,6 @@ func (ds *DataStore) Get(ctx Context, key Key, entity ValidEntity) error {
 	if err := validKey(key); err != nil {
 		return err
 	}
-
 	conn, err := ctx.Connection()
 	if err != nil {
 		return err
@@ -145,7 +144,6 @@ func (ds *DataStore) Delete(ctx Context, key Key) error {
 	if err != nil {
 		return err
 	}
-
 	return conn.Delete(key)
 }
 
