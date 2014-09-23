@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -31,7 +31,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.servicesService = resourcesService;
 
     $scope.defaultHostAlias = location.hostname;
-    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/
+    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
     if (re.test(location.hostname) || location.hostname == "localhost") {
         $.getJSON("/hosts/defaultHostAlias", "", function(data) {
             $scope.defaultHostAlias = data.hostalias;
@@ -68,6 +68,10 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.modalAddApp = function() {
         // the modal occasionally won't show on page load, so we use a timeout to get around that.
         $timeout(function(){$('#addApp').modal('show');});
+
+        // don't auto-show this wizard again
+        // NOTE: $cookies can only deal with string values
+        $cookies.autoRunWizardHasRun = "true";
     };
 
     $scope.modalAddTemplate = function() {
@@ -275,8 +279,9 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     refreshServices($scope, resourcesService, false, function(){
         $serviceHealth.update();
 
-        // if only isvcs are deployed, show the deploy apps modal
-        if($scope.services.data.length === 1){
+        // if only isvcs are deployed, and this is the first time
+        // running deploy wizard, show the deploy apps modal
+        if(!$cookies.autoRunWizardHasRun && $scope.services.data.length === 1){
             $scope.modalAddApp();
         }
     });
