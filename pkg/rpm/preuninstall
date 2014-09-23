@@ -1,0 +1,5 @@
+if [ $1 -eq 0 ] ; then
+        # Package removal, not upgrade
+        /usr/bin/systemctl --no-reload disable serviced > /dev/null 2>&1 || :
+        /usr/bin/systemctl stop serviced > /dev/null 2>&1 || :
+fi
