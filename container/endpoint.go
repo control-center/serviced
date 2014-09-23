@@ -532,7 +532,8 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 		}
 	}
 
-	// Now iterate over all the keys, create the proxies, and feed the the addresses for each instance
+	// Now iterate over all the keys, create the proxies, and feed in the
+	// addresses for each instance
 	for instanceID, proxyKey := range proxyKeys {
 		prxy, ok := proxies[proxyKey]
 		if !ok {
