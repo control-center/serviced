@@ -350,6 +350,7 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		Type:        "area",
 		Tags:        tags,
 		Units:       "bytes",
+		Base:        1024,
 		Description: "Bytes used",
 	}
 }
