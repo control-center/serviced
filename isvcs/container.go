@@ -102,6 +102,9 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 		ops:    make(chan containerOpRequest),
 		client: client,
 	}
+
+	envPerService[cd.Name] = make(map[string]string)
+
 	go c.loop()
 	return &c, nil
 }
@@ -337,6 +340,10 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 			}
 		}
 		args = append(args, "-v", hostDir+":"+volume)
+	}
+
+	for key, val := range envPerService[c.Name] {
+		args = append(args, "-e", key + "=" + val)
 	}
 
 	// set the image and command to run
