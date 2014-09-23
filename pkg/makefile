@@ -149,7 +149,6 @@ rpm: stage_rpm
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
-		-d libcgroup \
 		-d nfs-utils \
 		-d net-tools \
 		-d util-linux \
