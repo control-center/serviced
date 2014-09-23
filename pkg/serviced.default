@@ -80,6 +80,15 @@
 # Set the interval (in seconds) for host performance collection
 # SERVICED_STATS_PERIOD=10
 
+# Set arguments to internal services.  Variables of the form
+#   SERVICED_ISVCS_ENV_%d (where %d is an integer from 0 to N, with
+#   no gaps) will be used to set the specified environment variable
+#   for the corresponding internal service.  The value of the variable
+#   is of the form SVC:KEY=VAL, where service is the name of the
+#   internal service, KEY is the environment variable to set for that
+#   service, and VAL is the value to which to set the variable.
+# SERVICED_ISVCS_ENV_0=elasticsearch-logstash:ES_JAVA_OPTS=-Xmx4g
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
 
