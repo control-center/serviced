@@ -149,6 +149,11 @@ rpm: stage_rpm
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d libcgroup \
+		-d nfs-utils \
+		-d net-tools \
+		-d util-linux \
+		-d 'docker >= 1.2.0' \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -160,5 +165,7 @@ rpm: stage_rpm
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--after-install rpm/postinstall \
+		--before-remove rpm/preuninstall \
+		--after-remove rpm/postuninstall \
 		.
-#		-d "supervisor" \
