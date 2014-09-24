@@ -247,6 +247,7 @@ func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servi
 }
 
 func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
+	// This container may not get cleaned up if the time to start exceeds the time to stop
 	done := make(chan interface{})
 	if err := l.handler.StartService(done, svc, state); err != nil {
 		return nil, err
