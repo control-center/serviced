@@ -212,52 +212,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	}
 }
 
-// stopq implements an inifinite buffered channel of create requests. Requests are added via the
-// in channel and received on the next channel.
-func stopq(in <-chan stopreq, next chan<- stopreq) {
-	defer close(next)
-
-	pending := []stopreq{}
-
-restart:
-	for {
-		if len(pending) == 0 {
-			v, ok := <-in
-			if !ok {
-				break
-			}
-
-			glog.V(2).Infof("received first create request: %+v", v)
-			pending = append(pending, v)
-		}
-
-		select {
-		case v, ok := <-in:
-			if !ok {
-				break restart
-			}
-
-			glog.V(2).Infof("received create request: %+v", v)
-			pending = append(pending, v)
-
-			// don't let a burst of requests starve the outgoing channel
-			if len(pending) > 8 {
-				for _, v := range pending {
-					next <- v
-				}
-				pending = []stopreq{}
-			}
-		case next <- pending[0]:
-			glog.V(2).Infof("delivered create request: %+v", pending[0])
-			pending = pending[1:]
-		}
-	}
-
-	for _, v := range pending {
-		next <- v
-	}
-}
-
 func mkEventActionTable() map[string]map[string]ContainerActionFunc {
 	eat := make(map[string]map[string]ContainerActionFunc)
 
