@@ -16,8 +16,8 @@ package docker
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/control-center/serviced/commons"
@@ -119,25 +119,23 @@ func FindContainer(id string) (*Container, error) {
 
 // Containers retrieves a list of all the Docker containers.
 func Containers() ([]*Container, error) {
-	ec := make(chan error, 1)
-	rc := make(chan []*Container)
-
-	cmds.List <- listreq{
-		request{ec},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
-
-	select {
-	case <-done:
-		return []*Container{}, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return []*Container{}, fmt.Errorf("docker: request failed: %v", err)
+	apictrs, err := dc.ListContainers(dockerclient.ListContainersOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+	resp := []*Container{}
+	for _, apictr := range apictrs {
+		ctr, err := dc.InspectContainer(apictr.ID)
+		if err != nil {
+			continue
 		}
+		resp = append(resp, &Container{ctr, dockerclient.HostConfig{}})
 	}
+	return resp, nil
 }
 
 // CancelOnEvent cancels the action associated with the specified event.
@@ -179,104 +177,39 @@ func (c *Container) Commit(iidstr string) (*Image, error) {
 
 // Delete removes the container.
 func (c *Container) Delete(volumes bool) error {
-	ec := make(chan error, 1)
-
-	cmds.Delete <- deletereq{
-		request{ec},
-		struct {
-			removeOptions dockerclient.RemoveContainerOptions
-		}{dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes}},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes})
 }
 
 // Export writes the contents of the container's filesystem as a tar archive to outfile.
 func (c *Container) Export(outfile *os.File) error {
-	ec := make(chan error, 1)
-
-	cmds.Export <- exportreq{
-		request{ec},
-		struct {
-			id      string
-			outfile io.Writer
-		}{c.ID, outfile},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.ExportContainer(dockerclient.ExportContainerOptions{c.ID, outfile})
 }
 
 // Kill sends a SIGKILL signal to the container. If the container is not started
 // no action is taken.
 func (c *Container) Kill() error {
-	ec := make(chan error, 1)
-
-	cmds.Kill <- killreq{
-		request{ec},
-		struct {
-			id string
-		}{c.ID},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.KillContainer(dockerclient.KillContainerOptions{ID: c.ID, Signal: dockerclient.SIGKILL})
 }
 
 // Inspect returns information about the container specified by id.
 func (c *Container) Inspect() (*dockerclient.Container, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
-
-	cmds.ContainerInspect <- continspectreq{
-		request{ec},
-		struct {
-			id string
-		}{c.ID},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
-
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			dcc := <-rc
-			c.Container = dcc
-			return dcc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.InspectContainer(c.ID)
 }
 
 // IsRunning inspects the container and returns true if it is running
@@ -362,29 +295,11 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 // Stop stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
 func (c *Container) Stop(timeout time.Duration) error {
-	ec := make(chan error, 1)
-
-	cmds.Stop <- stopreq{
-		request{ec},
-		struct {
-			id      string
-			timeout uint
-		}{c.ID, uint(timeout.Seconds())},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-time.After(timeout):
-		return ErrRequestTimeout
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.StopContainer(c.ID, uint(timeout.Seconds()))
 }
 
 // Wait blocks until the container stops or the timeout expires and then returns its exit code.
@@ -436,25 +351,32 @@ type Image struct {
 
 // Images returns a list of all the named images in the local repository
 func Images() ([]*Image, error) {
-	ec := make(chan error, 1)
-	rc := make(chan []*Image)
-
-	cmds.ImageList <- imglistreq{
-		request{ec},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
+	}
+	imgs, err := dc.ListImages(false)
+	if err != nil {
+		return nil, err
 	}
 
-	select {
-	case <-done:
-		return []*Image{}, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return []*Image{}, fmt.Errorf("docker: request failed: %v", err)
+	re := regexp.MustCompile("<none>:<none>")
+
+	resp := []*Image{}
+	for _, img := range imgs {
+		for _, repotag := range img.RepoTags {
+			if len(re.FindString(repotag)) > 0 {
+				continue
+			}
+
+			iid, err := commons.ParseImageID(repotag)
+			if err != nil {
+				return resp, err
+			}
+			resp = append(resp, &Image{img.ID, *iid})
 		}
 	}
+	return resp, nil
 }
 
 // ImportImage creates a new image in the local repository from a file system archive.
@@ -498,26 +420,11 @@ func FindImage(repotag string, pull bool) (*Image, error) {
 
 // Delete remove the image from the local repository
 func (img *Image) Delete() error {
-	ec := make(chan error, 1)
-
-	cmds.DeleteImage <- delimgreq{
-		request{ec},
-		struct {
-			repotag string
-		}{img.ID.String()},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.RemoveImage(img.ID.String())
 }
 
 // Tag tags an image in the local repository
@@ -556,29 +463,11 @@ func (img *Image) Tag(tag string) (*Image, error) {
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Image)
-
-	cmds.ImageInspect <- imginspectreq{
-		request{ec},
-		struct {
-			id string
-		}{uuid},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
-
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			dci := <-rc
-			return dci, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.InspectImage(uuid)
 }
 
 func (img *Image) Inspect() (*dockerclient.Image, error) {

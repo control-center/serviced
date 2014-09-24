@@ -15,9 +15,7 @@ package docker
 
 import (
 	"fmt"
-	"io"
 	"os"
-	"regexp"
 	"strings"
 	"time"
 
@@ -82,67 +80,12 @@ type createreq struct {
 	respchan chan *dockerclient.Container
 }
 
-type deletereq struct {
-	request
-	args struct {
-		removeOptions dockerclient.RemoveContainerOptions
-	}
-}
-
-type delimgreq struct {
-	request
-	args struct {
-		repotag string
-	}
-}
-
-type exportreq struct {
-	request
-	args struct {
-		id      string
-		outfile io.Writer
-	}
-}
-
 type impimgreq struct {
 	request
 	args struct {
 		repotag  string
 		filename string
 	}
-}
-
-type imglistreq struct {
-	request
-	respchan chan []*Image
-}
-
-type imginspectreq struct {
-	request
-	args struct {
-		id string
-	}
-	respchan chan *dockerclient.Image
-}
-
-type continspectreq struct {
-	request
-	args struct {
-		id string
-	}
-	respchan chan *dockerclient.Container
-}
-
-type killreq struct {
-	request
-	args struct {
-		id string
-	}
-}
-
-type listreq struct {
-	request
-	respchan chan []*Container
 }
 
 type oneventreq struct {
@@ -221,49 +164,31 @@ type waitreq struct {
 
 var (
 	cmds = struct {
-		AddAction        chan addactionreq
-		CancelAction     chan cancelactionreq
-		Commit           chan commitreq
-		Create           chan createreq
-		Delete           chan deletereq
-		DeleteImage      chan delimgreq
-		Export           chan exportreq
-		ImageImport      chan impimgreq
-		ImageList        chan imglistreq
-		ImageInspect     chan imginspectreq
-		ContainerInspect chan continspectreq
-		Kill             chan killreq
-		List             chan listreq
-		OnContainerStop  chan onstopreq
-		OnEvent          chan oneventreq
-		PullImage        chan pushpullreq
-		PushImage        chan pushpullreq
-		Restart          chan restartreq
-		Start            chan startreq
-		Stop             chan stopreq
-		TagImage         chan tagimgreq
-		Wait             chan waitreq
+		AddAction       chan addactionreq
+		CancelAction    chan cancelactionreq
+		Commit          chan commitreq
+		Create          chan createreq
+		ImageImport     chan impimgreq
+		OnContainerStop chan onstopreq
+		OnEvent         chan oneventreq
+		PullImage       chan pushpullreq
+		PushImage       chan pushpullreq
+		Restart         chan restartreq
+		Start           chan startreq
+		TagImage        chan tagimgreq
+		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
 		make(chan commitreq),
 		make(chan createreq),
-		make(chan deletereq),
-		make(chan delimgreq),
-		make(chan exportreq),
 		make(chan impimgreq),
-		make(chan imglistreq),
-		make(chan imginspectreq),
-		make(chan continspectreq),
-		make(chan killreq),
-		make(chan listreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
 		make(chan pushpullreq),
 		make(chan pushpullreq),
 		make(chan restartreq),
 		make(chan startreq),
-		make(chan stopreq),
 		make(chan tagimgreq),
 		make(chan waitreq),
 	}
@@ -322,10 +247,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	so := make(chan startreq)
 	go startq(si, so)
 
-	stopi := make(chan stopreq)
-	stopo := make(chan stopreq)
-	go stopq(stopi, stopo)
-
 	ci := make(chan createreq)
 	co := make(chan createreq)
 	go createq(ci, co)
@@ -334,9 +255,8 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	ppo := make(chan pushpullreq)
 	go pushpullq(ppi, ppo)
 
-	go scheduler(dc, so, stopo, co, ppo, done)
+	go scheduler(dc, so, co, ppo, done)
 
-KernelLoop:
 	for {
 		select {
 		case req := <-cmds.AddAction:
@@ -402,35 +322,6 @@ KernelLoop:
 			req.respchan <- &Image{img.ID, *req.args.imageID}
 		case req := <-cmds.Create:
 			ci <- req
-		case req := <-cmds.Delete:
-			glog.V(1).Infof("removing container %#v", req.args.removeOptions)
-			err := dc.RemoveContainer(req.args.removeOptions)
-			if err != nil {
-				glog.V(1).Infof("unable to remove %#v: %v", req.args.removeOptions, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
-		case req := <-cmds.DeleteImage:
-			glog.V(1).Info("removing image: ", req.args.repotag)
-			err := dc.RemoveImage(req.args.repotag)
-			if err != nil {
-				glog.V(1).Infof("unable to remove %s: %v", req.args.repotag, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
-		case req := <-cmds.Export:
-			// TODO: this may need to be shifted to the scheduler, exporting takes some time
-			glog.V(1).Info("exporting container: ", req.args.id)
-			err := dc.ExportContainer(dockerclient.ExportContainerOptions{req.args.id, req.args.outfile})
-			if err != nil {
-				glog.V(1).Infof("unable to export container %s: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-
-			close(req.errchan)
 		case req := <-cmds.ImageImport:
 			// TODO: this may need to be shifted to the scheduler, importing takes some time
 			glog.V(1).Infof("importing image %s from %s", req.args.repotag, req.args.filename)
@@ -461,85 +352,6 @@ KernelLoop:
 			}
 
 			close(req.errchan)
-		case req := <-cmds.ImageList:
-			glog.V(1).Info("retrieving image list")
-			imgs, err := dc.ListImages(false)
-			if err != nil {
-				glog.V(1).Infof("unable to retrieve image list: ", err)
-				req.errchan <- err
-				continue
-			}
-
-			re := regexp.MustCompile("<none>:<none>")
-
-			resp := []*Image{}
-			for _, img := range imgs {
-				for _, repotag := range img.RepoTags {
-					if len(re.FindString(repotag)) > 0 {
-						continue
-					}
-
-					iid, err := commons.ParseImageID(repotag)
-					if err != nil {
-						req.errchan <- err
-						continue KernelLoop
-					}
-					resp = append(resp, &Image{img.ID, *iid})
-				}
-			}
-
-			glog.V(1).Infof("retrieved image list: %+v", resp)
-
-			close(req.errchan)
-			req.respchan <- resp
-		case req := <-cmds.ImageInspect:
-			glog.V(1).Info("inspecting image: ", req.args.id)
-			img, err := dc.InspectImage(req.args.id)
-			if err != nil {
-				glog.V(1).Infof("unable to inspect image %s: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
-			req.respchan <- img
-		case req := <-cmds.ContainerInspect:
-			glog.V(1).Info("inspecting container: ", req.args.id)
-			ctr, err := dc.InspectContainer(req.args.id)
-			if err != nil {
-				glog.V(1).Infof("unable to inspect container %s: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
-			req.respchan <- ctr
-		case req := <-cmds.Kill:
-			glog.V(1).Info("killing container: ", req.args.id)
-			err := dc.KillContainer(dockerclient.KillContainerOptions{req.args.id, dockerclient.SIGKILL})
-			if err != nil {
-				glog.V(1).Infof("unable to kill container %s: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-			close(req.errchan)
-		case req := <-cmds.List:
-			glog.V(1).Info("retrieving list of containers")
-			apictrs, err := dc.ListContainers(dockerclient.ListContainersOptions{All: true})
-			if err != nil {
-				glog.V(1).Infof("unable to retrieve list of containers: %v", err)
-				req.errchan <- err
-				continue
-			}
-			resp := []*Container{}
-			for _, apictr := range apictrs {
-				ctr, err := dc.InspectContainer(apictr.ID)
-				if err != nil {
-					continue
-				}
-				resp = append(resp, &Container{ctr, dockerclient.HostConfig{}})
-			}
-			glog.V(1).Infof("retreived list of containers: %+v", resp)
-			close(req.errchan)
-			req.respchan <- resp
 		case req := <-cmds.OnEvent:
 			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
 				glog.V(1).Info("executing wildcard action for event: ", req.args.event)
@@ -580,8 +392,6 @@ KernelLoop:
 
 			// schedule the start only if the container is not running
 			si <- req
-		case req := <-cmds.Stop:
-			stopi <- req
 		case req := <-cmds.TagImage:
 			glog.V(1).Infof("tagging image %s as: %s", req.args.repo, req.args.tag)
 			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
@@ -615,6 +425,7 @@ KernelLoop:
 			close(req.errchan)
 			glog.V(1).Infof("image %s tagged: %+v", &Image{req.args.uuid, *iid})
 			req.respchan <- &Image{req.args.uuid, *iid}
+
 		case req := <-cmds.Wait:
 			go func(req waitreq) {
 				glog.V(1).Infof("waiting for container %s to finish", req.args.id)
@@ -636,7 +447,7 @@ KernelLoop:
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, stoprc <-chan stopreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -831,22 +642,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, stoprc <-chan stopr
 				case <-time.After(100 * time.Millisecond):
 					break
 				}
-			}(req, dc)
-		case req := <-stoprc:
-			dc, err := dockerclient.NewClient(dockerep)
-			if err != nil {
-				panic(fmt.Errorf("can't get docker client: %v", err))
-			}
-
-			go func(req stopreq, dc *dockerclient.Client) {
-				glog.V(2).Infof("stopping container %s", req.args.id)
-				err := dc.StopContainer(req.args.id, req.args.timeout)
-				if err != nil {
-					glog.V(1).Infof("unable to stop container %s: %v", req.args.id, err)
-					req.errchan <- err
-					return
-				}
-				close(req.errchan)
 			}(req, dc)
 		case req := <-pprc:
 			switch req.args.op {
