@@ -539,11 +539,11 @@ func (c *Controller) Run() (err error) {
 	var exitAfter <-chan time.Time
 	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
+	c.watchRemotePorts()
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
 		return err
 	}
-	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed, rpcDead)
 	go c.reapZombies(rpcDead)
 	healthExit := make(chan struct{})

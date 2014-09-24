@@ -52,6 +52,7 @@ type ApplicationEndpoint struct {
 	Protocol       string
 	VirtualAddress string
 	InstanceID     int
+	ProxyPort      uint16
 }
 
 // A request to deploy a service template

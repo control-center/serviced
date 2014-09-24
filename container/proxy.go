@@ -18,7 +18,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 
 	"github.com/zenoss/glog"
 )
@@ -62,15 +61,20 @@ The netcat (nc) command is particularly useful for this:
     nc 127.0.0.1 4321
 */
 
+type addressTuple struct {
+	host          string // IP of the host on which the container is running
+	containerAddr string // Container IP:port of the remote service
+}
+
 type proxy struct {
-	name             string          // Name of the remote service
-	tenantEndpointID string          // Tenant endpoint ID
-	addresses        []string        // Public IP:Port of the remote service
-	tcpMuxPort       uint16          // the port to use for TCP Muxing, 0 is disabled
-	useTLS           bool            // use encryption over mux port
-	closing          chan chan error // internal shutdown signal
-	newAddresses     chan []string   // a stream of updates to the addresses
-	listener         net.Listener    // handle on the listening socket
+	name             string              // Name of the remote service
+	tenantEndpointID string              // Tenant endpoint ID
+	addresses        []addressTuple      // Public/container IP:Port of the remote service
+	tcpMuxPort       uint16              // the port to use for TCP Muxing, 0 is disabled
+	useTLS           bool                // use encryption over mux port
+	closing          chan chan error     // internal shutdown signal
+	newAddresses     chan []addressTuple // a stream of updates to the addresses
+	listener         net.Listener        // handle on the listening socket
 }
 
 // Newproxy create a new proxy object. It starts listening on the prxy port asynchronously.
@@ -81,12 +85,12 @@ func newProxy(name, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, lis
 	p = &proxy{
 		name:             name,
 		tenantEndpointID: tenantEndpointID,
-		addresses:        make([]string, 0),
+		addresses:        make([]addressTuple, 0),
 		tcpMuxPort:       tcpMuxPort,
 		useTLS:           useTLS,
 		listener:         listener,
 	}
-	p.newAddresses = make(chan []string, 2)
+	p.newAddresses = make(chan []addressTuple, 2)
 	go p.listenAndproxy()
 	return p, nil
 }
@@ -112,7 +116,7 @@ func (p *proxy) UseTLS() bool {
 }
 
 // Set a new Destination Address set for the prxy
-func (p *proxy) SetNewAddresses(addresses []string) {
+func (p *proxy) SetNewAddresses(addresses []addressTuple) {
 	p.newAddresses <- addresses
 }
 
@@ -164,39 +168,37 @@ func (p *proxy) listenAndproxy() {
 // prxy takes an established local connection, Dials the remote address specified
 // by the proxy structure and then copies data to and from the resulting pair
 // of endpoints.
-func (p *proxy) prxy(local net.Conn, address string) {
-	remoteAddr := address
-	// NOTE: here we are relying on the initial remoteAddr to have the
-	//       publicly exposed port for the target service. If TCPMux is
-	//       in play that port will be replaced with the TCPMux port, so
-	//       we grab it here in order to be able to create a proper Zen-Service
-	//       header later.
-	isMux := false
-	hostIP := strings.Split(remoteAddr, ":")[0]
-	if p.tcpMuxPort > 0 && !isLocalAddress(hostIP) {
-		isMux = true
-		remoteAddr = fmt.Sprintf("%s:%d", strings.Split(remoteAddr, ":")[0], p.tcpMuxPort)
+func (p *proxy) prxy(local net.Conn, address addressTuple) {
+
+	var (
+		remote net.Conn
+		err    error
+	)
+
+	if p.tcpMuxPort == 0 {
+		// TODO: Do this properly
+		glog.Errorf("Mux port is unspecified. Using default of 22250.")
+		p.tcpMuxPort = 22250
 	}
 
-	var remote net.Conn
-	var err error
+	muxAddr := fmt.Sprintf("%s:%d", address.host, p.tcpMuxPort)
 
 	glog.V(2).Infof("Dialing hostAgent:%v to prxy %v<->%v<->%v",
-		remoteAddr, local.LocalAddr(), local.RemoteAddr(), address)
-	if p.useTLS && isMux { // Only do TLS if connecting to a TCPMux
+		muxAddr, local.LocalAddr(), local.RemoteAddr(), address.containerAddr)
+
+	if p.useTLS {
 		config := tls.Config{InsecureSkipVerify: true}
-		remote, err = tls.Dial("tcp4", remoteAddr, &config)
+		remote, err = tls.Dial("tcp4", muxAddr, &config)
 	} else {
-		remote, err = net.Dial("tcp4", remoteAddr)
+		remote, err = net.Dial("tcp4", muxAddr)
 	}
 	if err != nil {
 		glog.Error("Error (net.Dial): ", err)
 		return
 	}
 
-	if isMux {
-		io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address))
-	}
+	// Write the container address as the first line
+	io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr))
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
@@ -206,12 +208,12 @@ func (p *proxy) prxy(local net.Conn, address string) {
 		io.Copy(local, remote)
 		glog.V(2).Infof("Closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
 			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
-	}(address)
+	}(address.containerAddr)
 	go func(address string) {
 		defer local.Close()
 		defer remote.Close()
 		io.Copy(remote, local)
 		glog.V(2).Infof("closing hostAgent:%v to prxy %v<->%v<->%v<->%v",
 			remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
-	}(address)
+	}(address.containerAddr)
 }

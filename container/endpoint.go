@@ -456,10 +456,11 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 			}
 			endpoints[ii] = endpointNode.ApplicationEndpoint
 			if ep.port != 0 {
-				glog.V(2).Infof("overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
-				endpoints[ii].ContainerPort = ep.port
+				glog.V(2).Infof("overriding ProxyPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				endpoints[ii].ProxyPort = ep.port
 			} else {
-				glog.Infof("not overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				glog.V(2).Infof("not overriding ProxyPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				endpoints[ii].ProxyPort = endpoints[ii].ContainerPort
 			}
 		}
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
@@ -476,7 +477,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 	if len(endpoints) <= 0 {
 		if prxy, ok := proxies[tenantEndpointID]; ok {
 			glog.Errorf("Setting proxy %s to empty address list", tenantEndpointID)
-			emptyAddressList := []string{}
+			emptyAddressList := []addressTuple{}
 			prxy.SetNewAddresses(emptyAddressList)
 		} else {
 			glog.Errorf("No proxy for %s - no need to set empty address list", tenantEndpointID)
@@ -486,9 +487,12 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 
 	// First pass of endpoints creates a map of proxy index (which is
 	// instanceID in an import_all scenario) to array of addresses
-	addressMap := make(map[int][]string, len(endpoints))
+	addressMap := make(map[int][]addressTuple, len(endpoints))
 	for _, endpoint := range endpoints {
-		address := fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
+		address := addressTuple{
+			host:          endpoint.HostIP,
+			containerAddr: fmt.Sprintf("%s:%d", endpoint.ContainerIP, endpoint.ContainerPort),
+		}
 		if purpose == "import" {
 			// If we're a load-balanced endpoint, we don't care about instance
 			// ID; just put everything on 0, since we will have 1 proxy
@@ -585,9 +589,9 @@ func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint) (
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
-	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ContainerPort))
+	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ProxyPort))
 	if err != nil {
-		glog.Errorf("Could not bind to port %d: %s", endpoint.ContainerPort, err)
+		glog.Errorf("Could not bind to port %d: %s", endpoint.ProxyPort, err)
 		return nil, err
 	}
 	prxy, err := newProxy(
