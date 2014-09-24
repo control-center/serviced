@@ -145,34 +145,31 @@ func (c *Container) CancelOnEvent(event string) error {
 
 // Commit creates a new Image from the containers changes.
 func (c *Container) Commit(iidstr string) (*Image, error) {
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
+	}
 	iid, err := commons.ParseImageID(iidstr)
 	if err != nil {
 		return nil, err
 	}
 
-	ec := make(chan error, 1)
-	rc := make(chan *Image)
+	img, err := dc.CommitContainer(
+		dockerclient.CommitContainerOptions{
+			Container:  c.ID,
+			Repository: iid.BaseName(),
+		})
 
-	cmds.Commit <- commitreq{
-		request{ec},
-		struct {
-			containerID string
-			imageID     *commons.ImageID
-		}{c.ID, iid},
-		rc,
+	if err != nil {
+		glog.V(1).Infof("unable to commit container %s: %v", c.ID, err)
+		return nil, err
 	}
 
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
+	if useRegistry {
+		err = pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 	}
+
+	return &Image{img.ID, *iid}, err
 }
 
 // Delete removes the container.

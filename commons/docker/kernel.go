@@ -59,15 +59,6 @@ type cancelactionreq struct {
 	}
 }
 
-type commitreq struct {
-	request
-	args struct {
-		containerID string
-		imageID     *commons.ImageID
-	}
-	respchan chan *Image
-}
-
 type createreq struct {
 	request
 	args struct {
@@ -154,7 +145,6 @@ var (
 	cmds = struct {
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
-		Commit          chan commitreq
 		Create          chan createreq
 		ImageImport     chan impimgreq
 		OnContainerStop chan onstopreq
@@ -166,7 +156,6 @@ var (
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
-		make(chan commitreq),
 		make(chan createreq),
 		make(chan impimgreq),
 		make(chan onstopreq),
@@ -267,28 +256,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 
 			glog.V(1).Info("removed action for: ", event)
 			close(req.errchan)
-		case req := <-cmds.Commit:
-			// TODO: this may need to be shifted to the scheduler if commits take too long
-			opts := dockerclient.CommitContainerOptions{
-				Container:  req.args.containerID,
-				Repository: req.args.imageID.BaseName(),
-			}
-
-			glog.V(1).Infof("commit container %s (%#v)", req.args.containerID, opts)
-
-			img, err := dc.CommitContainer(opts)
-			if err != nil {
-				glog.V(1).Infof("unable to commit container %s: %v", req.args.containerID, err)
-				req.errchan <- err
-				continue
-			}
-
-			if useRegistry {
-				pushImage(req.args.imageID.BaseName(), req.args.imageID.Registry(), req.args.imageID.Tag)
-			}
-
-			close(req.errchan)
-			req.respchan <- &Image{img.ID, *req.args.imageID}
 		case req := <-cmds.Create:
 			ci <- req
 		case req := <-cmds.ImageImport:
