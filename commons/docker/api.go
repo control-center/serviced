@@ -16,8 +16,8 @@ package docker
 import (
 	"errors"
 	"fmt"
-	"io"
 	"os"
+	"regexp"
 	"time"
 
 	"github.com/control-center/serviced/commons"
@@ -68,37 +68,137 @@ var (
 // it will be executed after the container has been started. Note, if the start parameter is
 // false the container won't be started and the start action will not be executed.
 func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
 
-	cmds.Create <- createreq{
-		request{ec},
-		struct {
-			containerOptions *dockerclient.CreateContainerOptions
-			hostConfig       *dockerclient.HostConfig
-			start            bool
-			createaction     ContainerActionFunc
-			startaction      ContainerActionFunc
-		}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart},
-		rc,
+	args := struct {
+		containerOptions *dockerclient.CreateContainerOptions
+		hostConfig       *dockerclient.HostConfig
+		start            bool
+		createaction     ContainerActionFunc
+		startaction      ContainerActionFunc
+	}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart}
+
+	timeoutc := time.After(timeout)
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
 
-	glog.V(2).Info("sent create container request: ", *cd)
+	em, err := dc.MonitorEvents()
+	if err != nil {
+		return nil, fmt.Errorf("can't monitor Docker events: %v", err)
+	}
 
-	select {
-	case <-time.After(timeout):
-		glog.V(2).Infof("create container request timedout (%+v)", *cd)
-		return nil, ErrRequestTimeout
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return &Container{<-rc, cd.HostConfig}, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
+	iid, err := commons.ParseImageID(args.containerOptions.Config.Image)
+	if err != nil {
+		return nil, err
+	}
+
+	if useRegistry {
+		err = pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
+		if err != nil {
+			glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
+			return nil, err
 		}
 	}
+
+	glog.V(2).Infof("creating container: %#v", *args.containerOptions)
+	ctr, err := dc.CreateContainer(*args.containerOptions)
+	switch {
+	case err == dockerclient.ErrNoSuchImage:
+		pullerr := dc.PullImage(
+			dockerclient.PullImageOptions{
+				Repository: iid.BaseName(),
+				Registry:   iid.Registry(),
+				Tag:        iid.Tag,
+			},
+			dockerclient.AuthConfiguration{})
+		if pullerr != nil {
+			glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
+			return nil, err
+		}
+		ctr, err = dc.CreateContainer(*args.containerOptions)
+		if err != nil {
+			glog.V(2).Infof("container creation failed %+v: %v", *args.containerOptions, err)
+			return nil, err
+		}
+	case err != nil:
+		glog.V(2).Infof("container creation failed %+v: %v", *args.containerOptions, err)
+		return nil, err
+	}
+
+	glog.V(2).Infof("created container: %+v", *ctr)
+	if args.createaction != nil {
+		args.createaction(ctr.ID)
+	}
+
+	if args.start {
+		ss, err := em.Subscribe(ctr.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		sc := make(chan struct{})
+
+		ss.Handle(Start, func(e dockerclient.Event) error {
+			if args.startaction != nil {
+				args.startaction(ctr.ID)
+			}
+			glog.V(2).Infof("handling event: %+v for %s", e, ctr.ID)
+			close(sc)
+			return nil
+		})
+		defer ss.Cancel()
+
+		glog.V(2).Infof("post creation start of %s: %+v", ctr.ID, args.hostConfig)
+		err = dc.StartContainer(ctr.ID, args.hostConfig)
+		if err != nil {
+			glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
+			return nil, err
+		}
+
+		glog.V(2).Infof("======= wait for %s to start =======", ctr.ID)
+		attempts := 0
+
+	WaitForContainerStart:
+		for {
+			select {
+			case <-timeoutc:
+				glog.V(2).Infof("timeout starting container")
+				return nil, fmt.Errorf("docker timeout starting container after %s", timeout)
+			case <-sc:
+				glog.V(2).Infof("update container %s state post start", ctr.ID)
+				ctrID := ctr.ID
+				ctr, err = dc.InspectContainer(ctrID)
+				if err != nil {
+					glog.V(1).Infof("failed to update container %s state post start: %v", ctrID, err)
+					return nil, err
+				}
+				glog.V(2).Infof("container %s is started", ctr.ID)
+				break WaitForContainerStart
+			case <-time.After(5 * time.Second):
+				nctr, err := dc.InspectContainer(ctr.ID)
+				if err != nil {
+					glog.V(2).Infof("can't inspect container %s: %v", ctr.ID, err)
+					return nil, err
+				}
+				ctr = nctr
+
+				switch {
+				case !ctr.State.Running && attempts > maxStartAttempts:
+					glog.V(2).Infof("timed out starting container")
+					return nil, fmt.Errorf("timed out starting container: %s", ctr.ID)
+				case !ctr.State.Running:
+					attempts = attempts + 1
+					continue WaitForContainerStart
+				default:
+					glog.V(2).Infof("container %s is running", ctr.ID)
+					break WaitForContainerStart
+				}
+			}
+		}
+	}
+
+	return &Container{ctr, cd.HostConfig}, nil
 }
 
 // FindContainer looks up a container using its id.
@@ -119,25 +219,23 @@ func FindContainer(id string) (*Container, error) {
 
 // Containers retrieves a list of all the Docker containers.
 func Containers() ([]*Container, error) {
-	ec := make(chan error, 1)
-	rc := make(chan []*Container)
-
-	cmds.List <- listreq{
-		request{ec},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
-
-	select {
-	case <-done:
-		return []*Container{}, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return []*Container{}, fmt.Errorf("docker: request failed: %v", err)
+	apictrs, err := dc.ListContainers(dockerclient.ListContainersOptions{All: true})
+	if err != nil {
+		return nil, err
+	}
+	resp := []*Container{}
+	for _, apictr := range apictrs {
+		ctr, err := dc.InspectContainer(apictr.ID)
+		if err != nil {
+			continue
 		}
+		resp = append(resp, &Container{ctr, dockerclient.HostConfig{}})
 	}
+	return resp, nil
 }
 
 // CancelOnEvent cancels the action associated with the specified event.
@@ -147,136 +245,68 @@ func (c *Container) CancelOnEvent(event string) error {
 
 // Commit creates a new Image from the containers changes.
 func (c *Container) Commit(iidstr string) (*Image, error) {
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
+	}
 	iid, err := commons.ParseImageID(iidstr)
 	if err != nil {
 		return nil, err
 	}
 
-	ec := make(chan error, 1)
-	rc := make(chan *Image)
+	img, err := dc.CommitContainer(
+		dockerclient.CommitContainerOptions{
+			Container:  c.ID,
+			Repository: iid.BaseName(),
+		})
 
-	cmds.Commit <- commitreq{
-		request{ec},
-		struct {
-			containerID string
-			imageID     *commons.ImageID
-		}{c.ID, iid},
-		rc,
+	if err != nil {
+		glog.V(1).Infof("unable to commit container %s: %v", c.ID, err)
+		return nil, err
 	}
 
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
+	if useRegistry {
+		err = pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 	}
+
+	return &Image{img.ID, *iid}, err
 }
 
 // Delete removes the container.
 func (c *Container) Delete(volumes bool) error {
-	ec := make(chan error, 1)
-
-	cmds.Delete <- deletereq{
-		request{ec},
-		struct {
-			removeOptions dockerclient.RemoveContainerOptions
-		}{dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes}},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes})
 }
 
 // Export writes the contents of the container's filesystem as a tar archive to outfile.
 func (c *Container) Export(outfile *os.File) error {
-	ec := make(chan error, 1)
-
-	cmds.Export <- exportreq{
-		request{ec},
-		struct {
-			id      string
-			outfile io.Writer
-		}{c.ID, outfile},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.ExportContainer(dockerclient.ExportContainerOptions{c.ID, outfile})
 }
 
 // Kill sends a SIGKILL signal to the container. If the container is not started
 // no action is taken.
 func (c *Container) Kill() error {
-	ec := make(chan error, 1)
-
-	cmds.Kill <- killreq{
-		request{ec},
-		struct {
-			id string
-		}{c.ID},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.KillContainer(dockerclient.KillContainerOptions{ID: c.ID, Signal: dockerclient.SIGKILL})
 }
 
 // Inspect returns information about the container specified by id.
 func (c *Container) Inspect() (*dockerclient.Container, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
-
-	cmds.ContainerInspect <- continspectreq{
-		request{ec},
-		struct {
-			id string
-		}{c.ID},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
-
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			dcc := <-rc
-			c.Container = dcc
-			return dcc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.InspectContainer(c.ID)
 }
 
 // IsRunning inspects the container and returns true if it is running
@@ -296,29 +326,13 @@ func (c *Container) OnEvent(event string, action ContainerActionFunc) error {
 
 // Restart stops and then restarts a container.
 func (c *Container) Restart(timeout time.Duration) error {
-	ec := make(chan error, 1)
-
-	cmds.Restart <- restartreq{
-		request{ec},
-		struct {
-			id      string
-			timeout uint
-		}{c.ID, uint(timeout.Seconds())},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-time.After(timeout):
-		return ErrRequestTimeout
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.RestartContainer(c.ID, uint(timeout.Seconds()))
+
 }
 
 // Start uses the information provided in the container definition cd to start a new Docker
@@ -329,90 +343,83 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 		return nil
 	}
 
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
-
-	cmds.Start <- startreq{
-		request{ec},
-		struct {
-			id         string
-			hostConfig *dockerclient.HostConfig
-			action     ContainerActionFunc
-		}{c.ID, &c.HostConfig, onstart},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-time.After(timeout):
-		return ErrRequestTimeout
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			dcc := <-rc
-			c.Container = dcc
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	args := struct {
+		id         string
+		hostConfig *dockerclient.HostConfig
+		action     ContainerActionFunc
+	}{c.ID, &c.HostConfig, onstart}
+
+	// check to see if the container is already running
+	ctr, err := dc.InspectContainer(args.id)
+	if err != nil {
+		glog.V(1).Infof("unable to inspect container %s prior to starting it: %v", args.id, err)
+		return err
 	}
+
+	if ctr.State.Running {
+		return ErrAlreadyStarted
+	}
+
+	glog.V(2).Infof("starting container %s: %+v", args.id, args.hostConfig)
+	err = dc.StartContainer(args.id, args.hostConfig)
+	if err != nil {
+		glog.V(2).Infof("unable to start %s: %v", args.id, err)
+		return err
+	}
+
+	glog.V(2).Infof("update container %s state post start", args.id)
+	ctr, err = dc.InspectContainer(args.id)
+	if err != nil {
+		glog.V(2).Infof("failed to update container %s state post start: %v", args.id, err)
+		return err
+	}
+	c.Container = ctr
+
+	if args.action != nil {
+		args.action(args.id)
+	}
+
+	return nil
 }
 
 // Stop stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
 func (c *Container) Stop(timeout time.Duration) error {
-	ec := make(chan error, 1)
-
-	cmds.Stop <- stopreq{
-		request{ec},
-		struct {
-			id      string
-			timeout uint
-		}{c.ID, uint(timeout.Seconds())},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-time.After(timeout):
-		return ErrRequestTimeout
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.StopContainer(c.ID, uint(timeout.Seconds()))
 }
 
 // Wait blocks until the container stops or the timeout expires and then returns its exit code.
 func (c *Container) Wait(timeout time.Duration) (int, error) {
-	ec := make(chan error, 1)
-	rc := make(chan int)
 
-	cmds.Wait <- waitreq{
-		request{ec},
-		struct {
-			id string
-		}{c.ID},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return -127, err
 	}
+	type waitResult struct {
+		rc  int
+		err error
+	}
+	errc := make(chan waitResult)
+	go func() {
+		rc, err := dc.WaitContainer(c.ID)
+		errc <- waitResult{rc, err}
+	}()
 
 	select {
 	case <-time.After(timeout):
-		return -127, ErrRequestTimeout
-	case <-done:
-		return -127, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return -127, fmt.Errorf("docker: request failed: %v", err)
-		}
+	case result := <-errc:
+		return result.rc, result.err
 	}
+	return -127, ErrRequestTimeout
 }
 
 // OnContainerCreated associates a containter action with the specified container. The action will be triggered when
@@ -436,50 +443,64 @@ type Image struct {
 
 // Images returns a list of all the named images in the local repository
 func Images() ([]*Image, error) {
-	ec := make(chan error, 1)
-	rc := make(chan []*Image)
-
-	cmds.ImageList <- imglistreq{
-		request{ec},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
+	}
+	imgs, err := dc.ListImages(false)
+	if err != nil {
+		return nil, err
 	}
 
-	select {
-	case <-done:
-		return []*Image{}, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return []*Image{}, fmt.Errorf("docker: request failed: %v", err)
+	re := regexp.MustCompile("<none>:<none>")
+
+	resp := []*Image{}
+	for _, img := range imgs {
+		for _, repotag := range img.RepoTags {
+			if len(re.FindString(repotag)) > 0 {
+				continue
+			}
+
+			iid, err := commons.ParseImageID(repotag)
+			if err != nil {
+				return resp, err
+			}
+			resp = append(resp, &Image{img.ID, *iid})
 		}
 	}
+	return resp, nil
 }
 
 // ImportImage creates a new image in the local repository from a file system archive.
 func ImportImage(repotag, filename string) error {
-	ec := make(chan error, 1)
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
+	}
+	glog.V(1).Infof("importing image %s from %s", repotag, filename)
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
-	cmds.ImageImport <- impimgreq{
-		request{ec},
-		struct {
-			repotag  string
-			filename string
-		}{repotag, filename},
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	opts := dockerclient.ImportImageOptions{
+		Repository:  iid.BaseName(),
+		Source:      "-",
+		InputStream: f,
+		Tag:         iid.Tag,
 	}
+
+	if err = dc.ImportImage(opts); err != nil {
+		glog.V(1).Infof("unable to import %s: %v", repotag, err)
+		return err
+	}
+	return err
 }
 
 // FindImage looks up an image by repotag, e.g., zenoss/devimg, from the local repository
@@ -487,7 +508,7 @@ func ImportImage(repotag, filename string) error {
 func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull && useRegistry {
-		err := pullImage(repotag)
+		err := PullImage(repotag)
 		if err != nil {
 			return nil, err
 		}
@@ -498,87 +519,58 @@ func FindImage(repotag string, pull bool) (*Image, error) {
 
 // Delete remove the image from the local repository
 func (img *Image) Delete() error {
-	ec := make(chan error, 1)
-
-	cmds.DeleteImage <- delimgreq{
-		request{ec},
-		struct {
-			repotag string
-		}{img.ID.String()},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
-
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.RemoveImage(img.ID.String())
 }
 
 // Tag tags an image in the local repository
 func (img *Image) Tag(tag string) (*Image, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *Image)
 
 	iid, err := commons.ParseImageID(tag)
 	if err != nil {
 		return nil, err
 	}
 
-	cmds.TagImage <- tagimgreq{
-		request{ec},
-		struct {
-			uuid     string
-			name     string
-			repo     string
-			registry string
-			tag      string
-		}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
 
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
+	args := struct {
+		uuid     string
+		name     string
+		repo     string
+		registry string
+		tag      string
+	}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag}
+
+	glog.V(1).Infof("tagging image %s as: %s", args.repo, args.tag)
+	err = dc.TagImage(args.name, dockerclient.TagImageOptions{Repo: args.repo, Tag: args.tag})
+	if err != nil {
+		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
+		return nil, err
 	}
+
+	if useRegistry {
+		pushImage(args.repo, args.registry, args.tag)
+	}
+
+	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
+	if err != nil {
+		return nil, err
+	}
+	return &Image{args.uuid, *iid}, nil
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Image)
-
-	cmds.ImageInspect <- imginspectreq{
-		request{ec},
-		struct {
-			id string
-		}{uuid},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
-
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			dci := <-rc
-			return dci, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.InspectImage(uuid)
 }
 
 func (img *Image) Inspect() (*dockerclient.Image, error) {
@@ -676,82 +668,63 @@ func lookupImage(repotag string) (*Image, error) {
 	return nil, ErrNoSuchImage
 }
 
-func pullImage(repotag string) error {
+func PullImage(repotag string) error {
 	iid, err := commons.ParseImageID(repotag)
 	if err != nil {
 		return err
 	}
+	return pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
+}
 
-	ec := make(chan error, 1)
+func pullImage(repo, registry, tag string) error {
 
-	cmds.PullImage <- pushpullreq{
-		request{ec},
-		struct {
-			op       int
-			uuid     string
-			reponame string
-			registry string
-			tag      string
-		}{pullop, "", iid.BaseName(), iid.Registry(), iid.Tag},
-		nil,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	glog.V(2).Info("pulling image: ", repo)
+	opts := dockerclient.PullImageOptions{
+		Repository: repo,
+		Registry:   registry,
+		Tag:        tag,
 	}
+
+	err = dc.PullImage(opts, dockerclient.AuthConfiguration{})
+	if err != nil {
+		glog.V(2).Infof("failed to pull %s: %v", repo, err)
+		return err
+	}
+	return nil
 }
 
 // PushImage pushes an image by repotag to local registry, e.g., zenoss/devimg, from the local docker repository
 func PushImage(repotag string) error {
-	glog.V(1).Infof("looking up image: %s", repotag)
-	if _, err := lookupImage(repotag); err != nil {
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
 		return err
-	}
 
-	if err := pushImage(repotag); err != nil {
-		return err
 	}
-
-	return nil
+	return pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 }
 
-func pushImage(repotag string) error {
-	iid, err := commons.ParseImageID(repotag)
+func pushImage(repo, registry, tag string) error {
+	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		return err
 	}
 
-	ec := make(chan error, 1)
-
-	cmds.PushImage <- pushpullreq{
-		request{ec},
-		struct {
-			op       int
-			uuid     string
-			reponame string
-			registry string
-			tag      string
-		}{pushop, "", iid.BaseName(), iid.Registry(), iid.Tag},
-		nil,
+	glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
+	opts := dockerclient.PushImageOptions{
+		Name:     repo,
+		Registry: registry,
+		Tag:      tag,
 	}
 
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
+	if err != nil {
+		glog.V(2).Infof("failed to push %s: %v", repo, err)
+		return err
 	}
+	return nil
 }
