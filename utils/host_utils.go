@@ -28,6 +28,21 @@ var hostIDCmdString = "/usr/bin/hostid"
 // Path to meminfo file. Placed here so getMemorySize() is testable.
 var meminfoFile = "/proc/meminfo"
 
+var Platform = determinePlatform()
+
+const (
+   Rhel = iota
+   Debian
+)
+
+func determinePlatform() int {
+    if _, err := os.Stat("/etc/redhat-release"); err == nil {
+        return Rhel
+    } else {
+        return Debian
+    }
+}
+
 // HostID retreives the system's unique id, on linux this maps
 // to /usr/bin/hostid.
 func HostID() (hostid string, err error) {
