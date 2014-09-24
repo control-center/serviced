@@ -74,35 +74,17 @@ type onstopreq struct {
 	}
 }
 
-type stopreq struct {
-	request
-	args struct {
-		id      string
-		timeout uint
-	}
-}
-
-type waitreq struct {
-	request
-	args struct {
-		id string
-	}
-	respchan chan int
-}
-
 var (
 	cmds = struct {
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
-		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
 		make(chan cancelactionreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
-		make(chan waitreq),
 	}
 	dockerevents = []string{
 		dockerclient.Create,
@@ -195,17 +177,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 				go action(req.args.id)
 			}
 			close(req.errchan)
-		case req := <-cmds.Wait:
-			go func(req waitreq) {
-				glog.V(1).Infof("waiting for container %s to finish", req.args.id)
-				rc, err := dc.WaitContainer(req.args.id)
-				if err != nil {
-					glog.V(1).Infof("wait for container %s failed: %v", req.args.id, err)
-					req.errchan <- err
-				}
-				close(req.errchan)
-				req.respchan <- rc
-			}(req)
 		case <-done:
 			return nil
 		}

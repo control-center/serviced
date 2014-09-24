@@ -395,30 +395,27 @@ func (c *Container) Stop(timeout time.Duration) error {
 
 // Wait blocks until the container stops or the timeout expires and then returns its exit code.
 func (c *Container) Wait(timeout time.Duration) (int, error) {
-	ec := make(chan error, 1)
-	rc := make(chan int)
 
-	cmds.Wait <- waitreq{
-		request{ec},
-		struct {
-			id string
-		}{c.ID},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return -127, err
 	}
+	type waitResult struct {
+		rc  int
+		err error
+	}
+	errc := make(chan waitResult)
+	go func() {
+		rc, err := dc.WaitContainer(c.ID)
+		errc <- waitResult{rc, err}
+	}()
 
 	select {
 	case <-time.After(timeout):
-		return -127, ErrRequestTimeout
-	case <-done:
-		return -127, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return -127, fmt.Errorf("docker: request failed: %v", err)
-		}
+	case result := <-errc:
+		return result.rc, result.err
 	}
+	return -127, ErrRequestTimeout
 }
 
 // OnContainerCreated associates a containter action with the specified container. The action will be triggered when
