@@ -183,13 +183,13 @@ func (sr StatsReporter) updateStats() {
 	}
 	for _, rs := range running {
 		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
+		if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct)); err != nil {
 			glog.Warningf("Couldn't read CpuacctStat:", err)
 		} else {
 			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
 			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
 		}
-		if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + rs.DockerID + "/memory.stat"); err != nil {
+		if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory)); err != nil {
 			glog.Warningf("Couldn't read MemoryStat:", err)
 		} else {
 			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)

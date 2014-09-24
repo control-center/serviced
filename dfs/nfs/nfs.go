@@ -15,10 +15,10 @@ package nfs
 
 import (
 	"fmt"
-	"os"
 	"os/exec"
 
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/utils"
 )
 
 var nfsServiceName = determineNfsServiceName()
@@ -29,7 +29,7 @@ var reload = reloadImpl
 
 func determineNfsServiceName() string {
     // In RHEL-based releases, the 'nfs' service is used
-    if _, err := os.Stat("/etc/redhat-release"); err == nil {
+    if utils.Platform == utils.Rhel {
         return "nfs"
     } else {
         return "nfs-kernel-server"
