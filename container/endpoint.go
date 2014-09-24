@@ -526,13 +526,13 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 		// being imported
 		for ii, instance := range endpoints {
 			// Port for this instance is base port + instanceID
-			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
-			if _, conflict := exported[containerPort]; conflict {
-				glog.Warningf("Skipping import at port %d because it conflicts with a port exported by this container", containerPort)
+			proxyPort := instance.ProxyPort + uint16(instance.InstanceID)
+			if _, conflict := exported[proxyPort]; conflict {
+				glog.Warningf("Skipping import at port %d because it conflicts with a port exported by this container", proxyPort)
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
-			endpoints[ii].ContainerPort = containerPort
+			endpoints[ii].ProxyPort = proxyPort
 		}
 	}
 
@@ -572,7 +572,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 				virtualAddress := buffer.String()
 				// Now actually make the thing
 				if virtualAddress != "" {
-					p := strconv.FormatUint(uint64(endpoint.ContainerPort), 10)
+					p := strconv.FormatUint(uint64(endpoint.ProxyPort), 10)
 					err := vifs.RegisterVirtualAddress(virtualAddress, p, endpoint.Protocol)
 					if err != nil {
 						glog.Errorf("Error creating virtual address %s: %+v", virtualAddress, err)
