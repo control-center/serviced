@@ -68,37 +68,133 @@ var (
 // it will be executed after the container has been started. Note, if the start parameter is
 // false the container won't be started and the start action will not be executed.
 func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, oncreate ContainerActionFunc, onstart ContainerActionFunc) (*Container, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
 
-	cmds.Create <- createreq{
-		request{ec},
-		struct {
-			containerOptions *dockerclient.CreateContainerOptions
-			hostConfig       *dockerclient.HostConfig
-			start            bool
-			createaction     ContainerActionFunc
-			startaction      ContainerActionFunc
-		}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart},
-		rc,
+	args := struct {
+		containerOptions *dockerclient.CreateContainerOptions
+		hostConfig       *dockerclient.HostConfig
+		start            bool
+		createaction     ContainerActionFunc
+		startaction      ContainerActionFunc
+	}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart}
+
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
 
-	glog.V(2).Info("sent create container request: ", *cd)
+	em, err := dc.MonitorEvents()
+	if err != nil {
+		return nil, fmt.Errorf("can't monitor Docker events: %v", err)
+	}
 
-	select {
-	case <-time.After(timeout):
-		glog.V(2).Infof("create container request timedout (%+v)", *cd)
-		return nil, ErrRequestTimeout
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return &Container{<-rc, cd.HostConfig}, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
+	iid, err := commons.ParseImageID(args.containerOptions.Config.Image)
+	if err != nil {
+		return nil, err
+	}
+
+	if useRegistry {
+		err = pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
+		if err != nil {
+			glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
+			return nil, err
 		}
 	}
+
+	glog.V(2).Infof("creating container: %#v", *args.containerOptions)
+	ctr, err := dc.CreateContainer(*args.containerOptions)
+	switch {
+	case err == dockerclient.ErrNoSuchImage:
+		pullerr := dc.PullImage(
+			dockerclient.PullImageOptions{
+				Repository: iid.BaseName(),
+				Registry:   iid.Registry(),
+				Tag:        iid.Tag,
+			},
+			dockerclient.AuthConfiguration{})
+		if pullerr != nil {
+			glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
+			return nil, err
+		}
+		ctr, err = dc.CreateContainer(*args.containerOptions)
+		if err != nil {
+			glog.V(2).Infof("container creation failed %+v: %v", *args.containerOptions, err)
+			return nil, err
+		}
+	case err != nil:
+		glog.V(2).Infof("container creation failed %+v: %v", *args.containerOptions, err)
+		return nil, err
+	}
+
+	glog.V(2).Infof("created container: %+v", *ctr)
+	if args.createaction != nil {
+		args.createaction(ctr.ID)
+	}
+
+	if args.start {
+		ss, err := em.Subscribe(ctr.ID)
+		if err != nil {
+			return nil, err
+		}
+
+		sc := make(chan struct{})
+
+		ss.Handle(Start, func(e dockerclient.Event) error {
+			if args.startaction != nil {
+				args.startaction(ctr.ID)
+			}
+			glog.V(2).Infof("handling event: %+v for %s", e, ctr.ID)
+			close(sc)
+			return nil
+		})
+		defer ss.Cancel()
+
+		glog.V(2).Infof("post creation start of %s: %+v", ctr.ID, args.hostConfig)
+		err = dc.StartContainer(ctr.ID, args.hostConfig)
+		if err != nil {
+			glog.V(1).Infof("post creation start of %s failed: %v", ctr.ID, err)
+			return nil, err
+		}
+
+		glog.V(2).Infof("======= wait for %s to start =======", ctr.ID)
+		attempts := 0
+
+	WaitForContainerStart:
+		for {
+			select {
+			case <-sc:
+				glog.V(2).Infof("update container %s state post start", ctr.ID)
+				ctrID := ctr.ID
+				ctr, err = dc.InspectContainer(ctrID)
+				if err != nil {
+					glog.V(1).Infof("failed to update container %s state post start: %v", ctrID, err)
+					return nil, err
+				}
+				glog.V(2).Infof("container %s is started", ctr.ID)
+				break WaitForContainerStart
+			case <-time.After(5 * time.Second):
+				nctr, err := dc.InspectContainer(ctr.ID)
+				if err != nil {
+					glog.V(2).Infof("can't inspect container %s: %v", ctr.ID, err)
+					return nil, err
+				}
+				ctr = nctr
+
+				switch {
+				case !ctr.State.Running && attempts > maxStartAttempts:
+					glog.V(2).Infof("timed out starting container")
+					return nil, fmt.Errorf("timed out starting container: %s", ctr.ID)
+				case !ctr.State.Running:
+					attempts = attempts + 1
+					continue WaitForContainerStart
+				default:
+					glog.V(2).Infof("container %s is running", ctr.ID)
+					break WaitForContainerStart
+				}
+			}
+		}
+	}
+
+	return &Container{ctr, cd.HostConfig}, nil
 }
 
 // FindContainer looks up a container using its id.
@@ -226,29 +322,13 @@ func (c *Container) OnEvent(event string, action ContainerActionFunc) error {
 
 // Restart stops and then restarts a container.
 func (c *Container) Restart(timeout time.Duration) error {
-	ec := make(chan error, 1)
-
-	cmds.Restart <- restartreq{
-		request{ec},
-		struct {
-			id      string
-			timeout uint
-		}{c.ID, uint(timeout.Seconds())},
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-time.After(timeout):
-		return ErrRequestTimeout
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
-	}
+	return dc.RestartContainer(c.ID, uint(timeout.Seconds()))
+
 }
 
 // Start uses the information provided in the container definition cd to start a new Docker
