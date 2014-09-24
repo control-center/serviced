@@ -186,6 +186,7 @@ func (c *Container) loop() {
 	}
 }
 
+
 type containerStat struct {
 	Metric    string            `json:"metric"`
 	Value     string            `json:"value"`
@@ -213,7 +214,7 @@ func (c *Container) doStats(exitChan chan bool) {
 				}
 				id = (*ids)[0]
 			}
-			if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + id + "/cpuacct.stat"); err != nil {
+			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Cpuacct)); err != nil {
 				glog.Warningf("Couldn't read CpuacctStat:", err)
 				id = ""
 				break
@@ -221,7 +222,7 @@ func (c *Container) doStats(exitChan chan bool) {
 				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
 				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
 			}
-			if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + id + "/memory.stat"); err != nil {
+			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Memory)); err != nil {
 				glog.Warningf("Couldn't read MemoryStat:", err)
 				id = ""
 				break

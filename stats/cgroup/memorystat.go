@@ -57,7 +57,7 @@ func ReadMemoryStat(fileName string) (*MemoryStat, error) {
 	stat := MemoryStat{}
 	kv, err := parseSSKVint64(fileName)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing /sys/fs/cgroup/memory/memory.stat: %v", err)
+		return nil, fmt.Errorf("error parsing %s: %v", fileName, err)
 	}
 	for k, v := range kv {
 		switch k {
