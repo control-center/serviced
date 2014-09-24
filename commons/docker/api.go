@@ -77,6 +77,7 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 		startaction      ContainerActionFunc
 	}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart}
 
+	timeoutc := time.After(timeout)
 	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		return nil, err
@@ -161,6 +162,9 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	WaitForContainerStart:
 		for {
 			select {
+			case <-timeoutc:
+				glog.V(2).Infof("timeout starting container")
+				return nil, fmt.Errorf("docker timeout starting container after %s", timeout)
 			case <-sc:
 				glog.V(2).Infof("update container %s state post start", ctr.ID)
 				ctrID := ctr.ID

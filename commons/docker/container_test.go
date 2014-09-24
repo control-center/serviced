@@ -453,23 +453,6 @@ func TestRepeatedStart(t *testing.T) {
 	ctr.Delete(true)
 }
 
-func TestNewContainerTimeout(t *testing.T) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "base:latest",
-				Cmd:   []string{"watch", "ls"},
-			},
-		},
-		dockerclient.HostConfig{},
-	}
-
-	_, err := NewContainer(cd, false, 5*time.Microsecond, nil, nil)
-	if err == nil {
-		t.Fatal("expecting timeout")
-	}
-}
-
 func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
