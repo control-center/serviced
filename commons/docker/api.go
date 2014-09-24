@@ -336,9 +336,8 @@ func (c *Container) Restart(timeout time.Duration) error {
 }
 
 // Start uses the information provided in the container definition cd to start a new Docker
-// container. If a container can't be started before the timeout expires an error is returned. After the container
-// is successfully started the onstart action function is executed.
-func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) error {
+// container. If a container can't be started before the timeout expires an error is returned.
+func (c *Container) Start(timeout time.Duration) error {
 	if c.State.Running != false {
 		return nil
 	}
@@ -351,8 +350,7 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 	args := struct {
 		id         string
 		hostConfig *dockerclient.HostConfig
-		action     ContainerActionFunc
-	}{c.ID, &c.HostConfig, onstart}
+	}{c.ID, &c.HostConfig}
 
 	// check to see if the container is already running
 	ctr, err := dc.InspectContainer(args.id)
@@ -379,10 +377,6 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 		return err
 	}
 	c.Container = ctr
-
-	if args.action != nil {
-		args.action(args.id)
-	}
 
 	return nil
 }

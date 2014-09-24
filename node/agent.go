@@ -419,7 +419,7 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 		a.removeInstance(state.ID, ctr)
 	})
 
-	if err := ctr.Start(time.Hour, nil); err != nil {
+	if err := ctr.Start(time.Hour); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
 		a.removeInstance(state.ID, ctr)
 		return err
