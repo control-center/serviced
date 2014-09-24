@@ -433,37 +433,41 @@ func (img *Image) Delete() error {
 
 // Tag tags an image in the local repository
 func (img *Image) Tag(tag string) (*Image, error) {
-	ec := make(chan error, 1)
-	rc := make(chan *Image)
 
 	iid, err := commons.ParseImageID(tag)
 	if err != nil {
 		return nil, err
 	}
 
-	cmds.TagImage <- tagimgreq{
-		request{ec},
-		struct {
-			uuid     string
-			name     string
-			repo     string
-			registry string
-			tag      string
-		}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return nil, err
 	}
 
-	select {
-	case <-done:
-		return nil, ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return <-rc, nil
-		default:
-			return nil, fmt.Errorf("docker: request failed: %v", err)
-		}
+	args := struct {
+		uuid     string
+		name     string
+		repo     string
+		registry string
+		tag      string
+	}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag}
+
+	glog.V(1).Infof("tagging image %s as: %s", args.repo, args.tag)
+	err = dc.TagImage(args.name, dockerclient.TagImageOptions{Repo: args.repo, Tag: args.tag})
+	if err != nil {
+		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
+		return nil, err
 	}
+
+	if useRegistry {
+		pushImage(args.repo, args.registry, args.tag)
+	}
+
+	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
+	if err != nil {
+		return nil, err
+	}
+	return &Image{args.uuid, *iid}, nil
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {

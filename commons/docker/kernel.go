@@ -121,18 +121,6 @@ type stopreq struct {
 	}
 }
 
-type tagimgreq struct {
-	request
-	args struct {
-		uuid     string
-		name     string
-		repo     string
-		registry string
-		tag      string
-	}
-	respchan chan *Image
-}
-
 type waitreq struct {
 	request
 	args struct {
@@ -150,7 +138,6 @@ var (
 		OnEvent         chan oneventreq
 		Restart         chan restartreq
 		Start           chan startreq
-		TagImage        chan tagimgreq
 		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
@@ -160,7 +147,6 @@ var (
 		make(chan oneventreq),
 		make(chan restartreq),
 		make(chan startreq),
-		make(chan tagimgreq),
 		make(chan waitreq),
 	}
 	dockerevents = []string{
@@ -292,29 +278,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 
 			// schedule the start only if the container is not running
 			si <- req
-		case req := <-cmds.TagImage:
-			glog.V(1).Infof("tagging image %s as: %s", req.args.repo, req.args.tag)
-			err := dc.TagImage(req.args.name, dockerclient.TagImageOptions{Repo: req.args.repo, Tag: req.args.tag})
-			if err != nil {
-				glog.V(1).Infof("unable to tag image %s: %v", req.args.repo, err)
-				req.errchan <- err
-				continue
-			}
-
-			if useRegistry {
-				pushImage(req.args.repo, req.args.registry, req.args.tag)
-			}
-
-			iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.repo, req.args.tag))
-			if err != nil {
-				req.errchan <- err
-				continue
-			}
-
-			close(req.errchan)
-			glog.V(1).Infof("image %s tagged: %+v", &Image{req.args.uuid, *iid})
-			req.respchan <- &Image{req.args.uuid, *iid}
-
 		case req := <-cmds.Wait:
 			go func(req waitreq) {
 				glog.V(1).Infof("waiting for container %s to finish", req.args.id)
