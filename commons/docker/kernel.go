@@ -146,7 +146,6 @@ var (
 		AddAction       chan addactionreq
 		CancelAction    chan cancelactionreq
 		Create          chan createreq
-		ImageImport     chan impimgreq
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
 		Restart         chan restartreq
@@ -157,7 +156,6 @@ var (
 		make(chan addactionreq),
 		make(chan cancelactionreq),
 		make(chan createreq),
-		make(chan impimgreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
 		make(chan restartreq),
@@ -258,36 +256,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 			close(req.errchan)
 		case req := <-cmds.Create:
 			ci <- req
-		case req := <-cmds.ImageImport:
-			// TODO: this may need to be shifted to the scheduler, importing takes some time
-			glog.V(1).Infof("importing image %s from %s", req.args.repotag, req.args.filename)
-			f, err := os.Open(req.args.filename)
-			if err != nil {
-				req.errchan <- err
-				continue
-			}
-			defer f.Close()
-
-			iid, err := commons.ParseImageID(req.args.repotag)
-			if err != nil {
-				req.errchan <- err
-				continue
-			}
-
-			opts := dockerclient.ImportImageOptions{
-				Repository:  iid.BaseName(),
-				Source:      "-",
-				InputStream: f,
-				Tag:         iid.Tag,
-			}
-
-			if err = dc.ImportImage(opts); err != nil {
-				glog.V(1).Infof("unable to import %s: %v", req.args.repotag, err)
-				req.errchan <- err
-				continue
-			}
-
-			close(req.errchan)
 		case req := <-cmds.OnEvent:
 			if wcaction, ok := eventactions[req.args.event][Wildcard]; ok {
 				glog.V(1).Info("executing wildcard action for event: ", req.args.event)
