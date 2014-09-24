@@ -31,7 +31,7 @@ func ReadBlkioIoQueued(fileName string) (*BlkioIoQueued, error) {
 	stat := BlkioIoQueued{}
 	kv, err := parseSSKVint64(fileName)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing /sys/fs/cgroup/blkio/blkio.io_queued")
+		return nil, fmt.Errorf("error parsing %s", fileName)
 	}
 	for k, v := range kv {
 		switch k {
