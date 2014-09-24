@@ -15,10 +15,10 @@
 package elasticsearch
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/zzk/registry"
+	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 
 	"fmt"
@@ -109,6 +109,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		ServiceID:     "epn_service",
 		ContainerIP:   "192.168.0.1",
 		ContainerPort: 54321,
+		ProxyPort:     54321,
 		HostIP:        "192.168.0.2",
 		HostPort:      12345,
 		Protocol:      "epn_tcp",

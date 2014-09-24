@@ -14,6 +14,8 @@
 package container
 
 import (
+	"strings"
+
 	"github.com/zenoss/glog"
 
 	"net"
@@ -43,6 +45,7 @@ func stringAcceptor(listener net.Listener) chan string {
 }
 
 func TestNoMux(t *testing.T) {
+	t.Skip("Not having a mux isn't currently supported")
 
 	remote, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -56,7 +59,8 @@ func TestNoMux(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not create a prxy: %s", err)
 	}
-	addresses := []string{remote.Addr().String()}
+	host := strings.Split(remote.Addr().String(), ":")[0]
+	addresses := []addressTuple{addressTuple{host, remote.Addr().String()}}
 	prxy.SetNewAddresses(addresses)
 	stringChan := stringAcceptor(remote)
 	conn, err := net.Dial("tcp4", local.Addr().String())
