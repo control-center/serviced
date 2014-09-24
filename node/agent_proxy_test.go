@@ -38,7 +38,7 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	consumer_endpoint.ServiceID = "controlplane_consumer"
 	consumer_endpoint.Application = "controlplane_consumer"
 	consumer_endpoint.ContainerIP = "127.0.0.1"
-	consumer_endpoint.ContainerPort = 8444
+	consumer_endpoint.ContainerPort = 8443
 	consumer_endpoint.ProxyPort = 8444
 	consumer_endpoint.HostPort = 8443
 	consumer_endpoint.HostIP = "127.0.0.1"
