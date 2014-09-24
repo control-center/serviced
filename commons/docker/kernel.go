@@ -104,18 +104,6 @@ type onstopreq struct {
 	}
 }
 
-type pushpullreq struct {
-	request
-	args struct {
-		op       int
-		uuid     string
-		reponame string
-		registry string
-		tag      string
-	}
-	respchan chan *Image
-}
-
 type restartreq struct {
 	request
 	args struct {
@@ -171,8 +159,6 @@ var (
 		ImageImport     chan impimgreq
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
-		PullImage       chan pushpullreq
-		PushImage       chan pushpullreq
 		Restart         chan restartreq
 		Start           chan startreq
 		TagImage        chan tagimgreq
@@ -185,8 +171,6 @@ var (
 		make(chan impimgreq),
 		make(chan onstopreq),
 		make(chan oneventreq),
-		make(chan pushpullreq),
-		make(chan pushpullreq),
 		make(chan restartreq),
 		make(chan startreq),
 		make(chan tagimgreq),
@@ -251,11 +235,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 	co := make(chan createreq)
 	go createq(ci, co)
 
-	ppi := make(chan pushpullreq)
-	ppo := make(chan pushpullreq)
-	go pushpullq(ppi, ppo)
-
-	go scheduler(dc, so, co, ppo, done)
+	go scheduler(dc, so, co, done)
 
 	for {
 		select {
@@ -304,18 +284,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 			}
 
 			if useRegistry {
-				ppi <- pushpullreq{
-					request{req.errchan},
-					struct {
-						op       int
-						uuid     string
-						reponame string
-						registry string
-						tag      string
-					}{pushop, img.ID, req.args.imageID.BaseName(), req.args.imageID.Registry(), req.args.imageID.Tag},
-					req.respchan,
-				}
-				continue
+				pushImage(req.args.imageID.BaseName(), req.args.imageID.Registry(), req.args.imageID.Tag)
 			}
 
 			close(req.errchan)
@@ -362,10 +331,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 				go action(req.args.id)
 			}
 			close(req.errchan)
-		case req := <-cmds.PullImage:
-			ppi <- req
-		case req := <-cmds.PushImage:
-			ppi <- req
 		case req := <-cmds.Restart:
 			// FIXME: this should really be done by the scheduler since the timeout could be long.
 			glog.V(1).Info("restarting container: ", req.args.id)
@@ -402,18 +367,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 			}
 
 			if useRegistry {
-				ppi <- pushpullreq{
-					request{req.errchan},
-					struct {
-						op       int
-						uuid     string
-						reponame string
-						registry string
-						tag      string
-					}{pushop, req.args.uuid, req.args.repo, req.args.registry, req.args.tag},
-					req.respchan,
-				}
-				continue
+				pushImage(req.args.repo, req.args.registry, req.args.tag)
 			}
 
 			iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.repo, req.args.tag))
@@ -447,7 +401,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, pprc <-chan pushpullreq, done <-chan struct{}) {
+func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -474,14 +428,7 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 				}
 
 				if useRegistry {
-					glog.V(2).Infof("pulling image %s prior to creating a container from it", iid.String())
-					err = dc.PullImage(
-						dockerclient.PullImageOptions{
-							Repository: iid.BaseName(),
-							Registry:   iid.Registry(),
-							Tag:        iid.Tag,
-						},
-						dockerclient.AuthConfiguration{})
+					err = pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
 					if err != nil {
 						glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
 						req.errchan <- err
@@ -643,63 +590,6 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					break
 				}
 			}(req, dc)
-		case req := <-pprc:
-			switch req.args.op {
-			case pullop:
-				dc, err := dockerclient.NewClient(dockerep)
-				if err != nil {
-					panic(fmt.Errorf("can't get docker client: %v", err))
-				}
-
-				go func(req pushpullreq, dc *dockerclient.Client) {
-					glog.V(2).Info("pulling image: ", req.args.reponame)
-					opts := dockerclient.PullImageOptions{
-						Repository: req.args.reponame,
-						Registry:   req.args.registry,
-						Tag:        req.args.tag,
-					}
-
-					err := dc.PullImage(opts, dockerclient.AuthConfiguration{})
-					if err != nil {
-						glog.V(2).Infof("failed to pull %s: %v", req.args.reponame, err)
-						req.errchan <- err
-						return
-					}
-
-					close(req.errchan)
-				}(req, dc)
-			case pushop:
-				dc, err := dockerclient.NewClient(dockerep)
-				if err != nil {
-					panic(fmt.Errorf("can't get docker client: %v", err))
-				}
-
-				go func(req pushpullreq, dc *dockerclient.Client) {
-					glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", req.args.reponame, req.args.registry, req.args.tag)
-					opts := dockerclient.PushImageOptions{
-						Name:     req.args.reponame,
-						Registry: req.args.registry,
-						Tag:      req.args.tag,
-					}
-
-					err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
-					if err != nil {
-						glog.V(2).Infof("failed to push %s: %v", req.args.reponame, err)
-						req.errchan <- err
-						return
-					}
-
-					iid, err := commons.ParseImageID(fmt.Sprintf("%s:%s", req.args.reponame, req.args.tag))
-					if err != nil {
-						req.errchan <- err
-						return
-					}
-
-					close(req.errchan)
-					glog.V(2).Infof("pushed %+v", &Image{req.args.uuid, *iid})
-					req.respchan <- &Image{req.args.uuid, *iid}
-				}(req, dc)
-			}
 		case <-done:
 			return
 		}
@@ -835,49 +725,6 @@ restart:
 			}
 		case next <- pending[0]:
 			glog.V(2).Infof("delivered create request: %+v", pending[0])
-			pending = pending[1:]
-		}
-	}
-
-	for _, v := range pending {
-		next <- v
-	}
-}
-
-// pushpullq implements an inifinite buffered channel of pushpull requests. Requests are added via the
-// in channel and received on the next channel.
-func pushpullq(in <-chan pushpullreq, next chan<- pushpullreq) {
-	defer close(next)
-
-	pending := []pushpullreq{}
-
-restart:
-	for {
-		if len(pending) == 0 {
-			v, ok := <-in
-			if !ok {
-				break
-			}
-
-			pending = append(pending, v)
-		}
-
-		select {
-		case v, ok := <-in:
-			if !ok {
-				break restart
-			}
-
-			pending = append(pending, v)
-
-			// don't let a burst of requests starve the outgoing channel
-			if len(pending) > 8 {
-				for _, v := range pending {
-					next <- v
-				}
-				pending = []pushpullreq{}
-			}
-		case next <- pending[0]:
 			pending = pending[1:]
 		}
 	}

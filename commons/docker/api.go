@@ -409,7 +409,7 @@ func ImportImage(repotag, filename string) error {
 func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull && useRegistry {
-		err := pullImage(repotag)
+		err := PullImage(repotag)
 		if err != nil {
 			return nil, err
 		}
@@ -565,82 +565,63 @@ func lookupImage(repotag string) (*Image, error) {
 	return nil, ErrNoSuchImage
 }
 
-func pullImage(repotag string) error {
+func PullImage(repotag string) error {
 	iid, err := commons.ParseImageID(repotag)
 	if err != nil {
 		return err
 	}
+	return pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
+}
 
-	ec := make(chan error, 1)
+func pullImage(repo, registry, tag string) error {
 
-	cmds.PullImage <- pushpullreq{
-		request{ec},
-		struct {
-			op       int
-			uuid     string
-			reponame string
-			registry string
-			tag      string
-		}{pullop, "", iid.BaseName(), iid.Registry(), iid.Tag},
-		nil,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	glog.V(2).Info("pulling image: ", repo)
+	opts := dockerclient.PullImageOptions{
+		Repository: repo,
+		Registry:   registry,
+		Tag:        tag,
 	}
+
+	err = dc.PullImage(opts, dockerclient.AuthConfiguration{})
+	if err != nil {
+		glog.V(2).Infof("failed to pull %s: %v", repo, err)
+		return err
+	}
+	return nil
 }
 
 // PushImage pushes an image by repotag to local registry, e.g., zenoss/devimg, from the local docker repository
 func PushImage(repotag string) error {
-	glog.V(1).Infof("looking up image: %s", repotag)
-	if _, err := lookupImage(repotag); err != nil {
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
 		return err
-	}
 
-	if err := pushImage(repotag); err != nil {
-		return err
 	}
-
-	return nil
+	return pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 }
 
-func pushImage(repotag string) error {
-	iid, err := commons.ParseImageID(repotag)
+func pushImage(repo, registry, tag string) error {
+	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		return err
 	}
 
-	ec := make(chan error, 1)
-
-	cmds.PushImage <- pushpullreq{
-		request{ec},
-		struct {
-			op       int
-			uuid     string
-			reponame string
-			registry string
-			tag      string
-		}{pushop, "", iid.BaseName(), iid.Registry(), iid.Tag},
-		nil,
+	glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
+	opts := dockerclient.PushImageOptions{
+		Name:     repo,
+		Registry: registry,
+		Tag:      tag,
 	}
 
-	select {
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
+	if err != nil {
+		glog.V(2).Infof("failed to push %s: %v", repo, err)
+		return err
 	}
+	return nil
 }
