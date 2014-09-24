@@ -31,7 +31,7 @@ const (
 // and returns a path to the correct stats file 
 func GetCgroupDockerStatsFilePath(dockerID string, stat string) string {
     statsFile := ""
-    if utils.DeterminePlatform() == utils.Debian {
+    if utils.Platform == utils.Debian {
         statsFile = "/sys/fs/cgroup/" + stat + "/docker/" + dockerID + "/" + stat + ".stat"
     } else {
         statsFile = "/sys/fs/cgroup/" + stat + "/system.slice/docker-" + dockerID + ".scope/" + stat + ".stat"

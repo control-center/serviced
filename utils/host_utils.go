@@ -28,12 +28,14 @@ var hostIDCmdString = "/usr/bin/hostid"
 // Path to meminfo file. Placed here so getMemorySize() is testable.
 var meminfoFile = "/proc/meminfo"
 
+var Platform = determinePlatform()
+
 const (
    Rhel = iota
    Debian
 )
 
-func DeterminePlatform() int {
+func determinePlatform() int {
     if _, err := os.Stat("/etc/redhat-release"); err == nil {
         return Rhel
     } else {
