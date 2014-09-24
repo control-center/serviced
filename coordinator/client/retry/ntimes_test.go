@@ -13,7 +13,6 @@
 package retry
 
 import (
-	"errors"
 	"testing"
 	"time"
 )
