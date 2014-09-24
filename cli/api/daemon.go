@@ -331,7 +331,7 @@ func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err er
 	return
 }
 
-func createMuxListener() (net.Listener, error) {
+func createPublicMuxListener() (net.Listener, error) {
 	if options.TLS {
 		glog.V(1).Info("using TLS on mux")
 
@@ -354,12 +354,20 @@ func createMuxListener() (net.Listener, error) {
 	return net.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort))
 }
 
+func createPrivateMuxListener() (net.Listener, error) {
+	return net.Listen("tcp", fmt.Sprintf("172.17.42.1:%d", options.MuxPort+1))
+}
+
 func (d *daemon) startAgent() error {
-	muxListener, err := createMuxListener()
+	muxListener, err := createPublicMuxListener()
 	if err != nil {
 		return err
 	}
-	mux, err := proxy.NewTCPMux(muxListener)
+	privateListener, err := createPrivateMuxListener()
+	if err != nil {
+		return err
+	}
+	mux, err := proxy.NewTCPMux(muxListener, privateListener)
 	if err != nil {
 		return err
 	}

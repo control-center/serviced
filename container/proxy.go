@@ -171,22 +171,34 @@ func (p *proxy) listenAndproxy() {
 func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	var (
-		remote net.Conn
-		err    error
+		remote  net.Conn
+		err     error
+		host    = address.host
+		islocal = isLocalAddress(host)
+		useTLS  = p.useTLS && !islocal // Don't pay TLS costs for local endpoint
+		muxPort = p.tcpMuxPort
 	)
 
-	if p.tcpMuxPort == 0 {
+	if muxPort == 0 {
 		// TODO: Do this properly
 		glog.Errorf("Mux port is unspecified. Using default of 22250.")
-		p.tcpMuxPort = 22250
+		muxPort = 22250
 	}
 
-	muxAddr := fmt.Sprintf("%s:%d", address.host, p.tcpMuxPort)
+	if islocal {
+		glog.V(2).Infof("Endpoint is on this host, so using non-TLS internal mux")
+		// Force to connect via the docker0 bridge interface, since that's
+		// where the internal mux is listening
+		host = "172.17.42.1"
+		muxPort += 1
+	}
+
+	muxAddr := fmt.Sprintf("%s:%d", host, muxPort)
 
 	glog.V(2).Infof("Dialing hostAgent:%v to prxy %v<->%v<->%v",
 		muxAddr, local.LocalAddr(), local.RemoteAddr(), address.containerAddr)
 
-	if p.useTLS {
+	if useTLS {
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", muxAddr, &config)
 	} else {
