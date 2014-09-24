@@ -259,34 +259,48 @@ func (c *Container) Start(timeout time.Duration, onstart ContainerActionFunc) er
 		return nil
 	}
 
-	ec := make(chan error, 1)
-	rc := make(chan *dockerclient.Container)
-
-	cmds.Start <- startreq{
-		request{ec},
-		struct {
-			id         string
-			hostConfig *dockerclient.HostConfig
-			action     ContainerActionFunc
-		}{c.ID, &c.HostConfig, onstart},
-		rc,
+	dc, err := dockerclient.NewClient(dockerep)
+	if err != nil {
+		return err
 	}
 
-	select {
-	case <-time.After(timeout):
-		return ErrRequestTimeout
-	case <-done:
-		return ErrKernelShutdown
-	case err, ok := <-ec:
-		switch {
-		case !ok:
-			dcc := <-rc
-			c.Container = dcc
-			return nil
-		default:
-			return fmt.Errorf("docker: request failed: %v", err)
-		}
+	args := struct {
+		id         string
+		hostConfig *dockerclient.HostConfig
+		action     ContainerActionFunc
+	}{c.ID, &c.HostConfig, onstart}
+
+	// check to see if the container is already running
+	ctr, err := dc.InspectContainer(args.id)
+	if err != nil {
+		glog.V(1).Infof("unable to inspect container %s prior to starting it: %v", args.id, err)
+		return err
 	}
+
+	if ctr.State.Running {
+		return ErrAlreadyStarted
+	}
+
+	glog.V(2).Infof("starting container %s: %+v", args.id, args.hostConfig)
+	err = dc.StartContainer(args.id, args.hostConfig)
+	if err != nil {
+		glog.V(2).Infof("unable to start %s: %v", args.id, err)
+		return err
+	}
+
+	glog.V(2).Infof("update container %s state post start", args.id)
+	ctr, err = dc.InspectContainer(args.id)
+	if err != nil {
+		glog.V(2).Infof("failed to update container %s state post start: %v", args.id, err)
+		return err
+	}
+	c.Container = ctr
+
+	if args.action != nil {
+		args.action(args.id)
+	}
+
+	return nil
 }
 
 // Stop stops the container specified by the id. If the container can't be stopped before the timeout

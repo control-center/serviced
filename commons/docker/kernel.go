@@ -71,14 +71,6 @@ type createreq struct {
 	respchan chan *dockerclient.Container
 }
 
-type impimgreq struct {
-	request
-	args struct {
-		repotag  string
-		filename string
-	}
-}
-
 type oneventreq struct {
 	request
 	args struct {
@@ -101,16 +93,6 @@ type restartreq struct {
 		id      string
 		timeout uint
 	}
-}
-
-type startreq struct {
-	request
-	args struct {
-		id         string
-		hostConfig *dockerclient.HostConfig
-		action     ContainerActionFunc
-	}
-	respchan chan *dockerclient.Container
 }
 
 type stopreq struct {
@@ -137,7 +119,6 @@ var (
 		OnContainerStop chan onstopreq
 		OnEvent         chan oneventreq
 		Restart         chan restartreq
-		Start           chan startreq
 		Wait            chan waitreq
 	}{
 		make(chan addactionreq),
@@ -146,7 +127,6 @@ var (
 		make(chan onstopreq),
 		make(chan oneventreq),
 		make(chan restartreq),
-		make(chan startreq),
 		make(chan waitreq),
 	}
 	dockerevents = []string{
@@ -200,15 +180,11 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 
 	eventactions := mkEventActionTable()
 
-	si := make(chan startreq)
-	so := make(chan startreq)
-	go startq(si, so)
-
 	ci := make(chan createreq)
 	co := make(chan createreq)
 	go createq(ci, co)
 
-	go scheduler(dc, so, co, done)
+	go scheduler(dc, co, done)
 
 	for {
 		select {
@@ -262,22 +238,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 				continue
 			}
 			close(req.errchan)
-		case req := <-cmds.Start:
-			// check to see if the container is already running
-			ctr, err := dc.InspectContainer(req.args.id)
-			if err != nil {
-				glog.V(1).Infof("unable to inspect container %s prior to starting it: %v", req.args.id, err)
-				req.errchan <- err
-				continue
-			}
-
-			if ctr.State.Running {
-				req.errchan <- ErrAlreadyStarted
-				continue
-			}
-
-			// schedule the start only if the container is not running
-			si <- req
 		case req := <-cmds.Wait:
 			go func(req waitreq) {
 				glog.V(1).Infof("waiting for container %s to finish", req.args.id)
@@ -290,7 +250,6 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 				req.respchan <- rc
 			}(req)
 		case <-done:
-			close(si)
 			close(ci)
 			return nil
 		}
@@ -299,7 +258,7 @@ func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
 
 // scheduler handles creating and starting up containers and pulling images. Those operations can take a long time so
 // the scheduler runs in its own goroutine and pulls requests off of the create, start, and pull queues.
-func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createreq, done <-chan struct{}) {
+func scheduler(dc *dockerclient.Client, crc <-chan createreq, done <-chan struct{}) {
 	// em, err := dc.MonitorEvents()
 	// if err != nil {
 	// 	panic(fmt.Sprintf("scheduler can't monitor Docker events: %v", err))
@@ -451,92 +410,9 @@ func scheduler(dc *dockerclient.Client, src <-chan startreq, crc <-chan createre
 					break
 				}
 			}(req, dc)
-		case req := <-src:
-			dc, err := dockerclient.NewClient(dockerep)
-			if err != nil {
-				panic(fmt.Errorf("can't get docker client: %v", err))
-			}
-
-			go func(req startreq, dc *dockerclient.Client) {
-				glog.V(2).Infof("starting container %s: %+v", req.args.id, req.args.hostConfig)
-				err := dc.StartContainer(req.args.id, req.args.hostConfig)
-				if err != nil {
-					glog.V(2).Infof("unable to start %s: %v", req.args.id, err)
-					req.errchan <- err
-					return
-				}
-
-				glog.V(2).Infof("update container %s state post start", req.args.id)
-				ctr, err := dc.InspectContainer(req.args.id)
-				if err != nil {
-					glog.V(2).Infof("failed to update container %s state post start: %v", req.args.id, err)
-					req.errchan <- err
-					return
-				}
-
-				if req.args.action != nil {
-					req.args.action(req.args.id)
-				}
-
-				close(req.errchan)
-
-				// don't hang around forever waiting for the caller to get the result
-				select {
-				case req.respchan <- ctr:
-					break
-				case <-time.After(100 * time.Millisecond):
-					break
-				}
-			}(req, dc)
 		case <-done:
 			return
 		}
-	}
-}
-
-// startq implements an inifinite buffered channel of start requests. Requests are added via the
-// in channel and received on the next channel.
-func startq(in <-chan startreq, next chan<- startreq) {
-	defer close(next)
-
-	pending := []startreq{}
-
-restart:
-	for {
-		if len(pending) == 0 {
-			v, ok := <-in
-			if !ok {
-				break
-			}
-
-			glog.V(2).Infof("received first start request: %+v", v)
-			pending = append(pending, v)
-		}
-
-		select {
-		case v, ok := <-in:
-			if !ok {
-				break restart
-			}
-
-			glog.V(2).Infof("received start request %+v", v)
-			pending = append(pending, v)
-
-			// don't let a burst of requests starve the outgoing channel
-			if len(pending) > 8 {
-				for _, v := range pending {
-					next <- v
-				}
-				pending = []startreq{}
-			}
-		case next <- pending[0]:
-			glog.V(2).Infof("delivered start request %+v", pending[0])
-			pending = pending[1:]
-		}
-	}
-
-	for _, v := range pending {
-		next <- v
 	}
 }
 
