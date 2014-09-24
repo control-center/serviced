@@ -19,7 +19,25 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"github.com/control-center/serviced/utils"
 )
+
+const (
+    Cpuacct string = "cpuacct"
+    Memory string = "memory"
+)
+
+// Helper function that takes a docker ID and parameter (to specify cpu or memory)
+// and returns a path to the correct stats file 
+func GetCgroupDockerStatsFilePath(dockerID string, stat string) string {
+    statsFile := ""
+    if utils.DeterminePlatform() == utils.Debian {
+        statsFile = "/sys/fs/cgroup/" + stat + "/docker/" + dockerID + "/" + stat + ".stat"
+    } else {
+        statsFile = "/sys/fs/cgroup/" + stat + "/system.slice/docker-" + dockerID + ".scope/" + stat + ".stat"
+    }
+    return statsFile
+}
 
 // parseSSKVint64 parses a space-separated key-value pair file and returns a
 // key(string):value(int64) mapping.
