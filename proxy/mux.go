@@ -26,24 +26,22 @@ import (
 
 // TCPMux is an implementation of tcp muxing RFC 1078.
 type TCPMux struct {
-	publicListener  net.Listener    // the connection this mux listens on
-	privateListener net.Listener    // A localhost-only connection that can safely omit TLS
-	connections     chan net.Conn   // stream of accepted connections
-	closing         chan chan error // shutdown noticiation
+	listener    net.Listener    // the connection this mux listens on
+	connections chan net.Conn   // stream of accepted connections
+	closing     chan chan error // shutdown noticiation
 }
 
 // NewTCPMux creates a new tcp mux with the given listener. If it succees, it
 // is expected that this object is the owner of the listener and will close it
 // when Close() is called on the TCPMux.
-func NewTCPMux(publicListener, privateListener net.Listener) (mux *TCPMux, err error) {
-	if publicListener == nil || privateListener == nil {
-		return nil, fmt.Errorf("mux listeners can not be nil")
+func NewTCPMux(listener net.Listener) (mux *TCPMux, err error) {
+	if listener == nil {
+		return nil, fmt.Errorf("listener can not be nil")
 	}
 	mux = &TCPMux{
-		publicListener:  publicListener,
-		privateListener: privateListener,
-		connections:     make(chan net.Conn),
-		closing:         make(chan chan error),
+		listener:    listener,
+		connections: make(chan net.Conn),
+		closing:     make(chan chan error),
 	}
 	go mux.loop()
 	return mux, nil
@@ -59,7 +57,7 @@ func (mux *TCPMux) acceptor(listener net.Listener, closing chan chan struct{}) {
 		close(mux.connections)
 	}()
 	for {
-		conn, err := listener.Accept()
+		conn, err := mux.listener.Accept()
 		if err != nil {
 			if strings.Contains(err.Error(), "too many open files") {
 				glog.Warningf("error accepting connections, retrying in 50 ms: %s", err)
@@ -88,15 +86,13 @@ func (mux *TCPMux) acceptor(listener net.Listener, closing chan chan struct{}) {
 func (mux *TCPMux) loop() {
 	glog.V(5).Infof("entering TPCMux loop")
 	closeAcceptor := make(chan chan struct{})
-	go mux.acceptor(mux.publicListener, closeAcceptor)
-	go mux.acceptor(mux.privateListener, closeAcceptor)
+	go mux.acceptor(mux.listener, closeAcceptor)
 	for {
 		select {
 		case errc := <-mux.closing:
 			glog.V(5).Info("Closing mux")
 			closeAcceptorAck := make(chan struct{})
-			mux.publicListener.Close()
-			mux.privateListener.Close()
+			mux.listener.Close()
 			closeAcceptor <- closeAcceptorAck
 			errc <- nil
 			return
