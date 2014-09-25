@@ -450,10 +450,7 @@ func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 			defer a.proxyRegistry.RemoveProxy(proxyID)
 		}
 	}
-
-	for ctr.IsRunning() {
-		ctr.Wait(time.Minute)
-	}
+	ctr.Wait(time.Hour * 24 * 365)
 }
 
 func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
