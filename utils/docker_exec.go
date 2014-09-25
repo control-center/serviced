@@ -87,13 +87,19 @@ func hasFeatureDockerExec() bool {
 
 // AttachAndRun attaches to a container and runs the command
 func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
+	result, err := AttachAndRunMaybeSudo(containerID, bashcmd, true)
+	return result, err
+}
+
+// Like AttachAndRun, but specify whether or not to use sudo
+func AttachAndRunMaybeSudo(containerID string, bashcmd []string, useSudo bool) ([]byte, error) {
 	if hasFeatureDockerExec() {
 		return RunDockerExec(containerID, bashcmd)
 	}
 
 	_, err := exec.LookPath("nsenter")
 	if err == nil {
-		return RunNSEnter(containerID, bashcmd)
+		return RunNSEnter(containerID, bashcmd, useSudo)
 	}
 
 	return nil, fmt.Errorf("unable to find attach utility to run: %s", bashcmd)
