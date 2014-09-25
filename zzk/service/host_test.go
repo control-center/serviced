@@ -27,16 +27,18 @@ import (
 )
 
 type TestHostStateHandler struct {
+	conn       client.Connection
 	processing map[string]chan<- interface{}
 	states     map[string]*servicestate.ServiceState
 }
 
-func NewTestHostStateHandler() *TestHostStateHandler {
-	return new(TestHostStateHandler).init()
+func NewTestHostStateHandler(conn client.Connection) *TestHostStateHandler {
+	return new(TestHostStateHandler).init(conn)
 }
 
-func (handler *TestHostStateHandler) init() *TestHostStateHandler {
+func (handler *TestHostStateHandler) init(conn client.Connection) *TestHostStateHandler {
 	*handler = TestHostStateHandler{
+		conn:       conn,
 		processing: make(map[string]chan<- interface{}),
 		states:     make(map[string]*servicestate.ServiceState),
 	}
@@ -62,8 +64,11 @@ func (handler *TestHostStateHandler) StartService(done chan<- interface{}, svc *
 	if _, ok := handler.processing[state.ID]; !ok {
 		handler.processing[state.ID] = done
 		handler.states[state.ID] = state
-		(*state).Started = time.Now()
-		return nil
+
+		return UpdateServiceState(handler.conn, svc.ID, state.ID, func(s *servicestate.ServiceState) {
+			s.Started = time.Now()
+			*state = *s
+		})
 	}
 
 	return fmt.Errorf("instance %s already started", state.ID)
@@ -75,7 +80,11 @@ func (handler *TestHostStateHandler) PauseService(svc *service.Service, state *s
 	} else if state.IsPaused() {
 		return fmt.Errorf("instance %s already paused", state.ID)
 	}
-	return nil
+
+	return UpdateServiceState(handler.conn, svc.ID, state.ID, func(s *servicestate.ServiceState) {
+		s.Paused = true
+		*state = *s
+	})
 }
 
 func (handler *TestHostStateHandler) ResumeService(svc *service.Service, state *servicestate.ServiceState) error {
@@ -84,7 +93,11 @@ func (handler *TestHostStateHandler) ResumeService(svc *service.Service, state *
 	} else if !state.IsPaused() {
 		return fmt.Errorf("instance %s already resumed", state.ID)
 	}
-	return nil
+
+	return UpdateServiceState(handler.conn, svc.ID, state.ID, func(s *servicestate.ServiceState) {
+		s.Paused = false
+		*state = *s
+	})
 }
 
 func (handler *TestHostStateHandler) StopService(state *servicestate.ServiceState) error {
@@ -93,13 +106,20 @@ func (handler *TestHostStateHandler) StopService(state *servicestate.ServiceStat
 		delete(handler.states, state.ID)
 		close(instanceC)
 	}
-	return nil
+
+	return UpdateServiceState(handler.conn, state.ServiceID, state.ID, func(s *servicestate.ServiceState) {
+		s.Terminated = time.Now()
+		*state = *s
+	})
 }
 
 func (handler *TestHostStateHandler) UpdateInstance(state *servicestate.ServiceState) error {
 	if _, ok := handler.states[state.ID]; ok {
 		handler.states[state.ID] = state
-		return nil
+
+		return UpdateServiceState(handler.conn, state.ServiceID, state.ID, func(s *servicestate.ServiceState) {
+			*s = *state
+		})
 	}
 
 	return fmt.Errorf("instance %s not found", state.ID)
@@ -108,7 +128,7 @@ func (handler *TestHostStateHandler) UpdateInstance(state *servicestate.ServiceS
 func TestHostStateListener_Listen(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	AddHost(conn, &host.Host{ID: listener.hostID})
 	shutdown := make(chan interface{})
@@ -166,15 +186,13 @@ func TestHostStateListener_Listen(t *testing.T) {
 	// verify the instance stopped
 	<-eventC
 	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
+	if err == client.ErrNoNode {
+		// pass
+	} else if err != nil {
 		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
-	}
-	if s.Started.UnixNano() > s.Terminated.UnixNano() {
+	} else if s.Started.UnixNano() > s.Terminated.UnixNano() {
 		t.Fatalf("Service instance %s not stopped", s.ID)
-	}
-
-	// verify the instance was removed
-	if e := <-eventC; e.Type != client.EventNodeDeleted {
+	} else if e := <-eventC; e.Type != client.EventNodeDeleted {
 		t.Errorf("Service instance %s still exists for service %s", s.ID, s.ServiceID)
 	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
 		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.hostID, err)
@@ -201,7 +219,7 @@ func TestHostStateListener_Listen(t *testing.T) {
 func TestHostStateListener_Listen_BadState(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	AddHost(conn, &host.Host{ID: listener.hostID})
 	shutdown := make(chan interface{})
@@ -253,7 +271,7 @@ func TestHostStateListener_Listen_BadState(t *testing.T) {
 func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
@@ -365,7 +383,7 @@ func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
 func TestHostStateListener_Spawn_AttachAndDelete(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
@@ -424,7 +442,7 @@ func TestHostStateListener_Spawn_AttachAndDelete(t *testing.T) {
 func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
@@ -474,7 +492,7 @@ func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
 func TestHostStateListener_pauseInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
@@ -502,7 +520,7 @@ func TestHostStateListener_pauseInstance(t *testing.T) {
 func TestHostStateListener_resumeInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
@@ -534,7 +552,7 @@ func TestHostStateListener_resumeInstance(t *testing.T) {
 func TestHostStateListener_stopInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
@@ -566,7 +584,7 @@ func TestHostStateListener_stopInstance(t *testing.T) {
 func TestHostStateListener_detachInstance(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := NewTestHostStateHandler(conn)
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
 	AddHost(conn, &host.Host{ID: listener.hostID})
