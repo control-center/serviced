@@ -16,7 +16,6 @@ package service
 import (
 	"fmt"
 	"path"
-	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
@@ -224,41 +223,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	}
 }
 
-func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servicestate.ServiceState) (<-chan interface{}, error) {
-	wait := make(chan interface{})
-	go func(path string) {
-		defer close(wait)
-		<-done
-		glog.V(3).Infof("Received process done signal for %s", state.ID)
-		var s servicestate.ServiceState
-		if err := l.conn.Get(path, &ServiceStateNode{ServiceState: &s}); err != nil {
-			glog.Warningf("Could not get service state %s: %s", state.ID, err)
-			return
-		}
-
-		s.Terminated = time.Now()
-		if err := UpdateServiceState(l.conn, &s); err != nil {
-			glog.Warningf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
-			return
-		}
-	}(servicepath(state.ServiceID, state.ID))
-
-	return wait, UpdateServiceState(l.conn, state)
-}
-
 func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
 	// This container may not get cleaned up if the time to start exceeds the time to stop
 	done := make(chan interface{})
 	if err := l.handler.StartService(done, svc, state); err != nil {
 		return nil, err
 	}
-	state.InSync = true
-	wait, err := l.updateInstance(done, state)
-	if err != nil {
-		return nil, err
-	}
-
-	return wait, nil
+	return done, nil
 }
 
 func (l *HostStateListener) attachInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
@@ -266,13 +237,7 @@ func (l *HostStateListener) attachInstance(svc *service.Service, state *services
 	if err := l.handler.AttachService(done, svc, state); err != nil {
 		return nil, err
 	}
-
-	wait, err := l.updateInstance(done, state)
-	if err != nil {
-		return nil, err
-	}
-
-	return wait, nil
+	return done, nil
 }
 
 func (l *HostStateListener) pauseInstance(svc *service.Service, state *servicestate.ServiceState) error {
@@ -281,8 +246,7 @@ func (l *HostStateListener) pauseInstance(svc *service.Service, state *servicest
 		glog.Errorf("Could not pause service instance %s: %s", state.ID, err)
 		return err
 	}
-	state.Paused = true
-	return UpdateServiceState(l.conn, state)
+	return nil
 }
 
 func (l *HostStateListener) resumeInstance(svc *service.Service, state *servicestate.ServiceState) error {
@@ -290,8 +254,7 @@ func (l *HostStateListener) resumeInstance(svc *service.Service, state *services
 		glog.Errorf("Could not resume service instance %s: %s", state.ID, err)
 		return err
 	}
-	state.Paused = false
-	return UpdateServiceState(l.conn, state)
+	return nil
 }
 
 // stopInstance stops instance and signals done.  caller is expected to check for nil state
