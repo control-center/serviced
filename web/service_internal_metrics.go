@@ -197,6 +197,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			YAxisLabel:  "Bps",
 			Range:       &tRange,
 			Description: "Bytes per second over last hour",
+			MinY:        &zero,
 			Units:       "Bytes per second",
 			Base:        1024,
 			DataPoints: []domain.DataPoint{
