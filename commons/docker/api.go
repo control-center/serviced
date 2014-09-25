@@ -402,7 +402,7 @@ func (c *Container) Wait(timeout time.Duration) (int, error) {
 		rc  int
 		err error
 	}
-	errc := make(chan waitResult)
+	errc := make(chan waitResult, 1)
 	go func() {
 		rc, err := dc.WaitContainer(c.ID)
 		errc <- waitResult{rc, err}
