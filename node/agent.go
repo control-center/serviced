@@ -89,6 +89,7 @@ type HostAgent struct {
 	dockerRegistry       string        // the docker registry to use
 	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string        // subnet for virtual addresses
+	conn                 coordclient.Connection
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -208,25 +209,44 @@ func (a *HostAgent) AttachService(done chan<- interface{}, svc *service.Service,
 		return nil
 	}
 
+	var died sync.WaitGroup
+	died.Add(1)
 	ctr.OnEvent(docker.Die, func(cid string) {
 		defer close(done)
 		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
-		state.DockerID = cid
-		a.removeInstance(state.ID, ctr)
 	})
 
-	go a.setProxy(svc, ctr)
+	go func() {
+		if err := a.updateInstance(svc.ID, state.ID, ctr); err != nil {
+			glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+			ctr.Stop(45 * time.Second)
+			return
+		}
+		a.setProxy(svc, ctr)
+	}()
+
+	go func() {
+		died.Wait()
+		a.removeInstance(svc.ID, state.ID, ctr)
+	}()
+
 	return nil
 }
 
 // PauseService pauses a running service
 func (a *HostAgent) PauseService(service *service.Service, state *servicestate.ServiceState) error {
-	return attachAndRun(state.DockerID, service.Snapshot.Pause)
+	if err := attachAndRun(state.DockerID, service.Snapshot.Pause); err != nil {
+		return err
+	}
+	return zkservice.UpdateServiceState(a.conn, service.ID, state.ID, func(s *servicestate.ServiceState) { s.Paused = true })
 }
 
 // ResumeService resumes a paused service
 func (a *HostAgent) ResumeService(service *service.Service, state *servicestate.ServiceState) error {
-	return attachAndRun(state.DockerID, service.Snapshot.Resume)
+	if err := attachAndRun(state.DockerID, service.Snapshot.Resume); err != nil {
+		return err
+	}
+	return zkservice.UpdateServiceState(a.conn, service.ID, state.ID, func(s *servicestate.ServiceState) { s.Paused = false })
 }
 
 func attachAndRun(dockerID, command string) error {
@@ -405,34 +425,54 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 		return err
 	}
 
+	err = zkservice.UpdateServiceState(a.conn, svc.ID, state.ID, func(s *servicestate.ServiceState) {
+		state.InSync = true
+		state.DockerID = ctr.ID
+		state.Started = ctr.Created
+	})
+	if err != nil {
+		glog.Errorf("Could not update service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+		a.removeInstance(svc.ID, state.ID, ctr)
+		return err
+	}
+
 	var started sync.WaitGroup
 	started.Add(1)
 	ctr.OnEvent(docker.Start, func(cid string) {
 		glog.Infof("Instance %s (%s) for %s (%s) has started", state.ID, ctr.ID, svc.Name, svc.ID)
 		started.Done()
+		// NOTE: cannot update container here because of a race condition with the container's Network Settings
 	})
 
+	var died sync.WaitGroup
+	died.Add(1)
 	ctr.OnEvent(docker.Die, func(cid string) {
 		defer close(done)
 		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
-		state.DockerID = cid
-		a.removeInstance(state.ID, ctr)
+		died.Done()
 	})
 
-	if err := ctr.Start(time.Hour); err != nil {
+	if err := ctr.Start(); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		a.removeInstance(state.ID, ctr)
+		a.removeInstance(svc.ID, state.ID, ctr)
 		return err
 	}
 
-	started.Wait()
-	if err := updateInstance(state, ctr); err != nil {
-		glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		ctr.Stop(45 * time.Second)
-		return err
-	}
+	go func() {
+		started.Wait()
+		if err := a.updateInstance(svc.ID, state.ID, ctr); err != nil {
+			glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+			ctr.Stop(45 * time.Second)
+			return
+		}
+		a.setProxy(svc, ctr)
+	}()
 
-	go a.setProxy(svc, ctr)
+	go func() {
+		died.Wait()
+		a.removeInstance(svc.ID, state.ID, ctr)
+	}()
+
 	return nil
 }
 
@@ -453,7 +493,7 @@ func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 	ctr.Wait(time.Hour * 24 * 365)
 }
 
-func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
+func (a *HostAgent) removeInstance(serviceID, stateID string, ctr *docker.Container) {
 	rc, err := ctr.Wait(time.Second)
 	if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
 		// TODO: output of docker logs is potentially very large
@@ -472,26 +512,32 @@ func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
 	if err := ctr.Delete(true); err != nil {
 		glog.Errorf("Could not remove instance %s (%s): %s", stateID, ctr.ID, err)
 	}
+	terminated := time.Now()
 	glog.Infof("Service state %s (%s) receieved exit code %d", stateID, ctr.ID, rc)
-
+	if err := zkservice.UpdateServiceState(a.conn, serviceID, stateID, func(s *servicestate.ServiceState) { s.Terminated = terminated }); err != nil {
+		glog.Warningf("Could not update the service instance %s with the time terminated (%s): %s", stateID, terminated, err)
+		return
+	}
 }
 
-func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) error {
+func (a *HostAgent) updateInstance(serviceID, stateID string, ctr *docker.Container) error {
 	if _, err := ctr.Inspect(); err != nil {
 		return err
 	}
-	state.DockerID = ctr.ID
-	state.Started = ctr.Created
-	state.PrivateIP = ctr.NetworkSettings.IPAddress
-	state.PortMapping = make(map[string][]domain.HostIPAndPort)
-	for k, v := range ctr.NetworkSettings.Ports {
-		pm := []domain.HostIPAndPort{}
-		for _, pb := range v {
-			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
-			state.PortMapping[string(k)] = pm
+
+	return zkservice.UpdateServiceState(a.conn, serviceID, stateID, func(state *servicestate.ServiceState) {
+		state.DockerID = ctr.ID
+		state.Started = ctr.Created
+		state.PrivateIP = ctr.NetworkSettings.IPAddress
+		state.PortMapping = make(map[string][]domain.HostIPAndPort)
+		for k, v := range ctr.NetworkSettings.Ports {
+			pm := []domain.HostIPAndPort{}
+			for _, pb := range v {
+				pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
+				state.PortMapping[string(k)] = pm
+			}
 		}
-	}
-	return nil
+	})
 }
 
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
@@ -789,13 +835,12 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 
 	for {
 		// handle shutdown if we are waiting for a zk connection
-		var conn coordclient.Connection
 		select {
-		case conn = <-zzk.Connect(zzk.GeneratePoolPath(a.poolID), zzk.GetLocalConnection):
+		case a.conn = <-zzk.Connect(zzk.GeneratePoolPath(a.poolID), zzk.GetLocalConnection):
 		case <-shutdown:
 			return
 		}
-		if conn == nil {
+		if a.conn == nil {
 			continue
 		}
 
@@ -814,7 +859,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 3) receieves signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
-		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
+		zzk.Start(shutdown, a.conn, hsListener, virtualIPListener, actionListener)
 		glog.Infof("Host Agent Listeners are done")
 
 		select {

@@ -93,7 +93,7 @@ func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState,
 		return err
 	}
 
-	return zkservice.UpdateServiceState(poolBasedConn, &state)
+	return zkservice.UpdateServiceState(poolBasedConn, state.ServiceID, state.ID, func(s *servicestate.ServiceState) { *s = state })
 }
 
 func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest, unused *int) error {
