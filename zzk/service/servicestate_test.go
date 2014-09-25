@@ -66,7 +66,7 @@ func TestGetServiceStatus(t *testing.T) {
 	expected := make(map[string]dao.Status)
 	// State 0 started
 	states[0].Started = time.Now()
-	if err := UpdateServiceState(conn, states[0]); err != nil {
+	if err := UpdateServiceState(conn, svc.ID, states[0].ID, func(s *servicestate.ServiceState) { *s = *states[0] }); err != nil {
 		t.Fatalf("Could not \"start\" service state %s: %s", states[0].ID, err)
 	}
 	expected[states[0].ID] = dao.Running
@@ -74,7 +74,7 @@ func TestGetServiceStatus(t *testing.T) {
 	// State 1 paused
 	states[1].Started = time.Now()
 	states[1].Paused = true
-	if err := UpdateServiceState(conn, states[1]); err != nil {
+	if err := UpdateServiceState(conn, svc.ID, states[1].ID, func(s *servicestate.ServiceState) { *s = *states[1] }); err != nil {
 		t.Fatalf("Could not \"pause\" service state %s: %s", states[1].ID, err)
 	}
 	expected[states[1].ID] = dao.Resuming

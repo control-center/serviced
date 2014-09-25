@@ -337,7 +337,7 @@ func (c *Container) Restart(timeout time.Duration) error {
 
 // Start uses the information provided in the container definition cd to start a new Docker
 // container. If a container can't be started before the timeout expires an error is returned.
-func (c *Container) Start(timeout time.Duration) error {
+func (c *Container) Start() error {
 	if c.State.Running != false {
 		return nil
 	}
