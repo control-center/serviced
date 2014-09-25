@@ -145,5 +145,5 @@ func PurgeLogstashIndices(days int) error {
 	glog.Infof("Purging logstash entries older than %d days", days)
 	return container.RunCommand([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--older-than", fmt.Sprintf("%d", days)})
+		"delete", "--older-than", fmt.Sprintf("%d", days)}, false)
 }
