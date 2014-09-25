@@ -236,7 +236,7 @@ table .btn,
     padding: 15px 8px;
     margin: 0px;
     border: 0px;
-    color: #f6f6f6;
+    color: #CCC;
     font-weight: bold;
     text-shadow: 1px 1px 2px #414141;
 }
@@ -247,7 +247,7 @@ table .btn,
 
 .navbar-zen li.active > button,
 .navbar-zen li.active > a {
-    color: #969696;
+    color: #F6F6F6;
     background-color: #515151;
 }
 
@@ -259,7 +259,22 @@ table .btn,
 }
 
 .navbar-brand {
-    font-weight: bold;
+    width: 153px;
+    background-color: #516685;
+    border-right: solid white 4px;
+}
+.navbar-brand .logoType {
+    position: absolute;
+    top: 7px;
+    left: 48px;
+}
+.navbar-brand .logoCircle{
+    background-color: white;
+    border-radius: 100px;
+    border: solid 4px #516685;
+    position: absolute;
+    top: -8px;
+    left: -24px;
 }
 
 .navbar-zen .navbar-right button{
@@ -288,8 +303,9 @@ table .btn,
 }
 
 .navbar {
-    margin-bottom: 0px;
+    margin: 10px 0 0 0;
     border-radius: 0;
+    border: 0;
 }
 
 .item > i {
