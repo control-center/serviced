@@ -1,7 +1,7 @@
 [Unit]
 Description=Zenoss ServiceD
-Requires=network.service docker.service
-After=network.service docker.service
+Requires=network-online.target docker.service
+After=network.target docker.service
 
 [Service]
 Environment=SERVICED_HOME=/opt/serviced SERVICED_MASTER=1 SERVICED_AGENT=1 TZ=UTC HOME=/root GOMAXPROCS=2
