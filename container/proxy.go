@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strings"
 
 	"github.com/zenoss/glog"
 )
@@ -175,6 +176,19 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 		err    error
 	)
 
+	isLocalContainer := isLocalAddress(address.host)
+	// don't proxy localhost addresses, we'll end up in a loop
+	switch {
+	case strings.HasPrefix(address.host, "127"):
+		fallthrough
+	case address.host == "localhost":
+		fallthrough
+	case strings.HasPrefix(address.containerAddr, "127"):
+		fallthrough
+	case strings.HasPrefix(address.containerAddr, "localhost:"):
+		isLocalContainer = false
+	}
+
 	if p.tcpMuxPort == 0 {
 		// TODO: Do this properly
 		glog.Errorf("Mux port is unspecified. Using default of 22250.")
@@ -183,13 +197,16 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	muxAddr := fmt.Sprintf("%s:%d", address.host, p.tcpMuxPort)
 
-	glog.V(2).Infof("Dialing hostAgent:%v to prxy %v<->%v<->%v",
-		muxAddr, local.LocalAddr(), local.RemoteAddr(), address.containerAddr)
-
-	if p.useTLS {
+	switch {
+	case isLocalContainer:
+		glog.V(2).Infof("dialing local addr=> %s", address.containerAddr)
+		remote, err = net.Dial("tcp4", address.containerAddr)
+	case p.useTLS:
+		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", muxAddr, &config)
-	} else {
+	default:
+		glog.V(2).Infof("dialing remote => %s", muxAddr)
 		remote, err = net.Dial("tcp4", muxAddr)
 	}
 	if err != nil {
@@ -197,8 +214,11 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 		return
 	}
 
-	// Write the container address as the first line
-	io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr))
+	if !isLocalContainer {
+		glog.V(2).Infof("writing socket protocol")
+		// Write the container address as the first line, if we use the mux
+		io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr))
+	}
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
