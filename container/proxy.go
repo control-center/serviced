@@ -171,8 +171,9 @@ func (p *proxy) listenAndproxy() {
 func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	var (
-		remote net.Conn
-		err    error
+		remote  net.Conn
+		err     error
+		isLocal = isLocalAddress(address.host)
 	)
 
 	if p.tcpMuxPort == 0 {
@@ -183,13 +184,13 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	muxAddr := fmt.Sprintf("%s:%d", address.host, p.tcpMuxPort)
 
-	glog.V(2).Infof("Dialing hostAgent:%v to prxy %v<->%v<->%v",
-		muxAddr, local.LocalAddr(), local.RemoteAddr(), address.containerAddr)
-
-	if p.useTLS {
+	switch {
+	case isLocal:
+		remote, err = net.Dial("tcp4", address.containerAddr)
+	case p.useTLS:
 		config := tls.Config{InsecureSkipVerify: true}
 		remote, err = tls.Dial("tcp4", muxAddr, &config)
-	} else {
+	default:
 		remote, err = net.Dial("tcp4", muxAddr)
 	}
 	if err != nil {
@@ -197,8 +198,10 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 		return
 	}
 
-	// Write the container address as the first line
-	io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr))
+	if !isLocal {
+		// Write the container address as the first line, if we use the mux
+		io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr))
+	}
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
 		remote.RemoteAddr(), local.LocalAddr(), local.RemoteAddr(), remote.LocalAddr(), address)
