@@ -113,6 +113,7 @@ type Controller struct {
 	exportedEndpointZKPaths []string
 	vhostZKPaths            []string
 	exitStatus              int
+	allowDirectConn         bool
 }
 
 // Close shuts down the controller
@@ -285,6 +286,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+
+	c.allowDirectConn = !service.HasEndpointsFor("import_all")
+	glog.Infof("Allow container to container connections: %t", c.allowDirectConn)
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {

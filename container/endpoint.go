@@ -554,7 +554,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 			}
 
 			var err error
-			prxy, err = createNewProxy(proxyKey, endpoint)
+			prxy, err = createNewProxy(proxyKey, endpoint, c.allowDirectConn)
 			if err != nil {
 				glog.Errorf("error with createNewProxy(%s, %+v) %v", proxyKey, endpoint, err)
 				return
@@ -585,7 +585,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 }
 
 // createNewProxy creates a new proxy
-func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint) (*proxy, error) {
+func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, allowDirect bool) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
@@ -599,7 +599,8 @@ func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint) (
 		tenantEndpointID,
 		cMuxPort,
 		cMuxTLS,
-		listener)
+		listener,
+		allowDirect)
 	if err != nil {
 		glog.Errorf("Could not build proxy: %s", err)
 		return nil, err

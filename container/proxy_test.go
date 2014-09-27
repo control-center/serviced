@@ -55,7 +55,7 @@ func TestNoMux(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not bind to a port for test")
 	}
-	prxy, err := newProxy("foo", "endpointfoo", 0, false, local)
+	prxy, err := newProxy("foo", "endpointfoo", 0, false, local, false)
 	if err != nil {
 		t.Fatalf("Could not create a prxy: %s", err)
 	}
