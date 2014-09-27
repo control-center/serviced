@@ -86,6 +86,20 @@ func (a *api) RemoveSnapshot(snapshotID string) error {
 	return nil
 }
 
+// getLongContainerID returns the full container id of a docker container
+func (a *api) getLongContainerID(containerID string) (string, error) {
+	dockerClient, err := a.connectDocker()
+	if err != nil {
+		return "", err
+	}
+	container, err := dockerClient.InspectContainer(containerID)
+	if err != nil {
+		return "", err
+	}
+
+	return container.ID, nil
+}
+
 // Commit creates a snapshot and commits it as the service's image
 func (a *api) Commit(dockerID string) (string, error) {
 	client, err := a.connectDAO()
@@ -93,8 +107,13 @@ func (a *api) Commit(dockerID string) (string, error) {
 		return "", err
 	}
 
+	containerID, err := a.getLongContainerID(dockerID)
+	if err != nil {
+		return "", err
+	}
+
 	var snapshotID string
-	if err := client.Commit(dockerID, &snapshotID); err != nil {
+	if err := client.Commit(containerID, &snapshotID); err != nil {
 		return "", err
 	}
 
