@@ -324,6 +324,31 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 	w.WriteJson(&services)
 }
 
+func restGetStatusForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if strings.Contains(serviceID, "isvc-") {
+		w.WriteJson([]dao.RunningService{})
+		return
+	}
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	var statusmap map[string]dao.ServiceStatus
+	err = client.GetServiceStatus(serviceID, &statusmap)
+	if err != nil {
+		glog.Errorf("Could not get status for service %s: %v", serviceID, err)
+		restServerError(w, err)
+		return
+	}
+	if statusmap == nil {
+		glog.V(3).Info("Running services was nil, returning empty map instead")
+		statusmap = map[string]dao.ServiceStatus{}
+	}
+	glog.V(2).Infof("Returning %d states for service %s", len(statusmap), serviceID)
+	w.WriteJson(&statusmap)
+}
+
 func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var services []dao.RunningService
 	err := client.GetRunningServices(&empty, &services)
