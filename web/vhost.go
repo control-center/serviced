@@ -30,6 +30,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 )
@@ -255,12 +256,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("no available service for vhost %v ", subdomain), http.StatusNotFound)
 		return
 	}
-	remoteAddr := fmt.Sprintf("%s:%d", vhEP.hostIP, vhEP.epPort)
-	if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
-		remoteAddr = fmt.Sprintf("%s:%d", vhEP.hostIP, sc.muxPort)
-	}
-	rp := getReverseProxy(remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
-	glog.V(1).Infof("vhost proxy remoteAddr:%s sc.muxPort:%s vhEP.privateIP:%s vhEP.epPort:%s", remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort)
+	rp := getReverseProxy(vhEP.hostIP, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 
 	// Set up the X-Forwarded-Proto header so that downstream servers know
@@ -275,15 +271,34 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 
 var reverseProxies map[string]*httputil.ReverseProxy
 var reverseProxiesLock sync.Mutex
+var localAddrs map[string]struct{}
 
 func init() {
+	var err error
 	reverseProxies = make(map[string]*httputil.ReverseProxy)
+	hostAddrs, err := utils.GetIPv4Addresses()
+	if err != nil {
+		panic(err)
+	}
+	localAddrs = make(map[string]struct{})
+	for _, host := range hostAddrs {
+		localAddrs[host] = struct{}{}
+	}
 }
 
-func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
+func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
+
+	var remoteAddr string
 
 	reverseProxiesLock.Lock()
 	defer reverseProxiesLock.Unlock()
+
+	_, isLocalContainer := localAddrs[hostIP]
+	if isLocalContainer {
+		remoteAddr = fmt.Sprintf("%s:%d", privateIP, privatePort)
+	} else {
+		remoteAddr = fmt.Sprintf("%s:%d", hostIP, muxPort)
+	}
 
 	key := fmt.Sprintf("%s,%d,%s,%s,%v", remoteAddr, muxPort, privateIP, privatePort, useTLS)
 	proxy, ok := reverseProxies[key]
@@ -297,7 +312,7 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	transport.Dial = func(network, addr string) (remote net.Conn, err error) {
-		if useTLS { // Only do TLS if connecting to a TCPMux
+		if useTLS && !isLocalContainer { // Only do TLS if connecting to a TCPMux
 			config := tls.Config{InsecureSkipVerify: true}
 			glog.V(1).Infof("vhost about to dial %s", remoteAddr)
 			remote, err = tls.Dial("tcp4", remoteAddr, &config)
@@ -309,7 +324,7 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 			return nil, err
 		}
 
-		if muxPort > 0 {
+		if muxPort > 0 && !isLocalContainer {
 			//TODO: move this check to happen sooner
 			if len(privateIP) == 0 {
 				return nil, fmt.Errorf("missing endpoint")
@@ -321,11 +336,9 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 		}
 		return remote, nil
 	}
-	transport.DisableCompression = true
-	transport.DisableKeepAlives = true
 	rp := httputil.NewSingleHostReverseProxy(&rpurl)
 	rp.Transport = transport
-	rp.FlushInterval = time.Second
+	rp.FlushInterval = time.Millisecond * 10
 
 	reverseProxies[key] = rp
 	return rp
