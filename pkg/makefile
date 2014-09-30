@@ -141,6 +141,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--config-files /etc/default/serviced \
 		.
 
 # Make an RPM
@@ -167,4 +168,5 @@ rpm: stage_rpm
 		--after-install rpm/postinstall \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
+		--config-files /etc/default/serviced \
 		.
