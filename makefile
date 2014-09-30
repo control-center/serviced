@@ -49,7 +49,7 @@ INSTALL_TEMPLATES_ONLY = 0
 #
 #    sudo make install PKG=<deb|rpm>
 #
-PKG         = $(default_PKG) # deb | rpm
+PKG         = $(default_PKG) # deb | rpm | tgz
 default_PKG = deb
 
 build_TARGETS = build_isvcs build_js serviced
@@ -380,7 +380,7 @@ install: $(install_TARGETS)
 # Packaging targets   #
 #---------------------#
 
-PKGS = deb rpm
+PKGS = deb rpm tgz
 .PHONY: pkgs
 pkgs:
 	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) $(PKGS)
