@@ -43,4 +43,12 @@ func TestWriteFile(t *testing.T) {
 	if !reflect.DeepEqual(data, expectedBytes) {
 		t.Fatalf("got %+v expected %+v", data, expectedBytes)
 	}
+	stats, err := os.Stat(f.Name())
+	if err != nil {
+		t.Fatalf("error getting stats on file %s: %s", f.Name(), err)
+	}
+	newMode := stats.Mode()
+	if 0660 != newMode {
+		t.Fatalf("desired file mode (%s) not successfully found (%s)", 0660, newMode)
+	}
 }
