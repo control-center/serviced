@@ -270,7 +270,7 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	since := r.URL.Query().Get("since")
 	var tsince time.Duration
 	if since == "" {
-		tsince = time.Duration(-1)
+		tsince = time.Duration(0)
 	} else {
 		tint, err := strconv.ParseInt(since, 10, 64)
 		if err != nil {

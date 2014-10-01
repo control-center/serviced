@@ -132,10 +132,6 @@ func (s *S) Test_GetUpdatedServices(t *C) {
 	err = s.store.Put(s.ctx, svc)
 	t.Assert(err, IsNil)
 
-	svcs, err = s.store.GetUpdatedServices(s.ctx, time.Duration(0)*time.Hour)
-	t.Assert(err, IsNil)
-	t.Assert(len(svcs), Equals, 0)
-
 	svcs, err = s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 1)
