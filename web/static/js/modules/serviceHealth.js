@@ -34,7 +34,7 @@
             var servicesDeferred = $q.defer();
             var healthCheckDeferred = $q.defer();
 
-            servicesService.get_services(true, function(top, mapped){
+            servicesService.update_services(function(top, mapped){
                 servicesDeferred.resolve(mapped);
             });
 
