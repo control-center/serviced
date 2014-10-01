@@ -30,7 +30,7 @@ var reload = reloadImpl
 func determineNfsServiceName() string {
     // In RHEL-based releases, the 'nfs' service is used
     if utils.Platform == utils.Rhel {
-        return "nfs"
+        return "nfs-server"
     } else {
         return "nfs-kernel-server"
     }
