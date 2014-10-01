@@ -134,9 +134,27 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	}
 }
 
-func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry) registry.ProcessChildrenFunc {
-	return func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
+	glog.Info("watchVhosts starting")
+
+	glog.V(2).Infof("getting pool based connection")
+	// vhosts are at the root level (not pool aware)
+	poolBasedConn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Fatalf("watchVhosts - Error getting pool based zk connection: %v", err)
+		return err
+	}
+
+	glog.V(2).Infof("creating vhostRegistry")
+	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
+	if err != nil {
+		glog.Fatalf("watchVhosts - Error getting vhost registry: %v", err)
+		return err
+	}
+
+	cancelChan := make(chan bool)
+	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.V(2).Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		currentVhosts := make(map[string]struct{})
 		//watch any new vhost nodes
@@ -149,53 +167,35 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 				vregistry.vhostWatch[vhostPath] = cancelChan
 				go vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
 			} else {
-				glog.Infof("vhost %s already being watched", vhostPath)
+				glog.V(2).Infof("vhost %s already being watched", vhostPath)
 			}
 		}
 
 		//cancel watching any vhosts nodes that are no longer
 		for previousVhost, cancel := range vregistry.vhostWatch {
 			if _, found := currentVhosts[previousVhost]; !found {
-				glog.Infof("Cancelling vhost watch for %s}", previousVhost)
+				glog.V(2).Infof("Cancelling vhost watch for %s}", previousVhost)
 				delete(vregistry.vhostWatch, previousVhost)
 				cancel <- true
 				close(cancel)
 			}
 		}
 	}
-}
 
-func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
-	glog.Info("watchVhosts starting")
-
-	// vhosts are at the root level (not pool aware)
-	poolBasedConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
-		return err
-	}
-
-	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
-		return err
-	}
-
-	cancelChan := make(chan bool)
-	//listens to shutdown
-	go func() {
+	for {
+		glog.V(1).Info("Running vhostRegistry.WatchRegistry")
+		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, processVhosts, vhostWatchError)
 		select {
 		case <-shutdown:
 			close(cancelChan)
 			for vhost, ch := range vregistry.vhostWatch {
-				glog.Infof("Shutdown closing watch for %v", vhost)
+				glog.V(1).Infof("Shutdown closing watch for %v", vhost)
 				close(ch)
 			}
+			break
+		default:
 		}
-	}()
-
-	vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
-	glog.Warning("watchVhosts ended")
+	}
 	return nil
 }
 
