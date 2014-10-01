@@ -165,7 +165,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 	store := f.serviceStore
 	var services []service.Service
 	var err error
-	if request.(dao.ServiceRequest).UpdatedSince != -1 {
+	if request.(dao.ServiceRequest).UpdatedSince != 0 {
 		services, err = store.GetUpdatedServices(ctx, request.(dao.ServiceRequest).UpdatedSince)
 		if err != nil {
 			glog.Error("Facade.GetServices: err=", err)
