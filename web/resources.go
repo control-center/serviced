@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -191,13 +192,14 @@ func getNamedServices(client *node.ControlClient, nmregex string, tenantID strin
 	return services, nil
 }
 
-func getServices(client *node.ControlClient, tenantID string) ([]service.Service, error) {
+func getServices(client *node.ControlClient, tenantID string, since time.Duration) ([]service.Service, error) {
 	services := []service.Service{}
 	var emptySlice []string
 	serviceRequest := dao.ServiceRequest{
-		Tags:      emptySlice,
-		TenantID:  tenantID,
-		NameRegex: "",
+		Tags:         emptySlice,
+		TenantID:     tenantID,
+		UpdatedSince: since,
+		NameRegex:    "",
 	}
 	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -265,11 +267,28 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	result, err := getServices(client, tenantID)
-	result = append(result, getISVCS()...)
+	since := r.URL.Query().Get("since")
+	var tsince time.Duration
+	if since == "" {
+		tsince = time.Duration(-1)
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+	result, err := getServices(client, tenantID, tsince)
 	if err != nil {
 		restServerError(w, err)
 		return
+	}
+	t0 := time.Now().Add(-tsince)
+	for _, isvc := range getISVCS() {
+		if isvc.UpdatedAt.After(t0) {
+			result = append(result, isvc)
+		}
 	}
 
 	for ii, _ := range result {

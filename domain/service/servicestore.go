@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 //NewStore creates a Service  store
@@ -62,6 +63,19 @@ func (s *Store) Delete(ctx datastore.Context, id string) error {
 //GetServices returns all services
 func (s *Store) GetServices(ctx datastore.Context) ([]Service, error) {
 	return query(ctx, "_exists_:ID")
+}
+
+//GetUpdatedServices returns all services updated since "since" time.Duration ago
+func (s *Store) GetUpdatedServices(ctx datastore.Context, since time.Duration) ([]Service, error) {
+	q := datastore.NewQuery(ctx)
+	t0 := time.Now().Add(-since).Format(time.RFC3339)
+	elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0)).Search("_exists_:ID")
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //GetTaggedServices returns services with the given tags
