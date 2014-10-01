@@ -171,6 +171,7 @@ func (sr StatsReporter) updateHostStats() {
 	}
 }
 
+
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {
 	// Stats for host.
@@ -182,19 +183,23 @@ func (sr StatsReporter) updateStats() {
 		glog.Errorf("updateStats: zkservice.LoadRunningServicesByHost (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
 	}
 	for _, rs := range running {
-		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-		if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct)); err != nil {
-			glog.Warningf("Couldn't read CpuacctStat:", err)
+		if rs.DockerID != "" {
+			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
+			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct)); err != nil {
+				glog.Warningf("Couldn't read CpuacctStat:", err)
+			} else {
+				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
+				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
+			}
+			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory)); err != nil {
+				glog.Warningf("Couldn't read MemoryStat:", err)
+			} else {
+				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
+				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
+				metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
+			}
 		} else {
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
-		}
-		if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory)); err != nil {
-			glog.Warningf("Couldn't read MemoryStat:", err)
-		} else {
-			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
-			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
-			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
+			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
 		}
 	}
 }
