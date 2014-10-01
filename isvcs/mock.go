@@ -59,6 +59,8 @@ func init() {
 		Description:  "Internal Services",
 		DeploymentID: "Internal",
 		DesiredState: 1,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
@@ -157,6 +159,8 @@ func init() {
 		Description:     "Internal Elastic Search - LogStash",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -253,6 +257,8 @@ func init() {
 		Description:     "Internal Elastic Search - Serviced",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -357,6 +363,8 @@ func init() {
 		Description:     "Internal ZooKeeper",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -468,6 +476,8 @@ func init() {
 		Description:     "Internal Logstash",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -579,6 +589,8 @@ func init() {
 		Description:     "Internal Open TSDB",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -690,6 +702,8 @@ func init() {
 		Description:     "Internal Celery",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -801,6 +815,8 @@ func init() {
 		Description:     "Internal Docker Registry",
 		ParentServiceID: "isvc-internalservices",
 		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{

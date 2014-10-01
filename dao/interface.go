@@ -14,6 +14,8 @@
 package dao
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
@@ -37,9 +39,10 @@ func (s ControlPlaneError) Error() string {
 type EntityRequest interface{}
 
 type ServiceRequest struct {
-	Tags      []string
-	TenantID  string
-	NameRegex string
+	Tags         []string
+	TenantID     string
+	UpdatedSince time.Duration
+	NameRegex    string
 }
 
 type ServiceStateRequest struct {
