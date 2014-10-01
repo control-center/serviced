@@ -284,10 +284,14 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		restServerError(w, err)
 		return
 	}
-	t0 := time.Now().Add(-tsince)
-	for _, isvc := range getISVCS() {
-		if isvc.UpdatedAt.After(t0) {
-			result = append(result, isvc)
+	if since == "" {
+		result = append(result, getISVCS()...)
+	} else {
+		t0 := time.Now().Add(-tsince)
+		for _, isvc := range getISVCS() {
+			if isvc.UpdatedAt.After(t0) {
+				result = append(result, isvc)
+			}
 		}
 	}
 
