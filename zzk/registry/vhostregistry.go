@@ -25,11 +25,11 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/validation"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 
 	"fmt"
 	"path"
-	"time"
 )
 
 const (
@@ -68,24 +68,13 @@ type VhostRegistry struct {
 // VHostRegistry ensures the vhost registry and returns the VhostRegistry type
 func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	path := vhostPath()
-
-	timeout := time.After(time.Second * 60)
-	var err error
-	for {
-		err = conn.CreateDir(path)
-		if err == client.ErrNodeExists || err == nil {
-			err = nil
-			break
+	if exists, err := zzk.PathExists(conn, path); err != nil {
+		return nil, err
+	} else if !exists {
+		if err := conn.CreateDir(path); err != nil {
+			glog.Errorf("error with CreateDir(%s) %+v", path, err)
+			return nil, err
 		}
-		select {
-		case <-timeout:
-			break
-		default:
-		}
-	}
-	if err != nil {
-		glog.Errorf("error with CreateDir(%s) %+v", path, err)
-		return nil, fmt.Errorf("could not create dir: %s", path, err)
 	}
 	return &VhostRegistry{registryType{getPath: vhostPath, ephemeral: true}}, nil
 }
