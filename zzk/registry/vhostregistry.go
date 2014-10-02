@@ -67,10 +67,7 @@ type VhostRegistry struct {
 
 // VHostRegistry ensures the vhost registry and returns the VhostRegistry type
 func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
-	glog.Infof("getting vhostPath()")
 	path := vhostPath()
-	glog.Infof("got path: %s", path)
-	glog.Infof("checking path exists: %s", path)
 
 	timeout := time.After(time.Second * 60)
 	var err error

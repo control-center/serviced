@@ -469,10 +469,10 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 
 // setProxyAddresses tells the proxies to update with addresses
 func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
-	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
+	glog.V(1).Info("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
 	proxiesLock.Lock()
 	defer proxiesLock.Unlock()
-	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s) locked", tenantEndpointID)
+	glog.V(1).Infof("starting setProxyAddresses(tenantEndpointID: %s) locked", tenantEndpointID)
 
 	if len(endpoints) <= 0 {
 		if prxy, ok := proxies[tenantEndpointID]; ok {

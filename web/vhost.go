@@ -217,7 +217,7 @@ func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFu
 				glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
 				continue
 			}
-			glog.Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
+			glog.V(1).Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
 			vepInfo := createvhostEndpointInfo(vhEndpoint)
 			vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
 		}

@@ -235,7 +235,7 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 		return client.ErrNoNode
 	}
 	for {
-		glog.V(0).Infof("watching children at path: %s", path)
+		glog.V(1).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path)
 		glog.V(1).Infof("child watch for path %s returned: %#v", path, nodeIDs)
 		if err != nil {
@@ -244,9 +244,9 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 			return err
 		}
 		processChildren(conn, path, nodeIDs...)
-		//This blocks until a change happens under the key
 		select {
-		case <-time.After(time.Second * 10):
+		// timeout in case we missed a zookeeper event
+		case <-time.After(time.Second * 60):
 		case ev := <-event:
 			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:
