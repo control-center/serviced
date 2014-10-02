@@ -118,7 +118,6 @@ table > thead.light {
 }
 
 .table {
-    min-width: 1140px;
     margin-bottom: 30px;
     /* tables usually have headings and/or actions
         which are floated and must be cleared */
@@ -333,7 +332,7 @@ table .btn,
     }
     .big textarea {
         width: 960px;
-        min-height: 600px
+        min-height: 500px
     }
 }
 
@@ -974,6 +973,14 @@ rect {
     padding-right: 15px;
 }
 
+/* force stuff to stay 1140px or wider */
+.table,
+.details,
+.navbar-zen,
+.infoWrapper {
+    min-width: 1140px;
+}
+
 /* speed up bootstrap modals */
 .fade {
    opacity: 0;
@@ -1003,7 +1010,7 @@ rect {
 /* this is the main notification holder */
 #notifications {
     position: fixed;
-    top: 72px;
+    top: 80px;
     opacity: 0.9;
     z-index: 999;
 }
