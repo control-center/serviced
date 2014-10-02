@@ -270,7 +270,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 // serviced pool add-virtual-ip POOLID IPADDRESS NETMASK BINDINTERFACE
 func (c *ServicedCli) cmdAddVirtualIP(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 1 || len(args) > 4 {
+	if len(args) != 4 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add-virtual-ip")
 		return
