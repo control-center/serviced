@@ -63,6 +63,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 // Virtual host routing to zenoss web based services is done by the vhosthandler function.
 func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
+	glog.V(1).Infof("starting vhost synching")
 	//start getting vhost endpoints
 	go sc.syncVhosts(shutdown)
 

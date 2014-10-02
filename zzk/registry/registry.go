@@ -14,6 +14,9 @@
 package registry
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
@@ -111,7 +114,7 @@ func (r *registryType) addItem(conn client.Connection, key string, nodeID string
 
 //Set node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) setItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureKey(conn, r.getPath(key)); err != nil {
+	if err := r.ensureKey(conn, key); err != nil {
 		return "", err
 	}
 
@@ -173,41 +176,39 @@ func removeNode(conn client.Connection, path string) error {
 }
 
 func (r *registryType) ensureKey(conn client.Connection, key string) error {
-	lock_path := r.getPath("endpoint_lock")
-	lock := conn.NewLock(lock_path)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Unable to lock on %s: %+v", lock_path, err)
-		return err
-	}
-
-	defer lock.Unlock()
 	node := &KeyNode{ID: key, IsRemote: false}
-	err := conn.Create(r.getPath(key), node)
-	if err == client.ErrNodeExists {
-		return nil
+	timeout := time.After(time.Second * 60)
+	var err error
+	path := r.getPath(key)
+	for {
+		err = conn.Create(path, node)
+		if err == client.ErrNodeExists || err == nil {
+			return nil
+		}
+		select {
+		case <-timeout:
+			break
+		default:
+		}
 	}
-
-	return err
+	return fmt.Errorf("could not create key: %s", key, err)
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
-	lock_path := r.getPath("endpoint_lock")
-	lock := conn.NewLock(lock_path)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Unable to lock on %s: %+v", lock_path, err)
-		return err
-	}
-	defer lock.Unlock()
-	if exists, err := zzk.PathExists(conn, path); err != nil {
-		return err
-	} else if !exists {
-		glog.V(0).Infof("creating zk dir %s", path)
-		if err := conn.CreateDir(path); err != nil {
-			glog.Errorf("error with ensureDir.CreateDir(%s) %+v", path, err)
-			return err
+	timeout := time.After(time.Second * 60)
+	var err error
+	for {
+		err = conn.CreateDir(path)
+		if err == client.ErrNodeExists || err == nil {
+			return nil
+		}
+		select {
+		case <-timeout:
+			break
+		default:
 		}
 	}
-	return nil
+	return fmt.Errorf("could not create dir: %s", path, err)
 }
 
 // getChildren gets all child paths for the given nodeID
@@ -243,8 +244,9 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 			return err
 		}
 		processChildren(conn, path, nodeIDs...)
-		//This blocks until a change happens under the key
 		select {
+		// timeout in case we missed a zookeeper event
+		case <-time.After(time.Second * 60):
 		case ev := <-event:
 			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:
