@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 	"sync"
 	"time"
 
@@ -134,6 +135,22 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	}
 }
 
+func areEqual(s1, s2 []string) bool {
+
+	if s1 == nil || s2 == nil {
+		return false
+	}
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i, v := range s1 {
+		if v != s2[i] {
+			return false
+		}
+	}
+	return true
+}
+
 func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 	glog.Info("watchVhosts starting")
 
@@ -154,7 +171,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 
 	cancelChan := make(chan bool)
 	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.V(2).Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+		glog.V(1).Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		currentVhosts := make(map[string]struct{})
 		//watch any new vhost nodes
@@ -165,7 +182,46 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 				glog.Infof("processing vhost watch: %s", vhostPath)
 				cancelChan := make(chan bool)
 				vregistry.vhostWatch[vhostPath] = cancelChan
-				go vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
+				go func(vhostID string) {
+					glog.Infof("starting vhost watch: %s", vhostPath)
+					var lastChildIDs []string
+					processVhost := func(conn client.Connection, parentPath string, childIDs ...string) {
+
+						glog.V(1).Infof("watching:%s %+v", parentPath, childIDs)
+						if !sort.StringsAreSorted(childIDs) {
+							sort.Strings(childIDs)
+						}
+						if areEqual(lastChildIDs, childIDs) {
+							glog.Infof("not processing children because they are the same as last ones: %v = %v ", lastChildIDs, childIDs)
+							return
+						}
+						glog.V(1).Infof("processing vhost parent %v; children %v", parentPath, childIDs)
+						vr, err := registry.VHostRegistry(conn)
+						if err != nil {
+							glog.Errorf("processVhost - Error getting vhost registry: %v", err)
+							return
+						}
+
+						errors := false
+						vhostEndpoints := newVhostInfo()
+						for _, child := range childIDs {
+							vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
+							if err != nil {
+								errors = true
+								glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
+								continue
+							}
+							glog.V(1).Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
+							vepInfo := createvhostEndpointInfo(vhEndpoint)
+							vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
+						}
+						vregistry.setVhostInfo(vhostID, vhostEndpoints)
+						if !errors {
+							lastChildIDs = childIDs
+						}
+					}
+					vhostRegistry.WatchKey(conn, vhostID, cancelChan, processVhost, vhostWatchError)
+				}(vhostID)
 			} else {
 				glog.V(2).Infof("vhost %s already being watched", vhostPath)
 			}
@@ -197,32 +253,6 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 		}
 	}
 	return nil
-}
-
-//processVhost is used to watch the children of particular vhost in the registry
-func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFunc {
-
-	return func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.Infof("processing vhost parent %v; children %v", parentPath, childIDs)
-		vr, err := registry.VHostRegistry(conn)
-		if err != nil {
-			glog.Errorf("processVhost - Error getting vhost registry: %v", err)
-			return
-		}
-
-		vhostEndpoints := newVhostInfo()
-		for _, child := range childIDs {
-			vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
-			if err != nil {
-				glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
-				continue
-			}
-			glog.V(1).Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
-			vepInfo := createvhostEndpointInfo(vhEndpoint)
-			vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
-		}
-		vregistry.setVhostInfo(vhostID, vhostEndpoints)
-	}
 }
 
 func vhostWatchError(path string, err error) {

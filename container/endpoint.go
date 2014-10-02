@@ -170,6 +170,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		}
 	} else {
 		// get service state
+		glog.Infof("getting service state: %s %v", c.options.Service.ID, c.options.Service.InstanceID)
 		sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
 		if err != nil {
 			return fmt.Errorf("getEndpoints getServiceState failed: %v", err)
