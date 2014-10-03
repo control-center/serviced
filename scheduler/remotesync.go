@@ -21,7 +21,6 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	zkpool "github.com/control-center/serviced/zzk/scheduler"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
@@ -120,7 +119,7 @@ func (s *scheduler) remoteSync(shutdown <-chan interface{}, local client.Connect
 }
 
 func (s *scheduler) getPoolSynchronizer() zzk.Listener {
-	poolSync := zkpool.NewPoolSynchronizer(s, zzk.GetRemoteConnection)
+	poolSync := zkservice.NewPoolSynchronizer(s, zzk.GetRemoteConnection)
 
 	// Add the host listener
 	poolSync.AddListener(func(id string) zzk.Listener {

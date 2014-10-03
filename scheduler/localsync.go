@@ -17,7 +17,6 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
-	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
@@ -44,7 +43,7 @@ retry:
 			glog.Errorf("Could not get resource pools: %s", err)
 			wait = time.After(minWait)
 			continue
-		} else if err := zkscheduler.SyncResourcePools(rootConn, pools); err != nil {
+		} else if err := zkservice.SyncResourcePools(rootConn, pools); err != nil {
 			glog.Errorf("Could not do a local sync of resource pools: %s", err)
 			wait = time.After(minWait)
 			continue
