@@ -14,209 +14,148 @@
 package elasticsearch
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
+
 	"github.com/control-center/serviced/zzk"
 	zkSnapshot "github.com/control-center/serviced/zzk/snapshot"
 	"github.com/zenoss/glog"
 
 	"errors"
-	"os"
-	"os/user"
-	"path"
-	"path/filepath"
 )
 
-func (this *ControlPlaneDao) DeleteSnapshot(snapshotId string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.DeleteSnapshot(snapshotId)
-}
-
-func (this *ControlPlaneDao) DeleteSnapshots(serviceId string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	var tenantId string
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
-		return err
-	}
-
-	if serviceId != tenantId {
-		glog.Infof("ControlPlaneDao.DeleteSnapshots service is not the parent, service=%s, tenant=%s", serviceId, tenantId)
-		return nil
-	}
-
-	return this.dfs.DeleteSnapshots(tenantId)
-}
-
-func (this *ControlPlaneDao) Rollback(snapshotId string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	if err := this.serviceLock.Lock(); err != nil {
-		return err
-	}
-	defer this.serviceLock.Unlock()
-
-	return this.dfs.Rollback(snapshotId)
-}
-
-// Takes a snapshot of the DFS via the host
-func (this *ControlPlaneDao) TakeSnapshot(serviceID string, label *string) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	if err := this.serviceLock.Lock(); err != nil {
-		return err
-	}
-	defer this.serviceLock.Unlock()
-
+// GetVolume gets the volume of a service
+func (this *ControlPlaneDao) GetVolume(serviceID string, volume *volume.Volume) error {
 	var tenantID string
-	var err error
-	if err = this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
+	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
+		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
 		return err
 	}
-	*label, err = this.dfs.Snapshot(tenantID)
+
+	var tenant service.Service
+	if err := this.GetService(tenantID, &tenant); err != nil {
+		glog.Errorf("Could not find tenant %s for service %s: %s", tenantID, serviceID, err)
+		return err
+	}
+
+	var err error
+	volume, err = this.dfs.GetVolume(&tenant)
 	return err
 }
 
-// Snapshot is called via RPC by the CLI to take a snapshot for a serviceId
-func (this *ControlPlaneDao) Snapshot(serviceID string, label *string) error {
-	myService, err := this.facade.GetService(datastore.Get(), serviceID)
-	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", serviceID, err)
-		return err
-	}
-
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
-	if err != nil {
-		glog.Errorf("ControlPlaneDao.Snapshot err=%s", err)
-		return err
-	}
-
-	var snapshot zkSnapshot.Snapshot
-
-	if nodeID, err := zkSnapshot.Send(conn, serviceID); err != nil {
-		glog.Errorf("Could not send snapshot for service %s: %s", serviceID, err)
-		return err
-	} else if err := zkSnapshot.Recv(conn, nodeID, &snapshot); err != nil {
-		glog.Errorf("Could not receieve snapshot for service %s (%s): %s", serviceID, nodeID, err)
-		return err
-	}
-
-	*label = snapshot.Label
-	if snapshot.Err != "" {
-		return errors.New(snapshot.Err)
-	}
-	return nil
+// DeleteSnapshot deletes a particular snapshot
+func (this *ControlPlaneDao) DeleteSnapshot(snapshotID string, unused *int) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+	return this.dfs.DeleteSnapshot(snapshotID)
 }
 
-func (this *ControlPlaneDao) Snapshots(serviceId string, labels *[]string) error {
-
-	var tenantId string
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
-		return err
-	}
-	var service service.Service
-	err := this.GetService(tenantId, &service)
-	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
-		return err
-	}
-
-	if volume, err := getSubvolume(this.vfs, service.PoolID, tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.Snapshots service=%+v err=%s", serviceId, err)
-		return err
-	} else {
-		if snaplabels, err := volume.Snapshots(); err != nil {
-			return err
-		} else {
-			glog.Infof("Got snap labels %v", snaplabels)
-			*labels = snaplabels
-		}
-	}
-	return nil
-}
-
-func (this *ControlPlaneDao) GetVolume(serviceId string, theVolume *volume.Volume) error {
-	*theVolume = volume.Volume{}
-
-	var tenantId string
-	if err := this.GetTenantId(serviceId, &tenantId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
-		return err
-	}
-	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v tenantId=%s", serviceId, tenantId)
-	var service service.Service
-	if err := this.GetService(tenantId, &service); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
-		return err
-	}
-	glog.V(3).Infof("ControlPlaneDao.GetVolume service=%+v poolId=%s", service, service.PoolID)
-
-	aVolume, err := getSubvolume(this.vfs, service.PoolID, tenantId)
-	if err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v err=%s", serviceId, err)
-		return err
-	}
-	if aVolume == nil {
-		glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v volume=nil", serviceId)
-		return errors.New("volume is nil")
-	}
-
-	glog.V(2).Infof("ControlPlaneDao.GetVolume service=%+v volume2=%+v %v", serviceId, aVolume, aVolume)
-	*theVolume = *aVolume
-	return nil
-}
-
-// Commits a container to an image and saves it on the DFS
-func (this *ControlPlaneDao) Commit(containerId string, label *string) error {
+// DeleteSnapshots deletes all snapshots given a tenant
+func (this *ControlPlaneDao) DeleteSnapshots(serviceID string, unused *int) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
 
-	if err := this.serviceLock.Lock(); err != nil {
+	var tenantID string
+	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
 		return err
 	}
-	defer this.serviceLock.Unlock()
 
-	if id, err := this.dfs.Commit(containerId); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetVolume containerId=%s err=%s", containerId, err)
+	if serviceID != tenantID {
+		err := fmt.Errorf("service is not the parent")
+		glog.Errorf("Cannot delete snapshots for %s: %s", serviceID, err)
 		return err
-	} else {
-		*label = id
+	}
+
+	return this.dfs.DeleteSnapshots(tenantID)
+}
+
+// Rollback rolls back the dfs to a particular snapshot
+func (this *ControlPlaneDao) Rollback(snapshotID string, unused *int) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+	return this.dfs.Rollback(snapshotID)
+}
+
+// Snapshot takes a snapshot of the dfs and its respective images
+func (this *ControlPlaneDao) Snapshot(serviceID string, snapshotID *string) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+
+	var tenantID string
+	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
+		glog.Errorf("Could not snapshot %s: %s", serviceID, err)
+		return err
+	}
+
+	var err error
+	*snapshotID, err = this.dfs.Snapshot(tenantID)
+	return err
+}
+
+// AsyncSnapshot is the asynchronous call to snapshot
+func (this *ControlPlaneDao) AsyncSnapshot(serviceID string, snapshotID *string) error {
+	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
+	if err != nil {
+		glog.Errorf("Unable to get pool for service %v: %v", serviceID, err)
+		return err
+	}
+
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+	if err != nil {
+		glog.Errorf("Cannot establish connection to zk via pool %s: %s", poolID, err)
+		return err
+	}
+
+	var ss zkSnapshot.Snapshot
+	if nodeID, err := zkSnapshot.Send(conn, serviceID); err != nil {
+		glog.Errorf("Could not submit snapshot for %s: %s", serviceID, err)
+		return err
+	} else if err := zkSnapshot.Recv(conn, nodeID, &ss); err != nil {
+		glog.Errorf("Could not receieve snapshot for %s (%s): %s", serviceID, nodeID, err)
+		return err
+	}
+
+	*snapshotID = ss.Label
+	if ss.Err != "" {
+		return errors.New(ss.Err)
+	}
+	return nil
+}
+
+// ListSnapshots lists all the available snapshots for a particular service
+func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]string) error {
+	var tenantID string
+	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
+		glog.Errorf("Could not find tenant for %s: %s", serviceID, err)
+		return err
+	} else if *snapshots, err = this.dfs.ListSnapshots(tenantID); err != nil {
+		glog.Errorf("Could not get snapshots for %s (%s): %s", serviceID, tenantID, err)
+		return err
 	}
 
 	return nil
 }
 
-func getSubvolume(vfs, poolId, tenantId string) (*volume.Volume, error) {
-	baseDir, err := filepath.Abs(path.Join(varPath(), "volumes", poolId))
-	if err != nil {
-		return nil, err
-	}
-	glog.Infof("Mounting vfs:%v tenantId:%v baseDir:%v\n", vfs, tenantId, baseDir)
-	return volume.Mount(vfs, tenantId, baseDir)
+// Commit commits a container to a particular tenant and snapshots the resulting image
+func (this *ControlPlaneDao) Commit(containerID string, snapshotID *string) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+
+	var err error
+	*snapshotID, err = this.dfs.Commit(containerID)
+	return err
 }
 
-func varPath() string {
-	if len(os.Getenv("SERVICED_HOME")) > 0 {
-		return path.Join(os.Getenv("SERVICED_HOME"), "var")
-	} else if user, err := user.Current(); err == nil {
-		return path.Join(os.TempDir(), "serviced-"+user.Username, "var")
-	} else {
-		defaultPath := "/tmp/serviced/var"
-		glog.Warningf("Defaulting varPath to:%v\n", defaultPath)
-		return defaultPath
+// ReadyDFS verifies that no other dfs operations are in progress
+func (this *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
+	if locked, err := this.dfs.IsLocked(); err != nil {
+		return err
+	} else if locked {
+		return fmt.Errorf("another dfs operation is running")
 	}
-}
-
-func (s *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
-	s.dfs.Lock()
-	s.dfs.Unlock()
-	return
+	return nil
 }
