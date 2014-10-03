@@ -1200,6 +1200,15 @@ rect {
     100% { transform: scale(1.4, 1.4);  }
 }
 
+.healthIconScaler {
+    display: inline-block;
+    -webkit-transform: scale(.6, .6);
+    -moz-transform: scale(.6, .6);
+    -ms-transform: scale(.6, .6);
+}
+.healthIconScaler .healthIcon {
+    top: 5px;
+}
 
 .healthTooltipDetailRow {
     font-size: .9em;

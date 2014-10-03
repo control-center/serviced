@@ -1,6 +1,10 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
 
-    <h3>{{services.current.Name}}<span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span></h3>
+    <h3>
+        <div class="healthIconScaler"><i class="healthIcon" ng-class="services.current.healthIconClass"></i></div>
+        {{services.current.Name}}
+        <span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span>
+    </h3>
 
     <div class="details">
       <div class="details-form">
@@ -203,9 +207,10 @@
       <tr>
         <th>{{'running_tbl_instance_id'|translate}}</th>
         <th>{{'label_service_name'|translate}}</th>
-      <th>{{'host'|translate}}</th>
-      <th>{{'running_tbl_docker_id'|translate}}</th>
-      <th>{{'running_tbl_actions'|translate}}</th>
+        <th>{{'label_service_status'|translate}}</th>
+        <th>{{'host'|translate}}</th>
+        <th>{{'running_tbl_docker_id'|translate}}</th>
+        <th>{{'running_tbl_actions'|translate}}</th>
       </tr>
     </thead>
     <tbody>
@@ -215,6 +220,9 @@
       <tr ng-repeat="app in running.data | orderBy:running.sort">
         <td>{{app.InstanceID}}</td>
         <td>{{app.Name}}</td>
+        <td style="text-align:center;">
+          <i class="healthIcon" ng-class="services.current.healthIconClass"></i>
+        </td>
         <td ng-click="click_host(app.HostID)" class="link">{{app.hostName}}</td>
         <td>{{app.DockerID}}</td>
         <td>
