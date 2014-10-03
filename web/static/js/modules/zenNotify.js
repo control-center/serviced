@@ -7,6 +7,9 @@ var SEVERITY = {
     ERROR: 3
 };
 
+// stores whatever the last message is
+var lastMessage;
+
 (function() {
     'use strict';
 
@@ -68,10 +71,9 @@ var SEVERITY = {
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show();
-                }
-
+                notificationFactory.store(this);
+                this.show();
+                
                 return this;
             },
 
@@ -84,12 +86,8 @@ var SEVERITY = {
 
                 this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
-
-                // show close button and make it active
-                this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show();
-                }
+                notificationFactory.store(this);
+                this.show();
 
                 return this;
             },
@@ -102,9 +100,8 @@ var SEVERITY = {
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show();
-                }
+                notificationFactory.store(this);
+                this.show();
 
                 return this;
             },
@@ -121,9 +118,8 @@ var SEVERITY = {
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show(false);
-                }
+                notificationFactory.store(this);
+                this.show(false);
 
                 return this;
             },
@@ -154,6 +150,11 @@ var SEVERITY = {
             },
 
             show: function(autoclose){
+                // close previous message
+                if(lastMessage){
+                    lastMessage.hide();
+                }
+
                 this.$attachPoint.append(this.$el);
 
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
@@ -162,6 +163,8 @@ var SEVERITY = {
                 if(autoclose){
                     setTimeout(this.hide, 5000);
                 }
+
+                lastMessage = this;
 
                 return this;
             }
