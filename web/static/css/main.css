@@ -274,6 +274,7 @@ table .btn,
     position: absolute;
     top: -8px;
     left: -24px;
+    z-index: 1000;
 }
 
 .navbar-zen .navbar-right button{
