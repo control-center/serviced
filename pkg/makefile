@@ -33,6 +33,9 @@ VENDOR        = "Zenoss, Inc."
 URL           = http://controlcenter.io/
 DEB_PRIORITY  = extra
 CATEGORY      = admin
+ZENPIPPKGSURL = http://zenpip.zendev.org/packages
+ZENPIP_VERSION ?= "e87b98706480b4965019b24dfde70d8a7e145c44-dirty"
+
 
 ifeq "$(BUILD_NUMBER)" ""
 PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
@@ -124,9 +127,14 @@ stage_tgz: build
 	make clean_dirs clean_dirs=$(PKGROOT)
 	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=tgz INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
 
+stage_serviced:
+	@echo " untarring: $(ZENPIPPKGSURL)/serviced-$(ZENPIP_VERSION).tgz"
+	mkdir -p $(abspath $(PKGROOT))
+	curl -s $(ZENPIPPKGSURL)/serviced-$(ZENPIP_VERSION).tgz | tar -v -C $(abspath $(PKGROOT)) -xz
+
 # Make a DEB
 # net-tools provides ifconfig, needed for VIPs
-deb: stage_deb
+deb: stage_serviced
 	fpm \
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION)~$$(lsb_release -cs) \
@@ -152,7 +160,7 @@ deb: stage_deb
 		.
 
 # Make an RPM
-rpm: stage_rpm
+rpm: stage_serviced
 	fpm \
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
