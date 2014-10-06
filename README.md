@@ -66,7 +66,7 @@ export PATH="$PATH:$GOPATH/bin"
 mkdir $GOPATH/{bin,pkg,src} -p
 mkdir $GOPATH/src/github.com/zenoss -p
 cd $GOPATH/src/github.com/zenoss 
-git clone git@github.com:control-center/serviced.git
+git clone https://github.com/control-center/serviced.git
 cd serviced
 make install
 ```
