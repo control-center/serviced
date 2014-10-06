@@ -192,7 +192,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 							sort.Strings(childIDs)
 						}
 						if areEqual(lastChildIDs, childIDs) {
-							glog.Infof("not processing children because they are the same as last ones: %v = %v ", lastChildIDs, childIDs)
+							glog.V(1).Infof("not processing children because they are the same as last ones: %v = %v ", lastChildIDs, childIDs)
 							return
 						}
 						glog.V(1).Infof("processing vhost parent %v; children %v", parentPath, childIDs)
