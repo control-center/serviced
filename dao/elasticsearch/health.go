@@ -19,6 +19,6 @@ import (
 )
 
 func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
-	health.RegisterHealthCheck(result.ServiceID, result.Name, result.Passed, this, this.facade)
+	health.RegisterHealthCheck(result.ServiceID, result.InstanceID, result.Name, result.Passed, this, this.facade)
 	return nil
 }

@@ -34,10 +34,12 @@ type healthStatus struct {
 
 type messagePacket struct {
 	Timestamp int64
-	Statuses  map[string]map[string]*healthStatus
+	Statuses  map[string]map[string]map[string]*healthStatus
 }
 
-var healthStatuses = make(map[string]map[string]*healthStatus)
+// Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
+var healthStatuses = make(map[string]map[string]map[string]*healthStatus)
+
 var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
 
@@ -47,14 +49,14 @@ func init() {
 		Timestamp: time.Now().UTC().Unix(),
 		Interval:  3.156e9, // One century in seconds.
 	}
-	healthStatuses["isvc-internalservices"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-elasticsearch-logstash"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-elasticsearch-serviced"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-zookeeper"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-opentsdb"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-logstash"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-celery"] = map[string]*healthStatus{"alive": foreverHealthy}
-	healthStatuses["isvc-dockerRegistry"] = map[string]*healthStatus{"alive": foreverHealthy}
+	healthStatuses["isvc-internalservices"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-elasticsearch-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-elasticsearch-serviced"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-zookeeper"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-opentsdb"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-celery"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
 }
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
@@ -64,17 +66,21 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceID string, name string, passed string, d dao.ControlPlane, f *facade.Facade) {
+func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, d dao.ControlPlane, f *facade.Facade) {
 	lock.Lock()
 	defer lock.Unlock()
 
 	serviceStatus, ok := healthStatuses[serviceID]
 	if !ok {
-		// healthStatuses[serviceID]
-		serviceStatus = make(map[string]*healthStatus)
+		serviceStatus = make(map[string]map[string]*healthStatus)
 		healthStatuses[serviceID] = serviceStatus
 	}
-	thisStatus, ok := serviceStatus[name]
+	instanceStatus, ok := serviceStatus[instanceID]
+	if !ok {
+		instanceStatus = make(map[string]*healthStatus)
+		serviceStatus[instanceID] = instanceStatus
+	}
+	thisStatus, ok := instanceStatus[name]
 	if !ok {
 		healthChecks, err := f.GetHealthChecksForService(datastore.Get(), serviceID)
 		if err != nil {
@@ -82,13 +88,13 @@ func RegisterHealthCheck(serviceID string, name string, passed string, d dao.Con
 			return
 		}
 		for iname, icheck := range healthChecks {
-			_, ok = serviceStatus[iname]
+			_, ok = instanceStatus[iname]
 			if !ok {
-				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix()}
+				instanceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix()}
 			}
 		}
 	}
-	thisStatus, ok = serviceStatus[name]
+	thisStatus, ok = instanceStatus[name]
 	if !ok {
 		glog.Warningf("ignoring health status, not found in service: %s %s %s", serviceID, name, passed)
 		return
