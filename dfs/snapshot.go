@@ -41,6 +41,10 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	if err != nil {
 		glog.Errorf("Could not get service %s: %s", tenantID, err)
 		return "", err
+	} else if tenant == nil {
+		err = fmt.Errorf("service not found")
+		glog.Errorf("Service %s not found", tenantID)
+		return "", err
 	}
 
 	// Pause all running services
@@ -172,6 +176,9 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 	if err != nil {
 		glog.Errorf("Could not find service %s: %s", tenantID, err)
 		return err
+	} else if tenant == nil {
+		glog.Errorf("Service %s not found", tenantID)
+		return fmt.Errorf("service not found")
 	}
 
 	snapshotVolume, err := dfs.GetVolume(tenant)
@@ -216,6 +223,9 @@ func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]string, erro
 	if err != nil {
 		glog.Errorf("Could not get service %s: %s", tenantID, err)
 		return nil, err
+	} else if tenant == nil {
+		glog.Errorf("Service %s not found", tenantID)
+		return nil, fmt.Errorf("service not found")
 	}
 
 	snapshotVolume, err := dfs.GetVolume(tenant)
@@ -239,6 +249,9 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 	if err != nil {
 		glog.Errorf("Service not found %s: %s", tenantID, err)
 		return err
+	} else if tenant == nil {
+		glog.Errorf("Service %s not found", tenantID)
+		return fmt.Errorf("service not found")
 	}
 
 	snapshotVolume, err := dfs.GetVolume(tenant)
@@ -280,6 +293,9 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	if err != nil {
 		glog.Errorf("Service not found %s: %s", tenantID, err)
 		return err
+	} else if tenant == nil {
+		glog.Errorf("Service %s not found", tenantID)
+		return fmt.Errorf("service not found")
 	}
 
 	// delete the snapshot subvolume

@@ -309,6 +309,10 @@ func (dfs *DistributedFilesystem) importSnapshots(filename string) error {
 	if err != nil {
 		glog.Errorf("Could not find service %s for snapshot %s: %s", tenantID, snapshotID, err)
 		return err
+	} else if tenant == nil {
+		err = fmt.Errorf("service not found")
+		glog.Errorf("Service %s not found", tenantID)
+		return err
 	}
 
 	snapshotVolume, err := dfs.GetVolume(tenant)
