@@ -124,7 +124,7 @@ func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
 			glog.Infof("validated: vhost %v is already running under THIS servicedID: %v", vhostName, serviceID)
 			return nil
 		}
-		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID")
+		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID: %s", vhostName, vhostEphemeralNode.ServiceID)
 	}
 
 	return nil
