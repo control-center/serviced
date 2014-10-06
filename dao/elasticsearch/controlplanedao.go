@@ -24,7 +24,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -32,7 +31,6 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
 )
@@ -49,65 +47,11 @@ type ControlPlaneDao struct {
 	port           int
 	varpath        string
 	vfs            string
-	dfs            *dfs.DistributedFileSystem
+	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
 	dockerRegistry string
 	backupLock     sync.RWMutex
 	restoreLock    sync.RWMutex
-	serviceLock    *serviceLock
-}
-
-type serviceLock struct {
-	mutex sync.RWMutex
-	f     *facade.Facade
-	locks map[client.Connection]client.Lock
-}
-
-func newServiceLock(f *facade.Facade) *serviceLock {
-	return &serviceLock{f: f, locks: make(map[client.Connection]client.Lock)}
-}
-
-func (l *serviceLock) Lock() error {
-	l.mutex.Lock()
-	pools, err := l.f.GetResourcePools(datastore.Get())
-	if err != nil {
-		l.mutex.Unlock()
-		return err
-	} else if pools == nil {
-		return nil
-	}
-
-	for _, p := range pools {
-		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(p.ID))
-		if err != nil {
-			glog.Errorf("Could not acquire connection: %s", err)
-			l.Unlock()
-			return err
-		}
-
-		lock := zkservice.ServiceLock(conn)
-		if err := lock.Lock(); err != nil {
-			glog.Errorf("Could not acquire lock: %s", err)
-			l.Unlock()
-			return err
-		}
-
-		l.locks[conn] = lock
-	}
-
-	return nil
-}
-
-func (l *serviceLock) Unlock() error {
-	defer l.mutex.Unlock()
-	for conn, lock := range l.locks {
-		if err := lock.Unlock(); err != nil {
-			glog.Errorf("Could not remove lock; cycling connection %v: %s", conn, err)
-			conn.Close()
-		}
-	}
-	l.locks = make(map[client.Connection]client.Lock)
-	return nil
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
@@ -172,21 +116,14 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 }
 
 // Create a elastic search control center data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
-		hostName:       hostName,
-		port:           port,
-		dockerRegistry: dockerRegistry,
-		serviceLock:    newServiceLock(facade),
-	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, maxdfstimeout); err != nil {
-		return nil, err
-	} else {
-		dao.dfs = dfs
+		hostName: hostName,
+		port:     port,
 	}
 
 	return dao, nil
@@ -196,7 +133,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vf
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade, maxdfstimeout, dockerRegistry)
+	s, err := NewControlPlaneDao(hostName, port)
 	if err != nil {
 		return nil, err
 	}
@@ -211,6 +148,12 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vf
 	if err = createSystemUser(s); err != nil {
 		return nil, err
 	}
+
+	dfs, err := dfs.NewDistributedFilesystem(vfs, varpath, dockerRegistry, facade, maxdfstimeout)
+	if err != nil {
+		return nil, err
+	}
+	s.dfs = dfs
 
 	return s, nil
 }

@@ -50,7 +50,7 @@ func (a *api) GetSnapshotsByServiceID(serviceID string) ([]string, error) {
 	}
 
 	var snapshots []string
-	if err := client.Snapshots(serviceID, &snapshots); err != nil {
+	if err := client.ListSnapshots(serviceID, &snapshots); err != nil {
 		return nil, err
 	}
 

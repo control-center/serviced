@@ -193,50 +193,36 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
-// Commits a container to an image and updates the DFS
-func (s *ControlClient) Commit(containerId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
-}
-
-// Rollbacks the DFS and updates the docker images
-func (s *ControlClient) Rollback(serviceId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
-}
-
-// Performs a DFS snapshot locally (via the host)
-func (s *ControlClient) TakeSnapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.TakeSnapshot", serviceId, label)
-}
-
-// Performs a DFS snapshot via the scheduler
-func (s *ControlClient) Snapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
+func (s *ControlClient) GetVolume(serviceID string, volume *volume.Volume) error {
+	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume)
 }
 
 func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotId, unused)
 }
 
-func (s *ControlClient) Snapshots(serviceId string, labels *[]string) error {
-	return s.rpcClient.Call("ControlPlane.Snapshots", serviceId, labels)
-}
-
 func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
 }
 
-func (s *ControlClient) GetVolume(serviceId string, volume *volume.Volume) error {
-	// WARNING: it would not make sense to call this from the CLI
-	// since volume is a pointer
-	return s.rpcClient.Call("ControlPlane.GetVolume", serviceId, volume)
+func (s *ControlClient) Rollback(serviceId string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
 }
 
-func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
-	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result)
+func (s *ControlClient) Snapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
 }
 
-func (s *ControlClient) GetSystemUser(unused int, user *user.User) error {
-	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
+func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.AsyncSnapshot", serviceId, label)
+}
+
+func (s *ControlClient) ListSnapshots(serviceId string, labels *[]string) error {
+	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceId, labels)
+}
+
+func (s *ControlClient) Commit(containerId string, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Commit", containerId, label)
 }
 
 func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
@@ -251,12 +237,28 @@ func (s *ControlClient) AsyncBackup(backupDirectory string, backupFilePath *stri
 	return s.rpcClient.Call("ControlPlane.AsyncBackup", backupDirectory, backupFilePath)
 }
 
-func (s *ControlClient) BackupStatus(notUsed string, backupStatus *string) error {
+func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+}
+
+func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.AsyncRestore", backupFilePath, unused)
+}
+
+func (s *ControlClient) BackupStatus(notUsed int, backupStatus *string) error {
 	return s.rpcClient.Call("ControlPlane.BackupStatus", notUsed, backupStatus)
 }
 
-func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused)
+func (s *ControlClient) ImageLayerCount(imageUUID string, layers *int) error {
+	return s.rpcClient.Call("ControlPlane.ImageLayerCount", imageUUID, layers)
+}
+
+func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
+	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result)
+}
+
+func (s *ControlClient) GetSystemUser(unused int, user *user.User) error {
+	return s.rpcClient.Call("ControlPlane.GetSystemUser", unused, user)
 }
 
 func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
@@ -265,16 +267,4 @@ func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused)
-}
-
-func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.AsyncRestore", backupFilePath, unused)
-}
-
-func (s *ControlClient) RestoreStatus(notUsed string, restoreStatus *string) error {
-	return s.rpcClient.Call("ControlPlane.RestoreStatus", notUsed, restoreStatus)
-}
-
-func (s *ControlClient) ImageLayerCount(imageUUID string, layers *int) error {
-	return s.rpcClient.Call("ControlPlane.ImageLayerCount", imageUUID, layers)
 }

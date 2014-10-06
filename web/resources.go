@@ -804,7 +804,7 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 
 func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	backupStatus := ""
-	err := client.BackupStatus("", &backupStatus)
+	err := client.BackupStatus(0, &backupStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
@@ -815,7 +815,7 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 
 func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	restoreStatus := ""
-	err := client.RestoreStatus("", &restoreStatus)
+	err := client.BackupStatus(0, &restoreStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)

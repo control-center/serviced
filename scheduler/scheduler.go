@@ -22,7 +22,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
-	zkscheduler "github.com/control-center/serviced/zzk/scheduler"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
 	"path"
@@ -140,7 +140,7 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	}()
 
 	// monitor the resource pool
-	monitor := zkscheduler.MonitorResourcePool(_shutdown, conn, s.poolID)
+	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
 
 	// synchronize with the remote
 	wg.Add(1)
@@ -160,7 +160,7 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	go func() {
 		defer wg.Done()
 		defer close(stopped)
-		zzk.Listen(_shutdown, make(chan error, 1), conn, s)
+		zzk.Start(_shutdown, conn, s, zkservice.NewServiceLockListener())
 	}()
 
 	// wait for something to happen
@@ -221,7 +221,7 @@ func (s *scheduler) Done() {
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	// is this pool in my realm?
-	monitor := zkscheduler.MonitorResourcePool(shutdown, s.conn, poolID)
+	monitor := zkservice.MonitorResourcePool(shutdown, s.conn, poolID)
 
 	// wait for my pool to join the realm (or shutdown)
 	done := false
@@ -254,8 +254,8 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 	// manage the pool
 	_shutdown := make(chan interface{})
 	var wg sync.WaitGroup
+	wg.Add(1)
 	go func() {
-		wg.Add(1)
 		defer wg.Done()
 		s.zkleaderFunc(_shutdown, conn, s.cpDao, poolID)
 	}()
