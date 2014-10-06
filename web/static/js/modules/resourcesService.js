@@ -932,34 +932,36 @@
           /**
            * Creates a backup file of serviced
            */
-          create_backup: function(callback){
+          create_backup: function(success, fail){
+              fail = fail || function(){};
+
               $http.noCacheGet('/backup/create').
                   success(function(data, status) {
-                      callback(data);
+                      success(data);
                   }).
                   error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing service failed", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
+                      fail(data, status);
                   });
           },
 
           /**
            * Restores a backup file of serviced
            */
-          restore_backup: function(filename, callback){
+          restore_backup: function(filename, success, fail){
+              fail = fail || function(){};
+
               $http.get('/backup/restore?filename=' + filename).
                   success(function(data, status) {
-                      callback(data);
+                      success(data);
                   }).
                   error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing service failed", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
+                      fail(data, status);
                   });
           },
 
@@ -987,7 +989,6 @@
                       successCallback(data);
                   }).
                   error(function(data, status) {
-                      $notification.create("", 'Failed retrieving status of backup.').warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
