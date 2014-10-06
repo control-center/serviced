@@ -27,7 +27,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -42,6 +41,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -52,7 +52,6 @@ import (
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -299,15 +298,6 @@ func (a *HostAgent) reapOldContainersLoop(interval time.Duration, shutdown <-cha
 func getDockerState(dockerID string) (*docker.Container, error) {
 	glog.V(1).Infof("Inspecting container: %s", dockerID)
 	return docker.FindContainer(dockerID)
-}
-
-func getSubvolume(varPath, poolID, tenantID, fs string) (*volume.Volume, error) {
-	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
-	if _, err := volume.Mount(fs, poolID, baseDir); err != nil {
-		return nil, err
-	}
-	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolID))
-	return volume.Mount(fs, tenantID, baseDir)
 }
 
 /*
@@ -735,7 +725,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
 	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
-	sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
+	sv, err := dfs.GetSubvolume(a.vfs, a.varPath, tenantID)
 	if err != nil {
 		return "", fmt.Errorf("Could not create subvolume: %s", err)
 	}

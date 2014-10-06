@@ -27,11 +27,12 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
+
+const timeFormat = "20060102-150405"
 
 // Snapshot takes a snapshot of the dfs as well as the docker images for the
 // given service ID
@@ -110,13 +111,13 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	}
 
 	// create the snapshot
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not acquire the snapshot volume for %s (%s): %s", tenant.Name, tenant.ID, err)
 		return "", err
 	}
 
-	tagID := time.Now().Format(node.TIMEFMT)
+	tagID := time.Now().UTC().Format(timeFormat)
 	label := fmt.Sprintf("%s_%s", tenantID, tagID)
 
 	// add the snapshot to the volume
@@ -181,7 +182,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 		return fmt.Errorf("service not found")
 	}
 
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not find volume for service %s: %s", tenantID, err)
 		return err
@@ -228,7 +229,7 @@ func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]string, erro
 		return nil, fmt.Errorf("service not found")
 	}
 
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not find volume for service %s (%s): %s", tenant.Name, tenant.ID, err)
 		return nil, err
@@ -254,7 +255,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 		return fmt.Errorf("service not found")
 	}
 
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not find the volume for service %s (%s): %s", tenant.Name, tenant.ID, err)
 		return err
@@ -299,7 +300,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	}
 
 	// delete the snapshot subvolume
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not find the volume for service %s (%s): %s")
 		return err
@@ -460,6 +461,10 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 	*/
 
 	return nil
+}
+
+func NewLabel(tenantID string) string {
+	return fmt.Sprintf("%s_%s", tenantID, time.Now().UTC().Format(timeFormat))
 }
 
 func parseLabel(snapshotID string) (string, string, error) {

@@ -261,7 +261,7 @@ func (dfs *DistributedFilesystem) exportSnapshots(dirpath string, tenant *servic
 		}
 	}()
 
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not acquire the volume for %s (%s): %s", tenant.Name, tenant.ID, err)
 		return "", err
@@ -315,7 +315,7 @@ func (dfs *DistributedFilesystem) importSnapshots(filename string) error {
 		return err
 	}
 
-	snapshotVolume, err := dfs.GetVolume(tenant)
+	snapshotVolume, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not acquire the volume for %s (%s): %s", tenant.Name, tenant.ID, err)
 		return err

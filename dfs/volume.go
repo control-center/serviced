@@ -22,27 +22,27 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
-func (dfs *DistributedFilesystem) GetVolume(svc *service.Service) (*volume.Volume, error) {
-	v, err := getSubvolume(dfs.vfs, dfs.varpath, svc.PoolID, svc.ID)
+func (dfs *DistributedFilesystem) GetVolume(serviceID string) (*volume.Volume, error) {
+	v, err := GetSubvolume(dfs.vfs, dfs.varpath, serviceID)
 	if err != nil {
-		glog.Errorf("Could not acquire subvolume for service %s (%s): %s", svc.Name, svc.ID, err)
+		glog.Errorf("Could not acquire subvolume for service %s: %s", serviceID, err)
 		return nil, err
 	} else if v == nil {
 		err := errors.New("volume is nil")
-		glog.Errorf("Could not get volume for service %s (%s): %s", svc.Name, svc.ID, err)
+		glog.Errorf("Could not get volume for service %s: %s", serviceID, err)
 		return nil, err
 	}
 
 	return v, nil
 }
 
-func getSubvolume(vfs, varpath, poolID, serviceID string) (*volume.Volume, error) {
-	baseDir, err := filepath.Abs(path.Join(varpath, "volumes", poolID))
+// GetSubvolume gets the path of the *local* volume on the host
+func GetSubvolume(vfs, varpath, serviceID string) (*volume.Volume, error) {
+	baseDir, err := filepath.Abs(path.Join(varpath, "volumes"))
 	if err != nil {
 		return nil, err
 	}

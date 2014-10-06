@@ -26,6 +26,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -894,7 +895,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
-		SaveAs:           node.GetLabel(svc.ID),
+		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: ctx.GlobalString("endpoint"),
