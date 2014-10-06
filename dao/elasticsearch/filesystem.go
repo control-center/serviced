@@ -17,7 +17,6 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 
 	"github.com/control-center/serviced/zzk"
@@ -35,14 +34,8 @@ func (this *ControlPlaneDao) GetVolume(serviceID string, volume *volume.Volume) 
 		return err
 	}
 
-	var tenant service.Service
-	if err := this.GetService(tenantID, &tenant); err != nil {
-		glog.Errorf("Could not find tenant %s for service %s: %s", tenantID, serviceID, err)
-		return err
-	}
-
 	var err error
-	volume, err = this.dfs.GetVolume(&tenant)
+	volume, err = this.dfs.GetVolume(tenantID)
 	return err
 }
 
