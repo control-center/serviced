@@ -220,7 +220,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 
 	// restore docker images
 	dfs.log("Loading docker images")
-	var images [][]string
+	var images []imagemeta
 	if err := importJSON(filepath.Join(dirpath, imageJSON), &images); err != nil {
 		glog.Errorf("Could not read images from %s: %s", filename, err)
 		return err
