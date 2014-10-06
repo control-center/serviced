@@ -50,6 +50,9 @@ var lastMessage;
             this.$attachPoint = $attachPoint;
             this.severity = SEVERITY.INFO;
 
+            this.updateTitle(this.title || "");
+            this.updateStatus(this.msg || "");
+
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
             this.onClose = this.onClose.bind(this);
@@ -59,7 +62,7 @@ var lastMessage;
         Notification.prototype = {
             constructor: Notification,
 
-            success: function(){
+            success: function(autoclose){
                 this.severity = SEVERITY.SUCCESS;
 
                 // change notification color, icon, text, etc
@@ -72,7 +75,7 @@ var lastMessage;
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
                 notificationFactory.store(this);
-                this.show();
+                this.show(autoclose);
                 
                 return this;
             },
@@ -87,7 +90,7 @@ var lastMessage;
                 this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
                 notificationFactory.store(this);
-                this.show();
+                this.show(autoclose);
 
                 return this;
             },
@@ -101,7 +104,7 @@ var lastMessage;
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
                 notificationFactory.store(this);
-                this.show();
+                this.show(autoclose);
 
                 return this;
             },
@@ -150,8 +153,9 @@ var lastMessage;
             },
 
             show: function(autoclose){
-                // close previous message
-                if(lastMessage){
+                // close previous message if it is not
+                // the current message
+                if(lastMessage && lastMessage !== this){
                     lastMessage.hide();
                 }
 

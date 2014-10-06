@@ -29,11 +29,27 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
                     role: "ok",
                     label: "backup_create",
                     action: function(){
-                        var notification = $notification.create().updateStatus(BACKUP_RUNNING).show(false);
+                        var notification = $notification.create("Backup").updateStatus(BACKUP_RUNNING).show(false);
 
-                        resourcesService.create_backup(function(data){
-                            getBackupStatus(notification);
+                        // TODO - when the server switches to broadcast instead of
+                        // channel. this can be greatly simplified
+                        resourcesService.create_backup(function checkFirstStatus(){
+                            // recursively check if a valid status has been pushed into
+                            // the pipe. if not, shake yourself off and try again. try again.
+                            resourcesService.get_backup_status(function(data){
+                                if(data.Detail === ""){
+                                   checkFirstStatus();
+                                } else {
+                                    notification.updateStatus(data.Detail);
+                                    getBackupStatus(notification);
+                                }
+                            }, function(data, status){
+                                backupRestoreError(notification, data.Detail, status);
+                            });
+                        }, function(data, status){
+                            backupRestoreError(notification, data.Detail, status);
                         });
+
                         this.close();
                     }
                 }
@@ -54,11 +70,27 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
                     label: "restore",
                     classes: "btn-danger",
                     action: function(){
-                        var notification = $notification.create().updateStatus(RESTORE_RUNNING).show(false);
+                        var notification = $notification.create("Restore").updateStatus(RESTORE_RUNNING).show(false);
 
-                        resourcesService.restore_backup(filename, function(data){
-                            getRestoreStatus(notification);
+                        // TODO - when the server switches to broadcast instead of
+                        // channel. this can be greatly simplified
+                        resourcesService.restore_backup(filename, function checkFirstStatus(){
+                            // recursively check if a valid status has been pushed into
+                            // the pipe. if not, shake yourself off and try again. try again.
+                            resourcesService.get_restore_status(function(data){
+                                if(data.Detail === ""){
+                                   checkFirstStatus();
+                                } else {
+                                    notification.updateStatus(data.Detail);
+                                    getRestoreStatus(notification);
+                                }
+                            }, function(data, status){
+                                backupRestoreError(notification, data.Detail, status);
+                            });
+                        }, function(data, status){
+                            backupRestoreError(notification, data.Detail, status);
                         });
+
                         this.close();
                     }
                 }
@@ -75,7 +107,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
                 });
 
                 notification.updateStatus(BACKUP_COMPLETE);
-                notification.success();
+                notification.success(false);
                 return;
             }
             else if (data.Detail !== "timeout"){
@@ -88,9 +120,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
             }, 1);
 
         }, function(data, status){
-                notification.updateTitle(ERROR +" "+ status);
-                notification.updateStatus(data.Detail);
-                notification.error();
+            backupRestoreError(notification, data.Detail, status);
         });
     }
 
@@ -100,7 +130,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
             // all done!
             if(data.Detail === ""){
                 notification.updateStatus(RESTORE_COMPLETE);
-                notification.success();
+                notification.success(false);
                 return;
 
             // something neato has happened. lets show it.
@@ -114,10 +144,14 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
             }, 1);
 
         }, function(data, status){
-            notification.updateTitle(ERROR +" "+ status);
-            notification.updateStatus(data.Detail);
-            notification.error();
+            backupRestoreError(notification, data.Detail, status);
         });
 
+    }
+
+    function backupRestoreError(notification, data, status){
+        notification.updateTitle(ERROR +" "+ status);
+        notification.updateStatus(data);
+        notification.error();
     }
 }
