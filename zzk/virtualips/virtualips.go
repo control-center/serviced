@@ -261,7 +261,11 @@ func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
 
 func RemoveVirtualIP(conn client.Connection, ip string) error {
 	glog.V(1).Infof("Removing virtual ip from zookeeper: %s", vippath(ip))
-	return conn.Delete(vippath(ip))
+	err := conn.Delete(vippath(ip))
+	if err == nil || err == client.ErrNoNode {
+		return nil
+	}
+	return err
 }
 
 func GetHostID(conn client.Connection, ip string) (string, error) {
