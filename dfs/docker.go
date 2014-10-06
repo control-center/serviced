@@ -38,6 +38,12 @@ const (
 	DockerLatest = "latest"
 )
 
+type imagemeta struct {
+	UUID     string
+	Tags     []string
+	Filename string
+}
+
 // Commit will merge a container into existing services' image
 func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	// get the container and verify that it is not running
@@ -145,7 +151,7 @@ func (dfs *DistributedFilesystem) desynchronize(imageID commons.ImageID, commit 
 	return nil
 }
 
-func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[string]servicetemplate.ServiceTemplate, services []service.Service) ([][]string, error) {
+func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[string]servicetemplate.ServiceTemplate, services []service.Service) ([]imagemeta, error) {
 	tRepos, sRepos := getImageRefs(templates, services)
 	imageTags, err := getImageTags(tRepos, sRepos)
 	if err != nil {
@@ -154,9 +160,11 @@ func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[str
 
 	registry := fmt.Sprintf("%s:%d", dfs.dockerHost, dfs.dockerPort)
 	i := 0
-	var result [][]string
-	for id, tags := range imageTags {
-		filename := filepath.Join(dirpath, fmt.Sprintf("%d.tar", i))
+	var result []imagemeta
+	for uuid, tags := range imageTags {
+		metadata := imagemeta{Filename: fmt.Sprintf("%d.tar", i), UUID: uuid, Tags: tags}
+
+		filename := filepath.Join(dirpath, metadata.Filename)
 		// Try to find the tag referring to the local registry, so we don't
 		// make a call to Docker Hub potentially with invalid auth
 		// Default to the first tag in the list
@@ -173,38 +181,39 @@ func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[str
 		}
 
 		if err := saveImage(tag, filename); err == dockerclient.ErrNoSuchImage {
-			glog.Warningf("Docker image %s was referenced, but does not exist. Skipping.", id)
+			glog.Warningf("Docker image %s was referenced, but does not exist. Skipping.", tag)
 			continue
 		} else if err != nil {
-			glog.Errorf("Could not export %s: %s", id, err)
+			glog.Errorf("Could not export %s: %s", tag, err)
 			return nil, err
 		}
-		result = append(result, tags)
+		result = append(result, metadata)
 		i++
 	}
 	return result, nil
 }
 
-func (dfs *DistributedFilesystem) importImages(dirpath string, images [][]string, tenants map[string]struct{}) error {
-	for i, tags := range images {
-		filename := filepath.Join(dirpath, fmt.Sprintf("%d.tar", i))
+func (dfs *DistributedFilesystem) importImages(dirpath string, images []imagemeta, tenants map[string]struct{}) error {
+	for _, metadata := range images {
+		filename := filepath.Join(dirpath, metadata.Filename)
 
 		// Make sure all images that refer to a local registry are named with the local registry
-		var imgs []string
-		for _, id := range tags {
-			image, err := commons.ParseImageID(id)
+		tags := make([]string, len(metadata.Tags))
+		for i, tag := range metadata.Tags {
+			imageID, err := commons.ParseImageID(tag)
 			if err != nil {
-				glog.Errorf("Could not parse %s: %s", id, err)
+				glog.Errorf("Could not parse %s: %s", tag, err)
 				return err
 			}
-			if _, ok := tenants[image.User]; ok {
-				image.Host, image.Port = dfs.dockerHost, dfs.dockerPort
+
+			if _, ok := tenants[imageID.User]; ok {
+				imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
 			}
-			imgs = append(imgs, image.String())
+			tags[i] = imageID.String()
 		}
 
-		if err := loadImage(filename, imgs); err != nil {
-			glog.Errorf("Error loading %s: %s", filename, err)
+		if err := loadImage(filename, metadata.UUID, tags); err != nil {
+			glog.Errorf("Error loading %s (%s): %s", filename, metadata.UUID, err)
 			return err
 		}
 	}
@@ -394,47 +403,40 @@ func saveImage(imageID, filename string) error {
 	return nil
 }
 
-func loadImage(filename string, imageIDs []string) error {
-	var images []string
+func loadImage(filename string, uuid string, tags []string) error {
+	// look up the image by UUID
+	images, err := docker.Images()
+	if err != nil {
+		glog.Errorf("Could not look up images: %s", err)
+		return err
+	}
 
 	var image *docker.Image
-	for _, id := range imageIDs {
-		img, err := docker.FindImage(id, false)
-
-		if err == docker.ErrNoSuchImage {
-			images = append(images, id)
-			continue
-		} else if err != nil {
-			glog.Errorf("Could not look up docker image %s: %s", id, err)
-			return err
+	for _, i := range images {
+		if i.UUID == uuid {
+			image = i
+			break
 		}
-
-		// verify the tag belongs to the right image
-		if image != nil && img.UUID != image.UUID {
-			err := fmt.Errorf("image conflict")
-			glog.Errorf("Error checking docker image %s (%s) does not equal %s: %s", id, img.UUID, image.UUID, err)
-			return err
-		}
-		image = img
 	}
 
 	// image not found so import
 	if image == nil {
-		// TODO: If the docker registry changes, do we need to update the tag?
-		if err := docker.ImportImage(images[0], filename); err != nil {
+		glog.Warningf("Importing image from file, don't forget to sync (serviced docker sync)")
+		if err := docker.ImportImage(tags[0], filename); err != nil {
 			glog.Errorf("Could not import image from file %s: %s", filename, err)
 			return err
-		} else if image, err = docker.FindImage(images[0], false); err != nil {
-			glog.Errorf("Could not look up docker image %s: %s", images[0], err)
+		} else if image, err = docker.FindImage(tags[0], false); err != nil {
+			glog.Errorf("Could not look up docker image %s: %s", tags[0], err)
 			return err
 		}
-		images = images[1:]
+		glog.Infof("Tagging images %v at %s", tags, image.UUID)
+		tags = tags[1:]
 	}
 
-	// tag remaining images
-	for _, id := range images {
-		if _, err := image.Tag(id); err != nil {
-			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, id, err)
+	// tag the remaining images
+	for _, tag := range tags {
+		if _, err := image.Tag(tag); err != nil {
+			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, tag, err)
 			return err
 		}
 	}
