@@ -16,12 +16,12 @@
 package stats
 
 import (
+	"github.com/control-center/go-procfs/linux"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/go-procfs/linux"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 
@@ -123,6 +123,18 @@ func (sr StatsReporter) report(d time.Duration) {
 }
 
 func (sr StatsReporter) updateHostStats() {
+
+	loadavg, err := linux.ReadLoadavg()
+	if err != nil {
+		glog.Errorf("could not read loadavg: %s", err)
+		return
+	}
+	metrics.GetOrRegisterGaugeFloat64("load.avg1m", sr.hostRegistry).Update(float64(loadavg.Avg1m))
+	metrics.GetOrRegisterGaugeFloat64("load.avg5m", sr.hostRegistry).Update(float64(loadavg.Avg5m))
+	metrics.GetOrRegisterGaugeFloat64("load.avg10m", sr.hostRegistry).Update(float64(loadavg.Avg10m))
+	metrics.GetOrRegisterGauge("load.runningprocesses", sr.hostRegistry).Update(int64(loadavg.RunningProcesses))
+	metrics.GetOrRegisterGauge("load.totalprocesses", sr.hostRegistry).Update(int64(loadavg.TotalProcesses))
+
 	stat, err := linux.ReadStat()
 	if err != nil {
 		glog.Errorf("could not read stat: %s", err)
@@ -170,7 +182,6 @@ func (sr StatsReporter) updateHostStats() {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
 }
-
 
 // Updates the default registry.
 func (sr StatsReporter) updateStats() {

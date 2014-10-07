@@ -26,6 +26,19 @@ var (
 
 	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
+			//Loadavg
+			domain.MetricConfig{
+				ID:          "load",
+				Name:        "Load Average",
+				Description: "Load average stats",
+				Metrics: []domain.Metric{
+					domain.Metric{ID: "load.avg1m", Name: "1m Loadavg", Unit: "p"},
+					domain.Metric{ID: "load.avg5m", Name: "5m Loadavg", Unit: "p"},
+					domain.Metric{ID: "load.avg10m", Name: "10m Loadavg", Unit: "p"},
+					domain.Metric{ID: "load.runningprocesses", Name: "Running Processes", Unit: "p"},
+					domain.Metric{ID: "load.totalprocesses", Name: "Total Processes", Unit: "p"},
+				},
+			},
 			//CPU
 			domain.MetricConfig{
 				ID:          "cpu",
@@ -166,6 +179,61 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		Tags:        tags,
 		Units:       "Page Faults",
 		Description: "Faults per minute",
+	}
+}
+
+// Load average graphs
+func newLoadAverageGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				ID:           "load.avg1m",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "1m loadavg",
+				Metric:       "load.avg1m",
+				MetricSource: "load",
+				Name:         "1m Loadavg",
+				Rate:         false,
+				Type:         "line",
+			},
+			domain.DataPoint{
+				ID:           "load.avg5m",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "5m loadavg",
+				Metric:       "load.avg5m",
+				MetricSource: "load",
+				Name:         "5m Loadavg",
+				Rate:         false,
+				Type:         "line",
+			},
+			domain.DataPoint{
+				ID:           "load.avg10m",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "10m loadavg",
+				Metric:       "load.avg10m",
+				MetricSource: "load",
+				Name:         "10m Loadavg",
+				Rate:         false,
+				Type:         "line",
+			},
+		},
+		ID:     "loadavg",
+		Name:   "Load Average",
+		Footer: false,
+		Format: "%4.2f",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		Tags:        tags,
+		Units:       "processes",
+		Description: "Host load average",
 	}
 }
 
