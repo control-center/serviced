@@ -290,40 +290,28 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 
 // DeleteSnapshots deletes all snapshots relating to a particular tenantID
 func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
-	tenant, err := dfs.facade.GetService(datastore.Get(), tenantID)
-	if err != nil {
-		glog.Errorf("Service not found %s: %s", tenantID, err)
-		return err
-	} else if tenant == nil {
-		glog.Errorf("Service %s not found", tenantID)
-		return fmt.Errorf("service not found")
-	}
-
 	// delete the snapshot subvolume
-	snapshotVolume, err := dfs.GetVolume(tenant.ID)
+	snapshotVolume, err := dfs.GetVolume(tenantID)
 	if err != nil {
 		glog.Errorf("Could not find the volume for service %s (%s): %s")
 		return err
 	}
 	if err := snapshotVolume.Unmount(); err != nil {
-		glog.Errorf("Could not unmount volume for service %s (%s): %s", tenant.Name, tenant.ID, err)
+		glog.Errorf("Could not unmount volume for service %s: %s", tenantID, err)
 		return err
 	}
 
-	// delete the docker repos
-	images, err := findImages(tenantID, DockerLatest)
+	// delete images for that tenantID
+	images, err := searchImagesByTenantID(tenantID)
 	if err != nil {
-		glog.Errorf("Could not find images for %s (%s): %s", tenant.Name, tenant.ID, err)
+		glog.Errorf("Error looking up images for %s: %s", tenantID)
 		return err
 	}
 
 	for _, image := range images {
-		img, err := docker.FindImage(image.ID.String(), false)
-		if err != nil {
-			glog.Errorf("Could not delete image %s: %s", image.ID, err)
-			continue
+		if err := image.Delete(); err != nil {
+			glog.Warningf("Could not delete image %s (%s): %s", image.ID, image.UUID, err)
 		}
-		img.Delete()
 	}
 
 	return nil

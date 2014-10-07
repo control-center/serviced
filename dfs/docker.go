@@ -250,6 +250,21 @@ func findImages(tenantID, tag string) ([]*docker.Image, error) {
 	return result, nil
 }
 
+func searchImagesByTenantID(tenantID string) ([]*docker.Image, error) {
+	images, err := docker.Images()
+	if err != nil {
+		return nil, err
+	}
+
+	var result []*docker.Image
+	for i, image := range images {
+		if image.ID.User == tenantID {
+			result = append(result, images[i])
+		}
+	}
+	return result, nil
+}
+
 func tag(tenantID, oldtag, newtag string) error {
 	images, err := findImages(tenantID, oldtag)
 	if err != nil {
