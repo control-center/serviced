@@ -138,6 +138,9 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 				if err := validation.IsIP(proposedVirtualIP.Netmask); err != nil {
 					return err
 				}
+				if err := validation.NotEmpty("Bind Interface", proposedVirtualIP.BindInterface); err != nil {
+					return err
+				}
 
 				ipAddressAlreadyExists, err := f.virtualIPExists(ctx, proposedVirtualIP)
 				if err != nil {
