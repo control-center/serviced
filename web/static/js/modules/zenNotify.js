@@ -80,7 +80,7 @@ var lastMessage;
                 return this;
             },
 
-            warning: function(){
+            warning: function(autoclose){
                 this.severity = SEVERITY.WARNING;
 
                 // change notification color, icon, text, etc
@@ -95,7 +95,7 @@ var lastMessage;
                 return this;
             },
 
-            info: function(){
+            info: function(autoclose){
                 this.severity = SEVERITY.INFO;
 
                 this.updateTitle(this.title || $translate.instant("info"));
