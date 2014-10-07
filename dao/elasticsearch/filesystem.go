@@ -50,20 +50,7 @@ func (this *ControlPlaneDao) DeleteSnapshot(snapshotID string, unused *int) erro
 func (this *ControlPlaneDao) DeleteSnapshots(serviceID string, unused *int) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
-
-	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.DeleteSnapshots err=%s", err)
-		return err
-	}
-
-	if serviceID != tenantID {
-		err := fmt.Errorf("service is not the parent")
-		glog.Errorf("Cannot delete snapshots for %s: %s", serviceID, err)
-		return err
-	}
-
-	return this.dfs.DeleteSnapshots(tenantID)
+	return this.dfs.DeleteSnapshots(serviceID)
 }
 
 // Rollback rolls back the dfs to a particular snapshot

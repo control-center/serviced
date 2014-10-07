@@ -87,9 +87,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove SERVICEID",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
-				Flags: []cli.Flag{
-					cli.BoolTFlag{"remove-snapshots, R", "Remove snapshots associated with removed service"},
-				},
 			}, {
 				Name:         "edit",
 				Usage:        "Edits an existing service in a text editor",
@@ -644,12 +641,7 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	cfg := api.RemoveServiceConfig{
-		ServiceID:       svc.ID,
-		RemoveSnapshots: ctx.Bool("remove-snapshots"),
-	}
-
-	if err := c.driver.RemoveService(cfg); err != nil {
+	if err := c.driver.RemoveService(svc.ID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 	} else {
 		fmt.Println(svc.ID)
