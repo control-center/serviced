@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/commons/layer"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/shell"
@@ -58,6 +58,10 @@ func getServiceBindMounts(lbClientPort string, serviceID string) (map[string]str
 	var bindmounts map[string]string
 	err = client.GetServiceBindMounts(serviceID, &bindmounts)
 	if err != nil {
+		if strings.HasPrefix(err.Error(), "rpc: can't find service") {
+			glog.Errorf("`serviced service shell` is available only when running serviced in agent mode")
+			return nil, err
+		}
 		glog.Errorf("Error getting service %s's bindmounts, error: %s", serviceID, err)
 		return nil, err
 	}
