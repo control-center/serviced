@@ -835,6 +835,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -842,7 +843,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		ServicedEndpoint: "localhost" + agentPort,
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -883,6 +884,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -890,7 +892,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		ServicedEndpoint: "localhost" + agentPort,
 		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
 
