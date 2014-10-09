@@ -134,6 +134,14 @@ func (l *VirtualIPListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn implements zzk.Listener
 func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
+	// ensure that the retry sentinel has good initial state
+	if l.retry == nil {
+		l.retry = make(map[string]int)
+	}
+	if _, ok := l.retry[ip]; !ok {
+		l.retry[ip] = maxRetries
+	}
+
 	// Check if this ip has exceeded the number of retries for this host
 	if l.retry[ip] > maxRetries {
 		glog.Warningf("Throttling acquisition of %s for %s", ip, l.hostID)
