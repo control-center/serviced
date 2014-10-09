@@ -80,6 +80,9 @@
 # Set the interval (in seconds) for host performance collection
 # SERVICED_STATS_PERIOD=10
 
+# Set the port on which to listen for profiler connections (-1 to disable)
+# SERVICED_DEBUG_PORT=6006
+
 # Set arguments to internal services.  Variables of the form
 #   SERVICED_ISVCS_ENV_%d (where %d is an integer from 0 to N, with
 #   no gaps) will be used to set the specified environment variable
