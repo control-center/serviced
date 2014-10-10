@@ -1,6 +1,10 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
 
-    <h3>{{services.current.Name}}<span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span></h3>
+    <h3>
+        <div class="healthIconScaler"><i class="healthIcon" ng-class="services.current.healthIconClass"></i></div>
+        {{services.current.Name}}
+        <span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span>
+    </h3>
 
     <div class="details">
       <div class="details-form">
@@ -161,8 +165,13 @@
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
-          <td ng-click="click_app(app.ID)" class="link">
-            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
+          <td>
+            <span ng-style="indent(app.zendepth - 1)"></span>
+            <span ng-if="app.children !== undefined" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
+            <span ng-if="app.children === undefined" ng-style="indent(1)"></span>
+            <span ng-click="click_app(app.ID)" class="link">
+                {{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
+            </span>
           </td>
           <td style="text-align:center;">
             <div ng-if="app.children === undefined">
@@ -198,9 +207,10 @@
       <tr>
         <th>{{'running_tbl_instance_id'|translate}}</th>
         <th>{{'label_service_name'|translate}}</th>
-      <th>{{'host'|translate}}</th>
-      <th>{{'running_tbl_docker_id'|translate}}</th>
-      <th>{{'running_tbl_actions'|translate}}</th>
+        <th>{{'label_service_status'|translate}}</th>
+        <th>{{'host'|translate}}</th>
+        <th>{{'running_tbl_docker_id'|translate}}</th>
+        <th>{{'running_tbl_actions'|translate}}</th>
       </tr>
     </thead>
     <tbody>
@@ -210,6 +220,9 @@
       <tr ng-repeat="app in running.data | orderBy:running.sort">
         <td>{{app.InstanceID}}</td>
         <td>{{app.Name}}</td>
+        <td style="text-align:center;">
+          <i class="healthIcon" ng-class="services.current.healthIconClass"></i>
+        </td>
         <td ng-click="click_host(app.HostID)" class="link">{{app.hostName}}</td>
         <td>{{app.DockerID}}</td>
         <td>

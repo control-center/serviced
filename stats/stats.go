@@ -16,12 +16,12 @@
 package stats
 
 import (
+	"github.com/control-center/go-procfs/linux"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/daniel-garcia/go-procfs/linux"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
 
@@ -123,6 +123,18 @@ func (sr StatsReporter) report(d time.Duration) {
 }
 
 func (sr StatsReporter) updateHostStats() {
+
+	loadavg, err := linux.ReadLoadavg()
+	if err != nil {
+		glog.Errorf("could not read loadavg: %s", err)
+		return
+	}
+	metrics.GetOrRegisterGaugeFloat64("load.avg1m", sr.hostRegistry).Update(float64(loadavg.Avg1m))
+	metrics.GetOrRegisterGaugeFloat64("load.avg5m", sr.hostRegistry).Update(float64(loadavg.Avg5m))
+	metrics.GetOrRegisterGaugeFloat64("load.avg10m", sr.hostRegistry).Update(float64(loadavg.Avg10m))
+	metrics.GetOrRegisterGauge("load.runningprocesses", sr.hostRegistry).Update(int64(loadavg.RunningProcesses))
+	metrics.GetOrRegisterGauge("load.totalprocesses", sr.hostRegistry).Update(int64(loadavg.TotalProcesses))
+
 	stat, err := linux.ReadStat()
 	if err != nil {
 		glog.Errorf("could not read stat: %s", err)
@@ -163,6 +175,10 @@ func (sr StatsReporter) updateHostStats() {
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
 	metrics.GetOrRegisterGauge("vmstat.pgmajfault", sr.hostRegistry).Update(int64(vmstat.Pgmajfault))
+	metrics.GetOrRegisterGauge("vmstat.pgpgout", sr.hostRegistry).Update(int64(vmstat.Pgpgout) * 1024)
+	metrics.GetOrRegisterGauge("vmstat.pgpgin", sr.hostRegistry).Update(int64(vmstat.Pgpgin) * 1024)
+	metrics.GetOrRegisterGauge("vmstat.pswpout", sr.hostRegistry).Update(int64(vmstat.Pswpout) * 1024)
+	metrics.GetOrRegisterGauge("vmstat.pswpin", sr.hostRegistry).Update(int64(vmstat.Pswpin) * 1024)
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.Warningf("Couldn't get open file descriptor count", err)
@@ -182,19 +198,23 @@ func (sr StatsReporter) updateStats() {
 		glog.Errorf("updateStats: zkservice.LoadRunningServicesByHost (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
 	}
 	for _, rs := range running {
-		containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
-		if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + rs.DockerID + "/cpuacct.stat"); err != nil {
-			glog.Warningf("Couldn't read CpuacctStat:", err)
+		if rs.DockerID != "" {
+			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
+			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct)); err != nil {
+				glog.V(4).Infof("Couldn't read CpuacctStat:", err)
+			} else {
+				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
+				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
+			}
+			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory)); err != nil {
+				glog.V(4).Infof("Couldn't read MemoryStat:", err)
+			} else {
+				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
+				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
+				metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
+			}
 		} else {
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
-			metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
-		}
-		if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + rs.DockerID + "/memory.stat"); err != nil {
-			glog.Warningf("Couldn't read MemoryStat:", err)
-		} else {
-			metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
-			metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)
-			metrics.GetOrRegisterGauge("cgroup.memory.cache", containerRegistry).Update(memoryStat.Cache)
+			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
 		}
 	}
 }

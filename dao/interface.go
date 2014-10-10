@@ -14,6 +14,8 @@
 package dao
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
@@ -37,9 +39,10 @@ func (s ControlPlaneError) Error() string {
 type EntityRequest interface{}
 
 type ServiceRequest struct {
-	Tags      []string
-	TenantID  string
-	NameRegex string
+	Tags         []string
+	TenantID     string
+	UpdatedSince time.Duration
+	NameRegex    string
 }
 
 type ServiceStateRequest struct {
@@ -168,48 +171,57 @@ type ControlPlane interface {
 	//---------------------------------------------------------------------------
 	// Service CRUD
 
-	// Rollback DFS and service image
-	Rollback(snapshotId string, unused *int) error
-
-	// Commit DFS and service image
-	Commit(containerId string, label *string) error
-
-	// Performs a local snapshot from the host
-	TakeSnapshot(serviceId string, label *string) error
-
-	// Snapshots DFS and service image
-	Snapshot(serviceId string, label *string) error
-
-	// Delete a snapshot
-	DeleteSnapshot(snapshotId string, unused *int) error
-
-	// List available snapshots
-	Snapshots(serviceId string, snapshotIds *[]string) error
-
-	// Delete snapshots for a given service
-	DeleteSnapshots(serviceId string, unused *int) error
-
-	// Get the DFS volume
-	GetVolume(serviceId string, theVolume *volume.Volume) error
-
 	//GetSystemUser retrieves the credentials for the system_user account
 	GetSystemUser(unused int, user *user.User) error
 
 	//ValidateCredentials verifies if the passed in user has the correct username and password
 	ValidateCredentials(user user.User, result *bool) error
 
-	// Waits for the DFS to be ready
-	ReadyDFS(bool, *int) error
-
-	// Write a tgz file containing all templates and services
-	Backup(backupDirectory string, backupFilePath *string) error
-
-	// Restore templates and services from a tgz file (inverse of Backup)
-	Restore(backupFilePath string, unused *int) error
-
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 
 	// Return the number of layers in an image
 	ImageLayerCount(imageUUID string, layers *int) error
+
+	// Volume returns a service's volume
+	GetVolume(serviceID string, volume *volume.Volume) error
+
+	// Deletes a particular snapshot
+	DeleteSnapshot(snapshotID string, unused *int) error
+
+	// Deletes all snapshots for a specific tenant
+	DeleteSnapshots(tenantID string, unused *int) error
+
+	// Rollback a service to a particular snapshot
+	Rollback(snapshotID string, unused *int) error
+
+	// Snapshot takes a snapshot of the filesystem and images
+	Snapshot(serviceID string, snapshotID *string) error
+
+	// AsyncSnapshot performs a snapshot asynchronously
+	AsyncSnapshot(serviceID string, snapshotID *string) error
+
+	// ListSnapshots lists all the snapshots for a particular service
+	ListSnapshots(serviceID string, snapshots *[]string) error
+
+	// Commit commits a docker container to a service image
+	Commit(containerID string, snapshotID *string) error
+
+	// ReadyDFS notifies whether there are any running operations
+	ReadyDFS(bool, *int) error
+
+	// Backup backs up dfs and imagesWrite a tgz file containing all templates and services
+	Backup(dirpath string, filename *string) error
+
+	// AsyncBackup performs asynchronous backups
+	AsyncBackup(dirpath string, filename *string) error
+
+	// Restore templates and services from a tgz file (inverse of Backup)
+	Restore(filename string, unused *int) error
+
+	// AsyncRestore performs an asynchronous restore
+	AsyncRestore(filename string, unused *int) error
+
+	// BackupStatus monitors the status of a backup or restore
+	BackupStatus(unused int, status *string) error
 }

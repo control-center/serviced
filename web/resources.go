@@ -21,6 +21,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -191,13 +192,14 @@ func getNamedServices(client *node.ControlClient, nmregex string, tenantID strin
 	return services, nil
 }
 
-func getServices(client *node.ControlClient, tenantID string) ([]service.Service, error) {
+func getServices(client *node.ControlClient, tenantID string, since time.Duration) ([]service.Service, error) {
 	services := []service.Service{}
 	var emptySlice []string
 	serviceRequest := dao.ServiceRequest{
-		Tags:      emptySlice,
-		TenantID:  tenantID,
-		NameRegex: "",
+		Tags:         emptySlice,
+		TenantID:     tenantID,
+		UpdatedSince: since,
+		NameRegex:    "",
 	}
 	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -211,7 +213,8 @@ func getServices(client *node.ControlClient, tenantID string) ([]service.Service
 func getISVCS() []service.Service {
 	services := []service.Service{}
 	services = append(services, isvcs.InternalServicesISVC)
-	services = append(services, isvcs.ElasticsearchISVC)
+	services = append(services, isvcs.ElasticsearchServicedISVC)
+	services = append(services, isvcs.ElasticsearchLogStashISVC)
 	services = append(services, isvcs.ZookeeperISVC)
 	services = append(services, isvcs.LogstashISVC)
 	services = append(services, isvcs.OpentsdbISVC)
@@ -223,7 +226,8 @@ func getISVCS() []service.Service {
 func getIRS() []dao.RunningService {
 	services := []dao.RunningService{}
 	services = append(services, isvcs.InternalServicesIRS)
-	services = append(services, isvcs.ElasticsearchIRS)
+	services = append(services, isvcs.ElasticsearchServicedIRS)
+	services = append(services, isvcs.ElasticsearchLogStashIRS)
 	services = append(services, isvcs.ZookeeperIRS)
 	services = append(services, isvcs.LogstashIRS)
 	services = append(services, isvcs.OpentsdbIRS)
@@ -263,11 +267,32 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	result, err := getServices(client, tenantID)
-	result = append(result, getISVCS()...)
+	since := r.URL.Query().Get("since")
+	var tsince time.Duration
+	if since == "" {
+		tsince = time.Duration(0)
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+	result, err := getServices(client, tenantID, tsince)
 	if err != nil {
 		restServerError(w, err)
 		return
+	}
+	if since == "" {
+		result = append(result, getISVCS()...)
+	} else {
+		t0 := time.Now().Add(-tsince)
+		for _, isvc := range getISVCS() {
+			if isvc.UpdatedAt.After(t0) {
+				result = append(result, isvc)
+			}
+		}
 	}
 
 	for ii, _ := range result {
@@ -320,6 +345,31 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 	}
 	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
 	w.WriteJson(&services)
+}
+
+func restGetStatusForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if strings.Contains(serviceID, "isvc-") {
+		w.WriteJson([]dao.RunningService{})
+		return
+	}
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	var statusmap map[string]dao.ServiceStatus
+	err = client.GetServiceStatus(serviceID, &statusmap)
+	if err != nil {
+		glog.Errorf("Could not get status for service %s: %v", serviceID, err)
+		restServerError(w, err)
+		return
+	}
+	if statusmap == nil {
+		glog.V(3).Info("Running services was nil, returning empty map instead")
+		statusmap = map[string]dao.ServiceStatus{}
+	}
+	glog.V(2).Infof("Returning %d states for service %s", len(statusmap), serviceID)
+	w.WriteJson(&statusmap)
 }
 
 func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -754,7 +804,7 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 
 func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	backupStatus := ""
-	err := client.BackupStatus("", &backupStatus)
+	err := client.BackupStatus(0, &backupStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
@@ -765,7 +815,7 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 
 func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	restoreStatus := ""
-	err := client.RestoreStatus("", &restoreStatus)
+	err := client.BackupStatus(0, &restoreStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)

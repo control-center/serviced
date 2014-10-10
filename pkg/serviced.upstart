@@ -26,11 +26,17 @@ script
     export GOMAXPROCS=2
 
     if [ -f /etc/default/serviced ]; then
+        set -x   # log the overrides
         . /etc/default/serviced
+        set +x
+        for var in $(grep -Po '^\s*\w+=' /etc/default/serviced | sed -e 's/=//'); do
+            echo "exporting $var"
+            export $var
+        done
     fi
 
     cd $SERVICED_HOME 
-    ./bin/serviced $SERVICED_OPTS
+    exec ./bin/serviced $SERVICED_OPTS
 
 end script
 

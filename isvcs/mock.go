@@ -24,7 +24,8 @@ var oneHundred int = 100
 var zero int = 0
 
 var InternalServicesISVC Service
-var ElasticsearchISVC Service
+var ElasticsearchLogStashISVC Service
+var ElasticsearchServicedISVC Service
 var ZookeeperISVC Service
 var LogstashISVC Service
 var OpentsdbISVC Service
@@ -33,7 +34,8 @@ var DockerRegistryISVC Service
 var ISVCSMap map[string]*Service
 
 var InternalServicesIRS RunningService
-var ElasticsearchIRS RunningService
+var ElasticsearchLogStashIRS RunningService
+var ElasticsearchServicedIRS RunningService
 var ZookeeperIRS RunningService
 var LogstashIRS RunningService
 var OpentsdbIRS RunningService
@@ -43,12 +45,12 @@ var IRSMap map[string]*RunningService
 
 func init() {
 	InternalServicesIRS = RunningService{
-		Name:        "Internal Services",
-		Description: "Internal Services",
-		ID:          "isvc-internalservices",
-		ServiceID:   "isvc-internalservices",
+		Name:         "Internal Services",
+		Description:  "Internal Services",
+		ID:           "isvc-internalservices",
+		ServiceID:    "isvc-internalservices",
 		DesiredState: 1,
-		StartedAt:   time.Now(),
+		StartedAt:    time.Now(),
 	}
 	InternalServicesISVC = Service{
 		Name:         "Internal Services",
@@ -57,39 +59,14 @@ func init() {
 		Description:  "Internal Services",
 		DeploymentID: "Internal",
 		DesiredState: 1,
-	}
-	ElasticsearchIRS = RunningService{
-		Name:        "Elastic Search",
-		Description: "Internal Elastic Search",
-		ID:          "isvc-elasticsearch",
-		ServiceID:   "isvc-elasticsearch",
-		DesiredState: 1,
-		StartedAt:   time.Now(),
-	}
-	ElasticsearchISVC = Service{
-		Name:            "Elastic Search",
-		ID:              "isvc-elasticsearch",
-		Startup:         "/opt/elasticsearch-1.3.1/bin/elasticsearch",
-		Description:     "Internal Elastic Search",
-		ParentServiceID: "isvc-internalservices",
-		DesiredState: 1,
+		CreatedAt:    time.Now(),
+		UpdatedAt:    time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
-			MetricConfigs: []domain.MetricConfig{
-				domain.MetricConfig{
-					ID:          "metrics",
-					Name:        "Metrics",
-					Description: "Metrics",
-					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
-						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
-						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
-					},
-				},
-			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -99,7 +76,6 @@ func init() {
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
 					Type:       "area",
-					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
 					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
@@ -109,7 +85,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "cgroup.cpuacct.system",
+							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							Type:       "area",
@@ -120,7 +96,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "cgroup.cpuacct.user",
+							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							Type:       "area",
@@ -128,8 +104,9 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -139,9 +116,221 @@ func init() {
 					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
-					Tags:       map[string][]string{"isvcname": []string{"elasticsearch"}},
 					DownSample: "1m-avg",
 					Units:      "Bytes",
+					Base:       1024,
+					DataPoints: []domain.DataPoint{
+						domain.DataPoint{
+							ID:         "rssmemory",
+							Aggregator: "avg",
+							Fill:       false,
+							Format:     "%4.2f",
+							Legend:     "Memory Usage",
+							Metric:     "cgroup.memory.totalrss",
+							Name:       "Memory Usage",
+							Rate:       false,
+							Type:       "area",
+						},
+					},
+				},
+			},
+		},
+	}
+	ElasticsearchLogStashIRS = RunningService{
+		Name:         "Elastic Search - LogStash",
+		Description:  "Internal Elastic Search - LogStash",
+		ID:           "isvc-elasticsearch-logstash",
+		ServiceID:    "isvc-elasticsearch-logstash",
+		DesiredState: 1,
+		StartedAt:    time.Now(),
+	}
+	ElasticsearchServicedIRS = RunningService{
+		Name:         "Elastic Search - Serviced",
+		Description:  "Internal Elastic Search - Serviced",
+		ID:           "isvc-elasticsearch-serviced",
+		ServiceID:    "isvc-elasticsearch-serviced",
+		DesiredState: 1,
+		StartedAt:    time.Now(),
+	}
+	ElasticsearchLogStashISVC = Service{
+		Name:            "Elastic Search - LogStash",
+		ID:              "isvc-elasticsearch-logstash",
+		Startup:         "/opt/elasticsearch-1.3.1/bin/elasticsearch",
+		Description:     "Internal Elastic Search - LogStash",
+		ParentServiceID: "isvc-internalservices",
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "metrics",
+					Name:        "Metrics",
+					Description: "Metrics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
+			GraphConfigs: []domain.GraphConfig{
+				domain.GraphConfig{
+					Name:   "CPU Usage",
+					Footer: false,
+					Format: "%4.2f",
+					MaxY:   &oneHundred,
+					MinY:   &zero,
+					Range: &domain.GraphConfigRange{
+						End:   "0s-ago",
+						Start: "1h-ago",
+					},
+					YAxisLabel: "% Used",
+					ReturnSet:  "EXACT",
+					Type:       "area",
+					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-logstash"}},
+					DownSample: "1m-avg",
+					Units:      "Percent",
+					DataPoints: []domain.DataPoint{
+						domain.DataPoint{
+							ID:         "system",
+							Aggregator: "avg",
+							Fill:       false,
+							Format:     "%4.2f",
+							Legend:     "CPU (System)",
+							Metric:     "CpuacctStat.system",
+							Name:       "CPU (System)",
+							Rate:       true,
+							Type:       "area",
+						},
+						domain.DataPoint{
+							ID:         "system",
+							Aggregator: "avg",
+							Fill:       false,
+							Format:     "%4.2f",
+							Legend:     "CPU (User)",
+							Metric:     "CpuacctStat.user",
+							Name:       "CPU (User)",
+							Rate:       true,
+							Type:       "area",
+						},
+					},
+				},
+				domain.GraphConfig{
+					Name:   "Memory Usage",
+					Footer: false,
+					Format: "%4.2f",
+					MaxY:   nil,
+					MinY:   &zero,
+					Range: &domain.GraphConfigRange{
+						End:   "0s-ago",
+						Start: "1h-ago",
+					},
+					YAxisLabel: "bytes",
+					ReturnSet:  "EXACT",
+					Type:       "area",
+					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-logstash"}},
+					DownSample: "1m-avg",
+					Units:      "Bytes",
+					Base:       1024,
+					DataPoints: []domain.DataPoint{
+						domain.DataPoint{
+							ID:         "rssmemory",
+							Aggregator: "avg",
+							Fill:       false,
+							Format:     "%4.2f",
+							Legend:     "Memory Usage",
+							Metric:     "cgroup.memory.totalrss",
+							Name:       "Memory Usage",
+							Rate:       false,
+							Type:       "area",
+						},
+					},
+				},
+			},
+		},
+	}
+	ElasticsearchServicedISVC = Service{
+		Name:            "Elastic Search - Serviced",
+		ID:              "isvc-elasticsearch-serviced",
+		Startup:         "/opt/elasticsearch-1.3.1/bin/elasticsearch",
+		Description:     "Internal Elastic Search - Serviced",
+		ParentServiceID: "isvc-internalservices",
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		MonitoringProfile: domain.MonitorProfile{
+			MetricConfigs: []domain.MetricConfig{
+				domain.MetricConfig{
+					ID:          "metrics",
+					Name:        "Metrics",
+					Description: "Metrics",
+					Metrics: []domain.Metric{
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
+					},
+				},
+			},
+			GraphConfigs: []domain.GraphConfig{
+				domain.GraphConfig{
+					Name:   "CPU Usage",
+					Footer: false,
+					Format: "%4.2f",
+					MaxY:   &oneHundred,
+					MinY:   &zero,
+					Range: &domain.GraphConfigRange{
+						End:   "0s-ago",
+						Start: "1h-ago",
+					},
+					YAxisLabel: "% Used",
+					ReturnSet:  "EXACT",
+					Type:       "area",
+					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-serviced"}},
+					DownSample: "1m-avg",
+					Units:      "Percent",
+					DataPoints: []domain.DataPoint{
+						domain.DataPoint{
+							ID:         "system",
+							Aggregator: "avg",
+							Fill:       false,
+							Format:     "%4.2f",
+							Legend:     "CPU (System)",
+							Metric:     "CpuacctStat.system",
+							Name:       "CPU (System)",
+							Rate:       true,
+							Type:       "area",
+						},
+						domain.DataPoint{
+							ID:         "system",
+							Aggregator: "avg",
+							Fill:       false,
+							Format:     "%4.2f",
+							Legend:     "CPU (User)",
+							Metric:     "CpuacctStat.user",
+							Name:       "CPU (User)",
+							Rate:       true,
+							Type:       "area",
+						},
+					},
+				},
+				domain.GraphConfig{
+					Name:   "Memory Usage",
+					Footer: false,
+					Format: "%4.2f",
+					MaxY:   nil,
+					MinY:   &zero,
+					Range: &domain.GraphConfigRange{
+						End:   "0s-ago",
+						Start: "1h-ago",
+					},
+					YAxisLabel: "bytes",
+					ReturnSet:  "EXACT",
+					Type:       "area",
+					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-serviced"}},
+					DownSample: "1m-avg",
+					Units:      "Bytes",
+					Base:       1024,
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -160,12 +349,12 @@ func init() {
 		},
 	}
 	ZookeeperIRS = RunningService{
-		Name:        "ZooKeeper",
-		Description: "Internal ZooKeeper",
-		ID:          "isvc-zookeeper",
-		ServiceID:   "isvc-zookeeper",
+		Name:         "ZooKeeper",
+		Description:  "Internal ZooKeeper",
+		ID:           "isvc-zookeeper",
+		ServiceID:    "isvc-zookeeper",
 		DesiredState: 1,
-		StartedAt:   time.Now(),
+		StartedAt:    time.Now(),
 	}
 	ZookeeperISVC = Service{
 		Name:            "Zookeeper",
@@ -173,7 +362,9 @@ func init() {
 		Startup:         "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground",
 		Description:     "Internal ZooKeeper",
 		ParentServiceID: "isvc-internalservices",
-		DesiredState: 1,
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -181,8 +372,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
-						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -196,8 +387,9 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -217,7 +409,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "cgroup.cpuacct.system",
+							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							Type:       "area",
@@ -228,7 +420,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "cgroup.cpuacct.user",
+							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							Type:       "area",
@@ -236,8 +428,9 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -250,6 +443,7 @@ func init() {
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
 					DownSample: "1m-avg",
 					Units:      "Bytes",
+					Base:       1024,
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -268,12 +462,12 @@ func init() {
 		},
 	}
 	LogstashIRS = RunningService{
-		Name:        "Logstash",
-		Description: "Internal Logstash",
-		ID:          "isvc-logstash",
-		ServiceID:   "isvc-logstash",
+		Name:         "Logstash",
+		Description:  "Internal Logstash",
+		ID:           "isvc-logstash",
+		ServiceID:    "isvc-logstash",
 		DesiredState: 1,
-		StartedAt:   time.Now(),
+		StartedAt:    time.Now(),
 	}
 	LogstashISVC = Service{
 		Name:            "Logstash",
@@ -281,7 +475,9 @@ func init() {
 		Startup:         "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf",
 		Description:     "Internal Logstash",
 		ParentServiceID: "isvc-internalservices",
-		DesiredState: 1,
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -289,8 +485,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
-						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -304,8 +500,9 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -325,7 +522,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "cgroup.cpuacct.system",
+							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							Type:       "area",
@@ -336,7 +533,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "cgroup.cpuacct.user",
+							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							Type:       "area",
@@ -344,8 +541,9 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -358,6 +556,7 @@ func init() {
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
 					DownSample: "1m-avg",
 					Units:      "Bytes",
+					Base:       1024,
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -376,12 +575,12 @@ func init() {
 		},
 	}
 	OpentsdbIRS = RunningService{
-		Name:        "OpenTSDB",
-		Description: "Internal Open TSDB",
-		ID:          "isvc-opentsdb",
-		ServiceID:   "isvc-opentsdb",
+		Name:         "OpenTSDB",
+		Description:  "Internal Open TSDB",
+		ID:           "isvc-opentsdb",
+		ServiceID:    "isvc-opentsdb",
 		DesiredState: 1,
-		StartedAt:   time.Now(),
+		StartedAt:    time.Now(),
 	}
 	OpentsdbISVC = Service{
 		Name:            "OpenTSDB",
@@ -389,7 +588,9 @@ func init() {
 		Startup:         "cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf",
 		Description:     "Internal Open TSDB",
 		ParentServiceID: "isvc-internalservices",
-		DesiredState: 1,
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -397,8 +598,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
-						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -412,8 +613,9 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -433,7 +635,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "cgroup.cpuacct.system",
+							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							Type:       "area",
@@ -444,7 +646,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "cgroup.cpuacct.user",
+							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							Type:       "area",
@@ -452,8 +654,9 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -466,6 +669,7 @@ func init() {
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
 					DownSample: "1m-avg",
 					Units:      "Bytes",
+					Base:       1024,
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -484,12 +688,12 @@ func init() {
 		},
 	}
 	CeleryIRS = RunningService{
-		Name:        "Celery",
-		Description: "Internal Celery",
-		ID:          "isvc-celery",
-		ServiceID:   "isvc-celery",
+		Name:         "Celery",
+		Description:  "Internal Celery",
+		ID:           "isvc-celery",
+		ServiceID:    "isvc-celery",
 		DesiredState: 1,
-		StartedAt:   time.Now(),
+		StartedAt:    time.Now(),
 	}
 	CeleryISVC = Service{
 		Name:            "Celery",
@@ -497,7 +701,9 @@ func init() {
 		Startup:         "supervisord -n -c /opt/celery/etc/supervisor.conf",
 		Description:     "Internal Celery",
 		ParentServiceID: "isvc-internalservices",
-		DesiredState: 1,
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -505,8 +711,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
-						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -520,8 +726,9 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -541,7 +748,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "cgroup.cpuacct.system",
+							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							Type:       "area",
@@ -552,7 +759,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "cgroup.cpuacct.user",
+							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							Type:       "area",
@@ -560,8 +767,9 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -574,6 +782,7 @@ func init() {
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
 					DownSample: "1m-avg",
 					Units:      "Bytes",
+					Base:       1024,
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -592,12 +801,12 @@ func init() {
 		},
 	}
 	DockerRegistryIRS = RunningService{
-		Name:        "Docker Registry",
-		Description: "Internal Docker Registry",
-		ID:          "isvc-dockerRegistry",
-		ServiceID:   "isvc-dockerRegistry",
+		Name:         "Docker Registry",
+		Description:  "Internal Docker Registry",
+		ID:           "isvc-dockerRegistry",
+		ServiceID:    "isvc-dockerRegistry",
 		DesiredState: 1,
-		StartedAt:   time.Now(),
+		StartedAt:    time.Now(),
 	}
 	DockerRegistryISVC = Service{
 		Name:            "Docker Registry",
@@ -605,7 +814,9 @@ func init() {
 		Startup:         "DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry",
 		Description:     "Internal Docker Registry",
 		ParentServiceID: "isvc-internalservices",
-		DesiredState: 1,
+		DesiredState:    1,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
 		MonitoringProfile: domain.MonitorProfile{
 			MetricConfigs: []domain.MetricConfig{
 				domain.MetricConfig{
@@ -613,8 +824,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
-						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
+						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
+						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -628,8 +839,9 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					Name:   "CPU Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   &oneHundred,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -649,7 +861,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "cgroup.cpuacct.system",
+							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							Type:       "area",
@@ -660,7 +872,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "cgroup.cpuacct.user",
+							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							Type:       "area",
@@ -668,8 +880,9 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					Name:   "Memory Usage",
 					Footer: false,
-					Format: "%d",
+					Format: "%4.2f",
 					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
@@ -682,6 +895,7 @@ func init() {
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
 					DownSample: "1m-avg",
 					Units:      "Bytes",
+					Base:       1024,
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
 							ID:         "rssmemory",
@@ -701,23 +915,25 @@ func init() {
 	}
 
 	ISVCSMap = map[string]*Service{
-		"isvc-internalservices": &InternalServicesISVC,
-		"isvc-elasticsearch":    &ElasticsearchISVC,
-		"isvc-zookeeper":        &ZookeeperISVC,
-		"isvc-logstash":         &LogstashISVC,
-		"isvc-opentsdb":         &OpentsdbISVC,
-		"isvc-celery":           &CeleryISVC,
-		"isvc-dockerRegistry":   &DockerRegistryISVC,
+		"isvc-internalservices":       &InternalServicesISVC,
+		"isvc-elasticsearch-logstash": &ElasticsearchLogStashISVC,
+		"isvc-elasticsearch-serviced": &ElasticsearchServicedISVC,
+		"isvc-zookeeper":              &ZookeeperISVC,
+		"isvc-logstash":               &LogstashISVC,
+		"isvc-opentsdb":               &OpentsdbISVC,
+		"isvc-celery":                 &CeleryISVC,
+		"isvc-dockerRegistry":         &DockerRegistryISVC,
 	}
 
 	IRSMap = map[string]*RunningService{
-		"isvc-internalservices": &InternalServicesIRS,
-		"isvc-elasticsearch":    &ElasticsearchIRS,
-		"isvc-zookeeper":        &ZookeeperIRS,
-		"isvc-logstash":         &LogstashIRS,
-		"isvc-opentsdb":         &OpentsdbIRS,
-		"isvc-celery":           &CeleryIRS,
-		"isvc-dockerRegistry":   &DockerRegistryIRS,
+		"isvc-internalservices":       &InternalServicesIRS,
+		"isvc-elasticsearch-logstash": &ElasticsearchLogStashIRS,
+		"isvc-elasticsearch-serviced": &ElasticsearchServicedIRS,
+		"isvc-zookeeper":              &ZookeeperIRS,
+		"isvc-logstash":               &LogstashIRS,
+		"isvc-opentsdb":               &OpentsdbIRS,
+		"isvc-celery":                 &CeleryIRS,
+		"isvc-dockerRegistry":         &DockerRegistryIRS,
 	}
 
 }

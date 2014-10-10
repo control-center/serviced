@@ -18,6 +18,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 
 	"github.com/control-center/serviced/domain/service"
@@ -124,6 +125,26 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	return nil
 }
 
+func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {
+	glog.V(3).Infof("Facade.GetPoolForService: id=%s", id)
+	store := f.serviceStore
+	svc, err := store.Get(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	return svc.PoolID, nil
+}
+
+func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]domain.HealthCheck, error) {
+	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
+	store := f.serviceStore
+	svc, err := store.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	return svc.HealthChecks, nil
+}
+
 func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service, error) {
 	glog.V(3).Infof("Facade.GetService: id=%s", id)
 	store := f.serviceStore
@@ -142,10 +163,20 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
-	services, err := store.GetServices(ctx)
-	if err != nil {
-		glog.Error("Facade.GetServices: err=", err)
-		return nil, err
+	var services []service.Service
+	var err error
+	if request.(dao.ServiceRequest).UpdatedSince != 0 {
+		services, err = store.GetUpdatedServices(ctx, request.(dao.ServiceRequest).UpdatedSince)
+		if err != nil {
+			glog.Error("Facade.GetServices: err=", err)
+			return nil, err
+		}
+	} else {
+		services, err = store.GetServices(ctx)
+		if err != nil {
+			glog.Error("Facade.GetServices: err=", err)
+			return nil, err
+		}
 	}
 	if err = f.fillOutServices(ctx, services); err != nil {
 		return nil, err
@@ -849,6 +880,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 		}
 	}
 
+	svc.UpdatedAt = time.Now()
 	if err := svcStore.Put(ctx, svc); err != nil {
 		return err
 	}

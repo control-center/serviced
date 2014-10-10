@@ -59,7 +59,7 @@ func getPIDFromDockerID(containerID string) (string, error) {
 
 // ExecNSEnter execs the command using nsenter
 func ExecNSEnter(containerID string, bashcmd []string) error {
-	command, err := generateNSEnterCommand(containerID, bashcmd, false)
+	command, err := generateNSEnterCommand(containerID, bashcmd, false, true)
 	if err != nil {
 		return err
 	}
@@ -68,8 +68,8 @@ func ExecNSEnter(containerID string, bashcmd []string) error {
 }
 
 // RunNSEnter runs the command using nsenter
-func RunNSEnter(containerID string, bashcmd []string) ([]byte, error) {
-	command, err := generateNSEnterCommand(containerID, bashcmd, true)
+func RunNSEnter(containerID string, bashcmd []string, useSudo bool) ([]byte, error) {
+	command, err := generateNSEnterCommand(containerID, bashcmd, true, useSudo)
 	if err != nil {
 		return nil, err
 	}
@@ -84,7 +84,7 @@ func RunNSEnter(containerID string, bashcmd []string) ([]byte, error) {
 }
 
 // generateNSEnterCommand returns a slice containing nsenter command to exec
-func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bool) ([]string, error) {
+func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bool, useSudo bool) ([]string, error) {
 	if containerID == "" {
 		return []string{}, fmt.Errorf("will not attach to container with empty containerID")
 	}
@@ -99,7 +99,10 @@ func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bo
 		return []string{}, err
 	}
 
-	attachCmd := []string{exeMap["sudo"], exeMap["nsenter"], "-m", "-u", "-i", "-n", "-p", "-t", pid, "--"}
+	attachCmd := []string{exeMap["nsenter"], "-m", "-u", "-i", "-n", "-p", "-t", pid, "--"}
+	if useSudo {
+		attachCmd = append([]string{exeMap["sudo"]}, attachCmd...)
+	}
 	if prependBash {
 		attachCmd = append(attachCmd, "/bin/bash", "-c", fmt.Sprintf("%s", strings.Join(bashcmd, " ")))
 	} else {

@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
@@ -27,6 +28,8 @@ import (
 const (
 	zkVirtualIP            = "/virtualIPs"
 	virtualInterfacePrefix = ":zvip"
+	maxRetries             = 2
+	waitTimeout            = 30 * time.Second
 )
 
 var (
@@ -77,6 +80,7 @@ type VirtualIPListener struct {
 
 	index chan int
 	ips   map[string]chan bool
+	retry map[string]int
 }
 
 // NewVirtualIPListener instantiates a new VirtualIPListener object
@@ -130,6 +134,23 @@ func (l *VirtualIPListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn implements zzk.Listener
 func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
+	// ensure that the retry sentinel has good initial state
+	if l.retry == nil {
+		l.retry = make(map[string]int)
+	}
+	if _, ok := l.retry[ip]; !ok {
+		l.retry[ip] = maxRetries
+	}
+
+	// Check if this ip has exceeded the number of retries for this host
+	if l.retry[ip] > maxRetries {
+		glog.Warningf("Throttling acquisition of %s for %s", ip, l.hostID)
+		select {
+		case <-time.After(waitTimeout):
+		case <-shutdown:
+			return
+		}
+	}
 
 	glog.V(2).Infof("Host %s waiting to acquire virtual ip %s", l.hostID, ip)
 	// Try to take lead on the path
@@ -140,6 +161,12 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 		return
 	}
 	defer leader.ReleaseLead()
+
+	select {
+	case <-shutdown:
+		return
+	default:
+	}
 
 	// Check if the path still exists
 	if exists, err := zzk.PathExists(l.conn, l.GetPath(ip)); err != nil {
@@ -162,7 +189,12 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 		rebind, err := l.bind(&vip, index)
 		if err != nil {
 			glog.Errorf("Could not bind to virtual ip %s: %s", ip, err)
+			l.retry[ip]++
 			return
+		}
+
+		if l.retry[ip] > 0 {
+			l.retry[ip]--
 		}
 
 		select {
@@ -261,7 +293,11 @@ func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
 
 func RemoveVirtualIP(conn client.Connection, ip string) error {
 	glog.V(1).Infof("Removing virtual ip from zookeeper: %s", vippath(ip))
-	return conn.Delete(vippath(ip))
+	err := conn.Delete(vippath(ip))
+	if err == nil || err == client.ErrNoNode {
+		return nil
+	}
+	return err
 }
 
 func GetHostID(conn client.Connection, ip string) (string, error) {

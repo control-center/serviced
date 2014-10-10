@@ -219,7 +219,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     };
 
-    $scope.indent = indentClass;
+    $scope.indent = function(depth){
+        return {'padding-left': (20*depth) + "px"};
+    };
 
     $scope.clickRunning = function(app, status, servicesService){
         toggleRunning(app, status, servicesService);
@@ -670,5 +672,44 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
         resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
         resourcesService.registerPoll("running", updateRunning, 3000);
+    }
+
+    $scope.toggleChildren = function($event, app){
+        var $e = $($event.target);
+        $e.is(".glyphicon-chevron-down") ? hideChildren(app) : showChildren(app);
+    }
+
+    function hideChildren(app){
+        if(app.children){
+            for(var i=0; i<app.children.length; ++i){
+                var child = app.children[i];
+                $("tr[data-id='" + child.ID + "'] td").hide();
+                if(child.children !== undefined){
+                    hideChildren(child);
+                }
+            }
+        }
+
+        //update icons
+        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon-chevron-down");
+        $e.removeClass("glyphicon-chevron-down");
+        $e.addClass("glyphicon-chevron-right");
+    }
+
+    function showChildren(app){
+        if(app.children){
+            for(var i=0; i<app.children.length; ++i){
+                var child = app.children[i];
+                $("tr[data-id='" + child.ID + "'] td").show();
+                if(child.children !== undefined){
+                    showChildren(child);
+                }
+            }
+        }
+
+        //update icons
+        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon-chevron-right");
+        $e.removeClass("glyphicon-chevron-right");
+        $e.addClass("glyphicon-chevron-down");
     }
 }

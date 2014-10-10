@@ -14,6 +14,7 @@
 package container
 
 import (
+	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
@@ -112,6 +113,7 @@ type Controller struct {
 	exportedEndpointZKPaths []string
 	vhostZKPaths            []string
 	exitStatus              int
+	allowDirectConn         bool
 }
 
 // Close shuts down the controller
@@ -284,6 +286,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+
+	c.allowDirectConn = !service.HasEndpointsFor("import_all")
+	glog.Infof("Allow container to container connections: %t", c.allowDirectConn)
 
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
@@ -473,8 +478,18 @@ func (c *Controller) shutdown() {
 	//defers run in LIFO order
 	defer os.Exit(c.exitStatus)
 	defer zzk.ShutdownConnections()
-	defer c.unregisterVhosts()
-	defer c.unregisterEndpoints()
+}
+
+func (c *Controller) reapZombies(close chan struct{}) {
+	for {
+		select {
+		case <-close:
+			return
+		case <-time.After(time.Second * 10):
+			glog.V(5).Info("reaping zombies")
+			proc.ReapZombies()
+		}
+	}
 }
 
 // Run executes the controller's main loop and block until the service exits
@@ -528,13 +543,16 @@ func (c *Controller) Run() (err error) {
 	var exitAfter <-chan time.Time
 	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
+	c.watchRemotePorts()
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
 		return err
 	}
-	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed, rpcDead)
-	healthExits := c.kickOffHealthChecks()
+	go c.reapZombies(rpcDead)
+	healthExit := make(chan struct{})
+	defer close(healthExit)
+	c.kickOffHealthChecks(healthExit)
 	doRegisterEndpoints := true
 	exited := false
 
@@ -546,6 +564,7 @@ func (c *Controller) Run() (err error) {
 			startAfter = nil
 			rpcDead = nil
 			exitAfter = time.After(time.Second * 30)
+			close(healthExit)
 		} else {
 			c.exitStatus = 1
 			exited = true
@@ -600,9 +619,6 @@ func (c *Controller) Run() (err error) {
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
-	for _, exitChannel := range healthExits {
-		exitChannel <- true
-	}
 	return
 }
 
@@ -643,12 +659,11 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 	return nil
 }
 
-func (c *Controller) kickOffHealthChecks() map[string]chan bool {
-	exitChannels := make(map[string]chan bool)
+func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
-		return nil
+		return
 	}
 	defer client.Close()
 	var healthChecks map[string]domain.HealthCheck
@@ -656,24 +671,27 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
-		return nil
+		return
 	}
 	err = client.GetHealthCheck(node.HealthCheckRequest{
 		c.options.Service.ID, instanceID}, &healthChecks)
 	if err != nil {
 		glog.Errorf("Error getting health checks: %s", err)
-		return nil
+		return
 	}
 	for key, mapping := range healthChecks {
 		glog.Infof("Kicking off health check %s.", key)
-		exitChannels[key] = make(chan bool)
 		glog.Infof("Setting up health check: %s", mapping.Script)
-		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
+		timeout := mapping.Timeout
+		if timeout == 0 {
+			timeout = time.Second * 30
+		}
+		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, timeout, healthExit)
 	}
-	return exitChannels
+	return
 }
 
-func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
+func (c *Controller) handleHealthCheck(name string, script string, interval, timeout time.Duration, exitChannel chan struct{}) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
@@ -699,17 +717,35 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		return
 	}
 	var unused int
+	sigtermTimeout := time.Second * 10
 	for {
 		select {
 		case <-time.After(interval):
+			exited := make(chan error, 1)
+			sysProcAttr := &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGTERM}
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
-			err = cmd.Run()
-			if err == nil {
-				glog.V(4).Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
-			} else {
-				glog.Warningf("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
+			cmd.SysProcAttr = sysProcAttr
+			if err := cmd.Start(); err != nil {
+				glog.Errorf("Could not run cmd %v: %s", cmd, err)
+				break
+			}
+			go func(c *exec.Cmd) { exited <- c.Wait() }(cmd)
+			select {
+			case err := <-exited:
+				if err == nil {
+					glog.V(4).Infof("Health check %s succeeded.", name)
+					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
+				} else {
+					glog.Warningf("Health check %s failed.", name)
+					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
+				}
+			case <-exitChannel:
+				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
+				return
+			case <-time.After(timeout):
+				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
+				glog.Warningf("Health check %s timeout.", name)
+				client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
 			return

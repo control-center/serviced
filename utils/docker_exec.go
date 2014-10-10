@@ -72,24 +72,51 @@ func generateDockerExecCommand(containerID string, bashcmd []string, prependBash
 	return attachCmd, nil
 }
 
+// hasFeatureDockerExec returns true if docker exec is supported
+func hasFeatureDockerExec() bool {
+	command := []string{"docker", "exec"}
+
+	thecmd := exec.Command(command[0], command[1:]...)
+	output, err := thecmd.CombinedOutput()
+	// when docker exec is supported, we expect above 'docker exec' to fail,
+	// but provide usage
+	glog.V(1).Infof("Successfully ran command:'%s'  err: %s  output: %s\n", command, err, output)
+
+	return strings.Contains(string(output), "Usage: docker exec")
+}
+
 // AttachAndRun attaches to a container and runs the command
 func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
-	_, err := exec.LookPath("nsenter")
-	if err == nil {
-		return RunNSEnter(containerID, bashcmd)
+	result, err := AttachAndRunMaybeSudo(containerID, bashcmd, true)
+	return result, err
+}
+
+// Like AttachAndRun, but specify whether or not to use sudo
+func AttachAndRunMaybeSudo(containerID string, bashcmd []string, useSudo bool) ([]byte, error) {
+	if hasFeatureDockerExec() {
+		return RunDockerExec(containerID, bashcmd)
 	}
 
-	return RunDockerExec(containerID, bashcmd)
+	_, err := exec.LookPath("nsenter")
+	if err == nil {
+		return RunNSEnter(containerID, bashcmd, useSudo)
+	}
+
+	return nil, fmt.Errorf("unable to find attach utility to run: %s", bashcmd)
 }
 
 // AttachAndExec attaches to a container and execs the command
 func AttachAndExec(containerID string, bashcmd []string) error {
+	if hasFeatureDockerExec() {
+		return ExecDockerExec(containerID, bashcmd)
+	}
+
 	_, err := exec.LookPath("nsenter")
 	if err == nil {
 		return ExecNSEnter(containerID, bashcmd)
 	}
 
-	return ExecDockerExec(containerID, bashcmd)
+	return fmt.Errorf("unable to find attach utility to exec: %s", bashcmd)
 }
 
 // exePaths returns the full path to the given executables in a map

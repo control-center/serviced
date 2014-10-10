@@ -26,6 +26,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -86,9 +87,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove SERVICEID",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
-				Flags: []cli.Flag{
-					cli.BoolTFlag{"remove-snapshots, R", "Remove snapshots associated with removed service"},
-				},
 			}, {
 				Name:         "edit",
 				Usage:        "Edits an existing service in a text editor",
@@ -643,12 +641,7 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	cfg := api.RemoveServiceConfig{
-		ServiceID:       svc.ID,
-		RemoveSnapshots: ctx.Bool("remove-snapshots"),
-	}
-
-	if err := c.driver.RemoveService(cfg); err != nil {
+	if err := c.driver.RemoveService(svc.ID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 	} else {
 		fmt.Println(svc.ID)
@@ -842,6 +835,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -849,7 +843,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		ServicedEndpoint: "localhost" + agentPort,
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -890,14 +884,15 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
-		SaveAs:           node.GetLabel(svc.ID),
+		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		ServicedEndpoint: "localhost" + agentPort,
 		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
 

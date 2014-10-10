@@ -25,7 +25,7 @@ start serviced
    for user requests. You can track the output of serviced at 
    /var/log/upstart/serviced.log.
 
-4. Browse the UI at http://localhost:8787
+4. Browse the UI at https://localhost
 
 Usage
 -----
@@ -33,18 +33,12 @@ Serviced is a platform for running services. Serviced is composed of a master
 serviced process and agent processes running on each host. Each host must be registered
 with the master process. To register a agent process:
 ```bash
-serviced add-host [HOSTNAME:PORT]
-```
-
-After the hosts are registered they must be placed in to a resource pool. This is done
-by first creating a pool:
-```bash
-serviced add-pool NAME CORE_LIMIT MEMORY_LIMIT PRIORITY
+serviced host add HOST:PORT RESOURCE_POOL
 ```
 
 Dev Environment
 ---------------
-Serviced is written in go. To install go, download go v1.2 from http://golang.org.
+Serviced is written in go. To install go, download go v1.3 from http://golang.org.
 Untar the distribution to /usr/local/go. If you use a different location for go, you
 must set GOROOT. See the http://www.golang.org for more information. Ensure that 
 $GOROOT/bin is in you path.
@@ -63,12 +57,13 @@ With $GOROOT set and $GOROOT/bin in your $PATH, create a development workspace.
 ```bash
 export GOPATH=~/mygo
 export PATH="$PATH:$GOPATH/bin"
-mkdir $GOPATH/{bin,pkg,src} -p
-mkdir $GOPATH/src/github.com/zenoss -p
-cd $GOPATH/src/github.com/zenoss 
-git clone git@github.com:control-center/serviced.git
+mkdir -p $GOPATH/{bin,pkg,src}
+mkdir -p $GOPATH/src/github.com/control-center
+cd $GOPATH/src/github.com/control-center 
+git clone git@github.com:control-center/serviced
+    # alternatively: git clone https://github.com/control-center/serviced
 cd serviced
-make install
+make
 ```
 
 After this, a binary should exist at $GOPATH/bin/serviced & 

@@ -45,7 +45,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "type": "line"
             }],
             "footer": false,
-            "format": "%d",
+            "format": "%4.2f",
             "maxy": 100,
             "miny": 0,
             "range": {
@@ -61,7 +61,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             "downsample": "1m-avg",
             "timezone": jstz.determine().name()
         };
-    }
+    };
 
     $scope.getRSSGraph = function(isvcname) {
         return {
@@ -75,7 +75,6 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "name": "Memory Usage",
                 "rateOptions": {},
                 "type": "line",
-                "fill": true
             }],
             "footer": false,
             "format": "%4.2f",
@@ -96,7 +95,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             "downsample": "1m-avg",
             "timezone": jstz.determine().name()
         };
-    }
+    };
 
 
     // XXX prevent the graphs from being drawn multiple times
@@ -110,7 +109,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                graph.timezone = jstz.determine().name()
+                graph.timezone = jstz.determine().name();
                 console.log(id, graph);
                 zenoss.visualization.chart.create(id, graph);
                 $scope.drawn[id] = true;

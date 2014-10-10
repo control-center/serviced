@@ -17,6 +17,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/health"
 	"github.com/zenoss/glog"
 )
 
@@ -114,7 +115,12 @@ func (this *ControlPlaneDao) StartService(serviceID string, unused *string) erro
 	return this.facade.StartService(datastore.Get(), serviceID)
 }
 func (this *ControlPlaneDao) StopService(id string, unused *int) error {
-	return this.facade.StopService(datastore.Get(), id)
+	err := this.facade.StopService(datastore.Get(), id)
+	if err == nil {
+		// Have to do this here rather than the facade due to an import cycle
+		health.UnregisterHealthCheck(id)
+	}
+	return err
 }
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig

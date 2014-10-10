@@ -86,7 +86,10 @@
     </tr>
     <tr ng-repeat="app in running.data | orderBy:running.sort">
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
-      <td><span am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span></td>
+      <td>
+          <span ng-if="app.StartedAt!=='0001-01-01T00:00:00Z'" am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span>
+          <span ng-if="app.StartedAt==='0001-01-01T00:00:00Z'">{{'starting'|translate}}</span>
+      </td>
       <td>
           <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
           <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>

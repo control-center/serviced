@@ -37,14 +37,6 @@ import (
 	"time"
 )
 
-const TIMEFMT = "20060102-150405"
-
-func GetLabel(name string) string {
-	localtime := time.Now()
-	utc := localtime.UTC()
-	return fmt.Sprintf("%s_%s", name, utc.Format(TIMEFMT))
-}
-
 // validOwnerSpec returns true if the owner is specified in owner:group format and the
 // identifiers are valid POSIX.1-2008 username and group strings, respectively.
 func validOwnerSpec(owner string) bool {
@@ -328,6 +320,7 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	var output []byte
 	command := [...]string{
 		"docker", "run",
+		"--rm",
 		"-v", hostPath + ":/mnt/dfs",
 		imageSpec,
 		"/bin/bash", "-c",

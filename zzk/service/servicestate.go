@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 )
 
@@ -72,6 +73,26 @@ func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState
 	}
 	node.ServiceState = state
 	return conn.Set(path, &node)
+}
+
+// WaitPause waits for a service state is paused or receives an error
+func WaitPause(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string) error {
+	for {
+		var node ServiceStateNode
+		event, err := conn.GetW(servicepath(serviceID, stateID), &node)
+		if err != nil {
+			return err
+		}
+		if node.IsPaused() {
+			return nil
+		}
+		select {
+		case <-event:
+		case <-shutdown:
+			return zzk.ErrShutdown
+		}
+
+	}
 }
 
 // GetServiceStatus creates a map of service states to their corresponding status

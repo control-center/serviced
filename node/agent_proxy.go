@@ -215,6 +215,7 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.Applicati
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
+	endpoint.ProxyPort = uint16(port)
 	endpoint.HostPort = uint16(port)
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
@@ -228,7 +229,8 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.A
 	endpoint.ServiceID = "controlplane_consumer"
 	endpoint.Application = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
-	endpoint.ContainerPort = 8444
+	endpoint.ContainerPort = 8443
+	endpoint.ProxyPort = 8444
 	endpoint.HostPort = 8443
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
@@ -243,6 +245,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEn
 		ContainerIP:   "127.0.0.1",
 		ContainerPort: 5042,
 		HostPort:      5042,
+		ProxyPort:     5042,
 		HostIP:        strings.Split(a.master, ":")[0],
 		Protocol:      "tcp",
 	}
@@ -254,6 +257,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEn
 		ContainerIP:   "127.0.0.1",
 		ContainerPort: 5043,
 		HostPort:      5043,
+		ProxyPort:     5043,
 		HostIP:        strings.Split(a.master, ":")[0],
 		Protocol:      "tcp",
 	}

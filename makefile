@@ -49,7 +49,7 @@ INSTALL_TEMPLATES_ONLY = 0
 #
 #    sudo make install PKG=<deb|rpm>
 #
-PKG         = $(default_PKG) # deb | rpm
+PKG         = $(default_PKG) # deb | rpm | tgz
 default_PKG = deb
 
 build_TARGETS = build_isvcs build_js serviced
@@ -182,6 +182,7 @@ serviced: FORCE
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
+	go build ${LDFLAGS}
 	go install ${LDFLAGS}
 
 .PHONY: docker_build
@@ -264,6 +265,7 @@ $(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
 endif
 ifeq "$(_PKG)" "rpm"
 $(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
+$(_DESTDIR)$(prefix)/bin_TARGETS		  += pkg/serviced-systemd.sh:serviced-systemd.sh
 endif
 
 #-----------------------------------#
@@ -378,7 +380,7 @@ install: $(install_TARGETS)
 # Packaging targets   #
 #---------------------#
 
-PKGS = deb rpm
+PKGS = deb rpm tgz
 .PHONY: pkgs
 pkgs:
 	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) $(PKGS)
@@ -416,6 +418,7 @@ test: build docker_ok
 	cd dao && make test
 	cd web && go test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
+	cd node && go test $(GOTEST_FLAGS)
 	cd datastore && make test $(GOTEST_FLAGS)
 	cd domain && make test $(GOTEST_FLAGS)
 	cd facade && go test $(GOTEST_FLAGS)

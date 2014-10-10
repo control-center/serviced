@@ -35,6 +35,7 @@
       var cached_app_templates;
       var cached_services; // top level services only
       var cached_services_map; // map of services by by Id, with children attached
+      var cached_services_updated; // timestamp of last update of cached services
 
       var _get_services_tree = function(callback) {
           $http.noCacheGet('/services').
@@ -624,6 +625,47 @@
               }
           },
 
+          update_services: function(callback){
+              var since,
+                  url = "/services";
+
+              if(cached_services_updated){
+                  // calculate time in ms since last update
+                  since = new Date().getTime() - cached_services_updated;
+                  // add one second buffer to be sure we don't miss anything
+                  since += 1000;
+
+                  url += "?since=" + since;
+              }
+
+              // store the update time for comparison later
+              cached_services_updated = new Date().getTime();
+
+              // if services exist locally, update them
+              if(cached_services && cached_services_map){
+                  $http.get(url).then(function(data){
+                      data.data.forEach(function(service){
+                            var cachedService = cached_services_map[service.ID] || {};
+                            // we can't just blow away the existing service
+                            // because some controllers may be bound to it
+                            // so update the fields on that service
+                            for(var key in service){
+                                if(DEBUG && cachedService[key] !== service[key] && typeof cachedService[key] !== "object"){
+                                    console.log(key, "updated from", cachedService[key], "to", service[key]);
+                                }
+                                cachedService[key] = service[key];
+                            }
+                      });
+
+                      callback(cached_services, cached_services_map);
+                  });
+
+              // we have gotten the initial list of services, so get em
+              } else {
+                 _get_services_tree(callback);
+              }
+          },
+
           /*
            * Retrieve some (probably not the one you want) set of logs for a
            * defined service. To get more specific logs, use
@@ -890,34 +932,36 @@
           /**
            * Creates a backup file of serviced
            */
-          create_backup: function(callback){
+          create_backup: function(success, fail){
+              fail = fail || function(){};
+
               $http.noCacheGet('/backup/create').
                   success(function(data, status) {
-                      callback(data);
+                      success(data);
                   }).
                   error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing service failed", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
+                      fail(data, status);
                   });
           },
 
           /**
            * Restores a backup file of serviced
            */
-          restore_backup: function(filename, callback){
+          restore_backup: function(filename, success, fail){
+              fail = fail || function(){};
+
               $http.get('/backup/restore?filename=' + filename).
                   success(function(data, status) {
-                      callback(data);
+                      success(data);
                   }).
                   error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing service failed", data.Detail).error();
                       if (status === 401) {
                           unauthorized($location);
                       }
+                      fail(data, status);
                   });
           },
 
@@ -945,7 +989,6 @@
                       successCallback(data);
                   }).
                   error(function(data, status) {
-                      $notification.create("", 'Failed retrieving status of backup.').warning();
                       if (status === 401) {
                           unauthorized($location);
                       }
@@ -1032,7 +1075,7 @@
           },
 
           unregisterAllPolls: function(){
-              for(key in pollingFunctions){
+              for(var key in pollingFunctions){
                   $interval.cancel(pollingFunctions[key]);
               }
 

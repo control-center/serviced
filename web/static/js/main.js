@@ -435,40 +435,9 @@ function refreshServices($scope, servicesService, cacheOk, extraCallback) {
         $scope.services = {};
     }
     if(DEBUG) console.log('refresh services called');
-    servicesService.get_services(cacheOk, function(topServices, mappedServices) {
+    servicesService.update_services(function(topServices, mappedServices) {
         $scope.services.data = topServices;
         $scope.services.mapped = mappedServices;
-
-        for (var key in $scope.services.mapped) {
-            var svc = $scope.services.mapped[key];
-            var depClass = "";
-            var iconClass = "";
-            var runningClass = "";
-            var notRunningClass = "";
-            svc.Deployment = 'successful'; // TODO: replace with real data
-
-            switch(svc.Deployment) {
-            case "successful":
-                depClass = "deploy-success";
-                iconClass = "glyphicon glyphicon-ok";
-                break;
-            case "failed":
-                depClass = "deploy-error";
-                iconClass = "glyphicon glyphicon-remove";
-                break;
-            case "in-process":
-                depClass = "deploy-info";
-                iconClass = "glyphicon glyphicon-refresh";
-                break;
-            default:
-                depClass = "deploy-warning";
-                iconClass = "glyphicon glyphicon-question-sign";
-                break;
-            }
-
-            svc.deploymentClass = depClass;
-            svc.deploymentIcon = iconClass;
-        }
 
         if ($scope.params && $scope.params.serviceId) {
             $scope.services.current = $scope.services.mapped[$scope.params.serviceId];

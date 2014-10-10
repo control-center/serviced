@@ -62,6 +62,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/servicehealth", sc.authorizedClient(health.RestGetHealthStatus)},
 		rest.Route{"GET", "/services/:serviceId", sc.authorizedClient(restGetService)},
 		rest.Route{"GET", "/services/:serviceId/running", sc.authorizedClient(restGetRunningForService)},
+		rest.Route{"GET", "/services/:serviceId/status", sc.authorizedClient(restGetStatusForService)},
 		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.authorizedClient(restGetRunningService)},
 		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", sc.authorizedClient(restGetServiceStateLogs)},
 		rest.Route{"POST", "/services/add", sc.authorizedClient(restAddService)},

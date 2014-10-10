@@ -23,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
 	zkregistry "github.com/control-center/serviced/zzk/registry"
-	zkpool "github.com/control-center/serviced/zzk/scheduler"
 	zkhost "github.com/control-center/serviced/zzk/service"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
@@ -125,7 +124,7 @@ func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
 			glog.Infof("validated: vhost %v is already running under THIS servicedID: %v", vhostName, serviceID)
 			return nil
 		}
-		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID")
+		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID: %s", vhostName, vhostEphemeralNode.ServiceID)
 	}
 
 	return nil
@@ -169,7 +168,7 @@ func (z *zkf) AddResourcePool(pool *pool.ResourcePool) error {
 	if err != nil {
 		return err
 	}
-	return zkpool.AddResourcePool(conn, pool)
+	return zkservice.AddResourcePool(conn, pool)
 }
 
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
@@ -177,7 +176,7 @@ func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
 	if err != nil {
 		return err
 	}
-	return zkpool.UpdateResourcePool(conn, pool)
+	return zkservice.UpdateResourcePool(conn, pool)
 }
 
 func (z *zkf) RemoveResourcePool(poolID string) error {
@@ -185,7 +184,7 @@ func (z *zkf) RemoveResourcePool(poolID string) error {
 	if err != nil {
 		return err
 	}
-	return zkpool.RemoveResourcePool(conn, poolID)
+	return zkservice.RemoveResourcePool(conn, poolID)
 }
 
 func (z *zkf) AddVirtualIP(virtualIP *pool.VirtualIP) error {

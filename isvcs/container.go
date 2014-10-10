@@ -102,6 +102,9 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 		ops:    make(chan containerOpRequest),
 		client: client,
 	}
+
+	envPerService[cd.Name] = make(map[string]string)
+
 	go c.loop()
 	return &c, nil
 }
@@ -210,7 +213,7 @@ func (c *Container) doStats(exitChan chan bool) {
 				}
 				id = (*ids)[0]
 			}
-			if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + id + "/cpuacct.stat"); err != nil {
+			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Cpuacct)); err != nil {
 				glog.Warningf("Couldn't read CpuacctStat:", err)
 				id = ""
 				break
@@ -218,7 +221,7 @@ func (c *Container) doStats(exitChan chan bool) {
 				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
 				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
 			}
-			if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + id + "/memory.stat"); err != nil {
+			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Memory)); err != nil {
 				glog.Warningf("Couldn't read MemoryStat:", err)
 				id = ""
 				break
@@ -254,7 +257,7 @@ func (c *Container) doStats(exitChan chan bool) {
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				glog.Warningf("Error making isvc stats request.")
+				glog.V(4).Infof("Error making isvc stats request.")
 				break
 			}
 			if strings.Contains(resp.Status, "204 No Content") == false {
@@ -339,6 +342,10 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 		args = append(args, "-v", hostDir+":"+volume)
 	}
 
+	for key, val := range envPerService[c.Name] {
+		args = append(args, "-e", key+"="+val)
+	}
+
 	// set the image and command to run
 	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command())
 
@@ -410,7 +417,7 @@ func (c *Container) Stop() error {
 }
 
 // RunCommand runs a command inside the container.
-func (c *Container) RunCommand(command []string) error {
+func (c *Container) RunCommand(command []string, useSudo bool) error {
 	var id string
 	ids, err := c.getMatchingContainersIds()
 	if err != nil {
@@ -421,7 +428,7 @@ func (c *Container) RunCommand(command []string) error {
 		return fmt.Errorf("No docker container found for %s", c.Name)
 	}
 	id = (*ids)[0]
-	output, err := utils.AttachAndRun(id, command)
+	output, err := utils.AttachAndRunMaybeSudo(id, command, useSudo)
 	if err != nil {
 		return err
 	}

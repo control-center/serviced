@@ -14,6 +14,8 @@
 package web
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
@@ -21,6 +23,10 @@ import (
 
 // fillBuiltinMetrics adds internal metrics to the monitoring profile
 func fillBuiltinMetrics(svc *service.Service) {
+	if strings.HasPrefix(svc.ID, "isvc-") {
+		return
+	}
+
 	if svc.MonitoringProfile.MetricConfigs == nil {
 		builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 		if err != nil {
@@ -147,6 +153,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			MinY:        &zero,
 			Range:       &tRange,
 			Units:       "Bytes",
+			Base:        1024,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
@@ -185,16 +192,17 @@ func addInternalGraphConfigs(svc *service.Service) {
 			BuiltIn:     true,
 			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
-			Type:        "area",
+			Type:        "line",
 			Tags:        tags,
 			YAxisLabel:  "Bps",
 			Range:       &tRange,
 			Description: "Bytes per second over last hour",
+			MinY:        &zero,
 			Units:       "Bytes per second",
+			Base:        1024,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Fill:         true,
 					Format:       "%4.2f",
 					Legend:       "TX",
 					Metric:       "net.tx_bytes",
@@ -206,7 +214,6 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Fill:         true,
 					Format:       "%4.2f",
 					Legend:       "RX",
 					Metric:       "net.rx_bytes",

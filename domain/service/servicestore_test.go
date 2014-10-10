@@ -19,6 +19,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"testing"
+	"time"
 
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
@@ -120,6 +121,20 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 2)
 
+}
+
+func (s *S) Test_GetUpdatedServices(t *C) {
+	svcs, err := s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 0)
+
+	svc := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto", UpdatedAt: time.Now().Add(-time.Duration(10) * time.Second)}
+	err = s.store.Put(s.ctx, svc)
+	t.Assert(err, IsNil)
+
+	svcs, err = s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
 }
 
 func (s *S) Test_VersionConflicts(t *C) {

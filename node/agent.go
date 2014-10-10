@@ -22,13 +22,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
 	"path"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -43,6 +41,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -53,7 +52,6 @@ import (
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -198,18 +196,25 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 }
 
 // AttachService attempts to attach to a running container
-func (a *HostAgent) AttachService(done chan<- interface{}, service *service.Service, serviceState *servicestate.ServiceState) error {
-	ctr, err := docker.FindContainer(serviceState.DockerID)
+func (a *HostAgent) AttachService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+	ctr, err := docker.FindContainer(state.DockerID)
 	if err != nil {
 		return err
 	}
+
 	if !ctr.IsRunning() {
 		close(done)
 		return nil
-	} else {
-		updateInstance(serviceState, ctr)
-		go a.waitInstance(done, ctr, service, serviceState)
 	}
+
+	ctr.OnEvent(docker.Die, func(cid string) {
+		defer close(done)
+		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
+		state.DockerID = cid
+		a.removeInstance(state.ID, ctr)
+	})
+
+	go a.setProxy(svc, ctr)
 	return nil
 }
 
@@ -249,34 +254,7 @@ func (a *HostAgent) StopService(state *servicestate.ServiceState) error {
 		return err
 	}
 
-	// TODO: Need to delegate the timeout setting somewhere else
-	err = ctr.Stop(45 * time.Second)
-	if err == docker.ErrRequestTimeout {
-		glog.Warningf("Could not stop container %s; killing", state.DockerID)
-		err = ctr.Kill()
-	}
-
-	return err
-}
-
-// RemoveService removes a particular service instance's docker container on localhost
-func (a *HostAgent) RemoveService(state *servicestate.ServiceState) error {
-	if state == nil || state.DockerID == "" {
-		return errors.New("missing Docker ID")
-	}
-
-	ctr, err := docker.FindContainer(state.DockerID)
-	if err != nil {
-		return err
-	}
-
-	if !ctr.IsRunning() {
-		// pass
-	} else if err := ctr.Kill(); err != nil {
-		return err
-	}
-
-	return ctr.Delete(true)
+	return ctr.Stop(45 * time.Second)
 }
 
 func reapContainers(maxAge time.Duration) error {
@@ -320,102 +298,6 @@ func (a *HostAgent) reapOldContainersLoop(interval time.Duration, shutdown <-cha
 func getDockerState(dockerID string) (*docker.Container, error) {
 	glog.V(1).Infof("Inspecting container: %s", dockerID)
 	return docker.FindContainer(dockerID)
-}
-
-func dumpOut(stdout, stderr io.Reader, size int) {
-	dumpBuffer(stdout, size, "stdout")
-	dumpBuffer(stderr, size, "stderr")
-}
-
-func dumpBuffer(reader io.Reader, size int, name string) {
-	buffer := make([]byte, size)
-	if n, err := reader.Read(buffer); err != nil {
-		glog.V(1).Infof("Unable to read %s of dump", name)
-	} else {
-		message := strings.TrimSpace(string(buffer[:n]))
-		if len(message) > 0 {
-			glog.V(0).Infof("Process %s:\n%s", name, message)
-		}
-	}
-}
-
-func (a *HostAgent) waitInstance(procFinished chan<- interface{}, ctr *docker.Container, svc *service.Service, state *servicestate.ServiceState) {
-	exited := make(chan int)
-
-	// Waits for the container to stop running
-	ctr.OnEvent(docker.Die, func(cid string) {
-		defer close(procFinished)
-		rc, err := ctr.Wait(time.Second)
-		if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
-			// TODO: output of docker logs is potentially very large
-			// this should be implemented another way, perhaps a docker attach
-			// or extend docker to give last N seconds
-			if output, err := exec.Command("docker", "logs", state.DockerID).CombinedOutput(); err != nil {
-				glog.Errorf("Could not get logs for container %s", state.DockerID)
-			} else {
-				var buffersize = 1000
-				if index := len(output) - buffersize; index > 0 {
-					output = output[index:]
-				}
-				glog.Warningf("Last %d bytes of container %s: %s", buffersize, state.DockerID, string(output))
-			}
-		}
-
-		glog.Infof("Docker wait %s exited", state.DockerID)
-		if err := ctr.Delete(true); err != nil {
-			glog.Errorf("Could not remove container %s: %s", state.DockerID, err)
-		}
-		exited <- rc
-	})
-
-	glog.V(4).Infof("Looking for address assignment in service %s (%s)", svc.Name, svc.ID)
-	for _, endpoint := range svc.Endpoints {
-		if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
-			glog.V(4).Infof("Found address assignment for %s:%s endpoint %s", svc.Name, svc.ID, endpoint.Name)
-			proxyID := fmt.Sprintf("%v:%v", state.ServiceID, endpoint.Name)
-
-			frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
-			backEnd := proxy.ProxyAddress{IP: state.PrivateIP, Port: endpoint.PortNumber}
-
-			if err := a.proxyRegistry.CreateProxy(proxyID, endpoint.Protocol, frontEnd, backEnd); err != nil {
-				glog.Warningf("Could not starte External address proxy for %v; error: proxyId", proxyID, err)
-			}
-			defer a.proxyRegistry.RemoveProxy(proxyID)
-		}
-	}
-
-	exitcode := <-exited
-	switch exitcode {
-	case -1:
-		glog.V(0).Infof("Docker process killed: %s", state.ID)
-	case 1:
-		glog.V(0).Infof("Docker process stopped: %s", state.ID)
-	case 0:
-		glog.V(0).Infof("Process for service state %s finished", state.ID)
-	}
-}
-
-func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) {
-	state.DockerID = ctr.ID
-	state.Started = ctr.Created
-	state.PrivateIP = ctr.NetworkSettings.IPAddress
-	state.PortMapping = make(map[string][]domain.HostIPAndPort)
-	for k, v := range ctr.NetworkSettings.Ports {
-		pm := []domain.HostIPAndPort{}
-		for _, pb := range v {
-			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
-		}
-		state.PortMapping[string(k)] = pm
-	}
-}
-
-func getSubvolume(varPath, poolID, tenantID, fs string) (*volume.Volume, error) {
-	baseDir, _ := filepath.Abs(path.Join(varPath, "volumes"))
-	if _, err := volume.Mount(fs, poolID, baseDir); err != nil {
-		return nil, err
-	}
-	baseDir, _ = filepath.Abs(path.Join(varPath, "volumes", poolID))
-	return volume.Mount(fs, tenantID, baseDir)
 }
 
 /*
@@ -471,8 +353,8 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 }
 
 // StartService starts a new instance of the specified service and updates the control center state accordingly.
-func (a *HostAgent) StartService(done chan<- interface{}, service *service.Service, serviceState *servicestate.ServiceState) error {
-	glog.V(2).Infof("About to start service %s with name %s", service.ID, service.Name)
+func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -481,10 +363,16 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 	defer client.Close()
 
 	// start from a known good state
-	a.RemoveService(serviceState)
+	if state.DockerID != "" {
+		if ctr, err := docker.FindContainer(state.DockerID); err != nil {
+			glog.Errorf("Could not find container %s for %s", state.DockerID, state.ID)
+		} else if err := ctr.Delete(true); err != nil {
+			glog.Errorf("Could not delete container %s for %s", state.DockerID, state.ID)
+		}
+	}
 
 	// create the docker client Config and HostConfig structures necessary to create and start the service
-	config, hostconfig, err := configureContainer(a, client, service, serviceState, a.virtualAddressSubnet)
+	config, hostconfig, err := configureContainer(a, client, svc, state, a.virtualAddressSubnet)
 	if err != nil {
 		glog.Errorf("can't configure container: %v", err)
 		return err
@@ -497,21 +385,102 @@ func (a *HostAgent) StartService(done chan<- interface{}, service *service.Servi
 	glog.V(3).Infof(">>> HostConfigOptions:\n%s", string(hcjson))
 
 	cd := &docker.ContainerDefinition{
-		dockerclient.CreateContainerOptions{Name: serviceState.ID, Config: config},
+		dockerclient.CreateContainerOptions{Name: state.ID, Config: config},
 		*hostconfig,
 	}
 
-	ctr, err := docker.NewContainer(cd, true, 600*time.Second, nil, nil)
+	ctr, err := docker.NewContainer(cd, false, 10*time.Second, nil, nil)
 	if err != nil {
-		glog.Errorf("can't create container %v: %v", config, err)
+		glog.Errorf("Error trying to create container %v: %v", config, err)
 		return err
 	}
 
-	glog.V(2).Infof("container %s created  Name:%s for service Name:%s ID:%s Cmd:%+v", ctr.ID, serviceState.ID, service.Name, service.ID, config.Cmd)
+	var started sync.WaitGroup
+	started.Add(1)
+	ctr.OnEvent(docker.Start, func(cid string) {
+		glog.Infof("Instance %s (%s) for %s (%s) has started", state.ID, ctr.ID, svc.Name, svc.ID)
+		started.Done()
+	})
 
-	glog.V(2).Infof("container %s a.waitForProcessToDie", ctr.ID)
-	updateInstance(serviceState, ctr)
-	go a.waitInstance(done, ctr, service, serviceState)
+	ctr.OnEvent(docker.Die, func(cid string) {
+		defer close(done)
+		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
+		state.DockerID = cid
+		a.removeInstance(state.ID, ctr)
+	})
+
+	if err := ctr.Start(time.Hour); err != nil {
+		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+		a.removeInstance(state.ID, ctr)
+		return err
+	}
+
+	started.Wait()
+	if err := updateInstance(state, ctr); err != nil {
+		glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+		ctr.Stop(45 * time.Second)
+		return err
+	}
+
+	go a.setProxy(svc, ctr)
+	return nil
+}
+
+func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
+	glog.V(4).Infof("Looking for address assignment in service %s (%s)", svc.Name, svc.ID)
+	for _, endpoint := range svc.Endpoints {
+		if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
+			glog.V(4).Infof("Found address assignment for %s: %s endpoint %s", svc.Name, svc.ID, endpoint.Name)
+			proxyID := fmt.Sprintf("%v:%v", svc.ID, endpoint.Name)
+			frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
+			backEnd := proxy.ProxyAddress{IP: ctr.NetworkSettings.IPAddress, Port: endpoint.PortNumber}
+			if err := a.proxyRegistry.CreateProxy(proxyID, endpoint.Protocol, frontEnd, backEnd); err != nil {
+				glog.Warningf("Could not start External address proxy for %s: %s", proxyID, err)
+			}
+			defer a.proxyRegistry.RemoveProxy(proxyID)
+		}
+	}
+	ctr.Wait(time.Hour * 24 * 365)
+}
+
+func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
+	rc, err := ctr.Wait(time.Second)
+	if err != nil || rc != 0 || glog.GetVerbosity() > 0 {
+		// TODO: output of docker logs is potentially very large
+		// this should be implemented another way, perhaps a docker attach
+		// or extend docker to give last N seconds
+		if output, err := exec.Command("docker", "logs", "--tail", "10000", ctr.ID).CombinedOutput(); err != nil {
+			glog.Errorf("Could not get logs for container %s", ctr.ID)
+		} else {
+			glog.Warningf("Last 10000 lines of container %s:\n %s", ctr.ID, string(output))
+		}
+	}
+	if ctr.IsRunning() {
+		glog.Errorf("Instance %s (%s) is still running, killing container")
+		ctr.Kill()
+	}
+	if err := ctr.Delete(true); err != nil {
+		glog.Errorf("Could not remove instance %s (%s): %s", stateID, ctr.ID, err)
+	}
+	glog.Infof("Service state %s (%s) receieved exit code %d", stateID, ctr.ID, rc)
+
+}
+
+func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) error {
+	if _, err := ctr.Inspect(); err != nil {
+		return err
+	}
+	state.DockerID = ctr.ID
+	state.Started = ctr.Created
+	state.PrivateIP = ctr.NetworkSettings.IPAddress
+	state.PortMapping = make(map[string][]domain.HostIPAndPort)
+	for k, v := range ctr.NetworkSettings.Ports {
+		pm := []domain.HostIPAndPort{}
+		for _, pb := range v {
+			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
+			state.PortMapping[string(k)] = pm
+		}
+	}
 	return nil
 }
 
@@ -640,7 +609,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 	for _, path := range tmpVolumes {
 		cfg.Volumes[path] = struct{}{}
-		glog.V(0).Infof("added temporary docker container path: %s", path)
+		glog.V(4).Infof("added temporary docker container path: %s", path)
 	}
 
 	// add arguments to mount requested directory (if requested)
@@ -756,7 +725,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
 	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
-	sv, err := getSubvolume(a.varPath, service.PoolID, tenantID, a.vfs)
+	sv, err := dfs.GetSubvolume(a.vfs, a.varPath, tenantID)
 	if err != nil {
 		return "", fmt.Errorf("Could not create subvolume: %s", err)
 	}

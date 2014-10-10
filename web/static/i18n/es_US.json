@@ -26,6 +26,7 @@
     "failing_health_checks": "Fallando controles de la Salud",
     "missing_health_checks": "Missing Algunos controles de la Salud",
     "passing_health_checks": "Pasando Todos los controles de la Salud",
+    "health_check": "Estado",
     "container_unavailable": "Container No disponible",
     "stopping_service": "Detener Servicio ...",
 
@@ -46,6 +47,7 @@
     "delete": "Borrar",
     "start": "Comienzo",
     "stop": "Deténgase",
+    "starting": "Comenzando",
 
     "application": "Aplicaci\u00f3n",
 
@@ -286,7 +288,7 @@
     "template_remove": "Quitar plantilla de la aplicación",
     "template_remove_confirm": "Esto eliminará el siguiente plantilla de la aplicación, y no puede ser desecho: ",
 
-    "title_about": "Sobre",
+    "title_about": "Acerca de",
     "title_add_config_file": "A\u00f1adir archivos de configuraci\u00f3n",
     "title_add_host": "A\u00f1adir servidor",
     "title_add_pool": "A\u00f1adir grupo de recursos",

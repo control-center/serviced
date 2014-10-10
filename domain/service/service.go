@@ -93,14 +93,15 @@ func NewService() (s *Service, err error) {
 	return s, err
 }
 
-// HasImports Does the service have endpoint imports
-func (s *Service) HasImports() bool {
+// HasEndpointsFor determines if the service has any imports
+// for the specified purpose, eg import
+func (s *Service) HasEndpointsFor(purpose string) bool {
 	if s.Endpoints == nil {
 		return false
 	}
 
 	for _, ep := range s.Endpoints {
-		if ep.Purpose == "import" {
+		if ep.Purpose == purpose {
 			return true
 		}
 	}

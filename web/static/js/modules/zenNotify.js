@@ -7,6 +7,9 @@ var SEVERITY = {
     ERROR: 3
 };
 
+// stores whatever the last message is
+var lastMessage;
+
 (function() {
     'use strict';
 
@@ -47,6 +50,9 @@ var SEVERITY = {
             this.$attachPoint = $attachPoint;
             this.severity = SEVERITY.INFO;
 
+            this.updateTitle(this.title || "");
+            this.updateStatus(this.msg || "");
+
             // bind onClose context so it doesn't have
             // to be rebound for each event listener
             this.onClose = this.onClose.bind(this);
@@ -56,7 +62,7 @@ var SEVERITY = {
         Notification.prototype = {
             constructor: Notification,
 
-            success: function(){
+            success: function(autoclose){
                 this.severity = SEVERITY.SUCCESS;
 
                 // change notification color, icon, text, etc
@@ -68,14 +74,13 @@ var SEVERITY = {
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show();
-                }
-
+                notificationFactory.store(this);
+                this.show(autoclose);
+                
                 return this;
             },
 
-            warning: function(){
+            warning: function(autoclose){
                 this.severity = SEVERITY.WARNING;
 
                 // change notification color, icon, text, etc
@@ -84,17 +89,13 @@ var SEVERITY = {
 
                 this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
-
-                // show close button and make it active
-                this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show();
-                }
+                notificationFactory.store(this);
+                this.show(autoclose);
 
                 return this;
             },
 
-            info: function(){
+            info: function(autoclose){
                 this.severity = SEVERITY.INFO;
 
                 this.updateTitle(this.title || $translate.instant("info"));
@@ -102,9 +103,8 @@ var SEVERITY = {
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show();
-                }
+                notificationFactory.store(this);
+                this.show(autoclose);
 
                 return this;
             },
@@ -121,9 +121,8 @@ var SEVERITY = {
 
                 // show close button and make it active
                 this.$el.find(".close").show().off().on("click", this.onClose);
-                if(notificationFactory.store(this)){
-                    this.show(false);
-                }
+                notificationFactory.store(this);
+                this.show(false);
 
                 return this;
             },
@@ -154,6 +153,12 @@ var SEVERITY = {
             },
 
             show: function(autoclose){
+                // close previous message if it is not
+                // the current message
+                if(lastMessage && lastMessage !== this){
+                    lastMessage.hide();
+                }
+
                 this.$attachPoint.append(this.$el);
 
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;
@@ -162,6 +167,8 @@ var SEVERITY = {
                 if(autoclose){
                     setTimeout(this.hide, 5000);
                 }
+
+                lastMessage = this;
 
                 return this;
             }

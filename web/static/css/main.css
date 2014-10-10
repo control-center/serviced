@@ -35,6 +35,18 @@
     font-style: normal;
 }
 
+/* disable breakpoints */
+@media (min-width: 768px) {
+  .container {
+    width: 1170px;
+  }
+}
+@media (min-width: 992px) {
+  .container {
+    width: 1170px;
+  }
+}
+
 body {
     padding: 20px;
     color: #666;
@@ -223,7 +235,7 @@ table .btn,
     padding: 15px 8px;
     margin: 0px;
     border: 0px;
-    color: #f6f6f6;
+    color: #CCC;
     font-weight: bold;
     text-shadow: 1px 1px 2px #414141;
 }
@@ -234,7 +246,7 @@ table .btn,
 
 .navbar-zen li.active > button,
 .navbar-zen li.active > a {
-    color: #969696;
+    color: #F6F6F6;
     background-color: #515151;
 }
 
@@ -246,7 +258,23 @@ table .btn,
 }
 
 .navbar-brand {
-    font-weight: bold;
+    width: 153px;
+    background-color: #516685;
+    border-right: solid white 4px;
+}
+.navbar-brand .logoType {
+    position: absolute;
+    top: 7px;
+    left: 48px;
+}
+.navbar-brand .logoCircle{
+    background-color: white;
+    border-radius: 100px;
+    border: solid 4px #516685;
+    position: absolute;
+    top: -8px;
+    left: -24px;
+    z-index: 1000;
 }
 
 .navbar-zen .navbar-right button{
@@ -275,8 +303,9 @@ table .btn,
 }
 
 .navbar {
-    margin-bottom: 0px;
+    margin: 10px 0 0 0;
     border-radius: 0;
+    border: 0;
 }
 
 .item > i {
@@ -304,7 +333,7 @@ table .btn,
     }
     .big textarea {
         width: 960px;
-        min-height: 600px
+        min-height: 500px
     }
 }
 
@@ -945,6 +974,14 @@ rect {
     padding-right: 15px;
 }
 
+/* force stuff to stay 1140px or wider */
+.table,
+.details,
+.navbar-zen,
+.infoWrapper {
+    min-width: 1140px;
+}
+
 /* speed up bootstrap modals */
 .fade {
    opacity: 0;
@@ -960,13 +997,21 @@ rect {
        -o-transition:      -o-transform .15s ease-out;
           transition:         transform .15s ease-out;
 }
+/* make modal content scroll when too tall */
+.modal-body {
+    max-height: 600px;
+    overflow-y: auto;
+}
+.modal {
+    overflow: auto;
+}
 
 /* notifications */
 
 /* this is the main notification holder */
 #notifications {
     position: fixed;
-    top: 72px;
+    top: 80px;
     opacity: 0.9;
     z-index: 999;
 }
@@ -1163,6 +1208,15 @@ rect {
     100% { transform: scale(1.4, 1.4);  }
 }
 
+.healthIconScaler {
+    display: inline-block;
+    -webkit-transform: scale(.6, .6);
+    -moz-transform: scale(.6, .6);
+    -ms-transform: scale(.6, .6);
+}
+.healthIconScaler .healthIcon {
+    top: 5px;
+}
 
 .healthTooltipDetailRow {
     font-size: .9em;
@@ -1302,4 +1356,11 @@ input.ng-invalid:focus.ng-dirty:focus{
 
 input[type=file] {
     height: auto;
+}
+
+.table-collapse {
+    font-size: 8px;
+    padding: 0px 5px 5px 5px;
+    vertical-align: middle;
+    cursor: pointer;
 }

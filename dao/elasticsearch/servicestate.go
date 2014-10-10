@@ -16,31 +16,38 @@ package elasticsearch
 import (
 	//	"errors"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 
+func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {
+	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
+	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.GetPoolForService service=%+v err=%s", serviceID, err)
+		return nil, err
+	}
+
+	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+	if err != nil {
+		glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
+		return nil, err
+	}
+	return poolBasedConn, nil
+}
+
 func (this *ControlPlaneDao) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
 	glog.V(3).Infof("ControlPlaneDao.GetServiceState: request=%v", request)
 	*state = servicestate.ServiceState{}
 
-	var myService service.Service
-	if err := this.GetService(request.ServiceID, &myService); err != nil {
-		glog.V(2).Infof("ControlPlaneDao.GetServiceLogs service=%+v err=%s", request.ServiceID, err)
-		return err
-	}
-
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
+	poolBasedConn, err := this.getPoolBasedConnection(request.ServiceID)
 	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
 	}
-
 	err = zkservice.GetServiceState(poolBasedConn, state, request.ServiceID, request.ServiceStateID)
 	if state == nil {
 		*state = servicestate.ServiceState{}
@@ -52,15 +59,8 @@ func (this *ControlPlaneDao) GetServiceStates(serviceId string, states *[]servic
 	glog.V(2).Infof("ControlPlaneDao.GetServiceStates: serviceId=%s", serviceId)
 	*states = make([]servicestate.ServiceState, 0)
 
-	myService, err := this.facade.GetService(datastore.Get(), serviceId)
+	poolBasedConn, err := this.getPoolBasedConnection(serviceId)
 	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", serviceId, err)
-		return err
-	}
-
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
 	}
 
@@ -75,15 +75,8 @@ func (this *ControlPlaneDao) GetServiceStates(serviceId string, states *[]servic
 func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, serviceStates *[]servicestate.ServiceState) error {
 	glog.V(2).Infof("ControlPlaneDao.getNonTerminatedServiceStates: serviceId=%s", serviceId)
 
-	myService, err := this.facade.GetService(datastore.Get(), serviceId)
+	poolBasedConn, err := this.getPoolBasedConnection(serviceId)
 	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", serviceId, err)
-		return err
-	}
-
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
 	}
 
@@ -95,15 +88,8 @@ func (this *ControlPlaneDao) getNonTerminatedServiceStates(serviceId string, ser
 func (this *ControlPlaneDao) UpdateServiceState(state servicestate.ServiceState, unused *int) error {
 	glog.V(2).Infoln("ControlPlaneDao.UpdateServiceState state=%+v", state)
 
-	myService, err := this.facade.GetService(datastore.Get(), state.ServiceID)
+	poolBasedConn, err := this.getPoolBasedConnection(state.ServiceID)
 	if err != nil {
-		glog.Errorf("Unable to get service %v: %v", state.ServiceID, err)
-		return err
-	}
-
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myService.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myService.PoolID, err)
 		return err
 	}
 
@@ -133,19 +119,12 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 
 func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[string]dao.ServiceStatus) error {
 	*status = make(map[string]dao.ServiceStatus, 0)
-	svc, err := this.facade.GetService(datastore.Get(), serviceID)
+	poolBasedConn, err := this.getPoolBasedConnection(serviceID)
 	if err != nil {
-		glog.Errorf("Unable to get service %s: %s", serviceID, err)
 		return err
 	}
 
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %s: %s", svc.PoolID, err)
-		return err
-	}
-
-	st, err := zkservice.GetServiceStatus(poolBasedConn, svc.ID)
+	st, err := zkservice.GetServiceStatus(poolBasedConn, serviceID)
 	if err != nil {
 		glog.Errorf("zkservice.GetServiceStatus failed (conn: %+v serviceID: %s): %s", poolBasedConn, serviceID, err)
 		return err

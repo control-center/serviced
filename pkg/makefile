@@ -12,15 +12,18 @@
 # limitations under the License.
 
 #
-# RPM and DEB builder for Serviced.
+# RPM and DEB and TGZ builder for Serviced.
 #
 
 NAME          ?= serviced
 VERSION       ?= $(shell cat ../VERSION)
 RELEASE_PHASE ?=
+GIT_COMMIT   ?= $(shell ./gitstatus.sh)
 SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot
+DUID         ?= $(shell id -u)
+DGID         ?= $(shell id -g)
 INSTALL_TEMLATES = 1
 # https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/#license-specification
 DEB_LICENSE   = Apache-2
@@ -117,6 +120,10 @@ stage_rpm: build
 	make clean_dirs clean_dirs=$(PKGROOT)
 	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
 
+stage_tgz: build
+	make clean_dirs clean_dirs=$(PKGROOT)
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=tgz INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
+
 # Make a DEB
 # net-tools provides ifconfig, needed for VIPs
 deb: stage_deb
@@ -141,6 +148,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--config-files /etc/default/serviced \
 		.
 
 # Make an RPM
@@ -149,6 +157,10 @@ rpm: stage_rpm
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d nfs-utils \
+		-d net-tools \
+		-d util-linux \
+		-d 'docker >= 1.2.0' \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -160,5 +172,15 @@ rpm: stage_rpm
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--after-install rpm/postinstall \
+		--before-remove rpm/preuninstall \
+		--after-remove rpm/postuninstall \
+		--config-files /etc/default/serviced \
 		.
-#		-d "supervisor" \
+
+# Make a TGZ
+tgz: stage_tgz
+	tar cvfz /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz -C $(PKGROOT)/ .
+	chown $(DUID):$(DGID) /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz
+	mv /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz .
+

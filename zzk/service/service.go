@@ -29,8 +29,7 @@ import (
 )
 
 const (
-	zkService     = "/services"
-	zkServiceLock = "/locks/service"
+	zkService = "/services"
 )
 
 func servicepath(nodes ...string) string {
@@ -287,20 +286,6 @@ func (l *ServiceListener) pause(rss []dao.RunningService) {
 		}
 		glog.V(2).Infof("Pausing service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
 	}
-}
-
-// IsServiceLocked verifies whether services are locked
-func IsServiceLocked(conn client.Connection) (bool, error) {
-	locks, err := conn.Children(zkServiceLock)
-	if err == client.ErrNoNode {
-		return false, nil
-	}
-	return len(locks) > 0, err
-}
-
-// ServiceLock returns the lock for services
-func ServiceLock(conn client.Connection) client.Lock {
-	return conn.NewLock(zkServiceLock)
 }
 
 // StartService schedules a service to start

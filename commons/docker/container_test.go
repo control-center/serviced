@@ -45,7 +45,7 @@ func TestContainerCommit(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	err = ctr.Start(30*time.Second, nil)
+	err = ctr.Start(30 * time.Second)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -90,7 +90,7 @@ func TestOnContainerStart(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	err = ctr.Start(30*time.Second, nil)
+	err = ctr.Start(30 * time.Second)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -206,7 +206,7 @@ func TestCancelOnEvent(t *testing.T) {
 
 	ctr.CancelOnEvent(Start)
 
-	ctr.Start(1*time.Second, nil)
+	ctr.Start(1 * time.Second)
 
 	select {
 	case <-ec:
@@ -387,7 +387,7 @@ func TestInspectContainer(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	if err := ctr.Start(1*time.Second, nil); err != nil {
+	if err := ctr.Start(1 * time.Second); err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
@@ -434,7 +434,7 @@ func TestRepeatedStart(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	if err := ctr.Start(1*time.Second, nil); err != nil {
+	if err := ctr.Start(1 * time.Second); err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
@@ -445,29 +445,12 @@ func TestRepeatedStart(t *testing.T) {
 		t.Fatal("timed out waiting for container to start")
 	}
 
-	if err := ctr.Start(1*time.Second, nil); err == nil {
+	if err := ctr.Start(1 * time.Second); err == nil {
 		t.Fatal("expecting ErrAlreadyStarted")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
-}
-
-func TestNewContainerTimeout(t *testing.T) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "base:latest",
-				Cmd:   []string{"watch", "ls"},
-			},
-		},
-		dockerclient.HostConfig{},
-	}
-
-	_, err := NewContainer(cd, false, 5*time.Microsecond, nil, nil)
-	if err == nil {
-		t.Fatal("expecting timeout")
-	}
 }
 
 func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {

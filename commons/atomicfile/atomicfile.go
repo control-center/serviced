@@ -43,5 +43,10 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 	if err := ioutil.WriteFile(name, data, perm); err != nil {
 		return err
 	}
-	return os.Rename(name, filename)
+
+	if err := os.Rename(name, filename); err != nil {
+		return err
+	}
+
+	return os.Chmod(filename, perm)
 }

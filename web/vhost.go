@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"sort"
 	"sync"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 )
@@ -133,9 +135,43 @@ func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
 	}
 }
 
-func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry) registry.ProcessChildrenFunc {
-	return func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+func areEqual(s1, s2 []string) bool {
+
+	if s1 == nil || s2 == nil {
+		return false
+	}
+	if len(s1) != len(s2) {
+		return false
+	}
+	for i, v := range s1 {
+		if v != s2[i] {
+			return false
+		}
+	}
+	return true
+}
+
+func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
+	glog.Info("watchVhosts starting")
+
+	glog.V(2).Infof("getting pool based connection")
+	// vhosts are at the root level (not pool aware)
+	poolBasedConn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Fatalf("watchVhosts - Error getting pool based zk connection: %v", err)
+		return err
+	}
+
+	glog.V(2).Infof("creating vhostRegistry")
+	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
+	if err != nil {
+		glog.Fatalf("watchVhosts - Error getting vhost registry: %v", err)
+		return err
+	}
+
+	cancelChan := make(chan bool)
+	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.V(1).Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
 		currentVhosts := make(map[string]struct{})
 		//watch any new vhost nodes
@@ -146,82 +182,77 @@ func (sc *ServiceConfig) getProcessVhosts(vhostRegistry *registry.VhostRegistry)
 				glog.Infof("processing vhost watch: %s", vhostPath)
 				cancelChan := make(chan bool)
 				vregistry.vhostWatch[vhostPath] = cancelChan
-				go vhostRegistry.WatchKey(conn, vhostID, cancelChan, sc.processVhost(vhostID), vhostWatchError)
+				go func(vhostID string) {
+					glog.Infof("starting vhost watch: %s", vhostPath)
+					var lastChildIDs []string
+					processVhost := func(conn client.Connection, parentPath string, childIDs ...string) {
+
+						glog.V(1).Infof("watching:%s %+v", parentPath, childIDs)
+						if !sort.StringsAreSorted(childIDs) {
+							sort.Strings(childIDs)
+						}
+						if areEqual(lastChildIDs, childIDs) {
+							glog.V(1).Infof("not processing children because they are the same as last ones: %v = %v ", lastChildIDs, childIDs)
+							return
+						}
+						glog.V(1).Infof("processing vhost parent %v; children %v", parentPath, childIDs)
+						vr, err := registry.VHostRegistry(conn)
+						if err != nil {
+							glog.Errorf("processVhost - Error getting vhost registry: %v", err)
+							return
+						}
+
+						errors := false
+						vhostEndpoints := newVhostInfo()
+						for _, child := range childIDs {
+							vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
+							if err != nil {
+								errors = true
+								glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
+								continue
+							}
+							glog.V(1).Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
+							vepInfo := createvhostEndpointInfo(vhEndpoint)
+							vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
+						}
+						vregistry.setVhostInfo(vhostID, vhostEndpoints)
+						if !errors {
+							lastChildIDs = childIDs
+						}
+					}
+					vhostRegistry.WatchKey(conn, vhostID, cancelChan, processVhost, vhostWatchError)
+				}(vhostID)
 			} else {
-				glog.Infof("vhost %s already being watched", vhostPath)
+				glog.V(2).Infof("vhost %s already being watched", vhostPath)
 			}
 		}
 
 		//cancel watching any vhosts nodes that are no longer
 		for previousVhost, cancel := range vregistry.vhostWatch {
 			if _, found := currentVhosts[previousVhost]; !found {
-				glog.Infof("Cancelling vhost watch for %s}", previousVhost)
+				glog.V(2).Infof("Cancelling vhost watch for %s}", previousVhost)
 				delete(vregistry.vhostWatch, previousVhost)
 				cancel <- true
 				close(cancel)
 			}
 		}
 	}
-}
 
-func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
-	glog.Info("watchVhosts starting")
-
-	// vhosts are at the root level (not pool aware)
-	poolBasedConn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
-		return err
-	}
-
-	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
-	if err != nil {
-		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
-		return err
-	}
-
-	cancelChan := make(chan bool)
-	//listens to shutdown
-	go func() {
+	for {
+		glog.V(1).Info("Running vhostRegistry.WatchRegistry")
+		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, processVhosts, vhostWatchError)
 		select {
 		case <-shutdown:
 			close(cancelChan)
 			for vhost, ch := range vregistry.vhostWatch {
-				glog.Infof("Shutdown closing watch for %v", vhost)
+				glog.V(1).Infof("Shutdown closing watch for %v", vhost)
 				close(ch)
 			}
+			break
+		default:
 		}
-	}()
-
-	vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, sc.getProcessVhosts(vhostRegistry), vhostWatchError)
-	glog.Warning("watchVhosts ended")
-	return nil
-}
-
-//processVhost is used to watch the children of particular vhost in the registry
-func (sc *ServiceConfig) processVhost(vhostID string) registry.ProcessChildrenFunc {
-
-	return func(conn client.Connection, parentPath string, childIDs ...string) {
-		glog.Infof("processing vhost parent %v; children %v", parentPath, childIDs)
-		vr, err := registry.VHostRegistry(conn)
-		if err != nil {
-			glog.Errorf("processVhost - Error getting vhost registry: %v", err)
-			return
-		}
-
-		vhostEndpoints := newVhostInfo()
-		for _, child := range childIDs {
-			vhEndpoint, err := vr.GetItem(conn, parentPath+"/"+child)
-			if err != nil {
-				glog.Errorf("processVhost - Error getting vhost for %v/%v: %v", parentPath, child, err)
-				continue
-			}
-			glog.Infof("Processing vhost %s/%s: %#v", parentPath, child, vhEndpoint)
-			vepInfo := createvhostEndpointInfo(vhEndpoint)
-			vhostEndpoints.endpoints = append(vhostEndpoints.endpoints, vepInfo)
-		}
-		vregistry.setVhostInfo(vhostID, vhostEndpoints)
 	}
+	return nil
 }
 
 func vhostWatchError(path string, err error) {
@@ -255,12 +286,7 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, fmt.Sprintf("no available service for vhost %v ", subdomain), http.StatusNotFound)
 		return
 	}
-	remoteAddr := fmt.Sprintf("%s:%d", vhEP.hostIP, vhEP.epPort)
-	if sc.muxTLS && (sc.muxPort > 0) { // Only do TLS if connecting to a TCPMux
-		remoteAddr = fmt.Sprintf("%s:%d", vhEP.hostIP, sc.muxPort)
-	}
-	rp := getReverseProxy(remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
-	glog.V(1).Infof("vhost proxy remoteAddr:%s sc.muxPort:%s vhEP.privateIP:%s vhEP.epPort:%s", remoteAddr, sc.muxPort, vhEP.privateIP, vhEP.epPort)
+	rp := getReverseProxy(vhEP.hostIP, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
 
 	// Set up the X-Forwarded-Proto header so that downstream servers know
@@ -275,15 +301,34 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
 
 var reverseProxies map[string]*httputil.ReverseProxy
 var reverseProxiesLock sync.Mutex
+var localAddrs map[string]struct{}
 
 func init() {
+	var err error
 	reverseProxies = make(map[string]*httputil.ReverseProxy)
+	hostAddrs, err := utils.GetIPv4Addresses()
+	if err != nil {
+		panic(err)
+	}
+	localAddrs = make(map[string]struct{})
+	for _, host := range hostAddrs {
+		localAddrs[host] = struct{}{}
+	}
 }
 
-func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
+func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort uint16, useTLS bool) *httputil.ReverseProxy {
+
+	var remoteAddr string
 
 	reverseProxiesLock.Lock()
 	defer reverseProxiesLock.Unlock()
+
+	_, isLocalContainer := localAddrs[hostIP]
+	if isLocalContainer {
+		remoteAddr = fmt.Sprintf("%s:%d", privateIP, privatePort)
+	} else {
+		remoteAddr = fmt.Sprintf("%s:%d", hostIP, muxPort)
+	}
 
 	key := fmt.Sprintf("%s,%d,%s,%s,%v", remoteAddr, muxPort, privateIP, privatePort, useTLS)
 	proxy, ok := reverseProxies[key]
@@ -297,7 +342,7 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 
 	transport := &http.Transport{Proxy: http.ProxyFromEnvironment}
 	transport.Dial = func(network, addr string) (remote net.Conn, err error) {
-		if useTLS { // Only do TLS if connecting to a TCPMux
+		if useTLS && !isLocalContainer { // Only do TLS if connecting to a TCPMux
 			config := tls.Config{InsecureSkipVerify: true}
 			glog.V(1).Infof("vhost about to dial %s", remoteAddr)
 			remote, err = tls.Dial("tcp4", remoteAddr, &config)
@@ -309,7 +354,7 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 			return nil, err
 		}
 
-		if muxPort > 0 {
+		if muxPort > 0 && !isLocalContainer {
 			//TODO: move this check to happen sooner
 			if len(privateIP) == 0 {
 				return nil, fmt.Errorf("missing endpoint")
@@ -321,11 +366,9 @@ func getReverseProxy(remoteAddr string, muxPort int, privateIP string, privatePo
 		}
 		return remote, nil
 	}
-	transport.DisableCompression = true
-	transport.DisableKeepAlives = true
 	rp := httputil.NewSingleHostReverseProxy(&rpurl)
 	rp.Transport = transport
-	rp.FlushInterval = time.Second
+	rp.FlushInterval = time.Millisecond * 10
 
 	reverseProxies[key] = rp
 	return rp
