@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
@@ -258,6 +259,8 @@ func (d *daemon) startMaster() error {
 	if d.cpDao, err = d.initDAO(); err != nil {
 		return err
 	}
+
+	health.SetDao(d.cpDao)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		return err

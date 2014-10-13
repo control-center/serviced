@@ -14,6 +14,8 @@
 package health
 
 import (
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +42,8 @@ type messagePacket struct {
 // Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
 var healthStatuses = make(map[string]map[string]map[string]*healthStatus)
 
+var cpDao dao.ControlPlane
+var runningServices []dao.RunningService
 var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
 
@@ -57,6 +61,70 @@ func init() {
 	healthStatuses["isvc-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
 	healthStatuses["isvc-celery"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
 	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	go cleanup()
+}
+
+func getService(serviceID, instanceID string) *dao.RunningService{
+	for _, svc := range runningServices {
+		if svc.ServiceID == serviceID && strconv.Itoa(svc.InstanceID) == instanceID {
+			return &svc
+		}
+	}
+	return nil
+}
+
+func isService(serviceID string) bool {
+	for _, svc := range runningServices {
+		if svc.ServiceID == serviceID {
+			return true
+		}
+	}
+	return false
+}
+
+// Removes no longer running services and updates their start time.
+func cleanup() {
+	var empty interface{}
+	for {
+		select {
+		case <- time.After(time.Second * 5):
+			if cpDao == nil {
+				break
+			}
+			var start = time.Now()
+			err := cpDao.GetRunningServices(&empty, &runningServices)
+			glog.Warningf("%s", time.Since(start))
+			if err != nil {
+				glog.Warningf("Error acquiring running services: %v", err)
+			}
+			for serviceID, instances := range healthStatuses {
+				if strings.HasPrefix(serviceID, "isvc-") {
+					continue
+				}
+				if !isService(serviceID) {
+					delete(healthStatuses, serviceID)
+					continue
+				}
+				for instanceID, healthChecks := range instances {
+					svc := getService(serviceID, instanceID)
+					if svc == nil {
+						delete (instances, instanceID)
+						continue
+					}
+					for _, check := range healthChecks {
+						if check.StartedAt == 0 {
+							check.StartedAt = svc.StartedAt.Unix()
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+// Stores the dao.ControlPlane object created in daemon.go for use in this module.
+func SetDao(d dao.ControlPlane) {
+	cpDao = d;
 }
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
@@ -69,7 +137,6 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, d dao.ControlPlane, f *facade.Facade) {
 	lock.Lock()
 	defer lock.Unlock()
-
 	serviceStatus, ok := healthStatuses[serviceID]
 	if !ok {
 		serviceStatus = make(map[string]map[string]*healthStatus)
@@ -96,23 +163,10 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 	}
 	thisStatus, ok = instanceStatus[name]
 	if !ok {
-		glog.Warningf("ignoring health status, not found in service: %s %s %s", serviceID, name, passed)
+		glog.Warningf("ignoring %s health status %s, not found in service %s", passed, name, serviceID)
 		return
 	}
 	thisStatus.Status = passed
 	thisStatus.Timestamp = time.Now().UTC().Unix()
-
-	if thisStatus.StartedAt == 0 {
-		var runningServices []dao.RunningService
-		err := d.GetRunningServicesForService(serviceID, &runningServices)
-		if err == nil && len(runningServices) > 0 {
-			thisStatus.StartedAt = runningServices[0].StartedAt.Unix()
-		}
-	}
 }
 
-func UnregisterHealthCheck(serviceID string) {
-	lock.Lock()
-	defer lock.Unlock()
-	delete(healthStatuses, serviceID)
-}
