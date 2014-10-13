@@ -186,7 +186,6 @@ func (c *Container) loop() {
 	}
 }
 
-
 type containerStat struct {
 	Metric    string            `json:"metric"`
 	Value     string            `json:"value"`
@@ -258,7 +257,7 @@ func (c *Container) doStats(exitChan chan bool) {
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				glog.Warningf("Error making isvc stats request.")
+				glog.V(4).Infof("Error making isvc stats request.")
 				break
 			}
 			if strings.Contains(resp.Status, "204 No Content") == false {
@@ -344,7 +343,7 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	}
 
 	for key, val := range envPerService[c.Name] {
-		args = append(args, "-e", key + "=" + val)
+		args = append(args, "-e", key+"="+val)
 	}
 
 	// set the image and command to run

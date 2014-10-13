@@ -85,7 +85,7 @@
 		},
 		{
 			"ImportPath": "github.com/control-center/go-procfs/linux",
-			"Rev": "0a9f26d22621f19cefe9832f66919a4d86b00c6d"
+			"Rev": "7e0c2872bd5d0a33366858b07280ba7673896f31"
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",

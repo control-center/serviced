@@ -175,6 +175,10 @@ func (sr StatsReporter) updateHostStats() {
 	}
 	metrics.GetOrRegisterGauge("vmstat.pgfault", sr.hostRegistry).Update(int64(vmstat.Pgfault))
 	metrics.GetOrRegisterGauge("vmstat.pgmajfault", sr.hostRegistry).Update(int64(vmstat.Pgmajfault))
+	metrics.GetOrRegisterGauge("vmstat.pgpgout", sr.hostRegistry).Update(int64(vmstat.Pgpgout) * 1024)
+	metrics.GetOrRegisterGauge("vmstat.pgpgin", sr.hostRegistry).Update(int64(vmstat.Pgpgin) * 1024)
+	metrics.GetOrRegisterGauge("vmstat.pswpout", sr.hostRegistry).Update(int64(vmstat.Pswpout) * 1024)
+	metrics.GetOrRegisterGauge("vmstat.pswpin", sr.hostRegistry).Update(int64(vmstat.Pswpin) * 1024)
 
 	if openFileDescriptorCount, err := GetOpenFileDescriptorCount(); err != nil {
 		glog.Warningf("Couldn't get open file descriptor count", err)
@@ -197,13 +201,13 @@ func (sr StatsReporter) updateStats() {
 		if rs.DockerID != "" {
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
 			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Cpuacct)); err != nil {
-				glog.Warningf("Couldn't read CpuacctStat:", err)
+				glog.V(4).Infof("Couldn't read CpuacctStat:", err)
 			} else {
 				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", containerRegistry).Update(cpuacctStat.System)
 				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", containerRegistry).Update(cpuacctStat.User)
 			}
 			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(rs.DockerID, cgroup.Memory)); err != nil {
-				glog.Warningf("Couldn't read MemoryStat:", err)
+				glog.V(4).Infof("Couldn't read MemoryStat:", err)
 			} else {
 				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", containerRegistry).Update(memoryStat.Pgfault)
 				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", containerRegistry).Update(memoryStat.TotalRss)

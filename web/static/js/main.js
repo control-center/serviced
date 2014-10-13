@@ -93,7 +93,7 @@ controlplane.
     config(["$httpProvider", function($httpProvider){
         //initialize get if not there
         if (!$httpProvider.defaults.headers.get) {
-            $httpProvider.defaults.headers.get = {};    
+            $httpProvider.defaults.headers.get = {};
         }
         $httpProvider.defaults.headers.get['Cache-Control'] = 'no-cache';
         $httpProvider.defaults.headers.get['Pragma'] = 'no-cache';
@@ -273,7 +273,7 @@ function AuthService($cookies, $cookieStore, $location, $http, $notification) {
                 error(function(data, status) {
                     // Ensure that the auth service knows that the login failed
                     setLoggedIn(false);
-                    
+
                     failCallback();
                 });
         },
@@ -677,7 +677,9 @@ function map_to_array(data) {
 
 function unauthorized($location) {
     console.error('You don\'t appear to be logged in.');
-    $location.path('/login');
+    // show the login page and then refresh so we lose any incorrect state. CC-279
+    window.location.href = "/#/login";
+    window.location.reload();
 }
 
 /*

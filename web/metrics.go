@@ -79,6 +79,10 @@ var (
 				Metrics: []domain.Metric{
 					domain.Metric{ID: "vmstat.pgfault", Name: "Minor Page Fault", Unit: "Page Faults", Counter: true},
 					domain.Metric{ID: "vmstat.pgmajfault", Name: "Major Page Fault", Unit: "Page Faults", Counter: true},
+					domain.Metric{ID: "vmstat.pgpgout", Name: "Bytes paged out", Unit: "Bytes", Counter: true},
+					domain.Metric{ID: "vmstat.pgpgin", Name: "Bytes paged in", Unit: "Bytes", Counter: true},
+					domain.Metric{ID: "vmstat.pswpout", Name: "Bytes swapped out", Unit: "Bytes", Counter: true},
+					domain.Metric{ID: "vmstat.pswpin", Name: "Bytes swapped in", Unit: "Bytes", Counter: true},
 				},
 			},
 			//Files
@@ -179,6 +183,72 @@ func newMajorPageFaultGraph(tags map[string][]string) domain.GraphConfig {
 		Tags:        tags,
 		Units:       "Page Faults",
 		Description: "Faults per minute",
+	}
+}
+
+// Paging graph
+func newPagingGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				ID:           "vmstat.pgpgout",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "page out",
+				Metric:       "vmstat.pgpgout",
+				MetricSource: "vmstat",
+				Name:         "page out",
+				Rate:         true,
+				Type:         "line",
+			},
+			domain.DataPoint{
+				ID:           "vmstat.pgpgin",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "page in",
+				Metric:       "vmstat.pgpgin",
+				MetricSource: "vmstat",
+				Name:         "page in",
+				Rate:         true,
+				Type:         "line",
+			},
+			domain.DataPoint{
+				ID:           "vmstat.pswpout",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "swap out",
+				Metric:       "vmstat.pswpout",
+				MetricSource: "vmstat",
+				Name:         "swap out",
+				Rate:         true,
+				Type:         "line",
+			},
+			domain.DataPoint{
+				ID:           "vmstat.pswpin",
+				Aggregator:   "avg",
+				Fill:         false,
+				Legend:       "swap in",
+				Metric:       "vmstat.pswpin",
+				MetricSource: "vmstat",
+				Name:         "swap in",
+				Rate:         true,
+				Type:         "line",
+			},
+		},
+		ID:     "paging",
+		Name:   "Paging",
+		Footer: false,
+		Format: "%4.2f",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		Tags:        tags,
+		Units:       "bytes",
+		Description: "System paging",
 	}
 }
 

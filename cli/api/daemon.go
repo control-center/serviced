@@ -67,6 +67,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	// Needed for profiling
+	_ "net/http/pprof"
 )
 
 var minDockerVersion = version{0, 11, 1}
@@ -127,6 +130,17 @@ func (d *daemon) run() error {
 	d.hostID, err = utils.HostID()
 	if err != nil {
 		glog.Fatalf("could not get hostid: %s", err)
+	}
+
+	// Start the debug port listener, if configured
+	if options.DebugPort > 0 {
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
+				glog.Errorf("Unable to bind debug port to %v. Is another instance running?", err)
+				return
+			}
+			glog.Infof("Started debug listener on port %d", options.DebugPort)
+		}()
 	}
 
 	l, err := net.Listen("tcp", options.Listen)

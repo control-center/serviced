@@ -62,7 +62,7 @@ func generateDockerExecCommand(containerID string, bashcmd []string, prependBash
 
 	// TODO: add '-h' hostname to specify the container hostname when that
 	// feature becomes available
-	attachCmd := []string{exeMap["docker"], "exec", "-i", "-t", containerID, "--"}
+	attachCmd := []string{exeMap["docker"], "exec", "-i", "-t", containerID}
 	if prependBash {
 		attachCmd = append(attachCmd, "/bin/bash", "-c", fmt.Sprintf("%s", strings.Join(bashcmd, " ")))
 	} else {

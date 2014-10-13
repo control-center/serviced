@@ -65,6 +65,7 @@ type Options struct {
 	MasterPoolID         string
 	LogstashES           string //logstatsh elasticsearch host:port
 	LogstashMaxDays      int    // Days to keep logstash indices
+	DebugPort            int    // Port to listen for profile clients
 }
 
 // LoadOptions overwrites the existing server options
