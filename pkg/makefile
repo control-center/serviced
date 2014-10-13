@@ -160,6 +160,7 @@ rpm: stage_rpm
 		-d nfs-utils \
 		-d net-tools \
 		-d util-linux \
+		-d bash-completion \
 		-d 'docker >= 1.2.0' \
 		-t rpm \
 		-a x86_64 \
