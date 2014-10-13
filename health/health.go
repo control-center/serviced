@@ -134,7 +134,7 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, d dao.ControlPlane, f *facade.Facade) {
+func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, f *facade.Facade) {
 	lock.Lock()
 	defer lock.Unlock()
 	serviceStatus, ok := healthStatuses[serviceID]
