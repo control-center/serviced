@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"regexp"
 	"time"
 
@@ -94,9 +95,8 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	}
 
 	if useRegistry {
-		err = pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
-		if err != nil {
-			glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
+		if err := PullImage(iid.String()); err != nil {
+			glog.V(2).Infof("Unable to pull image %s: %v", iid.String(), err)
 			return nil, err
 		}
 	}
@@ -105,15 +105,8 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	ctr, err := dc.CreateContainer(*args.containerOptions)
 	switch {
 	case err == dockerclient.ErrNoSuchImage:
-		pullerr := dc.PullImage(
-			dockerclient.PullImageOptions{
-				Repository: iid.BaseName(),
-				Registry:   iid.Registry(),
-				Tag:        iid.Tag,
-			},
-			dockerclient.AuthConfiguration{})
-		if pullerr != nil {
-			glog.V(2).Infof("unable to pull image %s: %v", iid.String(), err)
+		if err := PullImage(iid.String()); err != nil {
+			glog.V(2).Infof("Unable to pull image %s: %v", iid.String(), err)
 			return nil, err
 		}
 		ctr, err = dc.CreateContainer(*args.containerOptions)
@@ -502,8 +495,7 @@ func ImportImage(repotag, filename string) error {
 func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull && useRegistry {
-		err := PullImage(repotag)
-		if err != nil {
+		if err := PullImage(repotag); err != nil {
 			return nil, err
 		}
 	}
@@ -663,11 +655,16 @@ func lookupImage(repotag string) (*Image, error) {
 }
 
 func PullImage(repotag string) error {
-	iid, err := commons.ParseImageID(repotag)
-	if err != nil {
-		return err
+	// TODO: figure out a way to pass auth creds to the api
+	cmd := exec.Command("docker", "pull", repotag)
+
+	// Suppressing docker output (too chatty)
+	if err := cmd.Run(); err != nil {
+		glog.Errorf("Unable to pull image %s", repotag)
+		return fmt.Errorf("image %s not available", repotag)
 	}
-	return pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
+
+	return nil
 }
 
 func pullImage(repo, registry, tag string) error {
@@ -684,6 +681,7 @@ func pullImage(repo, registry, tag string) error {
 		Tag:        tag,
 	}
 
+	// FIXME: Need to populate AuthConfiguration (eventually)
 	err = dc.PullImage(opts, dockerclient.AuthConfiguration{})
 	if err != nil {
 		glog.V(2).Infof("failed to pull %s: %v", repo, err)
@@ -715,6 +713,7 @@ func pushImage(repo, registry, tag string) error {
 		Tag:      tag,
 	}
 
+	// FIXME: Need to populate AuthConfiguration (eventually)
 	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 	if err != nil {
 		glog.V(2).Infof("failed to push %s: %v", repo, err)
