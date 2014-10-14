@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	// "github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -330,6 +331,7 @@ func addInstance(conn client.Connection, state *servicestate.ServiceState) error
 		}
 		return err
 	}
+	// health.RegisterNewInstance(state)
 	return nil
 }
 

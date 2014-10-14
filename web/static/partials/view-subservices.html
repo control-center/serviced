@@ -201,7 +201,7 @@
     </table>
 
   <!-- This table has running instances -->
-    <h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
+  <h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
   <table class="table table-striped" ng-show="running.data.length > 0">
     <thead>
       <tr>
@@ -217,7 +217,7 @@
       <tr ng-hide="running.data !== undefined">
         <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
       </tr>
-      <tr ng-repeat="app in running.data | orderBy:running.sort">
+      <tr ng-repeat="app in running.data | orderBy:running.sort" data-id="{{app.ID}}">
         <td>{{app.InstanceID}}</td>
         <td>{{app.Name}}</td>
         <td style="text-align:center;">

@@ -46,13 +46,133 @@
                 services: servicesDeferred.promise,
                 health: healthCheckDeferred.promise
             }).then(function(results){
-                evaluateServiceStatus(results.services, results.health, appId);
+                //evaluateServiceStatus(results.services, results.health, appId);
+                var service; 
+
+                for(var serviceId in results.services){
+                    service = results.services[serviceId];
+                    // derive service status from service, instances, and healthchecks
+                    var status = new Status(results.health.Statuses[serviceId], service.DesiredState, results.health.Timestamp);
+                    updateServiceStatus(service, status.status, status.description, status.tooltip);
+                }
+
             }).catch(function(err){
                 // something went awry
                 console.log("Promise err", err);
             });
         }
 
+        function Status(service, desiredState, serverTimestamp){
+            // the service being evaluated by this status
+            this.service = service;
+            // the desiredState of the parent service
+            this.state = desiredState;
+            // the timestamp the server sent along with this entire
+            // healthcheck tree
+            this.serverTimestamp = serverTimestamp;
+            // a collection of status for this status's children
+            this.childStatuses = [];
+
+            // bad, good, unknown, down
+            // TODO - enum?
+            this.status = null;
+            this.description = null;
+            this.tooltip = null;
+
+            this.buildStatusTree();
+        }
+
+        Status.prototype = {
+            constructor: Status,
+
+            // drill down till we hit healthchecks, and build a 
+            // tree of status objects
+            buildStatusTree: function(){
+                // this service is down/not started
+                if(!this.service){
+                    this.status = "down";
+                    
+                // if this is a healthcheck, evaluate it!
+                } else if(isHealthCheck(this.service)){
+                    // TODO - evaluate healthcheck
+                    this.evaluateHealthCheck();
+                
+                // otherwise, create a new status object from children
+                } else {
+                    for(var i in this.service){
+                        this.childStatuses.push(new Status(this.service[i], this.state, this.serverTimestamp));
+                    }
+                    this.evaluateStatus();
+                }
+            },
+
+            // determine this.service status by examining child statuses
+            evaluateStatus: function(){
+                var statusObj = this.childStatuses.reduce(function(acc, childStatus){
+                    // if any children are bad, this is bad
+                    if(acc.status === "bad" || childStatus.status === "bad"){
+                        acc.status = "bad";
+
+                    // if all children have been good and this one is good
+                    } else if(acc.status === "good" && childStatus.status === "good"){
+                        acc.status = "good"; 
+
+                    // if all children are down, this one is down
+                    } else if(acc.status === "down" && childStatus.status === "down"){
+                        acc.status = "down"; 
+                    
+                    // otherwise, this one is unknown
+                    } else {
+                        acc.status = "unknown"; 
+                    }
+
+                    return acc;
+                }, {status: "good", description: ""});
+
+                this.status = statusObj.status;
+                // TODO - pass description up through this stuff
+                this.description = statusObj.description;
+            },
+            
+            // determine the health of a service based on start time, 
+            // up time and healthcheck
+            evaluateHealthCheck: function(){ 
+                var hc = this.service;
+
+                // calculates the number of missed healthchecks since last start time
+                var missedIntervals = (this.serverTimestamp - Math.max(hc.Timestamp, hc.StartedAt)) / hc.Interval;
+
+                // if service hasn't started yet
+                if(hc.StartedAt === undefined){
+                    this.status = "down";
+                
+                // if service has missed 2 updates, mark unknown
+                } else if (missedIntervals > 2 && missedIntervals < 60) {
+                    this.status = "unknown";
+
+                // if service has missed 60 updates, mark failed
+                } else if (missedIntervals > 60) {
+                    this.status = "bad";
+
+                // if Status is passed, then good!
+                } else if(hc.Status === "passed") {
+                    this.status = "good";            
+
+                // otherwise I have no idea
+                } else {
+                    this.status = "unknown"; 
+                }
+            }
+        };
+
+        // determine if an object is a healthcheck based on the 
+        // keys it has
+        function isHealthCheck(obj){
+            return ["Status", "Timestamp", "Interval", "StartedAt"].reduce(function(acc, key){
+                return obj.hasOwnProperty(key) ? acc : false;
+            }, true);
+        }
+/*
         function evaluateServiceStatus(services, healthCheckData, appId) {
 
             var healths = healthCheckData.Statuses,
@@ -224,7 +344,7 @@
 
             return status;
         }
-
+*/
         function updateServiceStatus(service, status, description, tooltipDetails){
             tooltipDetails = tooltipDetails || [];
 

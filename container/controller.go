@@ -734,10 +734,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 			case err := <-exited:
 				if err == nil {
 					glog.V(4).Infof("Health check %s succeeded.", name)
-					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
+					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
 				} else {
 					glog.Warningf("Health check %s failed.", name)
-					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
+					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 				}
 			case <-exitChannel:
 				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
@@ -745,7 +745,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 			case <-time.After(timeout):
 				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
 				glog.Warningf("Health check %s timeout.", name)
-				client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
+				client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
 			return
