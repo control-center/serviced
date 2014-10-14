@@ -16,8 +16,6 @@ package facade
 import (
 	"errors"
 	"fmt"
-	"os"
-	"os/exec"
 	"regexp"
 	"strings"
 	"time"
@@ -132,12 +130,7 @@ func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
 		}
 		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
 		glog.Infof("Pulling image %s", image)
-		// Using a subprocess instead of dockerclient in order to take
-		// advantage of Docker's auth and the default registry logic
-		cmd := exec.Command("docker", "pull", image)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-		if err := cmd.Run(); err != nil {
+		if err := docker.PullImage(image); err != nil {
 			glog.Warningf("Unable to pull image %s", image)
 		}
 	}
