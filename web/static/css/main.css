@@ -1175,6 +1175,7 @@ rect {
     width: 24px;
     height: 22px;
     overflow: hidden;
+    cursor: default;
 }
 .healthCheck.wide {
     width: 46px;

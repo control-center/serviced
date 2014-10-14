@@ -193,15 +193,15 @@
                     }
 
                 } else if(this.desiredState === 0){
-                    // if everyone is down, yay!
-                    if(this.statusRollup.allDown()){
-                        this.status = "down";
-                        this.description = $translate.instant("container_down");
+                    // should be down, but is still passing... weird
+                    if(this.statusRollup.anyGood()){
+                        this.status = "unknown";
+                        this.description = $translate.instant("stopping_service");
 
                     // stuff is down as expected
                     } else {
-                        this.status = "unknown";
-                        this.description = $translate.instant("stopping_service");
+                        this.status = "down";
+                        this.description = $translate.instant("container_down");
                     }
                 }
             },
@@ -310,7 +310,6 @@
 
                 // this instance is on its way up, so create an "unknown" status for it
                 if(!statusObj){
-                    console.log("Creating unknown statusObj for", id);
                     statusObj = new Status(id, "", 1);
                     statusObj.statusRollup.incDown();
                     statusObj.evaluateStatus();
@@ -426,10 +425,10 @@
         function bounceStatus($el){
             $el.addClass("zoom");
 
-            $el.on("webkitAnimationEnd mozAnimationEnd", function(){
+            $el.on("webkitAnimationEnd animationend", function(){
                 $el.removeClass("zoom");
                 // clean up animation end listener
-                $el.off("webkitAnimationEnd mozAnimationEnd");
+                $el.off("webkitAnimationEnd animationend");
             });
         }
 
