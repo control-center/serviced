@@ -1168,72 +1168,106 @@ rect {
     color: #CCC;
 }
 
-.healthIcon {
-    -webkit-transform: scale(1.4, 1.4);
-    -moz-transform: scale(1.4, 1.4);
-    -ms-transform: scale(1.4, 1.4);
+
+.healthCheck {
+    position: relative;
+    margin-left: 4px;
+    width: 24px;
+    height: 22px;
+    overflow: hidden;
 }
-.healthIcon.good {
-    color: #0084DB;
+.healthCheck.wide {
+    width: 46px;
 }
-.healthIcon.unknown {
-    color: #94C0DB;
-}
-.healthIcon.disabled {
-    color: #AAA;
-    cursor: auto;
-}
-.healthIcon.bad {
-    color: #9C1200;
-}
-.healthIcon.zoom {
+.healthCheck.zoom {
     animation: zoom .3s;
     -webkit-animation: zoom .3s;
     -moz-animation: zoom .3s;
 }
 @-webkit-keyframes zoom {
-    0% { -webkit-transform: scale(1.4, 1.4); }
-    50% { -webkit-transform: scale(2.4, 2.4); }
-    100% { -webkit-transform: scale(1.4, 1.4);  }
+    0% { -webkit-transform: scale(1, 1); }
+    50% { -webkit-transform: scale(1.5, 1.5); }
+    100% { -webkit-transform: scale(1, 1);  }
 }
 @-moz-keyframes zoom {
-    0% { -moz-transform: scale(1.4, 1.4); }
-    50% { -moz-transform: scale(2.4, 2.4); }
-    100% { -moz-transform: scale(1.4, 1.4);  }
+    0% { -moz-transform: scale(1, 1); }
+    50% { -moz-transform: scale(1.5, 1.5); }
+    100% { -moz-transform: scale(1, 1);  }
 }
 
 @keyframes zoom {
-    0% { transform: scale(1.4, 1.4); }
-    50% { transform: scale(2.4, 2.4); }
-    100% { transform: scale(1.4, 1.4);  }
+    0% { transform: scale(1, 1); }
+    50% { transform: scale(1.5, 1.5); }
+    100% { transform: scale(1, 1);  }
 }
 
-.healthIconScaler {
-    display: inline-block;
-    -webkit-transform: scale(.6, .6);
-    -moz-transform: scale(.6, .6);
-    -ms-transform: scale(.6, .6);
+.healthCheck {
+    transition: width .35s;
 }
-.healthIconScaler .healthIcon {
-    top: 5px;
+
+.healthIcon {
+    font-size: 22px;
+    position: absolute;
+    top: -2px;
+    left: 1px;
+}
+.healthIconBadge {
+    font-size: .9em;
+    font-weight: bold;
+    display: inline-block;
+    vertical-align: top;
+    position: absolute;
+    top: 3px;
+    left: 26px;
+}
+
+/* NOTE: hardcoding glyphicon glyphs here to make CSS simpler.
+ * Changes to glyphicons or angular could cause this to break */
+.good .healthIcon:before{
+    color: #0084DB;
+    content: "\e084";
+}
+.bad .healthIcon:before{
+    color: #9C1200;
+    content: "\e101";
+}
+.unknown .healthIcon:before{
+    color: #94C0DB;
+    content: "\e085";
+}
+.down .healthIcon:before{
+    color: #AAA;
+    content: "\e082";
 }
 
 .healthTooltipDetailRow {
-    font-size: .9em;
+    position: relative;
+    font-size: 12px;
 }
-.healthTooltipDetailRow .healthTooltipDetailName,
-.healthTooltipDetailRow .healthIcon {
+.healthTooltipDetailRow .healthTooltipDetailName {
     display: inline-block;
 }
 .healthTooltipDetailRow .healthIcon {
-    -webkit-transform: scale(1, 1);
-    -moz-transform: scale(1, 1);
-    -ms-transform: scale(1, 1);
+    top: 1px;
+    font-size: 15px;
 }
 .healthTooltipDetailRow .healthTooltipDetailName {
-    margin-left: 10px;
+    padding-left: 18px;
 }
 
+h3 .healthCheck {
+    top: 2px;
+    width: 24px !important;
+}
+h3 .healthIconBadge {
+    display: none !important;
+}
+h3 .healthTooltipDetailRow {
+    padding-bottom: 4px;
+}
+h3 .healthTooltipDetailRow .healthIcon {
+    top: -1px;
+}
 
 /* chart styles */
 .nv-axis .tick text,

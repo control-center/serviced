@@ -44,11 +44,7 @@
           <td ng-click="click_app(app.ID)" class="link">{{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span></td>
           <td>{{app.Description}}</td>
           <td style="text-align:center;">
-            <span data-toggle="tooltip" data-placement="top" ng-attr-title="{{app.healthTooltipTitle}}" class="healthTooltip">
-              <div>
-                  <i class="healthIcon" ng-class="app.healthIconClass"></i>
-              </div>
-            </span>
+              <div class="healthCheck" data-id="{{app.ID}}"></div>
           </td>
           <td>{{app.DeploymentID}}</td>
           <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID}}</td>
