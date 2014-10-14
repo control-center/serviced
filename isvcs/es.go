@@ -78,7 +78,7 @@ func init() {
 	if err != nil {
 		glog.Fatal("Error initializing elasticsearch container: %s", err)
 	}
-	envPerService[serviceName]["ES_JAVA_OPTS"]="-Xmx4g"
+	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {
 		clusterArg := ""
 		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
@@ -134,7 +134,7 @@ func elasticsearchHealthCheck(port int) func() error {
 			}
 			time.Sleep(time.Millisecond * 1000)
 		}
-		glog.Info("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
+		glog.Infof("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
 		return nil
 	}
 }
