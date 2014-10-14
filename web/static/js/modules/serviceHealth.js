@@ -53,7 +53,7 @@
                 // iterate services healthchecks
                 for(var serviceId in results.services){
                     serviceHealthCheck = results.health.Statuses[serviceId];
-                    serviceStatus = new Status(serviceId, results.services[serviceId].Name, results.services[serviceId].DesiredState);
+                    serviceStatus = new Status(serviceId, results.services[serviceId].Name, results.services[serviceId].DesiredState, results.services[serviceId].Instances);
 
                     // if no healthcheck for this service mark as down
                     if(!serviceHealthCheck){
@@ -68,7 +68,7 @@
                             instanceHealthCheck = serviceHealthCheck[instanceId];
                             instanceUniqueId = serviceId +"."+ instanceId;
                             // evaluate the status of this instance
-                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].Name +" "+ instanceId, results.services[serviceId].DesiredState);
+                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].Name +" "+ instanceId, results.services[serviceId].DesiredState, results.services[serviceId].Instances);
                             instanceStatus.evaluateHealthChecks(instanceHealthCheck, results.health.Timestamp);
                             
                             // add this guy's statuses to hash map for easy lookup
@@ -151,10 +151,11 @@
             }
         };
 
-        function Status(id, name, desiredState){
+        function Status(id, name, desiredState, numInstances){
             this.id = id;
             this.name = name;
             this.desiredState = desiredState;
+            this.numInstances = numInstances;
 
             this.statusRollup = new StatusRollup();
             this.children = [];
@@ -213,6 +214,13 @@
                     acc.incStatus(childStatus.status);
                     return acc;
                 }.bind(this), new StatusRollup());
+
+                // if total doesn't match numInstances, then some
+                // stuff is missing! mark unknown!
+                if(this.numInstances !== undefined && this.numInstances >= this.statusRollup.total){
+                    this.statusRollup.unknown += this.numInstances - this.statusRollup.total;
+                    this.statusRollup.total = this.numInstances; 
+                }
 
                 this.evaluateStatus();
             },
@@ -320,8 +328,8 @@
                     statusObj.statusRollup.allDown() ||
                     statusObj.desiredState === 0;
 
-                // if service should be up, show number of instances
-                if(statusObj.desiredState === 1){
+                // if service should be up and there is more than 1 instance, show number of instances
+                if(statusObj.desiredState === 1 && statusObj.statusRollup.total > 1){
                     $el.addClass("wide");
                     $badge.text(statusObj.statusRollup.good +"/"+ statusObj.statusRollup.total).show();
 
@@ -371,6 +379,15 @@
                     // AND healthcheck rows
                     } else {
                         statusObj.children.forEach(function(instanceStatus){
+                            // if this is becoming too long, stop adding rows
+                            if(popoverHTML.length >= 15){
+                                // add an overflow indicator if not already there
+                                if(popoverHTML[popoverHTML.length-1] !== "..."){
+                                    popoverHTML.push("..."); 
+                                }
+                                return;
+                            }
+
                             // only create an instance row for this instance if
                             // it's in a bad or unknown state
                             if(instanceStatus.status === "bad" || instanceStatus.status === "unknown"){
