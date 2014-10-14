@@ -30,6 +30,7 @@
     "missing_health_checks": "Missing Some Health Checks",
     "passing_health_checks": "Passing All Health Checks",
     "container_unavailable": "Container Unavailable",
+    "starting_service": "Starting Service...",
     "stopping_service": "Stopping Service...",
     "container_down": "Not Started",
 
