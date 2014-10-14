@@ -64,7 +64,7 @@ func init() {
 	go cleanup()
 }
 
-func getService(serviceID, instanceID string) *dao.RunningService{
+func getService(serviceID, instanceID string) *dao.RunningService {
 	for _, svc := range runningServices {
 		if svc.ServiceID == serviceID && strconv.Itoa(svc.InstanceID) == instanceID {
 			return &svc
@@ -82,21 +82,21 @@ func isService(serviceID string) bool {
 	return false
 }
 
-// Removes no longer running services and updates their start time.
+// Removes no longer running services and updates service start time.
 func cleanup() {
 	var empty interface{}
 	for {
 		select {
-		case <- time.After(time.Second * 5):
+		case <-time.After(time.Second * 5):
 			if cpDao == nil {
 				break
 			}
-			var start = time.Now()
 			err := cpDao.GetRunningServices(&empty, &runningServices)
-			glog.Warningf("%s", time.Since(start))
 			if err != nil {
 				glog.Warningf("Error acquiring running services: %v", err)
+				continue
 			}
+			lock.Lock()
 			for serviceID, instances := range healthStatuses {
 				if strings.HasPrefix(serviceID, "isvc-") {
 					continue
@@ -108,7 +108,7 @@ func cleanup() {
 				for instanceID, healthChecks := range instances {
 					svc := getService(serviceID, instanceID)
 					if svc == nil {
-						delete (instances, instanceID)
+						delete(instances, instanceID)
 						continue
 					}
 					for _, check := range healthChecks {
@@ -118,13 +118,14 @@ func cleanup() {
 					}
 				}
 			}
+			lock.Unlock()
 		}
 	}
 }
 
 // Stores the dao.ControlPlane object created in daemon.go for use in this module.
 func SetDao(d dao.ControlPlane) {
-	cpDao = d;
+	cpDao = d
 }
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
@@ -169,4 +170,3 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 	thisStatus.Status = passed
 	thisStatus.Timestamp = time.Now().UTC().Unix()
 }
-
