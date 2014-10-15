@@ -241,6 +241,21 @@ var context_testcases = []Service{
 			},
 		},
 	},
+	{
+		ID:              "204",
+		Name:            "204",
+		PoolID:          "default",
+		Launch:          "manual",
+		Context:         map[string]interface{}{},
+		ParentServiceID: "200",
+		ConfigFiles: map[string]servicedefinition.ConfigFile{
+			"range": servicedefinition.ConfigFile{
+				// We store the expected value in the Owner field
+				Owner:   `Woot!`,
+				Content: `{{(getContext . "g.w")}}oot!`,
+			},
+		},
+	},
 }
 
 var addresses []string
