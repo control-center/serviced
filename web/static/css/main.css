@@ -35,11 +35,29 @@
     font-style: normal;
 }
 
+/* disable breakpoints */
+@media (min-width: 768px) {
+  .container {
+    width: 1170px;
+  }
+}
+@media (min-width: 992px) {
+  .container {
+    width: 1170px;
+  }
+}
+
 body {
     padding: 20px;
     color: #666;
     font-family: "Roboto";
 }
+
+textarea {
+    width: 100%;
+    padding: 5px 10px;
+}
+
 .invisible {
     visibility: hidden;
 }
@@ -217,7 +235,7 @@ table .btn,
     padding: 15px 8px;
     margin: 0px;
     border: 0px;
-    color: #f6f6f6;
+    color: #CCC;
     font-weight: bold;
     text-shadow: 1px 1px 2px #414141;
 }
@@ -228,7 +246,7 @@ table .btn,
 
 .navbar-zen li.active > button,
 .navbar-zen li.active > a {
-    color: #969696;
+    color: #F6F6F6;
     background-color: #515151;
 }
 
@@ -240,7 +258,23 @@ table .btn,
 }
 
 .navbar-brand {
-    font-weight: bold;
+    width: 153px;
+    background-color: #516685;
+    border-right: solid white 4px;
+}
+.navbar-brand .logoType {
+    position: absolute;
+    top: 7px;
+    left: 48px;
+}
+.navbar-brand .logoCircle{
+    background-color: white;
+    border-radius: 100px;
+    border: solid 4px #516685;
+    position: absolute;
+    top: -8px;
+    left: -24px;
+    z-index: 1000;
 }
 
 .navbar-zen .navbar-right button{
@@ -269,8 +303,9 @@ table .btn,
 }
 
 .navbar {
-    margin-bottom: 0px;
+    margin: 10px 0 0 0;
     border-radius: 0;
+    border: 0;
 }
 
 .item > i {
@@ -298,7 +333,7 @@ table .btn,
     }
     .big textarea {
         width: 960px;
-        min-height: 600px
+        min-height: 500px
     }
 }
 
@@ -595,6 +630,7 @@ div.top-bar {
     color: #325385;
     border-radius: 10px;
     -webkit-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
+    -moz-box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
     box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
 }
 
@@ -791,6 +827,21 @@ input.startup {
     position: relative;
     height: 200px;
 }
+/* Visualization.js style changes */
+.nodata:before {
+  content: "No Data Available";
+}
+
+.nodata {
+  display: block;
+  position: relative;
+  margin: auto;
+  top: 40px;
+  color: #AAA;
+  text-align: center;
+  font-size: 18pt;
+  font-style: italic;
+}
 
 /* d3 related below */
 
@@ -817,6 +868,7 @@ svg {
 
 svg.tall {
   height: 1200px;
+  width: 1140px;
 }
 
 rect {
@@ -922,6 +974,14 @@ rect {
     padding-right: 15px;
 }
 
+/* force stuff to stay 1140px or wider */
+.table,
+.details,
+.navbar-zen,
+.infoWrapper {
+    min-width: 1140px;
+}
+
 /* speed up bootstrap modals */
 .fade {
    opacity: 0;
@@ -937,13 +997,21 @@ rect {
        -o-transition:      -o-transform .15s ease-out;
           transition:         transform .15s ease-out;
 }
+/* make modal content scroll when too tall */
+.modal-body {
+    max-height: 600px;
+    overflow-y: auto;
+}
+.modal {
+    overflow: auto;
+}
 
 /* notifications */
 
 /* this is the main notification holder */
 #notifications {
     position: fixed;
-    top: 72px;
+    top: 80px;
     opacity: 0.9;
     z-index: 999;
 }
@@ -1002,6 +1070,7 @@ rect {
 .notification.bg-info .dialogIcon {
     animation: throb 3s infinite;
     -webkit-animation: throb 3s infinite;
+    -moz-animation: throb 3s infinite;
 }
 @keyframes throb {
   0%   { opacity: 1; }
@@ -1009,6 +1078,11 @@ rect {
   20% { opacity: 1; }
 }
 @-webkit-keyframes throb {
+  0%   { opacity: 1; }
+  10%  { opacity: .5;}
+  20% { opacity: 1; }
+}
+@-moz-keyframes throb {
   0%   { opacity: 1; }
   10%  { opacity: .5;}
   20% { opacity: 1; }
@@ -1080,48 +1154,121 @@ rect {
     margin-right: 7px;
 }
 
+.messageCounter {
+    display: inline-block;
+    width: 25px;
+    text-align: center;
+    background-color: #AAA;
+    color: white;
+    border-radius: 15px;
+    margin-right: 10px;
+}
+
 .readMessage .glyphicon{
-    color: #cccccc;
+    color: #CCC;
+}
+
+
+.healthCheck {
+    position: relative;
+    margin-left: 4px;
+    width: 24px;
+    height: 22px;
+    overflow: hidden;
+    cursor: default;
+}
+.healthCheck.wide {
+    width: 46px;
+}
+.healthCheck.zoom {
+    animation: zoom .3s;
+    -webkit-animation: zoom .3s;
+    -moz-animation: zoom .3s;
+}
+@-webkit-keyframes zoom {
+    0% { -webkit-transform: scale(1, 1); }
+    50% { -webkit-transform: scale(1.5, 1.5); }
+    100% { -webkit-transform: scale(1, 1);  }
+}
+@-moz-keyframes zoom {
+    0% { -moz-transform: scale(1, 1); }
+    50% { -moz-transform: scale(1.5, 1.5); }
+    100% { -moz-transform: scale(1, 1);  }
+}
+
+@keyframes zoom {
+    0% { transform: scale(1, 1); }
+    50% { transform: scale(1.5, 1.5); }
+    100% { transform: scale(1, 1);  }
+}
+
+.healthCheck {
+    transition: width .35s;
 }
 
 .healthIcon {
-    -webkit-transform: scale(1.4, 1.4);
+    font-size: 22px;
+    position: absolute;
+    top: -2px;
+    left: 1px;
 }
-.healthIcon.good {
+.healthIconBadge {
+    font-size: .9em;
+    font-weight: bold;
+    display: inline-block;
+    vertical-align: top;
+    position: absolute;
+    top: 3px;
+    left: 26px;
+}
+
+/* NOTE: hardcoding glyphicon glyphs here to make CSS simpler.
+ * Changes to glyphicons or angular could cause this to break */
+.good .healthIcon:before{
     color: #0084DB;
+    content: "\e084";
 }
-.healthIcon.unknown {
-    color: #94C0DB;
-}
-.healthIcon.disabled {
-    color: #666;
-}
-.healthIcon.bad {
+.bad .healthIcon:before{
     color: #9C1200;
+    content: "\e101";
 }
-.healthIcon.zoom {
-    -webkit-animation: zoom .3s;
+.unknown .healthIcon:before{
+    color: #94C0DB;
+    content: "\e085";
 }
-@-webkit-keyframes zoom {
-    0% { -webkit-transform: scale(1.4, 1.4); }
-    50% { -webkit-transform: scale(2.4, 2.4); }
-    100% { -webkit-transform: scale(1.4, 1.4);  }
+.down .healthIcon:before{
+    color: #AAA;
+    content: "\e082";
 }
 
 .healthTooltipDetailRow {
-    font-size: .9em;
+    position: relative;
+    font-size: 12px;
 }
-.healthTooltipDetailRow .healthTooltipDetailName,
-.healthTooltipDetailRow .healthIcon {
+.healthTooltipDetailRow .healthTooltipDetailName {
     display: inline-block;
 }
 .healthTooltipDetailRow .healthIcon {
-    -webkit-transform: scale(1, 1);
+    top: 1px;
+    font-size: 15px;
 }
 .healthTooltipDetailRow .healthTooltipDetailName {
-    margin-left: 10px;
+    padding-left: 18px;
 }
 
+h3 .healthCheck {
+    top: 2px;
+    width: 24px !important;
+}
+h3 .healthIconBadge {
+    display: none !important;
+}
+h3 .healthTooltipDetailRow {
+    padding-bottom: 4px;
+}
+h3 .healthTooltipDetailRow .healthIcon {
+    top: -1px;
+}
 
 /* chart styles */
 .nv-axis .tick text,
@@ -1144,14 +1291,14 @@ rect {
 }
 
 .zenchart {
-    margin-left: -50px;
+    margin-left: -45px;
 }
 
 .zenchartContainer {
     width: calc(50% - 20px);
     margin: 10px 20px 10px 0;
     float: left;
-    padding: 10px;
+    padding: 20px;
     box-shadow: rgba(0,0,0,.3) 0 1px 3px;
     border: solid #EEE 1px;
 }
@@ -1231,4 +1378,24 @@ input.ng-invalid:focus.ng-dirty:focus{
 
 #deployStatus{
     margin-top: 20px;
+}
+
+.version{
+    font-size: .75em;
+}
+
+.ntsh {
+    color: #CCC;
+    font-style: italic;
+}
+
+input[type=file] {
+    height: auto;
+}
+
+.table-collapse {
+    font-size: 8px;
+    padding: 0px 5px 5px 5px;
+    vertical-align: middle;
+    cursor: pointer;
 }

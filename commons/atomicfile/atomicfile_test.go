@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package atomicfile
 
@@ -33,5 +42,13 @@ func TestWriteFile(t *testing.T) {
 	}
 	if !reflect.DeepEqual(data, expectedBytes) {
 		t.Fatalf("got %+v expected %+v", data, expectedBytes)
+	}
+	stats, err := os.Stat(f.Name())
+	if err != nil {
+		t.Fatalf("error getting stats on file %s: %s", f.Name(), err)
+	}
+	newMode := stats.Mode()
+	if 0660 != newMode {
+		t.Fatalf("desired file mode (%s) not successfully found (%s)", 0660, newMode)
 	}
 }

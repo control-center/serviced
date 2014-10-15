@@ -19,18 +19,17 @@
           <row>
             <entry><codeph>ID</codeph></entry>
             <entry>String</entry>
-            <entry>The unique identifier of the metrics. <draft-comment author="gemil">Unique in
-                what context?</draft-comment></entry>
+            <entry>The unique identifier of the metric.</entry>
           </row>
           <row>
             <entry><codeph>Name</codeph></entry>
             <entry>String</entry>
-            <entry>The canonical name of the metrics.</entry>
+            <entry>The canonical name of the metric.</entry>
           </row>
           <row>
             <entry><codeph>Description</codeph></entry>
             <entry>String</entry>
-            <entry>The description of the metrics.</entry>
+            <entry>The description of the metric.</entry>
           </row>
           <row>
             <entry><codeph>Query</codeph></entry>

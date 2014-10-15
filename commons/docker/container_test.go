@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package docker
 
@@ -36,7 +45,7 @@ func TestContainerCommit(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	err = ctr.Start(30*time.Second, nil)
+	err = ctr.Start(30 * time.Second)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -81,7 +90,7 @@ func TestOnContainerStart(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	err = ctr.Start(30*time.Second, nil)
+	err = ctr.Start(30 * time.Second)
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -197,7 +206,7 @@ func TestCancelOnEvent(t *testing.T) {
 
 	ctr.CancelOnEvent(Start)
 
-	ctr.Start(1*time.Second, nil)
+	ctr.Start(1 * time.Second)
 
 	select {
 	case <-ec:
@@ -378,7 +387,7 @@ func TestInspectContainer(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	if err := ctr.Start(1*time.Second, nil); err != nil {
+	if err := ctr.Start(1 * time.Second); err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
@@ -425,7 +434,7 @@ func TestRepeatedStart(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	if err := ctr.Start(1*time.Second, nil); err != nil {
+	if err := ctr.Start(1 * time.Second); err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
@@ -436,29 +445,12 @@ func TestRepeatedStart(t *testing.T) {
 		t.Fatal("timed out waiting for container to start")
 	}
 
-	if err := ctr.Start(1*time.Second, nil); err == nil {
+	if err := ctr.Start(1 * time.Second); err == nil {
 		t.Fatal("expecting ErrAlreadyStarted")
 	}
 
 	ctr.Kill()
 	ctr.Delete(true)
-}
-
-func TestNewContainerTimeout(t *testing.T) {
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "base:latest",
-				Cmd:   []string{"watch", "ls"},
-			},
-		},
-		dockerclient.HostConfig{},
-	}
-
-	_, err := NewContainer(cd, false, 5*time.Microsecond, nil, nil)
-	if err == nil {
-		t.Fatal("expecting timeout")
-	}
 }
 
 func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
@@ -566,7 +558,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 }
 
 func TestNewContainerOnStartedAction(t *testing.T) {
-	t.Skip("skip this until the build box issues get sorted out")
+	//t.Skip("skip this until the build box issues get sorted out")
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{

@@ -1,4 +1,4 @@
-function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService, $translate) {
+function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -26,7 +26,7 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         console.log( "Removing pool's virtual ip address: ", ip);
 
         $modalService.create({
-            template: $translate("confirm_remove_virtual_ip") + " <strong>"+ ip.IP +"</strong>",
+            template: $translate.instant("confirm_remove_virtual_ip") + " <strong>"+ ip.IP +"</strong>",
             model: $scope,
             title: "remove_virtual_ip",
             actions: [

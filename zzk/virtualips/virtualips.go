@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package virtualips
 
@@ -8,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
@@ -18,6 +28,8 @@ import (
 const (
 	zkVirtualIP            = "/virtualIPs"
 	virtualInterfacePrefix = ":zvip"
+	maxRetries             = 2
+	waitTimeout            = 30 * time.Second
 )
 
 var (
@@ -68,12 +80,12 @@ type VirtualIPListener struct {
 
 	index chan int
 	ips   map[string]chan bool
+	retry map[string]int
 }
 
 // NewVirtualIPListener instantiates a new VirtualIPListener object
-func NewVirtualIPListener(conn client.Connection, handler VirtualIPHandler, hostID string) *VirtualIPListener {
+func NewVirtualIPListener(handler VirtualIPHandler, hostID string) *VirtualIPListener {
 	l := &VirtualIPListener{
-		conn:    conn,
 		handler: handler,
 		hostID:  hostID,
 		index:   make(chan int),
@@ -92,7 +104,7 @@ func NewVirtualIPListener(conn client.Connection, handler VirtualIPHandler, host
 }
 
 // GetConnection implements zzk.Listener
-func (l *VirtualIPListener) GetConnection() client.Connection { return l.conn }
+func (l *VirtualIPListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
 func (l *VirtualIPListener) GetPath(nodes ...string) string {
@@ -117,18 +129,44 @@ func (l *VirtualIPListener) Ready() error {
 // Done implements zzk.Listener
 func (l *VirtualIPListener) Done() {}
 
+// PostProcess implements zzk.Listener
+func (l *VirtualIPListener) PostProcess(p map[string]struct{}) {}
+
 // Spawn implements zzk.Listener
 func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
+	// ensure that the retry sentinel has good initial state
+	if l.retry == nil {
+		l.retry = make(map[string]int)
+	}
+	if _, ok := l.retry[ip]; !ok {
+		l.retry[ip] = maxRetries
+	}
+
+	// Check if this ip has exceeded the number of retries for this host
+	if l.retry[ip] > maxRetries {
+		glog.Warningf("Throttling acquisition of %s for %s", ip, l.hostID)
+		select {
+		case <-time.After(waitTimeout):
+		case <-shutdown:
+			return
+		}
+	}
 
 	glog.V(2).Infof("Host %s waiting to acquire virtual ip %s", l.hostID, ip)
 	// Try to take lead on the path
-	leader := zzk.NewHostLeader(l.conn, l.hostID, l.GetPath(ip))
+	leader := zzk.NewHostLeader(l.conn, l.hostID, "", l.GetPath(ip))
 	_, err := leader.TakeLead()
 	if err != nil {
 		glog.Errorf("Error while trying to acquire a lock for %s: %s", ip, err)
 		return
 	}
 	defer leader.ReleaseLead()
+
+	select {
+	case <-shutdown:
+		return
+	default:
+	}
 
 	// Check if the path still exists
 	if exists, err := zzk.PathExists(l.conn, l.GetPath(ip)); err != nil {
@@ -151,7 +189,12 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 		rebind, err := l.bind(&vip, index)
 		if err != nil {
 			glog.Errorf("Could not bind to virtual ip %s: %s", ip, err)
+			l.retry[ip]++
 			return
+		}
+
+		if l.retry[ip] > 0 {
+			l.retry[ip]--
 		}
 
 		select {
@@ -250,10 +293,14 @@ func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
 
 func RemoveVirtualIP(conn client.Connection, ip string) error {
 	glog.V(1).Infof("Removing virtual ip from zookeeper: %s", vippath(ip))
-	return conn.Delete(vippath(ip))
+	err := conn.Delete(vippath(ip))
+	if err == nil || err == client.ErrNoNode {
+		return nil
+	}
+	return err
 }
 
 func GetHostID(conn client.Connection, ip string) (string, error) {
-	leader := zzk.NewHostLeader(conn, "", vippath(ip))
+	leader := zzk.NewHostLeader(conn, "", "", vippath(ip))
 	return zzk.GetHostID(leader)
 }

@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -28,7 +37,7 @@ func servicepath(nodes ...string) string {
 	return path.Join(p...)
 }
 
-type instances []*dao.RunningService
+type instances []dao.RunningService
 
 func (inst instances) Len() int           { return len(inst) }
 func (inst instances) Less(i, j int) bool { return inst[i].InstanceID < inst[j].InstanceID }
@@ -74,12 +83,12 @@ type ServiceListener struct {
 }
 
 // NewServiceListener instantiates a new ServiceListener
-func NewServiceListener(conn client.Connection, handler ServiceHandler) *ServiceListener {
-	return &ServiceListener{conn: conn, handler: handler}
+func NewServiceListener(handler ServiceHandler) *ServiceListener {
+	return &ServiceListener{handler: handler}
 }
 
-// GetConnection implements zzk.Listener
-func (l *ServiceListener) GetConnection() client.Connection { return l.conn }
+// SetConnection implements zzk.Listener
+func (l *ServiceListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
 func (l *ServiceListener) GetPath(nodes ...string) string { return servicepath(nodes...) }
@@ -90,9 +99,23 @@ func (l *ServiceListener) Ready() (err error) { return }
 // Done implements zzk.Listener
 func (l *ServiceListener) Done() { return }
 
+// PostProcess implements zzk.Listener
+func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
+
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	for {
+		var lockEvent <-chan client.Event
+		if exists, err := zzk.PathExists(l.conn, zkServiceLock); err != nil {
+			glog.Errorf("Could not monitor service lock: %s", err)
+			return
+		} else if !exists {
+			// pass
+		} else if _, lockEvent, err = l.conn.ChildrenW(zkServiceLock); err != nil {
+			glog.Errorf("Could not monitor service lock: %s", err)
+			return
+		}
+
 		var svc service.Service
 		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
 		if err != nil {
@@ -124,6 +147,8 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		}
 
 		select {
+		case <-lockEvent:
+			// passthrough
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
@@ -146,7 +171,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	}
 }
 
-func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) {
+func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) {
 	// only one service can start and stop service instances at a time
 	l.Lock()
 	defer l.Unlock()
@@ -213,6 +238,14 @@ func (l *ServiceListener) sync(svc *service.Service, rss []*dao.RunningService) 
 }
 
 func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
+	if locked, err := IsServiceLocked(l.conn); err != nil {
+		glog.Errorf("Could not check service lock: %s", err)
+		return
+	} else if locked {
+		glog.Warningf("Could not start %d instances; service %s (%s) is locked", len(instanceIDs), svc.Name, svc.ID)
+		return
+	}
+
 	for _, i := range instanceIDs {
 		host, err := l.handler.SelectHost(svc)
 		if err != nil {
@@ -234,7 +267,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
 	}
 }
 
-func (l *ServiceListener) stop(rss []*dao.RunningService) {
+func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
@@ -244,7 +277,7 @@ func (l *ServiceListener) stop(rss []*dao.RunningService) {
 	}
 }
 
-func (l *ServiceListener) pause(rss []*dao.RunningService) {
+func (l *ServiceListener) pause(rss []dao.RunningService) {
 	for _, state := range rss {
 		// pauseInstance updates the service state ONLY if it has a RUN DesiredState
 		if err := pauseInstance(l.conn, state.HostID, state.ID); err != nil {
@@ -282,10 +315,10 @@ func StopService(conn client.Connection, serviceID string) error {
 }
 
 // SyncServices synchronizes all services into zookeeper
-func SyncServices(conn client.Connection, services []*service.Service) error {
+func SyncServices(conn client.Connection, services []service.Service) error {
 	nodes := make([]zzk.Node, len(services))
 	for i := range services {
-		nodes[i] = &ServiceNode{Service: services[i]}
+		nodes[i] = &ServiceNode{Service: &services[i]}
 	}
 	return zzk.Sync(conn, nodes, servicepath())
 }

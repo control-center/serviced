@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -11,6 +20,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 )
 
@@ -36,7 +46,7 @@ func GetServiceState(conn client.Connection, state *servicestate.ServiceState, s
 }
 
 // GetServiceStates gets all service states for a particular service
-func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []*servicestate.ServiceState, err error) {
+func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []servicestate.ServiceState, err error) {
 	for _, serviceID := range serviceIDs {
 		stateIDs, err := conn.Children(servicepath(serviceID))
 		if err != nil {
@@ -48,7 +58,7 @@ func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []*s
 			if err := GetServiceState(conn, &state, serviceID, stateID); err != nil {
 				return nil, err
 			}
-			states = append(states, &state)
+			states = append(states, state)
 		}
 	}
 	return states, nil
@@ -65,22 +75,42 @@ func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState
 	return conn.Set(path, &node)
 }
 
+// WaitPause waits for a service state is paused or receives an error
+func WaitPause(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string) error {
+	for {
+		var node ServiceStateNode
+		event, err := conn.GetW(servicepath(serviceID, stateID), &node)
+		if err != nil {
+			return err
+		}
+		if node.IsPaused() {
+			return nil
+		}
+		select {
+		case <-event:
+		case <-shutdown:
+			return zzk.ErrShutdown
+		}
+
+	}
+}
+
 // GetServiceStatus creates a map of service states to their corresponding status
-func GetServiceStatus(conn client.Connection, serviceID string) (map[*servicestate.ServiceState]dao.Status, error) {
+func GetServiceStatus(conn client.Connection, serviceID string) (map[string]dao.ServiceStatus, error) {
 	states, err := GetServiceStates(conn, serviceID)
 	if err != nil {
 		glog.Errorf("Could not get states for service %s: %s", serviceID, err)
 		return nil, err
 	}
 
-	stats := make(map[*servicestate.ServiceState]dao.Status)
+	stats := make(map[string]dao.ServiceStatus)
 	for _, state := range states {
-		status, err := getStatus(conn, state)
+		status, err := getStatus(conn, &state)
 		if err != nil {
 			glog.Errorf("Error looking up status %s for service %s: %s", state.ID, serviceID, err)
 			return nil, err
 		}
-		stats[state] = status
+		stats[state.ID] = dao.ServiceStatus{State: state, Status: status}
 	}
 
 	return stats, err

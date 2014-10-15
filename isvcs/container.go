@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -93,6 +102,9 @@ func NewContainer(cd ContainerDescription) (*Container, error) {
 		ops:    make(chan containerOpRequest),
 		client: client,
 	}
+
+	envPerService[cd.Name] = make(map[string]string)
+
 	go c.loop()
 	return &c, nil
 }
@@ -201,7 +213,7 @@ func (c *Container) doStats(exitChan chan bool) {
 				}
 				id = (*ids)[0]
 			}
-			if cpuacctStat, err := cgroup.ReadCpuacctStat("/sys/fs/cgroup/cpuacct/docker/" + id + "/cpuacct.stat"); err != nil {
+			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Cpuacct)); err != nil {
 				glog.Warningf("Couldn't read CpuacctStat:", err)
 				id = ""
 				break
@@ -209,7 +221,7 @@ func (c *Container) doStats(exitChan chan bool) {
 				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
 				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
 			}
-			if memoryStat, err := cgroup.ReadMemoryStat("/sys/fs/cgroup/memory/docker/" + id + "/memory.stat"); err != nil {
+			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Memory)); err != nil {
 				glog.Warningf("Couldn't read MemoryStat:", err)
 				id = ""
 				break
@@ -245,7 +257,7 @@ func (c *Container) doStats(exitChan chan bool) {
 			}
 			resp, err := http.DefaultClient.Do(req)
 			if err != nil {
-				glog.Warningf("Error making isvc stats request.")
+				glog.V(4).Infof("Error making isvc stats request.")
 				break
 			}
 			if strings.Contains(resp.Status, "204 No Content") == false {
@@ -330,6 +342,10 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 		args = append(args, "-v", hostDir+":"+volume)
 	}
 
+	for key, val := range envPerService[c.Name] {
+		args = append(args, "-e", key+"="+val)
+	}
+
 	// set the image and command to run
 	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command())
 
@@ -398,4 +414,24 @@ func (c *Container) Stop() error {
 	}
 	c.ops <- req
 	return <-req.response
+}
+
+// RunCommand runs a command inside the container.
+func (c *Container) RunCommand(command []string, useSudo bool) error {
+	var id string
+	ids, err := c.getMatchingContainersIds()
+	if err != nil {
+		glog.Warningf("Error collecting isvc container IDs.")
+	}
+	if len(*ids) == 0 {
+		// Container hasn't started yet
+		return fmt.Errorf("No docker container found for %s", c.Name)
+	}
+	id = (*ids)[0]
+	output, err := utils.AttachAndRunMaybeSudo(id, command, useSudo)
+	if err != nil {
+		return err
+	}
+	os.Stdout.Write(output)
+	return nil
 }

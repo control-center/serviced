@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cmd
 
@@ -9,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sort"
 	"strings"
 	"testing"
 
@@ -28,13 +38,13 @@ var DefaultServiceAPITest = ServiceAPITest{
 	snapshots: DefaultTestSnapshots,
 }
 
-var DefaultTestServices = []*service.Service{
+var DefaultTestServices = []service.Service{
 	{
 		ID:             "test-service-1",
 		Name:           "Zenoss",
 		Startup:        "startup command 1",
 		Instances:      0,
-		InstanceLimits: domain.MinMax{0, 0},
+		InstanceLimits: domain.MinMax{0, 0, 0},
 		ImageID:        "quay.io/zenossinc/tenantid1-core5x",
 		PoolID:         "default",
 		DesiredState:   service.SVCRun,
@@ -49,7 +59,7 @@ var DefaultTestServices = []*service.Service{
 		Name:           "Zope",
 		Startup:        "startup command 2",
 		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
+		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "quay.io/zenossinc/tenantid2-core5x",
 		PoolID:         "default",
 		DesiredState:   service.SVCRun,
@@ -60,7 +70,7 @@ var DefaultTestServices = []*service.Service{
 		Name:           "zencommand",
 		Startup:        "startup command 3",
 		Instances:      2,
-		InstanceLimits: domain.MinMax{2, 2},
+		InstanceLimits: domain.MinMax{2, 2, 2},
 		ImageID:        "quay.io/zenossinc/tenantid1-opentsdb",
 		PoolID:         "remote",
 		DesiredState:   service.SVCRun,
@@ -78,7 +88,7 @@ var (
 type ServiceAPITest struct {
 	api.API
 	fail      bool
-	services  []*service.Service
+	services  []service.Service
 	pools     []*pool.ResourcePool
 	snapshots []string
 }
@@ -87,7 +97,7 @@ func InitServiceAPITest(args ...string) {
 	New(DefaultServiceAPITest).Run(args)
 }
 
-func (t ServiceAPITest) GetServices() ([]*service.Service, error) {
+func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 	if t.fail {
 		return nil, ErrInvalidService
 	}
@@ -106,9 +116,9 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 		return nil, ErrInvalidService
 	}
 
-	for _, s := range t.services {
+	for i, s := range t.services {
 		if s.ID == id {
-			return s, nil
+			return &t.services[i], nil
 		}
 	}
 
@@ -143,14 +153,14 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 		Endpoints:       endpoints,
 		Startup:         config.Command,
 		Instances:       1,
-		InstanceLimits:  domain.MinMax{1, 1},
+		InstanceLimits:  domain.MinMax{1, 1, 1},
 	}
 
 	return &s, nil
 }
 
-func (t ServiceAPITest) RemoveService(config api.RemoveServiceConfig) error {
-	if s, err := t.GetService(config.ServiceID); err != nil {
+func (t ServiceAPITest) RemoveService(id string) error {
+	if s, err := t.GetService(id); err != nil {
 		return err
 	} else if s == nil {
 		return ErrNoServiceFound
@@ -302,7 +312,7 @@ func TestServicedCLI_CmdServiceList_all(t *testing.T) {
 		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 	}
 	for i := range actual {
-		if !actual[i].Equals(expected[i]) {
+		if !actual[i].Equals(&expected[i]) {
 			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 		}
 	}
@@ -399,13 +409,9 @@ func ExampleServicedCLI_CmdServiceAdd_err() {
 func ExampleServicedCLI_CmdServiceRemove() {
 	InitServiceAPITest("serviced", "service", "remove", "test-service-1")
 	InitServiceAPITest("serviced", "service", "remove", "test-service-2")
-	InitServiceAPITest("serviced", "service", "remove", "-R", "test-service-2")
-	InitServiceAPITest("serviced", "service", "remove", "-R=false", "test-service-2")
 
 	// Output:
 	// test-service-1
-	// test-service-2
-	// test-service-2
 	// test-service-2
 }
 
@@ -425,7 +431,6 @@ func ExampleServicedCLI_CmdServiceRemove_usage() {
 	//    serviced service remove SERVICEID
 	//
 	// OPTIONS:
-	//    --remove-snapshots, -R	Remove snapshots associated with removed service
 
 }
 
@@ -685,11 +690,17 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 }
 
 func ExampleServicedCLI_CmdServiceRun_list() {
-	InitServiceAPITest("serviced", "service", "run", "test-service-1")
+	output := pipe(InitServiceAPITest, "serviced", "service", "run", "test-service-1")
+	actual := strings.Split(string(output[:]), "\n")
+	sort.Strings(actual)
+
+	for _, item := range actual {
+		fmt.Printf("%s\n", item)
+	}
 
 	// Output:
-	// hello
 	// goodbye
+	// hello
 }
 
 func ExampleServicedCLI_CmdServiceRun_exec() {

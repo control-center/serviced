@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, statsService, $modalService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -28,7 +28,8 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.ip_addresses = buildTable('Interface', [
         { id: 'Interface', name: 'ip_addresses_interface' },
-        { id: 'Ip', name: 'ip_addresses_ip' }
+        { id: 'Ip', name: 'ip_addresses_ip' },
+        { id: 'MAC Address', name: 'ip_addresses_mac' }
     ]);
 
     $scope.viewConfig = function(running) {
@@ -37,7 +38,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
             bigModal: true,
             actions: [
                 {
@@ -104,7 +105,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, false);
 
-    statsService.is_collecting(function(status) {
+    resourcesService.get_stats(function(status) {
         if (status == 200) {
             $scope.collectingStats = true;
         } else {

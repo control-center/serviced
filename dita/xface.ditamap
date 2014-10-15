@@ -17,19 +17,23 @@
          <topicref href="topics/xface-assign-ip.dita"/>
        </topicref>
 
-       <topicref href="topics/xface-app-detail-config.dita"/>
+       <topicref href="topics/xface-app-detail-config.dita">
+         <topicref href="topics/xface-app-edit-config.dita"/>
+       </topicref>
        
        <topicref href="topics/xface-app-detail-services.dita"/>
        
        <topicref href="topics/xface-app-detail-schedule.dita"/>
      </topicref>
        <topicref href="topics/xface-internal-svcs.dita"/>
+       <!-- <topicref href="topics/xface-svc-details.dita"/> -->
      </topicref>
      
      <topicref href="topics/xface-pools.dita">
        <topicref href="topics/xface-add-pool.dita"/>
      </topicref>
      <topicref href="topics/xface-hosts.dita">
+       <topicref href="topics/xface-hosts-details.dita"/>
        <topicref href="topics/xface-add-host.dita"/>
      </topicref>
      <topicref href="topics/xface-logs.dita"/>

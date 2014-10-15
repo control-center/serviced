@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cmd
 
@@ -12,6 +21,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
@@ -27,6 +37,7 @@ const envPrefix = "SERVICED_"
 
 func configEnv(key string, defaultVal string) string {
 	s := os.Getenv(envPrefix + key)
+
 	if len(s) == 0 {
 		return defaultVal
 	}
@@ -106,6 +117,25 @@ func New(driver api.API) *ServicedCli {
 		zks = cli.StringSlice(strings.Split(configEnv("ZK", ""), ","))
 	}
 
+	isvcs_env := cli.StringSlice{}
+	if env := configEnv("ISVCS_ENV", ""); len(env) != 0 {
+		isvcs_env = append(isvcs_env, env)
+	}
+	for i := 0; ; i++ {
+		if env := configEnv(fmt.Sprintf("ISVCS_ENV_%d", i), ""); len(env) != 0 {
+			isvcs_env = append(isvcs_env, env)
+		} else {
+			break
+		}
+	}
+
+	/* TODO: 1.1
+	remotezks := cli.StringSlice{}
+	if len(configEnv("REMOTE_ZK", "")) > 0 {
+		zks = cli.StringSlice(strings.Split(configEnv("REMOTE_ZK", ""), ","))
+	}
+	*/
+
 	aliases := cli.StringSlice{}
 	if len(configEnv("VHOST_ALIASES", "")) > 0 {
 		zks = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
@@ -119,7 +149,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
 		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
-		cli.BoolFlag{"master", "run in master mode, i.e., the control plane service"},
+		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
 		cli.BoolTFlag{"tls", "enable TLS"},
@@ -127,6 +157,8 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", &zks, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
+		// TODO: 1.1
+		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
@@ -142,11 +174,15 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
 		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
 		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},
+		cli.StringSliceFlag{"isvcs-env", &isvcs_env, "internal-service environment variable: ISVC:KEY=VAL"},
+		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
 		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "127.0.0.1:5042"), "logstash url and port"},
+		cli.StringFlag{"logstash-es", configEnv("LOGSTASH_ES", "127.0.0.1:9100"), "host and port for logstash elastic search"},
+		cli.IntFlag{"logstash-max-days", configInt("LOGSTASH_MAX_DAYS", 14), "days to keep Logstash data"},
 		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
@@ -188,6 +224,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		KeyPEMFile:           ctx.GlobalString("keyfile"),
 		CertPEMFile:          ctx.GlobalString("certfile"),
 		Zookeepers:           ctx.GlobalStringSlice("zk"),
+		RemoteZookeepers:     ctx.GlobalStringSlice("remote-zk"),
 		Mount:                ctx.GlobalStringSlice("mount"),
 		VFS:                  ctx.GlobalString("vfs"),
 		HostAliases:          ctx.GlobalStringSlice("alias"),
@@ -204,6 +241,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		VirtualAddressSubnet: ctx.GlobalString("virtual-address-subnet"),
 		MasterPoolID:         ctx.GlobalString("master-pool-id"),
 		OutboundIP:           ctx.GlobalString("outbound"),
+		LogstashES:           ctx.GlobalString("logstash-es"),
+		LogstashMaxDays:      ctx.GlobalInt("logstash-max-days"),
+		DebugPort:            ctx.GlobalInt("debug-port"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -222,6 +262,11 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	// Set logging options
 	if err := setLogging(ctx); err != nil {
 		fmt.Println(err)
+	}
+
+	if err := setIsvcsEnv(ctx); err != nil {
+		fmt.Println(err)
+		return err
 	}
 
 	if options.Master {
@@ -255,9 +300,7 @@ func setLogging(ctx *cli.Context) error {
 		glog.SetAlsoToStderr(ctx.GlobalBool("alsologtostderr"))
 	}
 
-	if ctx.IsSet("logstashurl") {
-		glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
-	}
+	glog.SetLogstashURL(ctx.GlobalString("logstashurl"))
 
 	if ctx.IsSet("v") {
 		glog.SetVerbosity(ctx.GlobalInt("v"))
@@ -281,6 +324,15 @@ func setLogging(ctx *cli.Context) error {
 		}
 	}
 
+	return nil
+}
+
+func setIsvcsEnv(ctx *cli.Context) error {
+	for _, val := range ctx.GlobalStringSlice("isvcs-env") {
+		if err := isvcs.AddEnv(val); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

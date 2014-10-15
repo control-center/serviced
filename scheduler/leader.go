@@ -1,21 +1,27 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package scheduler
 
 import (
 	"fmt"
 
-	"sync"
-
+	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/snapshot"
@@ -24,47 +30,40 @@ import (
 )
 
 type leader struct {
-	sync.Mutex
-	facade       *facade.Facade
-	dao          dao.ControlPlane
 	conn         coordclient.Connection
-	context      datastore.Context
-	poolID       string
+	dao          dao.ControlPlane
 	hostRegistry *zkservice.HostRegistryListener
+	poolID       string
 }
 
-// Lead is executed by the "leader" of the control plane cluster to handle its management responsibilities of:
+// Lead is executed by the "leader" of the control center cluster to handle its management responsibilities of:
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(facade *facade.Facade, dao dao.ControlPlane, conn coordclient.Connection, poolID string, shutdown <-chan interface{}) {
-	glog.V(0).Info("Entering Lead()!")
-	defer glog.V(0).Info("Exiting Lead()!")
-
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, dao dao.ControlPlane, poolID string) {
 	// creates a listener for the host registry
-	hostRegistry, err := zkservice.NewHostRegistryListener(conn)
-	if err != nil {
-		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
+	if err := zkservice.InitHostRegistry(conn); err != nil {
+		glog.Errorf("Could not initialize host registry for pool %s: %s", err)
 		return
 	}
-
-	leader := leader{facade: facade, dao: dao, conn: conn, context: datastore.Get(), poolID: poolID, hostRegistry: hostRegistry}
+	hostRegistry := zkservice.NewHostRegistryListener()
+	leader := leader{conn, dao, hostRegistry, poolID}
 	glog.V(0).Info("Processing leader duties")
 
 	// creates a listener for snapshots with a function call to take snapshots
 	// and return the label and error message
-	snapshotListener := snapshot.NewSnapshotListener(conn, &leader)
+	snapshotListener := snapshot.NewSnapshotListener(&leader)
 
 	// creates a listener for services
-	serviceListener := zkservice.NewServiceListener(conn, &leader)
+	serviceListener := zkservice.NewServiceListener(&leader)
 
 	// starts all of the listeners
-	zzk.Start(shutdown, serviceListener, hostRegistry, snapshotListener)
+	zzk.Start(shutdown, conn, serviceListener, hostRegistry, snapshotListener)
 }
 
 func (l *leader) TakeSnapshot(serviceID string) (string, error) {
 	var label string
-	err := l.dao.TakeSnapshot(serviceID, &label)
+	err := l.dao.Snapshot(serviceID, &label)
 	return label, err
 }
 
@@ -91,7 +90,7 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		}
 	}
 
-	if assignmentType == "virtual" {
+	if assignmentType == commons.VIRTUAL {
 		// populate hostid
 		var err error
 		hostid, err = virtualips.GetHostID(l.conn, ipAddr)

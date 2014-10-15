@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package elasticsearch
 
@@ -16,6 +25,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -44,6 +54,7 @@ var unused int
 var unusedStr string
 var id string
 var addresses []string
+var version datastore.VersionedEntity
 
 var err error
 
@@ -91,9 +102,9 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		glog.Fatalf("Could not start es container: %s", err)
 	}
 
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
-	dt.zkConn, err = zzk.GetBasePathConnection("/")
+	dt.zkConn, err = zzk.GetLocalConnection("/")
 	if err != nil {
 		c.Fatalf("could not get zk connection %v", err)
 	}
@@ -119,7 +130,7 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	dt.FacadeTest.SetUpTest(c)
 	//DAO tests expect default pool and system user
 
-	if err := dt.Facade.CreateDefaultPool(dt.CTX); err != nil {
+	if err := dt.Facade.CreateDefaultPool(dt.CTX, "default"); err != nil {
 		c.Fatalf("could not create default pool:", err)
 	}
 
@@ -277,8 +288,9 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
 
-	var result []*service.Service
-	err = dt.Dao.GetServices(new(dao.EntityRequest), &result)
+	var result []service.Service
+	var serviceRequest dao.ServiceRequest
+	err = dt.Dao.GetServices(serviceRequest, &result)
 	t.Assert(err, IsNil)
 	t.Assert(len(result), Equals, 1)
 	//XXX the time.Time types fail comparison despite being equal...
@@ -298,7 +310,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Startup:        "/usr/bin/ping -c localhost",
 		Description:    "Ping a remote host a fixed number of times",
 		Instances:      1,
-		InstanceLimits: domain.MinMax{1, 1},
+		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
 		DesiredState:   service.SVCRun,
@@ -349,15 +361,14 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
-	query := fmt.Sprintf("ParentServiceID:%s AND NOT Launch:manual", id)
-	var services []*service.Service
-	err = dt.Dao.GetServices(query, &services)
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	err = dt.Dao.GetServices(serviceRequest, &services)
 	for _, subService := range services {
 		if subService.DesiredState == service.SVCRun && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
-
 }
 
 func (dt *DaoTest) TestDao_StartService(t *C) {
@@ -556,7 +567,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []*addressassignment.AddressAssignment{}
+	assignments := []addressassignment.AddressAssignment{}
 	err = dt.Dao.GetServiceAddressAssignments(testService.ID, &assignments)
 	if err != nil {
 		t.Error("GetServiceAddressAssignments failed: %v", err)
@@ -590,7 +601,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	h, err := host.Build("", "default", []string{}...)
 	t.Assert(err, IsNil)
 	h.ID = hostid
-	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname"}}
+	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname", "macaddress"}}
 	err = dt.Facade.AddHost(dt.CTX, h)
 	if err != nil {
 		t.Errorf("Unexpected error adding host: %v", err)
@@ -611,7 +622,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	t.Assert(err, IsNil)
 
 	//test for bad service id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint, version}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || "No such entity {kind:service, id:blamsvc}" != err.Error() {
@@ -619,7 +630,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	//test for bad endpoint id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam"}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam", version}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
@@ -627,7 +638,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// Valid assignment
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
 	aid = ""
 	err = dt.Dao.AssignAddress(aa, &aid)
 	if err != nil {
@@ -636,7 +647,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	}
 
 	// try to reassign; should fail
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint}
+	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
 	other_aid := ""
 	err = dt.Dao.AssignAddress(aa, &other_aid)
 	if err == nil || "Address Assignment already exists" != err.Error() {
@@ -657,7 +668,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	var (
 		unused     int
 		templateId string
-		templates  map[string]*servicetemplate.ServiceTemplate
+		templates  map[string]servicetemplate.ServiceTemplate
 	)
 
 	// Clean up old templates...
@@ -686,7 +697,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if len(templates) != 1 {
 		t.Fatalf("Expected 1 template. Found %d", len(templates))
 	}
-	if templates[templateId] == nil {
+	if _, ok := templates[templateId]; !ok {
 		t.Fatalf("Expected to find template that was added (%s), but did not.", templateId)
 	}
 	if templates[templateId].Name != "test_template" {
@@ -703,7 +714,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if len(templates) != 1 {
 		t.Fatalf("Expected 1 template. Found %d", len(templates))
 	}
-	if templates[templateId] == nil {
+	if _, ok := templates[templateId]; !ok {
 		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
 	}
 	if templates[templateId].Name != "test_template" {
@@ -731,7 +742,7 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 	if len(templates) != 1 {
 		t.Fatalf("Expected 1 template. Found %d", len(templates))
 	}
-	if templates[templateId] == nil {
+	if _, ok := templates[templateId]; !ok {
 		t.Fatalf("Expected to find template that was updated (%s), but did not.", templateId)
 	}
 	if templates[templateId].Name != "test_template" {

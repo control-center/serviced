@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -38,7 +47,7 @@ type ControlPlaneDao struct {
 	port           int
 	varpath        string
 	vfs            string
-	dfs            *dfs.DistributedFileSystem
+	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
 	dockerRegistry string
 	backupLock     sync.RWMutex
@@ -93,7 +102,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 		Command:  command,
 	}
 
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(svc.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		return err
 	}
@@ -106,21 +115,15 @@ func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error
 	return dao.ControlPlaneError{Msg: "unimplemented"}
 }
 
-// Create a elastic search control plane data access object
-func NewControlPlaneDao(hostName string, port int, facade *facade.Facade, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+// Create a elastic search control center data access object
+func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
 
 	dao := &ControlPlaneDao{
-		hostName:       hostName,
-		port:           port,
-		dockerRegistry: dockerRegistry,
-	}
-	if dfs, err := dfs.NewDistributedFileSystem(dao, facade, maxdfstimeout); err != nil {
-		return nil, err
-	} else {
-		dao.dfs = dfs
+		hostName: hostName,
+		port:     port,
 	}
 
 	return dao, nil
@@ -130,7 +133,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vf
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port, facade, maxdfstimeout, dockerRegistry)
+	s, err := NewControlPlaneDao(hostName, port)
 	if err != nil {
 		return nil, err
 	}
@@ -145,6 +148,12 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vf
 	if err = createSystemUser(s); err != nil {
 		return nil, err
 	}
+
+	dfs, err := dfs.NewDistributedFilesystem(vfs, varpath, dockerRegistry, facade, maxdfstimeout)
+	if err != nil {
+		return nil, err
+	}
+	s.dfs = dfs
 
 	return s, nil
 }

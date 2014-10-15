@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package api
 
@@ -21,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
@@ -48,6 +58,7 @@ import (
 	"net"
 	"net/http"
 	"net/rpc"
+	"net/rpc/jsonrpc"
 	"os"
 	"os/signal"
 	"path"
@@ -56,6 +67,9 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	// Needed for profiling
+	_ "net/http/pprof"
 )
 
 var minDockerVersion = version{0, 11, 1}
@@ -74,6 +88,7 @@ type daemon struct {
 	hostAgent        *node.HostAgent
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
+	rpcServer        *rpc.Server
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
@@ -83,6 +98,7 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 		masterPoolID:     masterPoolID,
 		shutdown:         make(chan interface{}),
 		waitGroup:        &sync.WaitGroup{},
+		rpcServer:        rpc.NewServer(),
 	}
 	return d, nil
 }
@@ -114,6 +130,17 @@ func (d *daemon) run() error {
 	d.hostID, err = utils.HostID()
 	if err != nil {
 		glog.Fatalf("could not get hostid: %s", err)
+	}
+
+	// Start the debug port listener, if configured
+	if options.DebugPort > 0 {
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
+				glog.Errorf("Unable to bind debug port to %v. Is another instance running?", err)
+				return
+			}
+			glog.Infof("Started debug listener on port %d", options.DebugPort)
+		}()
 	}
 
 	l, err := net.Listen("tcp", options.Listen)
@@ -157,13 +184,17 @@ func (d *daemon) run() error {
 		}
 	}
 
-	rpc.HandleHTTP()
+	d.rpcServer.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	go func() {
-		// start the server
-		http.Serve(l, nil)
-		glog.Infof("http server done")
+		for {
+			conn, err := l.Accept()
+			if err != nil {
+				glog.Fatalf("Error accepting connections: %s", err)
+			}
+			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+		}
 	}()
 
 	signalChan := make(chan os.Signal, 10)
@@ -187,6 +218,8 @@ func (d *daemon) run() error {
 		glog.Info("Timed out waiting for shutdown")
 		//Return error???
 	}
+	// finally, close all connections to zookeeper
+	zzk.ShutdownConnections()
 	return nil
 }
 
@@ -197,6 +230,12 @@ func (d *daemon) initContext() (datastore.Context, error) {
 		return nil, errors.New("context not available")
 	}
 	return ctx, nil
+}
+
+func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
+	dsn := coordzk.NewDSN(zks, time.Second*15).String()
+	glog.Infof("zookeeper dsn: %s", dsn)
+	return coordclient.New("zookeeper", dsn, "/", nil)
 }
 
 func (d *daemon) startMaster() error {
@@ -213,15 +252,21 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	rootBasePath := "/"
-	dsn := coordzk.NewDSN(options.Zookeepers, time.Second*15).String()
-	glog.Infof("zookeeper dsn: %s", dsn)
-	zClient, err := coordclient.New("zookeeper", dsn, rootBasePath, nil)
+	localClient, err := d.initZK(options.Zookeepers)
 	if err != nil {
-		glog.Errorf("failed create a new coordclient: %v", err)
+		glog.Errorf("failed to create a local coordclient: %v", err)
 		return err
 	}
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(localClient)
+
+	if len(options.RemoteZookeepers) > 0 {
+		remoteClient, err := d.initZK(options.RemoteZookeepers)
+		if err != nil {
+			glog.Warningf("failed to create a remote coordclient; running in disconnected mode: %v", err)
+		} else {
+			zzk.InitializeRemoteClient(remoteClient)
+		}
+	}
 
 	d.facade = d.initFacade()
 
@@ -229,7 +274,9 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if err = d.facade.CreateDefaultPool(d.dsContext); err != nil {
+	health.SetDao(d.cpDao)
+
+	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		return err
 	}
 
@@ -273,7 +320,7 @@ func (d *daemon) startMaster() error {
 		go func() {
 			defer d.waitGroup.Done()
 			<-d.shutdown
-			glog.Infof("Shuttding down storage handler")
+			glog.Infof("Shutting down storage handler")
 			d.storageHandler.Close()
 		}()
 	}
@@ -401,9 +448,9 @@ func (d *daemon) startAgent() error {
 		if err != nil {
 			glog.Errorf("failed create a new coordclient: %v", err)
 		}
-		zzk.InitializeGlobalCoordClient(zClient)
+		zzk.InitializeLocalClient(zClient)
 
-		poolBasedConn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
+		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
 		if err != nil {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
@@ -466,7 +513,7 @@ func (d *daemon) startAgent() error {
 
 		// register the API
 		glog.V(0).Infoln("registering ControlPlaneAgent service")
-		if err = rpc.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
+		if err = d.rpcServer.RegisterName("ControlPlaneAgent", hostAgent); err != nil {
 			glog.Fatalf("could not register ControlPlaneAgent RPC server: %v", err)
 		}
 
@@ -487,7 +534,7 @@ func (d *daemon) startAgent() error {
 	}()
 
 	glog.Infof("agent start staticips: %v [%d]", d.staticIPs, len(d.staticIPs))
-	if err = rpc.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
+	if err = d.rpcServer.RegisterName("Agent", agent.NewServer(d.staticIPs)); err != nil {
 		glog.Fatalf("could not register Agent RPC server: %v", err)
 	}
 	if err != nil {
@@ -507,16 +554,16 @@ func (d *daemon) startAgent() error {
 func (d *daemon) registerMasterRPC() error {
 	glog.V(0).Infoln("registering Master RPC services")
 
-	if err := rpc.RegisterName("Master", master.NewServer(d.facade)); err != nil {
+	if err := d.rpcServer.RegisterName("Master", master.NewServer(d.facade)); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
 	// register the deprecated rpc servers
-	if err := rpc.RegisterName("LoadBalancer", d.cpDao); err != nil {
+	if err := d.rpcServer.RegisterName("LoadBalancer", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 
-	if err := rpc.RegisterName("ControlPlane", d.cpDao); err != nil {
+	if err := d.rpcServer.RegisterName("ControlPlane", d.cpDao); err != nil {
 		return fmt.Errorf("could not register rpc server LoadBalancer: %v", err)
 	}
 	return nil
@@ -547,6 +594,26 @@ func (d *daemon) initISVCS() error {
 	if err := isvcs.Mgr.Start(); err != nil {
 		return err
 	}
+
+	// Start the logstash purger
+	go func() {
+		// Run the first time after 10 minutes
+		select {
+		case <-d.shutdown:
+			return
+		case <-time.After(10 * time.Minute):
+			isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+		}
+		// Now run every 6 hours
+		for {
+			select {
+			case <-d.shutdown:
+				return
+			case <-time.After(6 * time.Hour):
+				isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+			}
+		}
+	}()
 
 	d.waitGroup.Add(1)
 	go func() {
@@ -615,7 +682,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler("", d.hostID, d.cpDao, d.facade)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.cpDao, d.facade)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return

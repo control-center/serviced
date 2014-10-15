@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -41,12 +50,12 @@ func (node *HostNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *HostNode) Create(conn client.Connection) error {
-	return RegisterHost(conn, node.ID)
+	return AddHost(conn, node.Host)
 }
 
 // Update implements zzk.Node
 func (node *HostNode) Update(conn client.Connection) error {
-	return nil
+	return UpdateHost(conn, node.Host)
 }
 
 // Version implements client.Node
@@ -66,22 +75,22 @@ type HostRegistryListener struct {
 	shutdown chan interface{}
 }
 
-// NewHostRegistryListener instantiates a new HostRegistryListener
-func NewHostRegistryListener(conn client.Connection) (*HostRegistryListener, error) {
-	// initialize the hostregistry
-	if exists, err := zzk.PathExists(conn, hostregpath()); err != nil {
-		return nil, err
-	} else if exists {
-		// pass
-	} else if err := conn.CreateDir(hostregpath()); err != nil {
-		return nil, err
+// InitHostRegistry initializes the host registry
+func InitHostRegistry(conn client.Connection) error {
+	err := conn.CreateDir(hostregpath())
+	if err == client.ErrNodeExists {
+		return nil
 	}
-
-	return &HostRegistryListener{conn, make(chan interface{})}, nil
+	return err
 }
 
-// GetConnection implements zzk.Listener
-func (l *HostRegistryListener) GetConnection() client.Connection { return l.conn }
+// NewHostRegistryListener instantiates a new HostRegistryListener
+func NewHostRegistryListener() *HostRegistryListener {
+	return &HostRegistryListener{shutdown: make(chan interface{})}
+}
+
+// SetConnection implements zzk.Listener
+func (l *HostRegistryListener) SetConnection(conn client.Connection) { l.conn = conn }
 
 // GetPath implements zzk.Listener
 func (l *HostRegistryListener) GetPath(nodes ...string) string { return hostregpath(nodes...) }
@@ -91,6 +100,9 @@ func (l *HostRegistryListener) Ready() (err error) { return }
 
 // Done shuts down any running processes outside of the main listener, like l.GetHosts()
 func (l *HostRegistryListener) Done() { close(l.shutdown) }
+
+// PostProcess implments zzk.Listener
+func (l *HostRegistryListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn listens on the host registry and waits til the node is deleted to unregister
 func (l *HostRegistryListener) Spawn(shutdown <-chan interface{}, eHostID string) {
@@ -180,24 +192,20 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	}
 }
 
-func GetPoolActiveHostIDs(poolID string) ([]string, error) {
-	hostids := []string{}
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		return nil, err
-	}
+func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
 	ehosts, err := conn.Children(hostregpath())
 	if err != nil {
 		return nil, err
 	}
+	hostIDs := make([]string, len(ehosts))
 	for _, ehostID := range ehosts {
 		var ehost host.Host
 		if err := conn.Get(hostregpath(ehostID), &HostNode{Host: &ehost}); err != nil {
 			return nil, err
 		}
-		hostids = append(hostids, ehost.ID)
+		hostIDs = append(hostIDs, ehost.ID)
 	}
-	return hostids, nil
+	return hostIDs, nil
 }
 
 func SyncHosts(conn client.Connection, hosts []*host.Host) error {
@@ -208,22 +216,28 @@ func SyncHosts(conn client.Connection, hosts []*host.Host) error {
 	return zzk.Sync(conn, nodes, hostpath())
 }
 
-func RegisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
+func AddHost(conn client.Connection, host *host.Host) error {
+	var node HostNode
+	if err := conn.Create(hostpath(host.ID), &node); err != nil {
 		return err
-	} else if exists {
-		return nil
 	}
-
-	return conn.CreateDir(hostpath(hostID))
+	node.Host = host
+	return conn.Set(hostpath(host.ID), &node)
 }
 
-func UnregisterHost(conn client.Connection, hostID string) error {
-	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
+func UpdateHost(conn client.Connection, host *host.Host) error {
+	var node HostNode
+	if err := conn.Get(hostpath(host.ID), &node); err != nil {
 		return err
-	} else if !exists {
+	}
+	node.Host = host
+	return conn.Set(hostpath(host.ID), &node)
+}
+
+func RemoveHost(conn client.Connection, hostID string) error {
+	err := conn.Delete(hostpath(hostID))
+	if err == client.ErrNoNode {
 		return nil
 	}
-
-	return conn.Delete(hostpath(hostID))
+	return err
 }

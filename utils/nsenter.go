@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package utils
 
@@ -50,7 +59,7 @@ func getPIDFromDockerID(containerID string) (string, error) {
 
 // ExecNSEnter execs the command using nsenter
 func ExecNSEnter(containerID string, bashcmd []string) error {
-	command, err := generateNSEnterCommand(containerID, bashcmd, false)
+	command, err := generateNSEnterCommand(containerID, bashcmd, false, true)
 	if err != nil {
 		return err
 	}
@@ -59,8 +68,8 @@ func ExecNSEnter(containerID string, bashcmd []string) error {
 }
 
 // RunNSEnter runs the command using nsenter
-func RunNSEnter(containerID string, bashcmd []string) ([]byte, error) {
-	command, err := generateNSEnterCommand(containerID, bashcmd, true)
+func RunNSEnter(containerID string, bashcmd []string, useSudo bool) ([]byte, error) {
+	command, err := generateNSEnterCommand(containerID, bashcmd, true, useSudo)
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +84,7 @@ func RunNSEnter(containerID string, bashcmd []string) ([]byte, error) {
 }
 
 // generateNSEnterCommand returns a slice containing nsenter command to exec
-func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bool) ([]string, error) {
+func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bool, useSudo bool) ([]string, error) {
 	if containerID == "" {
 		return []string{}, fmt.Errorf("will not attach to container with empty containerID")
 	}
@@ -90,7 +99,10 @@ func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bo
 		return []string{}, err
 	}
 
-	attachCmd := []string{exeMap["sudo"], exeMap["nsenter"], "-m", "-u", "-i", "-n", "-p", "-t", pid, "--"}
+	attachCmd := []string{exeMap["nsenter"], "-m", "-u", "-i", "-n", "-p", "-t", pid, "--"}
+	if useSudo {
+		attachCmd = append([]string{exeMap["sudo"]}, attachCmd...)
+	}
 	if prependBash {
 		attachCmd = append(attachCmd, "/bin/bash", "-c", fmt.Sprintf("%s", strings.Join(bashcmd, " ")))
 	} else {
@@ -100,39 +112,4 @@ func generateNSEnterCommand(containerID string, bashcmd []string, prependBash bo
 	return attachCmd, nil
 }
 
-// AttachAndRun attaches to a container and runs the command
-func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
-	_, err := exec.LookPath("nsenter")
-	if err != nil {
-		return nil, fmt.Errorf("unable to find nsenter exe:%v", err)
-	}
 
-	return RunNSEnter(containerID, bashcmd)
-}
-
-// AttachAndExec attaches to a container and execs the command
-func AttachAndExec(containerID string, bashcmd []string) error {
-	_, err := exec.LookPath("nsenter")
-	if err != nil {
-		return fmt.Errorf("unable to find nsenter exe:%v", err)
-	}
-
-	return ExecNSEnter(containerID, bashcmd)
-}
-
-// exePaths returns the full path to the given executables in a map
-func exePaths(exes []string) (map[string]string, error) {
-	exeMap := map[string]string{}
-
-	for _, exe := range exes {
-		path, err := exec.LookPath(exe)
-		if err != nil {
-			glog.Errorf("exe:'%v' not found error:%v\n", exe, err)
-			return nil, err
-		}
-
-		exeMap[exe] = path
-	}
-
-	return exeMap, nil
-}

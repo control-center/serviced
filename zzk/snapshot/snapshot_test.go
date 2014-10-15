@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package snapshot
 
@@ -50,17 +59,14 @@ func TestSnapshotListener_Listen(t *testing.T) {
 
 	t.Log("Create snapshots and shutdown")
 	shutdown := make(chan interface{})
-	listener := NewSnapshotListener(conn, handler)
-	go zzk.Listen(shutdown, make(chan error, 1), listener)
+	listener := NewSnapshotListener(handler)
+	go zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 
 	// send success snapshot
-	if err := Send(conn, "service-id-success"); err != nil {
-		t.Fatalf("Could not send success snapshot")
-	}
-
-	// wait for result
 	var snapshot Snapshot
-	if err := Recv(conn, "service-id-success", &snapshot); err != nil {
+	if nodeID, err := Send(conn, "service-id-success"); err != nil {
+		t.Fatalf("Could not send success snapshot")
+	} else if err := Recv(conn, nodeID, &snapshot); err != nil {
 		t.Fatalf("Could not receieve success snapshot")
 	}
 
@@ -75,12 +81,9 @@ func TestSnapshotListener_Listen(t *testing.T) {
 	}
 
 	// send fail snapshot and shutdown
-	if err := Send(conn, "service-id-failure"); err != nil {
+	if nodeID, err := Send(conn, "service-id-failure"); err != nil {
 		t.Fatal("Could not send failure snapshot: ", err)
-	}
-
-	// shutdown and wait for result
-	if err := Recv(conn, "service-id-failure", &snapshot); err != nil {
+	} else if err := Recv(conn, nodeID, &snapshot); err != nil {
 		t.Fatal("Could not receive failure snapshot: ", err)
 	}
 
@@ -107,16 +110,18 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 			"service-id-failure": SnapshotResult{time.Second, "", fmt.Errorf("failure-label")},
 		},
 	}
-	listener := NewSnapshotListener(conn, handler)
+	listener := NewSnapshotListener(handler)
+	listener.SetConnection(conn)
 	var wg sync.WaitGroup
 
 	// send snapshots
 	t.Log("Sending successful snapshot")
-	if err := Send(conn, "service-id-success"); err != nil {
+	nodeID, err := Send(conn, "service-id-success")
+	if err != nil {
 		t.Fatalf("Could not send success snapshot")
 	}
 	var snapshot Snapshot
-	event, err := conn.GetW(listener.GetPath("service-id-success"), &snapshot)
+	event, err := conn.GetW(listener.GetPath(nodeID), &snapshot)
 	if err != nil {
 		t.Fatalf("Could not look up %s: %s", listener.GetPath("service-id-success"), err)
 	}
@@ -145,7 +150,8 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 	}
 
 	t.Log("Sending failure snapshot")
-	if err := Send(conn, "service-id-failure"); err != nil {
+	nodeID, err = Send(conn, "service-id-failure")
+	if err != nil {
 		t.Fatalf("Could not send success snapshot")
 	}
 	wg.Add(1)
@@ -153,7 +159,7 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 		defer wg.Done()
 		listener.Spawn(make(<-chan interface{}), "service-id-failure")
 	}()
-	if err := Recv(conn, "service-id-failure", &snapshot); err != nil {
+	if err := Recv(conn, nodeID, &snapshot); err != nil {
 		t.Fatalf("Could not receive success snapshot")
 	}
 	wg.Wait()

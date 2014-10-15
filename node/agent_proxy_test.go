@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -23,13 +32,14 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	agent := &HostAgent{}
 	agent.master = "127.0.0.1:0"
 	agent.uiport = ":443"
-	endpoints := make(map[string][]*dao.ApplicationEndpoint)
+	endpoints := make(map[string][]dao.ApplicationEndpoint)
 
 	consumer_endpoint := dao.ApplicationEndpoint{}
 	consumer_endpoint.ServiceID = "controlplane_consumer"
 	consumer_endpoint.Application = "controlplane_consumer"
 	consumer_endpoint.ContainerIP = "127.0.0.1"
-	consumer_endpoint.ContainerPort = 8444
+	consumer_endpoint.ContainerPort = 8443
+	consumer_endpoint.ProxyPort = 8444
 	consumer_endpoint.HostPort = 8443
 	consumer_endpoint.HostIP = "127.0.0.1"
 	consumer_endpoint.Protocol = "tcp"
@@ -39,6 +49,7 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 	controlplane_endpoint.Application = "controlplane"
 	controlplane_endpoint.ContainerIP = "127.0.0.1"
 	controlplane_endpoint.ContainerPort = 443
+	controlplane_endpoint.ProxyPort = 443
 	controlplane_endpoint.HostPort = 443
 	controlplane_endpoint.HostIP = "127.0.0.1"
 	controlplane_endpoint.Protocol = "tcp"
@@ -62,11 +73,11 @@ func TestAddControlPlaneEndpoints(t *testing.T) {
 		t.Fatalf(" mapping failed len(\"tcp:443\"])=%d expected 1", len(endpoints["tcp:443"]))
 	}
 
-	if *endpoints["tcp:8444"][0] != consumer_endpoint {
-		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:8444"][0], consumer_endpoint)
+	if endpoints["tcp:8444"][0] != consumer_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", endpoints["tcp:8444"][0], consumer_endpoint)
 	}
 
-	if *endpoints["tcp:443"][0] != controlplane_endpoint {
-		t.Fatalf(" mapping failed %+v expected %+v", *endpoints["tcp:443"][0], controlplane_endpoint)
+	if endpoints["tcp:443"][0] != controlplane_endpoint {
+		t.Fatalf(" mapping failed %+v expected %+v", endpoints["tcp:443"][0], controlplane_endpoint)
 	}
 }

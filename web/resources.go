@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package web
 
@@ -11,7 +20,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"regexp"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -32,9 +42,13 @@ var empty interface{}
 type handlerFunc func(w *rest.ResponseWriter, r *rest.Request)
 type handlerClientFunc func(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient)
 
+func restDockerIsLoggedIn(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	w.WriteJson(&map[string]bool{"dockerLoggedIn": utils.DockerIsLoggedIn()})
+}
+
 func restGetAppTemplates(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var unused int
-	var templatesMap map[string]*servicetemplate.ServiceTemplate
+	var templatesMap map[string]servicetemplate.ServiceTemplate
 	client.GetServiceTemplates(unused, &templatesMap)
 	w.WriteJson(&templatesMap)
 }
@@ -50,7 +64,6 @@ func restAddAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	var b bytes.Buffer
 	_, err = io.Copy(&b, file)
-
 	template, err := servicetemplate.FromJSON(b.String())
 	if err != nil {
 		restServerError(w, err)
@@ -146,52 +159,49 @@ func restDeployAppTemplateActive(w *rest.ResponseWriter, r *rest.Request, client
 	w.WriteJson(&active)
 }
 
-func filterByNameRegex(nmregex string, services []*service.Service) ([]*service.Service, error) {
-	r, err := regexp.Compile(nmregex)
-	if err != nil {
-		glog.Errorf("Bad name regexp :%s", nmregex)
-		return nil, err
+func getTaggedServices(client *node.ControlClient, tags, nmregex string, tenantID string) ([]service.Service, error) {
+	services := []service.Service{}
+	tagsSlice := strings.Split(tags, ",")
+	serviceRequest := dao.ServiceRequest{
+		Tags:      tagsSlice,
+		TenantID:  tenantID,
+		NameRegex: nmregex,
 	}
-
-	matches := []*service.Service{}
-	for _, service := range services {
-		if r.MatchString(service.Name) {
-			matches = append(matches, service)
-		}
-	}
-	glog.V(2).Infof("Returning %d named services", len(matches))
-	return matches, nil
-}
-
-func getTaggedServices(client *node.ControlClient, tags, nmregex string) ([]*service.Service, error) {
-	services := []*service.Service{}
-	var ts interface{}
-	ts = strings.Split(tags, ",")
-	if err := client.GetTaggedServices(&ts, &services); err != nil {
+	if err := client.GetTaggedServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get tagged services: %v", err)
 		return nil, err
 	}
 
-	if nmregex != "" {
-		return filterByNameRegex(nmregex, services)
-	}
 	glog.V(2).Infof("Returning %d tagged services", len(services))
 	return services, nil
 }
 
-func getNamedServices(client *node.ControlClient, nmregex string) ([]*service.Service, error) {
-	services := []*service.Service{}
-	if err := client.GetServices(&empty, &services); err != nil {
+func getNamedServices(client *node.ControlClient, nmregex string, tenantID string) ([]service.Service, error) {
+	services := []service.Service{}
+	var emptySlice []string
+	serviceRequest := dao.ServiceRequest{
+		Tags:      emptySlice,
+		TenantID:  tenantID,
+		NameRegex: nmregex,
+	}
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get named services: %v", err)
 		return nil, err
 	}
 
-	return filterByNameRegex(nmregex, services)
+	return services, nil
 }
 
-func getServices(client *node.ControlClient) ([]*service.Service, error) {
-	services := []*service.Service{}
-	if err := client.GetServices(&empty, &services); err != nil {
+func getServices(client *node.ControlClient, tenantID string, since time.Duration) ([]service.Service, error) {
+	services := []service.Service{}
+	var emptySlice []string
+	serviceRequest := dao.ServiceRequest{
+		Tags:         emptySlice,
+		TenantID:     tenantID,
+		UpdatedSince: since,
+		NameRegex:    "",
+	}
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		return nil, err
 	}
@@ -200,57 +210,93 @@ func getServices(client *node.ControlClient) ([]*service.Service, error) {
 	return services, nil
 }
 
-func getISVCS() []*service.Service {
-	services := []*service.Service{}
-	services = append(services, &isvcs.InternalServicesISVC)
-	services = append(services, &isvcs.ElasticsearchISVC)
-	services = append(services, &isvcs.ZookeeperISVC)
-	services = append(services, &isvcs.LogstashISVC)
-	services = append(services, &isvcs.OpentsdbISVC)
-	services = append(services, &isvcs.CeleryISVC)
-	services = append(services, &isvcs.DockerRegistryISVC)
+func getISVCS() []service.Service {
+	services := []service.Service{}
+	services = append(services, isvcs.InternalServicesISVC)
+	services = append(services, isvcs.ElasticsearchServicedISVC)
+	services = append(services, isvcs.ElasticsearchLogStashISVC)
+	services = append(services, isvcs.ZookeeperISVC)
+	services = append(services, isvcs.LogstashISVC)
+	services = append(services, isvcs.OpentsdbISVC)
+	services = append(services, isvcs.CeleryISVC)
+	services = append(services, isvcs.DockerRegistryISVC)
+	return services
+}
+
+func getIRS() []dao.RunningService {
+	services := []dao.RunningService{}
+	services = append(services, isvcs.InternalServicesIRS)
+	services = append(services, isvcs.ElasticsearchServicedIRS)
+	services = append(services, isvcs.ElasticsearchLogStashIRS)
+	services = append(services, isvcs.ZookeeperIRS)
+	services = append(services, isvcs.LogstashIRS)
+	services = append(services, isvcs.OpentsdbIRS)
+	services = append(services, isvcs.CeleryIRS)
+	services = append(services, isvcs.DockerRegistryIRS)
 	return services
 }
 
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {
 		nmregex := r.URL.Query().Get("name")
-		result, err := getTaggedServices(client, tags, nmregex)
+		result, err := getTaggedServices(client, tags, nmregex, tenantID)
 		if err != nil {
 			restServerError(w, err)
 			return
 		}
 
-		for _, svc := range result {
-			fillBuiltinMetrics(svc)
+		for ii, _ := range result {
+			fillBuiltinMetrics(&result[ii])
 		}
 		w.WriteJson(&result)
 		return
 	}
 
 	if nmregex := r.URL.Query().Get("name"); nmregex != "" {
-		result, err := getNamedServices(client, nmregex)
+		result, err := getNamedServices(client, nmregex, tenantID)
 		if err != nil {
 			restServerError(w, err)
 			return
 		}
 
-		for _, svc := range result {
-			fillBuiltinMetrics(svc)
+		for ii, _ := range result {
+			fillBuiltinMetrics(&result[ii])
 		}
 		w.WriteJson(&result)
 		return
 	}
 
-	result, err := getServices(client)
-	result = append(result, getISVCS()...)
+	since := r.URL.Query().Get("since")
+	var tsince time.Duration
+	if since == "" {
+		tsince = time.Duration(0)
+	} else {
+		tint, err := strconv.ParseInt(since, 10, 64)
+		if err != nil {
+			restServerError(w, err)
+			return
+		}
+		tsince = time.Duration(tint) * time.Millisecond
+	}
+	result, err := getServices(client, tenantID, tsince)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
+	if since == "" {
+		result = append(result, getISVCS()...)
+	} else {
+		t0 := time.Now().Add(-tsince)
+		for _, isvc := range getISVCS() {
+			if isvc.UpdatedAt.After(t0) {
+				result = append(result, isvc)
+			}
+		}
+	}
 
-	for _, svc := range result {
-		fillBuiltinMetrics(svc)
+	for ii, _ := range result {
+		fillBuiltinMetrics(&result[ii])
 	}
 	w.WriteJson(&result)
 }
@@ -261,7 +307,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		restBadRequest(w, err)
 		return
 	}
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err = client.GetRunningServicesForHost(hostID, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -270,7 +316,7 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
 	w.WriteJson(&services)
@@ -279,30 +325,55 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if strings.Contains(serviceID, "isvc-") {
-		w.WriteJson([]*dao.RunningService{})
+		w.WriteJson([]dao.RunningService{})
 		return
 	}
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err = client.GetRunningServicesForService(serviceID, &services)
 	if err != nil {
-		glog.Errorf("Could not get services: %v", err)
+		glog.Errorf("Could not get running services for %s: %v", serviceID, err)
 		restServerError(w, err)
 		return
 	}
 	if services == nil {
 		glog.V(3).Info("Running services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
 	w.WriteJson(&services)
 }
 
+func restGetStatusForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if strings.Contains(serviceID, "isvc-") {
+		w.WriteJson([]dao.RunningService{})
+		return
+	}
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+	var statusmap map[string]dao.ServiceStatus
+	err = client.GetServiceStatus(serviceID, &statusmap)
+	if err != nil {
+		glog.Errorf("Could not get status for service %s: %v", serviceID, err)
+		restServerError(w, err)
+		return
+	}
+	if statusmap == nil {
+		glog.V(3).Info("Running services was nil, returning empty map instead")
+		statusmap = map[string]dao.ServiceStatus{}
+	}
+	glog.V(2).Infof("Returning %d states for service %s", len(statusmap), serviceID)
+	w.WriteJson(&statusmap)
+}
+
 func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []*dao.RunningService
+	var services []dao.RunningService
 	err := client.GetRunningServices(&empty, &services)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
@@ -311,19 +382,20 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	}
 	if services == nil {
 		glog.V(3).Info("Services was nil, returning empty list instead")
-		services = []*dao.RunningService{}
+		services = []dao.RunningService{}
 	}
 
-	for _, rsvc := range services {
+	for ii, rsvc := range services {
 		var svc service.Service
 		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
 			glog.Errorf("Could not get services: %v", err)
 			restServerError(w, err)
 		}
 		fillBuiltinMetrics(&svc)
-		rsvc.MonitoringProfile = svc.MonitoringProfile
+		services[ii].MonitoringProfile = svc.MonitoringProfile
 	}
 
+	services = append(services, getIRS()...)
 	glog.V(2).Infof("Return %d running services", len(services))
 	w.WriteJson(&services)
 }
@@ -354,10 +426,10 @@ func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 }
 
 func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var allServices []*service.Service
-	topServices := []*service.Service{}
-
-	err := client.GetServices(&empty, &allServices)
+	var allServices []service.Service
+	topServices := []service.Service{}
+	var serviceRequest dao.ServiceRequest
+	err := client.GetServices(serviceRequest, &allServices)
 	if err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
@@ -368,7 +440,7 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 			topServices = append(topServices, service)
 		}
 	}
-	topServices = append(topServices, &isvcs.InternalServicesISVC)
+	topServices = append(topServices, isvcs.InternalServicesISVC)
 	glog.V(2).Infof("Returning %d services as top services", len(topServices))
 	w.WriteJson(&topServices)
 }
@@ -384,21 +456,17 @@ func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 		w.WriteJson(isvcs.ISVCSMap[sid])
 		return
 	}
-
-	var allServices []*service.Service
-
-	if err := client.GetServices(&empty, &allServices); err != nil {
-		glog.Errorf("Could not get services: %v", err)
+	svc := service.Service{}
+	if err := client.GetService(sid, &svc); err != nil {
+		glog.Errorf("Could not get service %v: %v", sid, err)
 		restServerError(w, err)
 		return
 	}
 
-	for _, service := range allServices {
-		if service.ID == sid {
-			fillBuiltinMetrics(service)
-			w.WriteJson(&service)
-			return
-		}
+	if svc.ID == sid {
+		fillBuiltinMetrics(&svc)
+		w.WriteJson(&svc)
+		return
 	}
 
 	glog.Errorf("No such service [%v]", sid)
@@ -660,14 +728,14 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 	}
 
 	dir := home + "/backup"
-	filepath := ""
-	err := client.AsyncBackup(dir, &filepath)
+	filePath := ""
+	err := client.AsyncBackup(dir, &filePath)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup: %v", err)
 		restServerError(w, err)
 		return
 	}
-	w.WriteJson(&simpleResponse{filepath, servicesLinks()})
+	w.WriteJson(&simpleResponse{filePath, servicesLinks()})
 }
 
 func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -678,16 +746,16 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	}
 
 	err := r.ParseForm()
-	filepath := r.FormValue("filename")
+	filePath := r.FormValue("filename")
 
-	if err != nil || filepath == "" {
+	if err != nil || filePath == "" {
 		restBadRequest(w, err)
 		return
 	}
 
 	unused := 0
 
-	err = client.AsyncRestore(home+"/backup/"+filepath, &unused)
+	err = client.AsyncRestore(home+"/backup/"+filePath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		restServerError(w, err)
@@ -696,12 +764,15 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	w.WriteJson(&simpleResponse{string(unused), servicesLinks()})
 }
 
+// RestBackupFileList implements a rest call that will return a list of the current backup files.
+// The return value is a JSON struct of type JsonizableFileInfo.
 func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	type JsonizableFileInfo struct {
-		Name    string      `json:"name"`
-		Size    int64       `json:"size"`
-		Mode    os.FileMode `json:"mode"`
-		ModTime time.Time   `json:"mod_time"`
+		FullPath string      `json:"full_path"`
+		Name     string      `json:"name"`
+		Size     int64       `json:"size"`
+		Mode     os.FileMode `json:"mode"`
+		ModTime  time.Time   `json:"mod_time"`
 	}
 
 	fileData := []JsonizableFileInfo{}
@@ -710,11 +781,20 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
 		home = "/tmp"
 	}
-	backupFiles, _ := ioutil.ReadDir(home + "/backup")
+	backupDir := home + "/backup"
+	backupFiles, _ := ioutil.ReadDir(backupDir)
+
+	hostIP, err := utils.GetIPAddress()
+	if err != nil {
+		glog.Errorf("Unable to get host IP: %v", err)
+		restServerError(w, err)
+		return
+	}
 
 	for _, backupFileInfo := range backupFiles {
 		if !backupFileInfo.IsDir() {
-			fileInfo := JsonizableFileInfo{backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
+			fullPath := hostIP + ":" + filepath.Join(backupDir, backupFileInfo.Name())
+			fileInfo := JsonizableFileInfo{fullPath, backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
 			fileData = append(fileData, fileInfo)
 		}
 	}
@@ -724,7 +804,7 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 
 func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	backupStatus := ""
-	err := client.BackupStatus("", &backupStatus)
+	err := client.BackupStatus(0, &backupStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during backup status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)
@@ -735,7 +815,7 @@ func RestBackupStatus(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 
 func RestRestoreStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	restoreStatus := ""
-	err := client.RestoreStatus("", &restoreStatus)
+	err := client.BackupStatus(0, &restoreStatus)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore status: %v", err)
 		writeJSON(w, &simpleResponse{err.Error(), homeLink()}, http.StatusInternalServerError)

@@ -53,23 +53,23 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/api",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/cluster",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/core",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/indices",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/search",
-			"Rev": "31931397792e07805393caa749bb5a1099154cd1"
+			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
@@ -77,15 +77,15 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "499b2a342b48b4ee256293fde9d1971df040659b"
+			"Rev": "82e5e03d7ffcc811a588f4562da754086a4735da"
 		},
 		{
 			"ImportPath": "github.com/rcrowley/go-metrics",
 			"Rev": "6ffbdf30ba7072d9f9e2afe57ad651a75a544a83"
 		},
 		{
-			"ImportPath": "github.com/daniel-garcia/go-procfs/linux",
-			"Rev": "1bb72fb9c41297e28dedd504278a69d875e81b5a"
+			"ImportPath": "github.com/control-center/go-procfs/linux",
+			"Rev": "7e0c2872bd5d0a33366858b07280ba7673896f31"
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",

@@ -1,0 +1,12 @@
+<p>{{'template_add'|translate}}</p>
+<form class="form form-inline" enctype="multipart/form-data" id="template_upload_form">
+    <div class="form-group" ng-model="install.templateData">
+        <label for="new_template">{{'template_file'|translate}}:</label>
+        <input class="form-control" name="new_template_filename_wizard" id="new_template_filename_wizard" type="file">
+    </div>
+</form>
+
+<div id="deployWizardNotifications" class="error hide">
+    <span class="dialogIcon glyphicon glyphicon-remove-sign"></span>
+    <span id="deployWizardNotificationsContent"></span>
+</div>

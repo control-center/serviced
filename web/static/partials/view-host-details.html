@@ -9,10 +9,7 @@
 
     <div class="vertical-info">
       <label for="host_data_pool">{{'label_host_pool'|translate}}</label>
-      <select type="text" id="host_data_pool"
-        ng-model="hosts.current.PoolID"
-        ng-options="pool.ID as pool.ID for pool in pools.flattened">
-      </select>
+      <div id="host_data_pool">{{hosts.current.PoolID}}</div>
     </div>
 
     <div class="vertical-info">
@@ -40,9 +37,6 @@
       <div id="host_data_ip_addr">{{hosts.current.IPAddr}}</div>
     </div>
   </div>
-  <div class="details-actions">     
-    <button class="btn btn-primary" ng-click="updateHost()">{{'btn_save_changes'|translate}}</button>
-  </div>
 </div>
 
 <h3>{{'graphs'|translate}}</h3>
@@ -50,7 +44,7 @@
   <div ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
     <div class="zenchartContainer">
       <h4>{{graph.name}}</h4>
-      <div class="graphDescrip" ng-if="graph.yAxisLabel">{{graph.yAxisLabel}} over the past Hour</div>
+      <div class="graphDescrip">{{graph.description}} over the past hour.</div>
       <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
     </div>
   </div>
@@ -71,6 +65,7 @@
     <tr ng-repeat="address in hosts.current.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
       <td>{{address.IPAddress}}</td>
+      <td>{{address.MACAddress}}</td>
     </tr>
   </tbody>
 </table>
@@ -91,7 +86,10 @@
     </tr>
     <tr ng-repeat="app in running.data | orderBy:running.sort">
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
-      <td><span am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span></td>
+      <td>
+          <span ng-if="app.StartedAt!=='0001-01-01T00:00:00Z'" am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span>
+          <span ng-if="app.StartedAt==='0001-01-01T00:00:00Z'">{{'starting'|translate}}</span>
+      </td>
       <td>
           <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
           <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>

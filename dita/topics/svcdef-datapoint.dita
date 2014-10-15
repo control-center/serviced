@@ -19,12 +19,13 @@
           <row>
             <entry><codeph>Aggregator</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>The function to use for mutliple datapoints, <codeph>sum</codeph> or
+                <codeph>avg</codeph>.</entry>
           </row>
           <row>
             <entry><codeph>Color</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>The HTML color code for the datapoint (hex).</entry>
           </row>
           <row>
             <entry><codeph>Expression</codeph></entry>
@@ -49,27 +50,29 @@
           <row>
             <entry><codeph>Metric</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>The value of the <codeph>ID</codeph> attribute in the associated
+                <xref keyref="ref-svcdef-metric">Metric</xref> object.</entry>
           </row>
           <row>
             <entry><codeph>MetricSource</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>The value of the <codeph>ID</codeph> attribute in the associated
+              <xref keyref="ref-svcdef-metricConfig">MetricConfig</xref> object</entry>
           </row>
           <row>
             <entry><codeph>ID</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>The unique identifier of the datapoint.</entry>
           </row>
           <row>
             <entry><codeph>Name</codeph></entry>
             <entry>String</entry>
-            <entry></entry>
+            <entry>The name of the datapoint.</entry>
           </row>
           <row>
             <entry><codeph>Rate</codeph></entry>
             <entry><codeph>true</codeph> or <codeph>false</codeph></entry>
-            <entry></entry>
+            <entry>Determines whether the datapoint represents a stream rate.</entry>
           </row>
           <row>
             <entry><codeph>RateOptions</codeph></entry>

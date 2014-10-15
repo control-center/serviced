@@ -1,6 +1,7 @@
 description "Zenoss ServiceD"
 
-start on (filesystem and started docker and net-device-up IFACE=docker0)
+start on (filesystem and started docker and (started network-interface or started network-manager or started networking) )
+
 stop on run level [!2345]
 kill timeout 60
 
@@ -8,7 +9,8 @@ limit nofile 1048576 1048576
 
 # this pre-start script is necessary to wait for docker
 pre-start script
-    echo "$(date): waiting for docker"
+    echo ""  # annoying, but this line ensures below echo is in upstart serviced log
+    echo "$(date): starting serviced daemon for $(hostid) - waiting for docker"
     while ! /usr/bin/docker ps; do date ; sleep 1 ; done
     echo "$(date): docker is now ready - done with pre-start"
     sleep 1s
@@ -24,19 +26,40 @@ script
     export GOMAXPROCS=2
 
     if [ -f /etc/default/serviced ]; then
+        set -x   # log the overrides
         . /etc/default/serviced
+        set +x
+        for var in $(grep -Po '^\s*\w+=' /etc/default/serviced | sed -e 's/=//'); do
+            echo "exporting $var"
+            export $var
+        done
     fi
 
     cd $SERVICED_HOME 
-    ./bin/serviced $SERVICED_OPTS
+    exec ./bin/serviced $SERVICED_OPTS
 
 end script
 
 post-stop script
-    echo "$(date): waiting for serviced to stop"
-    while pgrep -fl 'bin/serviced -agent -master'; do
+    echo "$(date): post-stopping serviced daemon - waiting for serviced to stop"
+
+    # wait for serviced daemon to stop
+    echo "$(date): waiting for serviced daemon to stop"
+    while pgrep -fla "bin/serviced"; do
         sleep 5
     done
+
+    # wait for serviced to stop listening
+    echo "$(date): waiting for serviced to stop listening"
+    while netstat -plant | grep 'LISTEN.*/serviced$'; do
+        sleep 2
+    done
+
+    # stop potentially running isvcs even though serviced stopped (column 2 is IMAGEID)
+    echo "$(date): waiting for serviced isvcs to stop"
+    docker ps --no-trunc | awk '$2 ~ /^zenoss\/serviced-isvcs/{print $1}' | while read c; do docker stop $c; done
+
     echo "$(date): serviced is now stopped - done with post-stop"
+    echo ""  # annoying, but this line ensures above echo is in upstart serviced log
 end script
 

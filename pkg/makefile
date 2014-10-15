@@ -1,24 +1,36 @@
-# Copyright 2014, The Serviced Authors. All rights reserved.
-# Use of this source code is governed by the Apache 2.0
-# license that can be found in the LICENSE file.
+# Copyright 2014 The Serviced Authors.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 #
-# RPM and DEB builder for Serviced.
+# RPM and DEB and TGZ builder for Serviced.
 #
 
 NAME          ?= serviced
 VERSION       ?= $(shell cat ../VERSION)
 RELEASE_PHASE ?=
+GIT_COMMIT   ?= $(shell ./gitstatus.sh)
 SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
 PKGROOT       = pkgroot
+DUID         ?= $(shell id -u)
+DGID         ?= $(shell id -g)
 INSTALL_TEMLATES = 1
 # https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/#license-specification
 DEB_LICENSE   = Apache-2
 # https://fedoraproject.org/wiki/Licensing:Main?rd=Licensing
 RPM_LICENSE   = "ASL 2.0"
 VENDOR        = "Zenoss, Inc."
-URL           = https://github.com/control-center/serviced
+URL           = http://controlcenter.io/
 DEB_PRIORITY  = extra
 CATEGORY      = admin
 
@@ -108,6 +120,10 @@ stage_rpm: build
 	make clean_dirs clean_dirs=$(PKGROOT)
 	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=rpm INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
 
+stage_tgz: build
+	make clean_dirs clean_dirs=$(PKGROOT)
+	cd ../ && $(MAKE) install DESTDIR=$(abspath $(PKGROOT)) PKG=tgz INSTALL_TEMPLATES=$(INSTALL_TEMPLATES)
+
 # Make a DEB
 # net-tools provides ifconfig, needed for VIPs
 deb: stage_deb
@@ -118,7 +134,7 @@ deb: stage_deb
 		-d nfs-kernel-server \
 		-d net-tools \
 		-d nfs-common \
-		-d 'lxc-docker >= 1.0.0' \
+		-d 'lxc-docker >= 1.1.0' \
 		-d 'docker-smuggle >= 2.24' \
 		-t deb \
 		-a x86_64 \
@@ -132,6 +148,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--config-files /etc/default/serviced \
 		.
 
 # Make an RPM
@@ -140,6 +157,11 @@ rpm: stage_rpm
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
 		-s dir \
+		-d nfs-utils \
+		-d net-tools \
+		-d util-linux \
+		-d bash-completion \
+		-d 'docker >= 1.2.0' \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -151,5 +173,15 @@ rpm: stage_rpm
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--after-install rpm/postinstall \
+		--before-remove rpm/preuninstall \
+		--after-remove rpm/postuninstall \
+		--config-files /etc/default/serviced \
 		.
-#		-d "supervisor" \
+
+# Make a TGZ
+tgz: stage_tgz
+	tar cvfz /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz -C $(PKGROOT)/ .
+	chown $(DUID):$(DGID) /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz
+	mv /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz .
+

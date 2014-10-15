@@ -1,4 +1,4 @@
-function IsvcsControl($scope, $routeParams, $location, resourcesService, authService, statsService) {
+function IsvcsControl($scope, $routeParams, $location, resourcesService, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -23,7 +23,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "aggregator": "avg",
                 "color": "#aec7e8",
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%4.2f",
                 "id": "system",
                 "legend": "CPU (System)",
                 "metric": "cgroup.cpuacct.system",
@@ -35,7 +35,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "aggregator": "avg",
                 "color": "#98df8a",
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%4.2f",
                 "id": "user",
                 "legend": "CPU (User)",
                 "metric": "cgroup.cpuacct.user",
@@ -45,7 +45,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "type": "line"
             }],
             "footer": false,
-            "format": "%d",
+            "format": "%4.2f",
             "maxy": 100,
             "miny": 0,
             "range": {
@@ -61,32 +61,30 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             "downsample": "1m-avg",
             "timezone": jstz.determine().name()
         };
-    }
+    };
 
     $scope.getRSSGraph = function(isvcname) {
         return {
             "datapoints": [{
                 "aggregator": "avg",
-                "expression": "rpn:1024,/,1024,/,1024,/",
                 "fill": false,
-                "format": "%6.2f",
+                "format": "%4.2f",
                 "id": "rssmemory",
                 "legend": "Memory Usage",
                 "metric": "cgroup.memory.totalrss",
                 "name": "Memory Usage",
                 "rateOptions": {},
                 "type": "line",
-                "fill": true
             }],
             "footer": false,
-            "format": "%6.2f",
+            "format": "%4.2f",
             "maxy": null,
             "miny": 0,
             "range": {
                 "end": "0s-ago",
                 "start": "1h-ago"
             },
-            "yAxisLabel": "GB",
+            "yAxisLabel": "bytes",
             "returnset": "EXACT",
             height: 300,
             width: 300,
@@ -97,7 +95,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             "downsample": "1m-avg",
             "timezone": jstz.determine().name()
         };
-    }
+    };
 
 
     // XXX prevent the graphs from being drawn multiple times
@@ -111,7 +109,7 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
             if (window.zenoss === undefined) {
                 return "Not collecting stats, graphs unavailable";
             } else {
-                graph.timezone = jstz.determine().name()
+                graph.timezone = jstz.determine().name();
                 console.log(id, graph);
                 zenoss.visualization.chart.create(id, graph);
                 $scope.drawn[id] = true;

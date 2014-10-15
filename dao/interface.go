@@ -1,10 +1,21 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package dao
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
@@ -24,8 +35,15 @@ func (s ControlPlaneError) Error() string {
 	return s.Msg
 }
 
-// An request for a control plane object.
+// An request for a control center object.
 type EntityRequest interface{}
+
+type ServiceRequest struct {
+	Tags         []string
+	TenantID     string
+	UpdatedSince time.Duration
+	NameRegex    string
+}
 
 type ServiceStateRequest struct {
 	ServiceID      string
@@ -73,22 +91,22 @@ type ControlPlane interface {
 	GetService(serviceId string, service *service.Service) error
 
 	// Get a list of services from serviced
-	GetServices(request EntityRequest, services *[]*service.Service) error
+	GetServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find a child service with the given name
 	FindChildService(request FindChildRequest, service *service.Service) error
 
 	// Get services with the given tag(s)
-	GetTaggedServices(request EntityRequest, services *[]*service.Service) error
+	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find all service endpoint matches
-	GetServiceEndpoints(serviceId string, response *map[string][]*ApplicationEndpoint) error
+	GetServiceEndpoints(serviceId string, response *map[string][]ApplicationEndpoint) error
 
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 
 	// Get the IP addresses assigned to an service
-	GetServiceAddressAssignments(serviceID string, addresses *[]*addressassignment.AddressAssignment) error
+	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD
@@ -109,10 +127,10 @@ type ControlPlane interface {
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error
 
 	// Computes the status of the service based on its service instances
-	GetServiceStatus(serviceID string, statusmap *map[*servicestate.ServiceState]Status) error
+	GetServiceStatus(serviceID string, statusmap *map[string]ServiceStatus) error
 
 	// Get the services instances for a given service
-	GetServiceStates(serviceId string, states *[]*servicestate.ServiceState) error
+	GetServiceStates(serviceId string, states *[]servicestate.ServiceState) error
 
 	// Get logs for the given app
 	GetServiceLogs(serviceId string, logs *string) error
@@ -121,13 +139,13 @@ type ControlPlane interface {
 	GetServiceStateLogs(request ServiceStateRequest, logs *string) error
 
 	// Get all running services
-	GetRunningServices(request EntityRequest, runningServices *[]*RunningService) error
+	GetRunningServices(request EntityRequest, runningServices *[]RunningService) error
 
 	// Get the services instances for a given service
-	GetRunningServicesForHost(hostId string, runningServices *[]*RunningService) error
+	GetRunningServicesForHost(hostId string, runningServices *[]RunningService) error
 
 	// Get the service instances for a given service
-	GetRunningServicesForService(serviceId string, runningServices *[]*RunningService) error
+	GetRunningServicesForService(serviceId string, runningServices *[]RunningService) error
 
 	// Attach to a running container with a predefined action
 	Action(request AttachRequest, unused *int) error
@@ -148,34 +166,10 @@ type ControlPlane interface {
 	RemoveServiceTemplate(serviceTemplateID string, unused *int) error
 
 	// Get a list of ServiceTemplates
-	GetServiceTemplates(unused int, serviceTemplates *map[string]*servicetemplate.ServiceTemplate) error
+	GetServiceTemplates(unused int, serviceTemplates *map[string]servicetemplate.ServiceTemplate) error
 
 	//---------------------------------------------------------------------------
 	// Service CRUD
-
-	// Rollback DFS and service image
-	Rollback(snapshotId string, unused *int) error
-
-	// Commit DFS and service image
-	Commit(containerId string, label *string) error
-
-	// Performs a local snapshot from the host
-	TakeSnapshot(serviceId string, label *string) error
-
-	// Snapshots DFS and service image
-	Snapshot(serviceId string, label *string) error
-
-	// Delete a snapshot
-	DeleteSnapshot(snapshotId string, unused *int) error
-
-	// List available snapshots
-	Snapshots(serviceId string, snapshotIds *[]string) error
-
-	// Delete snapshots for a given service
-	DeleteSnapshots(serviceId string, unused *int) error
-
-	// Get the DFS volume
-	GetVolume(serviceId string, theVolume *volume.Volume) error
 
 	//GetSystemUser retrieves the credentials for the system_user account
 	GetSystemUser(unused int, user *user.User) error
@@ -183,15 +177,51 @@ type ControlPlane interface {
 	//ValidateCredentials verifies if the passed in user has the correct username and password
 	ValidateCredentials(user user.User, result *bool) error
 
-	// Waits for the DFS to be ready
-	ReadyDFS(bool, *int) error
-
-	// Write a tgz file containing all templates and services
-	Backup(backupDirectory string, backupFilePath *string) error
-
-	// Restore templates and services from a tgz file (inverse of Backup)
-	Restore(backupFilePath string, unused *int) error
-
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
+
+	// Return the number of layers in an image
+	ImageLayerCount(imageUUID string, layers *int) error
+
+	// Volume returns a service's volume
+	GetVolume(serviceID string, volume *volume.Volume) error
+
+	// Deletes a particular snapshot
+	DeleteSnapshot(snapshotID string, unused *int) error
+
+	// Deletes all snapshots for a specific tenant
+	DeleteSnapshots(tenantID string, unused *int) error
+
+	// Rollback a service to a particular snapshot
+	Rollback(snapshotID string, unused *int) error
+
+	// Snapshot takes a snapshot of the filesystem and images
+	Snapshot(serviceID string, snapshotID *string) error
+
+	// AsyncSnapshot performs a snapshot asynchronously
+	AsyncSnapshot(serviceID string, snapshotID *string) error
+
+	// ListSnapshots lists all the snapshots for a particular service
+	ListSnapshots(serviceID string, snapshots *[]string) error
+
+	// Commit commits a docker container to a service image
+	Commit(containerID string, snapshotID *string) error
+
+	// ReadyDFS notifies whether there are any running operations
+	ReadyDFS(bool, *int) error
+
+	// Backup backs up dfs and imagesWrite a tgz file containing all templates and services
+	Backup(dirpath string, filename *string) error
+
+	// AsyncBackup performs asynchronous backups
+	AsyncBackup(dirpath string, filename *string) error
+
+	// Restore templates and services from a tgz file (inverse of Backup)
+	Restore(filename string, unused *int) error
+
+	// AsyncRestore performs an asynchronous restore
+	AsyncRestore(filename string, unused *int) error
+
+	// BackupStatus monitors the status of a backup or restore
+	BackupStatus(unused int, status *string) error
 }

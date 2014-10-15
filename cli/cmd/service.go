@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cmd
 
@@ -17,6 +26,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -55,7 +65,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:        "status",
 				Usage:       "Displays the status of deployed services",
-				Description: "serviced service status",
+				Description: "serviced service status { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
 				Action:      c.cmdServiceStatus,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
@@ -77,9 +87,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service remove SERVICEID",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceRemove,
-				Flags: []cli.Flag{
-					cli.BoolTFlag{"remove-snapshots, R", "Remove snapshots associated with removed service"},
-				},
 			}, {
 				Name:         "edit",
 				Usage:        "Edits an existing service in a text editor",
@@ -123,12 +130,12 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
+					cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
 					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "shell",
@@ -141,7 +148,6 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "run",
@@ -157,12 +163,11 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-					cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 				},
 			}, {
 				Name:         "attach",
 				Usage:        "Run an arbitrary command in a running service container",
-				Description:  "serviced service attach { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } [COMMAND]",
+				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 				Flags: []cli.Flag{
@@ -171,7 +176,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
-				Description:  "serviced service action { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } ACTION",
+				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
 			}, {
@@ -282,6 +287,51 @@ func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
 	fmt.Println(strings.Join(output, "\n"))
 }
 
+// buildServicePaths returns a map where map[service.ID] = fullpath
+func (c *ServicedCli) buildServicePaths(svcs []service.Service) (map[string]string, error) {
+	svcMap := make(map[string]service.Service)
+	for _, svc := range svcs {
+		svcMap[svc.ID] = svc
+	}
+
+	// likely that svcs contains all services since it was likely populated with getServices()
+	// however, ensure that parent services are in svcMap
+	for _, svc := range svcs {
+		parentID := svc.ParentServiceID
+		for parentID != "" {
+			if _, ok := svcMap[parentID]; ok {
+				break // break from inner for loop
+			}
+			glog.Warningf("should not have to retrieve parent service %s", parentID)
+
+			svc, err := c.driver.GetService(parentID)
+			if err != nil || svc == nil {
+				return nil, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
+			}
+			svcMap[parentID] = *svc
+
+			parentID = svc.ParentServiceID
+		}
+	}
+
+	// recursively build full path for all services
+	pathmap := make(map[string]string)
+	for _, svc := range svcs {
+		fullpath := svc.Name
+		parentServiceID := svc.ParentServiceID
+
+		for parentServiceID != "" {
+			fullpath = path.Join(svcMap[parentServiceID].Name, fullpath)
+			parentServiceID = svcMap[parentServiceID].ParentServiceID
+		}
+
+		pathmap[svc.ID] = strings.ToLower(fullpath)
+		glog.V(2).Infof("service: %-16s  %s  path: %s", svc.Name, svc.ID, pathmap[svc.ID])
+	}
+
+	return pathmap, nil
+}
+
 // searches for service from definitions given keyword
 func (c *ServicedCli) searchForService(keyword string) (*service.Service, error) {
 	svcs, err := c.driver.GetServices()
@@ -289,13 +339,21 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return nil, err
 	}
 
-	var services []*service.Service
+	pathmap, err := c.buildServicePaths(svcs)
+	if err != nil {
+		return nil, err
+	}
+
+	var services []service.Service
 	for _, svc := range svcs {
+		poolPath := path.Join(strings.ToLower(svc.PoolID), pathmap[svc.ID])
 		switch strings.ToLower(keyword) {
-		case svc.ID, strings.ToLower(svc.Name):
+		case svc.ID, strings.ToLower(svc.Name), pathmap[svc.ID], poolPath:
 			services = append(services, svc)
 		default:
 			if keyword == "" {
+				services = append(services, svc)
+			} else if strings.HasSuffix(pathmap[svc.ID], keyword) {
 				services = append(services, svc)
 			}
 		}
@@ -305,13 +363,13 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	case 0:
 		return nil, fmt.Errorf("service not found")
 	case 1:
-		return services[0], nil
+		return &services[0], nil
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "POOL", "DEPID")
+	matches.printrow("NAME", "SERVICEID", "DEPID", "POOL/PATH")
 	for _, row := range services {
-		matches.printrow(row.Name, row.ID, row.PoolID, row.DeploymentID)
+		matches.printrow(row.Name, row.ID, row.DeploymentID, path.Join(row.PoolID, pathmap[row.ID]))
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; select one from list")
@@ -330,13 +388,43 @@ func cmdSetTreeCharset(ctx *cli.Context) {
 
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
-	services, err := c.driver.GetServices()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	} else if services == nil || len(services) == 0 {
-		fmt.Fprintln(os.Stderr, "no services found")
-		return
+	var services []service.Service
+	if len(ctx.Args()) > 0 {
+		svc, err := c.searchForService(ctx.Args()[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else if svc == nil {
+			fmt.Fprintln(os.Stderr, "service not found")
+			return
+		}
+
+		services = []service.Service{*svc}
+
+		// ensure that parent services are in services
+		for _, s := range services {
+			parentID := s.ParentServiceID
+			for parentID != "" {
+				svc, err := c.driver.GetService(parentID)
+				if err != nil || svc == nil {
+					fmt.Fprintln(os.Stderr, "unable to retrieve service for id:%s %s", parentID, err)
+					return
+				}
+				services = append(services, *svc)
+
+				parentID = svc.ParentServiceID
+			}
+		}
+	} else {
+		var err error
+		services, err = c.driver.GetServices()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else if services == nil || len(services) == 0 {
+			fmt.Fprintln(os.Stderr, "no services found")
+			return
+		}
 	}
 
 	hosts, err := c.driver.GetHosts()
@@ -351,6 +439,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	lines := make(map[string]map[string]string)
 	for _, svc := range services {
+		glog.V(2).Infof("Getting service status for %s %s", svc.ID, svc.Name)
 		statemap, err := c.driver.GetServiceStatus(svc.ID)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -381,20 +470,26 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 				delete(lines, iid)
 			}
 
-			for state, status := range statemap {
+			for _, svcstatus := range statemap {
 				if svc.Instances > 1 {
-					iid = fmt.Sprintf("%s_%d", svc.ID, state.InstanceID)
+					iid = fmt.Sprintf("%s/%d", svc.ID, svcstatus.State.InstanceID)
 					lines[iid] = map[string]string{
 						"ID":        iid,
 						"ServiceID": svc.ID,
-						"Name":      fmt.Sprintf("%s_%d", svc.Name, state.InstanceID),
+						"Name":      fmt.Sprintf("%s/%d", svc.Name, svcstatus.State.InstanceID),
 						"ParentID":  svc.ParentServiceID,
 					}
 				}
-				lines[iid]["Hostname"] = hostmap[state.HostID].Name
-				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", state.DockerID)
-				lines[iid]["Uptime"] = state.Uptime().String()
-				lines[iid]["Status"] = status.String()
+				lines[iid]["Hostname"] = hostmap[svcstatus.State.HostID].Name
+				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", svcstatus.State.DockerID)
+				lines[iid]["Uptime"] = svcstatus.State.Uptime().String()
+				lines[iid]["Status"] = svcstatus.Status.String()
+
+				insync := "Y"
+				if !svcstatus.State.InSync {
+					insync = "N"
+				}
+				lines[iid]["InSync"] = insync
 			}
 		}
 	}
@@ -419,10 +514,10 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	childMap[""] = top
 	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "DOCKER_ID")
+	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "IN_SYNC", "DOCKER_ID")
 	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
 		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["DockerID"])
+		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["InSync"], s["DockerID"])
 	}, func(row []interface{}) string {
 		return strings.ToLower(row[1].(string))
 	})
@@ -546,12 +641,7 @@ func (c *ServicedCli) cmdServiceRemove(ctx *cli.Context) {
 		return
 	}
 
-	cfg := api.RemoveServiceConfig{
-		ServiceID:       svc.ID,
-		RemoveSnapshots: ctx.Bool("remove-snapshots"),
-	}
-
-	if err := c.driver.RemoveService(cfg); err != nil {
+	if err := c.driver.RemoveService(svc.ID); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 	} else {
 		fmt.Println(svc.ID)
@@ -687,30 +777,26 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 		return nil
 	}
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	args := ctx.Args()
 	options := api.ControllerOptions{
-		MuxPort:               ctx.GlobalInt("muxport"),
-		Mux:                   ctx.GlobalBool("mux"),
-		TLS:                   ctx.GlobalBool("tls"),
-		KeyPEMFile:            ctx.GlobalString("keyfile"),
-		CertPEMFile:           ctx.GlobalString("certfile"),
-		ServicedEndpoint:      ctx.GlobalString("endpoint"),
-		Autorestart:           ctx.GlobalBool("autorestart"),
-		MetricForwarderPort:   ctx.GlobalString("metric-forwarder-port"),
-		Logstash:              ctx.GlobalBool("logstash"),
-		LogstashIdleFlushTime: ctx.GlobalString("logstash-idle-flush-time"),
-		LogstashSettleTime:    ctx.GlobalString("logstash-settle-time"),
-		LogstashBinary:        ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:        ctx.GlobalString("forwarder-config"),
-		VirtualAddressSubnet:  ctx.GlobalString("virtual-address-subnet"),
-		ServiceID:             args[0],
-		InstanceID:            args[1],
-		Command:               args[2:],
+		MuxPort:                 ctx.GlobalInt("muxport"),
+		Mux:                     ctx.GlobalBool("mux"),
+		TLS:                     ctx.GlobalBool("tls"),
+		KeyPEMFile:              ctx.GlobalString("keyfile"),
+		CertPEMFile:             ctx.GlobalString("certfile"),
+		ServicedEndpoint:        ctx.GlobalString("endpoint"),
+		Autorestart:             ctx.GlobalBool("autorestart"),
+		MetricForwarderPort:     ctx.GlobalString("metric-forwarder-port"),
+		Logstash:                ctx.GlobalBool("logstash"),
+		LogstashIdleFlushTime:   ctx.GlobalString("logstash-idle-flush-time"),
+		LogstashSettleTime:      ctx.GlobalString("logstash-settle-time"),
+		LogstashBinary:          ctx.GlobalString("forwarder-binary"),
+		LogstashConfig:          ctx.GlobalString("forwarder-config"),
+		VirtualAddressSubnet:    ctx.GlobalString("virtual-address-subnet"),
+		ServiceID:               args[0],
+		InstanceID:              args[1],
+		Command:                 args[2:],
+		MetricForwardingEnabled: !ctx.GlobalBool("disable-metric-forwarding"),
 	}
 
 	if err := c.driver.StartProxy(options); err != nil {
@@ -733,11 +819,6 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		return nil
 	}
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	var (
 		command string
 		argv    []string
@@ -754,6 +835,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -761,7 +843,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		ServicedEndpoint: "localhost" + agentPort,
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -791,11 +873,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv    []string
 	)
 
-	// Set logging options
-	if err := setLogging(ctx); err != nil {
-		fmt.Println(err)
-	}
-
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -807,14 +884,15 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
 		Args:             argv,
-		SaveAs:           node.GetLabel(svc.ID),
+		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: ctx.GlobalString("endpoint"),
+		ServicedEndpoint: "localhost" + agentPort,
 		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
 
@@ -829,6 +907,57 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service run")
 }
 
+// buildRunningServicePaths returns a map where map[rs.ID] = fullpath
+func (c *ServicedCli) buildRunningServicePaths(rss []dao.RunningService) (map[string]string, error) {
+	pathmap := make(map[string]string)
+
+	// generate parentmap and namemap for all running services with key of serviceid/inst
+	parentmap := make(map[string]string)
+	namemap := make(map[string]string)
+	for _, rs := range rss {
+		rskey := path.Join(rs.ServiceID, fmt.Sprintf("%d", rs.InstanceID))
+		namemap[rskey] = rs.Name
+		parentmap[rskey] = rs.ParentServiceID
+
+		// populate namemap and parentmap for parent services
+		parentID := rs.ParentServiceID
+		for parentID != "" {
+			pakey := path.Join(parentID, fmt.Sprintf("%d", 0))
+			_, ok := namemap[parentID]
+			if ok {
+				break // break from inner for loop
+			}
+
+			svc, err := c.driver.GetService(parentID)
+			if err != nil || svc == nil {
+				return pathmap, fmt.Errorf("unable to retrieve service for id:%s %s", parentID, err)
+			}
+			namemap[pakey] = svc.Name
+			parentmap[pakey] = svc.ParentServiceID
+
+			parentID = svc.ParentServiceID
+		}
+	}
+
+	// recursively build full path for all running services
+	for _, rs := range rss {
+		fullpath := path.Join(rs.Name, fmt.Sprintf("%d", rs.InstanceID))
+		parentServiceID := rs.ParentServiceID
+
+		for parentServiceID != "" {
+			pakey := path.Join(parentServiceID, fmt.Sprintf("%d", 0))
+			fullpath = path.Join(namemap[pakey], fullpath)
+			parentServiceID = parentmap[pakey]
+		}
+
+		pathmap[rs.ID] = strings.ToLower(fullpath)
+		glog.V(2).Infof("========= rs:%s %s  path[%s]:%s", rs.ServiceID, rs.Name, rs.ID, pathmap[rs.ID])
+	}
+
+	return pathmap, nil
+}
+
+// searches for a running service from running services given keyword
 func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningService, error) {
 	rss, err := c.driver.GetRunningServices()
 	if err != nil {
@@ -844,19 +973,26 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		hostmap[host.ID] = host
 	}
 
-	var states []*dao.RunningService
+	pathmap, err := c.buildRunningServicePaths(rss)
+	if err != nil {
+		return nil, err
+	}
+
+	var states []dao.RunningService
 	for _, rs := range rss {
 		if rs.DockerID == "" {
 			continue
 		}
 
-		nameInstance := path.Join(strings.ToLower(rs.Name), fmt.Sprintf("%d", rs.InstanceID))
-		poolNameInstance := path.Join(strings.ToLower(rs.PoolID), nameInstance)
+		poolPathInstance := path.Join(strings.ToLower(rs.PoolID), pathmap[rs.ID])
+		serviceIDInstance := path.Join(rs.ServiceID, fmt.Sprintf("%d", rs.InstanceID))
 		switch strings.ToLower(keyword) {
-		case rs.ServiceID, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12], poolNameInstance, nameInstance:
+		case rs.ServiceID, serviceIDInstance, strings.ToLower(rs.Name), rs.ID, rs.DockerID, rs.DockerID[0:12], pathmap[rs.ID], poolPathInstance:
 			states = append(states, rs)
 		default:
 			if keyword == "" {
+				states = append(states, rs)
+			} else if strings.HasSuffix(pathmap[rs.ID], keyword) {
 				states = append(states, rs)
 			}
 		}
@@ -866,19 +1002,25 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	case 0:
 		return nil, fmt.Errorf("no matches found")
 	case 1:
-		return states[0], nil
+		return &states[0], nil
 	}
 
 	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "INST", "POOL", "HOST", "HOSTIP", "DOCKERID")
+	matches.printrow("NAME", "ID", "HOST", "HOSTIP", "DOCKERID", "POOL/PATH")
 	for _, row := range states {
-		matches.printrow(row.Name, row.ServiceID, row.InstanceID, row.PoolID, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12])
+		svcid := row.ServiceID
+		name := row.Name
+		if row.Instances > 1 {
+			svcid = fmt.Sprintf("%s/%d", row.ServiceID, row.InstanceID)
+			name = fmt.Sprintf("%s/%d", row.Name, row.InstanceID)
+		}
+		matches.printrow(name, svcid, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12], path.Join(row.PoolID, pathmap[row.ID]))
 	}
 	matches.flush()
 	return nil, fmt.Errorf("multiple results found; specify unique item from list")
 }
 
-// serviced service attach { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } [COMMAND ...]
+// serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND ...]
 func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
@@ -944,7 +1086,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service attach")
 }
 
-// serviced service action { SERVICEID | SERVICENAME | POOL/SERVICENAME/INSTANCE | SERVICENAME/INSTANCE | DOCKERID } ACTION
+// serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION
 func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()

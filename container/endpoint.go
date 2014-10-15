@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package container
 
@@ -45,7 +54,7 @@ var funcmap = template.FuncMap{
 }
 
 type export struct {
-	endpoint     *dao.ApplicationEndpoint
+	endpoint     dao.ApplicationEndpoint
 	vhosts       []string
 	endpointName string
 }
@@ -79,7 +88,7 @@ func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
 }
 
 // getServiceState gets the service states for a serviceID
-func getServiceStates(conn coordclient.Connection, serviceID string) ([]*servicestate.ServiceState, error) {
+func getServiceStates(conn coordclient.Connection, serviceID string) ([]servicestate.ServiceState, error) {
 	return zkservice.GetServiceStates(conn, serviceID)
 }
 
@@ -101,7 +110,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 
 		for ii, ss := range serviceStates {
 			if ss.InstanceID == instanceID && ss.PrivateIP != "" {
-				return serviceStates[ii], nil
+				return &serviceStates[ii], nil
 			}
 		}
 
@@ -130,12 +139,12 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		return err
 	}
 
-	zzk.InitializeGlobalCoordClient(zClient)
+	zzk.InitializeLocalClient(zClient)
 
 	// get zookeeper connection
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(service.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
-		return fmt.Errorf("getEndpoints zzk.GetBasePathConnection failed: %v", err)
+		return fmt.Errorf("getEndpoints zzk.GetLocalConnection failed: %v", err)
 	}
 
 	if os.Getenv("SERVICED_IS_SERVICE_SHELL") == "true" {
@@ -161,6 +170,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		}
 	} else {
 		// get service state
+		glog.Infof("getting service state: %s %v", c.options.Service.ID, c.options.Service.InstanceID)
 		sstate, err := getServiceState(conn, c.options.Service.ID, c.options.Service.InstanceID)
 		if err != nil {
 			return fmt.Errorf("getEndpoints getServiceState failed: %v", err)
@@ -238,7 +248,7 @@ func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state 
 }
 
 // buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
-func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (*dao.ApplicationEndpoint, error) {
+func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (dao.ApplicationEndpoint, error) {
 	var ae dao.ApplicationEndpoint
 
 	ae.ServiceID = state.ServiceID
@@ -270,7 +280,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 			port, err := strconv.Atoi(pm[0].HostPort)
 			if err != nil {
 				glog.Errorf("Unable to interpret HostPort: %s", pm[0].HostPort)
-				return nil, err
+				return ae, err
 			}
 			ae.HostPort = uint16(port)
 		}
@@ -280,7 +290,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 
 	glog.V(2).Infof("  built ApplicationEndpoint: %+v", ae)
 
-	return &ae, nil
+	return ae, nil
 }
 
 // setImportedEndpoint sets an imported endpoint
@@ -339,7 +349,7 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 
-	zkConn, err := zzk.GetBasePathConnection("/")
+	zkConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
@@ -438,19 +448,20 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	tenantEndpointID := parts[len(parts)-1]
 
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
-		endpoints := make([]*dao.ApplicationEndpoint, len(hostContainerIDs))
+		endpoints := make([]dao.ApplicationEndpoint, len(hostContainerIDs))
 		for ii, hostContainerID := range hostContainerIDs {
 			path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
 			endpointNode, err := endpointRegistry.GetItem(conn, path)
 			if err != nil {
 				glog.Errorf("error getting endpoint node at %s: %v", path, err)
 			}
-			endpoints[ii] = &endpointNode.ApplicationEndpoint
+			endpoints[ii] = endpointNode.ApplicationEndpoint
 			if ep.port != 0 {
-				glog.V(2).Infof("overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
-				endpoints[ii].ContainerPort = ep.port
+				glog.V(2).Infof("overriding ProxyPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				endpoints[ii].ProxyPort = ep.port
 			} else {
-				glog.Infof("not overriding ContainerPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				glog.V(2).Infof("not overriding ProxyPort with imported port:%v for endpoint: %+v", ep.port, endpointNode)
+				endpoints[ii].ProxyPort = endpoints[ii].ContainerPort
 			}
 		}
 		c.setProxyAddresses(tenantEndpointID, endpoints, ep.virtualAddress, ep.purpose)
@@ -458,16 +469,16 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
-	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
+func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
+	glog.V(1).Info("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
 	proxiesLock.Lock()
 	defer proxiesLock.Unlock()
-	glog.Infof("starting setProxyAddresses(tenantEndpointID: %s) locked", tenantEndpointID)
+	glog.V(1).Infof("starting setProxyAddresses(tenantEndpointID: %s) locked", tenantEndpointID)
 
 	if len(endpoints) <= 0 {
 		if prxy, ok := proxies[tenantEndpointID]; ok {
 			glog.Errorf("Setting proxy %s to empty address list", tenantEndpointID)
-			emptyAddressList := []string{}
+			emptyAddressList := []addressTuple{}
 			prxy.SetNewAddresses(emptyAddressList)
 		} else {
 			glog.Errorf("No proxy for %s - no need to set empty address list", tenantEndpointID)
@@ -477,19 +488,23 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 
 	// First pass of endpoints creates a map of proxy index (which is
 	// instanceID in an import_all scenario) to array of addresses
-	addressMap := make(map[int][]string, len(endpoints))
+	addressMap := make(map[int][]addressTuple, len(endpoints))
 	for _, endpoint := range endpoints {
-		address := fmt.Sprintf("%s:%d", endpoint.HostIP, endpoint.HostPort)
+		address := addressTuple{
+			host:          endpoint.HostIP,
+			containerAddr: fmt.Sprintf("%s:%d", endpoint.ContainerIP, endpoint.ContainerPort),
+		}
 		if purpose == "import" {
 			// If we're a load-balanced endpoint, we don't care about instance
 			// ID; just put everything on 0, since we will have 1 proxy
 			addressMap[0] = append(addressMap[0], address)
+			glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", 0, addressMap[0], endpoint)
 		} else if purpose == "import_all" {
 			// In this case, we care about instance ID -> address, because we
 			// will have a proxy per instance
 			addressMap[endpoint.InstanceID] = append(addressMap[endpoint.InstanceID], address)
+			glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 		}
-		glog.V(2).Infof("  addresses[%d]: %s  endpoint: %+v", endpoint.InstanceID, addressMap[endpoint.InstanceID], endpoint)
 	}
 
 	// Build a list of ports exported by this container, so we can check for
@@ -510,31 +525,37 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 	} else if purpose == "import_all" {
 		// Need to create a proxy per instance of the service whose endpoint is
 		// being imported
-		for _, instance := range endpoints {
+		for ii, instance := range endpoints {
 			// Port for this instance is base port + instanceID
-			containerPort := instance.ContainerPort + uint16(instance.InstanceID)
-			if _, conflict := exported[containerPort]; conflict {
-				glog.Warningf("Skipping import at port %d because it conflicts with a port exported by this container", containerPort)
+			proxyPort := instance.ProxyPort + uint16(instance.InstanceID)
+			if _, conflict := exported[proxyPort]; conflict {
+				glog.Warningf("Skipping import at port %d because it conflicts with a port exported by this container", proxyPort)
 				continue
 			}
 			proxyKeys[instance.InstanceID] = fmt.Sprintf("%s_%d", tenantEndpointID, instance.InstanceID)
-			instance.ContainerPort = containerPort
+			endpoints[ii].ProxyPort = proxyPort
 		}
 	}
 
-	// Now iterate over all the keys, create the proxies, and feed the the addresses for each instance
+	// Now iterate over all the keys, create the proxies, and feed in the
+	// addresses for each instance
 	for instanceID, proxyKey := range proxyKeys {
 		prxy, ok := proxies[proxyKey]
 		if !ok {
-			var endpoint *dao.ApplicationEndpoint
-			for _, ep := range endpoints {
-				if ep.InstanceID == instanceID {
-					endpoint = ep
-					break
+			var endpoint dao.ApplicationEndpoint
+			if purpose == "import" {
+				endpoint = endpoints[0]
+			} else {
+				for _, ep := range endpoints {
+					if ep.InstanceID == instanceID {
+						endpoint = ep
+						break
+					}
 				}
 			}
+
 			var err error
-			prxy, err = createNewProxy(proxyKey, endpoint)
+			prxy, err = createNewProxy(proxyKey, endpoint, c.allowDirectConn)
 			if err != nil {
 				glog.Errorf("error with createNewProxy(%s, %+v) %v", proxyKey, endpoint, err)
 				return
@@ -552,7 +573,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 				virtualAddress := buffer.String()
 				// Now actually make the thing
 				if virtualAddress != "" {
-					p := strconv.FormatUint(uint64(endpoint.ContainerPort), 10)
+					p := strconv.FormatUint(uint64(endpoint.ProxyPort), 10)
 					err := vifs.RegisterVirtualAddress(virtualAddress, p, endpoint.Protocol)
 					if err != nil {
 						glog.Errorf("Error creating virtual address %s: %+v", virtualAddress, err)
@@ -565,20 +586,22 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []*dao
 }
 
 // createNewProxy creates a new proxy
-func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) (*proxy, error) {
+func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, allowDirect bool) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
-	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ContainerPort))
+	listener, err := net.Listen("tcp4", fmt.Sprintf(":%d", endpoint.ProxyPort))
 	if err != nil {
-		glog.Errorf("Could not bind to port %d: %s", endpoint.ContainerPort, err)
+		glog.Errorf("Could not bind to port %d: %s", endpoint.ProxyPort, err)
 		return nil, err
 	}
 	prxy, err := newProxy(
 		fmt.Sprintf("%v", endpoint),
+		tenantEndpointID,
 		cMuxPort,
 		cMuxTLS,
-		listener)
+		listener,
+		allowDirect)
 	if err != nil {
 		glog.Errorf("Could not build proxy: %s", err)
 		return nil, err
@@ -590,7 +613,7 @@ func createNewProxy(tenantEndpointID string, endpoint *dao.ApplicationEndpoint) 
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
 func (c *Controller) registerExportedEndpoints() {
-	conn, err := zzk.GetBasePathConnection("/")
+	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return
 	}
@@ -614,22 +637,86 @@ func (c *Controller) registerExportedEndpoints() {
 			endpoint := export.endpoint
 			for _, vhost := range export.vhosts {
 				epName := fmt.Sprintf("%s_%v", export.endpointName, export.endpoint.InstanceID)
-				var path string
-				if path, err = vhostRegistry.SetItem(conn, vhost, registry.NewVhostEndpoint(epName, *endpoint)); err != nil {
-					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
+				//delete any existing vhost that hasn't been cleaned up
+				vhostEndpoint := registry.NewVhostEndpoint(epName, endpoint)
+				if paths, err := vhostRegistry.GetChildren(conn, vhost); err != nil {
+					glog.V(1).Infof("error trying to clean out previous vhosts", err)
+				} else {
+					glog.V(1).Infof("cleaning vhost paths %v", paths)
+					//clean paths
+					for _, path := range paths {
+						if vep, err := vhostRegistry.GetItem(conn, path); err != nil {
+							glog.V(1).Infof("Could not read %s", path)
+						} else {
+							glog.V(4).Infof("checking instance id of %#v equal %v", vep, c.options.Service.InstanceID)
+							if strconv.Itoa(vep.InstanceID) == c.options.Service.InstanceID {
+								glog.V(1).Infof("Deleting stale vhost registration for %v at %v ", vhost, path)
+								conn.Delete(path)
+							}
+						}
+					}
 				}
-				glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
-			}
 
-			glog.Infof("Registering exported endpoint[%s]: %+v", key, *endpoint)
-			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, *endpoint))
+				var path string
+				if path, err = vhostRegistry.SetItem(conn, vhost, vhostEndpoint); err != nil {
+					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
+				} else {
+					glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
+					c.vhostZKPaths = append(c.vhostZKPaths, path)
+				}
+
+			}
+			//delete any exisiting endpoint that hasn't been cleaned up
+			if paths, err := endpointRegistry.GetChildren(conn, c.tenantID, export.endpoint.Application); err != nil {
+				glog.V(1).Infof("error trying to clean previous endpoints: %s", err)
+			} else {
+				glog.V(1).Infof("cleaning endpoint paths %v", paths)
+				//clean paths
+				for _, path := range paths {
+					if epn, err := endpointRegistry.GetItem(conn, path); err != nil {
+						glog.V(1).Infof("Could not read %s", path)
+					} else {
+						glog.V(4).Infof("checking instance id of %#v equal %v", epn, c.options.Service.InstanceID)
+						if strconv.Itoa(epn.InstanceID) == c.options.Service.InstanceID {
+							glog.V(1).Infof("Deleting stale endpoint registration for %v at %v ", export.endpointName, path)
+							conn.Delete(path)
+						}
+					}
+				}
+			}
+			glog.Infof("Registering exported endpoint[%s]: %+v", key, endpoint)
+			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, endpoint))
 			if err != nil {
-				glog.Errorf("  unable to add endpoint: %+v %v", *endpoint, err)
+				glog.Errorf("  unable to add endpoint: %+v %v", endpoint, err)
 				continue
 			}
-
+			c.exportedEndpointZKPaths = append(c.exportedEndpointZKPaths, path)
 			glog.V(1).Infof("  endpoint successfully added to path: %s", path)
 		}
+	}
+}
+
+func (c *Controller) unregisterVhosts() {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return
+	}
+	for _, path := range c.vhostZKPaths {
+		glog.V(1).Infof("controller shutdown deleting vhost %v", path)
+		conn.Delete(path)
+	}
+
+}
+
+func (c *Controller) unregisterEndpoints() {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return
+	}
+
+	for _, path := range c.exportedEndpointZKPaths {
+		glog.V(1).Infof("controller shutdown deleting endpoint %v", path)
+		conn.Delete(path)
 	}
 }
 

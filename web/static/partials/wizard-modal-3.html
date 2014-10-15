@@ -1,6 +1,6 @@
 <p>{{'content_wizard_select_pool'|translate}}</p>
 
-<table class="table table-striped">
+<table class="table table-striped" style="min-width: inherit;">
     <tr>
         <th>&nbsp;</th>
         <th>{{"label_pool_name"|translate}}</th>
@@ -12,7 +12,7 @@
         <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>
         <td>{{pool.ID}}</td>
         <td>{{pool.Description}}</td>
-        <td>{{pool.MemoryLimit}} GB</td>
-        <td>{{pool.CoreLimit}}</td>
+        <td>{{pool.MemoryCapacity | toGB}}</td>
+        <td>{{pool.CoreCapacity}}</td>
     </tr>
 </table>

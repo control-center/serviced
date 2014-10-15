@@ -1,14 +1,24 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package web
 
 import (
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/node"
-	"github.com/control-center/serviced/domain/service"
 
 	"net/url"
 	"strings"
@@ -30,8 +40,9 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		return
 	}
 
-	var services []*service.Service
-	if err := client.GetServices(&empty, &services); err != nil {
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		glog.Errorf("Could not get services: %v", err)
 		restServerError(w, err)
 		return
@@ -40,7 +51,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	var service *service.Service
 	for _, _service := range services {
 		if _service.ID == request.ServiceID {
-			service = _service
+			service = &_service
+			break
 		}
 	}
 
@@ -144,15 +156,16 @@ type virtualHost struct {
 
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
 func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var services []*service.Service
-	err := client.GetServices(&empty, &services)
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	err := client.GetServices(serviceRequest, &services)
 	if err != nil {
 		glog.Errorf("Unexpected error retrieving virtual hosts: %v", err)
 		restServerError(w, err)
 		return
 	}
 
-	serviceTree := make(map[string]*service.Service)
+	serviceTree := make(map[string]service.Service)
 	for _, service := range services {
 		serviceTree[service.ID] = service
 	}

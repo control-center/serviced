@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package host
 
@@ -10,34 +19,36 @@ import (
 	"strings"
 	"time"
 
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/zenoss/glog"
 )
 
-//Host that runs the control plane agent.
+//Host that runs the control center agent.
 type Host struct {
-	ID                string // Unique identifier, default to hostid
-	Name              string // A label for the host, eg hostname, role
-	PoolID            string // Pool that the Host belongs to
-	IPAddr            string // The IP address the host can be reached at from a serviced master
-	Cores             int    // Number of cores available to serviced
-	Memory            uint64 // Amount of RAM (bytes) available to serviced
-	PrivateNetwork    string // The private network where containers run, eg 172.16.42.0/24
-	CreatedAt         time.Time
-	UpdatedAt         time.Time
-	IPs               []HostIPResource // The static IP resources available on the host
-	KernelVersion     string
-	KernelRelease     string
-	ServiceD struct {
-		Version string
-		Date string
+	ID             string // Unique identifier, default to hostid
+	Name           string // A label for the host, eg hostname, role
+	PoolID         string // Pool that the Host belongs to
+	IPAddr         string // The IP address the host can be reached at from a serviced master
+	Cores          int    // Number of cores available to serviced
+	Memory         uint64 // Amount of RAM (bytes) available to serviced
+	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	IPs            []HostIPResource // The static IP resources available on the host
+	KernelVersion  string
+	KernelRelease  string
+	ServiceD       struct {
+		Version   string
+		Date      string
 		Gitcommit string
 		Gitbranch string
-		Giturl string
-		Buildtag string
+		Giturl    string
+		Buildtag  string
 	}
 	MonitoringProfile domain.MonitorProfile
+	datastore.VersionedEntity
 }
 
 // Equals verifies whether two host objects are equal
@@ -93,6 +104,7 @@ type HostIPResource struct {
 	HostID        string
 	IPAddress     string
 	InterfaceName string
+	MACAddress    string
 }
 
 // New creates a new empty host

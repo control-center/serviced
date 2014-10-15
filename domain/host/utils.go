@@ -1,14 +1,23 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package host
 
 import (
+	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 	"github.com/kr/pretty"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/servicedversion"
 
 	"fmt"
 	"net"
@@ -57,13 +66,13 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 	host.Cores = cpus
 	host.Memory = memory
 
-        // get embedded host information
-        host.ServiceD.Version = servicedversion.Version
-        host.ServiceD.Gitbranch = servicedversion.Gitbranch
-        host.ServiceD.Gitcommit = servicedversion.Gitcommit
-        host.ServiceD.Giturl = servicedversion.Giturl
-        host.ServiceD.Date = servicedversion.Date
-        host.ServiceD.Buildtag = servicedversion.Buildtag
+	// get embedded host information
+	host.ServiceD.Version = servicedversion.Version
+	host.ServiceD.Gitbranch = servicedversion.Gitbranch
+	host.ServiceD.Gitcommit = servicedversion.Gitcommit
+	host.ServiceD.Giturl = servicedversion.Giturl
+	host.ServiceD.Date = servicedversion.Date
+	host.ServiceD.Buildtag = servicedversion.Buildtag
 
 	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
 	if err != nil {
@@ -132,6 +141,7 @@ func getIPResources(hostID string, ipaddress ...string) ([]HostIPResource, error
 		hostIP.HostID = hostID
 		hostIP.IPAddress = ipaddr
 		hostIP.InterfaceName = iface.Name
+		hostIP.MACAddress = iface.HardwareAddr.String()
 		hostIPResources = append(hostIPResources, hostIP)
 	}
 	return hostIPResources, nil

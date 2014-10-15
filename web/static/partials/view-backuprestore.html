@@ -26,7 +26,7 @@
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
-            <td>{{fileInfo.name}}</td>
+            <td>{{fileInfo.full_path}}</td>
             <td>{{fileInfo.mod_time | date: 'medium'}}</td>
             <td>
                     <button class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">

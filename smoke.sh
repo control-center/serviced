@@ -57,7 +57,8 @@ add_to_etc_hosts() {
 cleanup() {
     sudo pkill -9 serviced
     docker kill $(docker ps -q)
-    sudo rm -rf /tmp/serviced-root/var/isvcs/*
+    sudo rm -rf /tmp/serviced-root/var
+    sudo tree -L 2 /tmp/serviced-root
 }
 trap cleanup EXIT
 
@@ -66,7 +67,7 @@ start_serviced() {
     echo "Starting serviced..."
     sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${SERVICED} -master -agent &
     echo "Waiting 120 seconds for serviced to become the leader..."
-    retry 180 wget --no-check-certificate http://${HOSTNAME}:443 &>/dev/null
+    retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
     return $?
 }
 
@@ -103,24 +104,9 @@ start_service() {
 }
 
 test_started() {
-    for line in $(${SERVICED} service list | tr -cd '\000-\177' | awk '/s[12]/{print $1 ":" $2}'); do
-        name=$(echo $line | cut -f1 -d:)
-        id=$(echo $line | cut -f2 -d:)
-        docker ps --no-trunc | grep "proxy $id" &>/dev/null
-        status=$?
-        if [ "$status" != "0" ]; then
-            echo "Unable to find service {Name:$name ID:$id} container in docker ps"
-            if [[ 1 = $TRY_COUNTDOWN ]]; then
-                echo "Output of ${SERVICED} service list:"
-                ${SERVICED} service list
-                echo
-                echo "Output of docker ps --no-trunc | grep -v isvcs:"
-                docker ps --no-trunc | grep -v isvcs
-            fi
-            return 1
-        fi
-    done
-    return 0
+    ./smoke.py started
+    rc=$?
+    return $rc
 }
 
 test_vhost() {

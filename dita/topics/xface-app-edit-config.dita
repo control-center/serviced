@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE reference PUBLIC "-//OASIS//DTD DITA Reference//EN" "reference.dtd">
+<reference id="referenceid">
+  <title><uicontrol>Edit configuration</uicontrol> dialog</title>
+  <refbody>
+    <section>
+      <image href="../images/xf-app-edit-config.png" scale="50"/>
+      <p>This dialog features a text editing area, to modify the
+        configuration file of an instance of a service. Changes 
+        are not shared with other instances. </p>
+    </section>
+  </refbody>
+</reference>

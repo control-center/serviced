@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package cgroup
 
@@ -10,7 +19,25 @@ import (
 	"io/ioutil"
 	"strconv"
 	"strings"
+	"github.com/control-center/serviced/utils"
 )
+
+const (
+    Cpuacct string = "cpuacct"
+    Memory string = "memory"
+)
+
+// Helper function that takes a docker ID and parameter (to specify cpu or memory)
+// and returns a path to the correct stats file 
+func GetCgroupDockerStatsFilePath(dockerID string, stat string) string {
+    statsFile := ""
+    if utils.Platform == utils.Debian {
+        statsFile = "/sys/fs/cgroup/" + stat + "/docker/" + dockerID + "/" + stat + ".stat"
+    } else {
+        statsFile = "/sys/fs/cgroup/" + stat + "/system.slice/docker-" + dockerID + ".scope/" + stat + ".stat"
+    }
+    return statsFile
+}
 
 // parseSSKVint64 parses a space-separated key-value pair file and returns a
 // key(string):value(int64) mapping.

@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package servicetemplate
 
@@ -10,6 +19,7 @@ import (
 	"fmt"
 	"reflect"
 
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
@@ -17,9 +27,11 @@ import (
 type ServiceTemplate struct {
 	ID          string                                  // Unique ID of this service template
 	Name        string                                  // Name of service template
+	Version     string                                  // Version of the service
 	Description string                                  // Meaningful description of service
 	Services    []servicedefinition.ServiceDefinition   // Child services
 	ConfigFiles map[string]servicedefinition.ConfigFile // Config file templates
+	datastore.VersionedEntity
 }
 
 // Equals checks the equality of two service templates
@@ -28,6 +40,9 @@ func (a *ServiceTemplate) Equals(b *ServiceTemplate) bool {
 		return false
 	}
 	if a.Name != b.Name {
+		return false
+	}
+	if a.Version != b.Version {
 		return false
 	}
 	if a.Description != b.Description {
@@ -62,10 +77,12 @@ func FromJSON(data string) (*ServiceTemplate, error) {
 type serviceTemplateWrapper struct {
 	ID              string // Primary-key - Should match ServiceTemplate.ID
 	Name            string // Name of top level service
+	Version         string // Version of the service
 	Description     string // Description
 	Data            string // JSON encoded template definition
 	APIVersion      int    // Version of the ServiceTemplate API this expects
 	TemplateVersion int    // Version of the template
+	datastore.VersionedEntity
 }
 
 func newWrapper(st ServiceTemplate) (*serviceTemplateWrapper, error) {
@@ -77,6 +94,7 @@ func newWrapper(st ServiceTemplate) (*serviceTemplateWrapper, error) {
 	var wrapper serviceTemplateWrapper
 	wrapper.ID = st.ID
 	wrapper.Name = st.Name
+	wrapper.Version = st.Version
 	wrapper.Description = st.Description
 	wrapper.Data = string(data)
 	wrapper.APIVersion = 1
@@ -92,8 +110,10 @@ func BuildFromPath(path string) (*ServiceTemplate, error) {
 		return nil, err
 	}
 	st := ServiceTemplate{
-		Services: []servicedefinition.ServiceDefinition{*sd},
-		Name:     sd.Name,
+		Services:    []servicedefinition.ServiceDefinition{*sd},
+		Name:        sd.Name,
+		Version:     sd.Version,
+		Description: sd.Description,
 	}
 	return &st, nil
 }

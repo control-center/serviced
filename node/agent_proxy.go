@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 // Package agent implements a service that runs on a serviced node. It is
 // responsible for ensuring that a particular node is running the correct services
@@ -45,8 +54,8 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
-	myList := make(map[string][]*dao.ApplicationEndpoint)
+func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
+	myList := make(map[string][]dao.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
 	a.addControlPlaneConsumerEndpoint(myList)
@@ -57,6 +66,8 @@ func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][
 }
 
 func (a *HostAgent) GetService(serviceID string, response *service.Service) (err error) {
+	*response = service.Service{}
+
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -65,6 +76,9 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 	defer controlClient.Close()
 
 	err = controlClient.GetService(serviceID, response)
+	if response == nil {
+		*response = service.Service{}
+	}
 	if err != nil {
 		return err
 	}
@@ -85,6 +99,8 @@ func (a *HostAgent) GetService(serviceID string, response *service.Service) (err
 }
 
 func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *service.Service) (err error) {
+	*response = service.Service{}
+
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -93,6 +109,9 @@ func (a *HostAgent) GetServiceInstance(req ServiceInstanceRequest, response *ser
 	defer controlClient.Close()
 
 	err = controlClient.GetService(req.ServiceID, response)
+	if response == nil {
+		*response = service.Service{}
+	}
 	if err != nil {
 		return err
 	}
@@ -139,6 +158,8 @@ func (a *HostAgent) AckProxySnapshotQuiece(snapshotId string, unused *interface{
 // GetHealthCheck returns the health check configuration for a service, if it exists
 func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[string]domain.HealthCheck) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetHealthCheck()")
+	*healthChecks = make(map[string]domain.HealthCheck, 0)
+
 	controlClient, err := NewControlClient(a.master)
 	if err != nil {
 		glog.Errorf("Could not start ControlPlane client %v", err)
@@ -163,7 +184,9 @@ func (a *HostAgent) GetHealthCheck(req HealthCheckRequest, healthChecks *map[str
 		return svc, err
 	}
 	svc.EvaluateHealthCheckTemplate(getSvc, findChild, req.InstanceID)
-	*healthChecks = svc.HealthChecks
+	if svc.HealthChecks != nil {
+		*healthChecks = svc.HealthChecks
+	}
 	return nil
 }
 
@@ -179,8 +202,8 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 	return err
 }
 
-// addControlPlaneEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+// addControlPlaneEndpoint adds an application endpoint mapping for the master control center api
+func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
@@ -192,34 +215,37 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]*dao.Applicat
 		return
 	}
 	endpoint.ContainerPort = uint16(port)
+	endpoint.ProxyPort = uint16(port)
 	endpoint.HostPort = uint16(port)
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
-// addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+// addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control center api
+func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	key := "tcp:8444"
 	endpoint := dao.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
 	endpoint.Application = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
-	endpoint.ContainerPort = 8444
+	endpoint.ContainerPort = 8443
+	endpoint.ProxyPort = 8444
 	endpoint.HostPort = 8443
 	endpoint.HostIP = strings.Split(a.master, ":")[0]
 	endpoint.Protocol = "tcp"
 	a.addEndpoint(key, endpoint, endpoints)
 }
 
-// addLogstashEndpoint adds an application endpoint mapping for the master control plane api
-func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationEndpoint) {
+// addLogstashEndpoint adds an application endpoint mapping for the master control center api
+func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
 	tcp_endpoint := dao.ApplicationEndpoint{
 		ServiceID:     "controlplane_logstash_tcp",
 		Application:   "controlplane_logstash_tcp",
 		ContainerIP:   "127.0.0.1",
 		ContainerPort: 5042,
 		HostPort:      5042,
+		ProxyPort:     5042,
 		HostIP:        strings.Split(a.master, ":")[0],
 		Protocol:      "tcp",
 	}
@@ -231,6 +257,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationE
 		ContainerIP:   "127.0.0.1",
 		ContainerPort: 5043,
 		HostPort:      5043,
+		ProxyPort:     5043,
 		HostIP:        strings.Split(a.master, ":")[0],
 		Protocol:      "tcp",
 	}
@@ -238,18 +265,18 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]*dao.ApplicationE
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
-func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]*dao.ApplicationEndpoint) {
+func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]dao.ApplicationEndpoint) {
 	if _, ok := endpoints[key]; !ok {
-		endpoints[key] = make([]*dao.ApplicationEndpoint, 0)
+		endpoints[key] = make([]dao.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
 			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))
 			for _, ep := range endpoints[key] {
-				glog.Warningf(" %+v", *ep)
+				glog.Warningf(" %+v", ep)
 			}
 		}
 	}
-	endpoints[key] = append(endpoints[key], &endpoint)
+	endpoints[key] = append(endpoints[key], endpoint)
 }
 
 // GetHostID returns the agent's host id
@@ -271,6 +298,7 @@ func (a *HostAgent) GetZkInfo(_ string, zkInfo *ZkInfo) error {
 // GetServiceBindMounts returns the service bindmounts
 func (a *HostAgent) GetServiceBindMounts(serviceID string, bindmounts *map[string]string) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetServiceBindMounts(serviceID:%s)", serviceID)
+	*bindmounts = make(map[string]string, 0)
 
 	var tenantID string
 	if err := a.GetTenantId(serviceID, &tenantID); err != nil {

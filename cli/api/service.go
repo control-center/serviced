@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package api
 
@@ -31,12 +40,6 @@ type ServiceConfig struct {
 	RemotePorts     *PortMap
 }
 
-// RemoveServiceConfig is the deserialized object from the command-line
-type RemoveServiceConfig struct {
-	ServiceID       string
-	RemoveSnapshots bool
-}
-
 // IPConfig is the deserialized object from the command-line
 type IPConfig struct {
 	ServiceID string
@@ -50,14 +53,15 @@ type RunningService struct {
 }
 
 // Gets all of the available services
-func (a *api) GetServices() ([]*service.Service, error) {
+func (a *api) GetServices() ([]service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []*service.Service
-	if err := client.GetServices(&empty, &services); err != nil {
+	var services []service.Service
+	var serviceRequest dao.ServiceRequest
+	if err := client.GetServices(serviceRequest, &services); err != nil {
 		return nil, err
 	}
 
@@ -65,13 +69,13 @@ func (a *api) GetServices() ([]*service.Service, error) {
 }
 
 // Gets all of the available services
-func (a *api) GetServiceStates(serviceID string) ([]*servicestate.ServiceState, error) {
+func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var states []*servicestate.ServiceState
+	var states []servicestate.ServiceState
 	if err := client.GetServiceStates(serviceID, &states); err != nil {
 		return nil, err
 	}
@@ -79,13 +83,13 @@ func (a *api) GetServiceStates(serviceID string) ([]*servicestate.ServiceState, 
 	return states, nil
 }
 
-func (a *api) GetServiceStatus(serviceID string) (map[*servicestate.ServiceState]dao.Status, error) {
+func (a *api) GetServiceStatus(serviceID string) (map[string]dao.ServiceStatus, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var status map[*servicestate.ServiceState]dao.Status
+	var status map[string]dao.ServiceStatus
 	if err := client.GetServiceStatus(serviceID, &status); err != nil {
 		return nil, err
 	}
@@ -109,13 +113,13 @@ func (a *api) GetService(id string) (*service.Service, error) {
 }
 
 // Gets the service definition identified by its service Name
-func (a *api) GetServicesByName(name string) ([]*service.Service, error) {
+func (a *api) GetServicesByName(name string) ([]service.Service, error) {
 	allServices, err := a.GetServices()
 	if err != nil {
 		return nil, err
 	}
 
-	var services []*service.Service
+	var services []service.Service
 	for i, s := range allServices {
 		if s.Name == name || s.ID == name {
 			services = append(services, allServices[i])
@@ -148,7 +152,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	sd := &servicedefinition.ServiceDefinition{
 		Name:      config.Name,
 		Command:   config.Command,
-		Instances: domain.MinMax{Min: 1, Max: 1},
+		Instances: domain.MinMax{Min: 1, Max: 1, Default: 1},
 		ImageID:   config.ImageID,
 		Launch:    commons.AUTO,
 		Endpoints: endpoints,
@@ -163,22 +167,16 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 }
 
 // RemoveService removes an existing service
-func (a *api) RemoveService(config RemoveServiceConfig) error {
+func (a *api) RemoveService(id string) error {
 	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
-	id := config.ServiceID
-
-	if config.RemoveSnapshots {
-		if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-			return fmt.Errorf("could not clean up service history: %s", err)
-		}
-	}
-
 	if err := client.RemoveService(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not remove service: %s", err)
+		return fmt.Errorf("could not remove service %s: %s", id, err)
+	} else if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
+		return fmt.Errorf("could not remove snapshots for service %s: %s", id, err)
 	}
 
 	return nil

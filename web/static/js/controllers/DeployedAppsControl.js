@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $http) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -6,33 +6,32 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.deployingServices = [];
     var lastPollResults = 0;
     var pollDeploying = function(){
-        $http.get('/templates/deploy/active').
-            success(function(data, status) {
-                if(data === "null"){
-                    $scope.services.deploying = [];
-                }else{
-                    $scope.services.deploying = data;
-                }
+        resourcesService.get_active_templates(function(data) {
+            if(data === "null"){
+                $scope.services.deploying = [];
+            }else{
+                $scope.services.deploying = data;
+            }
 
-                //if we have fewer results than last poll, we need to refresh our table
-                if(lastPollResults > $scope.services.deploying.length){
-                    // Get a list of deployed apps
-                    refreshServices($scope, resourcesService, false, function(){
-                        $serviceHealth.update();
-                    });
-                }
-                lastPollResults = $scope.services.deploying.length;
-
-                setTimeout(pollDeploying, 3000);
-            });
+            //if we have fewer results than last poll, we need to refresh our table
+            if(lastPollResults > $scope.services.deploying.length){
+                // Get a list of deployed apps
+                refreshServices($scope, resourcesService, false, function(){
+                    $serviceHealth.update();
+                });
+            }
+            lastPollResults = $scope.services.deploying.length;
+        });
     };
-
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
     $scope.name = "apps";
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
     $scope.defaultHostAlias = location.hostname;
-    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/
+    var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
     if (re.test(location.hostname) || location.hostname == "localhost") {
         $.getJSON("/hosts/defaultHostAlias", "", function(data) {
             $scope.defaultHostAlias = data.hostalias;
@@ -43,12 +42,19 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         { label: 'breadcrumb_deployed', itemClass: 'active' }
     ];
 
-    $scope.services = buildTable('poolID', [
+    $scope.services = buildTable('PoolID', [
         { id: 'Name', name: 'deployed_tbl_name'},
-        { id: 'Health', name: 'health_check'},
-        { id: 'Id', name: 'deployed_tbl_deployment_id'},
-        { id: 'poolID', name: 'deployed_tbl_pool'},
-        { id: 'VirtualHost', name: 'vhost_names'}
+        { id: 'Description', name: 'deployed_tbl_description'},
+        { id: 'Health', name: 'health_check', hideSort: true},
+        { id: 'DeploymentID', name: 'deployed_tbl_deployment_id'},
+        { id: 'PoolID', name: 'deployed_tbl_pool'},
+        { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
+    ]);
+
+    $scope.templates = buildTable('Name', [
+        { id: 'Name', name: 'template_name'},
+        { id: 'ID', name: 'template_id'},
+        { id: 'Description', name: 'template_description'}
     ]);
 
     $scope.click_app = function(id) {
@@ -60,21 +66,68 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     };
 
     $scope.modalAddApp = function() {
-        $('#addApp').modal('show');
+        // the modal occasionally won't show on page load, so we use a timeout to get around that.
+        $timeout(function(){$('#addApp').modal('show');});
+
+        // don't auto-show this wizard again
+        // NOTE: $cookies can only deal with string values
+        $cookies.autoRunWizardHasRun = "true";
+    };
+
+    $scope.modalAddTemplate = function() {
+        $modalService.create({
+            templateUrl: "add-template.html",
+            model: $scope,
+            title: "template_add",
+            actions: [
+                {
+                    role: "cancel",
+                    action: function(){
+                        $scope.newHost = {};
+                        this.close();
+                    }
+                },{
+                    role: "ok",
+                    label: "template_add",
+                    action: function(){
+                        if(this.validate()){
+                            var data = new FormData();
+                            $.each($("#new_template_filename")[0].files, function(key, value){
+                                data.append("tpl", value);
+                            });
+                            resourcesService.add_app_template(data, function(data){
+                                resourcesService.get_app_templates(false, refreshTemplates);
+                            });
+                        }
+
+                        this.close();
+                    }
+                }
+            ]
+        });
     };
 
     // given a service application find all of it's virtual host names
-    $scope.collect_vhosts = function( app) {
+    $scope.collect_vhosts = function(app) {
         var vhosts = [];
-        var vhosts_definitions = aggregateVhosts( app);
-        for ( var i in vhosts_definitions) {
-            vhosts.push( vhosts_definitions[i].Name);
+
+        if (app.Endpoints) {
+            for (var i in app.Endpoints) {
+                var endpoint = app.Endpoints[i];
+                if (endpoint.VHosts) {
+                    for ( var j in endpoint.VHosts) {
+                        vhosts.push( endpoint.VHosts[j] );
+                    }
+                }
+            }
         }
+
+        vhosts.sort();
         return vhosts;
     };
 
     // given a vhost, return a url to it
-    $scope.vhost_url = function( vhost) {
+    $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
         return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
     };
@@ -82,7 +135,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.clickRemoveService = function(app) {
         $scope.appToRemove = app;
         $modalService.create({
-            template: $translate("warning_remove_service"),
+            template: $translate.instant("warning_remove_service"),
             model: $scope,
             title: "remove_service",
             actions: [
@@ -129,7 +182,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
-            template: $translate("confirm_"+ status +"_app"),
+            template: $translate.instant("confirm_"+ status +"_app"),
             model: $scope,
             title: displayStatus +" Services",
             actions: [
@@ -146,11 +199,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             ]
         });
     };
-
-    // Get a list of deployed apps
-    refreshServices($scope, resourcesService, false, function(){
-        $serviceHealth.update();
-    });
 
     var setupNewService = function() {
         $scope.newService = {
@@ -175,6 +223,28 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         }
     };
 
+    $scope.deleteTemplate = function(templateID){
+        $modalService.create({
+            template: $translate.instant("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
+            model: $scope,
+            title: "template_remove",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "template_remove",
+                    classes: "btn-danger",
+                    action: function(){
+                        resourcesService.delete_app_template(templateID, refreshTemplates);
+                        // NOTE: should wait for success before closing
+                        this.close();
+                    }
+                }
+            ]
+        });
+    };
+
     if ($scope.dev) {
         setupNewService();
         $scope.add_service = function() {
@@ -190,5 +260,33 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 
-    pollDeploying();
+    function refreshTemplates(){
+        resourcesService.get_app_templates(false, function(templatesMap) {
+            var templates = [];
+            for (var key in templatesMap) {
+                var template = templatesMap[key];
+                template.Id = key;
+                templates[templates.length] = template;
+            }
+            $scope.templates.data = templates;
+        });
+    }
+
+    // Get a list of templates
+    refreshTemplates();
+
+    // Get a list of deployed apps
+    refreshServices($scope, resourcesService, false, function(){
+        $serviceHealth.update();
+
+        // if only isvcs are deployed, and this is the first time
+        // running deploy wizard, show the deploy apps modal
+        if(!$cookies.autoRunWizardHasRun && $scope.services.data.length === 1){
+            $scope.modalAddApp();
+        }
+    });
+
+    //register polls
+    resourcesService.registerPoll("deployingApps", pollDeploying, 3000);
+    resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
 }

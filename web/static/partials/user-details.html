@@ -19,13 +19,15 @@
 </div>
 <ul class="well list-group">
     <li class="list-group-item" ng-repeat="message in messages.messages track by message.id">
-        <div ng-if="!message.read" class="message unreadMessage" ng-click="markRead(message)">
+        <div ng-if="message.read < message.count" class="message unreadMessage" ng-click="markRead(message)">
+            <span class="messageCounter">{{ message.count - message.read > 1 ? message.count - message.read : ""}}</span>
             <i class="glyphicon glyphicon-envelope"></i>
             <span class="date">{{message.date | date : 'medium'}} -</span>
             <span class="title">{{message.title}}:</span>
             <span class="message">{{message.msg}}</span>
         </div>
-        <div ng-if="message.read" class="message readMessage">
+        <div ng-if="message.read >= message.count" class="message readMessage">
+            <span class="messageCounter"></span>
             <i class="glyphicon glyphicon-ok"></i>
             <span class="date">{{message.date | date : 'medium'}} -</span>
             <span class="title">{{message.title}}:</span>

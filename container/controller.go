@@ -1,10 +1,20 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package container
 
 import (
+	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
@@ -13,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
 
@@ -79,25 +90,30 @@ type ControllerOptions struct {
 		RemoteEndoint string // The url to forward metric queries
 	}
 	VirtualAddressSubnet string // The subnet of virtual addresses, 10.3
+	MetricForwarding     bool   // Whether or not the Controller should forward metrics
 }
 
 // Controller is a object to manage the operations withing a container. For example,
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
-	options            ControllerOptions
-	hostID             string
-	tenantID           string
-	dockerID           string
-	metricForwarder    *MetricForwarder
-	logforwarder       *subprocess.Instance
-	logforwarderExited chan error
-	closing            chan chan error
-	prereqs            []domain.Prereq
-	zkInfo             node.ZkInfo
-	zkConn             coordclient.Connection
-	exportedEndpoints  map[string][]export
-	importedEndpoints  map[string]importedEndpoint
-	PIDFile            string
+	options                 ControllerOptions
+	hostID                  string
+	tenantID                string
+	dockerID                string
+	metricForwarder         *MetricForwarder
+	logforwarder            *subprocess.Instance
+	logforwarderExited      chan error
+	closing                 chan chan error
+	prereqs                 []domain.Prereq
+	zkInfo                  node.ZkInfo
+	zkConn                  coordclient.Connection
+	exportedEndpoints       map[string][]export
+	importedEndpoints       map[string]importedEndpoint
+	PIDFile                 string
+	exportedEndpointZKPaths []string
+	vhostZKPaths            []string
+	exitStatus              int
+	allowDirectConn         bool
 }
 
 // Close shuts down the controller
@@ -271,6 +287,9 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		return c, ErrInvalidService
 	}
 
+	c.allowDirectConn = !service.HasEndpointsFor("import_all")
+	glog.Infof("Allow container to container connections: %t", c.allowDirectConn)
+
 	if service.PIDFile != "" {
 		if strings.HasPrefix(service.PIDFile, "exec ") {
 			cmd := service.PIDFile[5:len(service.PIDFile)]
@@ -331,6 +350,8 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	metricRedirect := options.Metric.RemoteEndoint
 	if len(metricRedirect) == 0 {
 		glog.V(1).Infof("container.Controller does not have metric forwarding")
+	} else if !options.MetricForwarding {
+		glog.V(1).Infof("Not forwarding metrics for this container (%v)", c.tenantID)
 	} else {
 		if len(c.tenantID) <= 0 {
 			return nil, ErrInvalidTenantID
@@ -452,10 +473,29 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 	return gone, nil
 }
 
+func (c *Controller) shutdown() {
+	glog.V(1).Infof("controller for %v shutting down\n", c.dockerID)
+	//defers run in LIFO order
+	defer os.Exit(c.exitStatus)
+	defer zzk.ShutdownConnections()
+}
+
+func (c *Controller) reapZombies(close chan struct{}) {
+	for {
+		select {
+		case <-close:
+			return
+		case <-time.After(time.Second * 10):
+			glog.V(5).Info("reaping zombies")
+			proc.ReapZombies()
+		}
+	}
+}
+
 // Run executes the controller's main loop and block until the service exits
 // according to it's restart policy or Close() is called.
 func (c *Controller) Run() (err error) {
-
+	defer c.shutdown()
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc,
 		syscall.SIGINT,
@@ -468,6 +508,7 @@ func (c *Controller) Run() (err error) {
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_INSTANCE_ID=%s", c.options.Service.InstanceID))
+	env = append(env, fmt.Sprintf("CONTROLPLANE_SERVICED_ID=%s", c.options.Service.ID))
 
 	if err := writeEnvFile(env); err != nil {
 		return err
@@ -480,6 +521,18 @@ func (c *Controller) Run() (err error) {
 		return service, serviceExited
 	}
 
+	sendSignal := func(service *subprocess.Instance, sig os.Signal) bool {
+		switch {
+		case c.PIDFile != "":
+			c.forwardSignal(sig)
+		case service != nil:
+			service.Notify(sig)
+		default:
+			return false
+		}
+		return true
+	}
+
 	rpcDead, err := c.rpcHealthCheck()
 	if err != nil {
 		glog.Error("Could not setup RPC ping check: %s", err)
@@ -488,42 +541,52 @@ func (c *Controller) Run() (err error) {
 
 	prereqsPassed := make(chan bool)
 	var startAfter <-chan time.Time
-	service := &subprocess.Instance{}
+	var exitAfter <-chan time.Time
+	var service *subprocess.Instance = nil
 	serviceExited := make(chan error, 1)
+	c.watchRemotePorts()
 	if err := c.handleControlCenterImports(rpcDead); err != nil {
 		glog.Error("Could not setup Control Center specific imports: ", err)
 		return err
 	}
-	c.watchRemotePorts()
 	go c.checkPrereqs(prereqsPassed, rpcDead)
-	healthExits := c.kickOffHealthChecks()
+	go c.reapZombies(rpcDead)
+	healthExit := make(chan struct{})
+	defer close(healthExit)
+	c.kickOffHealthChecks(healthExit)
 	doRegisterEndpoints := true
+	exited := false
 
-	for {
+	var shutdownService = func(service *subprocess.Instance, sig os.Signal) {
+		c.options.Service.Autorestart = false
+		if sendSignal(service, sig) {
+			sigc = nil
+			prereqsPassed = nil
+			startAfter = nil
+			rpcDead = nil
+			exitAfter = time.After(time.Second * 30)
+			close(healthExit)
+		} else {
+			c.exitStatus = 1
+			exited = true
+		}
+	}
+
+	for !exited {
 		select {
 		case sig := <-sigc:
-			switch sig {
-			case syscall.SIGTERM:
-				c.options.Service.Autorestart = false
-			case syscall.SIGQUIT:
-				c.options.Service.Autorestart = false
-			case syscall.SIGINT:
-				c.options.Service.Autorestart = false
-			}
-			glog.Infof("notifying subprocess of signal %v", sig)
-			if c.PIDFile != "" {
-				c.forwardSignal(sig)
-			} else {
-				service.Notify(sig)
-			}
-			select {
-			case <-serviceExited:
-				return
-			default:
-			}
+			glog.Infof("Notifying subprocess of signal %v", sig)
+			shutdownService(service, sig)
+
+		case <-exitAfter:
+			glog.Infof("Killing unresponsive subprocess")
+			sendSignal(service, syscall.SIGKILL)
+			c.exitStatus = 1
+			exited = true
 
 		case <-prereqsPassed:
 			startAfter = time.After(time.Millisecond * 1)
+			prereqsPassed = nil
 
 		case exitError := <-serviceExited:
 			if !c.options.Service.Autorestart {
@@ -531,11 +594,17 @@ func (c *Controller) Run() (err error) {
 				if c.options.Logforwarder.Enabled {
 					time.Sleep(c.options.Logforwarder.SettleTime)
 				}
-				glog.Infof("Exiting with status:%d due to %+v", exitStatus, exitError)
-				os.Exit(exitStatus)
+				glog.Infof("Service Exited with status:%d due to %+v", exitStatus, exitError)
+				//set loop to end
+				exited = true
+				//exit with exit code, defer so that other cleanup can happen
+				c.exitStatus = exitStatus
+
+			} else {
+				glog.Infof("Restarting service process in 10 seconds.")
+				service = nil
+				startAfter = time.After(time.Second * 10)
 			}
-			glog.Infof("Restarting service process in 10 seconds.")
-			startAfter = time.After(time.Second * 10)
 
 		case <-startAfter:
 			glog.Infof("Starting service process.")
@@ -547,16 +616,9 @@ func (c *Controller) Run() (err error) {
 			startAfter = nil
 
 		case <-rpcDead:
-			if c.PIDFile != "" {
-				c.forwardSignal(syscall.SIGTERM)
-			} else {
-				service.Notify(syscall.SIGTERM)
-			}
-			glog.Fatalf("RPC Server has gone away, exiting: %s", err)
+			glog.Infof("RPC Server has gone away, cleaning up")
+			shutdownService(service, syscall.SIGTERM)
 		}
-	}
-	for _, exitChannel := range healthExits {
-		exitChannel <- true
 	}
 	return
 }
@@ -575,11 +637,13 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 		case <-healthCheckInterval:
 			failedAny := false
 			for _, script := range c.prereqs {
-				glog.Infof("Running command: %s", script.Script)
+				glog.Infof("Running prereq command: %s", script.Script)
 				cmd := exec.Command("sh", "-c", script.Script)
 				err := cmd.Run()
 				if err != nil {
-					glog.Warningf("Not starting service yet, waiting on prereq: %s", script.Name)
+					msg := fmt.Sprintf("Not starting service yet, waiting on prereq: %s", script.Name)
+					glog.Warning(msg)
+					fmt.Fprintln(os.Stderr, msg)
 					failedAny = true
 					break
 				} else {
@@ -596,12 +660,11 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 	return nil
 }
 
-func (c *Controller) kickOffHealthChecks() map[string]chan bool {
-	exitChannels := make(map[string]chan bool)
+func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
-		return nil
+		return
 	}
 	defer client.Close()
 	var healthChecks map[string]domain.HealthCheck
@@ -609,24 +672,27 @@ func (c *Controller) kickOffHealthChecks() map[string]chan bool {
 	instanceID, err := strconv.Atoi(c.options.Service.InstanceID)
 	if err != nil {
 		glog.Errorf("Invalid instance from instanceID:%s", c.options.Service.InstanceID)
-		return nil
+		return
 	}
 	err = client.GetHealthCheck(node.HealthCheckRequest{
 		c.options.Service.ID, instanceID}, &healthChecks)
 	if err != nil {
 		glog.Errorf("Error getting health checks: %s", err)
-		return nil
+		return
 	}
 	for key, mapping := range healthChecks {
 		glog.Infof("Kicking off health check %s.", key)
-		exitChannels[key] = make(chan bool)
 		glog.Infof("Setting up health check: %s", mapping.Script)
-		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, exitChannels[key])
+		timeout := mapping.Timeout
+		if timeout == 0 {
+			timeout = time.Second * 30
+		}
+		go c.handleHealthCheck(key, mapping.Script, mapping.Interval, timeout, healthExit)
 	}
-	return exitChannels
+	return
 }
 
-func (c *Controller) handleHealthCheck(name string, script string, interval time.Duration, exitChannel chan bool) {
+func (c *Controller) handleHealthCheck(name string, script string, interval, timeout time.Duration, exitChannel chan struct{}) {
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
@@ -652,17 +718,35 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 		return
 	}
 	var unused int
+	sigtermTimeout := time.Second * 10
 	for {
 		select {
 		case <-time.After(interval):
+			exited := make(chan error, 1)
+			sysProcAttr := &syscall.SysProcAttr{Setpgid: true, Pdeathsig: syscall.SIGTERM}
 			cmd := exec.Command("sh", "-c", scriptFile.Name())
-			err = cmd.Run()
-			if err == nil {
-				glog.V(4).Infof("Health check %s succeeded.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "passed"}, &unused)
-			} else {
-				glog.Warningf("Health check %s failed.", name)
-				_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, name, time.Now().String(), "failed"}, &unused)
+			cmd.SysProcAttr = sysProcAttr
+			if err := cmd.Start(); err != nil {
+				glog.Errorf("Could not run cmd %v: %s", cmd, err)
+				break
+			}
+			go func(c *exec.Cmd) { exited <- c.Wait() }(cmd)
+			select {
+			case err := <-exited:
+				if err == nil {
+					glog.V(4).Infof("Health check %s succeeded.", name)
+					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
+				} else {
+					glog.Warningf("Health check %s failed.", name)
+					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
+				}
+			case <-exitChannel:
+				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
+				return
+			case <-time.After(timeout):
+				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
+				glog.Warningf("Health check %s timeout.", name)
+				client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 			}
 		case <-exitChannel:
 			return
@@ -671,7 +755,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval time
 }
 
 func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
-	// this function is currently needed to handle special control plane imports
+	// this function is currently needed to handle special control center imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 
 	// get service endpoints
@@ -687,11 +771,11 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
 	//		We should rename it and clean up the filtering code below.
 
-	epchan := make(chan map[string][]*dao.ApplicationEndpoint)
+	epchan := make(chan map[string][]dao.ApplicationEndpoint)
 	timeout := make(chan struct{})
 
-	go func(c *node.LBClient, svcid string, epc chan map[string][]*dao.ApplicationEndpoint, timeout chan struct{}) {
-		var endpoints map[string][]*dao.ApplicationEndpoint
+	go func(c *node.LBClient, svcid string, epc chan map[string][]dao.ApplicationEndpoint, timeout chan struct{}) {
+		var endpoints map[string][]dao.ApplicationEndpoint
 	RetryGetServiceEndpoints:
 		for {
 			err = c.GetServiceEndpoints(svcid, &endpoints)
@@ -723,7 +807,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		}
 	}(client, c.options.Service.ID, epchan, timeout)
 
-	var endpoints map[string][]*dao.ApplicationEndpoint
+	var endpoints map[string][]dao.ApplicationEndpoint
 	select {
 	case <-time.After(1 * time.Minute):
 		close(epchan)
@@ -739,7 +823,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	}
 
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
-	tmp := make(map[string][]*dao.ApplicationEndpoint)
+	tmp := make(map[string][]dao.ApplicationEndpoint)
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
 			glog.Warningf("ignoring key: %s with empty endpointList", key)
@@ -752,7 +836,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	}
 	endpoints = tmp
 
-	cc_endpoint_purpose := "import" // Punting on control plane dynamic imports for now
+	cc_endpoint_purpose := "import" // Punting on control center dynamic imports for now
 
 	for key, endpointList := range endpoints {
 		// ignore endpoints that are not special controlplane imports

@@ -60,20 +60,21 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
         for (var i=0; i < runningServices.length; i++) {
             var running = runningServices[i];
-            if (!addedHosts[running.HostID]) {
-                states[states.length] = {
-                    id: running.HostID,
-                    value: { label: $scope.hosts.mapped[running.HostID].Name }
+            if (running.HostID) {
+                if (!addedHosts[running.HostID]) {
+                    states[states.length] = {
+                        id: running.HostID,
+                        value: { label: $scope.hosts.mapped[running.HostID].Name }
+                    };
+                    nodeClasses[running.HostID] = 'host';
+                    addedHosts[running.HostID] = true;
+                }
+                nodeClasses[running.ServiceID] = 'service';
+                edges[edges.length] = {
+                    u: running.ServiceID,
+                    v: running.HostID
                 };
-                nodeClasses[running.HostID] = 'host';
-                addedHosts[running.HostID] = true;
             }
-            nodeClasses[running.ServiceID] = 'service';
-            edges[edges.length] = {
-                u: running.ServiceID,
-                v: running.HostID
-            };
-
         }
 
         var layout = dagreD3.layout().nodeSep(5).rankSep(100).rankDir("LR");

@@ -61,7 +61,7 @@ func collect(ts time.Time, statsUrl string) {
 		}
 		i++
 	}
-	glog.Info("posting samples: %+v", samples)
+	glog.V(4).Infof("posting samples: %+v", samples)
 	if err := stats.Post(statsUrl, samples); err != nil {
 		glog.Errorf("could not post stats: %s", err)
 	}

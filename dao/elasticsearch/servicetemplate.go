@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package elasticsearch
 
@@ -24,9 +33,13 @@ func (this *ControlPlaneDao) RemoveServiceTemplate(id string, unused *int) error
 	return this.facade.RemoveServiceTemplate(datastore.Get(), id)
 }
 
-func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]*servicetemplate.ServiceTemplate) error {
+func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[string]servicetemplate.ServiceTemplate) error {
 	templatemap, err := this.facade.GetServiceTemplates(datastore.Get())
-	*templates = templatemap
+	if templatemap != nil {
+		*templates = templatemap
+	} else {
+		*templates = make(map[string]servicetemplate.ServiceTemplate, 0)
+	}
 	return err
 }
 
@@ -45,6 +58,9 @@ func (this *ControlPlaneDao) DeployTemplateStatus(request dao.ServiceTemplateDep
 func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[string]string) error {
 	var err error
 	err = this.facade.DeployTemplateActive(active)
+	if active == nil {
+		*active = make([]map[string]string, 0)
+	}
 	return err
 }
 

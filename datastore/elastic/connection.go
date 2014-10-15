@@ -1,16 +1,25 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package elastic
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/elastigo/core"
 	"github.com/zenoss/elastigo/indices"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/datastore"
 
 	"encoding/json"
 	"fmt"
@@ -27,13 +36,17 @@ func (ec *elasticConnection) Put(key datastore.Key, msg datastore.JSONMessage) e
 	glog.V(4).Infof("Put for {kind:%s, id:%s} %v", key.Kind(), key.ID(), string(msg.Bytes()))
 	var raw json.RawMessage
 	raw = msg.Bytes()
-	resp, err := core.Index(false, ec.index, key.Kind(), key.ID(), &raw)
-	indices.Refresh(ec.index)
-	glog.V(4).Infof("Put response: %v", resp)
+	resp, err := core.IndexWithParameters(false, ec.index, key.Kind(), key.ID(), "", msg.Version(), "", "", "", 0, "", "", false, &raw)
 	if err != nil {
-		glog.Errorf("Put err: %v", err)
+		glog.Errorf("Put err: %+v", err)
+		if eserr, iseserror := err.(api.ESError); iseserror && eserr.Code == 409 {
+			// Conflict
+			return fmt.Errorf("Your changes conflict with those made by another user. Please reload and try your changes again.")
+		}
 		return err
 	}
+	indices.Refresh(ec.index)
+	glog.V(4).Infof("Put response: %v", resp)
 	if !resp.Ok {
 		return fmt.Errorf("non OK response: %v", resp)
 	}
@@ -54,7 +67,8 @@ func (ec *elasticConnection) Get(key datastore.Key) (datastore.JSONMessage, erro
 		return nil, datastore.ErrNoSuchEntity{Key: key}
 	}
 	bytes := response.Source
-	return datastore.NewJSONMessage(bytes), nil
+	msg := datastore.NewJSONMessage(bytes, response.Version)
+	return msg, nil
 }
 
 func (ec *elasticConnection) Delete(key datastore.Key) error {
@@ -90,7 +104,9 @@ func toJSONMessages(result *core.SearchResult) []datastore.JSONMessage {
 	var msgs = make([]datastore.JSONMessage, total)
 	for i := 0; i < total; i++ {
 		glog.V(4).Infof("Adding result %s", string(result.Hits.Hits[i].Source))
-		msg := datastore.NewJSONMessage(result.Hits.Hits[i].Source)
+		src := result.Hits.Hits[i].Source
+		version := result.Hits.Hits[i].Version
+		msg := datastore.NewJSONMessage(src, version)
 		msgs[i] = msg
 	}
 	return msgs

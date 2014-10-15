@@ -591,7 +591,7 @@ Set.union = function(sets) {
   var k = 0;
   for (var i = 0, il = sets.length; i < il; ++i) {
     var cur = sets[i],
-        keys = cur.keys ? cur.keys() : cur;
+        keys = cur instanceof Set ? cur.keys() : cur;        
     for (var j = 0, jl = keys.length; j < jl; ++j) {
       arr[k++] = keys[j];
     }

@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -12,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 )
 
 //NewStore creates a Service  store
@@ -51,12 +61,25 @@ func (s *Store) Delete(ctx datastore.Context, id string) error {
 }
 
 //GetServices returns all services
-func (s *Store) GetServices(ctx datastore.Context) ([]*Service, error) {
+func (s *Store) GetServices(ctx datastore.Context) ([]Service, error) {
 	return query(ctx, "_exists_:ID")
 }
 
+//GetUpdatedServices returns all services updated since "since" time.Duration ago
+func (s *Store) GetUpdatedServices(ctx datastore.Context, since time.Duration) ([]Service, error) {
+	q := datastore.NewQuery(ctx)
+	t0 := time.Now().Add(-since).Format(time.RFC3339)
+	elasticQuery := search.Query().Range(search.Range().Field("UpdatedAt").From(t0)).Search("_exists_:ID")
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
 //GetTaggedServices returns services with the given tags
-func (s *Store) GetTaggedServices(ctx datastore.Context, tags ...string) ([]*Service, error) {
+func (s *Store) GetTaggedServices(ctx datastore.Context, tags ...string) ([]Service, error) {
 	if len(tags) == 0 {
 		return nil, errors.New("empty tags not allowed")
 	}
@@ -65,7 +88,7 @@ func (s *Store) GetTaggedServices(ctx datastore.Context, tags ...string) ([]*Ser
 }
 
 //GetServicesByPool returns services with the given pool id
-func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]*Service, error) {
+func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]Service, error) {
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
@@ -75,7 +98,7 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]*Serv
 }
 
 //GetServicesByDeployment returns services with the given deployment id
-func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]*Service, error) {
+func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID string) ([]Service, error) {
 	id := strings.TrimSpace(deploymentID)
 	if id == "" {
 		return nil, errors.New("empty deploymentID not allowed")
@@ -85,7 +108,7 @@ func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID stri
 }
 
 //GetChildServices returns services that are children of the given parent service id
-func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]*Service, error) {
+func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]Service, error) {
 	id := strings.TrimSpace(parentID)
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
@@ -95,7 +118,7 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]*Ser
 	return query(ctx, queryString)
 }
 
-func query(ctx datastore.Context, query string) ([]*Service, error) {
+func query(ctx datastore.Context, query string) ([]Service, error) {
 	q := datastore.NewQuery(ctx)
 	elasticQuery := search.Query().Search(query)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
@@ -113,8 +136,8 @@ func fillConfig(svc *Service) {
 	}
 }
 
-func convert(results datastore.Results) ([]*Service, error) {
-	svcs := make([]*Service, results.Len())
+func convert(results datastore.Results) ([]Service, error) {
+	svcs := make([]Service, results.Len())
 	for idx := range svcs {
 		var svc Service
 		err := results.Get(idx, &svc)
@@ -122,7 +145,7 @@ func convert(results datastore.Results) ([]*Service, error) {
 			return nil, err
 		}
 		fillConfig(&svc)
-		svcs[idx] = &svc
+		svcs[idx] = svc
 	}
 	return svcs, nil
 }

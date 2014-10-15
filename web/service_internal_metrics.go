@@ -14,6 +14,8 @@
 package web
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
@@ -21,6 +23,10 @@ import (
 
 // fillBuiltinMetrics adds internal metrics to the monitoring profile
 func fillBuiltinMetrics(svc *service.Service) {
+	if strings.HasPrefix(svc.ID, "isvc-") {
+		return
+	}
+
 	if svc.MonitoringProfile.MetricConfigs == nil {
 		builder, err := domain.NewMetricConfigBuilder("/metrics/api/performance/query", "POST")
 		if err != nil {
@@ -89,7 +95,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalusage",
 			Name:        "CPU Usage",
 			BuiltIn:     true,
-			Format:      "%d",
+			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
@@ -97,10 +103,11 @@ func addInternalGraphConfigs(svc *service.Service) {
 			Description: "% CPU Used Over Last Hour",
 			MinY:        &zero,
 			Range:       &tRange,
+			Units:       "Time",
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Format:       "%d",
+					Format:       "%4.2f",
 					Legend:       "System",
 					Metric:       "cgroup.cpuacct.system",
 					MetricSource: "metrics",
@@ -114,7 +121,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Format:       "%d",
+					Format:       "%4.2f",
 					Legend:       "User",
 					Metric:       "cgroup.cpuacct.user",
 					MetricSource: "metrics",
@@ -137,20 +144,21 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalMemoryUsage",
 			Name:        "Memory Usage",
 			BuiltIn:     true,
-			Format:      "%6.2f",
+			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
 			Type:        "area",
 			Tags:        tags,
-			YAxisLabel:  "GB",
-			Description: "GB Memory Used Over Last Hour",
+			YAxisLabel:  "bytes",
+			Description: "Memory Used Over Last Hour",
 			MinY:        &zero,
 			Range:       &tRange,
+			Units:       "Bytes",
+			Base:        1024,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:1024,/,1024,/,1024,/",
 					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "RSS",
 					Metric:       "cgroup.memory.totalrss",
 					MetricSource: "metrics",
@@ -161,9 +169,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:1024,/,1024,/,1024,/",
 					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "Cache",
 					Metric:       "cgroup.memory.cache",
 					MetricSource: "metrics",
@@ -183,19 +190,20 @@ func addInternalGraphConfigs(svc *service.Service) {
 			ID:          "internalNetworkUsage",
 			Name:        "Network Usage",
 			BuiltIn:     true,
-			Format:      "%6.2f",
+			Format:      "%4.2f",
 			ReturnSet:   "EXACT",
-			Type:        "area",
+			Type:        "line",
 			Tags:        tags,
-			YAxisLabel:  "kbps",
+			YAxisLabel:  "Bps",
 			Range:       &tRange,
-			Description: "kbps over last hour",
+			Description: "Bytes per second over last hour",
+			MinY:        &zero,
+			Units:       "Bytes per second",
+			Base:        1024,
 			DataPoints: []domain.DataPoint{
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:8,/,1024,/",
-					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "TX",
 					Metric:       "net.tx_bytes",
 					MetricSource: "metrics",
@@ -206,9 +214,7 @@ func addInternalGraphConfigs(svc *service.Service) {
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
-					Expression:   "rpn:8,/,1024,/",
-					Fill:         true,
-					Format:       "%6.2f",
+					Format:       "%4.2f",
 					Legend:       "RX",
 					Metric:       "net.rx_bytes",
 					MetricSource: "metrics",

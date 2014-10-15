@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package web
 
@@ -13,12 +22,12 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/gorilla/mux"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/gorilla/mux"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 )
 
 // ServiceConfig is the ui/rest handler for control center
@@ -39,7 +48,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		bindPort:    bindPort,
 		agentPort:   agentPort,
 		stats:       stats,
-		hostaliases: []string{},
+		hostaliases: hostaliases,
 		muxTLS:      muxTLS,
 		muxPort:     muxPort,
 	}
@@ -49,11 +58,12 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 	return &cfg
 }
 
-// Serve handles control plane web UI requests and virtual host requests for zenoss web based services.
+// Serve handles control center web UI requests and virtual host requests for zenoss web based services.
 // The UI server actually listens on port 7878, the uihandler defined here just reverse proxies to it.
 // Virtual host routing to zenoss web based services is done by the vhosthandler function.
 func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
+	glog.V(1).Infof("starting vhost synching")
 	//start getting vhost endpoints
 	go sc.syncVhosts(shutdown)
 
@@ -199,7 +209,7 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	// setup the client
 	c, err = node.NewControlClient(sc.agentPort)
 	if err != nil {
-		glog.Fatalf("Could not create a control plane client: %v", err)
+		glog.Fatalf("Could not create a control center client: %v", err)
 	}
 	return c, err
 }
@@ -208,7 +218,7 @@ func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
 	glog.Info("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
 	c, err := master.NewClient(sc.agentPort)
 	if err != nil {
-		glog.Errorf("Could not create a control plane client to %v: %v", sc.agentPort, err)
+		glog.Errorf("Could not create a control center client to %v: %v", sc.agentPort, err)
 		return nil, err
 	}
 	glog.Info("end getMasterClient")
@@ -257,7 +267,7 @@ func (ctx *requestContext) getMasterClient() (*master.Client, error) {
 	if ctx.master == nil {
 		c, err := ctx.sc.getMasterClient()
 		if err != nil {
-			glog.Errorf("Could not create a control plane client: %v", err)
+			glog.Errorf("Could not create a control center client: %v", err)
 			return nil, err
 		}
 		ctx.master = c

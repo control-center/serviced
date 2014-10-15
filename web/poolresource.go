@@ -1,6 +1,5 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
+// Copyright 2014 The Serviced Authors.
 // Use of sc source code is governed by a
-// license that can be found in the LICENSE file.
 
 package web
 

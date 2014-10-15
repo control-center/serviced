@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -9,8 +18,10 @@ import (
 	"github.com/control-center/serviced/datastore/elastic"
 	. "gopkg.in/check.v1"
 
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"testing"
+	"time"
+
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 // This plumbs gocheck into testing
@@ -110,4 +121,44 @@ func (s *S) Test_GetServices(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(len(svcs), Equals, 2)
 
+}
+
+func (s *S) Test_GetUpdatedServices(t *C) {
+	svcs, err := s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 0)
+
+	svc := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto", UpdatedAt: time.Now().Add(-time.Duration(10) * time.Second)}
+	err = s.store.Put(s.ctx, svc)
+	t.Assert(err, IsNil)
+
+	svcs, err = s.store.GetUpdatedServices(s.ctx, time.Duration(1)*time.Hour)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
+}
+
+func (s *S) Test_VersionConflicts(t *C) {
+	svc := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	err := s.store.Put(s.ctx, svc)
+	t.Assert(err, IsNil)
+
+	svcs, err := s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
+	t.Assert(svcs[0].DatabaseVersion, Equals, 1)
+
+	svc2 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	svc2.DatabaseVersion = 1
+	err = s.store.Put(s.ctx, svc2)
+	t.Assert(err, IsNil)
+
+	svcs, err = s.store.GetServices(s.ctx)
+	t.Assert(err, IsNil)
+	t.Assert(len(svcs), Equals, 1)
+	t.Assert(svcs[0].DatabaseVersion, Equals, 2)
+
+	svc3 := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto"}
+	svc3.DatabaseVersion = 1
+	err = s.store.Put(s.ctx, svc3)
+	t.Assert(err, Not(IsNil))
 }

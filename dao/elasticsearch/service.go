@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package elasticsearch
 
@@ -8,6 +17,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
 )
 
 // AddService add a service. Return error if service already exists
@@ -35,19 +45,18 @@ func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	return nil
 }
 
-//
+// GetService gets a service.
 func (this *ControlPlaneDao) GetService(id string, myService *service.Service) error {
-	if svc, err := this.facade.GetService(datastore.Get(), id); err == nil {
+	svc, err := this.facade.GetService(datastore.Get(), id)
+	if svc != nil {
 		*myService = *svc
-		return nil
-	} else {
-		return err
 	}
+	return err
 }
 
-// TODO FIXME no need for the request argument
-func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]*service.Service) error {
-	if svcs, err := this.facade.GetServices(datastore.Get()); err == nil {
+// Get the services (can filter by name and/or tenantID)
+func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
+	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
 		*services = svcs
 		return nil
 	} else {
@@ -57,16 +66,21 @@ func (this *ControlPlaneDao) GetServices(request dao.EntityRequest, services *[]
 
 //
 func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
-	if svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName); err == nil {
-		*service = *svc
-		return nil
-	} else {
+	svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName)
+	if err != nil {
 		return err
 	}
+
+	if svc != nil {
+		*service = *svc
+	} else {
+		glog.Warningf("unable to find child of service: %+v", service)
+	}
+	return nil
 }
 
-//
-func (this *ControlPlaneDao) GetTaggedServices(request dao.EntityRequest, services *[]*service.Service) error {
+// Get tagged services (can also filter by name and/or tenantID)
+func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
 	if svcs, err := this.facade.GetTaggedServices(datastore.Get(), request); err == nil {
 		*services = svcs
 		return nil
@@ -86,7 +100,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) err
 }
 
 // Get a service endpoint.
-func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]*dao.ApplicationEndpoint) (err error) {
+func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]dao.ApplicationEndpoint) (err error) {
 	if result, err := this.facade.GetServiceEndpoints(datastore.Get(), serviceID); err == nil {
 		*response = result
 		return nil
@@ -99,6 +113,8 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map
 func (this *ControlPlaneDao) StartService(serviceID string, unused *string) error {
 	return this.facade.StartService(datastore.Get(), serviceID)
 }
+
+// stop the provided service
 func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 	return this.facade.StopService(datastore.Get(), id)
 }

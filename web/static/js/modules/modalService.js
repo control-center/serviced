@@ -47,11 +47,10 @@
              */
             function Modal(template, model, config){
                 var $modalFooter;
-
                 // inject user provided template into modal template
                 var modalTemplate = $interpolate(defaultModalTemplate)({
                     template: template,
-                    title: $translate(config.title),
+                    title: $translate.instant(config.title),
                     bigModal: config.bigModal ? "big" : ""
                 });
 
@@ -71,7 +70,7 @@
                     }
 
                     // translate button label
-                    action.label = $translate(action.label);
+                    action.label = $translate.instant(action.label);
 
                     var $button = $($interpolate(actionButtonTemplate)(action));
                     $button.on("click", action.action.bind(this));

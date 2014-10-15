@@ -1,20 +1,18 @@
   <p>{{'content_wizard_select_apps'|translate}}</p>
   <div>
-    <table class="table table-striped">
+    <table class="table table-striped" ng-model="templates.data" style="min-width: inherit;">
         <tr>
             <th>&nbsp;</th>
             <th>{{"label_app_name"|translate}}</th>
             <th>{{"memory_required"|translate}}</th>
-            <th>{{"cores_required"|translate}}</th>
         </tr>
-        <tr ng-repeat="template in install.templateData | orderBy: 'Name'" ng-class="install.templateClass(template)">
+        <tr ng-repeat="template in templates.data | orderBy: 'Name'" ng-class="install.templateClass(template)">
             <td><input type="checkbox"
                    ng-model="install.selected[template.Id]"
                    ng-disabled="install.templateDisabled(template)"
                    ng-change="install.templateSelected(template)"></td>
-            <td>{{template.Name}}</td>
+            <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>
             <td>{{getTemplateRequiredResources(template).RAMCommitment | toGB}}</td>
-            <td>{{getTemplateRequiredResources(template).CPUCommitment}}</td>
         </tr>
     </table>
 

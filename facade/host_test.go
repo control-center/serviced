@@ -1,14 +1,27 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package facade
 
 import (
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 )
 
@@ -76,5 +89,104 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
+}
 
+func (s *FacadeTest) Test_HostRemove(t *C) {
+	//create pool for testing
+	resoucePool := pool.New("poolid")
+	s.Facade.AddResourcePool(s.CTX, resoucePool)
+	defer s.Facade.RemoveResourcePool(s.CTX, "poolid")
+
+	//add host1
+	h1 := host.Host{
+		ID:     "h1",
+		PoolID: "poolid",
+		Name:   "h1",
+		IPAddr: "192.168.0.1",
+		IPs: []host.HostIPResource{
+			host.HostIPResource{
+				HostID:    "h1",
+				IPAddress: "192.168.0.1",
+			},
+		},
+	}
+	err := s.Facade.AddHost(s.CTX, &h1)
+	if err != nil {
+		t.Fatalf("Failed to add host %+v: %s", h1, err)
+	}
+
+	//add host2
+	h2 := host.Host{
+		ID:     "h2",
+		PoolID: "poolid",
+		Name:   "h2",
+		IPAddr: "192.168.0.2",
+		IPs: []host.HostIPResource{
+			host.HostIPResource{
+				HostID:    "h2",
+				IPAddress: "192.168.0.2",
+			},
+		},
+	}
+	err = s.Facade.AddHost(s.CTX, &h2)
+	if err != nil {
+		t.Fatalf("Failed to add host %+v: %s", h2, err)
+	}
+	defer s.Facade.RemoveHost(s.CTX, "host2")
+
+	//add service with address assignment
+	s1, _ := service.NewService()
+	s1.Name = "name"
+	s1.PoolID = "poolid"
+	s1.Launch = "manual"
+	s1.Endpoints = []service.ServiceEndpoint{
+		service.ServiceEndpoint{},
+	}
+	s1.Endpoints[0].Name = "name"
+	s1.Endpoints[0].AddressConfig = servicedefinition.AddressResourceConfig{Port: 123, Protocol: "tcp"}
+	aa := addressassignment.AddressAssignment{ID: "id", HostID: "h1"}
+	s1.Endpoints[0].SetAssignment(aa)
+	err = s.Facade.AddService(s.CTX, *s1)
+	if err != nil {
+		t.Fatalf("Failed to add service %+v: %s", s1, err)
+	}
+	defer s.Facade.RemoveService(s.CTX, s1.ID)
+
+	request := dao.AssignmentRequest{ServiceID: s1.ID, IPAddress: "192.168.0.1", AutoAssignment: false}
+	if err = s.Facade.AssignIPs(s.CTX, request); err != nil {
+		t.Fatalf("Failed assigning ip to service: %s", err)
+	}
+
+	var serviceRequest dao.ServiceRequest
+	services, _ := s.Facade.GetServices(s.CTX, serviceRequest)
+	if len(services) <= 0 {
+		t.Fatalf("Expected one service in context")
+	}
+	if len(services[0].Endpoints) <= 0 {
+		t.Fatalf("Expected service with one endpoint in context")
+	}
+	ep := services[0].Endpoints[0]
+	if ep.AddressAssignment.IPAddr != "192.168.0.1" && ep.AddressAssignment.HostID != "h1" {
+		t.Fatalf("Incorrect IPAddress and HostID before remove host")
+	}
+
+	//remove host1
+	err = s.Facade.RemoveHost(s.CTX, "h1")
+	if err != nil {
+		t.Fatalf("Failed to remove host: %s", err)
+	}
+	services, _ = s.Facade.GetServices(s.CTX, serviceRequest)
+
+	if len(services) <= 0 {
+		t.Fatalf("Expected one service in context")
+	}
+
+	if len(services[0].Endpoints) <= 0 {
+		t.Fatalf("Expected service with one endpoint in context")
+	}
+
+	ep = services[0].Endpoints[0]
+	if ep.AddressAssignment.IPAddr != "192.168.0.2" && ep.AddressAssignment.HostID != "h2" {
+		t.Fatalf("Incorrect IPAddress and HostID after remove host")
+	}
 }

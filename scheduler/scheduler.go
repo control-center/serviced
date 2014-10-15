@@ -1,133 +1,274 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package scheduler
 
 import (
+	"sync"
+
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 
 	"path"
 )
 
-type leaderFunc func(*facade.Facade, dao.ControlPlane, coordclient.Connection, string, <-chan interface{})
+type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, string)
 
 type scheduler struct {
+	sync.Mutex                    // only one process can stop and start the scheduler at a time
 	cpDao        dao.ControlPlane // ControlPlane interface
-	cluster_path string           // path to the cluster node
+	poolID       string           // pool where the master resides
+	realm        string           // realm for which the scheduler will run
 	instance_id  string           // unique id for this node instance
 	shutdown     chan interface{} // Shuts down all the pools
 	started      bool             // is the loop running
 	zkleaderFunc leaderFunc       // multiple implementations of leader function possible
 	facade       *facade.Facade
 	stopped      chan interface{}
+	registry     *registry.EndpointRegistry
 
-	conn    coordclient.Connection
-	leader  coordclient.Leader
-	zkEvent <-chan coordclient.Event
+	conn coordclient.Connection
 }
 
-func NewScheduler(cluster_path string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
-
-	conn, err := zzk.GetBasePathConnection("/")
-	if err != nil {
-		glog.Error(err)
-		return nil, err
-	}
-
+// NewScheduler creates a new scheduler master
+func NewScheduler(poolID string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:        cpDao,
-		cluster_path: cluster_path,
+		poolID:       poolID,
 		instance_id:  instance_id,
 		shutdown:     make(chan interface{}),
 		stopped:      make(chan interface{}),
 		zkleaderFunc: Lead, // random scheduler implementation
 		facade:       facade,
-		conn:         conn,
 	}
 	return s, nil
 }
 
+// Start starts the scheduler
 func (s *scheduler) Start() {
-	if !s.started {
-		s.started = true
-		go func() {
-			defer close(s.stopped)
-			zzk.Listen(s.shutdown, make(chan error, 1), s)
+	s.Lock()
+	defer s.Unlock()
+
+	if s.started {
+		return
+	}
+	s.started = true
+
+	pool, err := s.facade.GetResourcePool(datastore.Get(), s.poolID)
+	if err != nil {
+		glog.Errorf("Could not acquire resource pool %s: %s", s.poolID, err)
+		return
+	}
+	s.realm = pool.Realm
+
+	go func() {
+
+		defer func() {
+			close(s.stopped)
+			s.started = false
 		}()
+
+		for {
+			var conn coordclient.Connection
+			select {
+			case conn = <-zzk.Connect("/", zzk.GetLocalConnection):
+				if conn != nil {
+					s.mainloop(conn)
+				}
+			case <-s.shutdown:
+				return
+			}
+
+			select {
+			case <-s.shutdown:
+				return
+			default:
+				// restart
+			}
+		}
+	}()
+}
+
+// mainloop acquires the leader lock and initializes the listener
+func (s *scheduler) mainloop(conn coordclient.Connection) {
+	// become the leader
+	leader := zzk.NewHostLeader(conn, s.instance_id, s.realm, "/scheduler")
+	event, err := leader.TakeLead()
+	if err != nil {
+		glog.Errorf("Could not become the leader: %s", err)
+		return
+	}
+	defer leader.ReleaseLead()
+
+	s.registry, err = registry.CreateEndpointRegistry(conn)
+	if err != nil {
+		glog.Errorf("Error initializing endpoint registry: %s", err)
+		return
+	}
+
+	// did I shut down before I became the leader?
+	select {
+	case <-s.shutdown:
+		return
+	default:
+	}
+
+	var (
+		wg        sync.WaitGroup
+		stopped   = make(chan interface{})
+		_shutdown = make(chan interface{})
+	)
+	defer func() {
+		close(_shutdown)
+		wg.Wait()
+	}()
+
+	// monitor the resource pool
+	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
+
+	// synchronize with the remote
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.remoteSync(_shutdown, conn)
+	}()
+
+	// synchronize locally
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.localSync(_shutdown, conn)
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		defer close(stopped)
+		zzk.Start(_shutdown, conn, s, zkservice.NewServiceLockListener())
+	}()
+
+	// wait for something to happen
+	for {
+		select {
+		case <-event:
+			glog.Warningf("Coup d'etat, re-electing...")
+			return
+		case <-stopped:
+			glog.Warningf("Leader died, re-electing...")
+			return
+		case pool := <-monitor:
+			if pool == nil || pool.Realm != s.realm {
+				glog.Warningf("Realm changed, re-electing...")
+				return
+			}
+		case <-s.shutdown:
+			return
+		}
 	}
 }
 
-// Shut down node
+// Stop stops all scheduler processes for the master
 func (s *scheduler) Stop() {
+	s.Lock()
+	defer s.Unlock()
+
 	if !s.started {
 		return
 	}
-	defer func() { s.started = false }()
 	close(s.shutdown)
 	<-s.stopped
 }
 
-func (s *scheduler) GetConnection() coordclient.Connection { return s.conn }
+// SetConnection implements zzk.Listener
+func (s *scheduler) SetConnection(conn coordclient.Connection) { s.conn = conn }
 
+// PostProcess implements zzk.Listener
+func (s *scheduler) PostProcess(p map[string]struct{}) {}
+
+// GetPath implements zzk.Listener
 func (s *scheduler) GetPath(nodes ...string) string {
-	p := append([]string{"/pools"}, nodes...)
-	return path.Join(p...)
+	return path.Join(append([]string{"/pools"}, nodes...)...)
 }
 
-func (s *scheduler) Ready() (err error) {
-	registry.CreateEndpointRegistry(s.conn)
-
-	s.leader = zzk.NewHostLeader(s.conn, s.instance_id, "/scheduler")
-	if s.zkEvent, err = s.leader.TakeLead(); err != nil {
-		return err
-	}
-
-	// synchronize pools, hosts, services, virtualIPs
-	synchronizer := NewSynchronizer(s.facade, datastore.Get())
-	go synchronizer.SyncLoop(s.shutdown)
-
+// Ready implements zzk.Listener
+func (s *scheduler) Ready() error {
+	glog.Infof("Entering lead for realm %s!", s.realm)
 	return nil
 }
 
+// Done implements zzk.Listener
 func (s *scheduler) Done() {
-	s.leader.ReleaseLead()
+	glog.Infof("Exiting lead for realm %s!", s.realm)
+	return
 }
 
+// Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
-	conn, err := zzk.GetBasePathConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		glog.Error(err)
-		return
-	}
+	// is this pool in my realm?
+	monitor := zkservice.MonitorResourcePool(shutdown, s.conn, poolID)
 
-	_shutdown := make(chan interface{})
-	done := make(chan interface{})
-	defer func() {
-		close(_shutdown)
-		<-done
-	}()
-
-	for {
-		go func() {
-			defer close(done)
-			s.zkleaderFunc(s.facade, s.cpDao, conn, poolID, _shutdown)
-		}()
-
+	// wait for my pool to join the realm (or shutdown)
+	done := false
+	for !done {
 		select {
-		case <-done:
-			// restart
-			done = make(chan interface{})
-		case <-s.zkEvent:
-			return
+		case pool := <-monitor:
+			if pool != nil && pool.Realm == s.realm {
+				done = true
+			}
 		case <-shutdown:
 			return
 		}
 	}
+
+	// acquire a pool-based connection
+	var conn coordclient.Connection
+	select {
+	case conn = <-zzk.Connect(zzk.GeneratePoolPath(poolID), zzk.GetLocalConnection):
+		if conn == nil {
+			return
+		}
+	case pool := <-monitor:
+		if pool == nil || pool.Realm != s.realm {
+			return
+		}
+	case <-shutdown:
+		return
+	}
+
+	// manage the pool
+	_shutdown := make(chan interface{})
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		s.zkleaderFunc(_shutdown, conn, s.cpDao, poolID)
+	}()
+
+	// wait for shutdown or if the pool's realm changes or the pool gets deleted
+	select {
+	case pool := <-monitor:
+		if pool == nil || pool.Realm != s.realm {
+			close(_shutdown)
+		}
+	case <-shutdown:
+		close(_shutdown)
+	}
+
+	wg.Wait()
 }

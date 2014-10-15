@@ -1,6 +1,15 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package service
 
@@ -8,8 +17,8 @@ import (
 	"github.com/zenoss/glog"
 
 	"bytes"
-	"encoding/json"
 	"runtime"
+	"strings"
 	"text/template"
 )
 
@@ -35,12 +44,44 @@ func child(fc FindChildService) func(s *runtimeContext, childName string) (*runt
 	}
 }
 
-func context() func(s *runtimeContext) (map[string]interface{}, error) {
+func flattenContext(svc Service, gs GetService, prefix string, ctx *map[string]interface{}) error {
+	if svc.ParentServiceID != "" {
+		parent, err := gs(svc.ParentServiceID)
+		if err != nil {
+			return err
+		}
+		err = flattenContext(parent, gs, prefix, ctx)
+		if err != nil {
+			return err
+		}
+	}
+	if svc.Context != nil {
+		for k, v := range svc.Context {
+			if strings.HasPrefix(k, prefix) {
+				(*ctx)[strings.TrimPrefix(k, prefix)] = v
+			}
+		}
+	}
+	return nil
+}
+
+func context(gs GetService) func(s *runtimeContext) (map[string]interface{}, error) {
 	return func(s *runtimeContext) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
-		err := json.Unmarshal([]byte(s.Context), &ctx)
+		err := flattenContext(s.Service, gs, "", &ctx)
 		if err != nil {
-			glog.Errorf("Error unmarshal service context ID=%s: %s -> %s", s.ID, s.Context, err)
+			glog.Errorf("Flattening context for %s (%s): %s", s.Name, s.ID, err)
+		}
+		return ctx, err
+	}
+}
+
+func contextFilter(gs GetService) func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
+	return func(s *runtimeContext, prefix string) (map[string]interface{}, error) {
+		ctx := make(map[string]interface{})
+		err := flattenContext(s.Service, gs, prefix, &ctx)
+		if err != nil {
+			glog.Errorf("Flattening context for %s (%s prefix:%s): %s", s.Name, s.ID, prefix, err)
 		}
 		return ctx, err
 	}
@@ -110,7 +151,7 @@ func (service *Service) EvaluateRunsTemplate(gs GetService, fc FindChildService)
 	return
 }
 
-// evaluateTemplate takes a control plane client and template string and evaluates
+// evaluateTemplate takes a control center client and template string and evaluates
 // the template using the service as the context. If the template is invalid or there is an error
 // then an empty string is returned.
 func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, instanceID int, serviceTemplate string) (err error, result string) {
@@ -125,13 +166,14 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 	}()
 
 	functions := template.FuncMap{
-		"parent":       parent(gs),
-		"child":        child(fc),
-		"context":      context(),
-		"percentScale": percentScale,
-		"bytesToMB":    bytesToMB,
-		"plus":         plus,
-		"each":         each,
+		"parent":        parent(gs),
+		"child":         child(fc),
+		"context":       context(gs),
+		"contextFilter": contextFilter(gs),
+		"percentScale":  percentScale,
+		"bytesToMB":     bytesToMB,
+		"plus":          plus,
+		"each":          each,
 	}
 
 	// parse the template

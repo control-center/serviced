@@ -1,13 +1,24 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
 
-    <h3>{{services.current.Name}}</h3>
+    <h3 style="position: relative;">
+        <div ng-if="services.current.children === undefined" class="healthCheck" data-id="{{services.current.ID}}" style="display: inline-block; font-size: .6em;"></div>
+        {{services.current.Name}}
+        <span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span>
+    </h3>
 
-    <div class="details" ng-if="services.current.ID.indexOf('isvc-') == -1">
+    <div class="details">
       <div class="details-form">
         <div class="vertical-info">
-          <label for="app_data_name">{{'label_service_name'|translate}}</label>
-          <input type="text" id="app_data_name" ng-model="services.current.Name"></input>
-        </div>        
+            <label for="app_data_name">{{'label_service_name'|translate}}</label>
+            <input type="text" id="app_data_name" ng-disabled="services.current.isvc"
+            ng-model="services.current.Name"></input>
+        </div>
+
+        <div class="vertical-info">
+            <label for="app_data_description">{{'label_service_description'|translate}}</label>
+            <input type="text" id="app_data_description" ng-disabled="services.current.isvc"
+            ng-model="services.current.Description"></input>
+        </div>
 
         <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
         <div class="vertical-info" ng-show="!services.current.InstanceLimits || services.current.InstanceLimits.Max > 0 || services.current.InstanceLimits.Min > services.current.InstanceLimits.Max">
@@ -16,10 +27,10 @@
                  ng-model="services.current.Instances" ng-disabled="services.current.InstanceLimits.Max == services.current.InstanceLimits.Min"></input>
         </div>
 
-        <div class="vertical-info">
+        <div class="vertical-info" ng-if="!services.current.isvc">
           <label for="app_data_startup">{{'label_service_startup'|translate}}</label>
           <input type="text" id="app_data_startup" class="startup"
-                 ng-model="services.current.Startup"></input>
+          ng-model="services.current.Startup"></input>
         </div>
 
         <div class="vertical-info" ng-show="dev">
@@ -28,28 +39,28 @@
                  ng-model="services.current.ImageID"></input>
         </div>
 
-        <div class="vertical-info">
+        <div class="vertical-info" ng-if="!services.current.isvc">
           <label>{{'running_tbl_actions'|translate}}</label>
           <div ng-if="services.current.DesiredState !== 2">
             <button ng-class="{disabled: services.current.DesiredState === 1}" ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
             <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunningApp(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+            <button ng-click="clickEditContext(services.current, servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
           </div>
           <div ng-if="services.current.DesiredState === 2">
             <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
           </div>
         </div>
-
       </div>
-      <div class="details-actions">	    
+      <div class="details-actions" ng-if="!services.current.isvc">
         <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="showAddService()">{{'btn_add_service'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>
       </div>
     </div>
 
-	<!-- Virtual Host Names -->
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1 && anyServicesExported(services.current)">
-  	<h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
+    <!-- Virtual Host Names -->
+  <div ng-if="!services.current.isvc && anyServicesExported(services.current)">
+    <h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddVHost()">
@@ -58,16 +69,17 @@
             </button>
         </span>
     </div>
-  	<table class="table table-striped" id="vhosts_data">
-  		<thead>
-  			<tr>
-  				<th ng-repeat="header in vhosts.headers">{{header.name|translate}}
-  					<button ng-click="vhosts.set_order(header.id, vhosts)" 
-  									ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
-  				</th>
-  			</tr>
-  		</thead>
-  		<tbody>
+    <table class="table table-striped" id="vhosts_data">
+        <thead>
+            <tr>
+                <th ng-repeat="header in vhosts.headers">{{header.name|translate}}
+                    <button ng-click="vhosts.set_order(header.id, vhosts)"
+                                    ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
+                </th>
+                <th>{{'vhost_actions'|translate}}</th>
+            </tr>
+        </thead>
+        <tbody>
             <tr ng-hide="vhosts.data !== undefined">
                 <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
             </tr>
@@ -79,22 +91,23 @@
                 <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
             </tr>
         </tbody>
-  	</table>
+    </table>
   </div>
 
-	<!-- IP Assignments -->
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
-  	<h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
-  	<table class="table table-striped" id="ips_data">
-  		<thead>
-  			<tr>
-  				<th ng-repeat="header in ips.headers">{{header.name|translate}}
-  					<button ng-click="ips.set_order(header.id, ips)" 
-  									ng-class="ips.get_order_class(header.id, ips)"></button>
-  				</th>
-  			</tr>
-  		</thead>
-  		<tbody>
+    <!-- IP Assignments -->
+  <div ng-if="!services.current.isvc">
+    <h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
+    <table class="table table-striped" id="ips_data">
+        <thead>
+            <tr>
+                <th ng-repeat="header in ips.headers">{{header.name|translate}}
+                    <button ng-click="ips.set_order(header.id, ips)"
+                                    ng-class="ips.get_order_class(header.id, ips)"></button>
+                </th>
+                <th>{{'tbl_virtual_ip_actions'|translate}}</th>
+            </tr>
+        </thead>
+        <tbody>
             <tr ng-hide="ips.data !== undefined">
                 <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
             </tr>
@@ -107,18 +120,16 @@
                 <td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
             </tr>
         </tbody>
-  	</table>
+    </table>
   </div>
 
-	<!-- Config Files -->
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
-  	<h3 class="pull-left">{{'title_config_files' | translate }}</h3>
-  	<table class="table table-striped" >
+    <!-- Config Files -->
+  <div ng-if="!services.current.isvc">
+    <h3 class="pull-left">{{'title_config_files' | translate }}</h3>
+    <table class="table table-striped" >
         <thead>
           <tr>
             <th>{{'path'|translate}}</th>
-            <th>{{'owner'|translate}}</th>
-            <th>{{'permissions'|translate}}</th>
             <th>{{'running_tbl_actions'|translate}}</th>
           </tr>
         </thead>
@@ -128,8 +139,6 @@
           </tr>
           <tr ng-repeat="configFile in services.current.ConfigFiles">
             <td>{{ configFile.Filename }}</td>
-            <td>{{ configFile.Owner }}</td>
-            <td>{{ configFile.Permissions }}</td>
             <td>
               <button ng-click="editConfig(services.current, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
             </td>
@@ -137,18 +146,17 @@
         </tbody>
       </table>
   </div>
-	
+
   <!-- This table has sub service definitions -->
-	<h3 ng-show="services.subservices.length > 0" ng-if="services.current.ID.indexOf('isvc-') == -1">{{'title_services'|translate}}</h3>
+    <h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
     <table class="table table-striped" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
           <th style="white-space: nowrap; width:200px;">{{'label_application'|translate}}</th>
-          <th style="width: 40px;">{{'label_service_status'|translate}}</th>
-          <th style="width: 200px;">{{'host'|translate}}</th>
-          <th style="width: 500px;">{{'label_service_startup'|translate}}</th>
-          <th>{{'running_tbl_actions'|translate}}</th>
+          <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
+          <th style="width: 600px;">{{'deployed_tbl_description'|translate}}</th>
+          <th ng-if="!services.current.isvc">{{'running_tbl_actions'|translate}}</th>
         </tr>
       </thead>
       <tbody>
@@ -156,23 +164,24 @@
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.ID}}">
-          <td ng-click="click_app(app.ID)" class="link">
-            <span ng-class="indent(app.zendepth)"></span>{{app.Name}}
+          <td>
+            <span ng-style="indent(app.zendepth - 1)"></span>
+            <span ng-if="app.children !== undefined" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
+            <span ng-if="app.children === undefined" ng-style="indent(1)"></span>
+            <span ng-click="click_app(app.ID)" class="link">
+                {{app.Name}}<span class="version" ng-show="app.Version"> (v{{app.Version}})</span>
+            </span>
           </td>
           <td style="text-align:center;">
             <div ng-if="app.children === undefined">
-              <i class="healthIcon" ng-class="app.healthIconClass"></i>
+              <div class="healthCheck" data-id="{{app.ID}}"></div>
             </div>
           </td>
           <td>
-            <a ng-click="click_host(app.runningHosts[0].ID)" class="link">{{app.runningHosts[0].HostName}}</a>
-            <span class="note" ng-show="app.runningHosts.length > 1">&nbsp;(+{{app.runningHosts.length -1}} {{'more' | translate}})</span>
+            <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Description}}">
           </td>
-          <td>
-            <input style="border:none; background:rgba(0,0,0,0); width:100%; outline: none;" readonly type="text" value="{{app.Startup}}">
-          </td>
-          <td >
-            <div ng-if="app.ID.indexOf('isvc-') == -1">
+          <td ng-if="!services.current.isvc">
+            <div ng-if="!app.isvc">
               <div ng-if="app.DesiredState !== 2">
                 <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
                 <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
@@ -187,24 +196,28 @@
     </table>
 
   <!-- This table has running instances -->
-	<h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
+  <h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
   <table class="table table-striped" ng-show="running.data.length > 0">
     <thead>
       <tr>
         <th>{{'running_tbl_instance_id'|translate}}</th>
         <th>{{'label_service_name'|translate}}</th>
-	  <th>{{'host'|translate}}</th>
-	  <th>{{'running_tbl_docker_id'|translate}}</th>
-	  <th>{{'running_tbl_actions'|translate}}</th>
+        <th>{{'label_service_status'|translate}}</th>
+        <th>{{'host'|translate}}</th>
+        <th>{{'running_tbl_docker_id'|translate}}</th>
+        <th>{{'running_tbl_actions'|translate}}</th>
       </tr>
     </thead>
     <tbody>
       <tr ng-hide="running.data !== undefined">
         <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
       </tr>
-      <tr ng-repeat="app in running.data | orderBy:running.sort">
+      <tr ng-repeat="app in running.data | orderBy:running.sort" data-id="{{app.ID}}.{{app.InstanceID}}">
         <td>{{app.InstanceID}}</td>
         <td>{{app.Name}}</td>
+        <td style="text-align:center;">
+          <div class="healthCheck" data-id="{{app.ServiceID}}.{{app.InstanceID}}"></div>
+        </td>
         <td ng-click="click_host(app.HostID)" class="link">{{app.hostName}}</td>
         <td>{{app.DockerID}}</td>
         <td>
@@ -214,16 +227,16 @@
       </tr>
     </tbody>
   </table>
-  
-  <div ng-if="services.current.ID.indexOf('isvc-') == -1">
-  	<h3>{{'scheduled_tasks'|translate}}</h3>
+
+  <div ng-if="!services.current.isvc">
+    <h3>{{'scheduled_tasks'|translate}}</h3>
       <table class="table table-striped">
           <thead>
               <tr>
-                  <th>{{'task_schedule'|translate}}</th>
-  				<th>{{'task_command' |translate}}</th>
-  				<th>{{'task_last_run'|translate}}</th>
-  				<th>{{'task_run_count'|translate}}</th>                
+                <th>{{'task_schedule'|translate}}</th>
+                <th>{{'task_command' |translate}}</th>
+                <th>{{'task_last_run'|translate}}</th>
+                <th>{{'task_run_count'|translate}}</th>
               </tr>
           </thead>
           <tbody>
@@ -235,14 +248,14 @@
               <td>{{ task.Command }}</td>
               <td>{{ task.LastRunAt }}</td>
               <td>{{ task.TotalRunCount }}</td>
-          </tr>          
+          </tr>
           </tbody>
       </table>
   </div>
 
   <!-- Graphs -->
   <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0" class="infoWrapper">
-    <h3>{{'graphs'|translate}}</h3>
+    <h3>{{services.current.Title}} {{'graphs'|translate}}</h3>
     <div class="graphsControls">
       <div class="graphControl">
         <label class="control-label">Aggregator</label>
@@ -261,6 +274,7 @@
       <div ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
         <div class="zenchartContainer">
           <h4>{{graph.name}}</h4>
+          <div class="graphDescrip" ng-if="graph.yAxisLabel"><span ng-if"graph.type === 'area'">Total</span> {{graph.yAxisLabel}} over the past Hour</div>
           <div id="{{services.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
         </div>
       </div>

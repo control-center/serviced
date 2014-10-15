@@ -1,14 +1,38 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package registry
 
 import (
+	"fmt"
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 )
+
+type KeyNode struct {
+	ID       string
+	IsRemote bool
+	version  interface{}
+}
+
+func (node *KeyNode) Version() interface{}                { return node.version }
+func (node *KeyNode) SetVersion(version interface{})      { node.version = version }
+func (node *KeyNode) GetID() string                       { return node.ID }
+func (node *KeyNode) Create(conn client.Connection) error { return nil }
+func (node *KeyNode) Update(conn client.Connection) error { return nil }
 
 type registryType struct {
 	getPath   func(nodes ...string) string
@@ -42,7 +66,8 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 	}
 
 	if !exists {
-		if err := conn.CreateDir(path); err != nil {
+		key := &KeyNode{ID: key}
+		if err := conn.Create(path, key); err != nil {
 			return "", err
 		}
 	}
@@ -64,7 +89,7 @@ func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool,
 
 //Add node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) addItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+	if err := r.ensureKey(conn, key); err != nil {
 		glog.Errorf("error with addItem.ensureDir(%s) %+v", r.getPath(key), err)
 		return "", err
 	}
@@ -89,7 +114,7 @@ func (r *registryType) addItem(conn client.Connection, key string, nodeID string
 
 //Set node to the key in registry.  Returns the path of the node in the registry
 func (r *registryType) setItem(conn client.Connection, key string, nodeID string, node client.Node) (string, error) {
-	if err := r.ensureDir(conn, r.getPath(key)); err != nil {
+	if err := r.ensureKey(conn, key); err != nil {
 		return "", err
 	}
 
@@ -112,10 +137,12 @@ func (r *registryType) setItem(conn client.Connection, key string, nodeID string
 			return "", err
 		}
 	} else {
-		glog.V(3).Infof("Add to %s: %#v", path, node)
-		if _, err := r.addItem(conn, key, nodeID, node); err != nil {
+		if addPath, err := r.addItem(conn, key, nodeID, node); err != nil {
 			return "", err
+		} else {
+			path = addPath
 		}
+		glog.V(3).Infof("Add to %s: %#v", path, node)
 	}
 	return path, nil
 }
@@ -148,24 +175,55 @@ func removeNode(conn client.Connection, path string) error {
 	return nil
 }
 
-func (r *registryType) ensureDir(conn client.Connection, path string) error {
-	lock_path := r.getPath("endpoint_lock")
-	lock := conn.NewLock(lock_path)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Unable to lock on %s: %+v", lock_path, err)
-		return err
-	}
-	defer lock.Unlock()
-	if exists, err := zzk.PathExists(conn, path); err != nil {
-		return err
-	} else if !exists {
-		glog.V(0).Infof("creating zk dir %s", path)
-		if err := conn.CreateDir(path); err != nil {
-			glog.Errorf("error with ensureDir.CreateDir(%s) %+v", path, err)
-			return err
+func (r *registryType) ensureKey(conn client.Connection, key string) error {
+	node := &KeyNode{ID: key, IsRemote: false}
+	timeout := time.After(time.Second * 60)
+	var err error
+	path := r.getPath(key)
+	for {
+		err = conn.Create(path, node)
+		if err == client.ErrNodeExists || err == nil {
+			return nil
+		}
+		select {
+		case <-timeout:
+			break
+		default:
 		}
 	}
-	return nil
+	return fmt.Errorf("could not create key: %s", key, err)
+}
+
+func (r *registryType) ensureDir(conn client.Connection, path string) error {
+	timeout := time.After(time.Second * 60)
+	var err error
+	for {
+		err = conn.CreateDir(path)
+		if err == client.ErrNodeExists || err == nil {
+			return nil
+		}
+		select {
+		case <-timeout:
+			break
+		default:
+		}
+	}
+	return fmt.Errorf("could not create dir: %s", path, err)
+}
+
+// getChildren gets all child paths for the given nodeID
+func (r *registryType) getChildren(conn client.Connection, nodeID string) ([]string, error) {
+	path := r.getPath(nodeID)
+	glog.V(4).Infof("Getting children for %v", path)
+	names, err := conn.Children(path)
+	if err != nil {
+		return []string{}, err
+	}
+	result := []string{}
+	for _, name := range names {
+		result = append(result, r.getPath(nodeID, name))
+	}
+	return result, nil
 }
 
 func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
@@ -186,8 +244,9 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 			return err
 		}
 		processChildren(conn, path, nodeIDs...)
-		//This blocks until a change happens under the key
 		select {
+		// timeout in case we missed a zookeeper event
+		case <-time.After(time.Second * 60):
 		case ev := <-event:
 			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:

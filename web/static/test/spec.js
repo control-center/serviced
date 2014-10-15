@@ -1,27 +1,4 @@
 /* tests */
-describe('EntryControl', function() {
-    var $scope = null;
-    var ctrl = null;
-
-    beforeEach(module('controlplane'));
-
-    beforeEach(inject(function($rootScope, $controller) {
-        $scope = $rootScope.$new();
-        ctrl = $controller('EntryControl', { $scope: $scope });
-    }));
-
-    it('Sets 2 main links', function() {
-        expect($scope.mainlinks.length).toEqual(2);
-    });
-
-    it('Creates links that contain url and label', function() {
-        for(var i=0; i < $scope.mainlinks.length; i++) {
-            expect($scope.mainlinks[i].url).toMatch(/^#\/.+/);
-            expect($scope.mainlinks[i].label).not.toBeUndefined();
-        }
-    });
-
-});
 
 describe('LoginControl', function() {
     var $scope = null;
@@ -55,7 +32,7 @@ describe('LoginControl', function() {
         $httpBackend.when('POST', '/login').respond({Detail: 'SuccessfulPost'});
         $scope.login();
         $httpBackend.flush();
-        expect($location.path()).toBe('/entry');
+        expect($location.path()).toBe('/apps');
     });
 
     it('Does not change path on failed login', function() {
@@ -350,7 +327,6 @@ describe('NavbarControl', function() {
             authService: authService
         });
         $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
-        $httpBackend.when('GET', '/static/partials/main.html').respond({});
         $httpBackend.when('GET', '/static/partials/login.html').respond({});
     }));
 
@@ -664,7 +640,7 @@ describe('AuthService', function() {
 
         // Check basic internal state
         $location.path('/before');
-        authService.login(true);
+        authService.setLoggedIn(true);
         authService.checkLogin(scope);
         expect($location.path()).toBe('/before');
         expect(scope.loggedIn).toBe(true);

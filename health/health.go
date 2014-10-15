@@ -1,33 +1,132 @@
-// Copyright 2014, The Serviced Authors. All rights reserved.
-// Use of this source code is governed by the Apache 2.0
-// license that can be found in the LICENSE file.
+// Copyright 2014 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package health
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/node"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
+
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/node"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 )
 
 type healthStatus struct {
 	Status    string
 	Timestamp int64
 	Interval  float64
+	StartedAt int64
 }
 
 type messagePacket struct {
 	Timestamp int64
-	Statuses  map[string]map[string]*healthStatus
+	Statuses  map[string]map[string]map[string]*healthStatus
 }
 
-var healthStatuses = make(map[string]map[string]*healthStatus)
+// Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
+var healthStatuses = make(map[string]map[string]map[string]*healthStatus)
+
+var cpDao dao.ControlPlane
+var runningServices []dao.RunningService
 var exitChannel = make(chan bool)
 var lock = &sync.Mutex{}
+
+func init() {
+	foreverHealthy := &healthStatus{
+		Status:    "passed",
+		Timestamp: time.Now().UTC().Unix(),
+		Interval:  3.156e9, // One century in seconds.
+	}
+	healthStatuses["isvc-internalservices"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-elasticsearch-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-elasticsearch-serviced"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-zookeeper"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-opentsdb"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-celery"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
+	go cleanup()
+}
+
+func getService(serviceID, instanceID string) *dao.RunningService {
+	for _, svc := range runningServices {
+		if svc.ServiceID == serviceID && strconv.Itoa(svc.InstanceID) == instanceID {
+			return &svc
+		}
+	}
+	return nil
+}
+
+func isService(serviceID string) bool {
+	for _, svc := range runningServices {
+		if svc.ServiceID == serviceID {
+			return true
+		}
+	}
+	return false
+}
+
+// Removes no longer running services and updates service start time.
+func cleanup() {
+	var empty interface{}
+	for {
+		select {
+		case <-time.After(time.Second * 5):
+			if cpDao == nil {
+				break
+			}
+			err := cpDao.GetRunningServices(&empty, &runningServices)
+			if err != nil {
+				glog.Warningf("Error acquiring running services: %v", err)
+				continue
+			}
+			lock.Lock()
+			for serviceID, instances := range healthStatuses {
+				if strings.HasPrefix(serviceID, "isvc-") {
+					continue
+				}
+				if !isService(serviceID) {
+					delete(healthStatuses, serviceID)
+					continue
+				}
+				for instanceID, healthChecks := range instances {
+					svc := getService(serviceID, instanceID)
+					if svc == nil {
+						delete(instances, instanceID)
+						continue
+					}
+					for _, check := range healthChecks {
+						if check.StartedAt == 0 {
+							check.StartedAt = svc.StartedAt.Unix()
+						}
+					}
+				}
+			}
+			lock.Unlock()
+		}
+	}
+}
+
+// Stores the dao.ControlPlane object created in daemon.go for use in this module.
+func SetDao(d dao.ControlPlane) {
+	cpDao = d
+}
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -36,34 +135,36 @@ func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.C
 }
 
 // RegisterHealthCheck updates the healthStatus and healthTime structures with a health check result.
-func RegisterHealthCheck(serviceID string, name string, passed string, d dao.ControlPlane) {
+func RegisterHealthCheck(serviceID string, instanceID string, name string, passed string, f *facade.Facade) {
 	lock.Lock()
 	defer lock.Unlock()
-
 	serviceStatus, ok := healthStatuses[serviceID]
 	if !ok {
-		// healthStatuses[serviceID]
-		serviceStatus = make(map[string]*healthStatus)
+		serviceStatus = make(map[string]map[string]*healthStatus)
 		healthStatuses[serviceID] = serviceStatus
 	}
-	thisStatus, ok := serviceStatus[name]
+	instanceStatus, ok := serviceStatus[instanceID]
 	if !ok {
-		var service service.Service
-		err := d.GetService(serviceID, &service)
+		instanceStatus = make(map[string]*healthStatus)
+		serviceStatus[instanceID] = instanceStatus
+	}
+	thisStatus, ok := instanceStatus[name]
+	if !ok {
+		healthChecks, err := f.GetHealthChecksForService(datastore.Get(), serviceID)
 		if err != nil {
-			glog.Errorf("Unable to acquire services.")
+			glog.Errorf("Unable to acquire health checks: %+v", err)
 			return
 		}
-		for iname, icheck := range service.HealthChecks {
-			_, ok = serviceStatus[iname]
+		for iname, icheck := range healthChecks {
+			_, ok = instanceStatus[iname]
 			if !ok {
-				serviceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds()}
+				instanceStatus[name] = &healthStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix()}
 			}
 		}
 	}
-	thisStatus, ok = serviceStatus[name]
+	thisStatus, ok = instanceStatus[name]
 	if !ok {
-		glog.Warningf("ignoring health status, not found in service: %s %s %s", serviceID, name, passed)
+		glog.Warningf("ignoring %s health status %s, not found in service %s", passed, name, serviceID)
 		return
 	}
 	thisStatus.Status = passed

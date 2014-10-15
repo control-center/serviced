@@ -1,79 +1,97 @@
 # Need to set $HOME so Docker client can find .dockercfg
-# export HOME=/root
+# HOME=/root
 
 # Set the number of processors used by serviced
-# export GOMAXPROCS=4
+# GOMAXPROCS=4
 
 # Set enable/disable the agent role, set to 1/0, respectively
-# export SERVICED_AGENT=0
+# SERVICED_AGENT=0
 
 # Set enable/disable the master role, set to 1/0, respectively
-# export SERVICED_MASTER=0
+# SERVICED_MASTER=0
 
 # Set the pool id for the master role
-# export SERVICED_MASTER_POOLID=default
+# SERVICED_MASTER_POOLID=default
 
 # For multi-host, it is convenient to set a master IP to be used in this script
-# export SERVICED_MASTER_IP=172.17.42.1
+# SERVICED_MASTER_IP=172.17.42.1
 
 # Set the the zookeeper ensemble, multiple masters should be comma separated
-# export SERVICED_ZK=$SERVICED_MASTER_IP:2181
+# SERVICED_ZK=$SERVICED_MASTER_IP:2181
 
 # Set to 1 to have serviced push/pull in to a docker registry
 # instead of only using the local docker index
-# export SERVICED_REGISTRY=1
+# SERVICED_REGISTRY=1
 
 # Set the local docker registry
-# export SERVICED_DOCKER_REGISTRY=$SERVICED_MASTER_IP:5000
+# SERVICED_DOCKER_REGISTRY=$SERVICED_MASTER_IP:5000
 
 # Set the static IPs this host can advertize
-# export SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
+# SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
 
 # Set the default serviced RPC endpoint to dial
-# export SERVICED_ENDPOINT=$SERVICED_MASTER_IP:4979
+# SERVICED_ENDPOINT=$SERVICED_MASTER_IP:4979
 
 # Set the RPC port to listen on
-# export SERVICED_RPC_PORT=4979
+# SERVICED_RPC_PORT=4979
 
 # Set the UI port to use
-# export SERVICED_UI_PORT=443
+# SERVICED_UI_PORT=443
 
 # Set the mux port to listen on
-# export SERVICED_MUX_PORT=22250
+# SERVICED_MUX_PORT=22250
 
 # Set the VAR path for serviced
-# export SERVICED_VARPATH=/opt/serviced/var
+# SERVICED_VARPATH=/opt/serviced/var
 
 # Set the TLS keyfile
-# export SERVICED_KEY_FILE=/etc/....
+# SERVICED_KEY_FILE=/etc/....
 
 # Set the TLS certfile
-# export SERVICED_CERT_FILE=/etc/....
+# SERVICED_CERT_FILE=/etc/....
 
 # Set the driver type for the volumes (rsync/btrfs)
-# export SERVICED_VFS=rsync
+# SERVICED_VFS=rsync
 
 # Set the aliases for this host (use in vhost muxing)
-# export SERVICED_VHOST_ALIASES=foobar.com,example.com
+# SERVICED_VHOST_ALIASES=foobar.com,example.com
 
 # Set the max stopped container age (in seconds) before serviced will remove it
-# export SERVICED_MAX_CONTAINER_AGE==`expr 24*60*60`
+# SERVICED_MAX_CONTAINER_AGE=$(expr 24*60*60)
 
 # Set the subnet that dynamic endpoints use, inside the containers
-# export SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
+# SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
 
 # Set the loglevel for serviced
-# export SERVICED_LOG_LEVEL=0
+# SERVICED_LOG_LEVEL=0
 
 # Set the address to which to send logs
-# export SERVICED_LOG_ADDRESS=$SERVICED_MASTER_IP:5042
+# SERVICED_LOG_ADDRESS=$SERVICED_MASTER_IP:5042
+
+# Set the address for the logstash elastic search
+# SERVICED_LOGSTASH_ES=$SERVICED_MASTER_IP:9100
+
+# Set the age (in days) of logstash data to keep
+# SERVICED_LOGSTASH_MAX_DAYS=14
 
 # Set the default serviced stats endpoint to use
-# export SERVICED_STATS_PORT=$SERVICED_MASTER_IP:8443
+# SERVICED_STATS_PORT=$SERVICED_MASTER_IP:8443
 
 # Set the interval (in seconds) for host performance collection
-# export SERVICED_STATS_PERIOD=10
+# SERVICED_STATS_PERIOD=10
+
+# Set the port on which to listen for profiler connections (-1 to disable)
+# SERVICED_DEBUG_PORT=6006
+
+# Set arguments to internal services.  Variables of the form
+#   SERVICED_ISVCS_ENV_%d (where %d is an integer from 0 to N, with
+#   no gaps) will be used to set the specified environment variable
+#   for the corresponding internal service.  The value of the variable
+#   is of the form SVC:KEY=VAL, where service is the name of the
+#   internal service, KEY is the environment variable to set for that
+#   service, and VAL is the value to which to set the variable.
+# SERVICED_ISVCS_ENV_0=elasticsearch-logstash:ES_JAVA_OPTS=-Xmx4g
 
 # Arbitrary serviced daemon args
-# export SERVICED_OPTS=
+# SERVICED_OPTS=
 
