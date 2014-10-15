@@ -508,6 +508,7 @@ func (c *Controller) Run() (err error) {
 	env = append(env, fmt.Sprintf("CONTROLPLANE_HOST_ID=%s", c.hostID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_TENANT_ID=%s", c.tenantID))
 	env = append(env, fmt.Sprintf("CONTROLPLANE_INSTANCE_ID=%s", c.options.Service.InstanceID))
+	env = append(env, fmt.Sprintf("CONTROLPLANE_SERVICED_ID=%s", c.options.Service.ID))
 
 	if err := writeEnvFile(env); err != nil {
 		return err
