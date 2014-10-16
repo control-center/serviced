@@ -111,10 +111,6 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 	return err
 }
 
-func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
-	return dao.ControlPlaneError{Msg: "unimplemented"}
-}
-
 // Create a elastic search control center data access object
 func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)

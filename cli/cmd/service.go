@@ -110,6 +110,12 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStart,
 			}, {
+				Name:         "restart",
+				Usage:        "Restarts a service",
+				Description:  "serviced service restart SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceRestart,
+			}, {
 				Name:         "stop",
 				Usage:        "Stops a service",
 				Description:  "serviced service stop SERVICEID",
@@ -744,6 +750,28 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Printf("Service scheduled to start.\n")
+	}
+}
+
+// serviced service restart SERVICEID
+func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "restart")
+		return
+	}
+
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if err := c.driver.RestartService(svc.ID); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else {
+		fmt.Printf("Service scheduled to restart.\n")
 	}
 }
 

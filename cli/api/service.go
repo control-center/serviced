@@ -219,6 +219,19 @@ func (a *api) StartService(id string) error {
 	return nil
 }
 
+func (a *api) RestartService(id string) error {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
+	if err := client.RestartService(id, new(int)); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // StopService stops a service
 func (a *api) StopService(id string) error {
 	client, err := a.connectDAO()

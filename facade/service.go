@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicestate"
 )
 
 // AddService adds a service; return error if service already exists
@@ -357,6 +358,42 @@ func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
 
 	// traverse all the services
 	return f.walkServices(ctx, serviceId, visitor)
+}
+
+func (f *Facade) RestartService(ctx datastore.Context, serviceID string) error {
+	glog.V(4).Infof("Facade.RestartService %s", serviceID)
+	// f wil traverse all the services
+	err := f.validateService(ctx, serviceID)
+	glog.V(4).Infof("Facade.RestartService validate service result %v", err)
+	if err != nil {
+		return err
+	}
+
+	visitor := func(svc *service.Service) error {
+		// don't restart the service if its Launch is 'manual' and it is a child
+		if svc.Launch == commons.MANUAL && svc.ID != serviceID {
+			return nil
+		}
+
+		var states []servicestate.ServiceState
+		if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+			return err
+		}
+
+		for _, state := range states {
+			if err := zkAPI(f).StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+				return err
+			}
+		}
+
+		svc.DesiredState = service.SVCRun
+		err := f.updateService(ctx, svc)
+		glog.V(4).Infof("Facade.RestartService update service %v, %v: %v", svc.Name, svc.ID, err)
+		return err
+	}
+
+	// traverse all the services
+	return f.walkServices(ctx, serviceID, visitor)
 }
 
 // pause the provided service

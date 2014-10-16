@@ -57,6 +57,7 @@ type API interface {
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(string) error
+	RestartService(string) error
 	StopService(string) error
 	AssignIP(IPConfig) error
 

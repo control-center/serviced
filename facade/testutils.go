@@ -77,6 +77,10 @@ func (z *zkMock) GetServiceStates(poolID string, serviceStates *[]servicestate.S
 	return nil
 }
 
+func (z *zkMock) StopServiceInstance(poolID, hostID, stateID string) error {
+	return nil
+}
+
 func (z *zkMock) AddHost(h *host.Host) error {
 	return nil
 }

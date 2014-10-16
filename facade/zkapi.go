@@ -39,6 +39,7 @@ type zkfuncs interface {
 	UpdateService(service *service.Service) error
 	RemoveService(service *service.Service) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
+	StopServiceInstance(poolID, hostID, stateID string) error
 	CheckRunningVHost(vhostName, serviceID string) error
 	AddHost(host *host.Host) error
 	UpdateHost(host *host.Host) error
@@ -93,6 +94,15 @@ func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceSta
 
 	*states, err = zkservice.GetServiceStates(conn, serviceIDs...)
 	return err
+}
+
+func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+	if err != nil {
+		return err
+	}
+
+	return zkservice.StopServiceInstance(conn, hostID, stateID)
 }
 
 func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
