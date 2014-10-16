@@ -144,7 +144,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
     function updateActiveHosts() {
         if ($scope.hosts) {
-            $.getJSON("/hosts/running", "", function(data) {
+            resourcesService.get_running_hosts(function(data){
                 for (var i in $scope.hosts.filtered) {
                     var host = $scope.hosts.filtered[i];
                     host.active = 'no';

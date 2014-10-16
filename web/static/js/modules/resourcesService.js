@@ -588,6 +588,17 @@
                   });
           },
 
+          get_running_hosts: function(callback){
+                $http.get("/hosts/running").success(function(data, status){
+                    callback(data);
+                }).error(function(data, status){
+                  if(DEBUG) console.log('Unable to retrieve running hosts');
+                  if (status === 401) {
+                      unauthorized($location);
+                  }
+                });
+          },
+
           /*
            * Get the list of hosts belonging to a specified pool.
            *

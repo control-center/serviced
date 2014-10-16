@@ -38,9 +38,9 @@
     </tr>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
-      <td>
-        <i ng-if="host.active === 'yes'" class="healthIcon glyphicon glyphicon-ok-sign good"></i>
-        <i ng-if="!host.active" class="healthIcon glyphicon glyphicon-question-sign unknown"></i>
+      <td style="text-align:center;">
+        <div ng-if="host.active === 'yes'" class="healthCheck good"><i class="healthIcon glyphicon"></i></div>
+        <div ng-if="!host.active" class="healthCheck down"><i class="healthIcon glyphicon"></i></div>
       </td>
       <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
       <td>{{host.Memory | toGB}}</td>
