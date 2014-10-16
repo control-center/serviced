@@ -1,6 +1,7 @@
 /*
     good: #0084DB
     bad: #9C1200;
+    light good: #B2E0FF
 
     action/link: #325385;
     action/link hover: #4F83D1;
@@ -1059,8 +1060,11 @@ rect {
 .notification.bg-info .dialogIcon {
     color: #7890b6;
 }
+.notification.bg-success {
+    background-color: #B2E0FF;
+}
 .notification.bg-success .dialogIcon {
-    color: green;
+    color: #0084DB;
 }
 .notification.bg-danger .dialogIcon {
     color: #7A0000;
