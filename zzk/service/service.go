@@ -30,6 +30,7 @@ import (
 
 const (
 	zkService = "/services"
+	retryMax  = 2
 )
 
 func servicepath(nodes ...string) string {
@@ -172,10 +173,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 }
 
 func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) {
-	// only one service can start and stop service instances at a time
-	l.Lock()
-	defer l.Unlock()
-
 	// sort running services by instance ID, so that you stop instances by the
 	// lowest instance ID first and start instances with the greatest instance
 	// ID last.
@@ -247,23 +244,35 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) {
 	}
 
 	for _, i := range instanceIDs {
-		host, err := l.handler.SelectHost(svc)
-		if err != nil {
-			glog.Warningf("Could not assign a host to service %s (%s): %s", svc.Name, svc.ID, err)
-			continue
+		retryCount := 0
+		retry := true
+
+		for retry && retryCount < retryMax {
+			retry = func(instanceID int) bool {
+				// only one service instance can start at a time
+				l.Lock()
+				defer l.Unlock()
+				host, err := l.handler.SelectHost(svc)
+				if err != nil {
+					glog.Warningf("Could not assign a host to service %s (%s): %s", svc.Name, svc.ID, err)
+					return true
+				}
+				state, err := servicestate.BuildFromService(svc, host.ID)
+				if err != nil {
+					glog.Warningf("Error creating service state for service %s (%s): %s", svc.Name, svc.ID, err)
+					return true
+				}
+				state.HostIP = host.IPAddr
+				state.InstanceID = instanceID
+				if err := addInstance(l.conn, state); err != nil {
+					glog.Warningf("Could not add service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
+					return true
+				}
+				glog.V(2).Infof("Starting service instance %s for service %s (%s) on host %s", state.ID, svc.Name, svc.ID, host.ID)
+				return false
+			}(i)
+			retryCount++
 		}
-		state, err := servicestate.BuildFromService(svc, host.ID)
-		if err != nil {
-			glog.Warningf("Error creating service state for service %s (%s): %s", svc.Name, svc.ID, err)
-			continue
-		}
-		state.HostIP = host.IPAddr
-		state.InstanceID = i
-		if err := addInstance(l.conn, state); err != nil {
-			glog.Warningf("Could not add service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
-			continue
-		}
-		glog.V(2).Infof("Starting service instance %s for service %s (%s) on host %s", state.ID, svc.Name, svc.ID, host.ID)
 	}
 }
 

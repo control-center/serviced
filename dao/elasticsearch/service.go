@@ -114,6 +114,11 @@ func (this *ControlPlaneDao) StartService(serviceID string, unused *string) erro
 	return this.facade.StartService(datastore.Get(), serviceID)
 }
 
+// restart the provided service
+func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
+	return this.facade.RestartService(datastore.Get(), serviceID)
+}
+
 // stop the provided service
 func (this *ControlPlaneDao) StopService(id string, unused *int) error {
 	return this.facade.StopService(datastore.Get(), id)

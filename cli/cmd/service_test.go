@@ -193,6 +193,16 @@ func (t ServiceAPITest) StartService(id string) error {
 	return nil
 }
 
+func (t ServiceAPITest) RestartService(id string) error {
+	if s, err := t.GetService(id); err != nil {
+		return err
+	} else if s == nil {
+		return ErrNoServiceFound
+	}
+
+	return nil
+}
+
 func (t ServiceAPITest) StopService(id string) error {
 	if s, err := t.GetService(id); err != nil {
 		return err
@@ -547,13 +557,6 @@ func ExampleServicedCLI_CmdServiceAssignIPs_err() {
 	// service not found
 }
 
-func ExampleServicedCLI_CmdServiceStart() {
-	InitServiceAPITest("serviced", "service", "start", "test-service-1")
-
-	// Output:
-	// Service scheduled to start.
-}
-
 func ExampleServicedCLI_CmdServiceStart_usage() {
 	InitServiceAPITest("serviced", "service", "start")
 
@@ -588,11 +591,52 @@ func ExampleServicedCLI_CmdServiceStart_err() {
 	// service not found
 }
 
-func ExampleServicedCLI_CmdServiceStop() {
-	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
+func ExampleServicedCLI_CmdServiceStart() {
+	InitServiceAPITest("serviced", "service", "start", "test-service-2")
 
 	// Output:
-	// Service scheduled to stop.
+	// Service scheduled to start.
+}
+
+func ExampleServicedCLI_CmdServiceRestart_usage() {
+	InitServiceAPITest("serviced", "service", "restart")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    restart - Restarts a service
+	//
+	// USAGE:
+	//    command restart [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service restart SERVICEID
+	//
+	// OPTIONS:
+}
+
+func ExampleServicedCLI_CmdServiceRestart_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-1")
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceRestart_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-0")
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceRestart() {
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2")
+
+	// Output:
+	// Service scheduled to restart.
 }
 
 func ExampleServicedCLI_CmdServiceStop_usage() {
@@ -618,6 +662,13 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 
 	// Output:
 	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceStop() {
+	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
+
+	// Output:
+	// Service scheduled to stop.
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {
