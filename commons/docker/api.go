@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/control-center/serviced/commons"
@@ -209,6 +210,22 @@ func FindContainer(id string) (*Container, error) {
 		return nil, err
 	}
 	return &Container{ctr, dockerclient.HostConfig{}}, nil
+}
+
+// Logs calls docker logs for a running service container
+func Logs(dockerID string, args []string) error {
+	if _, err := FindContainer(dockerID); err != nil {
+		return err
+	}
+
+	var command []string = []string{"/usr/bin/docker", "logs"}
+	if len(args) > 0 {
+		command = append(command, args...)
+	}
+	command = append(command, dockerID)
+
+	glog.V(1).Infof("exec logs command for container:%v command: %+v\n", dockerID, command)
+	return syscall.Exec(command[0], command[0:], os.Environ())
 }
 
 // Containers retrieves a list of all the Docker containers.
