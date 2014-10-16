@@ -209,12 +209,14 @@ func (s *scheduler) GetPath(nodes ...string) string {
 // Ready implements zzk.Listener
 func (s *scheduler) Ready() error {
 	glog.Infof("Entering lead for realm %s!", s.realm)
+	glog.Infof("Host Master successfully started")
 	return nil
 }
 
 // Done implements zzk.Listener
 func (s *scheduler) Done() {
 	glog.Infof("Exiting lead for realm %s!", s.realm)
+	glog.Infof("Host Master shutting down")
 	return
 }
 
