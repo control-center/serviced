@@ -267,7 +267,7 @@ func reapContainers(maxAge time.Duration) error {
 	for _, container := range containers {
 		if container.IsRunning() {
 			continue
-		} else if container.State.FinishedAt.Before(cutoff) {
+		} else if container.State.FinishedAt.After(cutoff) {
 			continue
 		}
 
