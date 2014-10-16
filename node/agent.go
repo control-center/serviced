@@ -804,13 +804,15 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 3) receieves signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
+		glog.Infof("Host Agent successfully started")
 		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
-		glog.Infof("Host Agent Listeners are done")
 
 		select {
 		case <-shutdown:
+			glog.Infof("Host Agent shutting down")
 			return
 		default:
+			glog.Infof("Host Agent restarting")
 		}
 	}
 }
