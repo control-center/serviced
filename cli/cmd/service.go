@@ -21,6 +21,7 @@ import (
 	"path"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/codegangsta/cli"
@@ -62,6 +63,7 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
+					cli.StringFlag{"format", "", "format the output using the given go template"},
 				},
 			}, {
 				Name:        "status",
@@ -555,10 +557,21 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "service not found")
-		} else if jsonService, err := json.MarshalIndent(service, " ", "  "); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal service definition: %s\n", err)
+			return
 		} else {
-			fmt.Println(string(jsonService))
+			if ctx.String("format") == "" {
+				if jsonService, err := json.MarshalIndent(service, " ", "  "); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to marshal service definition: %s\n", err)
+				} else {
+					fmt.Println(string(jsonService))
+				}
+			} else {
+				if tmpl, err := template.New("template").Parse(ctx.String("format")); err != nil {
+					glog.Errorf("Template parsing error: %s", err)
+				} else if err := tmpl.Execute(os.Stdout, service); err != nil {
+					glog.Errorf("Template execution error: %s", err)
+				}
+			}
 		}
 		return
 	}
@@ -578,7 +591,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		} else {
 			fmt.Println(string(jsonService))
 		}
-	} else {
+	} else if ctx.String("format") == "" {
 
 		cmdSetTreeCharset(ctx)
 
@@ -600,6 +613,16 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			return row[1].(string)
 		})
 		tableService.flush()
+	} else {
+		tmpl, err := template.New("template").Parse(ctx.String("format"))
+		if err != nil {
+			glog.Errorf("Template parsing error: %s", err)
+		}
+		for _, service := range (services) {
+			if err := tmpl.Execute(os.Stdout, service); err != nil {
+				glog.Errorf("Template execution error: %s", err)
+			}
+		}
 	}
 }
 
