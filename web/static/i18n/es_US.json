@@ -53,7 +53,7 @@
 
     "remove_virtual_ip": "Eliminar Virtual IP",
     "remove_virtual_host": "Eliminar Servidor Virtual",
-    "remove_service": "Eliminar Servicio",
+    "remove_service": "Eliminar Aplicación",
     "remove_pool": "Eliminar Pool",
     "remove_host": "Eliminar Servidor",
     "add_host": "Agregar Servidor",
@@ -302,7 +302,7 @@
     "title_edit_pool": "Editar grupo de recursos",
     "title_edit_service": "Editar servicio",
     "title_log": "Registro",
-    "title_remove_service": "Quitar Servicios",
+    "title_remove_service": "Eliminar Aplicación",
     "title_services": "Servicios",
     "title_user_details": "Informaci\u00f3n de Usuario",
     "title_resource_commitment": "Resource Commitment",
@@ -312,5 +312,6 @@
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
     "vhost_name_invalid": "Nombre de host virtual no válido:",
-    "warning": "Aviso"
+    "warning": "Aviso",
+    "warning_remove_service": "Esto eliminará aplicación en ejecución, esta accion no podra ser revertida."
 }
