@@ -82,10 +82,10 @@
     "confirm_start_restore": "The restore process cannot be reversed.",
     "confirm_start_app": "This will start all child services.",
     "confirm_stop_app": "This will stop all child services.",
-    "confirm_remove_pool": "This will remove the following pool, and cannot be undone:",
-    "confirm_remove_virtual_ip": "This will remove the following virtual IP, and cannot be undone:",
-    "confirm_remove_virtual_host": "This will remove the following virtual host, and cannot be undone:",
-    "confirm_remove_host": "This will remove the following host, and cannot be undone:",
+    "confirm_remove_pool": "This action will permanently delete the resource pool ",
+    "confirm_remove_virtual_ip": "This action will permanently delete the virtual IP ",
+    "confirm_remove_virtual_host": "This action will permanently delete the virtual host ",
+    "confirm_remove_host": "This action will permanently delete the host ",
 
     "deploying": "Deploying",
     "deploy_getting_status": "Getting status from server",
@@ -299,7 +299,7 @@
     "template_file": "Application Template File",
     "template_error": "You must provide a valid Application Template file.",
     "template_remove": "Remove Template",
-    "template_remove_confirm": "This will remove the following template, and cannot be undone: ",
+    "template_remove_confirm": "This action will permanently delete the template ",
 
     "title_about": "About",
     "title_add_config_file": "Add Configuration File",
@@ -328,5 +328,5 @@
     "vhost_service_endpoint": "Endpoint",
     "vhost_url": "URL",
     "warning": "Warning",
-    "warning_remove_service": "This will remove running application, this action can not be undone."
+    "warning_remove_service": "This action will permanently delete the running application"
 }
