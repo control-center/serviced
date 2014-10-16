@@ -721,7 +721,7 @@ func ExampleServicedCLI_CmdServiceShell_usage() {
 	//    command shell [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service shell SERVICEID COMMAND
+	//    serviced service shell SERVICEID [COMMAND]
 	//
 	// OPTIONS:
 	//    --saveas, -s 				saves the service instance with the given name

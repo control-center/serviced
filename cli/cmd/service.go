@@ -147,7 +147,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "shell",
 				Usage:        "Starts a service instance",
-				Description:  "serviced service shell SERVICEID COMMAND",
+				Description:  "serviced service shell SERVICEID [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceShell,
 				Flags: []cli.Flag{
@@ -849,10 +849,10 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service proxy")
 }
 
-// serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
+// serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID [COMMAND]
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	args := ctx.Args()
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
@@ -860,6 +860,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	var (
 		command string
 		argv    []string
+		isTTY   bool
 	)
 
 	svc, err := c.searchForService(args[0])
@@ -868,7 +869,14 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		return err
 	}
 
-	command = args[1]
+	if len(args) < 2 {
+		command = "/bin/bash"
+		isTTY = true
+	} else {
+		command = args[1]
+		isTTY = ctx.GlobalBool("interactive")
+	}
+
 	if len(args) > 2 {
 		argv = args[2:]
 	}
@@ -879,7 +887,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		Command:          command,
 		Args:             argv,
 		SaveAs:           ctx.GlobalString("saveas"),
-		IsTTY:            ctx.GlobalBool("interactive"),
+		IsTTY:            isTTY,
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: "localhost" + agentPort,
 	}
