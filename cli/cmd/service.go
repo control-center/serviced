@@ -25,6 +25,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
@@ -179,6 +180,15 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
+			}, {
+				Name:         "logs",
+				Usage:        "Output the logs of a running service container - calls docker logs",
+				Description:  "serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }",
+				BashComplete: c.printServicesFirst,
+				Before:       c.cmdServiceLogs,
+				Flags: []cli.Flag{
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+				},
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -1125,6 +1135,61 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	}
 
 	return fmt.Errorf("serviced service attach")
+}
+
+// serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }
+func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
+	// verify args
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "logs")
+		return nil
+	}
+
+	rs, err := c.searchForRunningService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return err
+	}
+
+	// docker logs on remote host if service is running on remote
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return err
+	}
+
+	if rs.HostID != myHostID {
+		hosts, err := c.driver.GetHosts()
+		if err != nil {
+			return err
+		}
+		hostmap := make(map[string]*host.Host)
+		for _, host := range hosts {
+			hostmap[host.ID] = host
+		}
+
+		endpointArg := ctx.GlobalString("endpoint")
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "logs", args[0]}
+		if len(args) > 1 {
+			cmd = append(cmd, args[1:]...)
+		}
+
+		glog.V(1).Infof("outputting remote logs with: %s\n", cmd)
+		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
+	}
+
+	// docker logs on local host if service is running locally
+	var argv []string
+	if len(args) > 2 {
+		argv = args[2:]
+	}
+
+	if err := dockerclient.Logs(rs.DockerID, argv); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return fmt.Errorf("serviced service logs")
 }
 
 // serviced service list-snapshot SERVICEID
