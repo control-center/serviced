@@ -16,6 +16,7 @@ package service
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/validation"
+	"fmt"
 )
 
 //ValidEntity validate that Service has all required fields
@@ -30,9 +31,16 @@ func (s *Service) ValidEntity() error {
 	vErr.Add(validation.IntIn(s.DesiredState, SVCRun, SVCStop, SVCPause, SVCRestart))
 
 	// Validate the min/max/default instances
-	sCopy := &Service{InstanceLimits: s.InstanceLimits}
-	sCopy.InstanceLimits.Default = s.Instances
-	vErr.Add(sCopy.InstanceLimits.Validate())
+	vErr.Add(s.InstanceLimits.Validate())
+	if s.Instances != 0 {
+		if s.InstanceLimits.Max != 0 {
+			if s.Instances < s.InstanceLimits.Min || s.Instances > s.InstanceLimits.Max {
+				vErr.Add(fmt.Errorf("Instance count (%d) must be in InstanceLimits range [%d-%d]", s.Instances, s.InstanceLimits.Min, s.InstanceLimits.Max))
+			}
+		} else if s.Instances < s.InstanceLimits.Min {
+			vErr.Add(fmt.Errorf("Instance count (%d) must be greater than InstanceLimits min %d", s.Instances, s.InstanceLimits.Min))
+		}
+	}
 
 	if vErr.HasError() {
 		return vErr
