@@ -17,7 +17,7 @@ package web
 //#include <string.h>
 //#include <security/pam_appl.h>
 //#cgo LDFLAGS: -lpam
-//extern int authenticate(const char *pam_file, const char *username, const char* pass);
+//extern int authenticate(const char *pam_file, const char *username, const char* pass, const char* group);
 import "C"
 import (
 	"github.com/zenoss/glog"
@@ -38,14 +38,16 @@ func init() {
 	}
 }
 
-func pamValidateLogin(creds *login) bool {
+func pamValidateLogin(creds *login, group string) bool {
 	var cprog = C.CString("sudo")
 	defer C.free(unsafe.Pointer(cprog))
 	var cuser = C.CString(creds.Username)
 	defer C.free(unsafe.Pointer(cuser))
 	var cpass = C.CString(creds.Password)
 	defer C.free(unsafe.Pointer(cpass))
-	authRes := C.authenticate(cprog, cuser, cpass)
+	var cgroup = C.CString(group)
+	defer C.free(unsafe.Pointer(cgroup))
+	authRes := C.authenticate(cprog, cuser, cpass, cgroup)
 	glog.V(1).Infof("PAM result for %s was %d", creds.Username, authRes)
 	if authRes != 0 && currentUser.Username != creds.Username && currentUser.Uid != "0" {
 		glog.Errorf("This process must run as root to authenticate users other than %s", currentUser.Username)

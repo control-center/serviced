@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 )
@@ -141,6 +142,11 @@ func New(driver api.API) *ServicedCli {
 		zks = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
 	}
 
+	defaultAdminGroup := "sudo"
+	if utils.Platform == utils.Rhel {
+		defaultAdminGroup = "wheel"
+	}
+
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
@@ -167,6 +173,7 @@ func New(driver api.API) *ServicedCli {
 		cli.IntFlag{"max-dfs-timeout", configInt("MAX_DFS_TIMEOUT", 60*5), "max timeout to perform a dfs snapshot"},
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
+		cli.StringFlag{"admin-group", configEnv("ADMIN_GROUP", defaultAdminGroup), "system group that can log in to control center"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", configEnv("STATS_PORT", "127.0.0.1:8443"), "container statistics for host:port"},
@@ -244,6 +251,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		LogstashES:           ctx.GlobalString("logstash-es"),
 		LogstashMaxDays:      ctx.GlobalInt("logstash-max-days"),
 		DebugPort:            ctx.GlobalInt("debug-port"),
+		AdminGroup:           ctx.GlobalString("admin-group"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true

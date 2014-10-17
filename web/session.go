@@ -29,6 +29,8 @@ import (
 const sessionCookie = "ZCPToken"
 const usernameCookie = "ZUsername"
 
+var adminGroup = "sudo"
+
 type sessionT struct {
 	ID       string
 	User     string
@@ -119,7 +121,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 		return
 	}
 
-	if pamValidateLogin(&creds) || cpValidateLogin(&creds, client) {
+	if pamValidateLogin(&creds, adminGroup) || cpValidateLogin(&creds, client) {
 		session, err := createsessionT(creds.Username)
 		if err != nil {
 			writeJSON(w, &simpleResponse{"sessionT could not be created", loginLink()}, http.StatusInternalServerError)
