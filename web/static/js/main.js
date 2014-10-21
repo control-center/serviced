@@ -804,9 +804,9 @@ $window.on("scroll", function(){
         $notifications = $("#notifications");
 
     if(currScrollTop > 0){
-        var top = Math.max(72 - currScrollTop, 0);
+        var top = Math.max(80 - currScrollTop, 0);
         $notifications.css("top", top+"px");
     }else{
-        $notifications.css("top", "72px");
+        $notifications.css("top", "80px");
     }
 });

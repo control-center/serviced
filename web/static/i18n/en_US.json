@@ -323,6 +323,7 @@
     "vhost_application": "Application",
     "vhost_controls": "Controls",
     "vhost_name": "Virtual Host Name",
+    "vhost_name_or_endpoint_invalid": "Unable to add Virtual Host. Invalid or duplicate Name or no Endpoint selected.",
     "vhost_name_invalid": "Invalid virtual host name:",
     "vhost_names": "Virtual Host Names",
     "vhost_service_endpoint": "Endpoint",

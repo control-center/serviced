@@ -89,35 +89,37 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                         }
                         else {
                             this.close();
-                            $notification.create("", $translate.instant("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
+                            $notification.create("", $translate.instant("vhost_name_or_endpoint_invalid")).error();
                         }
                     }
                 }
             ],
             validate: function(){
+                // validate name
                 var name = $scope.vhosts.add.name;
+                
+                // if name field is populated, ensure that
+                // it is a unique name
+                if(!name) return false;
+
                 for (var i in $scope.vhosts.data) {
-                    if (name == $scope.vhosts.data[i].Name) {
+                    if (name === $scope.vhosts.data[i].Name) {
                         return false;
                     }
                 }
                 var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
-                return re.test(name);
+
+                if(!re.test(name)) return false;
+
+                // validate endpoint 
+                if(!$scope.vhosts.options.length) return false;
+
+                return true;
             }
         });
     };
 
     $scope.addVHost = function() {
-        if (!$scope.vhosts.add.name || $scope.vhosts.add.name.length <= 0) {
-            console.error( "Cannot add vhost -- missing name");
-            return;
-        }
-
-        if ($scope.vhosts.options.length <= 0) {
-            console.error( "Cannot add vhost -- no available application and service");
-            return;
-        }
-
         var name = $scope.vhosts.add.name;
         var serviceId = $scope.vhosts.add.app_ep.ServiceID;
         var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
