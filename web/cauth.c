@@ -7,8 +7,6 @@
 
 #define _CP_MAX_GROUPS 100
 #define _CP_ROOT "root"
-#define _CP_WHEEL "wheel"
-#define _CP_SUDO "sudo"
 #define _CP_SUCCESS    0
 #define _CP_FAIL_START 1
 #define _CP_FAIL_AUTH  2
@@ -24,8 +22,8 @@ int conv(int num_msg,
         return (PAM_SUCCESS);
 }
 
-/* Enforces wheel membership */
-int authenticate(const char *pam_file, const char *username, const char* pass)
+/* Enforces group membership */
+int authenticate(const char *pam_file, const char *username, const char* pass, const char *group)
 {
         pam_handle_t *pamh;
         int retval, i, found_wheel, num_groups;
@@ -62,7 +60,7 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
                 if (gr == NULL) {
                         break;
                 }
-                if (strcmp(_CP_WHEEL, gr->gr_name) == 0 || strcmp(_CP_SUDO, gr->gr_name) == 0 || strcmp(_CP_ROOT, gr->gr_name) == 0) {
+                if (strcmp(group, gr->gr_name) == 0 || strcmp(_CP_ROOT, gr->gr_name) == 0) {
                         found_wheel = 1;
                         break;
                 }

@@ -66,6 +66,7 @@ type Options struct {
 	LogstashES           string //logstatsh elasticsearch host:port
 	LogstashMaxDays      int    // Days to keep logstash indices
 	DebugPort            int    // Port to listen for profile clients
+	AdminGroup           string // user group that can log in to control center
 }
 
 // LoadOptions overwrites the existing server options

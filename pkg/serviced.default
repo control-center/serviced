@@ -92,6 +92,9 @@
 #   service, and VAL is the value to which to set the variable.
 # SERVICED_ISVCS_ENV_0=elasticsearch-logstash:ES_JAVA_OPTS=-Xmx4g
 
+# Set the user group that can log in to control center
+# SERVICED_ADMIN_GROUP=wheel
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
 
