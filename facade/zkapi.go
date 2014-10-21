@@ -66,24 +66,25 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 }
 
 func (zk *zkf) RemoveService(service *service.Service) error {
+	// acquire the service lock to prevent that service from being scheduled
+	// as it is being deleted
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
 		return err
 	}
 
-	cancel := make(chan interface{})
-	errC := make(chan error)
-	go func() {
-		defer close(errC)
-		errC <- zkservice.RemoveService(cancel, conn, service.ID)
-	}()
+	// FIXME: this may be a long-running operation, should we institute a timeout?
+	mutex := zkservice.ServiceLock(conn)
+	mutex.Lock()
+	defer mutex.Unlock()
 
+	cancel := make(chan interface{})
 	go func() {
 		defer close(cancel)
 		<-time.After(30 * time.Second)
 	}()
 
-	return <-errC
+	return zkservice.RemoveService(cancel, conn, service.ID)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
