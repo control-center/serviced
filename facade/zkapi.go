@@ -157,11 +157,25 @@ func (z *zkf) UpdateHost(host *host.Host) error {
 }
 
 func (z *zkf) RemoveHost(host *host.Host) error {
+	// acquire the service lock to prevent services from being scheduled
+	// to that pool
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(host.PoolID))
 	if err != nil {
 		return err
 	}
-	return zkhost.RemoveHost(conn, host.ID)
+
+	// FIXME: this may be a long-running operation, should we institute a timeout?
+	mutex := zkservice.ServiceLock(conn)
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	cancel := make(chan interface{})
+	go func() {
+		defer close(cancel)
+		<-time.After(2 * time.Minute)
+	}()
+
+	return zkhost.RemoveHost(cancel, conn, host.ID)
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
