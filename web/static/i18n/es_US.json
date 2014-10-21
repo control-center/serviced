@@ -311,7 +311,8 @@
     "vhost_controls": "Controles",
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
-    "vhost_name_invalid": "Nombre de host virtual no válido:",
+    "vhost_name": "Nombre de Servidor Virtual"
+    "vhost_name_invalid": "Nombre de servidor virtual no v\u00E1lido:",
     "warning": "Aviso",
-    "warning_remove_service": "Esto eliminará aplicación en ejecución, esta accion no podra ser revertida."
+    "warning_remove_service": "Esto eliminar\u00E1 aplicación en ejecuci\u00f3n, esta acci\u00f3n no podr\u00E1 ser revertida."
 }
