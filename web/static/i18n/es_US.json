@@ -302,7 +302,7 @@
     "title_edit_pool": "Editar grupo de recursos",
     "title_edit_service": "Editar servicio",
     "title_log": "Registro",
-    "title_remove_service": "Eliminar Aplicación",
+    "title_remove_service": "Eliminar Aplicaci\u00f3n",
     "title_services": "Servicios",
     "title_user_details": "Informaci\u00f3n de Usuario",
     "title_resource_commitment": "Resource Commitment",
@@ -312,7 +312,8 @@
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
     "vhost_name_or_endpoint_invalid": "El Servidor Virtual no pudo ser agregado. El nombre es inv\u00E1lido o está duplicado o no se ha seleccionado un Punto de Destino.",
-    "vhost_name_invalid": "Nombre de host virtual no válido:",
+    "vhost_name": "Nombre del Servidor Virtual",
+    "vhost_name_invalid": "El nombre del servidor virtual no es v\u00E1lido:",
     "warning": "Aviso",
-    "warning_remove_service": "Esto eliminará aplicación en ejecución, esta accion no podra ser revertida."
+    "warning_remove_service": "Esto eliminar\u00E1 aplicación en ejecuci\u00f3n, esta acci\u00f3n no podr\u00E1 ser revertida."
 }
