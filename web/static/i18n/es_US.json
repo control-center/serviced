@@ -311,7 +311,7 @@
     "vhost_controls": "Controles",
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
-    "vhost_name_or_endpoint_invalid": "El Servidor Virtual no pudo ser agregado. El nombre es inv\u00E1lido o está duplicado o no se ha seleccionado un Punto de Destino."
+    "vhost_name_or_endpoint_invalid": "El Servidor Virtual no pudo ser agregado. El nombre es inv\u00E1lido o está duplicado o no se ha seleccionado un Punto de Destino.",
     "vhost_name_invalid": "Nombre de host virtual no válido:",
     "warning": "Aviso",
     "warning_remove_service": "Esto eliminará aplicación en ejecución, esta accion no podra ser revertida."
