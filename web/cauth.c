@@ -55,7 +55,7 @@ int authenticate(const char *pam_file, const char *username, const char* pass, c
                 pam_end(pamh, PAM_DATA_SILENT);
                 return _CP_FAIL_WHEEL;
         }
-        for (i=0; i < _CP_MAX_GROUPS; i++) {
+        for (i=0; i < num_groups; i++) {
                 gr = getgrgid(group_list[i]);
                 if (gr == NULL) {
                         break;
@@ -70,3 +70,18 @@ int authenticate(const char *pam_file, const char *username, const char* pass, c
         pam_end(pamh, PAM_DATA_SILENT);
         return found_wheel? _CP_SUCCESS : _CP_FAIL_WHEEL;
 }
+
+#if defined(UNIT_TEST_CAUTH)
+/* compile unit test with: gcc -DUNIT_TEST_CAUTH -o cauth cauth.c -lpam */
+int main(int argc, char *argv[])
+{
+    if (argc != 5) {
+        fprintf(stderr, "Usage: %s FILE USER PASS GROUP\n", argv[0]);
+        exit(-1);
+    }
+
+    int rc = authenticate(argv[1], argv[2], argv[3], argv[4]);
+    printf("authenticate() returned %d\n", rc);
+    return rc;
+}
+#endif
