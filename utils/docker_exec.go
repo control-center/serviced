@@ -62,7 +62,13 @@ func generateDockerExecCommand(containerID string, bashcmd []string, prependBash
 
 	// TODO: add '-h' hostname to specify the container hostname when that
 	// feature becomes available
-	attachCmd := []string{exeMap["docker"], "exec", "-i", "-t", containerID}
+	attachCmd := []string{exeMap["docker"], "exec", "-t"}
+
+	if Isatty(os.Stdout) && Isatty(os.Stdin) {
+		attachCmd = append(attachCmd, "-i")
+	}
+	attachCmd = append(attachCmd, containerID)
+
 	if prependBash {
 		attachCmd = append(attachCmd, "/bin/bash", "-c", fmt.Sprintf("%s", strings.Join(bashcmd, " ")))
 	} else {
@@ -87,36 +93,12 @@ func hasFeatureDockerExec() bool {
 
 // AttachAndRun attaches to a container and runs the command
 func AttachAndRun(containerID string, bashcmd []string) ([]byte, error) {
-	result, err := AttachAndRunMaybeSudo(containerID, bashcmd, true)
-	return result, err
-}
-
-// Like AttachAndRun, but specify whether or not to use sudo
-func AttachAndRunMaybeSudo(containerID string, bashcmd []string, useSudo bool) ([]byte, error) {
-	if hasFeatureDockerExec() {
-		return RunDockerExec(containerID, bashcmd)
-	}
-
-	_, err := exec.LookPath("nsenter")
-	if err == nil {
-		return RunNSEnter(containerID, bashcmd, useSudo)
-	}
-
-	return nil, fmt.Errorf("unable to find attach utility to run: %s", bashcmd)
+	return RunDockerExec(containerID, bashcmd)
 }
 
 // AttachAndExec attaches to a container and execs the command
 func AttachAndExec(containerID string, bashcmd []string) error {
-	if hasFeatureDockerExec() {
-		return ExecDockerExec(containerID, bashcmd)
-	}
-
-	_, err := exec.LookPath("nsenter")
-	if err == nil {
-		return ExecNSEnter(containerID, bashcmd)
-	}
-
-	return fmt.Errorf("unable to find attach utility to exec: %s", bashcmd)
+	return ExecDockerExec(containerID, bashcmd)
 }
 
 // exePaths returns the full path to the given executables in a map
