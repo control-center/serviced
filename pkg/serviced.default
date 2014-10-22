@@ -93,6 +93,7 @@
 # SERVICED_ISVCS_ENV_0=elasticsearch-logstash:ES_JAVA_OPTS=-Xmx4g
 
 # Set the user group that can log in to control center
+#   wheel is the default on RHEL and sudo is the default on Ubuntu
 # SERVICED_ADMIN_GROUP=wheel
 
 # Arbitrary serviced daemon args
