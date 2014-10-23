@@ -37,16 +37,19 @@ int authenticate(const char *pam_file, const char *username, const char* pass, c
         struct pam_conv pam_conversation = { conv, (void*)pw_reply };
         if ((retval = pam_start(pam_file, username, &pam_conversation, &pamh)) != PAM_SUCCESS) {
                 free(group_list);
+                fprintf(stderr, "cauth: pam_start returned %d: %s\n", retval, pam_strerror(pamh, retval));
                 return _CP_FAIL_START;
         }
         if ((retval = pam_authenticate(pamh, PAM_DISALLOW_NULL_AUTHTOK)) != PAM_SUCCESS) {
                 free(group_list);
                 pam_end(pamh, PAM_DATA_SILENT);
+                fprintf(stderr, "cauth: pam_authenticate returned %d: %s\n", retval, pam_strerror(pamh, retval));
                 return _CP_FAIL_AUTH;
         }
         if ((retval = pam_acct_mgmt(pamh, PAM_SILENT)) != PAM_SUCCESS) {
                 free(group_list);
                 pam_end(pamh, PAM_DATA_SILENT);
+                fprintf(stderr, "cauth: pam_acct_mgmt returned %d: %s\n", retval, pam_strerror(pamh, retval));
                 return _CP_FAIL_ACCT;
         }
         pw = getpwnam(username);
