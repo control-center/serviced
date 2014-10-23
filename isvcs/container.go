@@ -417,7 +417,7 @@ func (c *Container) Stop() error {
 }
 
 // RunCommand runs a command inside the container.
-func (c *Container) RunCommand(command []string, useSudo bool) error {
+func (c *Container) RunCommand(command []string) error {
 	var id string
 	ids, err := c.getMatchingContainersIds()
 	if err != nil {
@@ -428,7 +428,7 @@ func (c *Container) RunCommand(command []string, useSudo bool) error {
 		return fmt.Errorf("No docker container found for %s", c.Name)
 	}
 	id = (*ids)[0]
-	output, err := utils.AttachAndRunMaybeSudo(id, command, useSudo)
+	output, err := utils.AttachAndRun(id, command)
 	if err != nil {
 		return err
 	}

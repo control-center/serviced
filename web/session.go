@@ -16,6 +16,7 @@ package web
 import (
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -29,6 +30,8 @@ import (
 const sessionCookie = "ZCPToken"
 const usernameCookie = "ZUsername"
 
+var adminGroup = "sudo"
+
 type sessionT struct {
 	ID       string
 	User     string
@@ -39,6 +42,10 @@ type sessionT struct {
 var sessions map[string]*sessionT
 
 func init() {
+	if utils.Platform == utils.Rhel {
+		adminGroup = "wheel"
+	}
+
 	sessions = make(map[string]*sessionT)
 	go purgeOldsessionTs()
 }
@@ -119,7 +126,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 		return
 	}
 
-	if pamValidateLogin(&creds) || cpValidateLogin(&creds, client) {
+	if pamValidateLogin(&creds, adminGroup) || cpValidateLogin(&creds, client) {
 		session, err := createsessionT(creds.Username)
 		if err != nil {
 			writeJSON(w, &simpleResponse{"sessionT could not be created", loginLink()}, http.StatusInternalServerError)

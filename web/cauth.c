@@ -7,8 +7,6 @@
 
 #define _CP_MAX_GROUPS 100
 #define _CP_ROOT "root"
-#define _CP_WHEEL "wheel"
-#define _CP_SUDO "sudo"
 #define _CP_SUCCESS    0
 #define _CP_FAIL_START 1
 #define _CP_FAIL_AUTH  2
@@ -24,8 +22,8 @@ int conv(int num_msg,
         return (PAM_SUCCESS);
 }
 
-/* Enforces wheel membership */
-int authenticate(const char *pam_file, const char *username, const char* pass)
+/* Enforces group membership */
+int authenticate(const char *pam_file, const char *username, const char* pass, const char *group)
 {
         pam_handle_t *pamh;
         int retval, i, found_wheel, num_groups;
@@ -39,16 +37,19 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
         struct pam_conv pam_conversation = { conv, (void*)pw_reply };
         if ((retval = pam_start(pam_file, username, &pam_conversation, &pamh)) != PAM_SUCCESS) {
                 free(group_list);
+                fprintf(stderr, "cauth: pam_start returned %d: %s\n", retval, pam_strerror(pamh, retval));
                 return _CP_FAIL_START;
         }
         if ((retval = pam_authenticate(pamh, PAM_DISALLOW_NULL_AUTHTOK)) != PAM_SUCCESS) {
                 free(group_list);
                 pam_end(pamh, PAM_DATA_SILENT);
+                fprintf(stderr, "cauth: pam_authenticate returned %d: %s\n", retval, pam_strerror(pamh, retval));
                 return _CP_FAIL_AUTH;
         }
         if ((retval = pam_acct_mgmt(pamh, PAM_SILENT)) != PAM_SUCCESS) {
                 free(group_list);
                 pam_end(pamh, PAM_DATA_SILENT);
+                fprintf(stderr, "cauth: pam_acct_mgmt returned %d: %s\n", retval, pam_strerror(pamh, retval));
                 return _CP_FAIL_ACCT;
         }
         pw = getpwnam(username);
@@ -57,12 +58,12 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
                 pam_end(pamh, PAM_DATA_SILENT);
                 return _CP_FAIL_WHEEL;
         }
-        for (i=0; i < _CP_MAX_GROUPS; i++) {
+        for (i=0; i < num_groups; i++) {
                 gr = getgrgid(group_list[i]);
                 if (gr == NULL) {
                         break;
                 }
-                if (strcmp(_CP_WHEEL, gr->gr_name) == 0 || strcmp(_CP_SUDO, gr->gr_name) == 0 || strcmp(_CP_ROOT, gr->gr_name) == 0) {
+                if (strcmp(group, gr->gr_name) == 0 || strcmp(_CP_ROOT, gr->gr_name) == 0) {
                         found_wheel = 1;
                         break;
                 }
@@ -72,3 +73,18 @@ int authenticate(const char *pam_file, const char *username, const char* pass)
         pam_end(pamh, PAM_DATA_SILENT);
         return found_wheel? _CP_SUCCESS : _CP_FAIL_WHEEL;
 }
+
+#if defined(UNIT_TEST_CAUTH)
+/* compile unit test with: gcc -DUNIT_TEST_CAUTH -o cauth cauth.c -lpam */
+int main(int argc, char *argv[])
+{
+    if (argc != 5) {
+        fprintf(stderr, "Usage: %s FILE USER PASS GROUP\n", argv[0]);
+        exit(-1);
+    }
+
+    int rc = authenticate(argv[1], argv[2], argv[3], argv[4]);
+    printf("authenticate() returned %d\n", rc);
+    return rc;
+}
+#endif

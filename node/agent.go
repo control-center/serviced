@@ -264,17 +264,16 @@ func reapContainers(maxAge time.Duration) error {
 	}
 
 	cutoff := time.Now().Add(-maxAge)
-	for _, container := range containers {
-		if container.IsRunning() {
-			continue
-		} else if container.State.FinishedAt.After(cutoff) {
+	for _, ctr := range containers {
+		// Do not reap if the container is running, it has never started, or it finished after the cutoff time
+		if ctr.IsRunning() || ctr.State.FinishedAt.Unix() < 0 || ctr.State.FinishedAt.After(cutoff) {
 			continue
 		}
 
 		// attempt to delete the container
-		glog.Infof("About to remove container %s", container.ID)
-		if err := container.Delete(true); err != nil {
-			glog.Errorf("Could not remove container %s: %s", container.ID, err)
+		glog.Infof("About to remove container %s", ctr.ID)
+		if err := ctr.Delete(true); err != nil {
+			glog.Errorf("Could not remove container %s: %s", ctr.ID, err)
 		}
 	}
 

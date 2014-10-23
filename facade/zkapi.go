@@ -66,24 +66,25 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 }
 
 func (zk *zkf) RemoveService(service *service.Service) error {
+	// acquire the service lock to prevent that service from being scheduled
+	// as it is being deleted
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
 		return err
 	}
 
-	cancel := make(chan interface{})
-	errC := make(chan error)
-	go func() {
-		defer close(errC)
-		errC <- zkservice.RemoveService(cancel, conn, service.ID)
-	}()
+	// FIXME: this may be a long-running operation, should we institute a timeout?
+	mutex := zkservice.ServiceLock(conn)
+	mutex.Lock()
+	defer mutex.Unlock()
 
+	cancel := make(chan interface{})
 	go func() {
 		defer close(cancel)
 		<-time.After(30 * time.Second)
 	}()
 
-	return <-errC
+	return zkservice.RemoveService(cancel, conn, service.ID)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
@@ -157,11 +158,25 @@ func (z *zkf) UpdateHost(host *host.Host) error {
 }
 
 func (z *zkf) RemoveHost(host *host.Host) error {
+	// acquire the service lock to prevent services from being scheduled
+	// to that pool
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(host.PoolID))
 	if err != nil {
 		return err
 	}
-	return zkhost.RemoveHost(conn, host.ID)
+
+	// FIXME: this may be a long-running operation, should we institute a timeout?
+	mutex := zkservice.ServiceLock(conn)
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	cancel := make(chan interface{})
+	go func() {
+		defer close(cancel)
+		<-time.After(2 * time.Minute)
+	}()
+
+	return zkhost.RemoveHost(cancel, conn, host.ID)
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {

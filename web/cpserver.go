@@ -43,7 +43,7 @@ type ServiceConfig struct {
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, aGroup string) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
@@ -52,6 +52,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		muxTLS:      muxTLS,
 		muxPort:     muxPort,
 	}
+	adminGroup = aGroup
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}
