@@ -397,7 +397,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 func cmdSetTreeCharset(ctx *cli.Context) {
 	if ctx.Bool("ascii") {
 		treeCharset = treeASCII
-	} else if !isatty(os.Stdout) {
+	} else if !utils.Isatty(os.Stdout) {
 		treeCharset = treeSPACE
 	} else if configBool("TREE_ASCII", false) {
 		treeCharset = treeASCII
@@ -618,7 +618,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		if err != nil {
 			glog.Errorf("Template parsing error: %s", err)
 		}
-		for _, service := range (services) {
+		for _, service := range services {
 			if err := tmpl.Execute(os.Stdout, service); err != nil {
 				glog.Errorf("Template execution error: %s", err)
 			}

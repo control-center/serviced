@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/exec"
 	"syscall"
-	"unsafe"
 
 	"code.google.com/p/go.crypto/ssh/terminal"
 )
@@ -107,13 +106,4 @@ func openEditor(data []byte, name, editor string) (reader io.Reader, err error) 
 	}
 
 	return reader, nil
-}
-
-// isatty returns true if f is a TTY, false otherwise.
-func isatty(f *os.File) bool {
-	var t [2]byte
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
-		f.Fd(), syscall.TIOCGPGRP,
-		uintptr(unsafe.Pointer(&t)))
-	return errno == 0
 }
