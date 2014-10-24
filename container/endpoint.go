@@ -612,23 +612,24 @@ func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, a
 }
 
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
-func (c *Controller) registerExportedEndpoints() {
+func (c *Controller) registerExportedEndpoints() error {
+	// TODO: accumulate the errors so that some endpoints get registered
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		return
+		return err
 	}
 
 	endpointRegistry, err := registry.CreateEndpointRegistry(conn)
 	if err != nil {
 		glog.Errorf("Could not get EndpointRegistry. Endpoints not registered: %v", err)
-		return
+		return err
 	}
 
 	var vhostRegistry *registry.VhostRegistry
 	vhostRegistry, err = registry.VHostRegistry(conn)
 	if err != nil {
 		glog.Errorf("Could not get vhost registy. Endpoints not registered: %v", err)
-		return
+		return err
 	}
 
 	// register exported endpoints
@@ -657,9 +658,11 @@ func (c *Controller) registerExportedEndpoints() {
 					}
 				}
 
+				// TODO: avoid set if item already exist with data we want
 				var path string
 				if path, err = vhostRegistry.SetItem(conn, vhost, vhostEndpoint); err != nil {
 					glog.Errorf("could not register vhost %s for %s: %v", vhost, epName, err)
+					return err
 				} else {
 					glog.Infof("Registered vhost %s for %s at %s", vhost, epName, path)
 					c.vhostZKPaths = append(c.vhostZKPaths, path)
@@ -688,12 +691,13 @@ func (c *Controller) registerExportedEndpoints() {
 			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, endpoint))
 			if err != nil {
 				glog.Errorf("  unable to add endpoint: %+v %v", endpoint, err)
-				continue
+				return err
 			}
 			c.exportedEndpointZKPaths = append(c.exportedEndpointZKPaths, path)
 			glog.V(1).Infof("  endpoint successfully added to path: %s", path)
 		}
 	}
+	return nil
 }
 
 func (c *Controller) unregisterVhosts() {
