@@ -454,6 +454,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 			endpointNode, err := endpointRegistry.GetItem(conn, path)
 			if err != nil {
 				glog.Errorf("error getting endpoint node at %s: %v", path, err)
+				continue
 			}
 			endpoints[ii] = endpointNode.ApplicationEndpoint
 			if ep.port != 0 {
