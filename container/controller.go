@@ -642,7 +642,6 @@ func registerExportedEndpoints(c *Controller, closing chan struct{}) {
 		case <-time.After(time.Second):
 		case <-closing:
 			return
-		default:
 		}
 		glog.Errorf("could not register exported expoints: %s", err)
 	}
