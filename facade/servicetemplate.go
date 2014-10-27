@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dotcloud/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
