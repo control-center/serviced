@@ -65,8 +65,8 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	done := make(chan status)
 
 	for _, svc := range svcs {
-		if svc.DesiredState == service.SVCRun {
-			defer dfs.facade.StartService(datastore.Get(), svc.ID)
+		if svc.DesiredState == int(service.SVCRun) {
+			defer dfs.facade.StartService(datastore.Get(), dao.ScheduleServiceRequest{svc.ID, false})
 			processing[svc.ID] = struct{}{}
 
 			go func(poolID, serviceID string) {
@@ -318,7 +318,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 }
 
 func (dfs *DistributedFilesystem) pause(cancel <-chan interface{}, conn client.Connection, serviceID string) error {
-	if err := dfs.facade.PauseService(datastore.Get(), serviceID); err != nil {
+	if _, err := dfs.facade.PauseService(datastore.Get(), dao.ScheduleServiceRequest{serviceID, false}); err != nil {
 		return err
 	}
 
@@ -377,7 +377,7 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 		for _, svc := range serviceTree[parentID] {
 			serviceID := svc.ID
 			svc.DatabaseVersion = 0
-			svc.DesiredState = service.SVCStop
+			svc.DesiredState = int(service.SVCStop)
 			svc.ParentServiceID = parentID
 
 			// update the image

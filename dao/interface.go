@@ -50,6 +50,11 @@ type ServiceStateRequest struct {
 	ServiceStateID string
 }
 
+type ScheduleServiceRequest struct {
+	ServiceID  string
+	AutoLaunch bool
+}
+
 type HostServiceRequest struct {
 	HostID         string
 	ServiceStateID string
@@ -112,13 +117,13 @@ type ControlPlane interface {
 	//ServiceState CRUD
 
 	// Schedule the given service to start
-	StartService(serviceId string, unused *string) error
+	StartService(request ScheduleServiceRequest, affected *int) error
 
 	// Schedule the given service to restart
-	RestartService(serviceId string, unused *int) error
+	RestartService(request ScheduleServiceRequest, affected *int) error
 
 	// Schedule the given service to stop
-	StopService(serviceId string, unused *int) error
+	StopService(request ScheduleServiceRequest, affected *int) error
 
 	// Stop a running instance of a service
 	StopRunningInstance(request HostServiceRequest, unused *int) error

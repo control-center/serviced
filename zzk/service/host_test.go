@@ -220,7 +220,7 @@ func TestHostStateListener_Listen_BadState(t *testing.T) {
 		HostID:         listener.hostID,
 		ServiceID:      svc.ID,
 		ServiceStateID: "fail123",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 	}
 	if err := conn.Create(hostpath(badstate.HostID, badstate.ServiceStateID), badstate); err != nil {
 		t.Fatalf("Could not add host state %s: %s", badstate.ServiceStateID, err)

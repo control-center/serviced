@@ -14,9 +14,10 @@
 package service
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/validation"
-	"fmt"
 )
 
 //ValidEntity validate that Service has all required fields
@@ -28,7 +29,7 @@ func (s *Service) ValidEntity() error {
 	vErr.Add(validation.NotEmpty("PoolID", s.PoolID))
 
 	vErr.Add(validation.StringIn(s.Launch, commons.AUTO, commons.MANUAL))
-	vErr.Add(validation.IntIn(s.DesiredState, SVCRun, SVCStop, SVCPause, SVCRestart))
+	vErr.Add(validation.IntIn(s.DesiredState, int(SVCRun), int(SVCStop), int(SVCPause)))
 
 	// Validate the min/max/default instances
 	vErr.Add(s.InstanceLimits.Validate())
