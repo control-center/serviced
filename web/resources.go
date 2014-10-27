@@ -627,10 +627,23 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 		restBadRequest(w, err)
 		return
 	}
-	var i string
-	err = client.StartService(serviceID, &i)
+
+	auto, err := url.QueryUnescape(r.PathParam("auto"))
 	if err != nil {
-		glog.Errorf("Unexpected error starting service: %v", err)
+		restBadRequest(w, err)
+		return
+	}
+	autoLaunch := true
+	switch auto {
+	case "1", "True", "true":
+		autoLaunch = true
+	case "0", "False", "false":
+		autoLaunch = false
+	}
+
+	var affected int
+	if err := client.StartService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+		glog.Errorf("Unexpected error starting service: %s", err)
 		restServerError(w, err)
 		return
 	}
@@ -644,10 +657,23 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 		restBadRequest(w, err)
 		return
 	}
-	var i int
-	err = client.StopService(serviceID, &i)
+
+	auto, err := url.QueryUnescape(r.PathParam("auto"))
 	if err != nil {
-		glog.Errorf("Unexpected error stopping service: %v", err)
+		restBadRequest(w, err)
+		return
+	}
+	autoLaunch := true
+	switch auto {
+	case "1", "True", "true":
+		autoLaunch = true
+	case "0", "False", "false":
+		autoLaunch = false
+	}
+
+	var affected int
+	if err := client.StopService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+		glog.Errorf("Unexpected error stopping service: %s", err)
 		restServerError(w, err)
 		return
 	}

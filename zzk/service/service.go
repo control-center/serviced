@@ -139,7 +139,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		}
 
 		// Should the service be running at all?
-		switch svc.DesiredState {
+		switch service.DesiredState(svc.DesiredState) {
 		case service.SVCStop:
 			l.stop(rss)
 		case service.SVCRun:
@@ -334,7 +334,7 @@ func StartService(conn client.Connection, serviceID string) error {
 	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service.DesiredState = service.SVCRun
+	node.Service.DesiredState = int(service.SVCRun)
 	return conn.Set(path, &node)
 }
 
@@ -347,7 +347,7 @@ func StopService(conn client.Connection, serviceID string) error {
 	if err := conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service.DesiredState = service.SVCStop
+	node.Service.DesiredState = int(service.SVCStop)
 	return conn.Set(path, &node)
 }
 

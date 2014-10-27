@@ -145,16 +145,16 @@ func (s *ControlClient) GetServiceStates(serviceId string, states *[]servicestat
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
 
-func (s *ControlClient) StartService(serviceId string, hostId *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.StartService", serviceId, hostId)
+func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StartService", request, affected)
 }
 
-func (s *ControlClient) RestartService(serviceId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.RestartService", serviceId, unused)
+func (s *ControlClient) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.RestartService", request, affected)
 }
 
-func (s *ControlClient) StopService(serviceId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.StopService", serviceId, unused)
+func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StopService", request, affected)
 }
 
 func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
