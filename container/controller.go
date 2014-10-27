@@ -610,7 +610,7 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
 			if doRegisterEndpoints {
-				c.registerExportedEndpoints()
+				registerExportedEndpoints(c, rpcDead)
 				doRegisterEndpoints = false
 			}
 			startAfter = nil
@@ -620,7 +620,31 @@ func (c *Controller) Run() (err error) {
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
-	return
+	return nil
+}
+
+func registerExportedEndpoints(c *Controller, closing chan struct{}) {
+
+	for {
+		err := c.registerExportedEndpoints()
+		if err == nil {
+			return
+		}
+		client, err2 := node.NewLBClient(c.options.ServicedEndpoint)
+		if err2 != nil {
+			glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err2)
+
+		} else {
+			client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: fmt.Sprintf("error registering exported endpoints: %s", err)}, nil)
+			client.Close()
+		}
+		select {
+		case <-time.After(time.Second):
+		case <-closing:
+			return
+		}
+		glog.Errorf("could not register exported expoints: %s", err)
+	}
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}) error {
