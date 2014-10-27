@@ -259,6 +259,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
 	}
+	if os.Getenv("SERVICED_MUX_TLS") == "0" {
+		options.TLS = false
+	}
 
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)

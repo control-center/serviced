@@ -496,6 +496,7 @@ func (d *daemon) startAgent() error {
 			VFS:                  options.VFS,
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
+			UseTLS:               options.TLS,
 			DockerRegistry:       options.DockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
