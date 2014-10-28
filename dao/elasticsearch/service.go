@@ -110,18 +110,21 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map
 }
 
 // start the provided service
-func (this *ControlPlaneDao) StartService(serviceID string, unused *string) error {
-	return this.facade.StartService(datastore.Get(), serviceID)
+func (this *ControlPlaneDao) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.StartService(datastore.Get(), request)
+	return err
 }
 
 // restart the provided service
-func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
-	return this.facade.RestartService(datastore.Get(), serviceID)
+func (this *ControlPlaneDao) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.RestartService(datastore.Get(), request)
+	return err
 }
 
 // stop the provided service
-func (this *ControlPlaneDao) StopService(id string, unused *int) error {
-	return this.facade.StopService(datastore.Get(), id)
+func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.StopService(datastore.Get(), request)
+	return err
 }
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig

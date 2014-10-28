@@ -16,6 +16,7 @@ package web
 import (
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -41,6 +42,10 @@ type sessionT struct {
 var sessions map[string]*sessionT
 
 func init() {
+	if utils.Platform == utils.Rhel {
+		adminGroup = "wheel"
+	}
+
 	sessions = make(map[string]*sessionT)
 	go purgeOldsessionTs()
 }

@@ -48,7 +48,7 @@ func pamValidateLogin(creds *login, group string) bool {
 	var cgroup = C.CString(group)
 	defer C.free(unsafe.Pointer(cgroup))
 	authRes := C.authenticate(cprog, cuser, cpass, cgroup)
-	glog.V(1).Infof("PAM result for %s was %d", creds.Username, authRes)
+	glog.V(1).Infof("PAM result for user:%s group:%s was %d", creds.Username, group, authRes)
 	if authRes != 0 && currentUser.Username != creds.Username && currentUser.Uid != "0" {
 		glog.Errorf("This process must run as root to authenticate users other than %s", currentUser.Username)
 	}

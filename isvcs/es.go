@@ -145,12 +145,12 @@ func PurgeLogstashIndices(days int, gb int) error {
 	glog.Infof("Purging logstash entries older than %d days", days)
 	err := container.RunCommand([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--older-than", fmt.Sprintf("%d", days)}, false)
+		"delete", "--older-than", fmt.Sprintf("%d", days)})
 	if err != nil {
 		return err
 	}
 	glog.Infof("Purging oldest logstash entries to limit disk usage to %d GB.", gb)
 	return container.RunCommand([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--disk-space", fmt.Sprintf("%d", gb)}, false)
+		"delete", "--disk-space", fmt.Sprintf("%d", gb)})
 }

@@ -28,11 +28,28 @@ import (
 )
 
 // Desired states of services.
+type DesiredState int
+
+func (state DesiredState) String() string {
+	switch state {
+	case SVCRestart:
+		return "restart"
+	case SVCStop:
+		return "stop"
+	case SVCRun:
+		return "go"
+	case SVCPause:
+		return "pause"
+	default:
+		return "unknown"
+	}
+}
+
 const (
-	SVCRun     = 1
-	SVCStop    = 0
-	SVCRestart = -1
-	SVCPause   = 2
+	SVCRestart = DesiredState(-1)
+	SVCStop    = DesiredState(0)
+	SVCRun     = DesiredState(1)
+	SVCPause   = DesiredState(2)
 )
 
 // Service A Service that can run in serviced.

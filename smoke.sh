@@ -46,7 +46,6 @@ cleanup() {
     sudo pkill -9 serviced
     docker kill $(docker ps -q)
     sudo rm -rf /tmp/serviced-root/var
-    sudo tree -L 2 /tmp/serviced-root
 }
 trap cleanup EXIT
 
@@ -118,7 +117,7 @@ test_dir_config() {
 }
 
 test_attached() {
-    varx=$(${SERVICED} service attach s1 whoami)
+    varx=$(${SERVICED} service attach s1 whoami | tr -d '\r')
     if [[ "$varx" == "root" ]]; then
         return 0
     fi

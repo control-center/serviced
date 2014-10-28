@@ -313,7 +313,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
 		CreatedAt:      time.Now(),
@@ -350,14 +350,14 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	if err = dt.Dao.AddService(childService2, &childService2Id); err != nil {
 		glog.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
 	}
-	var unused int
-	var stringUnused string
+
 	// start the service
-	if err = dt.Dao.StartService(id, &stringUnused); err != nil {
+	var affected int
+	if err = dt.Dao.StartService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
-	if err = dt.Dao.StopService(id, &unused); err != nil {
+	if err = dt.Dao.StopService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
@@ -365,7 +365,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	var serviceRequest dao.ServiceRequest
 	err = dt.Dao.GetServices(serviceRequest, &services)
 	for _, subService := range services {
-		if subService.DesiredState == service.SVCRun && subService.ParentServiceID == id {
+		if subService.DesiredState == int(service.SVCRun) && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
@@ -378,7 +378,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s0.Name = "name"
 	s0.PoolID = "default"
 	s0.Launch = "auto"
-	s0.DesiredState = service.SVCStop
+	s0.DesiredState = int(service.SVCStop)
 
 	s01, _ := service.NewService()
 	s01.ID = "01"
@@ -386,7 +386,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s01.PoolID = "default"
 	s01.Launch = "auto"
 	s01.ParentServiceID = "0"
-	s01.DesiredState = service.SVCStop
+	s01.DesiredState = int(service.SVCStop)
 
 	s011, _ := service.NewService()
 	s011.ID = "011"
@@ -394,7 +394,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s011.PoolID = "default"
 	s011.Launch = "auto"
 	s011.ParentServiceID = "01"
-	s011.DesiredState = service.SVCStop
+	s011.DesiredState = int(service.SVCStop)
 
 	s02, _ := service.NewService()
 	s02.ID = "02"
@@ -402,7 +402,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s02.PoolID = "default"
 	s02.Launch = "auto"
 	s02.ParentServiceID = "0"
-	s02.DesiredState = service.SVCStop
+	s02.DesiredState = int(service.SVCStop)
 
 	err := dt.Dao.AddService(*s0, &id)
 	t.Assert(err, IsNil)
@@ -413,31 +413,32 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	err = dt.Dao.AddService(*s02, &id)
 	t.Assert(err, IsNil)
 
-	if err := dt.Dao.StartService("0", &unusedStr); err != nil {
+	var affected int
+	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 
 	svc := service.Service{}
 	dt.Dao.GetService("0", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 0 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("01", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 01 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("011", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 011 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("02", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 02 not requested to run: %+v", svc)
 		t.Fail()
 	}

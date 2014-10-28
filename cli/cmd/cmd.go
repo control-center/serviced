@@ -166,7 +166,7 @@ func New(driver api.API) *ServicedCli {
 		// TODO: 1.1
 		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
-		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
+		cli.StringFlag{"vfs", configEnv("VFS", "rsync"), "filesystem for container volumes"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
@@ -260,6 +260,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
+	}
+	if os.Getenv("SERVICED_MUX_TLS") == "0" {
+		options.TLS = false
 	}
 
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {

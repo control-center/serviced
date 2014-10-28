@@ -79,7 +79,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.UpdateService: %+v", svc)
 	//cannot update service without validating it.
-	if svc.DesiredState == service.SVCRun {
+	if svc.DesiredState == int(service.SVCRun) {
 		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
 			return err
 		}
@@ -100,7 +100,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
 
-	err := f.walkServices(ctx, id, func(svc *service.Service) error {
+	err := f.walkServices(ctx, id, true, func(svc *service.Service) error {
 		zkAPI(f).RemoveService(svc)
 		return nil
 	})
@@ -112,7 +112,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 
 	store := f.serviceStore
 
-	err = f.walkServices(ctx, id, func(svc *service.Service) error {
+	err = f.walkServices(ctx, id, true, func(svc *service.Service) error {
 		err := store.Delete(ctx, svc.ID)
 		if err != nil {
 			glog.Errorf("Error removing service %s	 %s ", svc.ID, err)
@@ -323,7 +323,7 @@ func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, child
 		}
 		return nil
 	}
-	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+	if err := f.walkServices(ctx, serviceId, true, visitor); err != nil {
 		// If err is a foundchild we're just short-circuiting; otherwise it's a real err, pass it on
 		if _, ok := err.(foundchild); !ok {
 			return nil, err
@@ -332,106 +332,72 @@ func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, child
 	return child, nil
 }
 
-// start the provided service
-func (f *Facade) StartService(ctx datastore.Context, serviceId string) error {
-	glog.V(4).Infof("Facade.StartService %s", serviceId)
-	// f will traverse all the services
-	err := f.validateService(ctx, serviceId)
-	glog.V(4).Infof("Facade.StartService validate service result %v", err)
-	if err != nil {
-		return err
+// ScheduleService changes a service's desired state and returns the number of affected services
+func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error) {
+	glog.V(4).Infof("Facade.ScheduleService %s (%s)", serviceID, desiredState)
+
+	if desiredState.String() == "unknown" {
+		return 0, fmt.Errorf("desired state unknown")
 	}
 
+	if err := f.validateService(ctx, serviceID); err != nil {
+		glog.Errorf("Facade.ScheduleService validate service result: %s", err)
+		return 0, err
+	}
+
+	affected := 0
+
 	visitor := func(svc *service.Service) error {
-		// don't start the service if its Launch is 'manual' and it is a child
-		if svc.Launch == commons.MANUAL && svc.ID != serviceId {
+		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
 			return nil
-		}
-		svc.DesiredState = service.SVCRun
-		err = f.updateService(ctx, svc)
-		glog.V(4).Infof("Facade.StartService update service %v, %v: %v", svc.Name, svc.ID, err)
-		if err != nil {
-			return err
-		}
-		return nil
-	}
-
-	// traverse all the services
-	return f.walkServices(ctx, serviceId, visitor)
-}
-
-func (f *Facade) RestartService(ctx datastore.Context, serviceID string) error {
-	glog.V(4).Infof("Facade.RestartService %s", serviceID)
-	// f wil traverse all the services
-	err := f.validateService(ctx, serviceID)
-	glog.V(4).Infof("Facade.RestartService validate service result %v", err)
-	if err != nil {
-		return err
-	}
-
-	visitor := func(svc *service.Service) error {
-		// don't restart the service if its Launch is 'manual' and it is a child
-		if svc.Launch == commons.MANUAL && svc.ID != serviceID {
+		} else if svc.DesiredState == int(desiredState) {
 			return nil
 		}
 
-		var states []servicestate.ServiceState
-		if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
-			return err
-		}
-
-		for _, state := range states {
-			if err := zkAPI(f).StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+		switch desiredState {
+		case service.SVCRestart:
+			// shutdown all service instances
+			var states []servicestate.ServiceState
+			if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
 				return err
 			}
+
+			for _, state := range states {
+				if err := zkAPI(f).StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+					return err
+				}
+			}
+			svc.DesiredState = int(service.SVCRun)
+		default:
+			svc.DesiredState = int(desiredState)
 		}
 
-		svc.DesiredState = service.SVCRun
-		err := f.updateService(ctx, svc)
-		glog.V(4).Infof("Facade.RestartService update service %v, %v: %v", svc.Name, svc.ID, err)
-		return err
-	}
-
-	// traverse all the services
-	return f.walkServices(ctx, serviceID, visitor)
-}
-
-// pause the provided service
-func (f *Facade) PauseService(ctx datastore.Context, serviceID string) error {
-	glog.V(4).Infof("Facade.PauseService %s", serviceID)
-
-	visitor := func(svc *service.Service) error {
-		svc.DesiredState = service.SVCPause
 		if err := f.updateService(ctx, svc); err != nil {
-			glog.Errorf("could not update service %+v due to error %s", svc, err)
+			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
-		glog.V(4).Infof("Facade.PauseService update service %v, %v", svc.Name, svc.ID)
+		affected++
 		return nil
 	}
 
-	// traverse all the services
-	return f.walkServices(ctx, serviceID, visitor)
+	err := f.walkServices(ctx, serviceID, autoLaunch, visitor)
+	return affected, err
 }
 
-func (f *Facade) StopService(ctx datastore.Context, id string) error {
-	glog.V(0).Info("Facade.StopService id=", id)
+func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
+}
 
-	visitor := func(svc *service.Service) error {
-		// if it's not the target service and its Launch is 'manual',
-		// then do not stop it
-		if svc.Launch == commons.MANUAL && svc.ID != id {
-			return nil
-		}
-		svc.DesiredState = service.SVCStop
-		if err := f.updateService(ctx, svc); err != nil {
-			return err
-		}
-		return nil
-	}
+func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRestart)
+}
 
-	// traverse all the services
-	return f.walkServices(ctx, id, visitor)
+func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCPause)
+}
+
+func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
+	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCStop)
 }
 
 type assignIPInfo struct {
@@ -564,7 +530,7 @@ func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.Assignme
 	}
 
 	// traverse all the services
-	err = f.walkServices(ctx, assignmentRequest.ServiceID, visitor)
+	err = f.walkServices(ctx, assignmentRequest.ServiceID, true, visitor)
 	if err != nil {
 		return err
 	}
@@ -653,9 +619,12 @@ func (f *Facade) getTenantIDAndPath(ctx datastore.Context, svc service.Service) 
 }
 
 // traverse all the services (including the children of the provided service)
-func (f *Facade) walkServices(ctx datastore.Context, serviceID string, visitFn service.Visit) error {
+func (f *Facade) walkServices(ctx datastore.Context, serviceID string, traverse bool, visitFn service.Visit) error {
 	store := f.serviceStore
 	getChildren := func(parentID string) ([]service.Service, error) {
+		if !traverse {
+			return []service.Service{}, nil
+		}
 		return store.GetChildServices(ctx, parentID)
 	}
 	getService := func(svcID string) (service.Service, error) {
@@ -772,7 +741,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 	}
 
 	// traverse all the services
-	if err := f.walkServices(ctx, serviceId, visitor); err != nil {
+	if err := f.walkServices(ctx, serviceId, true, visitor); err != nil {
 		glog.Errorf("unable to walk services for service %s", serviceId)
 		return err
 	}

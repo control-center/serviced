@@ -164,7 +164,7 @@ go:
 # with the built target.  This allows dev's to reference the target out
 # of their GOPATH and type <goprog> instead of the laborious ./<goprog> :-)
 
-docker_SRC = github.com/dotcloud/docker
+docker_SRC = github.com/docker/docker
 
 
 # https://www.gnu.org/software/make/manual/html_node/Force-Targets.html

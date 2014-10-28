@@ -111,18 +111,27 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service start SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStart,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+				},
 			}, {
 				Name:         "restart",
 				Usage:        "Restarts a service",
 				Description:  "serviced service restart SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRestart,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+				},
 			}, {
 				Name:         "stop",
 				Usage:        "Stops a service",
 				Description:  "serviced service stop SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStop,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+				},
 			}, {
 				Name:         "proxy",
 				Usage:        "Starts a server proxy for a container",
@@ -397,7 +406,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 func cmdSetTreeCharset(ctx *cli.Context) {
 	if ctx.Bool("ascii") {
 		treeCharset = treeASCII
-	} else if !isatty(os.Stdout) {
+	} else if !utils.Isatty(os.Stdout) {
 		treeCharset = treeSPACE
 	} else if configBool("TREE_ASCII", false) {
 		treeCharset = treeASCII
@@ -474,7 +483,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 		if statemap == nil || len(statemap) == 0 {
 			if svc.Instances > 0 {
-				switch svc.DesiredState {
+				switch service.DesiredState(svc.DesiredState) {
 				case service.SVCRun:
 					lines[iid]["Status"] = dao.Scheduled.String()
 				case service.SVCPause:
@@ -618,7 +627,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		if err != nil {
 			glog.Errorf("Template parsing error: %s", err)
 		}
-		for _, service := range (services) {
+		for _, service := range services {
 			if err := tmpl.Execute(os.Stdout, service); err != nil {
 				glog.Errorf("Template execution error: %s", err)
 			}
@@ -769,10 +778,12 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StartService(svc.ID); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if affected == 0 {
+		fmt.Println("Service already started")
 	} else {
-		fmt.Printf("Service scheduled to start.\n")
+		fmt.Printf("Scheduled %d service(s) to start\n", affected)
 	}
 }
 
@@ -791,10 +802,10 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.RestartService(svc.ID); err != nil {
+	if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		fmt.Printf("Service scheduled to restart.\n")
+		fmt.Printf("Restarting %d service(s)\n", affected)
 	}
 }
 
@@ -813,10 +824,12 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StopService(svc.ID); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if affected == 0 {
+		fmt.Println("Service already stopped")
 	} else {
-		fmt.Printf("Service scheduled to stop.\n")
+		fmt.Printf("Scheduled %d service(s) to stop\n", affected)
 	}
 }
 

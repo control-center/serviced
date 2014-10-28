@@ -1,4 +1,9 @@
 function LoginControl($scope, $location, $notification, $translate, authService) {
+
+    if(navigator.userAgent.indexOf("Trident") > -1 && navigator.userAgent.indexOf("MSIE 7.0") > -1){
+        $notification.create("", $translate.instant("compatibility_mode"), $("#loginNotifications")).warning(false);
+    }
+
     $scope.brand_label = "CONTROL CENTER";
     $scope.login_button_text = "Log In";
 

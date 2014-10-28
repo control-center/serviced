@@ -83,6 +83,7 @@ type HostAgent struct {
 	vfs                  string               // driver for container volumes
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
+	useTLS               bool // Whether the mux uses TLS
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
 	dockerRegistry       string        // the docker registry to use
@@ -118,6 +119,7 @@ type AgentOptions struct {
 	VFS                  string
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
+	UseTLS               bool
 	DockerRegistry       string
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
 	VirtualAddressSubnet string
@@ -136,6 +138,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.mount = options.Mount
 	agent.vfs = options.VFS
 	agent.mux = options.Mux
+	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 
@@ -264,17 +267,16 @@ func reapContainers(maxAge time.Duration) error {
 	}
 
 	cutoff := time.Now().Add(-maxAge)
-	for _, container := range containers {
-		if container.IsRunning() {
-			continue
-		} else if container.State.FinishedAt.After(cutoff) {
+	for _, ctr := range containers {
+		// Do not reap if the container is running, it has never started, or it finished after the cutoff time
+		if ctr.IsRunning() || ctr.State.FinishedAt.Unix() < 0 || ctr.State.FinishedAt.After(cutoff) {
 			continue
 		}
 
 		// attempt to delete the container
-		glog.Infof("About to remove container %s", container.ID)
-		if err := container.Delete(true); err != nil {
-			glog.Errorf("Could not remove container %s: %s", container.ID, err)
+		glog.Infof("About to remove container %s", ctr.ID)
+		if err := ctr.Delete(true); err != nil {
+			glog.Errorf("Could not remove container %s: %s", ctr.ID, err)
 		}
 	}
 
@@ -698,6 +700,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("/serviced/%s", binary),
 		"service",
 		"proxy",
+		fmt.Sprintf("--tls=%v", a.useTLS),
 		svc.ID,
 		strconv.Itoa(serviceState.InstanceID),
 		svc.Startup)

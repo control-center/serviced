@@ -47,7 +47,7 @@ var DefaultTestServices = []service.Service{
 		InstanceLimits: domain.MinMax{0, 0, 0},
 		ImageID:        "quay.io/zenossinc/tenantid1-core5x",
 		PoolID:         "default",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-resmgr",
 		Runs: map[string]string{
@@ -62,7 +62,7 @@ var DefaultTestServices = []service.Service{
 		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "quay.io/zenossinc/tenantid2-core5x",
 		PoolID:         "default",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-core",
 	}, {
@@ -73,7 +73,7 @@ var DefaultTestServices = []service.Service{
 		InstanceLimits: domain.MinMax{2, 2, 2},
 		ImageID:        "quay.io/zenossinc/tenantid1-opentsdb",
 		PoolID:         "remote",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "manual",
 		DeploymentID:   "Zenoss-core",
 	},
@@ -183,34 +183,34 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 	return &s, nil
 }
 
-func (t ServiceAPITest) StartService(id string) error {
-	if s, err := t.GetService(id); err != nil {
-		return err
+func (t ServiceAPITest) StartService(cfg api.SchedulerConfig) (int, error) {
+	if s, err := t.GetService(cfg.ServiceID); err != nil {
+		return 0, err
 	} else if s == nil {
-		return ErrNoServiceFound
+		return 0, ErrNoServiceFound
 	}
 
-	return nil
+	return 1, nil
 }
 
-func (t ServiceAPITest) RestartService(id string) error {
-	if s, err := t.GetService(id); err != nil {
-		return err
+func (t ServiceAPITest) RestartService(cfg api.SchedulerConfig) (int, error) {
+	if s, err := t.GetService(cfg.ServiceID); err != nil {
+		return 0, err
 	} else if s == nil {
-		return ErrNoServiceFound
+		return 0, ErrNoServiceFound
 	}
 
-	return nil
+	return 1, nil
 }
 
-func (t ServiceAPITest) StopService(id string) error {
-	if s, err := t.GetService(id); err != nil {
-		return err
+func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
+	if s, err := t.GetService(cfg.ServiceID); err != nil {
+		return 0, err
 	} else if s == nil {
-		return ErrNoServiceFound
+		return 0, ErrNoServiceFound
 	}
 
-	return nil
+	return 1, nil
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
@@ -573,6 +573,7 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//    serviced service start SERVICEID
 	//
 	// OPTIONS:
+	//    --auto-launch	Recursively schedules child services
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
@@ -595,7 +596,7 @@ func ExampleServicedCLI_CmdServiceStart() {
 	InitServiceAPITest("serviced", "service", "start", "test-service-2")
 
 	// Output:
-	// Service scheduled to start.
+	// Scheduled 1 service(s) to start
 }
 
 func ExampleServicedCLI_CmdServiceRestart_usage() {
@@ -614,6 +615,7 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	//    serviced service restart SERVICEID
 	//
 	// OPTIONS:
+	//    --auto-launch	Recursively schedules child services
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
@@ -636,7 +638,7 @@ func ExampleServicedCLI_CmdServiceRestart() {
 	InitServiceAPITest("serviced", "service", "restart", "test-service-2")
 
 	// Output:
-	// Service scheduled to restart.
+	// Restarting 1 service(s)
 }
 
 func ExampleServicedCLI_CmdServiceStop_usage() {
@@ -655,6 +657,7 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	//    serviced service stop SERVICEID
 	//
 	// OPTIONS:
+	//    --auto-launch	Recursively schedules child services
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {
@@ -668,7 +671,7 @@ func ExampleServicedCLI_CmdServiceStop() {
 	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
 
 	// Output:
-	// Service scheduled to stop.
+	// Scheduled 1 service(s) to stop
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {

@@ -56,9 +56,9 @@ type API interface {
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
-	StartService(string) error
-	RestartService(string) error
-	StopService(string) error
+	StartService(SchedulerConfig) (int, error)
+	RestartService(SchedulerConfig) (int, error)
+	StopService(SchedulerConfig) (int, error)
 	AssignIP(IPConfig) error
 
 	// RunningServices (ServiceStates)
