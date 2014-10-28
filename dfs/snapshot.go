@@ -117,6 +117,12 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 		return "", err
 	}
 
+	// dump the service definitions
+	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), getChildServices(tenantID, svcs)); err != nil {
+		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.Path(), err)
+		return "", err
+	}
+
 	tagID := time.Now().UTC().Format(timeFormat)
 	label := fmt.Sprintf("%s_%s", tenantID, tagID)
 
@@ -129,12 +135,6 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	// tag all of the images
 	if err := tag(tenantID, DockerLatest, tagID); err != nil {
 		glog.Errorf("Could not tag new snapshot for %s (%s): %s", tenant.Name, tenant.ID, err)
-		return "", err
-	}
-
-	// dump the service definitions
-	if err := exportJSON(filepath.Join(snapshotVolume.SnapshotPath(label), serviceJSON), getChildServices(tenantID, svcs)); err != nil {
-		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.SnapshotPath(label), err)
 		return "", err
 	}
 
