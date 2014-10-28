@@ -602,7 +602,7 @@ func (d *daemon) initISVCS() error {
 		case <-d.shutdown:
 			return
 		case <-time.After(10 * time.Minute):
-			isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+			isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
 		}
 		// Now run every 6 hours
 		for {
@@ -610,7 +610,7 @@ func (d *daemon) initISVCS() error {
 			case <-d.shutdown:
 				return
 			case <-time.After(6 * time.Hour):
-				isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+				isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
 			}
 		}
 	}()
