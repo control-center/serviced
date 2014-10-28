@@ -30,6 +30,17 @@
     "container_unavailable": "Container No disponible",
     "stopping_service": "Detener Servicio ...",
 
+    "choose_services_start": "Seleccionar cu\u00e1les servicios iniciar:",
+    "choose_services_stop": "Seleccionar cu\u00e1les servicios detener:",
+    "start_service_name": "Iniciar servicio {{name}}",
+    "stop_service_name": "Detener servicio {{name}}",
+    "start_service": "Iniciar servicio",
+    "stop_service": "Detener servicio",
+    "start_service_name_and_children": "Iniciar servicio {{name}} y {{count}} sub-servicios",
+    "stop_service_name_and_children": "Detener servicio {{name}} y {{count}} sub-servicios",
+    "start_service_and_children": "Iniciar servicio y {{count}} sub-servicios",
+    "stop_service_and_children": "Detener servicio y {{count}} sub-servicios",
+
     "core_capacity": "N\u00facleos de CPU",
     "memory_capacity": "Memoria",
     "memory_usage": "Consumo de memoria",
