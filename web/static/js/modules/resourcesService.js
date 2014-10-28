@@ -890,9 +890,18 @@
            *
            * @param {string} serviceId The ID of the service to start.
            * @param {function} callback Response passed to callback on success.
+           * @param {bool} indicates if service's children should not be started
            */
-          start_service: function(serviceId, callback) {
-              $http.put('/services/' + serviceId + '/startService').
+          start_service: function(serviceId, callback, skipChildren) {
+              var url = "/services/"+ serviceId + "/startService";
+
+              // if children should NOT be started, set 'auto' param
+              // to false
+              if(skipChildren){
+                url += "?auto=false";
+              }
+
+              $http.put(url).
                   success(function(data, status) {
                       callback(data);
                   }).
@@ -910,8 +919,16 @@
            * @param {string} serviceId The ID of the service to stop.
            * @param {function} callback Response passed to callback on success.
            */
-          stop_service: function(serviceId, callback) {
-              $http.put('/services/' + serviceId + '/stopService').
+          stop_service: function(serviceId, callback, skipChildren) {
+              var url = "/services/"+ serviceId + "/stopService";
+
+              // if children should NOT be started, set 'auto' param
+              // to false
+              if(skipChildren){
+                url += "?auto=false";
+              }
+
+              $http.put(url).
                   success(function(data, status) {
                       callback(data);
                   }).

@@ -628,12 +628,9 @@ func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 		return
 	}
 
-	auto, err := url.QueryUnescape(r.PathParam("auto"))
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
+	auto := r.FormValue("auto")
 	autoLaunch := true
+
 	switch auto {
 	case "1", "True", "true":
 		autoLaunch = true
@@ -658,12 +655,9 @@ func restStopService(w *rest.ResponseWriter, r *rest.Request, client *node.Contr
 		return
 	}
 
-	auto, err := url.QueryUnescape(r.PathParam("auto"))
-	if err != nil {
-		restBadRequest(w, err)
-		return
-	}
+	auto := r.FormValue("auto")
 	autoLaunch := true
+
 	switch auto {
 	case "1", "True", "true":
 		autoLaunch = true
