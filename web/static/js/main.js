@@ -531,12 +531,17 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     });
 }
 
-function toggleRunning(app, status, servicesService, serviceId) {
-    // possible values for app.Launch
-    // TODO - move this into a provider for constant values
-    var LAUNCH_MANUAL = "manual";
+function toggleRunning(app, status, servicesService, skipChildren) {
+    var serviceId;
 
-    serviceId = serviceId || app.ID;
+    // if app is an instance, use ServiceId
+    if(isInstanceOfService(app)){
+        serviceId = app.ServiceID;
+
+    // else, app is a service, so use ID
+    } else {
+        serviceId = app.ID;
+    }
 
     var newState = -1;
     switch(status) {
@@ -544,41 +549,17 @@ function toggleRunning(app, status, servicesService, serviceId) {
         case 'stop': newState = 0; break;
         case 'restart': newState = -1; break;
     }
-    if (newState === app.DesiredState) {
-        if(DEBUG) console.log('Same status. Ignoring click');
-        return;
-    }
 
-    // recursively set service's children to its desired state
-    // TODO - poll services from server which will automatically
-    // reflect the correct desired state and make this unnecessary
-    var updateApp = function(services, state){
-        if(!services) return;
-
-        services.forEach(function(service){
-            if(service.Launch !== LAUNCH_MANUAL){
-                service.DesiredState = state;
-            }
-
-            // recurse!
-            if(service.children) updateApp(service.children, state);
-        });
-    };
+    app.DesiredState = newState;
 
     // stop service
     if ((newState === 0) || (newState === -1)) {
-        app.DesiredState = newState;
-        servicesService.stop_service(serviceId, function() {
-            updateApp(app.children, newState);
-        });
+        servicesService.stop_service(serviceId, function(){}, skipChildren);
     }
 
     // start service
     if ((newState === 1) || (newState === -1)) {
-        app.DesiredState = newState;
-        servicesService.start_service(serviceId, function() {
-            updateApp(app.children, newState);
-        });
+        servicesService.start_service(serviceId, function(){}, skipChildren);
     }
 }
 
@@ -794,6 +775,11 @@ function itemClass(item) {
         cls += ' hidden';
     }
     return cls;
+}
+
+// determines if an object is an instance of a service
+function isInstanceOfService(service){
+    return "InstanceID" in service;
 }
 
 // keep notifications stuck to bottom of nav, or top of window

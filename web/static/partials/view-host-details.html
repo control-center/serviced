@@ -92,7 +92,7 @@
       </td>
       <td>
           <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
-          <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+          <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
       </td>
     </tr>
   </tbody>

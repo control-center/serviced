@@ -34,6 +34,17 @@
     "stopping_service": "Stopping Service...",
     "container_down": "Not Started",
 
+    "choose_services_start": "Please choose which services to start:",
+    "choose_services_stop": "Please choose which services to stop:",
+    "start_service_name": "Start service {{name}}",
+    "stop_service_name": "Stop service {{name}}",
+    "start_service": "Start Service",
+    "stop_service": "Stop Service",
+    "start_service_name_and_children": "Start service {{name}} and {{count}} child services",
+    "stop_service_name_and_children": "Stop service {{name}} and {{count}} child services",
+    "start_service_and_children": "Start Service and {{count}} Children",
+    "stop_service_and_children": "Stop Service and {{count}} Children",
+
     "core_capacity": "CPU Cores",
     "memory_capacity": "Memory",
     "memory_usage": "Memory Usage",
