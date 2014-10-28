@@ -90,6 +90,12 @@ var lastMessage;
                 this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
                 notificationFactory.store(this);
+		if(!autoclose){
+                    // show close button and make it active
+                    this.$el.find(".close").show().off().on("click", this.onClose);
+                    notificationFactory.store(this);
+		}
+                this.show(false);
                 this.show(autoclose);
 
                 return this;
