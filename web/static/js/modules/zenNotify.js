@@ -95,7 +95,6 @@ var lastMessage;
                     this.$el.find(".close").show().off().on("click", this.onClose);
                     notificationFactory.store(this);
 		}
-                this.show(false);
                 this.show(autoclose);
 
                 return this;
