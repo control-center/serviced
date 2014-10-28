@@ -160,8 +160,6 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 
 // RemoveSnapshot removes the snapshot with the given label
 func (c *BtrfsConn) RemoveSnapshot(label string) error {
-	c.Lock()
-	defer c.Unlock()
 	if exists, err := c.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -169,6 +167,9 @@ func (c *BtrfsConn) RemoveSnapshot(label string) error {
 			return fmt.Errorf("snapshot %s does not exist", label)
 		}
 	}
+
+	c.Lock()
+	defer c.Unlock()
 	_, err := runcmd(c.sudoer, "subvolume", "delete", c.SnapshotPath(label))
 	return err
 }
@@ -194,8 +195,6 @@ func (c *BtrfsConn) Unmount() error {
 
 // Rollback rolls back the volume to the given snapshot
 func (c *BtrfsConn) Rollback(label string) error {
-	c.Lock()
-	defer c.Unlock()
 	if exists, err := c.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
@@ -204,6 +203,8 @@ func (c *BtrfsConn) Rollback(label string) error {
 		}
 	}
 
+	c.Lock()
+	defer c.Unlock()
 	vd := path.Join(c.root, c.name)
 	dirp, err := volume.IsDir(vd)
 	if err != nil {
