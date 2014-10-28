@@ -50,6 +50,9 @@
 # Set the TLS certfile
 # SERVICED_CERT_FILE=/etc/....
 
+# Set to 0 to disable TLS for the mux port
+# SERVICED_MUX_TLS=1
+
 # Set the driver type for the volumes (rsync/btrfs)
 # SERVICED_VFS=rsync
 
