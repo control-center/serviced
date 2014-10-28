@@ -65,6 +65,7 @@ type Options struct {
 	MasterPoolID         string
 	LogstashES           string //logstatsh elasticsearch host:port
 	LogstashMaxDays      int    // Days to keep logstash indices
+	LogstashMaxSize      int    // Max size of logstash data
 	DebugPort            int    // Port to listen for profile clients
 	AdminGroup           string // user group that can log in to control center
 }
