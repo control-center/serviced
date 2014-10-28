@@ -402,41 +402,45 @@ func (d *daemon) startAgent() error {
 	go func() {
 		var poolID string
 		for {
-			glog.Infof("Trying to discover my pool...")
-			var myHost *host.Host
-			masterClient, err := master.NewClient(d.servicedEndpoint)
-			if err != nil {
-				glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
-			} else {
+			poolID = func() string {
+				glog.Infof("Trying to discover my pool...")
+				var myHost *host.Host
+				masterClient, err := master.NewClient(d.servicedEndpoint)
+				if err != nil {
+					glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
+					return ""
+				}
+				defer masterClient.Close()
 				myHost, err = masterClient.GetHost(myHostID)
 				if err != nil {
 					glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
+					return ""
 				}
-			}
-			if err != nil {
-				//wait to try getting pool again or for shutdow, whichever comes first
-				select {
-				case <-d.shutdown:
-					return
-				case <-time.After(5 * time.Second):
-					continue
+				poolID = myHost.PoolID
+				glog.Infof(" My PoolID: %v", poolID)
+				//send updated host info
+				updatedHost, err := host.UpdateHostInfo(*myHost)
+				if err != nil {
+					glog.Infof("Could not send updated host information: %v", err)
+					return poolID
 				}
-			}
-			poolID = myHost.PoolID
-			glog.Infof(" My PoolID: %v", poolID)
-			//send updated host info
-			updatedHost, err := host.UpdateHostInfo(*myHost)
-			if err != nil {
-				glog.Infof("Could not send updated host information: %v", err)
+				err = masterClient.UpdateHost(updatedHost)
+				if err != nil {
+					glog.Warningf("Could not update host information: %v", err)
+					return poolID
+				}
+				glog.V(2).Infof("Sent updated host info %#v", updatedHost)
+				return poolID
+			}()
+			if poolID != "" {
 				break
 			}
-			err = masterClient.UpdateHost(updatedHost)
-			if err != nil {
-				glog.Warningf("Could not update host information: %v", err)
-				break
+			select {
+			case <-d.shutdown:
+				return
+			case <-time.After(5 * time.Second):
+				continue
 			}
-			glog.V(2).Infof("Sent updated host info %#v", updatedHost)
-			break
 		}
 
 		thisHost.PoolID = poolID
