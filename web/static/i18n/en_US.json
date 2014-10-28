@@ -15,7 +15,7 @@
 
     "version": "Version",
     "build": "Build",
-
+    "compatibility_mode": "IE Compatibility Mode not supported",
     "backuprestore": "Backup / Restore",
     "backup_create": "Create Backup",
     "backup_restore": "Restore Backup",
