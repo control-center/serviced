@@ -96,34 +96,22 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	return f.updateService(ctx, &svc)
 }
 
-//
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
-	//TODO: should services already be stopped before removing to prevent half running service in case of error while deleting?
-
-	err := f.walkServices(ctx, id, true, func(svc *service.Service) error {
-		zkAPI(f).RemoveService(svc)
-		return nil
-	})
-
-	if err != nil {
-		//TODO: should we put them back?
-		return err
-	}
-
 	store := f.serviceStore
 
-	err = f.walkServices(ctx, id, true, func(svc *service.Service) error {
-		err := store.Delete(ctx, svc.ID)
-		if err != nil {
-			glog.Errorf("Error removing service %s	 %s ", svc.ID, err)
+	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
+		if err := zkAPI(f).RemoveService(svc); err != nil {
+			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
+			return err
 		}
-		return err
+
+		if err := store.Delete(ctx, svc.ID); err != nil {
+			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+
+		return nil
 	})
-	if err != nil {
-		return err
-	}
-	//TODO: remove AddressAssignments with f Service
-	return nil
 }
 
 func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {
