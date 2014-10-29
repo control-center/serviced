@@ -85,6 +85,9 @@
     "add_service": "Add Service",
     "assign_ip": "Assign IP",
 
+    "log_in": "Log In",
+    "logging_in": "Logging In...",
+
     "instances_invalid": "Number of instances is invalid:",
     "minimum": "minimum",
     "maximum": "maximum",
