@@ -24,6 +24,8 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
@@ -41,7 +43,18 @@ type sessionT struct {
 
 var sessions map[string]*sessionT
 
+var allowRootLogin bool = true
+
 func init() {
+	falses := []string{"0", "false", "f", "no"}
+	if v := strings.ToLower(os.Getenv("SERVICED_ALLOW_ROOT_LOGIN")); v != "" {
+		for _, t := range falses {
+			if v == t {
+				allowRootLogin  = false
+			}
+		}
+	}
+
 	if utils.Platform == utils.Rhel {
 		adminGroup = "wheel"
 	}
@@ -49,6 +62,7 @@ func init() {
 	sessions = make(map[string]*sessionT)
 	go purgeOldsessionTs()
 }
+
 
 func purgeOldsessionTs() {
 	for {
@@ -123,6 +137,12 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 	if err != nil {
 		glog.V(1).Info("Unable to decode login payload ", err)
 		restBadRequest(w, err)
+		return
+	}
+
+	if creds.Username == "root" && ! allowRootLogin {
+		glog.V(1).Info("root login disabled")
+		writeJSON(w, &simpleResponse{"Root login disabled", loginLink()}, http.StatusUnauthorized)
 		return
 	}
 
