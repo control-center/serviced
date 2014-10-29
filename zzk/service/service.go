@@ -14,6 +14,7 @@
 package service
 
 import (
+	"fmt"
 	"path"
 	"sort"
 	"sync"
@@ -376,8 +377,8 @@ func UpdateService(conn client.Connection, svc *service.Service) error {
 	return conn.Set(spath, &node)
 }
 
-// RemoveServices stop any running services and deletes an existing service
-func RemoveService(cancel <-chan interface{}, conn client.Connection, serviceID string) error {
+// RemoveService deletes a service
+func RemoveService(conn client.Connection, serviceID string) error {
 	// Check if the path exists
 	if exists, err := zzk.PathExists(conn, servicepath(serviceID)); err != nil {
 		return err
@@ -385,29 +386,11 @@ func RemoveService(cancel <-chan interface{}, conn client.Connection, serviceID 
 		return nil
 	}
 
-	// If it exists, stop the service
-	if err := StopService(conn, serviceID); err != nil {
+	// If the service has any children, do not delete
+	if states, err := conn.Children(servicepath(serviceID)); err != nil {
 		return err
-	}
-
-	// Wait for there to be no running states
-	for {
-		children, event, err := conn.ChildrenW(servicepath(serviceID))
-		if err != nil {
-			return err
-		}
-
-		if len(children) == 0 {
-			break
-		}
-
-		select {
-		case <-event:
-			// pass
-		case <-cancel:
-			glog.Infof("Gave up deleting service %s with %d children", serviceID, len(children))
-			return zzk.ErrShutdown
-		}
+	} else if instances := len(states); instances > 0 {
+		return fmt.Errorf("service %s has %d running instances", serviceID, instances)
 	}
 
 	// Delete the service

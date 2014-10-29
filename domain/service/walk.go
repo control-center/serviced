@@ -27,28 +27,24 @@ type FindChildService func(parentID, childName string) (Service, error)
 
 //Walk traverses the service hierarchy and calls the supplied Visit function on each service
 func Walk(serviceID string, visitFn Visit, getService GetService, getChildren GetChildServices) error {
-	//get the original service
+	// get the children
+	subServices, err := getChildren(serviceID)
+	if err != nil {
+		return err
+	}
+
+	// walk the children
+	for _, svc := range subServices {
+		if err := Walk(svc.ID, visitFn, getService, getChildren); err != nil {
+			return err
+		}
+	}
+
+	// update the service
 	svc, err := getService(serviceID)
 	if err != nil {
 		return err
 	}
 
-	// do what you requested to do while visiting this node
-	err = visitFn(&svc)
-	if err != nil {
-		return err
-	}
-
-	subServices, err := getChildren(serviceID)
-	if err != nil {
-		return err
-	}
-	for _, svc := range subServices {
-		err = Walk(svc.ID, visitFn, getService, getChildren)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return visitFn(&svc)
 }

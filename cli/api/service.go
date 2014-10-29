@@ -178,12 +178,9 @@ func (a *api) RemoveService(id string) error {
 		return err
 	}
 
-	if err := client.RemoveService(id, &unusedInt); err != nil {
+	if err := client.RemoveService(id, nil); err != nil {
 		return fmt.Errorf("could not remove service %s: %s", id, err)
-	} else if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not remove snapshots for service %s: %s", id, err)
 	}
-
 	return nil
 }
 
