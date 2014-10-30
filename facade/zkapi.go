@@ -61,7 +61,6 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 	if err != nil {
 		return err
 	}
-
 	return zkservice.UpdateService(conn, service)
 }
 
@@ -77,14 +76,7 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 	mutex := zkservice.ServiceLock(conn)
 	mutex.Lock()
 	defer mutex.Unlock()
-
-	cancel := make(chan interface{})
-	go func() {
-		defer close(cancel)
-		<-time.After(30 * time.Second)
-	}()
-
-	return zkservice.RemoveService(cancel, conn, service.ID)
+	return zkservice.RemoveService(conn, service.ID)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
