@@ -25,6 +25,14 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
 		return err
 	}
+
+	// Create the tenant volume
+	if tenantID, err := this.facade.GetTenantID(datastore.Get(), svc.ID); err != nil {
+		glog.Warningf("Could not get tenant for service %s: %s", svc.ID, err)
+	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	}
+
 	*serviceId = svc.ID
 	return nil
 }
@@ -33,6 +41,13 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
 	if err := this.facade.UpdateService(datastore.Get(), svc); err != nil {
 		return err
+	}
+
+	// Create the tenant volume
+	if tenantID, err := this.facade.GetTenantID(datastore.Get(), svc.ID); err != nil {
+		glog.Warningf("Could not get tenant for service %s: %s", svc.ID, err)
+	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
 	}
 	return nil
 }
