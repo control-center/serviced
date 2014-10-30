@@ -56,6 +56,8 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	if err := this.facade.RemoveService(datastore.Get(), id); err != nil {
 		return err
+	} else if err := this.DeleteSnapshots(id, unused); err != nil {
+		return err
 	}
 	return nil
 }
