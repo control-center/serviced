@@ -74,6 +74,7 @@ type ContainerDescription struct {
 	Configuration map[string]interface{}              // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 	volumesDir    string                              // directory to store volume data
+	HostNetwork   bool                                // use host network in container, eg docker run ... --net=host
 }
 
 type Container struct {
@@ -320,6 +321,9 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	exitChan := make(chan error, 1)
 	args := make([]string, 0)
 	args = append(args, "run", "--rm", "--name", containerName)
+	if c.HostNetwork {
+		args = append(args, "--net=host")
+	}
 
 	// attach all exported ports
 	for _, port := range c.Ports {
