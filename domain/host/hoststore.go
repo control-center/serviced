@@ -14,12 +14,11 @@
 package host
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/datastore"
 
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -40,10 +39,8 @@ func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 	if id == "" {
 		return nil, errors.New("empty poolId not allowed")
 	}
-
 	q := datastore.NewQuery(ctx)
-	queryString := fmt.Sprintf("PoolID:%s", id)
-	query := search.Query().Search(queryString)
+	query := search.Query().Term("PoolID", id)
 	search := search.Search("controlplane").Type(kind).Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
