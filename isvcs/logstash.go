@@ -29,13 +29,14 @@ func init() {
 	command := "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	logstash, err = NewContainer(
 		ContainerDescription{
-			Name:    "logstash",
-			Repo:    IMAGE_REPO,
-			Tag:     IMAGE_TAG,
-			Command: func() string { return command },
-			Ports:   []int{5042, 5043, 9292},
-			Volumes: map[string]string{},
-			Notify:  notifyLogstashConfigChange,
+			Name:        "logstash",
+			Repo:        IMAGE_REPO,
+			Tag:         IMAGE_TAG,
+			Command:     func() string { return command },
+			Ports:       []int{5042, 5043, 9292},
+			Volumes:     map[string]string{},
+			Notify:      notifyLogstashConfigChange,
+			HostNetwork: true,
 		})
 	if err != nil {
 		glog.Fatal("Error initializing logstash_master container: %s", err)
