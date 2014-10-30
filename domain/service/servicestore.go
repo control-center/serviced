@@ -19,7 +19,6 @@ import (
 	"github.com/zenoss/elastigo/search"
 
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -93,8 +92,14 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]Servi
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
 	}
-	queryString := fmt.Sprintf("PoolID:%s", id)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("PoolID", id)
+	search := search.Search("controlplane").Type(kind).Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //GetServicesByDeployment returns services with the given deployment id
@@ -103,8 +108,14 @@ func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID stri
 	if id == "" {
 		return nil, errors.New("empty deploymentID not allowed")
 	}
-	queryString := fmt.Sprintf("DeploymentID:%s", id)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("DeploymentID", id)
+	search := search.Search("controlplane").Type(kind).Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //GetChildServices returns services that are children of the given parent service id
@@ -113,9 +124,14 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]Serv
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
 	}
-
-	queryString := fmt.Sprintf("ParentServiceID:%s", parentID)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("ParentServiceID", id)
+	search := search.Search("controlplane").Type(kind).Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 func query(ctx datastore.Context, query string) ([]Service, error) {
