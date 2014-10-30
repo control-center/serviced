@@ -17,6 +17,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/zenoss/glog"
 )
 
 func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateID *string) error {
@@ -46,6 +47,11 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantID *string) error {
 	var err error
 	*tenantID, err = this.facade.DeployTemplate(datastore.Get(), request.PoolID, request.TemplateID, request.DeploymentID)
+
+	// Create the tenant volume
+	if _, err := this.dfs.GetVolume(*tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	}
 	return err
 }
 
@@ -67,5 +73,12 @@ func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[
 func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) error {
 	var err error
 	*serviceID, err = this.facade.DeployService(datastore.Get(), request.ParentID, request.Service)
+
+	// Create the tenant volume
+	if tenantID, err := this.facade.GetTenantID(datastore.Get(), *serviceID); err != nil {
+		glog.Warningf("Could not get tenant for service %s: %s", *serviceID, err)
+	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	}
 	return err
 }
