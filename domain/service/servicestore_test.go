@@ -87,6 +87,28 @@ func (s *S) Test_ServiceCRUD(t *C) {
 
 }
 
+func (s *S) Test_FindChildService(t *C) {
+	svcIn := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto", ParentServiceID: "parent_svc_id"}
+	err := s.store.Put(s.ctx, svcIn)
+	t.Assert(err, IsNil)
+
+	svcOut, err := s.store.FindChildService(s.ctx, "parent_svc_id", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, NotNil)
+
+	svcOut, err = s.store.FindChildService(s.ctx, "parent_svc_id", "not_svc")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+
+	svcOut, err = s.store.FindChildService(s.ctx, "not_parent", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+
+	svcOut, err = s.store.FindChildService(s.ctx, "not_parent", "not_svc")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+}
+
 func (s *S) Test_GetServices(t *C) {
 	svcs, err := s.store.GetServices(s.ctx)
 	t.Assert(err, IsNil)

@@ -15,7 +15,6 @@ package pool
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
@@ -46,8 +45,14 @@ func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]
 	if id == "" {
 		return nil, errors.New("empty realm not allowed")
 	}
-	queryString := fmt.Sprintf("Realm:%s", id)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("Realm", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //Key creates a Key suitable for getting, putting and deleting ResourcePools
