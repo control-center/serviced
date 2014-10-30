@@ -274,7 +274,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             $('#addApp').modal('hide');
             $("#deploy-save-button").removeAttr("disabled");
             $("#deploy-save-button").removeClass('active');
-												$("#deploy-start-save-button").removeAttr("disabled");
             resetStepPage();
             resetError();
         };
@@ -288,7 +287,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
         $("#deploy-save-button").toggleClass('active');
         $("#deploy-save-button").attr("disabled", "disabled");
-								$("#deploy-start-save-button").attr("disabled", "disabled");
 
         var selected = $scope.selectedTemplates();
         var f = true;
@@ -313,14 +311,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             var checkStatus = true;
             resourcesService.deploy_app_template(deploymentDefinition, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
-                    //start the service if requested
-                    if($scope.install.startNow){
-                        for(var i=0; i < $scope.services.data.length; ++i){
-                            if (result.Detail == $scope.services.data[i].ID){
-                                toggleRunning($scope.services.data[i], "start", resourcesService);
-                            }
-                        }
-                    }
                     checkStatus = false;
                     closeModal();
                 });
@@ -355,11 +345,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
         }
 
         nextClicked = false;
-    };
-
-    $scope.wizard_deploy_start = function(){
-        $scope.install.startNow = true;
-        $scope.wizard_finish();
     };
 
     resourcesService.get_app_templates(false, function(templatesMap) {
