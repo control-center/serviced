@@ -275,6 +275,7 @@ func (d *daemon) startMaster() error {
 	}
 
 	health.SetDao(d.cpDao)
+	go health.Cleanup(d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		return err
