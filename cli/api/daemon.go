@@ -60,6 +60,7 @@ import (
 	"net/rpc"
 	"net/rpc/jsonrpc"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path"
 	"path/filepath"
@@ -157,6 +158,12 @@ func (d *daemon) run() error {
 	}
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", d.getEsClusterName("elasticsearch-logstash")); err != nil {
 		glog.Fatalf("could not set es-logstash option: %s", err)
+	}
+
+	cmd := fmt.Sprintf("docker run %s:%s ping -c1 172.17.42.1", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG)
+	if err := exec.Command("sh", "-c", cmd).Run(); err != nil {
+		// This kills the serviced.
+		glog.Fatal("Unable to ping 172.17.42.1 from docker container. Please check your iptables rules.")
 	}
 
 	dockerVersion, err := node.GetDockerVersion()
