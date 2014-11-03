@@ -20,7 +20,6 @@ package node
 
 import (
 	"net"
-	"net/rpc"
 	"net/rpc/jsonrpc"
 
 	"github.com/control-center/serviced/dao"
@@ -30,6 +29,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
@@ -37,11 +37,23 @@ import (
 // A serviced client.
 type ControlClient struct {
 	addr      string
-	rpcClient *rpc.Client
+	rpcClient rpcutils.Client
 }
 
 // Ensure that ControlClient implements the ControlPlane interface.
 var _ dao.ControlPlane = &ControlClient{}
+
+// Create a new CachedControlClient.
+func GetCachedControlClient(addr string) (*ControlClient, error) {
+	client, err := rpcutils.GetCachedClient(addr)
+	if err != nil {
+		return nil, err
+	}
+	ctrlClient := ControlClient{}
+	ctrlClient.addr = addr
+	ctrlClient.rpcClient = client
+	return &ctrlClient, nil
+}
 
 // Create a new ControlClient.
 func NewControlClient(addr string) (s *ControlClient, err error) {
