@@ -36,7 +36,7 @@ func init() {
 			//only expose 8443 (the consumer port to the host)
 			Ports:       []int{4242, 8443, 8888, 9090},
 			Volumes:     map[string]string{"hbase": "/opt/zenoss/var/hbase"},
-			HostNetwork: true,
+			HostNetwork: false,
 		})
 	if err != nil {
 		glog.Fatal("Error initializing opentsdb container: %s", err)
