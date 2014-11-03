@@ -289,35 +289,12 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 	return result, fmt.Errorf("facade.GetServiceEndpoints is obsolete - do not use it")
 }
 
-// foundchild is an error used exclusively to short-circuit the service walking
-// when an appropriate child has been found
-type foundchild bool
-
-// Satisfy the error interface
-func (f foundchild) Error() string {
-	return ""
-}
-
 // FindChildService walks services below the service specified by serviceId, checking to see
 // if childName matches the service's name. If so, it returns it.
 func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
-	var child *service.Service
-
-	visitor := func(svc *service.Service) error {
-		if svc.Name == childName {
-			child = svc
-			// Short-circuit the rest of the walk
-			return foundchild(true)
-		}
-		return nil
-	}
-	if err := f.walkServices(ctx, serviceId, true, visitor); err != nil {
-		// If err is a foundchild we're just short-circuiting; otherwise it's a real err, pass it on
-		if _, ok := err.(foundchild); !ok {
-			return nil, err
-		}
-	}
-	return child, nil
+	glog.V(3).Infof("Facade.FindChildService")
+	store := f.serviceStore
+	return store.FindChildService(ctx, serviceId, childName)
 }
 
 // ScheduleService changes a service's desired state and returns the number of affected services

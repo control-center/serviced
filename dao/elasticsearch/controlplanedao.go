@@ -69,6 +69,8 @@ func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildServi
 		svc, err := f.FindChildService(ctx, svcID, childName)
 		if err != nil {
 			return service.Service{}, err
+		} else if svc == nil {
+			return service.Service{}, fmt.Errorf("no service found")
 		}
 		return *svc, nil
 	}

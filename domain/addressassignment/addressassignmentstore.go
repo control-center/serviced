@@ -14,9 +14,8 @@
 package addressassignment
 
 import (
-	"fmt"
-	"github.com/zenoss/elastigo/search"
 	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a AddressAssignmentStore store
@@ -30,10 +29,9 @@ type Store struct {
 }
 
 func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
-	query := fmt.Sprintf("ServiceID:%s", serviceID)
 	q := datastore.NewQuery(ctx)
-	elasticQuery := search.Query().Search(query)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
+	query := search.Query().Term("ServiceID", serviceID)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
