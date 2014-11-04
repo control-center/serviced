@@ -25,6 +25,9 @@
         <tr ng-hide="backupFiles !== undefined">
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
+        <tr ng-hide="backupFiles.length !== 0">
+            <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        </tr>
         <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
             <td>{{fileInfo.full_path}}</td>
             <td>{{fileInfo.mod_time | date: 'medium'}}</td>

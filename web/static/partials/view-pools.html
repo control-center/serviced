@@ -23,8 +23,11 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-hide="pools.data.length">
+    <tr ng-hide="pools.data.length !== undefined">
         <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
+    <tr ng-hide="pools.data.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
     </tr>
     <tr ng-repeat="pool in pools.data | orderBy:pools.sort">
       <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID}}</td>

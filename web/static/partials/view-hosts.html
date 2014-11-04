@@ -36,6 +36,9 @@
     <tr ng-hide="hosts.filtered !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
+    <tr ng-hide="hosts.filtered.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+    </tr>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
       <td style="text-align:center;">
