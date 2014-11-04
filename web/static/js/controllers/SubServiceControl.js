@@ -721,6 +721,11 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         $e.is(".glyphicon-chevron-down") ? hideChildren(app) : showChildren(app);
     }
 
+    //we need to bring this function into scope so we can use ng-hide if an object is empty
+    $scope.isEmptyObject = function(obj){
+        return angular.equals({}, obj);
+    }
+
     function hideChildren(app){
         if(app.children){
             for(var i=0; i<app.children.length; ++i){

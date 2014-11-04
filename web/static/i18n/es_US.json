@@ -236,6 +236,7 @@
     "nav_pools": "Grupo de Recursos",
     "nav_servicesmap": "Mapa de Servicios",
     "nav_backuprestore": "Respaldar / Restaurar",
+    "no_data": "Encontraron datos",
     "placeholder_host_and_port": "ej. localhost:4979",
     "placeholder_host_parent": "ej. default",
     "placeholder_hosts_search": "Buscar",
