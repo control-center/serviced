@@ -433,8 +433,8 @@ test: build docker_ok
 	cd validation && go test $(GOTEST_FLAGS)
 	cd zzk && go test $(GOTEST_FLAGS)
 	cd zzk/snapshot && go test $(GOTEST_FLAGS)
-	cd zzk/service && go test $(GOTEST_FLAGS)
-	cd zzk/docker && go test $(GOTEST_FLAGS)
+	cd zzk/service && go test -v $(GOTEST_FLAGS)
+	cd zzk/docker && go test -v $(GOTEST_FLAGS)
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
