@@ -63,7 +63,7 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="hosts.current.IPs.length !== 0">
-        <td colspan="100%" align="center">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
     </tr>
     <tr ng-repeat="address in hosts.current.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
@@ -88,7 +88,7 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="running.data.length !== 0">
-        <td colspan="100%" align="center">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
     </tr>
     <tr ng-repeat="app in running.data | orderBy:running.sort">
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>

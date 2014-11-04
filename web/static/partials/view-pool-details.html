@@ -55,7 +55,7 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="pools.current.VirtualIPs.length !== 0">
-        <td colspan="100%" align="center">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
     </tr>
     <tr ng-repeat="address in pools.current.VirtualIPs | orderBy:virtual_ip_addresses.sort">
       <td>{{address.IP}}</td>
