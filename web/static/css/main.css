@@ -400,11 +400,13 @@ table .glyphicon {
     color: #8197B8 !important;
 }
 .form-signin {
-    width: 350px;
-    margin: 20px auto 0;
-    padding: 15px;
+    width: 500px;
+    margin: 60px auto 0;
+    padding: 61px;
     background-color: white;
     text-align: center;
+    border-radius: 4px;
+    box-shadow: 0px 0px 8px rgba(0,0,0,.4);
 }
 .form-signin .form-signin-heading,
 .form-signin .checkbox {
@@ -1038,9 +1040,10 @@ rect {
 }
 
 #loginNotifications {
-    width: 350px;
+    width: 500px;
     margin: auto;
     position: relative;
+    top: -4px;
 }
 
 .notification {
