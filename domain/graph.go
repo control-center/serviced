@@ -14,13 +14,61 @@
 // Package domain contains graph config data objects for all domain objects
 package domain
 
-import "reflect"
+import (
+	"encoding/json"
+	"reflect"
+)
 
 //DataPointRateOptions define the rate options for a data point
 type DataPointRateOptions struct {
 	Counter        bool  `json:"counter"`
 	CounterMax     int64 `json:"counterMax"`
 	ResetThreshold int64 `json:"resetThreshold"`
+}
+
+type jsonDataPointRateOptions struct {
+	Counter        bool   `json:"counter"`
+	CounterMax     *int64 `json:"counterMax,omitEmpty"`
+	ResetThreshold *int64 `json:"resetThreshold,omitEmpty"`
+}
+
+func (d DataPointRateOptions) MarshalJSON() ([]byte, error) {
+	var ctrMax *int64
+	var rstThr *int64
+	if d.CounterMax == 0 {
+		ctrMax = nil
+	} else {
+		ctrMax = &d.CounterMax
+	}
+	if d.ResetThreshold == 0 {
+		rstThr = nil
+	} else {
+		rstThr = &d.ResetThreshold
+	}
+	return json.Marshal(jsonDataPointRateOptions{
+		Counter:        d.Counter,
+		CounterMax:     ctrMax,
+		ResetThreshold: rstThr,
+	})
+}
+
+func (d DataPointRateOptions) UnmarshalJSON(data []byte) error {
+	var temp jsonDataPointRateOptions
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+	d.Counter = temp.Counter
+	if temp.CounterMax == nil {
+		d.CounterMax = 0
+	} else {
+		d.CounterMax = *temp.CounterMax
+	}
+	if temp.ResetThreshold == nil {
+		d.ResetThreshold = 0
+	} else {
+		d.ResetThreshold = *temp.ResetThreshold
+	}
+	return nil
 }
 
 // DataPoint defines a datum to be plotted within a graph
