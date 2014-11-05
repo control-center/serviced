@@ -52,7 +52,7 @@ func (d DataPointRateOptions) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func (d DataPointRateOptions) UnmarshalJSON(data []byte) error {
+func (d *DataPointRateOptions) UnmarshalJSON(data []byte) error {
 	var temp jsonDataPointRateOptions
 	if err := json.Unmarshal(data, &temp); err != nil {
 		return err
