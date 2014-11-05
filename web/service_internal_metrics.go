@@ -210,7 +210,11 @@ func addInternalGraphConfigs(svc *service.Service) {
 					ID:           "net.tx_bytes",
 					Name:         "TX kbps",
 					Rate:         true,
-					Type:         "area",
+					RateOptions: &domain.DataPointRateOptions{
+						Counter:        true,
+						ResetThreshold: 1,
+					},
+					Type: "area",
 				},
 				domain.DataPoint{
 					Aggregator:   "avg",
@@ -221,7 +225,11 @@ func addInternalGraphConfigs(svc *service.Service) {
 					ID:           "net.rx_bytes",
 					Name:         "RX kbps",
 					Rate:         true,
-					Type:         "area",
+					RateOptions: &domain.DataPointRateOptions{
+						Counter:        true,
+						ResetThreshold: 1,
+					},
+					Type: "area",
 				},
 			},
 		},
