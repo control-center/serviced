@@ -17,6 +17,7 @@ pkg/build/
 pkg/pkgroot/
 pkg/serviced*.rpm
 pkg/serviced*.deb
+pkg/*.tgz
 isvcs/images/
 isvcs/.isvcs_export_container_id
 pkg/templates/
