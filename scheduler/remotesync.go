@@ -138,7 +138,7 @@ func (s *scheduler) getEndpointSynchronizer(local client.Connection) zzk.Listene
 	return registry.NewEndpointSynchronizer(local, s.registry, zzk.GetRemoteConnection)
 }
 
-func (s *scheduler) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (s *scheduler) GetResourcePools() ([]pool.ResourcePool, error) {
 	return s.facade.GetResourcePools(datastore.Get())
 }
 

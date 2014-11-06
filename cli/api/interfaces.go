@@ -39,7 +39,7 @@ type API interface {
 	RemoveHost(string) error
 
 	// Pools
-	GetResourcePools() ([]*pool.ResourcePool, error)
+	GetResourcePools() ([]pool.ResourcePool, error)
 	GetResourcePool(string) (*pool.ResourcePool, error)
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
 	RemoveResourcePool(string) error

@@ -28,10 +28,10 @@ func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 }
 
 // GetResourcePools returns all pools or empty array
-func (c *Client) GetResourcePools() ([]*pool.ResourcePool, error) {
-	response := make([]*pool.ResourcePool, 0)
+func (c *Client) GetResourcePools() ([]pool.ResourcePool, error) {
+	response := make([]pool.ResourcePool, 0)
 	if err := c.call("GetResourcePools", empty, &response); err != nil {
-		return []*pool.ResourcePool{}, err
+		return []pool.ResourcePool{}, err
 	}
 	return response, nil
 }

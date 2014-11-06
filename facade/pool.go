@@ -198,32 +198,32 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 }
 
 //GetResourcePools Returns a list of all ResourcePools
-func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, error) {
+func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePools(ctx)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not load pools: %v", err)
 	}
 
-	for _, pool := range pools {
-		f.calcPoolCapacity(ctx, pool)
-		f.calcPoolCommitment(ctx, pool)
+	for i := range pools {
+		f.calcPoolCapacity(ctx, &pools[i])
+		f.calcPoolCommitment(ctx, &pools[i])
 	}
 
 	return pools, err
 }
 
 //GetResourcePoolsByRealm Returns a list of all ResourcePools by Realm
-func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]*pool.ResourcePool, error) {
+func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePoolsByRealm(ctx, realm)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not load pools: %v", err)
 	}
 
-	for _, pool := range pools {
-		f.calcPoolCapacity(ctx, pool)
-		f.calcPoolCommitment(ctx, pool)
+	for i := range pools {
+		f.calcPoolCapacity(ctx, &pools[i])
+		f.calcPoolCommitment(ctx, &pools[i])
 	}
 
 	return pools, err

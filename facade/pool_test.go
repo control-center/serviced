@@ -128,7 +128,7 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 	if len(result) != 0 {
 		pools := make([]pool.ResourcePool, len(result))
 		for i, pool := range result {
-			pools[i] = *pool
+			pools[i] = pool
 		}
 
 		t.Fatalf("unexpected pool found: %v", pools)

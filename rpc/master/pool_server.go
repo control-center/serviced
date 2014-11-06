@@ -21,7 +21,7 @@ import (
 )
 
 // GetResourcePools returns all ResourcePools
-func (s *Server) GetResourcePools(empty struct{}, poolsReply *[]*pool.ResourcePool) error {
+func (s *Server) GetResourcePools(empty struct{}, poolsReply *[]pool.ResourcePool) error {
 	pools, err := s.f.GetResourcePools(s.context())
 	if err != nil {
 		return err
