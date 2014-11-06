@@ -27,10 +27,10 @@ func (c *Client) GetHost(hostID string) (*host.Host, error) {
 }
 
 //GetHosts returns all hosts or empty array
-func (c *Client) GetHosts() ([]*host.Host, error) {
-	response := make([]*host.Host, 0)
+func (c *Client) GetHosts() ([]host.Host, error) {
+	response := make([]host.Host, 0)
 	if err := c.call("GetHosts", empty, &response); err != nil {
-		return []*host.Host{}, err
+		return []host.Host{}, err
 	}
 	return response, nil
 }
@@ -60,10 +60,10 @@ func (c *Client) RemoveHost(hostID string) error {
 }
 
 //FindHostsInPool returns all hosts in a pool
-func (c *Client) FindHostsInPool(poolID string) ([]*host.Host, error) {
-	response := make([]*host.Host, 0)
+func (c *Client) FindHostsInPool(poolID string) ([]host.Host, error) {
+	response := make([]host.Host, 0)
 	if err := c.call("FindHostsInPool", poolID, &response); err != nil {
-		return []*host.Host{}, err
+		return []host.Host{}, err
 	}
 	return response, nil
 }

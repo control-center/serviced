@@ -205,7 +205,7 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 }
 
 // GetHosts returns a list of all registered hosts
-func (f *Facade) GetHosts(ctx datastore.Context) ([]*host.Host, error) {
+func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
 }
 
@@ -228,6 +228,6 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 }
 
 // FindHostsInPool returns a list of all hosts with poolID
-func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]*host.Host, error) {
+func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error) {
 	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
 }

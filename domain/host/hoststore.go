@@ -34,7 +34,7 @@ type HostStore struct {
 }
 
 // FindHostsWithPoolID returns all hosts with the given poolid.
-func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]*Host, error) {
+func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]Host, error) {
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolId not allowed")
@@ -50,7 +50,7 @@ func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 }
 
 // GetN returns all hosts up to limit.
-func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]*Host, error) {
+func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
@@ -67,8 +67,8 @@ func HostKey(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func convert(results datastore.Results) ([]*Host, error) {
-	hosts := make([]*Host, results.Len())
+func convert(results datastore.Results) ([]Host, error) {
+	hosts := make([]Host, results.Len())
 	glog.V(4).Infof("Results are %v", results)
 	for idx := range hosts {
 		var host Host
@@ -77,7 +77,7 @@ func convert(results datastore.Results) ([]*Host, error) {
 			return nil, err
 		}
 		glog.V(4).Infof("Adding %v to hosts", host)
-		hosts[idx] = &host
+		hosts[idx] = host
 	}
 	return hosts, nil
 }
