@@ -65,7 +65,7 @@ var (
 type HostAPITest struct {
 	api.API
 	fail  bool
-	pools []*pool.ResourcePool
+	pools []pool.ResourcePool
 	hosts []host.Host
 }
 
@@ -80,7 +80,7 @@ func (t HostAPITest) GetHosts() ([]host.Host, error) {
 	return t.hosts, nil
 }
 
-func (t HostAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (t HostAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.fail {
 		return nil, ErrInvalidPool
 	}

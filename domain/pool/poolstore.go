@@ -33,13 +33,13 @@ type Store struct {
 }
 
 //GetResourcePools Get a list of all the resource pools
-func (ps *Store) GetResourcePools(ctx datastore.Context) ([]*ResourcePool, error) {
+func (ps *Store) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePools")
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
-func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]*ResourcePool, error) {
+func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
@@ -60,7 +60,7 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func query(ctx datastore.Context, query string) ([]*ResourcePool, error) {
+func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
 	q := datastore.NewQuery(ctx)
 	elasticQuery := search.Query().Search(query)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
@@ -71,8 +71,8 @@ func query(ctx datastore.Context, query string) ([]*ResourcePool, error) {
 	return convert(results)
 }
 
-func convert(results datastore.Results) ([]*ResourcePool, error) {
-	pools := make([]*ResourcePool, results.Len())
+func convert(results datastore.Results) ([]ResourcePool, error) {
+	pools := make([]ResourcePool, results.Len())
 	for idx := range pools {
 		var pool ResourcePool
 		err := results.Get(idx, &pool)
@@ -80,7 +80,7 @@ func convert(results datastore.Results) ([]*ResourcePool, error) {
 			return nil, err
 		}
 
-		pools[idx] = &pool
+		pools[idx] = pool
 	}
 	return pools, nil
 }

@@ -32,7 +32,7 @@ const (
 
 var DefaultPoolAPITest = PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTestHostIPs}
 
-var DefaultTestPools = []*pool.ResourcePool{
+var DefaultTestPools = []pool.ResourcePool{
 	{
 		ID:          "test-pool-id-1",
 		ParentID:    "",
@@ -78,7 +78,7 @@ var (
 type PoolAPITest struct {
 	api.API
 	fail    bool
-	pools   []*pool.ResourcePool
+	pools   []pool.ResourcePool
 	hostIPs []host.HostIPResource
 }
 
@@ -86,7 +86,7 @@ func InitPoolAPITest(args ...string) {
 	New(DefaultPoolAPITest).Run(args)
 }
 
-func (t PoolAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (t PoolAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.fail {
 		return nil, ErrInvalidPool
 	}
@@ -101,7 +101,7 @@ func (t PoolAPITest) GetResourcePool(id string) (*pool.ResourcePool, error) {
 
 	for _, p := range t.pools {
 		if p.ID == id {
-			return p, nil
+			return &p, nil
 		}
 	}
 
@@ -184,7 +184,7 @@ func TestServicedCLI_CmdPoolList_all(t *testing.T) {
 		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 	}
 	for i, _ := range actual {
-		if !actual[i].Equals(expected[i]) {
+		if !actual[i].Equals(&expected[i]) {
 			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 		}
 	}
@@ -209,7 +209,7 @@ func ExampleServicedCLI_CmdPoolList_fail() {
 }
 
 func ExampleServicedCLI_CmdPoolList_err() {
-	DefaultPoolAPITest.pools = make([]*pool.ResourcePool, 0)
+	DefaultPoolAPITest.pools = make([]pool.ResourcePool, 0)
 	defer func() { DefaultPoolAPITest.pools = DefaultTestPools }()
 	// Pool not found
 	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-0")

@@ -32,7 +32,7 @@ type PoolConfig struct {
 }
 
 // Returns a list of all pools
-func (a *api) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (a *api) GetResourcePools() ([]pool.ResourcePool, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err

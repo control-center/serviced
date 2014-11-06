@@ -27,7 +27,7 @@ import (
 
 //restGetHosts gets all hosts. Response is map[host-id]host.Host
 func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	response := make(map[string]host.Host)
+	response := make(map[string]*host.Host)
 	client, err := ctx.getMasterClient()
 	if err != nil {
 		restServerError(w, err)
@@ -41,9 +41,9 @@ func restGetHosts(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) 
 		return
 	}
 	glog.V(2).Infof("Returning %d hosts", len(hosts))
-	for _, host := range hosts {
-		response[host.ID] = host
-		if err := buildHostMonitoringProfile(&host); err != nil {
+	for i, host := range hosts {
+		response[host.ID] = &hosts[i]
+		if err := buildHostMonitoringProfile(&hosts[i]); err != nil {
 			restServerError(w, err)
 			return
 		}

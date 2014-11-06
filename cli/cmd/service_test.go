@@ -89,7 +89,7 @@ type ServiceAPITest struct {
 	api.API
 	fail      bool
 	services  []service.Service
-	pools     []*pool.ResourcePool
+	pools     []pool.ResourcePool
 	snapshots []string
 }
 
@@ -104,7 +104,7 @@ func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 	return t.services, nil
 }
 
-func (t ServiceAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.fail {
 		return nil, ErrInvalidService
 	}
