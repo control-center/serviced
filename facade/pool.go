@@ -183,11 +183,15 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
 
 	if hosts, err := f.FindHostsInPool(ctx, id); err != nil {
-		return fmt.Errorf("error verifying no hosts in pool: %v", err)
-	} else if len(hosts) > 0 {
-		return errors.New("cannot delete resource pool with hosts")
-	} else if err := zkAPI(f).RemoveResourcePool(id); err != nil {
-		return errors.New("cannot remove resource pool from zookeeper")
+		return fmt.Errorf("could not verify hosts in pool %s: %s", id, err)
+	} else if count := len(hosts); count > 0 {
+		return fmt.Errorf("cannot delete pool %s: found %d hosts", id, count)
+	}
+
+	if svcs, err := f.GetServicesByPool(ctx, id); err != nil {
+		return fmt.Errorf("could not verify services in pool %s: %s", id, err)
+	} else if count := len(svcs); count > 0 {
+		return fmt.Errorf("cannot delete pool %s: found %d services", id, count)
 	}
 
 	return f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete)
