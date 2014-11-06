@@ -86,7 +86,7 @@
             </tr>
             <tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
                 <td>{{vhost.Name}}</td>
-                <td>{{vhost.Application}}</td>
+                <td ng-click="click_app(vhost.ApplicationId)" class="link">{{vhost.Application}}</td>
                 <td>{{vhost.ServiceEndpoint}}</td>
                 <td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
                 <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
@@ -94,7 +94,6 @@
         </tbody>
     </table>
   </div>
-
     <!-- IP Assignments -->
   <div ng-if="!services.current.isvc">
     <h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
@@ -160,7 +159,7 @@
       <thead>
         <tr>
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
-          <th style="white-space: nowrap; width:200px;">{{'label_application'|translate}}</th>
+          <th style="white-space: nowrap; width:200px;">{{'label_service'|translate}}</th>
           <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
           <th style="width: 600px;">{{'deployed_tbl_description'|translate}}</th>
           <th ng-if="!services.current.isvc">{{'running_tbl_actions'|translate}}</th>
