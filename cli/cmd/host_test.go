@@ -29,7 +29,7 @@ var DefaultHostAPITest = HostAPITest{
 	hosts: DefaultTestHosts,
 }
 
-var DefaultTestHosts = []*host.Host{
+var DefaultTestHosts = []host.Host{
 	{
 		ID:             "test-host-id-1",
 		PoolID:         "default",
@@ -66,14 +66,14 @@ type HostAPITest struct {
 	api.API
 	fail  bool
 	pools []*pool.ResourcePool
-	hosts []*host.Host
+	hosts []host.Host
 }
 
 func InitHostAPITest(args ...string) {
 	New(DefaultHostAPITest).Run(args)
 }
 
-func (t HostAPITest) GetHosts() ([]*host.Host, error) {
+func (t HostAPITest) GetHosts() ([]host.Host, error) {
 	if t.fail {
 		return nil, ErrInvalidHost
 	}
@@ -94,7 +94,7 @@ func (t HostAPITest) GetHost(id string) (*host.Host, error) {
 
 	for _, h := range t.hosts {
 		if h.ID == id {
-			return h, nil
+			return &h, nil
 		}
 	}
 
@@ -148,7 +148,7 @@ func TestServicedCLI_CmdHostList_all(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var actual []*host.Host
+	var actual []host.Host
 	output := pipe(InitHostAPITest, "serviced", "host", "list", "--verbose")
 	if err := json.Unmarshal(output, &actual); err != nil {
 		t.Fatalf("error unmarshaling resource: %s", err)
@@ -159,7 +159,7 @@ func TestServicedCLI_CmdHostList_all(t *testing.T) {
 		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 	}
 	for i, _ := range actual {
-		if !actual[i].Equals(expected[i]) {
+		if !actual[i].Equals(&expected[i]) {
 			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 		}
 	}
@@ -184,7 +184,7 @@ func ExampleServicedCLI_CmdHostList_fail() {
 }
 
 func ExampleServicedCLI_CmdHostList_err() {
-	DefaultHostAPITest.hosts = make([]*host.Host, 0)
+	DefaultHostAPITest.hosts = make([]host.Host, 0)
 	defer func() { DefaultHostAPITest.hosts = DefaultTestHosts }()
 	// Host not found
 	pipeStderr(InitHostAPITest, "serviced", "host", "list", "test-host-id-0")

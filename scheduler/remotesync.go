@@ -174,7 +174,7 @@ func (s *scheduler) RemoveService(id string) error {
 	return s.facade.RemoveService(datastore.Get(), id)
 }
 
-func (s *scheduler) GetHostsByPool(id string) ([]*host.Host, error) {
+func (s *scheduler) GetHostsByPool(id string) ([]host.Host, error) {
 	return s.facade.FindHostsInPool(datastore.Get(), id)
 }
 

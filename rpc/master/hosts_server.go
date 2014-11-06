@@ -33,7 +33,7 @@ func (s *Server) GetHost(hostID string, reply *host.Host) error {
 }
 
 // GetHosts returns all Hosts
-func (s *Server) GetHosts(empty struct{}, hostReply *[]*host.Host) error {
+func (s *Server) GetHosts(empty struct{}, hostReply *[]host.Host) error {
 	hosts, err := s.f.GetHosts(s.context())
 	if err != nil {
 		return err
@@ -68,7 +68,7 @@ func (s *Server) RemoveHost(hostID string, _ *struct{}) error {
 }
 
 // FindHostsInPool  Returns all Hosts in a pool
-func (s *Server) FindHostsInPool(poolID string, hostReply *[]*host.Host) error {
+func (s *Server) FindHostsInPool(poolID string, hostReply *[]host.Host) error {
 	hosts, err := s.f.FindHostsInPool(s.context(), poolID)
 	if err != nil {
 		return err

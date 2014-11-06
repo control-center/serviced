@@ -459,7 +459,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	hostmap := make(map[string]*host.Host)
+	hostmap := make(map[string]host.Host)
 	for _, host := range hosts {
 		hostmap[host.ID] = host
 	}
@@ -1050,7 +1050,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	if err != nil {
 		return nil, err
 	}
-	hostmap := make(map[string]*host.Host)
+	hostmap := make(map[string]host.Host)
 	for _, host := range hosts {
 		hostmap[host.ID] = host
 	}
@@ -1129,7 +1129,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		hostmap := make(map[string]*host.Host)
+		hostmap := make(map[string]host.Host)
 		for _, host := range hosts {
 			hostmap[host.ID] = host
 		}
@@ -1236,7 +1236,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		hostmap := make(map[string]*host.Host)
+		hostmap := make(map[string]host.Host)
 		for _, host := range hosts {
 			hostmap[host.ID] = host
 		}

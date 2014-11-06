@@ -208,10 +208,10 @@ func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
 	return hostIDs, nil
 }
 
-func SyncHosts(conn client.Connection, hosts []*host.Host) error {
+func SyncHosts(conn client.Connection, hosts []host.Host) error {
 	nodes := make([]zzk.Node, len(hosts))
 	for i := range hosts {
-		nodes[i] = &HostNode{Host: hosts[i]}
+		nodes[i] = &HostNode{Host: &hosts[i]}
 	}
 	return zzk.Sync(conn, nodes, hostpath())
 }
