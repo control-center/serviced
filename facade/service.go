@@ -303,11 +303,11 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 
 	if desiredState.String() == "unknown" {
 		return 0, fmt.Errorf("desired state unknown")
-	}
-
-	if err := f.validateService(ctx, serviceID); err != nil {
-		glog.Errorf("Facade.ScheduleService validate service result: %s", err)
-		return 0, err
+	} else if desiredState != service.SVCStop {
+		if err := f.validateService(ctx, serviceID); err != nil {
+			glog.Errorf("Facade.ScheduleService validate service result: %s", err)
+			return 0, err
+		}
 	}
 
 	affected := 0
