@@ -32,6 +32,9 @@
 # Set the default serviced RPC endpoint to dial
 # SERVICED_ENDPOINT=$SERVICED_MASTER_IP:4979
 
+# Set the max number of rpc clients (pool) to an endpoint
+# SERVICED_MAX_RPC_CLIENTS=3
+
 # Set the RPC port to listen on
 # SERVICED_RPC_PORT=4979
 

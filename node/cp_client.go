@@ -19,9 +19,6 @@
 package node
 
 import (
-	"net"
-	"net/rpc/jsonrpc"
-
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -31,7 +28,6 @@ import (
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
 )
 
 // A serviced client.
@@ -43,28 +39,15 @@ type ControlClient struct {
 // Ensure that ControlClient implements the ControlPlane interface.
 var _ dao.ControlPlane = &ControlClient{}
 
-// Create a new CachedControlClient.
-func GetCachedControlClient(addr string) (*ControlClient, error) {
+// Create a new ControlClient.
+func NewControlClient(addr string) (s *ControlClient, err error) {
 	client, err := rpcutils.GetCachedClient(addr)
 	if err != nil {
 		return nil, err
 	}
-	ctrlClient := ControlClient{}
-	ctrlClient.addr = addr
-	ctrlClient.rpcClient = client
-	return &ctrlClient, nil
-}
-
-// Create a new ControlClient.
-func NewControlClient(addr string) (s *ControlClient, err error) {
 	s = new(ControlClient)
 	s.addr = addr
-	glog.V(4).Infof("Connecting to %s", addr)
-	conn, err := net.Dial("tcp", s.addr)
-	if err != nil {
-		return nil, err
-	}
-	s.rpcClient = jsonrpc.NewClient(conn)
+	s.rpcClient = client
 	return s, nil
 }
 
