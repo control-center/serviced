@@ -80,7 +80,7 @@ type HostAgent struct {
 	dockerDNS            []string             // docker dns addresses
 	varPath              string               // directory to store serviced	 data
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
-	vfs                  string               // driver for container volumes
+	fsType               string               // driver for container volumes
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
 	useTLS               bool // Whether the mux uses TLS
@@ -116,7 +116,7 @@ type AgentOptions struct {
 	DockerDNS            []string
 	VarPath              string
 	Mount                []string
-	VFS                  string
+	FSType               string
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
 	UseTLS               bool
@@ -136,7 +136,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.dockerDNS = options.DockerDNS
 	agent.varPath = options.VarPath
 	agent.mount = options.Mount
-	agent.vfs = "rsync"
+	agent.fsType = "rsync"
 	agent.mux = options.Mux
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
@@ -728,7 +728,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
 	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
-	sv, err := dfs.GetSubvolume(a.vfs, a.varPath, tenantID)
+	sv, err := dfs.GetSubvolume(a.fsType, a.varPath, tenantID)
 	if err != nil {
 		return "", fmt.Errorf("Could not create subvolume: %s", err)
 	}

@@ -52,7 +52,7 @@ type Options struct {
 	MCPasswd             string
 	Mount                []string
 	ResourcePeriod       int
-	VFS                  string
+	FSType               string
 	ESStartupTimeout     int
 	HostAliases          []string
 	Verbosity            int

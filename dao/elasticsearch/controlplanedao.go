@@ -46,7 +46,7 @@ type ControlPlaneDao struct {
 	hostName       string
 	port           int
 	varpath        string
-	vfs            string
+	fsType         string
 	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
 	dockerRegistry string
@@ -127,7 +127,7 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -140,14 +140,14 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vf
 	s.facade = facade
 
 	s.varpath = varpath
-	s.vfs = vfs
+	s.fsType = fsType
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {
 		return nil, err
 	}
 
-	dfs, err := dfs.NewDistributedFilesystem(vfs, varpath, dockerRegistry, facade, maxdfstimeout)
+	dfs, err := dfs.NewDistributedFilesystem(fsType, varpath, dockerRegistry, facade, maxdfstimeout)
 	if err != nil {
 		return nil, err
 	}

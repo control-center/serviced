@@ -166,7 +166,7 @@ func New(driver api.API) *ServicedCli {
 		// TODO: 1.1
 		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
-		cli.StringFlag{"vfs", configEnv("VFS", "rsync"), "filesystem for container volumes"},
+		cli.StringFlag{"fstype", configEnv("FS_TYPE", "rsync"), "driver for underlying file system"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
@@ -234,7 +234,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Zookeepers:           ctx.GlobalStringSlice("zk"),
 		RemoteZookeepers:     ctx.GlobalStringSlice("remote-zk"),
 		Mount:                ctx.GlobalStringSlice("mount"),
-		VFS:                  ctx.GlobalString("vfs"),
+		FSType:               ctx.GlobalString("fstype"),
 		HostAliases:          ctx.GlobalStringSlice("alias"),
 		ESStartupTimeout:     ctx.GlobalInt("es-startup-timeout"),
 		ReportStats:          ctx.GlobalBool("report-stats"),

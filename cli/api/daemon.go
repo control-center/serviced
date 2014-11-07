@@ -169,8 +169,8 @@ func (d *daemon) run() error {
 	}
 
 	//TODO: is this needed for both agent and master?
-	if _, ok := volume.Registered(options.VFS); !ok {
-		glog.Fatalf("no driver registered for %s", options.VFS)
+	if _, ok := volume.Registered(options.FSType); !ok {
+		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
 
 	if options.Master {
@@ -498,7 +498,7 @@ func (d *daemon) startAgent() error {
 			DockerDNS:            options.DockerDNS,
 			VarPath:              options.VarPath,
 			Mount:                options.Mount,
-			VFS:                  options.VFS,
+			FSType:               options.FSType,
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
 			UseTLS:               options.TLS,
@@ -636,7 +636,7 @@ func (d *daemon) initISVCS() error {
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS, dfsTimeout, options.DockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, dfsTimeout, options.DockerRegistry)
 }
 
 func (d *daemon) initWeb() {

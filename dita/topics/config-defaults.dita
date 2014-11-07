@@ -132,9 +132,9 @@ SERVICED_MASTER=1</codeblock></li>
           <dd>The path of a TLS certificate file. By default, no certificate file is installed.</dd>
         </dlentry>
         <dlentry>
-          <dt><codeph>SERVICED_VFS</codeph></dt>
+          <dt><codeph>SERVICED_FS_TYPE</codeph></dt>
           <dd>Default: <codeph>rsync</codeph></dd> 
-          <dd>The driver for virtual file system volumes. The supported drivers are 
+          <dd>The driver for the underlying file system. The supported drivers are 
             <codeph>rsync</codeph> and <codeph>btrfs</codeph>.</dd>
         </dlentry>
         <dlentry>
