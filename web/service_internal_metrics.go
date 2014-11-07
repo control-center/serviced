@@ -183,6 +183,64 @@ func addInternalGraphConfigs(svc *service.Service) {
 		},
 	)
 
+	// open conns graph
+	svc.MonitoringProfile.GraphConfigs = append(
+		svc.MonitoringProfile.GraphConfigs,
+		domain.GraphConfig{
+			ID:          "internalOpenConnections",
+			Name:        "Open Connections",
+			BuiltIn:     true,
+			Format:      "%4.2f",
+			ReturnSet:   "EXACT",
+			Type:        "area",
+			Tags:        tags,
+			YAxisLabel:  "open connections",
+			Description: "Number of Open Connections",
+			MinY:        &zero,
+			Range:       &tRange,
+			Units:       "Connections",
+			Base:        1024,
+			DataPoints: []domain.DataPoint{
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "TCP",
+					Metric:       "net.open_connections.tcp",
+					MetricSource: "metrics",
+					ID:           "net.open_connections.tcp",
+					Name:         "TCP Open Connections",
+					Rate:         false,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "UDP",
+					Metric:       "net.open_connections.udp",
+					MetricSource: "metrics",
+					ID:           "net.open_connections.udp",
+					Name:         "UDP Open Connections",
+					Rate:         false,
+					Type:         "area",
+				},
+				domain.DataPoint{
+					Aggregator:   "avg",
+					Fill:         true,
+					Format:       "%4.2f",
+					Legend:       "RAW",
+					Metric:       "net.open_connections.raw",
+					MetricSource: "metrics",
+					ID:           "net.open_connections.raw",
+					Name:         "RAW Open Connections",
+					Rate:         false,
+					Type:         "area",
+				},
+			},
+		},
+	)
+
 	// network usage graph
 	svc.MonitoringProfile.GraphConfigs = append(
 		svc.MonitoringProfile.GraphConfigs,
