@@ -223,7 +223,7 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	switch {
 	case isLocalContainer:
-		glog.V(0).Infof("dialing local addr=> %s", localAddr)
+		glog.V(2).Infof("dialing local addr=> %s", localAddr)
 		remote, err = net.Dial("tcp4", localAddr)
 	case p.useTLS:
 		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
