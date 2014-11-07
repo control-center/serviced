@@ -97,9 +97,12 @@ type ControllerOptions struct {
 // it creates the managed service instance, logstash forwarding, port forwarding, etc.
 type Controller struct {
 	options                 ControllerOptions
+	serviceName             string
 	hostID                  string
+	hostIP                  string
 	tenantID                string
 	dockerID                string
+	dockerIP                string
 	metricForwarder         *MetricForwarder
 	logforwarder            *subprocess.Instance
 	logforwarderExited      chan error
@@ -286,6 +289,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 		glog.Errorf("Invalid service from serviceID:%s", options.Service.ID)
 		return c, ErrInvalidService
 	}
+	c.serviceName = service.Name
 
 	c.allowDirectConn = !service.HasEndpointsFor("import_all")
 	glog.Infof("Allow container to container connections: %t", c.allowDirectConn)
