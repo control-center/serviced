@@ -32,11 +32,13 @@ type jsonDataPointRateOptions struct {
 	ResetThreshold *int64 `json:"resetThreshold,omitEmpty"`
 }
 
+var javaLongMax int64 = 9223372036854775000
+
 func (d DataPointRateOptions) MarshalJSON() ([]byte, error) {
 	var ctrMax *int64
 	var rstThr *int64
 	if d.CounterMax == 0 {
-		ctrMax = nil
+		ctrMax = &javaLongMax
 	} else {
 		ctrMax = &d.CounterMax
 	}
@@ -59,7 +61,7 @@ func (d *DataPointRateOptions) UnmarshalJSON(data []byte) error {
 	}
 	d.Counter = temp.Counter
 	if temp.CounterMax == nil {
-		d.CounterMax = 0
+		d.CounterMax = javaLongMax
 	} else {
 		d.CounterMax = *temp.CounterMax
 	}
