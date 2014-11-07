@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 
 	"github.com/zenoss/glog"
@@ -168,6 +169,15 @@ func (p *proxy) listenAndproxy() {
 	}
 }
 
+func getPort(addr string) (int, error) {
+	parts := strings.Split(addr, ":")
+	if len(parts) == 0 {
+		return 0, fmt.Errorf("could not determint port from %v", addr)
+	}
+	port := parts[len(parts)-1]
+	return strconv.Atoi(port)
+}
+
 // prxy takes an established local connection, Dials the remote address specified
 // by the proxy structure and then copies data to and from the resulting pair
 // of endpoints.
@@ -177,23 +187,32 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 		remote net.Conn
 		err    error
 	)
-
+	glog.V(2).Infof("Setting up proxy for %#v", address)
 	isLocalContainer := false
+	localAddr := address.containerAddr
 	if p.allowDirectConn {
-		isLocalAddress(address.host)
+		//check if the host for the container is running on the same host
+		isLocalContainer = isLocalAddress(address.host)
+		glog.V(4).Infof("Checking is local for %s %s in %#v", address.host, isLocalContainer, hostIPs)
 		// don't proxy localhost addresses, we'll end up in a loop
-		switch {
-		case strings.HasPrefix(address.host, "127"):
-			isLocalContainer = false
-		case address.host == "localhost":
-			isLocalContainer = false
-		case strings.HasPrefix(address.containerAddr, "127"):
-			isLocalContainer = false
-		case strings.HasPrefix(address.containerAddr, "localhost:"):
-			isLocalContainer = false
+		if isLocalContainer {
+			switch {
+			case strings.HasPrefix(address.host, "127"):
+				isLocalContainer = false
+			case address.host == "localhost":
+				isLocalContainer = false
+			case strings.HasPrefix(address.containerAddr, "127") || strings.HasPrefix(address.containerAddr, "localhost:"):
+				//if the host is local and the container has a local style addr
+				//then container is exposing port directly on host; go to host and use container port
+				if containerPort, err := getPort(address.containerAddr); err != nil {
+					glog.Warningf("could not get port %v", err)
+					isLocalContainer = false
+				} else {
+					localAddr = fmt.Sprintf("%s:%d", address.host, containerPort)
+				}
+			}
 		}
 	}
-
 	if p.tcpMuxPort == 0 {
 		// TODO: Do this properly
 		glog.Errorf("Mux port is unspecified. Using default of 22250.")
@@ -204,8 +223,8 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 
 	switch {
 	case isLocalContainer:
-		glog.V(2).Infof("dialing local addr=> %s", address.containerAddr)
-		remote, err = net.Dial("tcp4", address.containerAddr)
+		glog.V(0).Infof("dialing local addr=> %s", localAddr)
+		remote, err = net.Dial("tcp4", localAddr)
 	case p.useTLS:
 		glog.V(2).Infof("dialing remote tls => %s", muxAddr)
 		config := tls.Config{InsecureSkipVerify: true}
@@ -220,9 +239,10 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	}
 
 	if !isLocalContainer {
-		glog.V(2).Infof("writing socket protocol")
+		muxHeader := fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr)
+		glog.V(1).Infof("writing socket protocol %s", muxHeader)
 		// Write the container address as the first line, if we use the mux
-		io.WriteString(remote, fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr))
+		io.WriteString(remote, muxHeader)
 	}
 
 	glog.V(2).Infof("Using hostAgent:%v to prxy %v<->%v<->%v<->%v",
