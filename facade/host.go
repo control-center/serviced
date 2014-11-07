@@ -138,7 +138,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	query := []string{fmt.Sprintf("Endpoints.AddressAssignment.HostID:%s", hostID)}
 	services, err := f.GetTaggedServices(ctx, query)
 	if err != nil {
-		glog.Errorf("Failed to grab servies with endpoints assigned to host %s: %s", _host.Name, err)
+		glog.Errorf("Failed to grab services with endpoints assigned to host %s: %s", _host.Name, err)
 		return err
 	}
 
@@ -182,6 +182,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		}
 		if err = f.AssignIPs(ctx, request); err != nil {
 			glog.Warningf("Failed assigning another ip to service %s: %s", reassign[i], err)
+			f.StopService(ctx, dao.ScheduleServiceRequest{reassign[i], false})
 		}
 	}
 
