@@ -27,7 +27,7 @@ import (
 )
 
 func (dfs *DistributedFilesystem) GetVolume(serviceID string) (*volume.Volume, error) {
-	v, err := GetSubvolume(dfs.vfs, dfs.varpath, serviceID)
+	v, err := GetSubvolume(dfs.fsType, dfs.varpath, serviceID)
 	if err != nil {
 		glog.Errorf("Could not acquire subvolume for service %s: %s", serviceID, err)
 		return nil, err
@@ -41,13 +41,13 @@ func (dfs *DistributedFilesystem) GetVolume(serviceID string) (*volume.Volume, e
 }
 
 // GetSubvolume gets the path of the *local* volume on the host
-func GetSubvolume(vfs, varpath, serviceID string) (*volume.Volume, error) {
+func GetSubvolume(fsType, varpath, serviceID string) (*volume.Volume, error) {
 	baseDir, err := filepath.Abs(path.Join(varpath, "volumes"))
 	if err != nil {
 		return nil, err
 	}
-	glog.Infof("Mounting vfs: %v; tenantID: %v; baseDir: %v", vfs, serviceID, baseDir)
-	return volume.Mount(vfs, serviceID, baseDir)
+	glog.Infof("Mounting fsType: %v; tenantID: %v; baseDir: %v", fsType, serviceID, baseDir)
+	return volume.Mount(fsType, serviceID, baseDir)
 }
 
 func getHome() string {
