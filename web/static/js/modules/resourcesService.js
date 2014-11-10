@@ -807,15 +807,18 @@
            * @param {object} editedService The modified service.
            * @param {function} callback Response passed to callback on success.
            */
-          update_service: function(serviceId, editedService, callback) {
+          update_service: function(serviceId, editedService, success, fail) {
+              fail = fail || angular.noop;
+
               $http.put('/services/' + serviceId, editedService).
                   success(function(data, status) {
                       $notification.create("Updated service", serviceId).success();
-                      callback(data);
+                      success(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Updating service failed", data.Detail).error();
+                      fail(data, status);
                       if (status === 401) {
                           unauthorized($location);
                       }
