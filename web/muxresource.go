@@ -81,7 +81,7 @@ func restGetMuxConnections(w *rest.ResponseWriter, r *rest.Request, ctx *request
 		sort.Strings(sortedkeys)
 		for _, k := range sortedkeys {
 			cxn := response[host.ID][k]
-			glog.Infof("  %s  (%s/%d <-- %s/%s) (%s <-- %s) %s", k,
+			glog.V(2).Infof("  %s  (%s/%d <-- %s/%s) (%s <-- %s) %s", k,
 				cxn.ApplicationEndpoint.Application, cxn.ApplicationEndpoint.InstanceID,
 				cxn.Src.ServiceName, cxn.Src.InstanceID,
 				cxn.ApplicationEndpoint.ServiceID, cxn.Src.ServiceID, time.Since(cxn.CreatedAt))

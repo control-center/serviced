@@ -209,6 +209,7 @@ func New(driver api.API) *ServicedCli {
 	c.initBackup()
 	c.initMetric()
 	c.initDocker()
+	c.initMux()
 
 	return c
 }

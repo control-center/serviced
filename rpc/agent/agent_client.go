@@ -15,6 +15,7 @@ package agent
 
 import (
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
@@ -55,4 +56,12 @@ func (c *Client) GetDockerLogs(dockerID string) (string, error) {
 	var logs string
 	err := c.rpcClient.Call("Agent.GetDockerLogs", dockerID, &logs)
 	return logs, err
+}
+
+// GetMuxConnectionInfo returns mux connection info
+func (c *Client) GetMuxConnectionInfo() (map[string]proxy.TCPMuxConnectionInfo, error) {
+	info := make(map[string]proxy.TCPMuxConnectionInfo)
+	var unused string
+	err := c.rpcClient.Call("Agent.GetMuxConnectionInfo", unused, &info)
+	return info, err
 }

@@ -15,6 +15,7 @@ package agent
 
 import (
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/proxy"
 	"github.com/zenoss/glog"
 
 	"os/exec"
@@ -67,5 +68,11 @@ func (a *AgentServer) GetDockerLogs(dockerID string, logs *string) error {
 		return err
 	}
 	*logs = string(output)
+	return nil
+}
+
+// GetMuxConnectionInfo returns mux connection info
+func (a *AgentServer) GetMuxConnectionInfo(unused string, response *map[string]proxy.TCPMuxConnectionInfo) error {
+	*response = proxy.GetMuxConnectionInfo()
 	return nil
 }

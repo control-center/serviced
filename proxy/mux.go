@@ -127,7 +127,7 @@ func (mux *TCPMux) updateConnectionInfo(parts []string, src, dst net.Conn) strin
 		DstLocalAddr:  dst.LocalAddr().String(),
 		DstRemoteAddr: dst.RemoteAddr().String(),
 		DstName:       parts[0],
-		ActiveWriters: 2, // always 2 active writers after dialing, one for each side of the connection
+		ActiveWriters: 1,
 		CreatedAt:     now,
 	}
 
@@ -229,7 +229,7 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 	}
 
 	quit := make(chan bool)
-	go proxyLoop(conn, svc, quit, key)
+	go mux.proxyLoop(conn, svc, quit, key)
 
 	//	go func() {
 	//		io.Copy(conn, svc)
@@ -275,12 +275,12 @@ func (mux *TCPMux) proxyLoop(client net.Conn, backend net.Conn, quit chan bool, 
 			transferred += written
 		case <-quit:
 			// Interrupt the two brokers and "join" them.
+			mux.decrementActiveWriters(key)
 			client.Close()
 			backend.Close()
 			for ; i < 2; i++ {
 				transferred += <-event
 			}
-			mux.decrementActiveWriters(key)
 			return
 		}
 	}

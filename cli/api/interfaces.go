@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/proxy"
 )
 
 // API is the intermediary between the command-line interface and the dao layer
@@ -37,6 +38,10 @@ type API interface {
 	GetHost(string) (*host.Host, error)
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
+
+	// Mux
+	GetMuxConnectionInfo() (map[string]proxy.TCPMuxConnectionInfo, error)
+	GetMuxConnectionInfoForHost(hostID string) (map[string]proxy.TCPMuxConnectionInfo, error)
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)
