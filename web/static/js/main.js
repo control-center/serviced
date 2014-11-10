@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService', 'angular-data.DSCacheFactory']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
@@ -634,7 +634,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
             // if this guy is already in the running list
             if(oldServiceIndex !== -1){
                 oldService = running[oldServiceIndex];
-                
+
                 // merge changes in
                 for(var i in runningService){
                     oldService[i] = runningService[i];
@@ -642,7 +642,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
                 // remove this id from the oldIds list
                 oldIds[oldServiceIndex] = null;
-                
+
             // else this is a new running service, so add it
             } else {
                 running.push(runningService);

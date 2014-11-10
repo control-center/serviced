@@ -243,15 +243,15 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
             // count number of descendent services that will start
             childCount = children.reduce(function countTheKids(acc, service){
-                
+
                 // if manual service, do not increment and
                 // do not count children
                 if(service.Launch === "manual"){
                     return acc;
                 }
-                
+
                 acc++;
-                
+
                 // if no children, return
                 if(!service.children){
                     return acc;
@@ -292,7 +292,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     }
                 ]
             });
-        
+
         // this service has no children or no startup command,
         // so start it the usual way
         } else {
@@ -648,6 +648,19 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         }
     };
 
+    $scope.options = {
+        maxTime: new Date(),
+        maxDate: new Date(),
+        mask:true
+    };
+    var now = new Date(),
+        end = moment(now),
+        start = moment().subtract(1, "hours");
+    $scope.timeRange = {
+        time_start: start.format("YYYY/MM/DD HH:mm"),
+        time_end: end.format("YYYY/MM/DD HH:mm")
+    };
+
     $scope.updateGraphs = function(){
         for(var i in $scope.drawn){
             $scope.updateGraph(i, $scope.drawn[i]);
@@ -655,6 +668,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.updateGraph = function(id, config){
+        config.range.start = moment($scope.timeRange.time_start)._d.getTime();
+        config.range.end = moment($scope.timeRange.time_end)._d.getTime();
         zenoss.visualization.chart.update(id, config);
     };
 
