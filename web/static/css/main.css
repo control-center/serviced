@@ -167,9 +167,9 @@ table .btn,
     font-weight: bold;
 }
 
-.toggle.btn-group .btn + .btn, 
-.toggle.btn-group .btn + .btn-group, 
-.toggle.btn-group .btn-group + .btn, 
+.toggle.btn-group .btn + .btn,
+.toggle.btn-group .btn + .btn-group,
+.toggle.btn-group .btn-group + .btn,
 .toggle.btn-group .btn-group + .btn-group {
     margin-left: -11px;
 }
@@ -212,11 +212,11 @@ table .btn,
     -moz-appearance: radio-label;
 }
 
-.table-bordered.side-flush > thead > tr > th, 
-.table-bordered.side-flush > tbody > tr > th, 
-.table-bordered.side-flush > tfoot > tr > th, 
-.table-bordered.side-flush > thead > tr > td, 
-.table-bordered.side-flush > tbody > tr > td, 
+.table-bordered.side-flush > thead > tr > th,
+.table-bordered.side-flush > tbody > tr > th,
+.table-bordered.side-flush > tfoot > tr > th,
+.table-bordered.side-flush > thead > tr > td,
+.table-bordered.side-flush > tbody > tr > td,
 .table-bordered.side-flush > tfoot > tr > td {
     border-left: 0px;
 }
@@ -251,7 +251,7 @@ table .btn,
     background-color: #515151;
 }
 
-.navbar-zen a.navbar-brand:hover, 
+.navbar-zen a.navbar-brand:hover,
 .navbar-zen li > button:hover,
 .navbar-zen li > a:hover {
     background-color: #969696;
@@ -361,7 +361,7 @@ table .btn,
     background-color: #f5f5f5;
     margin-bottom: 30px;
 }
-    
+
 .breadcrumb {
     margin: 0px 15px;
     padding: 8px 0px;
@@ -922,22 +922,22 @@ rect {
     fill: white;
 }
 
-.node.service rect { 
+.node.service rect {
     fill: #29A3CC;
     stroke: black;
 }
 
-.node.service.notrunning rect { 
+.node.service.notrunning rect {
     fill: #AAAAAA;
     stroke: black;
 }
 
-.node.service.meta rect { 
+.node.service.meta rect {
     fill: #19627A;
     stroke: black;
 }
 
-.node.service text { 
+.node.service text {
     fill: white;
 }
 
@@ -1425,4 +1425,78 @@ input[type=file] {
     padding: 0px 5px 5px 5px;
     vertical-align: middle;
     cursor: pointer;
+}
+
+
+.ui-timepicker-wrapper {
+    overflow-y: auto;
+    height: 150px;
+    width: 6.5em;
+    background: #fff;
+    border: 1px solid #ddd;
+    -webkit-box-shadow:0 5px 10px rgba(0,0,0,0.2);
+    -moz-box-shadow:0 5px 10px rgba(0,0,0,0.2);
+    box-shadow:0 5px 10px rgba(0,0,0,0.2);
+    outline: none;
+    z-index: 10001;
+    margin: 0;
+}
+
+.ui-timepicker-wrapper.ui-timepicker-with-duration {
+    width: 13em;
+}
+
+.ui-timepicker-wrapper.ui-timepicker-with-duration.ui-timepicker-step-30,
+.ui-timepicker-wrapper.ui-timepicker-with-duration.ui-timepicker-step-60 {
+    width: 11em;
+}
+
+.ui-timepicker-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.ui-timepicker-duration {
+    margin-left: 5px; color: #888;
+}
+
+.ui-timepicker-list:hover .ui-timepicker-duration {
+    color: #888;
+}
+
+.ui-timepicker-list li {
+    padding: 3px 0 3px 5px;
+    cursor: pointer;
+    white-space: nowrap;
+    color: #000;
+    list-style: none;
+    margin: 0;
+}
+
+.ui-timepicker-list:hover .ui-timepicker-selected {
+    background: #fff; color: #000;
+}
+
+li.ui-timepicker-selected,
+.ui-timepicker-list li:hover,
+.ui-timepicker-list .ui-timepicker-selected:hover {
+    background: #1980EC; color: #fff;
+}
+
+li.ui-timepicker-selected .ui-timepicker-duration,
+.ui-timepicker-list li:hover .ui-timepicker-duration {
+    color: #ccc;
+}
+
+.ui-timepicker-list li.ui-timepicker-disabled,
+.ui-timepicker-list li.ui-timepicker-disabled:hover,
+.ui-timepicker-list li.ui-timepicker-selected.ui-timepicker-disabled {
+    color: #888;
+    cursor: default;
+}
+
+.ui-timepicker-list li.ui-timepicker-disabled:hover,
+.ui-timepicker-list li.ui-timepicker-selected.ui-timepicker-disabled {
+    background: #f2f2f2;
 }

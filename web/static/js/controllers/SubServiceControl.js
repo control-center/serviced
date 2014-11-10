@@ -243,15 +243,15 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
             // count number of descendent services that will start
             childCount = children.reduce(function countTheKids(acc, service){
-                
+
                 // if manual service, do not increment and
                 // do not count children
                 if(service.Launch === "manual"){
                     return acc;
                 }
-                
+
                 acc++;
-                
+
                 // if no children, return
                 if(!service.children){
                     return acc;
@@ -292,7 +292,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     }
                 ]
             });
-        
+
         // this service has no children or no startup command,
         // so start it the usual way
         } else {
@@ -647,7 +647,40 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
             }
         }
     };
+    $scope.dateOptions = {
+        minDate: -20,
+        maxDate: "+1M +10D"
+    };
+    $scope.timePickerOptions = {
+        step: 20,
+        timeFormat: 'H:I',
+        appendTo: 'body'
+    };
+    var end = moment();
+    var start = moment().subtract(1, "hours");
+    $scope.graph_start = new Date();
+    $scope.time_start = start._d;
+    $scope.graph_end = new Date();
+    $scope.time_end = end._d;
+    $scope.showEditDateRangeTip = function($event) {
+        var el = $event.target, $el, html,
+            startLabel = $translate.instant('date_range_start'),
+            endLabel = $translate.instant('date_range_end');
+        $el = $(el);
+        html = "<div class=''> " +
+               " <label for='date_range_start' >" + startLabel + " </label> <input  ui-date='dateOptions' id='date_range_start' />  -" +
+               " <label for='date_range_end' >" + endLabel + " </label> <input ui-date='dateOptions' id='date_range_end' /> " +
+               "</div>";
+        $el.popover({
+            trigger: "click",
+            placement: "right",
+            delay: 0,
+            title: $translate.instant("set_date_range"),
+            html: true,
+            content: html
+        });
 
+    };
     $scope.updateGraphs = function(){
         for(var i in $scope.drawn){
             $scope.updateGraph(i, $scope.drawn[i]);
