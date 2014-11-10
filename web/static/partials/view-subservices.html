@@ -280,6 +280,10 @@
     <h3>{{services.current.Title}} {{'graphs'|translate}}</h3>
     <div class="graphsControls">
       <div class="graphControl">
+          <label class="control-label">{{'date_range'|translate}}</label><input id="time_range_start" datetimepicker  dateOptions="options" ng-model="timeRange.time_start" > -
+          <input id="time_range_end" datetimepicker dateOptions="options" ng-model="timeRange.time_end">
+      </div>
+      <div class="graphControl">
         <label class="control-label">Aggregator</label>
         <select
           ng-model="$parent.aggregator"
