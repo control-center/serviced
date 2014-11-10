@@ -671,7 +671,7 @@ input.instances {
     width: 70px;
 }
 input.startup {
-    width: 350px;
+    width: 320px;
 }
 
 .search-control label {
@@ -701,7 +701,8 @@ input.startup {
 
 .vertical-info {
     display: inline-block;
-    padding: 8px 15px;
+    padding: 8px 13px;
+    vertical-align: top;
 }
 .vertical-info > label {
     display: block;

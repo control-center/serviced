@@ -97,7 +97,8 @@
     "deploy_loading_image": "Cargando imagen",
     "deploy_tagging_image": "Etiquetando imagen (Por favor espere)",
 
-    "edit_context": "Ajustes",
+    "context_vars": "Contexto Vars",
+    "edit_context": "Ajustes Contexto",
     "context_directions": "Introduzca cada par clave / valor, separadas por un espacio. Una entrada por línea.",
 
     "docker_login_warning": "Usted no está conectado para Docker Hub . Cualquier dependencias de aplicaciones en repositorios privados causarán despliegue falle.",

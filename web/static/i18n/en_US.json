@@ -111,7 +111,8 @@
     "deploy_loading_image": "Loading image",
     "deploy_tagging_image": "Tagging image (this may take a while)",
 
-    "edit_context": "Settings",
+    "context_vars": "Context Variables",
+    "edit_context": "Edit Variables",
     "context_directions": "Enter each key/value pair, separated by a space. One entry per line.",
 
     "breadcrumb_deployed": "Applications",
