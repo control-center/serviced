@@ -154,7 +154,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 
     $scope.updateGraph = function(id, config){
-        console.log(config);
         config.range.start = moment($scope.timeRange.time_start)._d.getTime();
         config.range.end = moment($scope.timeRange.time_end)._d.getTime();
         zenoss.visualization.chart.update(id, config);
