@@ -33,3 +33,22 @@ func TestReadInt64Stats(t *testing.T) {
 		t.Fatalf("negative value could not be verified")
 	}
 }
+
+func TestGetOpenConnections(t *testing.T) {
+
+	conns, err := getOpenConnections("testfiles/proc.net.tcp")
+	if err != nil {
+		t.Fatalf("unexpected error reading procfile")
+	}
+	if conns != 28 {
+		t.Fatalf("expected 28 open connections, but got %s", conns)
+	}
+
+	conns, err = getOpenConnections("testfiles/proc.net.tcp.bad")
+	if err != nil {
+		t.Fatalf("unexpected error reading procfile")
+	}
+	if conns != 0 {
+		t.Fatalf("expected 0 open connections, but got %s", conns)
+	}
+}

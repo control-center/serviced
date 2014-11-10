@@ -622,7 +622,6 @@ li.active > .pool-data {
     content: "\00a0";
 }
 .disabled {
-    cursor: not-allowed;
     opacity: 0.65;
 }
 
@@ -1431,7 +1430,158 @@ input[type=file] {
 	width: 30%;
 	float: left;
 }
+
 .messageBody{
    width: 70%;
    float: left;
+}
+/* stealthy input fields */
+.stealthInput {
+    display: block;
+    position: relative;
+    border: solid 1px transparent;
+    border-bottom-color: #CCC;
+}
+.stealthInput.disabled {
+    border-bottom-color: transparent;
+    opacity: 1;
+}
+.stealthInput.isEditing {
+    border: solid 1px #CCC;
+    background-color: white;
+}
+
+.stealthInput input {
+    position: relative;
+    border: none;
+    padding: 2px;
+    padding-right: 14px;
+    outline: none;
+    background-color: transparent;
+    text-overflow: ellipsis;
+}
+
+.stealthInput .controls {
+    opacity: 0;
+    top: -1px;
+    position: absolute;
+    padding: 1px 4px 0;
+    right: 0px;
+    background-color: white;
+    border: solid #CCC 1px;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+
+    transition: right .2s, opacity .15s;
+}
+
+.stealthInput.isEditing.isDirty .controls {
+    opacity: 1;
+    right: -30px;
+}
+
+.stealthInput.isSpinning .controls {
+    opacity: 0;
+    right: 0;
+}
+
+.stealthInput .save,
+.stealthInput .cancel {
+    opacity: 0.75;
+    position: relative;
+    text-align: center;
+    font-family: 'Glyphicons Halflings';
+    top: 1px;
+    cursor: pointer;
+}
+.stealthInput .save:hover,
+.stealthInput .cancel:hover {
+    opacity: 1 !important;
+}
+
+.stealthInput .save {
+    color: #325385;
+}
+.stealthInput .cancel {
+    color: #888;
+}
+
+.stealthInput .save::after{
+    content: "\e084";
+}
+.stealthInput .cancel::after {
+    content: "\e014";
+}
+
+.stealthInput .edit {
+    position: absolute;
+    right: 0;
+    top: 4px;
+    text-align: center;
+    font-family: 'Glyphicons Halflings';
+    font-size: .8em;
+    opacity: 0;
+
+    transition: opacity .2s;
+}
+.stealthInput .edit::after {
+    content: "\270F";
+    color: #AAA;
+}
+.stealthInput:hover .edit{
+    opacity: 1;
+}
+.stealthInput.isSpinning .edit,
+.stealthInput.isEditing .edit,
+.stealthInput.isDirty .edit,
+.stealthInput.disabled .edit {
+    opacity: 0;
+}
+
+.stealthInput .dirty {
+    position: absolute;
+    padding: 0 4px;
+    right: 0;
+    top: 2px;
+    text-align: center;
+    opacity: 0;
+    font-weight: bold;
+    color: #325385;
+
+    transition: opacity .2s;
+}
+.stealthInput .dirty::after {
+    content: "!";
+}
+.stealthInput.isDirty .dirty {
+    opacity: 1;
+}
+.stealthInput.isDirty.isEditing .dirty {
+    opacity: 0;
+}
+
+.stealthInput .working{
+    position: absolute;
+    right: 0;
+    top: 0;
+    text-align: center;
+    font-family: 'Glyphicons Halflings';
+    opacity: 0;
+
+    transition: opacity .2s;
+    -webkit-animation: spin .7s infinite linear;
+    transform-origin: 50% 55%;
+}
+.stealthInput .working::after {
+    content: "\e031";
+    color: #AAA;
+}
+.stealthInput.isSpinning .working{
+    opacity: 1;
+}
+
+
+@-webkit-keyframes spin {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(360deg);}
 }

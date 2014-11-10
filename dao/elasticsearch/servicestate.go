@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
+	"fmt"
 )
 
 func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {
@@ -102,7 +103,9 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 		glog.Errorf("Unable to get host %v: %v", request.HostID, err)
 		return err
 	}
-
+	if myHost == nil {
+		return fmt.Errorf("Host %s does not exist", request.HostID)
+	}
 	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myHost.PoolID))
 	if err != nil {
 		glog.Errorf("Error in getting a connection based on pool %v: %v", myHost.PoolID, err)
