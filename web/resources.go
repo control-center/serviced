@@ -620,6 +620,33 @@ func restGetServiceLogs(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	w.WriteJson(&simpleResponse{logs, serviceLinks(serviceID)})
 }
 
+// restRestartService restarts the service with the given id and all of its children
+func restRestartService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+
+	auto := r.FormValue("auto")
+	autoLaunch := true
+
+	switch auto {
+	case "1", "True", "true":
+		autoLaunch = true
+	case "0", "False", "false":
+		autoLaunch = false
+	}
+
+	var affected int
+	if err := client.RestartService(dao.ScheduleServiceRequest{serviceID, autoLaunch}, &affected); err != nil {
+		glog.Errorf("Unexpected error restarting service: %s", err)
+		restServerError(w, err)
+		return
+	}
+	w.WriteJson(&simpleResponse{"Restarted service", serviceLinks(serviceID)})
+}
+
 // restStartService starts the service with the given id and all of its children
 func restStartService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
