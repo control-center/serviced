@@ -119,10 +119,23 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	if err != nil {
 		glog.Fatalf("Could not prepare key.pem file: %s", err)
 	}
-	err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
-	if err != nil {
-		glog.Fatalf("could not setup webserver: %s", err)
-	}
+	go func() {
+		redirect := func(w http.ResponseWriter, req *http.Request) {
+			http.Redirect(w, req, fmt.Sprintf("https://%s:%s%s", req.Host, sc.bindPort, req.URL), http.StatusMovedPermanently)
+		}
+		err = http.ListenAndServe(":80", http.HandlerFunc(redirect))
+		if err != nil {
+			glog.Errorf("could not setup HTTP webserver: %s", err)
+		}
+	}()
+	go func() {
+		err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
+		if err != nil {
+			glog.Fatalf("could not setup HTTPS webserver: %s", err)
+		}
+	}()
+	blockerChan := make(chan bool)
+	<-blockerChan
 }
 
 // ServeUI is a blocking call that runs the UI hander on port :7878
