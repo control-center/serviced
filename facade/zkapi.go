@@ -115,19 +115,12 @@ func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
 		glog.Errorf("GetVHostKeyChildren failed %v: %v", vhostName, err)
 		return err
 	}
-	if len(vhostEphemeralNodes) == 0 {
-		glog.Warningf("Currently, there are no ephemeral nodes for vhost: %v", vhostName)
-		return nil
-	} else if len(vhostEphemeralNodes) > 1 {
-		return fmt.Errorf("There is more than one ephemeral node for vhost: %v", vhostName)
-	}
 
-	for _, vhostEphemeralNode := range vhostEphemeralNodes {
-		if vhostEphemeralNode.ServiceID == serviceID {
-			glog.Infof("validated: vhost %v is already running under THIS servicedID: %v", vhostName, serviceID)
-			return nil
+	if len(vhostEphemeralNodes) > 0 {
+		if vhost := vhostEphemeralNodes[0]; vhost.ServiceID != serviceID {
+			err := fmt.Errorf("virtual host %s is already running under service %s", vhostName, vhost.ServiceID)
+			return err
 		}
-		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID: %s", vhostName, vhostEphemeralNode.ServiceID)
 	}
 
 	return nil
