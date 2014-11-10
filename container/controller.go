@@ -246,10 +246,10 @@ func setupConfigFiles(svc *service.Service) error {
 }
 
 // setupLogstashFiles sets up logstash files
-func setupLogstashFiles(service *service.Service, resourcePath string) error {
+func setupLogstashFiles(service *service.Service, instanceID string, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(logstashContainerConfig, service, resourcePath)
+		err := writeLogstashAgentConfig(logstashContainerConfig, service, instanceID, resourcePath)
 		if err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	if options.Logforwarder.Enabled {
-		if err := setupLogstashFiles(service, filepath.Dir(options.Logforwarder.Path)); err != nil {
+		if err := setupLogstashFiles(service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
