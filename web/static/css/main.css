@@ -1426,3 +1426,12 @@ input[type=file] {
     vertical-align: middle;
     cursor: pointer;
 }
+
+.messageMeta{
+	width: 30%;
+	float: left;
+}
+.messageBody{
+   width: 70%;
+   float: left;
+}
