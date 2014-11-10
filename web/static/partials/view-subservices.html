@@ -196,6 +196,7 @@
               <div ng-if="app.DesiredState !== 2">
                 <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
                 <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+                <button ng-class="{disabled: app.DesiredState === 0}" ng-click="killRunningInstances(app)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
               </div>
               <div ng-if="app.DesiredState === 2">
                 <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>

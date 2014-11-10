@@ -570,6 +570,14 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         });
     };
 
+    $scope.killRunningInstances = function(app){
+        // get service instances for provided service
+        resourcesService.get_running_services_for_service(app.ID, function(data){
+            // kill each running service instance
+            data.forEach($scope.killRunning);
+        });
+    };
+
     $scope.startTerminal = function(app) {
         window.open("http://" + window.location.hostname + ":50000");
     };
