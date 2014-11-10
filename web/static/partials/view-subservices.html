@@ -10,26 +10,28 @@
       <div class="details-form">
         <div class="vertical-info">
             <label for="app_data_name">{{'label_service_name'|translate}}</label>
-            <input type="text" id="app_data_name" ng-disabled="services.current.isvc"
-            ng-model="services.current.Name">
+            <input stealth-input type="text" data-value="services.current.Name" data-on-change="updateService" ng-disabled="services.current.isvc"></input>
         </div>
 
         <div class="vertical-info">
             <label for="app_data_description">{{'label_service_description'|translate}}</label>
-            <input type="text" id="app_data_description" ng-disabled="services.current.isvc"
-            ng-model="services.current.Description">
+            <input stealth-input type="text" data-value="services.current.Description" data-on-change="updateService" ng-disabled="services.current.isvc"></input>
         </div>
 
         <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
         <div class="vertical-info" ng-show="!services.current.InstanceLimits || services.current.InstanceLimits.Max > 0 || services.current.InstanceLimits.Min > services.current.InstanceLimits.Max">
           <label for="app_data_instances">{{'label_service_instances'|translate}}</label>
-          <input type="number" min="{{services.current.InstanceLimits.Min}}" id="app_data_instances" class="instances"
-                 ng-model="services.current.Instances" ng-disabled="services.current.InstanceLimits.Max == services.current.InstanceLimits.Min">
+          <input stealth-input type="number" 
+            min="{{services.current.InstanceLimits.Min}}"
+            id="app_data_instances" class="instances" 
+            data-value="services.current.Instances" 
+            ng-disabled="canChangeInstanceCount(services.current.InstanceLimits.Max, services.current.InstanceLimits.Min)" 
+            data-on-change="updateService"></input>
         </div>
 
         <div class="vertical-info" ng-if="!services.current.isvc">
           <label for="app_data_startup">{{'label_service_startup'|translate}}</label>
-          <input type="text" id="app_data_startup" class="startup" ng-model="services.current.Startup">
+          <input stealth-input type="text" id="app_data_startup" class="startup" data-value="services.current.Startup" data-on-change="updateService"></input>
         </div>
 
         <div class="vertical-info" ng-show="dev">
@@ -49,11 +51,11 @@
           </div>
         </div>
       </div>
-      <div class="details-actions" ng-if="!services.current.isvc">
+      <!--<div class="details-actions" ng-if="!services.current.isvc">
         <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="showAddService()">{{'btn_add_service'|translate}}</button>
         <button class="btn" ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>
-      </div>
+      </div>-->
     </div>
 
     <!-- Virtual Host Names -->
