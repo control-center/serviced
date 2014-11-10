@@ -38,19 +38,37 @@
     </div>
   </div>
 </div>
-
-<h3>{{'graphs'|translate}}</h3>
-<div class="graphsContainer" style="margin-bottom: 20px;">
-  <div ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
-    <div class="zenchartContainer">
-      <h4>{{graph.name}}</h4>
-      <div class="graphDescrip">{{graph.description}} over the past hour.</div>
-      <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
-    </div>
-  </div>
-  <br style="clear: both;">
+<div class="infoWrapper">
+  <h3>{{'graphs'|translate}}</h3>
+  <div class="graphsContainer" style="margin-bottom: 20px;">
+    <div class="graphsControls">
+      <div class="graphControl">
+        <label class="control-label">{{'date_range'|translate}}</label><input id="time_range_start" datetimepicker  dateOptions="options" ng-model="timeRange.time_start" > -
+        <input id="time_range_end" datetimepicker dateOptions="options" ng-model="timeRange.time_end">
+        </div>
+        <div class="graphControl">
+          <label class="control-label">Aggregator</label>
+          <select
+              ng-model="aggregator"
+              ng-options="agg.val as agg.name for agg in aggregators"
+              ng-change="updateGraphsAggregator()"
+              class="aggregator form-control">
+          </select>
+        </div>
+        <div class="graphControl">
+          <button ng-click="updateGraphs()" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i></button>
+        </div>
+      </div>
+      <div ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
+        <div class="zenchartContainer">
+          <h4>{{graph.name}}</h4>
+          <div class="graphDescrip">{{graph.description}} over the past hour.</div>
+          <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+        </div>
+      </div>
+      <br style="clear: both;">
+      </div>
 </div>
-
 <h3>{{'ip_addresses'|translate}}</h3>
 <table class="table table-striped side-flush">
   <thead>

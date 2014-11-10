@@ -148,6 +148,7 @@
     "entry_content": "",
     "error": "Error",
     "graphs": "Gráfica",
+    "date_range": "Rango de Fechas",
     "graph_tbl_cpu": "CPU",
     "graph_tbl_mem": "Memoria",
     "host": "Servidor",

@@ -22,7 +22,7 @@
     "backup_complete": "Backup Complete",
     "backup_running": "Creating Backup",
     "cannot_begin_backup": "Cannot Begin Backup",
-    "cannot_begin_restore": "Cannot Begin Restore",    
+    "cannot_begin_restore": "Cannot Begin Restore",
     "restore_complete": "Restore Complete",
     "restore_running": "Restoring from Backup",
 
@@ -167,6 +167,7 @@
     "entry_content": "",
     "error": "Error",
     "graphs": "Graphs",
+    "date_range": "Date Range",
     "graph_tbl_cpu": "CPU",
     "graph_tbl_mem": "Memory",
     "host": "Host",
