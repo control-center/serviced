@@ -17,12 +17,18 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/zenoss/glog"
 )
+
+func init() {
+	rand.Seed(time.Now().UnixNano())
+}
 
 /*
 The 'prxy' service implemented here provides both a prxy for outbound
@@ -121,7 +127,13 @@ func (p *proxy) UseTLS() bool {
 
 // Set a new Destination Address set for the prxy
 func (p *proxy) SetNewAddresses(addresses []addressTuple) {
-	p.newAddresses <- addresses
+	// Randomize the addresses so not all instances get them in the same order
+	dest := make([]addressTuple, len(addresses))
+	perm := rand.Perm(len(addresses))
+	for i, v := range perm {
+		dest[v] = addresses[i]
+	}
+	p.newAddresses <- dest
 }
 
 // Close() terminates the prxy; it can not be restarted.
