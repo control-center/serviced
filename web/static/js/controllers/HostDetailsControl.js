@@ -117,6 +117,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     //     by angular's processing engine
     $scope.drawn = {};
 
+
     //index: graph index for div id selection
     //graph: the graph to display
     $scope.viz = function(index, graph) {
@@ -127,8 +128,57 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             } else {
                 graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
-                $scope.drawn[id] = true;
+                $scope.drawn[id] = graph;
+                $scope.aggregator = graph.datapoints[0].aggregator;
             }
         }
+    };
+
+    $scope.options = {
+        maxTime: new Date(),
+        maxDate: new Date(),
+        mask:true
+    };
+    var now = new Date(),
+        end = moment(now),
+        start = moment().subtract(1, "hours");
+    $scope.timeRange = {
+        time_start: start.format("YYYY/MM/DD HH:mm"),
+        time_end: end.format("YYYY/MM/DD HH:mm")
+    };
+
+    $scope.updateGraphs = function(){
+        for(var i in $scope.drawn){
+            $scope.updateGraph(i, $scope.drawn[i]);
+        }
+    };
+
+    $scope.updateGraph = function(id, config){
+        console.log(config);
+        config.range.start = moment($scope.timeRange.time_start)._d.getTime();
+        config.range.end = moment($scope.timeRange.time_end)._d.getTime();
+        zenoss.visualization.chart.update(id, config);
+    };
+
+    // TODO - make this more generic to handle updating any
+    // graph config propery
+    $scope.aggregators = [
+        {
+            name: "Average",
+            val: "avg"
+        },{
+            name: "Sum",
+            val: "sum"
+        }
+    ];
+    $scope.updateGraphsAggregator = function(){
+        // iterate each graphDef
+        for(var i in $scope.drawn){
+            // then iterate each graphDef's datapoints
+            $scope.drawn[i].datapoints.forEach(function(dp){
+                dp.aggregator = $scope.aggregator;
+            });
+        }
+        $scope.updateGraphs();
     };
 }

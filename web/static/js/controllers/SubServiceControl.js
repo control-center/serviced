@@ -647,40 +647,20 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
             }
         }
     };
-    $scope.dateOptions = {
-        minDate: -20,
-        maxDate: "+1M +10D"
-    };
-    $scope.timePickerOptions = {
-        step: 20,
-        timeFormat: 'H:I',
-        appendTo: 'body'
-    };
-    var end = moment();
-    var start = moment().subtract(1, "hours");
-    $scope.graph_start = new Date();
-    $scope.time_start = start._d;
-    $scope.graph_end = new Date();
-    $scope.time_end = end._d;
-    $scope.showEditDateRangeTip = function($event) {
-        var el = $event.target, $el, html,
-            startLabel = $translate.instant('date_range_start'),
-            endLabel = $translate.instant('date_range_end');
-        $el = $(el);
-        html = "<div class=''> " +
-               " <label for='date_range_start' >" + startLabel + " </label> <input  ui-date='dateOptions' id='date_range_start' />  -" +
-               " <label for='date_range_end' >" + endLabel + " </label> <input ui-date='dateOptions' id='date_range_end' /> " +
-               "</div>";
-        $el.popover({
-            trigger: "click",
-            placement: "right",
-            delay: 0,
-            title: $translate.instant("set_date_range"),
-            html: true,
-            content: html
-        });
 
+    $scope.options = {
+        maxTime: new Date(),
+        maxDate: new Date(),
+        mask:true
     };
+    var now = new Date(),
+        end = moment(now),
+        start = moment().subtract(1, "hours");
+    $scope.timeRange = {
+        time_start: start.format("YYYY/MM/DD HH:mm"),
+        time_end: end.format("YYYY/MM/DD HH:mm")
+    };
+
     $scope.updateGraphs = function(){
         for(var i in $scope.drawn){
             $scope.updateGraph(i, $scope.drawn[i]);
@@ -688,6 +668,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.updateGraph = function(id, config){
+        config.range.start = moment($scope.timeRange.time_start)._d.getTime();
+        config.range.end = moment($scope.timeRange.time_end)._d.getTime();
         zenoss.visualization.chart.update(id, config);
     };
 
