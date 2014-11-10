@@ -292,8 +292,8 @@
             // up their respective class thing
             $(".healthCheck").each(function(i, el){
                 var $el = $(el),
-                    id = el.dataset.id,
-                    lastStatus = el.dataset.lastStatus,
+                    id = $el.attr("data-id"),
+                    lastStatus = $el.attr("data-lastStatus"),
                     $healthIcon, $badge,
                     statusObj, popoverHTML,
                     hideHealthChecks,
@@ -458,7 +458,7 @@
                     bounceStatus($el);
                 }
                 // store the status for comparison later
-                el.dataset.lastStatus = statusObj.status;
+                $el.attr("data-lastStatus", statusObj.status);
             });
         }
         function bindHealthCheckRowTemplate(hc){

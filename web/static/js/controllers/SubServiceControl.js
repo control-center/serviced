@@ -491,17 +491,24 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
       return true;
     };
 
-    $scope.updateService = function() {
+    $scope.updateService = function(callback) {
         if ($scope.validateService()) {
           resourcesService.update_service($scope.services.current.ID, $scope.services.current, function() {
               console.log('Updated %s', $scope.services.current.ID);
               var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
               lastCrumb.label = $scope.services.current.Name;
               refreshServices($scope, resourcesService, false);
+
+              if(typeof callback === "function") callback();
+          }, function(status){
+              if(typeof callback === "function") callback(status);
           });
         }
     };
 
+    $scope.updateServiceField = function(prop, val){
+        console.log(prop, val);
+    };
 
     // Update the running instances so it is reflected when we save the changes
     function updateRunning() {
@@ -623,6 +630,19 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
             });
         };
     }
+
+    $scope.canChangeInstanceCount = function(min, max){
+        // if min and max are both undefined,
+        // this field should not be disabled
+        if(min === undefined && max === undefined){
+            return false;
+
+        // if min and max are equal, this field
+        // should be disabled
+        } else {
+            return min === max;
+        }
+    };
 
     // XXX prevent the graphs from being drawn multiple times
     //     by angular's processing engine
