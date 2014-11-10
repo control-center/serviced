@@ -1426,7 +1426,15 @@ input[type=file] {
     cursor: pointer;
 }
 
+.messageMeta{
+	width: 30%;
+	float: left;
+}
 
+.messageBody{
+   width: 70%;
+   float: left;
+}
 /* stealthy input fields */
 .stealthInput {
     display: block;
