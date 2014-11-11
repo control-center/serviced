@@ -91,6 +91,7 @@ type API interface {
 	Restore(string) error
 
 	// Docker
+	ResetRegistry() error
 	Squash(imageName, downToLayer, newName, tempDir string) (string, error)
 	RegistrySync() error
 
