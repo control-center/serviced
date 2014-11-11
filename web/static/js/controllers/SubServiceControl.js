@@ -570,12 +570,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         });
     };
 
+    // restart all running instances for this service
     $scope.killRunningInstances = function(app){
-        // get service instances for provided service
-        resourcesService.get_running_services_for_service(app.ID, function(data){
-            // kill each running service instance
-            data.forEach($scope.killRunning);
-        });
+        resourcesService.restart_service(app.ID, angular.noop);
     };
 
     $scope.startTerminal = function(app) {
