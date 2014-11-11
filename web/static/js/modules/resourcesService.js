@@ -943,6 +943,33 @@
                       }
                   });
           },
+          /*
+           * Restart a service and all of its children
+           *
+           * @param {string} serviceId The ID of the service to stop.
+           * @param {function} callback Response passed to callback on success.
+           */
+          restart_service: function(serviceId, callback, skipChildren) {
+              var url = "/services/"+ serviceId + "/restartService";
+
+              // if children should NOT be started, set 'auto' param
+              // to false
+              if(skipChildren){
+                url += "?auto=false";
+              }
+
+              $http.put(url).
+                  success(function(data, status) {
+                      callback(data);
+                  }).
+                  error(function(data, status) {
+                      // TODO error screen
+                      $notification.create("Was unable to restart service", data.Detail).error();
+                      if (status === 401) {
+                          unauthorized($location);
+                      }
+                  });
+          },
           /**
            * Gets the Serviced version from the server
            */
