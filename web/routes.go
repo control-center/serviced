@@ -42,6 +42,9 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/hosts/:hostId/running", sc.authorizedClient(restGetRunningForHost)},
 		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", sc.authorizedClient(restKillRunning)},
 
+		// Mux
+		rest.Route{"GET", "/mux/connections", sc.checkAuth(restGetMuxConnections)},
+
 		// Pools
 		rest.Route{"GET", "/pools/:poolId", sc.checkAuth(restGetPool)},
 		rest.Route{"DELETE", "/pools/:poolId", sc.checkAuth(restRemovePool)},

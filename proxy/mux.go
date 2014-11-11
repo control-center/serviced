@@ -14,13 +14,16 @@
 package proxy
 
 import (
+	"github.com/control-center/serviced/dao"
 	"github.com/zenoss/glog"
 
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -29,12 +32,14 @@ type TCPMux struct {
 	listener    net.Listener    // the connection this mux listens on
 	connections chan net.Conn   // stream of accepted connections
 	closing     chan chan error // shutdown noticiation
+	hostID      string
+	hostIP      string
 }
 
 // NewTCPMux creates a new tcp mux with the given listener. If it succees, it
 // is expected that this object is the owner of the listener and will close it
 // when Close() is called on the TCPMux.
-func NewTCPMux(listener net.Listener) (mux *TCPMux, err error) {
+func NewTCPMux(listener net.Listener, hostID, hostIP string) (mux *TCPMux, err error) {
 	if listener == nil {
 		return nil, fmt.Errorf("listener can not be nil")
 	}
@@ -42,6 +47,8 @@ func NewTCPMux(listener net.Listener) (mux *TCPMux, err error) {
 		listener:    listener,
 		connections: make(chan net.Conn),
 		closing:     make(chan chan error),
+		hostID:      hostID,
+		hostIP:      hostIP,
 	}
 	go mux.loop()
 	return mux, nil
@@ -108,6 +115,65 @@ func (mux *TCPMux) loop() {
 	}
 }
 
+// updateConnectionInfo updates mux connection info
+func (mux *TCPMux) updateConnectionInfo(parts []string, src, dst net.Conn) string {
+	now := time.Now()
+	tmci := TCPMuxConnectionInfo{
+		AgentHostIP:   mux.hostIP,
+		AgentHostID:   mux.hostID,
+		SrcRemoteAddr: src.RemoteAddr().String(),
+		SrcLocalAddr:  src.LocalAddr().String(),
+		DstLocalAddr:  dst.LocalAddr().String(),
+		DstRemoteAddr: dst.RemoteAddr().String(),
+		DstName:       parts[0],
+		ActiveWriters: 2, // always 2 active writers after dialing, one for each side of the connection
+		CreatedAt:     now,
+	}
+
+	if len(parts) > 2 {
+		part := parts[1]
+		glog.V(2).Infof("unmarshalling into MuxSource: %+v", part)
+		str := strings.Replace(part, "===", ":", -1)
+		err := json.Unmarshal([]byte(str), &tmci.Src)
+		if err != nil {
+			glog.Errorf("Could not unmarshal into MuxSource: %s", part)
+		}
+	}
+
+	if len(parts) > 3 {
+		part := parts[2]
+		glog.V(2).Infof("unmarshalling into ApplicationEndpoint: %+v", part)
+		aestr := strings.Replace(part, "===", ":", -1)
+		err := json.Unmarshal([]byte(aestr), &tmci.ApplicationEndpoint)
+		if err != nil {
+			glog.Errorf("Could not unmarshal into ApplicationEndpoint: %s", part)
+		}
+	}
+
+	muxConnectionInfoLock.Lock()
+	defer muxConnectionInfoLock.Unlock()
+
+	key := fmt.Sprintf("%-15s %-21s <-- %-15s %-21s", tmci.AgentHostIP, tmci.DstRemoteAddr, tmci.Src.AgentHostIP, tmci.SrcRemoteAddr)
+	if _, ok := muxConnectionInfo[key]; ok {
+		tmci.CreatedAt = muxConnectionInfo[key].CreatedAt
+		tmci.ActiveWriters += muxConnectionInfo[key].ActiveWriters
+	}
+	muxConnectionInfo[key] = &tmci
+	glog.V(2).Infof("TCPMuxConnectionInfo (count:%d): %+v", len(muxConnectionInfo), tmci)
+
+	return key
+}
+
+// decrementActiveWriters decrements the number of writers by one
+func (mux *TCPMux) decrementActiveWriters(key string) {
+	muxConnectionInfoLock.Lock()
+	defer muxConnectionInfoLock.Unlock()
+	muxConnectionInfo[key].ActiveWriters--
+	if muxConnectionInfo[key].ActiveWriters <= 0 {
+		delete(muxConnectionInfo, key)
+	}
+}
+
 // muxConnection takes an inbound connection reads a line from it and
 // then attempts to set up a connection to the service specified by the
 // line. The service is specified in the form "IP:PORT\n". If the connection
@@ -140,6 +206,10 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 		conn.Close()
 		return
 	}
+
+	glog.V(2).Infof("mux line: %+v", line)
+	key := mux.updateConnectionInfo(parts, conn, svc)
+
 	// write any pending buffered data that wasn't part of the service spec
 	if reader.Buffered() > 0 {
 		bufferedBytes, err := reader.Peek(reader.Buffered())
@@ -148,21 +218,70 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 		}
 		n, err := conn.Write(bufferedBytes)
 		if err != nil {
-			glog.Errorf("error writting buffered bytes: %s", err)
+			glog.Errorf("error writing buffered bytes: %s", err)
 		}
 		if n != len(bufferedBytes) {
-			glog.Errorf("exepected to write %d bytes but wrote %s", len(bufferedBytes), n)
+			glog.Errorf("expected to write %d bytes but wrote %s", len(bufferedBytes), n)
 		}
 	}
 
-	go func() {
+	go func(key string) {
 		io.Copy(conn, svc)
 		conn.Close()
 		svc.Close()
-	}()
-	go func() {
+		mux.decrementActiveWriters(key)
+	}(key)
+	go func(key string) {
 		io.Copy(svc, conn)
 		conn.Close()
 		svc.Close()
-	}()
+		mux.decrementActiveWriters(key)
+	}(key)
+}
+
+// TCPMuxConnectionInfo contains info about mux connections
+type TCPMuxConnectionInfo struct {
+	AgentHostIP         string
+	AgentHostID         string
+	Src                 MuxSource
+	SrcRemoteAddr       string
+	SrcLocalAddr        string
+	DstLocalAddr        string
+	DstRemoteAddr       string
+	DstName             string
+	ApplicationEndpoint dao.ApplicationEndpoint
+	ActiveWriters       int
+	CreatedAt           time.Time
+}
+
+// GetMuxConnectionInfo returns a map of the mux connection info
+func GetMuxConnectionInfo() map[string]TCPMuxConnectionInfo {
+	response := make(map[string]TCPMuxConnectionInfo)
+	muxConnectionInfoLock.Lock()
+	defer muxConnectionInfoLock.Unlock()
+	for k, v := range muxConnectionInfo {
+		response[k] = *v
+	}
+	return response
+}
+
+// MuxSource contains info about the source connecting to ApplicationEndpoint
+type MuxSource struct {
+	AgentHostIP string
+	AgentHostID string
+	ServiceName string
+	TenantID    string
+	ServiceID   string
+	InstanceID  string
+	ContainerIP string
+	ContainerID string
+}
+
+var (
+	muxConnectionInfoLock sync.RWMutex
+	muxConnectionInfo     map[string]*TCPMuxConnectionInfo
+)
+
+func init() {
+	muxConnectionInfo = make(map[string]*TCPMuxConnectionInfo)
 }
