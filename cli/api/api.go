@@ -68,6 +68,7 @@ type Options struct {
 	LogstashMaxSize      int    // Max size of logstash data
 	DebugPort            int    // Port to listen for profile clients
 	AdminGroup           string // user group that can log in to control center
+	MaxRPCClients        int    // the max number of rpc clients to an endpoint
 }
 
 // LoadOptions overwrites the existing server options

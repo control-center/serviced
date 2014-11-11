@@ -6,42 +6,45 @@ package rpcutils
 
 import (
 	"sync"
-
-	"github.com/zenoss/glog"
 )
 
-//map of address to client
-var cache = make(map[string]Client)
+var RPC_CLIENT_SIZE = 1
+
+//map of address to clientList
+var clientCache = make(map[string]*clientList)
 var cacheLock = sync.RWMutex{}
-
-func getClient(addr string) (Client, bool) {
-	cacheLock.RLock()
-	defer cacheLock.RUnlock()
-	client, found := cache[addr]
-	return client, found
-}
-
-func createAndSet(addr string) (Client, error) {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
-	var err error
-	client, found := cache[addr]
-	if !found {
-		client, err = NewReconnectingClient(addr)
-		if err != nil {
-			return nil, err
-		}
-		glog.Infof("created client %#v", client)
-		cache[addr] = client
-	}
-	return client, nil
-}
 
 // GetCachedClient createa or gets a cached Client.
 func GetCachedClient(addr string) (Client, error) {
-	s, found := getClient(addr)
-	if !found {
-		return createAndSet(addr)
+	cList, err := getClientList(addr)
+	if err != nil {
+		return nil, err
 	}
-	return s, nil
+	return cList.getNext()
+}
+
+func getClientList(addr string) (*clientList, error) {
+	cacheLock.RLock()
+	clients, found := clientCache[addr]
+	cacheLock.RUnlock()
+	if !found {
+		return setAndGetClientList(addr)
+	}
+	return clients, nil
+}
+
+func setAndGetClientList(addr string) (*clientList, error) {
+	cacheLock.Lock()
+	defer cacheLock.Unlock()
+	var err error
+	clients, found := clientCache[addr]
+	if !found {
+		clients, err = newClientList(addr, RPC_CLIENT_SIZE)
+		if err != nil {
+			return nil, err
+		}
+		clientCache[addr] = clients
+	}
+	return clients, nil
+
 }

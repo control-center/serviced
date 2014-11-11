@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
 // ServicedCli is the client ui for serviced
@@ -183,6 +184,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},
 		cli.StringSliceFlag{"isvcs-env", &isvcs_env, "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
+		cli.IntFlag{"max-rpc-clients", configInt("MAX_RPC_CLIENTS", 3), "max number of rpc clients to an endpoint"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -254,6 +256,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		LogstashMaxSize:      ctx.GlobalInt("logstash-max-size"),
 		DebugPort:            ctx.GlobalInt("debug-port"),
 		AdminGroup:           ctx.GlobalString("admin-group"),
+		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -288,6 +291,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	// Start server mode
 	if (options.Master || options.Agent) && len(ctx.Args()) == 0 {
+		rpcutils.RPC_CLIENT_SIZE = options.MaxRPCClients
 		c.driver.StartServer()
 		return fmt.Errorf("running server mode")
 	}
