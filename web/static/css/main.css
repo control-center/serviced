@@ -850,22 +850,17 @@ input.startup {
     position: relative;
     height: 200px;
 }
-/* Visualization.js style changes */
-.nodata:before {
-  content: "No Data Available";
-}
 
-.nodata {
-  display: block;
-  position: relative;
+.noData {
   margin: auto;
   top: 40px;
   color: #AAA;
   text-align: center;
-  font-size: 18pt;
+  font-size: 1.2em;
   font-style: italic;
 }
 
+/* Visualization.js style changes */
 /* d3 related below */
 
 .node {
