@@ -19,8 +19,19 @@ import (
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/layer"
+	"github.com/control-center/serviced/dao"
 	"github.com/zenoss/glog"
 )
+
+// ResetRegistry moves all relevant images into the new docker registry
+func (a *api) ResetRegistry() error {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
+	return client.ResetRegistry(dao.NullRequest{}, new(int))
+}
 
 // Squash flattens the image (or at least down the to optional downToLayer).
 // The resulting image is retagged with newName.

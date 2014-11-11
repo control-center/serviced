@@ -16,6 +16,7 @@ package elasticsearch
 import (
 	"fmt"
 
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/volume"
 
@@ -37,6 +38,13 @@ func (this *ControlPlaneDao) GetVolume(serviceID string, volume *volume.Volume) 
 	var err error
 	volume, err = this.dfs.GetVolume(tenantID)
 	return err
+}
+
+// ResetRegistry resets the docker registry
+func (this *ControlPlaneDao) ResetRegistry(request dao.EntityRequest, unused *int) error {
+	this.dfs.Lock()
+	defer this.dfs.Unlock()
+	return this.dfs.ResetRegistry()
 }
 
 // DeleteSnapshot deletes a particular snapshot

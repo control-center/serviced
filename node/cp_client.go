@@ -209,6 +209,10 @@ func (s *ControlClient) GetVolume(serviceID string, volume *volume.Volume) error
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume)
 }
 
+func (s *ControlClient) ResetRegistry(request dao.EntityRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.ResetRegistry", request, unused)
+}
+
 func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotId, unused)
 }

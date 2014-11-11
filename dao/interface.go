@@ -191,6 +191,9 @@ type ControlPlane interface {
 	// Volume returns a service's volume
 	GetVolume(serviceID string, volume *volume.Volume) error
 
+	// SetRegistry resets the path to the docker registry
+	ResetRegistry(request EntityRequest, unused *int) error
+
 	// Deletes a particular snapshot
 	DeleteSnapshot(snapshotID string, unused *int) error
 
