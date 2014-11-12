@@ -525,7 +525,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, []string{}...)
 	if err != nil {
 		t.Fatalf("Error creating host: %v", err)
 	}
@@ -599,7 +599,7 @@ func (dt *DaoTest) TestAssignAddress(t *C) {
 	ip := "10.0.1.5"
 	endpoint := "default"
 	serviceId := ""
-	h, err := host.Build("", "default", []string{}...)
+	h, err := host.Build("", "65535", "default", []string{}...)
 	t.Assert(err, IsNil)
 	h.ID = hostid
 	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname", "macaddress"}}
