@@ -131,7 +131,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	if _host, err = f.GetHost(ctx, hostID); err != nil {
 		return err
 	} else if _host == nil {
-		return nil
+		return fmt.Errorf("HostID %s does not exist", hostID)
 	}
 
 	//grab all services that are address assigned this HostID
