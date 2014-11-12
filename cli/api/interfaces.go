@@ -97,4 +97,7 @@ type API interface {
 
 	// Logs
 	ExportLogs(config ExportLogsConfig) error
+
+	// Metric
+	PostMetric(metricName string, metricValue string) (string, error)
 }
