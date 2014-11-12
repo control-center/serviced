@@ -54,7 +54,7 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 		return // this host won't be scheduled
 	}
 
-	var cr uint64
+	var cr int64
 
 	for i := range rss {
 		s := service.Service{}
@@ -63,10 +63,12 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 			return // this host won't be scheduled
 		}
 
-		cr += s.RAMCommitment
+		cr += int64(s.RAMCommitment)
 	}
 
-	result <- &hostitem{host, host.Memory - cr, -1}
+	glog.V(2).Infof("For host %s: Total Memory = %s, Total Existing Commitments = %s", host, host.Memory, cr)
+
+	result <- &hostitem{host, int64(host.Memory) - cr, -1}
 }
 
 func (hi *DAOHostInfo) PrioritizeByMemory(hosts []*host.Host) ([]*host.Host, error) {
