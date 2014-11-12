@@ -8,7 +8,6 @@ import (
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
-	"reflect"
 	"sync"
 
 	"github.com/zenoss/glog"
@@ -90,10 +89,8 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 	}
 	err = rpcClient.Call(serviceMethod, args, reply)
 	if err != nil {
-		if err == rpc.ErrShutdown || reflect.TypeOf(err) == reflect.TypeOf((*rpc.ServerError)(nil)).Elem() {
-			glog.Infof("rpc error, resetting cached client: %v", err)
-			rc.reset()
-		}
+		glog.V(3).Infof("rpc error, resetting cached client: %v", err)
+		rc.reset()
 	}
 	return err
 }
