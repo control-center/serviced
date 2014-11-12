@@ -31,7 +31,7 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 	defer s.Facade.RemoveHost(s.CTX, testid)
 
 	//fill host with required values
-	h, err := host.Build("", poolid, []string{}...)
+	h, err := host.Build("", "65535", poolid, []string{}...)
 	h.ID = "facadetestid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -99,10 +99,11 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 
 	//add host1
 	h1 := host.Host{
-		ID:     "h1",
-		PoolID: "poolid",
-		Name:   "h1",
-		IPAddr: "192.168.0.1",
+		ID:      "h1",
+		PoolID:  "poolid",
+		Name:    "h1",
+		IPAddr:  "192.168.0.1",
+		RPCPort: 65535,
 		IPs: []host.HostIPResource{
 			host.HostIPResource{
 				HostID:    "h1",
@@ -117,10 +118,11 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 
 	//add host2
 	h2 := host.Host{
-		ID:     "h2",
-		PoolID: "poolid",
-		Name:   "h2",
-		IPAddr: "192.168.0.2",
+		ID:      "h2",
+		PoolID:  "poolid",
+		Name:    "h2",
+		IPAddr:  "192.168.0.2",
+		RPCPort: 65535,
 		IPs: []host.HostIPResource{
 			host.HostIPResource{
 				HostID:    "h2",

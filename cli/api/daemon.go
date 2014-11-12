@@ -299,7 +299,13 @@ func (d *daemon) startMaster() error {
 	}
 
 	// This is storage related
-	thisHost, err := host.Build(agentIP, d.masterPoolID)
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID)
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
@@ -390,7 +396,14 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
 	}
-	thisHost, err := host.Build(agentIP, "unknown")
+
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, "unknown")
 	if err != nil {
 		panic(err)
 	}

@@ -16,6 +16,7 @@ package host
 import (
 	"errors"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,6 +32,7 @@ type Host struct {
 	Name           string // A label for the host, eg hostname, role
 	PoolID         string // Pool that the Host belongs to
 	IPAddr         string // The IP address the host can be reached at from a serviced master
+	RPCPort        int    // The RPC port of the host
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
@@ -63,6 +65,9 @@ func (a *Host) Equals(b *Host) bool {
 		return false
 	}
 	if a.IPAddr != b.IPAddr {
+		return false
+	}
+	if a.RPCPort != b.RPCPort {
 		return false
 	}
 	if a.Cores != b.Cores {
@@ -118,11 +123,16 @@ func New() *Host {
 // The poolid param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
 // resources, if not set the IP used for the host will be given as an IP Resource. If any IP is not a valid IP on the
 // machine return error.
-func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
+func Build(ip string, rpcport string, poolid string, ipAddrs ...string) (*Host, error) {
 	if strings.TrimSpace(poolid) == "" {
 		return nil, errors.New("empty poolid not allowed")
 	}
-	host, err := currentHost(ip, poolid)
+
+	rpcPort, err := strconv.Atoi(rpcport)
+	if err != nil {
+		return nil, err
+	}
+	host, err := currentHost(ip, rpcPort, poolid)
 	if err != nil {
 		return nil, err
 	}
@@ -153,7 +163,7 @@ func Build(ip string, poolid string, ipAddrs ...string) (*Host, error) {
 
 //UpdateHostInfo returns a new host with updated hardware and software info. Does not update poor or IP information
 func UpdateHostInfo(h Host) (Host, error) {
-	currentHost, err := currentHost(h.IPAddr, h.PoolID)
+	currentHost, err := currentHost(h.IPAddr, h.RPCPort, h.PoolID)
 	if err != nil {
 		return Host{}, err
 	}
