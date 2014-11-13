@@ -14,9 +14,9 @@
 package host
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
+	"github.com/zenoss/glog"
 
 	"strings"
 	"testing"
@@ -42,6 +42,7 @@ func contains(ve *validation.ValidationError, errString string) bool {
 
 type validateCase struct {
 	id             string
+	rpcport        int
 	poolid         string
 	ip             string
 	expectedErrors []string
@@ -57,13 +58,15 @@ func init() {
 	}
 
 	validatetable = []validateCase{
-		validateCase{"", "", "", []string{"empty string for Host.ID", "empty string for Host.PoolID", "invalid IP Address "}},
-		validateCase{"hostid", "", "", []string{"empty string for Host.PoolID", "invalid IP Address "}},
-		validateCase{"", "poolid", "", []string{"empty string for Host.ID", "invalid IP Address "}},
-		validateCase{"hostid", "poolid", "", []string{"invalid IP Address "}},
-		validateCase{"hostid", "poolid", "blam", []string{"invalid IP Address blam"}},
-		validateCase{"hostid", "poolid", "127.0.0.1", []string{"host ip can not be a loopback address"}},
-		validateCase{"hostid", "poolid", ip, []string{}},
+		validateCase{"", 65535, "", "", []string{"empty string for Host.ID", "empty string for Host.PoolID", "invalid IP Address "}},
+		validateCase{"hostid", 65535, "", "", []string{"empty string for Host.PoolID", "invalid IP Address "}},
+		validateCase{"", 65535, "poolid", "", []string{"empty string for Host.ID", "invalid IP Address "}},
+		validateCase{"hostid", 65535, "poolid", "", []string{"invalid IP Address "}},
+		validateCase{"hostid", 65535, "poolid", "blam", []string{"invalid IP Address blam"}},
+		validateCase{"hostid", 65535, "poolid", "127.0.0.1", []string{"host ip can not be a loopback address"}},
+		validateCase{"hostid", -1, "poolid", ip, []string{"not in valid port range: -1"}},
+		validateCase{"hostid", 65536, "poolid", ip, []string{"not in valid port range: 65536"}},
+		validateCase{"hostid", 65535, "poolid", ip, []string{}},
 	}
 
 }
@@ -72,6 +75,7 @@ func Test_ValidateTable(t *testing.T) {
 	for idx, test := range validatetable {
 		h := New()
 		h.ID = test.id
+		h.RPCPort = test.rpcport
 		h.PoolID = test.poolid
 		h.IPAddr = test.ip
 
@@ -93,33 +97,32 @@ func Test_ValidateTable(t *testing.T) {
 func Test_BuildInvalid(t *testing.T) {
 
 	empty := make([]string, 0)
-	_, err := Build("", "", empty...)
+	_, err := Build("", "65535", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("1234", "", empty...)
+	_, err = Build("1234", "65535", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("", "", empty...)
+	_, err = Build("", "65535", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("127.0.0.1", "poolid", empty...)
+	_, err = Build("127.0.0.1", "65535", "poolid", empty...)
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "poolid", "127.0.0.1")
-
+	_, err = Build("", "65535", "poolid", "127.0.0.1")
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "poolid", "")
+	_, err = Build("", "65535", "poolid", "")
 	if err == nil {
 		t.Errorf("Expected error %v", err)
 	}
@@ -133,7 +136,7 @@ func Test_Build(t *testing.T) {
 	}
 
 	empty := make([]string, 0)
-	host, err := Build("", "test_pool", empty...)
+	host, err := Build("", "65535", "test_pool", empty...)
 	glog.Infof("build  error %v", err)
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)
