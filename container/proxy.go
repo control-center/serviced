@@ -76,6 +76,7 @@ type addressTuple struct {
 
 type proxy struct {
 	name             string              // Name of the remote service
+	msjson           string              // MuxSource
 	tenantEndpointID string              // Tenant endpoint ID
 	addresses        []addressTuple      // Public/container IP:Port of the remote service
 	tcpMuxPort       uint16              // the port to use for TCP Muxing, 0 is disabled
@@ -87,12 +88,13 @@ type proxy struct {
 }
 
 // Newproxy create a new proxy object. It starts listening on the prxy port asynchronously.
-func newProxy(name, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, listener net.Listener, allowDirectConn bool) (p *proxy, err error) {
+func newProxy(name, msjson, tenantEndpointID string, tcpMuxPort uint16, useTLS bool, listener net.Listener, allowDirectConn bool) (p *proxy, err error) {
 	if len(name) == 0 {
 		return nil, fmt.Errorf("prxy: name can not be empty")
 	}
 	p = &proxy{
 		name:             name,
+		msjson:           msjson,
 		tenantEndpointID: tenantEndpointID,
 		addresses:        make([]addressTuple, 0),
 		tcpMuxPort:       tcpMuxPort,
@@ -251,7 +253,7 @@ func (p *proxy) prxy(local net.Conn, address addressTuple) {
 	}
 
 	if !isLocalContainer {
-		muxHeader := fmt.Sprintf("%s:%s:%s\n", p.tenantEndpointID, p.name, address.containerAddr)
+		muxHeader := fmt.Sprintf("%s:%s:%s:%s\n", p.tenantEndpointID, p.msjson, p.name, address.containerAddr)
 		glog.V(1).Infof("writing socket protocol %s", muxHeader)
 		// Write the container address as the first line, if we use the mux
 		io.WriteString(remote, muxHeader)

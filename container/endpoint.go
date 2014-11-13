@@ -15,6 +15,7 @@ package container
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -31,6 +32,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/node"
+	proxymux "github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -155,6 +157,8 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		} else {
 			c.dockerID = hostname
 		}
+		c.dockerIP = strings.Split(os.Getenv("CONTROLPLANE_HOST_IPS"), " ")[0]
+		c.hostIP = os.Getenv("CONTROLPLANE_HOST_ID")
 
 		// TODO: deal with exports in the future when there is a use case for it
 
@@ -176,6 +180,8 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 			return fmt.Errorf("getEndpoints getServiceState failed: %v", err)
 		}
 		c.dockerID = sstate.DockerID
+		c.dockerIP = sstate.PrivateIP
+		c.hostIP = sstate.HostIP
 
 		// keep a copy of the service EndPoint exports
 		c.exportedEndpoints, err = buildExportedEndpoints(conn, c.tenantID, sstate)
@@ -538,6 +544,17 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 		}
 	}
 
+	ms := proxymux.MuxSource{
+		AgentHostID: c.hostID,
+		AgentHostIP: c.hostIP,
+		ServiceName: c.serviceName,
+		TenantID:    c.tenantID,
+		ServiceID:   c.options.Service.ID,
+		InstanceID:  c.options.Service.InstanceID,
+		ContainerID: c.dockerID[0:12],
+		ContainerIP: c.dockerIP,
+	}
+
 	// Now iterate over all the keys, create the proxies, and feed in the
 	// addresses for each instance
 	for instanceID, proxyKey := range proxyKeys {
@@ -556,7 +573,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 			}
 
 			var err error
-			prxy, err = createNewProxy(proxyKey, endpoint, c.allowDirectConn)
+			prxy, err = createNewProxy(proxyKey, ms, endpoint, c.allowDirectConn)
 			if err != nil {
 				glog.Errorf("error with createNewProxy(%s, %+v) %v", proxyKey, endpoint, err)
 				return
@@ -587,7 +604,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 }
 
 // createNewProxy creates a new proxy
-func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, allowDirect bool) (*proxy, error) {
+func createNewProxy(tenantEndpointID string, ms proxymux.MuxSource, endpoint dao.ApplicationEndpoint, allowDirect bool) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
@@ -596,8 +613,26 @@ func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, a
 		glog.Errorf("Could not bind to port %d: %s", endpoint.ProxyPort, err)
 		return nil, err
 	}
+
+	msjson := ""
+	if data, err := json.Marshal(ms); err != nil {
+		glog.Errorf("could not marshal MuxSource: %s", err)
+	} else {
+		msjson = string(data)
+		msjson = strings.Replace(msjson, ":", "===", -1)
+	}
+
+	name := fmt.Sprintf("%v", endpoint)
+	if data, err := json.Marshal(endpoint); err != nil {
+		glog.Errorf("could not marshal endpoint: %s", err)
+	} else {
+		name = string(data)
+		name = strings.Replace(name, ":", "===", -1)
+	}
+
 	prxy, err := newProxy(
-		fmt.Sprintf("%v", endpoint),
+		name,
+		msjson,
 		tenantEndpointID,
 		cMuxPort,
 		cMuxTLS,
