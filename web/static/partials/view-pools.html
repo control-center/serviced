@@ -31,7 +31,6 @@
     </tr>
     <tr ng-repeat="pool in pools.data | orderBy:pools.sort">
       <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID}}</td>
-      <td>{{pool.Priority}}</td>
       <td>{{pool.CoreCapacity}}</td>
       <td><span ng-class="{error: pool.MemoryCommitment>pool.MemoryCapacity}">{{pool.MemoryCommitment | toGB}}</span> / {{pool.MemoryCapacity | toGB}}</td>
       <td>{{pool.CreatedAt | date : 'medium'}}</td>

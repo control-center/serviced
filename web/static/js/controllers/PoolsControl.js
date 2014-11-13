@@ -13,7 +13,6 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
     // Build metadata for displaying a list of pools
     $scope.pools = buildTable('ID', [
         { id: 'ID', name: 'pools_tbl_id'},
-        { id: 'Priority', name: 'pools_tbl_priority'},
         { id: 'CoreCapacity', name: 'core_capacity'},
         { id: 'MemoryCapacity', name: 'memory_usage'},
         { id: 'CreatedAt', name: 'pools_tbl_created_at'},
@@ -81,7 +80,6 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Function for adding new pools - through modal
     $scope.add_pool = function() {
-        console.log('Adding pool %s as child of pool %s', $scope.newPool.ID, $scope.params.poolID);
         resourcesService.add_pool($scope.newPool, function(data) {
             refreshPools($scope, resourcesService, false);
         });
