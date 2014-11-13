@@ -782,6 +782,25 @@ function isInstanceOfService(service){
     return "InstanceID" in service;
 }
 
+// accepts a preferred  and decorates it with success 
+// and error functions to simulate $http promise
+function httpifyDeferred(defer){
+    // TODO - move this to a utils function where we 
+    // can access $q and make our own defer
+
+    // simulate an angular $http promise
+    defer.promise.success = function(callback){
+        defer.promise.then(callback);
+        return defer.promise;
+    };
+    defer.promise.error = function(callback){
+        defer.promise.then(null, callback);
+        return defer.promise;
+    };
+
+    return defer;
+}
+
 // keep notifications stuck to bottom of nav, or top of window
 // if nav is out ovf view.
 var $window = $(window);

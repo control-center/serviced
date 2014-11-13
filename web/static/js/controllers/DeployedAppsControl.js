@@ -92,15 +92,21 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     action: function(){
                         if(this.validate()){
                             var data = new FormData();
+
                             $.each($("#new_template_filename")[0].files, function(key, value){
                                 data.append("tpl", value);
                             });
-                            resourcesService.add_app_template(data, function(data){
-                                resourcesService.get_app_templates(false, refreshTemplates);
-                            });
-                        }
 
-                        this.close();
+                            resourcesService.add_app_template(data)
+                                .success(function(data, status){
+                                    $notification.create("Added template", data.Detail).success();
+                                    resourcesService.get_app_templates(false, refreshTemplates);
+                                    this.close();
+                                }.bind(this))
+                                .error(function(data, status){
+                                    this.createNotification("Adding template failed", data.Detail).error();
+                                }.bind(this));
+                        }
                     }
                 }
             ]
@@ -148,7 +154,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     action: function(){
                         if(this.validate()){
                             $scope.remove_service();
-                            // NOTE: should wait for success before closing
                             this.close();
                         }
                     }
@@ -237,7 +242,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     classes: "btn-danger",
                     action: function(){
                         resourcesService.delete_app_template(templateID, refreshTemplates);
-                        // NOTE: should wait for success before closing
                         this.close();
                     }
                 }
