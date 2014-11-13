@@ -49,6 +49,28 @@ func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 	return convert(results)
 }
 
+// GetHostByIP looks up a host by the given ip address
+func (hs *HostStore) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, error) {
+	if hostIP = strings.TrimSpace(hostIP); hostIP == "" {
+		return nil, errors.New("empty hostIP not allowed")
+	}
+
+	query := search.Query().Term("IPs.IPAddress", hostIP)
+	search := search.Search("controlplane").Type(kind).Query(query)
+	results, err := datastore.NewQuery(ctx).Execute(search)
+	if err != nil {
+		return nil, err
+	}
+
+	if results.Len() == 0 {
+		return nil, nil
+	} else if hosts, err := convert(results); err != nil {
+		return nil, err
+	} else {
+		return &hosts[0], nil
+	}
+}
+
 // GetN returns all hosts up to limit.
 func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 	q := datastore.NewQuery(ctx)
