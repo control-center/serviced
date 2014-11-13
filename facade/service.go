@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/host"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
@@ -79,9 +80,10 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.UpdateService: %+v", svc)
 	//cannot update service without validating it.
-	if svc.DesiredState == int(service.SVCRun) {
+	if svc.DesiredState != int(service.SVCStop) {
 		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
-			return err
+			glog.Warningf("Could not validate service %s (%s) for starting: %s", svc.Name, svc.ID, err)
+			svc.DesiredState = int(service.SVCStop)
 		}
 
 		for _, ep := range svc.GetServiceVHosts() {
@@ -365,143 +367,172 @@ func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceR
 	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCStop)
 }
 
-type assignIPInfo struct {
+type ipinfo struct {
 	IP     string
-	IPType string
+	Type   string
 	HostID string
 }
 
-func (f *Facade) retrievePoolIPs(ctx datastore.Context, poolID string) ([]assignIPInfo, error) {
-	assignIPInfoSlice := []assignIPInfo{}
-
-	poolIPs, err := f.GetPoolIPs(ctx, poolID)
+func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest) error {
+	parentSvc, err := f.GetService(ctx, request.ServiceID)
 	if err != nil {
-		glog.Errorf("GetPoolIPs failed: %v", err)
-		return assignIPInfoSlice, err
-	}
-
-	for _, hostIPResource := range poolIPs.HostIPs {
-		anAssignIPInfo := assignIPInfo{IP: hostIPResource.IPAddress, IPType: commons.STATIC, HostID: hostIPResource.HostID}
-		assignIPInfoSlice = append(assignIPInfoSlice, anAssignIPInfo)
-	}
-
-	for _, virtualIP := range poolIPs.VirtualIPs {
-		anAssignIPInfo := assignIPInfo{IP: virtualIP.IP, IPType: commons.VIRTUAL, HostID: ""}
-		assignIPInfoSlice = append(assignIPInfoSlice, anAssignIPInfo)
-	}
-
-	return assignIPInfoSlice, nil
-}
-
-// assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
-func (f *Facade) AssignIPs(ctx datastore.Context, assignmentRequest dao.AssignmentRequest) error {
-	myService, err := f.GetService(ctx, assignmentRequest.ServiceID)
-	if err != nil {
+		glog.Errorf("Error while looking up service %s: %s", request.ServiceID, err)
 		return err
 	}
 
-	assignIPInfoSlice, err := f.retrievePoolIPs(ctx, myService.PoolID)
-	if err != nil {
-		return err
-	} else if len(assignIPInfoSlice) < 1 {
-		return fmt.Errorf("no IPs available")
-	}
-
-	rand.Seed(time.Now().UTC().UnixNano())
-	assignmentHostID := ""
-	assignmentType := ""
-
-	if assignmentRequest.AutoAssignment {
-		// automatic IP requested
-		glog.Infof("Automatic IP Address Assignment")
-		randomIPIndex := rand.Intn(len(assignIPInfoSlice))
-
-		assignmentRequest.IPAddress = assignIPInfoSlice[randomIPIndex].IP
-		assignmentType = assignIPInfoSlice[randomIPIndex].IPType
-		assignmentHostID = assignIPInfoSlice[randomIPIndex].HostID
-
-		if assignmentType == "" {
-			return fmt.Errorf("Assignment type could not be determined (virtual IP was likely not in the pool)")
+	var ip ipinfo
+	if request.AutoAssignment {
+		ip, err = f.getAutoAssignment(ctx, parentSvc.PoolID)
+		if err != nil {
+			glog.Errorf("Error during auto assignment: %s", err)
+			return err
 		}
 	} else {
-		// manual IP provided
-		// verify that the user provided IP address is available in the pool
-		glog.Infof("Manual IP Address Assignment")
-
-		for _, anAssignIPInfo := range assignIPInfoSlice {
-			if assignmentRequest.IPAddress == anAssignIPInfo.IP {
-				assignmentType = anAssignIPInfo.IPType
-				assignmentHostID = anAssignIPInfo.HostID
-			}
-		}
-		if assignmentType == "" {
-			// IP was NOT contained in the pool
-			return fmt.Errorf("requested IP address: %s is not contained in pool %s.", assignmentRequest.IPAddress, myService.PoolID)
+		ip, err = f.getManualAssignment(ctx, parentSvc.PoolID, request.IPAddress)
+		if err != nil {
+			glog.Errorf("Error during manual assignment: %s", err)
+			return err
 		}
 	}
 
-	glog.Infof("Attempting to set IP address(es) to %s", assignmentRequest.IPAddress)
-
-	assignments := []addressassignment.AddressAssignment{}
-	if err := f.GetServiceAddressAssignments(ctx, assignmentRequest.ServiceID, &assignments); err != nil {
-		glog.Errorf("controlPlaneDao.GetServiceAddressAssignments failed in anonymous function: %v", err)
-		return err
-	}
-
-	visitor := func(myService *service.Service) error {
-		// if f service is in need of an IP address, assign it an IP address
-		for _, endpoint := range myService.Endpoints {
-			needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, myService.ID, endpoint)
-			if err != nil {
-				return err
+	visitor := func(svc *service.Service) error {
+		var svcip ipinfo
+		if svc.PoolID != parentSvc.PoolID {
+			if request.AutoAssignment {
+				// If the pools do not match and it is an auto assignment, find an appropriate host
+				var err error
+				if svcip, err = f.getAutoAssignment(ctx, svc.PoolID); err != nil {
+					glog.Errorf("Error calculating auto assignment for %s (%s): %s", svc.Name, svc.ID, err)
+					return nil
+				}
+			} else {
+				// Otherwise skip the assignment
+				glog.Infof("Skipping manual assignment for service %s (%s): service is in a different pool", svc.Name, svc.ID)
+				return nil
 			}
+		} else {
+			svcip = ip
+		}
 
-			// if an address assignment is needed (does not yet exist) OR
-			// if a specific IP address is provided by the user AND an address assignment already exists
-			if needsAnAddressAssignment || addressAssignmentId != "" {
-				if addressAssignmentId != "" {
-					glog.Infof("Removing AddressAssignment: %s", addressAssignmentId)
-					err = f.RemoveAddressAssignment(ctx, addressAssignmentId)
-					if err != nil {
-						glog.Errorf("controlPlaneDao.RemoveAddressAssignment failed in AssignIPs anonymous function: %v", err)
+		for _, endpoint := range svc.Endpoints {
+			if endpoint.IsConfigurable() {
+				// Look for an address assignment
+				if assignment, err := f.FindAddressAssignment(ctx, svc.ID, endpoint.Name); err != nil {
+					glog.Errorf("Error looking up address assignment %s for %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+					return err
+				} else if assignment != nil {
+					// Do not reassign the ip for an auto address assignment
+					if request.AutoAssignment {
+						glog.Infof("Endpoint %s for %s (%s) is already assigned to %s; skipping", endpoint.Name, svc.Name, svc.ID, assignment.HostID)
+						continue
+					}
+
+					// Remove the existing address assignment if the assignment is manual
+					if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
+						glog.Errorf("Error removing address assignment %s for endpoint %s: %s", assignment.ID, endpoint.Name, err)
 						return err
 					}
 				}
-				assignment := addressassignment.AddressAssignment{}
-				assignment.AssignmentType = assignmentType
-				assignment.HostID = assignmentHostID
-				assignment.PoolID = myService.PoolID
-				assignment.IPAddr = assignmentRequest.IPAddress
-				assignment.Port = endpoint.AddressConfig.Port
-				assignment.ServiceID = myService.ID
-				assignment.EndpointName = endpoint.Name
-				glog.Infof("Creating AddressAssignment for Endpoint: %s", assignment.EndpointName)
 
-				var unusedStr string
-				if err := f.AssignAddress(ctx, assignment, &unusedStr); err != nil {
-					glog.Errorf("AssignAddress failed in AssignIPs anonymous function: %v", err)
-					return err
+				assign := addressassignment.AddressAssignment{
+					AssignmentType: svcip.Type,
+					HostID:         svcip.HostID,
+					PoolID:         svc.PoolID,
+					IPAddr:         svcip.IP,
+					Port:           endpoint.AddressConfig.Port,
+					ServiceID:      svc.ID,
+					EndpointName:   endpoint.Name,
 				}
 
-				if err := f.updateService(ctx, myService); err != nil {
-					glog.Errorf("Failed to update service w/AssignAddressAssignment: %v", err)
+				if _, err := f.assign(ctx, assign); err != nil {
+					glog.Errorf("Error creating address assignment for %s of service %s at %s:%d: %s", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port, err)
 					return err
 				}
-
-				glog.Infof("Created AddressAssignment: %s for Endpoint: %s", assignment.ID, assignment.EndpointName)
+				glog.Infof("Created address assignment for endpoint %s of service %s at %s:%d", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port)
 			}
 		}
+
 		return nil
 	}
 
 	// traverse all the services
-	err = f.walkServices(ctx, assignmentRequest.ServiceID, true, visitor)
+	return f.walkServices(ctx, request.ServiceID, true, visitor)
+}
+
+func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string) (ipinfo, error) {
+	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
-		return err
+		glog.Errorf("Error while looking up pool %s: %s", poolID, err)
+		return ipinfo{}, err
 	}
 
-	glog.Infof("All services requiring an explicit IP address (at f moment) from service: %v and down ... have been assigned: %s", assignmentRequest.ServiceID, assignmentRequest.IPAddress)
-	return nil
+	hosts, err := f.FindHostsInPool(ctx, poolID)
+	if err != nil {
+		glog.Errorf("Error while looking up hosts in pool %s: %s", poolID, err)
+		return ipinfo{}, err
+	}
+
+	var resources []host.HostIPResource
+	for _, host := range hosts {
+		if host.IPs != nil {
+			resources = append(resources, host.IPs...)
+		}
+	}
+
+	total := len(pool.VirtualIPs) + len(resources)
+	if total == 0 {
+		err := fmt.Errorf("no IPs available")
+		glog.Errorf("Error acquiring IP assignment: %s", err)
+		return ipinfo{}, err
+	}
+
+	rand.Seed(time.Now().UTC().UnixNano())
+	index := rand.Intn(total)
+
+	if numvips := len(pool.VirtualIPs); index < numvips {
+		vip := pool.VirtualIPs[index]
+		return ipinfo{vip.IP, commons.VIRTUAL, ""}, nil
+	} else {
+		hostIP := resources[index-numvips]
+		return ipinfo{hostIP.IPAddress, commons.STATIC, hostIP.HostID}, nil
+	}
+}
+
+func (f *Facade) getManualAssignment(ctx datastore.Context, poolID, ip string) (ipinfo, error) {
+	pool, err := f.GetResourcePool(ctx, poolID)
+	if err != nil {
+		glog.Errorf("Error while looking up pool %s: %s", poolID, err)
+		return ipinfo{}, err
+	}
+
+	for _, vip := range pool.VirtualIPs {
+		if vip.IP == ip {
+			return ipinfo{vip.IP, commons.VIRTUAL, ""}, nil
+		}
+	}
+
+	host, err := f.GetHostByIP(ctx, ip)
+	if err != nil {
+		glog.Errorf("Error while looking for host with IP %s: %s", ip, err)
+		return ipinfo{}, err
+	} else if host == nil {
+		err := fmt.Errorf("host not found")
+		glog.Errorf("Could not find IP %s", ip)
+		return ipinfo{}, err
+	} else if host.PoolID != poolID {
+		err := fmt.Errorf("host not found in pool")
+		glog.Errorf("Host %s (%s) not found in pool %s", host.ID, ip, err)
+		return ipinfo{}, err
+	}
+
+	for _, hostIP := range host.IPs {
+		if hostIP.IPAddress == ip {
+			return ipinfo{hostIP.IPAddress, commons.STATIC, hostIP.HostID}, nil
+		}
+	}
+
+	// this should never happen
+	return ipinfo{}, fmt.Errorf("host IP not found")
 }
 
 func (f *Facade) filterByTenantID(ctx datastore.Context, matchTenantID string, services []service.Service) ([]service.Service, error) {
@@ -660,24 +691,21 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]service.Servic
 func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service.Service) error {
 	// ensure all endpoints with AddressConfig have assigned IPs
 	for _, endpoint := range svc.Endpoints {
-		needsAnAddressAssignment, addressAssignmentId, err := f.needsAddressAssignment(ctx, svc.ID, endpoint)
-		if err != nil {
-			return err
-		}
-
-		if needsAnAddressAssignment {
-			return fmt.Errorf("service ID %s is in need of an AddressAssignment: %s", svc.ID, addressAssignmentId)
-		} else if addressAssignmentId != "" {
-			glog.Infof("AddressAssignment: %s already exists", addressAssignmentId)
+		if endpoint.IsConfigurable() {
+			if assignment, err := f.FindAddressAssignment(ctx, svc.ID, endpoint.Name); err != nil {
+				glog.Errorf("Error looking up address assignment for endpoint %s of service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+				return err
+			} else if assignment == nil {
+				return fmt.Errorf("service %s is missing an address assignment", svc.ID)
+			}
 		}
 
 		if len(endpoint.VHosts) > 0 {
-			//check to see if this vhost is in use by another app
+			// TODO: check to see if this vhost is in use by another app
 		}
-	}
-
-	if svc.RAMCommitment < 0 {
-		return fmt.Errorf("service RAM commitment cannot be negative")
+		if svc.RAMCommitment < 0 {
+			return fmt.Errorf("service RAM commitment cannot be negative")
+		}
 	}
 
 	// add additional validation checks to the services
@@ -763,19 +791,31 @@ func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service)
 }
 
 func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
-	addrs, err := f.getAddressAssignments(ctx, svc.ID)
-	if err != nil {
-		return err
-	}
 	for idx := range svc.Endpoints {
-		if assignment, found := addrs[svc.Endpoints[idx].Name]; found {
-			//assignment exists
-			glog.V(4).Infof("setting address assignment on endpoint: %s, %v", svc.Endpoints[idx].Name, assignment)
-			svc.Endpoints[idx].SetAssignment(assignment)
-		} else {
-			svc.Endpoints[idx].RemoveAssignment()
+		endpointName := svc.Endpoints[idx].Name
+		if assignment, err := f.FindAddressAssignment(ctx, svc.ID, endpointName); err != nil {
+			glog.Errorf("Error searching for address assignments for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
+			return err
+		} else if assignment != nil {
+			// verify that the host exists and is in the right pool
+			if host, err := f.GetHost(ctx, assignment.HostID); err != nil {
+				glog.Errorf("Error validating address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
+				return err
+			} else if host == nil || host.PoolID != svc.PoolID {
+				glog.Infof("Removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
+				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
+					glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
+					return err
+				}
+			} else {
+				svc.Endpoints[idx].SetAssignment(*assignment)
+				continue
+			}
 		}
+
+		svc.Endpoints[idx].RemoveAssignment()
 	}
+
 	return nil
 }
 
@@ -857,14 +897,16 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	}
 
 	// Remove the service from zookeeper if the pool ID has changed
-	err = nil
 	if oldSvc.PoolID != svc.PoolID {
-		err = zkAPI(f).RemoveService(oldSvc)
+		if err := zkAPI(f).RemoveService(oldSvc); err != nil {
+			// Synchronizer will eventually clean this service up
+			glog.Warningf("ZK: Could not delete service %s (%s) from pool %s: %s", svc.Name, svc.ID, oldSvc.PoolID, err)
+			oldSvc.DesiredState = int(service.SVCStop)
+			zkAPI(f).UpdateService(oldSvc)
+		}
 	}
-	if err == nil {
-		err = zkAPI(f).UpdateService(svc)
-	}
-	return err
+
+	return zkAPI(f).UpdateService(svc)
 }
 
 func lookUpTenant(svcID string) (string, bool) {

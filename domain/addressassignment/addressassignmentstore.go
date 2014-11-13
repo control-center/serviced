@@ -14,6 +14,9 @@
 package addressassignment
 
 import (
+	"fmt"
+	"strings"
+
 	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 )
@@ -37,6 +40,30 @@ func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID st
 		return nil, err
 	}
 	return convert(results)
+}
+
+func (s *Store) FindAddressAssignment(ctx datastore.Context, serviceID, endpointName string) (*AddressAssignment, error) {
+	if serviceID = strings.TrimSpace(serviceID); serviceID == "" {
+		return nil, fmt.Errorf("service ID cannot be empty")
+	} else if endpointName = strings.TrimSpace(endpointName); endpointName == "" {
+		return nil, fmt.Errorf("endpoint name cannot be empty")
+	}
+
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ServiceID", serviceID),
+		search.Filter().Terms("EndpointName", endpointName),
+	)
+
+	if results, err := datastore.NewQuery(ctx).Execute(search); err != nil {
+		return nil, err
+	} else if output, err := convert(results); err != nil {
+		return nil, err
+	} else if len(output) == 0 {
+		return nil, nil
+	} else {
+		return &output[0], nil
+	}
 }
 
 //Key creates a Key suitable for getting, putting and deleting AddressAssignment

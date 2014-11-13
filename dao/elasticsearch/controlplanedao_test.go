@@ -16,7 +16,6 @@ package elasticsearch
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -583,82 +582,6 @@ func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
 	err := dt.Dao.RemoveAddressAssignment("fake", nil)
 	if err == nil {
 		t.Errorf("Expected error removing address %v", err)
-	}
-}
-
-func (dt *DaoTest) TestAssignAddress(t *C) {
-	aa := addressassignment.AddressAssignment{}
-	aid := ""
-	err := dt.Dao.AssignAddress(aa, &aid)
-	if err == nil {
-		t.Error("Expected error")
-	}
-
-	//set up host with IP
-	hostid := "TestHost"
-	ip := "10.0.1.5"
-	endpoint := "default"
-	serviceId := ""
-	h, err := host.Build("", "65535", "default", []string{}...)
-	t.Assert(err, IsNil)
-	h.ID = hostid
-	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname", "macaddress"}}
-	err = dt.Facade.AddHost(dt.CTX, h)
-	if err != nil {
-		t.Errorf("Unexpected error adding host: %v", err)
-		return
-	}
-	defer dt.Facade.RemoveHost(dt.CTX, hostid)
-
-	//set up service with endpoint
-	svc, _ := service.NewService()
-	svc.Name = "name"
-	svc.Launch = "auto"
-	svc.PoolID = "default"
-	ep := service.ServiceEndpoint{}
-	ep.Name = endpoint
-	ep.AddressConfig = servicedefinition.AddressResourceConfig{8080, commons.TCP}
-	svc.Endpoints = []service.ServiceEndpoint{ep}
-	err = dt.Dao.AddService(*svc, &serviceId)
-	t.Assert(err, IsNil)
-
-	//test for bad service id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint, version}
-	aid = ""
-	err = dt.Dao.AssignAddress(aa, &aid)
-	if err == nil || "No such entity {kind:service, id:blamsvc}" != err.Error() {
-		t.Errorf("Expected error adding address %v", err)
-	}
-
-	//test for bad endpoint id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam", version}
-	aid = ""
-	err = dt.Dao.AssignAddress(aa, &aid)
-	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
-		t.Errorf("Expected error adding address %v", err)
-	}
-
-	// Valid assignment
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
-	aid = ""
-	err = dt.Dao.AssignAddress(aa, &aid)
-	if err != nil {
-		t.Errorf("Unexpected error adding address %v", err)
-		return
-	}
-
-	// try to reassign; should fail
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
-	other_aid := ""
-	err = dt.Dao.AssignAddress(aa, &other_aid)
-	if err == nil || "Address Assignment already exists" != err.Error() {
-		t.Errorf("Expected error adding address %v", err)
-	}
-
-	//test removing address
-	err = dt.Dao.RemoveAddressAssignment(aid, nil)
-	if err != nil {
-		t.Errorf("Unexpected error removing address %v", err)
 	}
 }
 

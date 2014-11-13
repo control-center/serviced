@@ -31,9 +31,3 @@ func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceID string, assi
 func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) error {
 	return this.facade.RemoveAddressAssignment(datastore.Get(), id)
 }
-
-// AssignAddress Creates an AddressAssignment, verifies that an assignment for the service/endpoint does not already exist
-// id param contains id of newly created assignment if successful
-func (this *ControlPlaneDao) AssignAddress(assignment addressassignment.AddressAssignment, id *string) error {
-	return this.facade.AssignAddress(datastore.Get(), assignment, id)
-}
