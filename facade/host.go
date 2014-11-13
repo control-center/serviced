@@ -232,3 +232,7 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error) {
 	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
 }
+
+func (f *Facade) GetHostByIP(ctx datastore.Context, hostIP string) (*host.Host, error) {
+	return f.hostStore.GetHostByIP(ctx, hostIP)
+}
