@@ -302,9 +302,14 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.clickEditContext = function(app, servicesService) {
-        //first turn the context into a presentable value
+	//set editor options for context editing
+	$scope.codemirrorOpts = {
+	    lineNumbers: true,
+	    mode: "properties"
+	}
+	
         $scope.editableContext = makeEditableContext($scope.services.current.Context);
-
+        
         $modalService.create({
             templateUrl: "edit-context.html",
             model: $scope,
@@ -320,7 +325,12 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                         this.close();
                     }
                 }
-            ]
+            ],
+	    onShow: function(){
+	    },
+	    onHide: function(){
+                $scope.editableContext = undefined;
+	    }
         });
     };
 
@@ -329,7 +339,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         for(key in context){
             editableContext += key + " " + context[key] + "\r\n";
         }
-
+	if(!editableContext){ editableContext = "# Enter values here"; }
         return editableContext;
     }
 
@@ -406,7 +416,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.editConfig = function(service, config) {
-        $scope.editService = $.extend({}, service);
+	$scope.editService = $.extend({}, service);
         $scope.editService.config = config;
         $modalService.create({
             templateUrl: "edit-config.html",
@@ -432,7 +442,11 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
             validate: function(){
                 // TODO - actually validate
                 return true;
-            }
+            },
+	    onShow: function(){
+	    },
+	    onHide: function(){
+	    }
         });
     };
 

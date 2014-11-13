@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
