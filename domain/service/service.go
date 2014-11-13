@@ -103,6 +103,11 @@ type ServiceEndpoint struct {
 	AddressAssignment addressassignment.AddressAssignment
 }
 
+// IsConfigurable returns true if the endpoint is configurable
+func (endpoint ServiceEndpoint) IsConfigurable() bool {
+	return endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol != ""
+}
+
 // NewService Create a new Service.
 func NewService() (s *Service, err error) {
 	s = &Service{}
