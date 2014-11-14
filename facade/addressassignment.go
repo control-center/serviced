@@ -25,10 +25,20 @@ func (f *Facade) GetServiceAddressAssignments(ctx datastore.Context, serviceID s
 	return nil
 }
 
-// GetAddressAssignmentsByEndpoint returns the address assignment by serviceID and endpoint name
-func (f *Facade) FindAddressAssignment(ctx datastore.Context, serviceID, endpointName string) (*addressassignment.AddressAssignment, error) {
+func (f *Facade) GetServiceAddressAssignmentsByPort(ctx datastore.Context, port uint16) ([]addressassignment.AddressAssignment, error) {
 	store := addressassignment.NewStore()
-	return store.FindAddressAssignment(ctx, serviceID, endpointName)
+	return store.GetServiceAddressAssignmentsByPort(ctx, port)
+}
+
+// GetAddressAssignmentsByEndpoint returns the address assignment by serviceID and endpoint name
+func (f *Facade) FindAssignmentByServiceEndpoint(ctx datastore.Context, serviceID, endpointName string) (*addressassignment.AddressAssignment, error) {
+	store := addressassignment.NewStore()
+	return store.FindAssignmentByServiceEndpoint(ctx, serviceID, endpointName)
+}
+
+func (f *Facade) FindAssignmentByHostPort(ctx datastore.Context, ipAddr string, port uint16) (*addressassignment.AddressAssignment, error) {
+	store := addressassignment.NewStore()
+	return store.FindAssignmentByHostPort(ctx, ipAddr, port)
 }
 
 // RemoveAddressAssignemnt Removes an AddressAssignment by id
@@ -66,10 +76,17 @@ func (f *Facade) assign(ctx datastore.Context, assignment addressassignment.Addr
 	}
 
 	// Do not add if it already exists
-	if exists, err := f.FindAddressAssignment(ctx, assignment.ServiceID, assignment.EndpointName); err != nil {
+	if exists, err := f.FindAssignmentByServiceEndpoint(ctx, assignment.ServiceID, assignment.EndpointName); err != nil {
 		return "", err
 	} else if exists != nil {
 		return "", fmt.Errorf("found assignment for %s at %s", assignment.EndpointName, assignment.ServiceID)
+	}
+
+	// Do not add if already assigned
+	if exists, err := f.FindAssignmentByHostPort(ctx, assignment.IPAddr, assignment.Port); err != nil {
+		return "", err
+	} else if exists != nil {
+		return "", fmt.Errorf("found assignment for port %d at %s", assignment.Port, assignment.IPAddr)
 	}
 
 	var err error

@@ -180,7 +180,11 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 	for {
 		var vip pool.VirtualIP
 		event, err := l.conn.GetW(l.GetPath(ip), &VirtualIPNode{VirtualIP: &vip})
-		if err != nil {
+		if err == client.ErrEmptyNode {
+			glog.Errorf("Deleting empty node for ip %s", ip)
+			RemoveVirtualIP(l.conn, ip)
+			return
+		} else if err != nil {
 			glog.Errorf("Could not load virtual ip %s: %s", ip, err)
 			return
 		}

@@ -55,6 +55,27 @@ func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]
 	return convert(results)
 }
 
+// HasVirtualIP returns true if there is a virtual ip found for the given pool
+func (s *Store) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return false, errors.New("empty pool id not allowed")
+	} else if virtualIP = strings.TrimSpace(virtualIP); virtualIP == "" {
+		return false, errors.New("empty virtual ip not allowed")
+	}
+
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ID", poolID),
+		search.Filter().Terms("VirtualIPs.IP", virtualIP),
+	)
+
+	results, err := datastore.NewQuery(ctx).Execute(search)
+	if err != nil {
+		return false, err
+	}
+	return results.Len() > 0, nil
+}
+
 //Key creates a Key suitable for getting, putting and deleting ResourcePools
 func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
