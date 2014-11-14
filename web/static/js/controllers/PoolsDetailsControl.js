@@ -1,4 +1,4 @@
-function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate) {
+function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate, $notification){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -40,7 +40,6 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
                         resourcesService.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
                             refreshPools($scope, resourcesService, false);
                         });
-                        // NOTE: should wait for success before closing
                         this.close();
                     }
                 }
@@ -51,12 +50,15 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 
     // Add Virtual Ip Modal - Add button action
-    $scope.AddVirtualIp = function(pool) {
+    $scope.addVirtualIp = function(pool) {
         var ip = $scope.pools.add_virtual_ip;
-        resourcesService.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface, function() {
-            $scope.pools.add_virtual_ip = {};
-            refreshPools($scope, resourcesService, false);
-        });
+
+        return resourcesService.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
+            .success(function(data, status){
+                $scope.pools.add_virtual_ip = {};
+                $notification.create("Added new pool virtual ip", ip).success();
+                refreshPools($scope, resourcesService, false);
+            });
     };
 
     // Open the virtual ip modal
@@ -68,15 +70,23 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
             title: "add_virtual_ip",
             actions: [
                 {
-                    role: "cancel"
+                    role: "cancel",
+                    action: function(){
+                        $scope.pools.add_virtual_ip = {};
+                        this.close();
+                    }
                 },{
                     role: "ok",
                     label: "add_virtual_ip",
                     action: function(){
                         if(this.validate()){
-                            $scope.AddVirtualIp(pool);
-                            // NOTE: should wait for success before closing
-                            this.close();
+                            $scope.addVirtualIp(pool)
+                                .success(function(data, status){
+                                    this.close();
+                                }.bind(this))
+                                .error(function(data, status){
+                                   this.createNotification("Adding pool virtual ip failed", data.Detail).error(); 
+                                }.bind(this));
                         }
                     }
                 }

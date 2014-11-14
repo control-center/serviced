@@ -65,9 +65,7 @@
               error(function(data, status) {
                   // TODO error screen
                   if(DEBUG) console.log('Unable to retrieve services');
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
               });
       };
 
@@ -81,9 +79,7 @@
               error(function(data, status) {
                   // TODO error screen
                   if(DEBUG) console.log('Unable to retrieve application templates');
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
               });
       };
 
@@ -98,9 +94,7 @@
               error(function(data, status) {
                   // TODO error screen
                   if(DEBUG) console.log('Unable to retrieve list of pools');
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
               });
       };
 
@@ -114,9 +108,7 @@
               error(function(data, status) {
                   // TODO error screen
                   if(DEBUG) console.log('Unable to retrieve hosts for pool ' + poolID);
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
               });
       };
 
@@ -130,10 +122,14 @@
               error(function(data, status) {
                   // TODO error screen
                   if(DEBUG) console.log('Unable to retrieve host details');
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
               });
+      };
+
+      var redirectIfUnauthorized = function(status){
+          if (status === 401) {
+              unauthorized($location);
+          }
       };
 
       return {
@@ -146,24 +142,14 @@
            * @param {ip} string ip address to assign to service, set as null for automatic assignment
            * @param {function} callback data is passed to a callback on success.
            */
-          assign_ip: function(serviceID, ip, callback) {
+          assign_ip: function(serviceID, ip) {
             var url = '/services/' + serviceID + "/ip";
             if (ip !== null) {
               url = url + "/" + ip;
             }
-            $http.put(url).
-                success(function(data, status) {
-                    $notification.create("Assigned IP", ip).success();
-                    if (callback) {
-                      callback(data);
-                    }
-                }).
+            return $http.put(url).
                 error(function(data, status) {
-                    // TODO error screen
-                    $notification.create("Unable to assign ip", ip).error();
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
+                    redirectIfUnauthorized(status);
                 });
           },
 
@@ -198,9 +184,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to acquire pool", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -219,9 +203,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to acquire pool", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -243,9 +225,7 @@
                 error(function(data, status) {
                     // TODO error screen
                     if(DEBUG) console.log("Unable to acquire running services", data.Detail);
-                    if (status === 401) {
-                        unauthorized($location);
-                    }
+                    redirectIfUnauthorized(status);
                 });
           },
 
@@ -264,30 +244,21 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to acquire virtual hosts", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
           /*
            * add a virtual host,
            */
-          add_vhost: function(serviceId, application, virtualhost, callback) {
+          add_vhost: function(serviceId, application, virtualhost) {
               var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
               var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
-              var payload = JSON.stringify( object);
-              $http.put(ep, payload).
-                  success(function(data, status) {
-                      $notification.create("Added virtual host", ep + data.Detail).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Unable to add virtual hosts", ep + data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+              var payload = JSON.stringify(object);
+
+              return $http.put(ep, payload)
+                  .error(function(data, status) {
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -304,9 +275,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Unable to remove virtual hosts", ep + data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -325,9 +294,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to acquire running services", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -345,9 +312,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to acquire running services", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -357,19 +322,12 @@
            * @param {object} pool New pool details to be added.
            * @param {function} callback Add result passed to callback on success.
            */
-          add_pool: function(pool, callback) {
+          add_pool: function(pool) {
               if(DEBUG) console.log('Adding detail: %s', JSON.stringify(pool));
-              $http.post('/pools/add', pool).
-                  success(function(data, status) {
-                      $notification.create("", "Added new pool").success();
-                      callback(data);
-                  }).
+
+              return $http.post('/pools/add', pool).
                   error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Adding pool failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -389,9 +347,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Updating pool failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -410,9 +366,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Removing pool failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
           /*
@@ -422,20 +376,13 @@
            * @param {string} ip virtual ip to add to pool
            * @param {function} callback Add result passed to callback on success.
            */
-          add_pool_virtual_ip: function(pool, ip, netmask, _interface, callback) {
+          add_pool_virtual_ip: function(pool, ip, netmask, _interface) {
               var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
               if(DEBUG) console.log('Adding pool virtual ip: %s', payload);
-              $http.put('/pools/' + pool + '/virtualip', payload).
-                  success(function(data, status) {
-                      $notification.create("Added new pool virtual ip", ip).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Adding pool virtual ip failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+
+              return $http.put('/pools/' + pool + '/virtualip', payload)
+                  .error(function(data, status) {
+                      redirectIfUnauthorized(status);
                   });
           },
           /*
@@ -455,9 +402,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Remove pool virtual ip failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -476,9 +421,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Terminating instance failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -513,9 +456,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Unable to acquire host", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -526,21 +467,9 @@
            * @param {function} callback Add result passed to callback on success.
            */
           add_host: function(host, callback, errorCallback) {
-              $http.post('/hosts/add', host).
-                  success(function(data, status) {
-                      $notification.create("", data.Detail).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
-
-                      if(errorCallback){
-                          errorCallback(data);
-                      }
+              return $http.post('/hosts/add', host)
+                  .error(function(data, status){
+                     redirectIfUnauthorized(status);
                   });
           },
 
@@ -560,10 +489,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Updating host failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
-
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -574,17 +500,9 @@
            * @param {function} callback Delete result passed to callback on success.
            */
           remove_host: function(hostId, callback) {
-              $http.delete('/hosts/' + hostId).
-                  success(function(data, status) {
-                      $notification.create("Removed host", hostId).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing host failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+              return $http.delete('/hosts/' + hostId)
+                  .error(function(data, status){
+                     redirectIfUnauthorized(status);
                   });
           },
 
@@ -593,9 +511,7 @@
                     callback(data);
                 }).error(function(data, status){
                   if(DEBUG) console.log('Unable to retrieve running hosts');
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
                 });
           },
 
@@ -693,9 +609,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to retrieve service logs", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -713,9 +627,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       if(DEBUG) console.log("Unable to retrieve service logs", data.Detail);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -750,21 +662,20 @@
           },
 
           add_app_template: function(fileData, callback){
-              $.ajax( {
+              return $http({
                   url: "/templates/add",
-                  type: "POST",
+                  method: "POST",
                   data: fileData,
-                  processData: false,
-                  contentType: false,
-                  success: function(data, status){
-                      $notification.create("Added template", data.Detail).success();
-                      callback(data);
-                  },
-                  error: function(data, status){
-                      console.log(data);
-                      $notification.create("Adding template failed", data.responseJSON.Detail).error();
-                  }
+                  // content-type undefined forces the browser to fill in the
+                  // boundary parameter of the request
+                  headers: {"Content-Type": undefined},
+                  // identity returns the value it receives, which prevents
+                  // transform from modifying the request in any way
+                  transformRequest: angular.identity,
+              }).error(function(data, status){
+                  redirectIfUnauthorized(status);
               });
+
           },
 
           delete_app_template: function(templateID, callback){
@@ -794,9 +705,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Adding service failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -805,23 +714,11 @@
            *
            * @param {string} serviceId The ID of the service to update.
            * @param {object} editedService The modified service.
-           * @param {function} callback Response passed to callback on success.
            */
-          update_service: function(serviceId, editedService, success, fail) {
-              fail = fail || angular.noop;
-
-              $http.put('/services/' + serviceId, editedService).
-                  success(function(data, status) {
-                      $notification.create("Updated service", serviceId).success();
-                      success(data);
-                  }).
+          update_service: function(serviceId, editedService) {
+              return $http.put('/services/' + serviceId, editedService).
                   error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Updating service failed", data.Detail).error();
-                      fail(data, status);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -841,9 +738,7 @@
                       // TODO error screen
                       $notification.create("Deploying application template failed", data.Detail).error();
                       failCallback(data);
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -861,9 +756,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Snapshot service failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -882,9 +775,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Removing service failed", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -911,9 +802,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Was unable to start service", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
           /*
@@ -938,9 +827,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Was unable to stop service", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
           /*
@@ -965,9 +852,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("Was unable to restart service", data.Detail).error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
           /**
@@ -981,9 +866,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("", "Could not retrieve Serviced version from server.").warning();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -998,9 +881,7 @@
                       success(data);
                   }).
                   error(function(data, status) {
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                       fail(data, status);
                   });
           },
@@ -1016,9 +897,7 @@
                       success(data);
                   }).
                   error(function(data, status) {
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                       fail(data, status);
                   });
           },
@@ -1032,9 +911,7 @@
                   error(function(data, status) {
                       // TODO error screen
                       $notification.create("", "Failed retrieving list of backup files.").error();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                   });
           },
 
@@ -1047,9 +924,7 @@
                       successCallback(data);
                   }).
                   error(function(data, status) {
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                       failCallback(data, status);
                   });
           },
@@ -1064,9 +939,7 @@
                   }).
                   error(function(data, status) {
                       $notification.create("", 'Failed retrieving status of restore.').warning();
-                      if (status === 401) {
-                          unauthorized($location);
-                      }
+                      redirectIfUnauthorized(status);
                       failCallback(data, status);
                   });
           },
@@ -1082,9 +955,7 @@
               }).
               error(function(data, status) {
                   if(DEBUG) console.log('Failed retrieving health checks.');
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
               });
 
             
@@ -1115,9 +986,7 @@
               error(function(data, status) {
                   // TODO error screen
                   $notification.create("", 'serviced is not collecting stats.').error();
-                  if (status === 401) {
-                      unauthorized($location);
-                  }
+                  redirectIfUnauthorized(status);
                   callback(status);
               });
           },
