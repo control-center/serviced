@@ -39,7 +39,7 @@
             <td>{{app.Description}}</td>
             <td>&nbsp;</td>
             <td>{{app.DeploymentID}}</td>
-            <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
+            <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID|cut:true:50}}</td>
             <td>&nbsp;</td>
             <td><span style="color:#AAA;font-style:italic;">{{'deploying'|translate}}...</span></td>
         </tr>
@@ -50,7 +50,7 @@
               <div class="healthCheck" data-id="{{app.ID}}"></div>
           </td>
           <td>{{app.DeploymentID}}</td>
-          <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID}}</td>
+          <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID|cut:true:30}}</td>
           <td ng-if="app.isvc" class="ntsh">N/A</td>
           <td ng-if="!app.isvc">
               <span ng-repeat="vhost in collect_vhosts(app) track by $index">
