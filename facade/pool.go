@@ -74,26 +74,19 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 	return err
 }
 
-func (f *Facade) virtualIPExists(ctx datastore.Context, proposedVirtualIP pool.VirtualIP) (bool, error) {
-	poolIPs, err := f.GetPoolIPs(ctx, proposedVirtualIP.PoolID)
-	if err != nil {
-		glog.Errorf("GetPoolIps failed: %v", err)
+func (f *Facade) hasVirtualIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error) {
+	if exists, err := f.poolStore.HasVirtualIP(ctx, poolID, ipAddr); err != nil {
+		glog.Errorf("Could not look up ip %s for pool %s: %s", ipAddr, poolID, err)
 		return false, err
+	} else if exists {
+		return true, nil
 	}
 
-	for _, virtualIP := range poolIPs.VirtualIPs {
-		// the IP address is unique
-		// TODO: Is an IP address unique to just a pool? Suppose virtual IP X. Can pools X and Y both contain X?
-		// if so, we need to check PoolID as well
-		if proposedVirtualIP.IP == virtualIP.IP {
-			return true, nil
-		}
-	}
-
-	for _, staticIP := range poolIPs.HostIPs {
-		if proposedVirtualIP.IP == staticIP.IPAddress {
-			return true, nil
-		}
+	if host, err := f.GetHostByIP(ctx, ipAddr); err != nil {
+		glog.Errorf("Could not look up static host by ip %s: %s", ipAddr, err)
+		return false, err
+	} else if host != nil && host.PoolID == poolID {
+		return true, nil
 	}
 
 	return false, nil
@@ -142,7 +135,7 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 					return err
 				}
 
-				ipAddressAlreadyExists, err := f.virtualIPExists(ctx, proposedVirtualIP)
+				ipAddressAlreadyExists, err := f.hasVirtualIP(ctx, proposedPool.ID, proposedVirtualIP.IP)
 				if err != nil {
 					return err
 				} else if ipAddressAlreadyExists {
@@ -365,12 +358,11 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.
 
 	for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
 		if virtualIP.IP == requestedVirtualIP.IP {
-			// delete the current VirtualIP
-			if err := zkAPI(f).RemoveVirtualIP(&requestedVirtualIP); err != nil {
-				return err
-			}
 			myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
 			if err := f.UpdateResourcePool(ctx, myPool); err != nil {
+				return err
+			}
+			if err := zkAPI(f).RemoveVirtualIP(&requestedVirtualIP); err != nil {
 				return err
 			}
 			glog.Infof("Removed virtual IP: %v from pool: %v", virtualIP.IP, requestedVirtualIP.PoolID)

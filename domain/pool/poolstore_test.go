@@ -148,3 +148,41 @@ func (s *S) Test_GetPools(t *C) {
 		t.Errorf("Expected %v results, got %v: %#v", 2, len(pools), pools)
 	}
 }
+
+func (s *S) Test_HasVirtualIP(t *C) {
+	defer s.ps.Delete(s.ctx, Key("testid"))
+
+	pool := New("testID")
+	pool.Realm = "default"
+	pool.VirtualIPs = []VirtualIP{
+		{IP: "10.20.1.2", Netmask: "255.255.255.255", BindInterface: "test"},
+	}
+
+	if err := s.ps.Put(s.ctx, Key(pool.ID), pool); err != nil {
+		t.Fatalf("Unexpected failure creating pool: %-v", pool)
+	}
+
+	if ok, err := s.ps.HasVirtualIP(s.ctx, "nopool", "10.20.1.2"); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if ok {
+		t.Errorf("Found pool!")
+	}
+
+	if ok, err := s.ps.HasVirtualIP(s.ctx, "testID", "1.2.3.4"); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if ok {
+		t.Errorf("Found pool!")
+	}
+
+	if ok, err := s.ps.HasVirtualIP(s.ctx, "nopool", "1.2.3.4"); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if ok {
+		t.Errorf("Found pool!")
+	}
+
+	if ok, err := s.ps.HasVirtualIP(s.ctx, "testID", "10.20.1.2"); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if !ok {
+		t.Errorf("Did not find pool!")
+	}
+}

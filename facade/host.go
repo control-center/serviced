@@ -38,7 +38,8 @@ const (
 //---------------------------------------------------------------------------
 // Host CRUD
 
-// AddHost register a host with serviced. Returns an error if host already exists
+// AddHost register a host with serviced. Returns an error if host already
+// exists or if the host's IP is a virtual IP
 func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	exists, err := f.GetHost(ctx, entity.ID)
@@ -68,6 +69,15 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	}
 	if pool == nil {
 		return fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
+	}
+
+	// verify that there are no virtual IPs with the given host IP(s)
+	for _, ip := range entity.IPs {
+		if exists, err := f.hasVirtualIP(ctx, pool.ID, ip.IPAddress); err != nil {
+			return fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
+		} else if exists {
+			return fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
+		}
 	}
 
 	ec := newEventCtx()
