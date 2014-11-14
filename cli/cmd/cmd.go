@@ -16,6 +16,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"strconv"
 	"strings"
 
@@ -341,6 +343,24 @@ func setLogging(ctx *cli.Context) error {
 			return err
 		}
 	}
+
+	// Listen for SIGUSR1 and, when received, toggle the log level between
+	// 0 and 2.  If the log level is anything but 0, we set it to 0, and on
+	// subsequent signals, set it to 2.
+	go func(){
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGUSR1)
+		for {
+			<-signalChan
+			glog.Infof("Received signal SIGUSR1")
+			if glog.GetVerbosity() == 0 {
+				glog.SetVerbosity(2)
+			} else {
+				glog.SetVerbosity(0)
+			}
+			glog.Infof("Log level changed to %v", glog.GetVerbosity())
+		}
+	}()
 
 	return nil
 }
