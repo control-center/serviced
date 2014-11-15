@@ -69,6 +69,7 @@ type Options struct {
 	DebugPort            int    // Port to listen for profile clients
 	AdminGroup           string // user group that can log in to control center
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
+	RPCDialTimeout       int
 }
 
 // LoadOptions overwrites the existing server options
@@ -164,3 +165,4 @@ func (a *api) connectDAO() (dao.ControlPlane, error) {
 	}
 	return a.dao, nil
 }
+

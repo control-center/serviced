@@ -187,6 +187,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"isvcs-env", &isvcs_env, "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", configInt("MAX_RPC_CLIENTS", 3), "max number of rpc clients to an endpoint"},
+		cli.IntFlag{"rpc-dial-timeout", configInt("RPC_DIAL_TIMEOUT", 30), "timeout for creating rpc connections"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -260,6 +261,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DebugPort:            ctx.GlobalInt("debug-port"),
 		AdminGroup:           ctx.GlobalString("admin-group"),
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
+		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
