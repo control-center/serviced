@@ -467,14 +467,11 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 actions: [
                     {
                         classes: "btn-default",
-                        label: "<span class='glyphicon glyphicon-download'></span> "+$translate.instant("download"),
+                        label: "download",
                         action: function(){
-                            // here we create a link and click it programatically so we can take advantage of the "download" tag in HTML5
-                            var download = document.createElement("a");
-                            download.setAttribute("href", "data:text/plain,"+encodeURIComponent($scope.editService.log));
-                            download.setAttribute("download", $scope.editService.Name + "_" + Date.now()  + ".log");
-                            download.click();
-                        }
+                            createDownloadLinkAndClick($scope.editService.Name + "_" + Date.now() + ".log", $scope.editService.log);
+                        },
+                        icon: "glyphicon-download"
                     },{
                         role: "cancel",
                         classes: "btn-default",
