@@ -79,12 +79,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "add_virtual_host",
                     action: function(){
                         if(this.validate()){
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
                             $scope.addVHost()
                                 .success(function(data, status){
                                     this.close(); 
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Unable to add virtual hosts", data.Detail).error(); 
+                                    enableSubmit();
                                 }.bind(this));
                         }
                     }
@@ -194,12 +198,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "assign_ip",
                     action: function(){
                         if(this.validate()){
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
                             $scope.assignIP()
                                 .success(function(data, status){
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Unable to Assign IP", data.Detail).error();
+                                    enableSubmit();
                                 }.bind(this));
                         }
                     }
@@ -338,12 +346,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     role: "ok",
                     label: $translate.instant("btn_save_changes"),
                     action: function(){
+                        // disable ok button, and store the re-enable function
+                        var enableSubmit = this.disableSubmitButton();
+
                         saveContext(app, servicesService)
                             .success(function(data, status){
                                 this.close(); 
                             }.bind(this))
                             .error(function(data, status){
                                 this.createNotification("Updating service failed", data.Detail).error();
+                                enableSubmit();
                             }.bind(this));
                     }
                 }
@@ -421,12 +433,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "save",
                     action: function(){
                         if(this.validate()){
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
                             $scope.updateService()
                                 .success(function(data, status){
                                     this.close(); 
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Updating service failed", data.Detail).error();
+                                    enableSubmit();
                                 }.bind(this));
                         }
                     }

@@ -1026,6 +1026,15 @@ rect {
 .modal {
     overflow: auto;
 }
+/* make modal submit button resize nicely */
+.modal .submit {
+    -webkit-transition: width 0.5s;
+    -moz-transition: width 0.5s;
+    transition: width 0.5s;
+    /* set min width to avoid funky size transitions
+     * when text content changes to "Submitting..." */
+    min-width: 110px;
+}
 
 /* notifications */
 
