@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -42,6 +42,17 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 title: "title_log",
                 bigModal: true,
                 actions: [
+                    {
+                        classes: "btn-default",
+                        label: "<span class='glyphicon glyphicon-download'></span> "+$translate.instant("download"),
+                        action: function(){
+                            // here we create a link and click it programatically so we can take advantage of the "download" tag in HTML5
+                            var download = document.createElement("a");
+                            download.setAttribute("href", "data:text/plain,"+encodeURIComponent($scope.editService.log));
+                            download.setAttribute("download", $scope.editService.Name + "_" + Date.now()  + ".log");
+                            download.click();
+                        }
+                    },
                     {
                         role: "cancel",
                         classes: "btn-default",
