@@ -80,12 +80,16 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
                     label: "add_virtual_ip",
                     action: function(){
                         if(this.validate()){
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
                             $scope.addVirtualIp(pool)
                                 .success(function(data, status){
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
                                    this.createNotification("Adding pool virtual ip failed", data.Detail).error(); 
+                                   enableSubmit();
                                 }.bind(this));
                         }
                     }

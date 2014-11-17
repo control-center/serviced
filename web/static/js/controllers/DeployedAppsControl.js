@@ -92,10 +92,13 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     action: function(){
                         if(this.validate()){
                             var data = new FormData();
-
+ 
                             $.each($("#new_template_filename")[0].files, function(key, value){
                                 data.append("tpl", value);
                             });
+
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
 
                             resourcesService.add_app_template(data)
                                 .success(function(data, status){
@@ -105,6 +108,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Adding template failed", data.Detail).error();
+                                    enableSubmit();
                                 }.bind(this));
                         }
                     }
