@@ -5,7 +5,7 @@
   <div class="details-form">
     <div class="vertical-info">
       <label for="pool_data_id">{{'label_pool_id'|translate}}</label>
-      <div id="pool_data_id">{{pools.current.ID}}</div>
+      <div id="pool_data_id">{{pools.current.ID | cut:true:50}}</div>
     </div>
 
     <div class="vertical-info">
