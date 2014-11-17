@@ -34,6 +34,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/scheduler"
@@ -172,6 +173,8 @@ func (d *daemon) run() error {
 	if _, ok := volume.Registered(options.FSType); !ok {
 		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
+
+	rpcutils.SetDialTimeout(options.RPCDialTimeout)
 
 	if options.Master {
 		if err = d.startMaster(); err != nil {
