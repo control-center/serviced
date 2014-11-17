@@ -34,9 +34,9 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
-	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/scheduler"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
@@ -60,6 +60,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -70,10 +71,12 @@ import (
 	"time"
 
 	// Needed for profiling
+	"net/http/httputil"
 	_ "net/http/pprof"
 )
 
 var minDockerVersion = version{0, 11, 1}
+var dockerRegistry = "localhost:5000"
 
 type daemon struct {
 	servicedEndpoint string
@@ -188,6 +191,39 @@ func (d *daemon) run() error {
 	}
 
 	d.rpcServer.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
+
+	// check the docker registry
+	host, port, err := net.SplitHostPort(options.DockerRegistry)
+	if err != nil {
+		glog.Fatalf("Could not parse docker registry: %s", err)
+	}
+
+	addrs, err := net.LookupIP(host)
+	if err != nil {
+		glog.Fatalf("Could not resolve ips for the given docker registry host %s: %s", host, err)
+	}
+
+	if isLoopback := func(addrs []net.IP) bool {
+		for _, addr := range addrs {
+			if addr.IsLoopback() {
+				return true
+			}
+		}
+		return false
+	}(addrs); !isLoopback || port != "5000" {
+		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+		proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+			Scheme: "http",
+			Host:   options.DockerRegistry,
+		})
+		proxy.Director = func(r *http.Request) {
+			r.Host = options.DockerRegistry
+			r.URL.Host = r.Host
+			r.URL.Scheme = "http"
+		}
+		http.Handle("/", proxy)
+		go http.ListenAndServe(dockerRegistry, nil)
+	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	go func() {
@@ -518,7 +554,7 @@ func (d *daemon) startAgent() error {
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
 			UseTLS:               options.TLS,
-			DockerRegistry:       options.DockerRegistry,
+			DockerRegistry:       dockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 		}
@@ -566,7 +602,7 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, options.DockerRegistry)
+		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry)
 		http.ListenAndServe(":50000", sio)
 	}()
 
@@ -608,7 +644,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(options.DockerRegistry)
+	f := facade.New(dockerRegistry)
 	return f
 }
 
@@ -652,7 +688,7 @@ func (d *daemon) initISVCS() error {
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, dfsTimeout, options.DockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, dfsTimeout, dockerRegistry)
 }
 
 func (d *daemon) initWeb() {
