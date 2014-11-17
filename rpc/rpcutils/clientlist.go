@@ -15,7 +15,7 @@ type clientList struct {
 func (cl *clientList) getNext() (Client, error) {
 	var client Client
 	select {
-	case client =<- cl.clients: //get the next client and add it back to the end
+	case client = <-cl.clients: //get the next client and add it back to the end
 		cl.clients <- client
 	default:
 		return nil, errors.New("Client not available") //this shouldn't happen
@@ -27,7 +27,7 @@ func newClientList(addr string, size int) (*clientList, error) {
 	return newClientListWithFactory(NewReconnectingClient, addr, size)
 }
 
-func newClientListWithFactory(factory func(add string)(Client, error),addr string, size int) (*clientList, error) {
+func newClientListWithFactory(factory func(add string) (Client, error), addr string, size int) (*clientList, error) {
 	cList := clientList{make(chan Client, size)}
 
 	for i := 0; i < size; i++ {

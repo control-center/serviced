@@ -42,18 +42,8 @@ type reconnectingClient struct {
 	remoteClient *rpc.Client
 }
 
-// get is used to access the underlying client, can be nil
-func (rc *reconnectingClient) get() *rpc.Client {
-	rc.RLock()
-	defer rc.RUnlock()
-	return rc.remoteClient
-
-}
-
 // connectAndSet will create an underlying rpc client, set it and return it if current rpc client is nil
 func (rc *reconnectingClient) connectAndSet() (*rpc.Client, error) {
-	rc.Lock()
-	defer rc.Unlock()
 	if rc.remoteClient == nil {
 		glog.V(4).Infof("Connecting to %s", rc.addr)
 		conn, err := net.DialTimeout("tcp", rc.addr, time.Duration(dialTimeoutSecs) * time.Second)
@@ -65,39 +55,38 @@ func (rc *reconnectingClient) connectAndSet() (*rpc.Client, error) {
 	return rc.remoteClient, nil
 }
 
-// getOrCreateClient gets and if needed creates the underlying rpc client
-func (rc *reconnectingClient) getOrCreateClient() (*rpc.Client, error) {
-	remote := rc.get()
-	if remote == nil {
-		return rc.connectAndSet()
-	}
-	return remote, nil
-}
-
-// reset closes the underlying rpc client and sets it to nil
-func (rc *reconnectingClient) reset() {
-	rc.Lock()
-	defer rc.Unlock()
-	if rc.remoteClient != nil {
-		rc.remoteClient.Close()
-		rc.remoteClient = nil
-	}
-}
-
 func (rc *reconnectingClient) Close() error {
 	//ignore close as we want to reuse the underlying connections
 	return nil
 }
 
 func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
-	rpcClient, err := rc.getOrCreateClient()
-	if err != nil {
-		return err
+	rc.RLock()
+	rpcClient := rc.remoteClient
+	var err error
+	if rpcClient == nil {
+		//release read lock and get write lock
+		rc.RUnlock()
+		rc.Lock()
+		rpcClient, err = rc.connectAndSet()
+		//release write lock
+		rc.Unlock()
+		if err != nil {
+			return err
+		}
+		//get read lock again
+		rc.RLock()
 	}
 	err = rpcClient.Call(serviceMethod, args, reply)
+	rc.RUnlock()
 	if err != nil {
 		glog.V(3).Infof("rpc error, resetting cached client: %v", err)
-		rc.reset()
+		rc.Lock()
+		rpcClient.Close()
+		rc.remoteClient = nil
+		rc.connectAndSet()
+		rc.Unlock()
 	}
+
 	return err
 }
