@@ -796,3 +796,31 @@ $window.on("scroll", function(){
         $notifications.css("top", "80px");
     }
 });
+
+function getModeFromFilename(filename){
+    var re = /(?:\.([^.]+))?$/;
+    var ext = re.exec(filename)[1];
+    var mode;
+    switch(ext) {
+        case "conf":
+            mode="properties";
+            break;
+        case "xml":
+            mode = "xml";
+            break;
+        case "yaml":
+            mode = "yaml";
+            break;
+        case "txt":
+            mode = "plain";
+            break;
+            case "json":
+            mode = "javascript";
+            break;
+        default:
+            mode = "shell";
+            break;
+    }
+
+    return mode;
+}

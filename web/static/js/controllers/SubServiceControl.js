@@ -309,7 +309,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 	}
 	
         $scope.editableContext = makeEditableContext($scope.services.current.Context);
-        
+
         $modalService.create({
             templateUrl: "edit-context.html",
             model: $scope,
@@ -327,9 +327,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 }
             ],
 	    onShow: function(){
+		$scope.codemirrorRefresh = true;	
 	    },
 	    onHide: function(){
-                $scope.editableContext = undefined;
+                $scope.codemirrorRefresh = false;
 	    }
         });
     };
@@ -339,7 +340,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         for(key in context){
             editableContext += key + " " + context[key] + "\r\n";
         }
-	if(!editableContext){ editableContext = "# Enter values here"; }
+	if(!editableContext){ editableContext = ""; }
         return editableContext;
     }
 
@@ -418,6 +419,11 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.editConfig = function(service, config) {
 	$scope.editService = $.extend({}, service);
         $scope.editService.config = config;
+        //set editor options for context editing
+	$scope.codemirrorOpts = {
+	    lineNumbers: true,
+	    mode: getModeFromFilename($scope.editService.config)
+	};
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
@@ -444,15 +450,18 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 return true;
             },
 	    onShow: function(){
+                $scope.codemirrorRefresh = true;
 	    },
 	    onHide: function(){
+	        $scope.codemirrorRefresh = false;
 	    }
         });
     };
 
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
-        resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
+
+	    resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
             $scope.editService.log = log.Detail;
             $modalService.create({
                 templateUrl: "view-log.html",
