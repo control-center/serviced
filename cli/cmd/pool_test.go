@@ -35,20 +35,14 @@ var DefaultPoolAPITest = PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTe
 var DefaultTestPools = []pool.ResourcePool{
 	{
 		ID:          "test-pool-id-1",
-		ParentID:    "",
-		Priority:    1,
 		CoreLimit:   8,
 		MemoryLimit: 0,
 	}, {
 		ID:          "test-pool-id-2",
-		ParentID:    "test-pool-id-1",
-		Priority:    2,
 		CoreLimit:   4,
 		MemoryLimit: 4 * 1024 * 1024 * 1024,
 	}, {
 		ID:          "test-pool-id-3",
-		ParentID:    "test-pool-id-1",
-		Priority:    3,
 		CoreLimit:   2,
 		MemoryLimit: 512 * 1024 * 1024,
 	},
@@ -117,8 +111,6 @@ func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool,
 
 	p := &pool.ResourcePool{
 		ID:          config.PoolID,
-		ParentID:    "",
-		Priority:    0,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
 	}
@@ -235,15 +227,10 @@ func ExampleServicedCLI_CmdPoolAdd() {
 	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc", "1024", "3")
 	// // Bad MemoryLimit
 	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "abc", "3")
-	// Bad Priority
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc")
-	// Bad Result
-	InitPoolAPITest("serviced", "pool", "add", "test-pool-id-1", "3")
 	// Success
 	InitPoolAPITest("serviced", "pool", "add", "test-pool", "3")
 
 	// Output:
-	// PRIORITY must be a number
 	// test-pool
 }
 
@@ -260,7 +247,7 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced pool add POOLID PRIORITY
+	//    serviced pool add POOLID
 	//
 	// OPTIONS:
 }

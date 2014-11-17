@@ -8,11 +8,17 @@ import (
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
-	"reflect"
 	"sync"
+	"time"
 
 	"github.com/zenoss/glog"
 )
+
+var dialTimeoutSecs = 30
+
+func SetDialTimeout(timeout int) {
+	dialTimeoutSecs = timeout
+}
 
 type Client interface {
 	Close() error
@@ -50,7 +56,7 @@ func (rc *reconnectingClient) connectAndSet() (*rpc.Client, error) {
 	defer rc.Unlock()
 	if rc.remoteClient == nil {
 		glog.V(4).Infof("Connecting to %s", rc.addr)
-		conn, err := net.Dial("tcp", rc.addr)
+		conn, err := net.DialTimeout("tcp", rc.addr, time.Duration(dialTimeoutSecs) * time.Second)
 		if err != nil {
 			return nil, err
 		}
@@ -90,10 +96,8 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 	}
 	err = rpcClient.Call(serviceMethod, args, reply)
 	if err != nil {
-		if err == rpc.ErrShutdown || reflect.TypeOf(err) == reflect.TypeOf((*rpc.ServerError)(nil)).Elem() {
-			glog.Infof("rpc error, resetting cached client: %v", err)
-			rc.reset()
-		}
+		glog.V(3).Infof("rpc error, resetting cached client: %v", err)
+		rc.reset()
 	}
 	return err
 }

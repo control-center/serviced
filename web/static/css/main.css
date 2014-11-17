@@ -814,6 +814,9 @@ input.startup {
     text-shadow: 1px 1px 2px #c0c0c0;
     color: #1a1a1a;
 }
+.modal-notify {
+    position: relative;
+}
 
 .flow {
     background-color: #F0F3F7;
@@ -1023,6 +1026,15 @@ rect {
 .modal {
     overflow: auto;
 }
+/* make modal submit button resize nicely */
+.modal .submit {
+    -webkit-transition: width 0.5s;
+    -moz-transition: width 0.5s;
+    transition: width 0.5s;
+    /* set min width to avoid funky size transitions
+     * when text content changes to "Submitting..." */
+    min-width: 110px;
+}
 
 /* notifications */
 
@@ -1108,6 +1120,12 @@ rect {
   0%   { opacity: 1; }
   10%  { opacity: .5;}
   20% { opacity: 1; }
+}
+
+/* NOTIFICATION OVERRIDES */
+.modal-notify .notification {
+    position: relative;
+    box-shadow: rgba(0,0,0,0.4) 0 0px 4px inset;
 }
 
 

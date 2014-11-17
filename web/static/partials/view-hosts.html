@@ -45,7 +45,7 @@
         <div ng-if="host.active === 'yes'" class="healthCheck good"><i class="healthIcon glyphicon"></i></div>
         <div ng-if="!host.active" class="healthCheck down"><i class="healthIcon glyphicon"></i></div>
       </td>
-      <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
+      <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath|cut:true:50}}</td>
       <td>{{host.Memory | toGB}}</td>
       <td>{{host.Cores}}</td>
       <td>{{host.KernelVersion}}</td>

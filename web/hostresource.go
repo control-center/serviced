@@ -22,6 +22,7 @@ import (
 
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 )
 
@@ -125,6 +126,19 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 	hostIP := hostIPAddr.IP.String()
 
+	if len(parts) < 2 {
+		glog.Errorf("rpcport needs to be specified")
+		restBadRequest(w, err)
+		return
+	}
+
+	rpcPort, err := strconv.Atoi(parts[1])
+	if err != nil {
+		glog.Errorf("could not convert rpcport %s to int", parts[1])
+		restBadRequest(w, err)
+		return
+	}
+
 	agentClient, err := agent.NewClient(payload.IPAddr)
 	//	remoteClient, err := serviced.NewAgentClient(payload.IPAddr)
 	if err != nil {
@@ -139,6 +153,7 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 	}
 	buildRequest := agent.BuildHostRequest{
 		IP:     hostIP,
+		Port:   rpcPort,
 		PoolID: payload.PoolID,
 	}
 	host, err := agentClient.BuildHost(buildRequest)

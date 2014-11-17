@@ -34,6 +34,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/scheduler"
@@ -173,6 +174,8 @@ func (d *daemon) run() error {
 		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
 
+	rpcutils.SetDialTimeout(options.RPCDialTimeout)
+
 	if options.Master {
 		if err = d.startMaster(); err != nil {
 			glog.Fatalf("%v", err)
@@ -299,7 +302,13 @@ func (d *daemon) startMaster() error {
 	}
 
 	// This is storage related
-	thisHost, err := host.Build(agentIP, d.masterPoolID)
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID)
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
@@ -390,7 +399,14 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
 	}
-	thisHost, err := host.Build(agentIP, "unknown")
+
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, "unknown")
 	if err != nil {
 		panic(err)
 	}

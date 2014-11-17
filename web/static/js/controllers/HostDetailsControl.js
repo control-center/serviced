@@ -32,32 +32,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'MAC Address', name: 'ip_addresses_mac' }
     ]);
 
-    $scope.viewConfig = function(running) {
-        $scope.editService = $.extend({}, running);
-        $scope.editService.config = 'TODO: Implement';
-        $modalService.create({
-            templateUrl: "edit-config.html",
-            model: $scope,
-            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
-            bigModal: true,
-            actions: [
-                {
-                    role: "cancel"
-                },{
-                    role: "ok",
-                    label: "save",
-                    action: function(){
-                        if(this.validate()){
-                            $scope.updateService();
-                            // NOTE: should wait for response before closing
-                            this.close();
-                        }
-                    }
-                }
-            ]
-        });
-    };
-
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
         resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {

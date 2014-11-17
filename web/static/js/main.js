@@ -209,8 +209,26 @@ controlplane.
         return function(input){
             return (input/1073741824).toFixed(2) + " GB";
         };
-    }
-);
+    }).
+    filter('cut', function(){
+        return function (value, wordwise, max, tail) {
+            if (!value) return '';
+
+            max = parseInt(max, 10);
+            if (!max) return value;
+            if (value.length <= max) return value;
+
+            value = value.substr(0, max);
+            if (wordwise) {
+                            var lastspace = value.lastIndexOf(' ');
+                            if (lastspace != -1) {
+                                                value = value.substr(0, lastspace);
+                                            }
+                        }
+
+            return value + (tail || ' …');
+        };
+    });
 
 /* begin constants */
 var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
@@ -780,6 +798,25 @@ function itemClass(item) {
 // determines if an object is an instance of a service
 function isInstanceOfService(service){
     return "InstanceID" in service;
+}
+
+// accepts a preferred  and decorates it with success 
+// and error functions to simulate $http promise
+function httpifyDeferred(defer){
+    // TODO - move this to a utils function where we 
+    // can access $q and make our own defer
+
+    // simulate an angular $http promise
+    defer.promise.success = function(callback){
+        defer.promise.then(callback);
+        return defer.promise;
+    };
+    defer.promise.error = function(callback){
+        defer.promise.then(null, callback);
+        return defer.promise;
+    };
+
+    return defer;
 }
 
 // keep notifications stuck to bottom of nav, or top of window

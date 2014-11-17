@@ -16,6 +16,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 	"strconv"
 	"strings"
 
@@ -185,6 +187,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"isvcs-env", &isvcs_env, "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", configInt("MAX_RPC_CLIENTS", 3), "max number of rpc clients to an endpoint"},
+		cli.IntFlag{"rpc-dial-timeout", configInt("RPC_DIAL_TIMEOUT", 30), "timeout for creating rpc connections"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -207,6 +210,7 @@ func New(driver api.API) *ServicedCli {
 	c.initSnapshot()
 	c.initLog()
 	c.initBackup()
+	c.initMetric()
 	c.initDocker()
 
 	return c
@@ -257,6 +261,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DebugPort:            ctx.GlobalInt("debug-port"),
 		AdminGroup:           ctx.GlobalString("admin-group"),
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
+		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -340,6 +345,24 @@ func setLogging(ctx *cli.Context) error {
 			return err
 		}
 	}
+
+	// Listen for SIGUSR1 and, when received, toggle the log level between
+	// 0 and 2.  If the log level is anything but 0, we set it to 0, and on
+	// subsequent signals, set it to 2.
+	go func(){
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGUSR1)
+		for {
+			<-signalChan
+			glog.Infof("Received signal SIGUSR1")
+			if glog.GetVerbosity() == 0 {
+				glog.SetVerbosity(2)
+			} else {
+				glog.SetVerbosity(0)
+			}
+			glog.Infof("Log level changed to %v", glog.GetVerbosity())
+		}
+	}()
 
 	return nil
 }

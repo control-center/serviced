@@ -53,7 +53,6 @@ func (ft *FacadeTest) Test_UpdateResourcePool(t *C) {
 	myPool := pool.New(poolID)
 	ft.Facade.AddResourcePool(ft.CTX, myPool)
 
-	myPool.Priority = 1
 	myPool.CoreLimit = 1
 	myPool.MemoryLimit = 1
 	err := ft.Facade.UpdateResourcePool(ft.CTX, myPool)
@@ -77,7 +76,6 @@ func (ft *FacadeTest) Test_GetResourcePool(t *C) {
 
 	ft.Facade.RemoveResourcePool(ft.CTX, poolID)
 	rp := pool.New(poolID)
-	rp.Priority = 1
 	rp.CoreLimit = 1
 	rp.MemoryLimit = 1
 	if err := ft.Facade.AddResourcePool(ft.CTX, rp); err != nil {
@@ -137,7 +135,6 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 	poolID := "Test_GetResourcePools"
 	defer ft.Facade.RemoveResourcePool(ft.CTX, poolID)
 	rp := pool.New(poolID)
-	rp.Priority = 1
 	rp.CoreLimit = 2
 	rp.MemoryLimit = 3
 	ft.Facade.AddResourcePool(ft.CTX, rp)
@@ -181,7 +178,7 @@ func (ft *FacadeTest) Test_GetPoolsIPs(t *C) {
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, []string{}...)
 	if err != nil {
 		t.Fatalf("could not build host for test: %v", err)
 	}
@@ -238,7 +235,7 @@ func (ft *FacadeTest) Test_VirtualIPs(t *C) {
 	oneHostIPResource.InterfaceName = myInterfaceName
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, []string{}...)
 	if err != nil {
 		t.Fatalf("could not build host for test: %v", err)
 	}
@@ -340,7 +337,7 @@ func (ft *FacadeTest) Test_InvalidVirtualIPs(t *C) {
 	oneHostIPResource.InterfaceName = myInterfaceName
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, []string{}...)
 	if err != nil {
 		t.Fatalf("could not build host for test: %v", err)
 	}
@@ -421,7 +418,7 @@ func (ft *FacadeTest) Test_PoolCapacity(t *C) {
 	}
 
 	//fill host with required values
-	h, err := host.Build("", poolid, []string{}...)
+	h, err := host.Build("", "65535", poolid, []string{}...)
 	h.ID = hostid
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)

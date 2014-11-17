@@ -1,6 +1,3 @@
-
-
-
 function SubServiceControl($scope, $q, $routeParams, $location, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
     // Ensure logged in
     authService.checkLogin($scope);
@@ -82,49 +79,72 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "add_virtual_host",
                     action: function(){
                         if(this.validate()){
-                            $scope.addVHost();
-                            // NOTE: should wait for response from
-                            // addVHost function before closing
-                            this.close();
-                        }
-                        else {
-                            this.close();
-                            $notification.create("", $translate.instant("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
+                            $scope.addVHost()
+                                .success(function(data, status){
+                                    this.close(); 
+                                }.bind(this))
+                                .error(function(data, status){
+                                    this.createNotification("Unable to add virtual hosts", data.Detail).error(); 
+                                    enableSubmit();
+                                }.bind(this));
                         }
                     }
                 }
             ],
             validate: function(){
                 var name = $scope.vhosts.add.name;
+                
+                // if no name
+                if(!name || !name.length){
+                    this.createNotification("Unabled to add Virtual Host", "Missing name").error();
+                    return false;
+                }
+
+                // if no services to bind to
+                if(!$scope.vhosts.options.length){
+                    this.createNotification("Unable to add Virtual Host", "No available application and service").error();
+                    return false;
+                }
+                
+                // if name already exists
                 for (var i in $scope.vhosts.data) {
                     if (name == $scope.vhosts.data[i].Name) {
+                        this.createNotification("Unabled to add Virtual Host", "Name already exists: "+ $scope.vhosts.add.name).error();
                         return false;
                     }
                 }
+
+                // if no endpoint selected
+                if(!$scope.vhosts.add.app_ep){
+                    this.createNotification("Unable to add Virtual Host", "No endpoint selected").error();
+                    return false;
+                }
+
+                // if invalid characters
                 var re = /^(([a-zA-Z0-9]|[a-zA-Z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9])\.)*([A-Za-z0-9]|[A-Za-z0-9][A-Za-z0-9\-]*[A-Za-z0-9])$/;
-                return re.test(name);
+                if(!re.test(name)){
+                    this.createNotification("", $translate.instant("vhost_name_invalid") + " " + $scope.vhosts.add.name).error();
+                    return false;
+                }
+
+                return true;
             }
         });
     };
 
     $scope.addVHost = function() {
-        if (!$scope.vhosts.add.name || $scope.vhosts.add.name.length <= 0) {
-            console.error( "Cannot add vhost -- missing name");
-            return;
-        }
-
-        if ($scope.vhosts.options.length <= 0) {
-            console.error( "Cannot add vhost -- no available application and service");
-            return;
-        }
-
         var name = $scope.vhosts.add.name;
         var serviceId = $scope.vhosts.add.app_ep.ServiceID;
         var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
-        resourcesService.add_vhost( serviceId, serviceEndpoint, name, function() {
-            $scope.vhosts.add = {};
-            refreshServices($scope, resourcesService, false);
-        });
+        return resourcesService.add_vhost( serviceId, serviceEndpoint, name)
+            .success(function(data, status){
+                $notification.create("Added virtual host", data.Detail).success();
+                $scope.vhosts.add = {};
+                refreshServices($scope, resourcesService, false);
+            });
     };
 
     // modalAssignIP opens a modal view to assign an ip address to a service
@@ -178,9 +198,17 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "assign_ip",
                     action: function(){
                         if(this.validate()){
-                            $scope.AssignIP();
-                            // NOTE: should wait for success before closing
-                            this.close();
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
+                            $scope.assignIP()
+                                .success(function(data, status){
+                                    this.close();
+                                }.bind(this))
+                                .error(function(data, status){
+                                    this.createNotification("Unable to Assign IP", data.Detail).error();
+                                    enableSubmit();
+                                }.bind(this));
                         }
                     }
                 }
@@ -206,12 +234,14 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
 
-    $scope.AssignIP = function() {
+    $scope.assignIP = function() {
         var serviceID = $scope.ips.assign.ip.ServiceID;
         var IP = $scope.ips.assign.value.IPAddr;
-        resourcesService.assign_ip(serviceID, IP, function(data) {
-            refreshServices($scope, resourcesService, false);
-        });
+        return resourcesService.assign_ip(serviceID, IP)
+            .success(function(data, status){
+                refreshServices($scope, resourcesService, false);
+                $notification.create("Added IP", data.Detail).success();
+            });
     };
 
     $scope.vhost_url = function(vhost) {
@@ -321,8 +351,17 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     role: "ok",
                     label: $translate.instant("btn_save_changes"),
                     action: function(){
-                        saveContext(app, servicesService);
-                        this.close();
+                        // disable ok button, and store the re-enable function
+                        var enableSubmit = this.disableSubmitButton();
+
+                        saveContext(app, servicesService)
+                            .success(function(data, status){
+                                this.close(); 
+                            }.bind(this))
+                            .error(function(data, status){
+                                this.createNotification("Updating service failed", data.Detail).error();
+                                enableSubmit();
+                            }.bind(this));
                     }
                 }
             ],
@@ -337,8 +376,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     function makeEditableContext(context){
         var editableContext = "";
-        for(key in context){
-            editableContext += key + " " + context[key] + "\r\n";
+        for(var key in context){
+            editableContext += key + " " + context[key] + "\n";
         }
 	if(!editableContext){ editableContext = ""; }
         return editableContext;
@@ -347,7 +386,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     function saveContext(){
         //turn editableContext into a JSON object
         var lines = $scope.editableContext.split("\n");
-        var parts = [];
         var context = {};
         for (var i=0; i<lines.length; ++i){
             var line = lines[i];
@@ -362,35 +400,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 }
             }
         }
-        $scope.services.current.Context = context;
-        $scope.updateService();
-    }
 
-    $scope.viewConfig = function(service) {
-        $scope.editService = $.extend({}, service);
-        $scope.editService.config = 'TODO: Implement';
-        $modalService.create({
-            templateUrl: "edit-config.html",
-            model: $scope,
-            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
-            bigModal: true,
-            actions: [
-                {
-                    role: "cancel"
-                },{
-                    role: "ok",
-                    label: "save",
-                    action: function(){
-                        if(this.validate()){
-                            $scope.updateService();
-                            // NOTE: should wait for response before closing
-                            this.close();
-                        }
-                    }
-                }
-            ]
-        });
-    };
+        $scope.services.current.Context = context;
+        return $scope.updateService();
+    }
 
     $scope.clickRemoveVirtualHost = function(vhost) {
         $modalService.create({
@@ -408,7 +421,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                         resourcesService.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
                             refreshServices($scope, resourcesService, false);
                         });
-                        // NOTE: should wait for success before closing
                         this.close();
                     }
                 }
@@ -437,10 +449,17 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "save",
                     action: function(){
                         if(this.validate()){
-                            $scope.updateService();
-                            // NOTE: should wait for response from
-                            // updateService function before closing
-                            this.close();
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
+                            $scope.updateService()
+                                .success(function(data, status){
+                                    this.close(); 
+                                }.bind(this))
+                                .error(function(data, status){
+                                    this.createNotification("Updating service failed", data.Detail).error();
+                                    enableSubmit();
+                                }.bind(this));
                         }
                     }
                 }
@@ -514,23 +533,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
       return true;
     };
 
-    $scope.updateService = function(callback) {
+    $scope.updateService = function() {
         if ($scope.validateService()) {
-          resourcesService.update_service($scope.services.current.ID, $scope.services.current, function() {
-              console.log('Updated %s', $scope.services.current.ID);
-              var lastCrumb = $scope.breadcrumbs[$scope.breadcrumbs.length - 1];
-              lastCrumb.label = $scope.services.current.Name;
-              refreshServices($scope, resourcesService, false);
+            var serviceId = $scope.services.current.ID;
 
-              if(typeof callback === "function") callback();
-          }, function(status){
-              if(typeof callback === "function") callback(status);
-          });
+            return resourcesService.update_service($scope.services.current.ID, $scope.services.current)
+                .success(function(data, status){
+                    $notification.create("Updated service", serviceId).success();
+                    refreshServices($scope, resourcesService, false);
+                });
         }
-    };
-
-    $scope.updateServiceField = function(prop, val){
-        console.log(prop, val);
     };
 
     // Update the running instances so it is reflected when we save the changes

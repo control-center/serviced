@@ -29,7 +29,7 @@ import (
 
 // currentHost creates a Host object of the reprsenting the host where this method is invoked. The passed in poolID is
 // used as the resource pool in the result.
-func currentHost(ip string, poolID string) (host *Host, err error) {
+func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) {
 	cpus := runtime.NumCPU()
 	memory, err := utils.GetMemorySize()
 	if err != nil {
@@ -61,6 +61,7 @@ func currentHost(ip string, poolID string) (host *Host, err error) {
 			return host, err
 		}
 	}
+	host.RPCPort = rpcPort
 
 	host.ID = hostidStr
 	host.Cores = cpus

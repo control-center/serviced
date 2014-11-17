@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService, $modalService, $interval, $translate){
+function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService, $modalService, $interval, $translate, $notification){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -30,10 +30,21 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
                     label: "add_host",
                     action: function(){
                         if(this.validate()){
-                            $scope.add_host();
-                            // NOTE: should wait for success before closing
-                            this.close();
-                            $scope.newHost = {};
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
+                            $scope.add_host()
+                                .success(function(data, status){
+                                    $notification.create("", data.Detail).success();
+                                    this.close();
+                                    $scope.newHost = {};
+                                }.bind(this))
+                                .error(function(data, status){
+                                    // TODO - form error highlighting
+                                    this.createNotification("", data.Detail).error();
+                                    // reenable button
+                                    enableSubmit();
+                                }.bind(this));
                         }
                     }
                 }
@@ -42,14 +53,16 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     };
     
     $scope.add_host = function() {
-        resourcesService.add_host($scope.newHost, function(data) {
+        return resourcesService.add_host($scope.newHost)
+        .success(function(data) {
             // After adding, refresh our list
             refreshHosts($scope, resourcesService, false, hostCallback);
+            
+            // Reset for another add
+            $scope.newHost = {
+                poolID: $scope.params.poolID
+            };
         });
-        // Reset for another add
-        $scope.newHost = {
-            poolID: $scope.params.poolID
-        };
     };
     
     $scope.remove_host = function(hostId) {
@@ -65,12 +78,18 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
                     label: "remove_host",
                     classes: "btn-danger",
                     action: function(){
-                        resourcesService.remove_host(hostId, function(data) {
-                            // After removing, refresh our list
-                            refreshHosts($scope, resourcesService, false, hostCallback);
-                        });
-                        // NOTE: should wait for success before closing
-                        this.close();
+
+                        resourcesService.remove_host(hostId)
+                            .success(function(data, status) {
+                                $notification.create("Removed host", hostId).success();
+                                // After removing, refresh our list
+                                refreshHosts($scope, resourcesService, false, hostCallback);
+                                this.close();
+                            })
+                            .error(function(data, status){
+                                $notification.create("Removing host failed", data.Detail).error();
+                                this.close();
+                            }.bind(this));
                     }
                 }
             ]

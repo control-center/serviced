@@ -67,16 +67,18 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             return false;
         }
 
-        resourcesService.add_host($scope.newHost, function(){
-            step += 1;
-            resetError();
-            $scope.step_page = $scope.steps[step].content;
-        }, function(data){
-            showError(data.Detail);
-        });
+        resourcesService.add_host($scope.newHost)
+            .success(function(){
+                step += 1;
+                resetError();
+                $scope.step_page = $scope.steps[step].content;
+            })
+            .error(function(data){
+                showError(data.Detail);
+            });
 
         return false;
-    }
+    };
 
     var resetStepPage = function() {
         step = 0;
