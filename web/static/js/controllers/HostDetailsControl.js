@@ -46,7 +46,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                         classes: "btn-default",
                         label: "download",
                         action: function(){
-                            window.location = '/services/' + running.ServiceID + '/' + running.ID + '/logs/download'
+                            downloadFile('/services/' + running.ServiceID + '/' + running.ID + '/logs/download');
                         },
                         icon: "glyphicon-download"
                     },

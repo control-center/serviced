@@ -819,6 +819,10 @@ function httpifyDeferred(defer){
     return defer;
 }
 
+function downloadFile(url){
+    window.location = url;
+}
+
 // keep notifications stuck to bottom of nav, or top of window
 // if nav is out ovf view.
 var $window = $(window);
