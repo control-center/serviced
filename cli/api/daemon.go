@@ -695,7 +695,7 @@ func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup)
-	go cpserver.ServeUI()
+	go cpserver.ServeUI(options.VarPath, d.shutdown)
 	go cpserver.Serve(d.shutdown)
 }
 func (d *daemon) startScheduler() {

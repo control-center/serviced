@@ -139,12 +139,18 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 }
 
 // ServeUI is a blocking call that runs the UI hander on port :7878
-func (sc *ServiceConfig) ServeUI() {
+func (sc *ServiceConfig) ServeUI(varPath string, shutdown <-chan interface{}) {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
+	Logger, err := newAccessLogger(varPath, shutdown)
+	if err != nil {
+		glog.Error("Could not create Access Logger %v", err)
+	}
+
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
+		Logger: Logger,
 	}
 
 	routes := sc.getRoutes()
