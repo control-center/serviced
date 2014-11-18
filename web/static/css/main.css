@@ -1218,7 +1218,7 @@ rect {
     cursor: default;
 }
 .healthCheck.wide {
-    width: 46px;
+    width: 75px;
 }
 .healthCheck.zoom {
     animation: zoom .3s;
@@ -1441,8 +1441,8 @@ input[type=file] {
 }
 
 .messageMeta{
-	width: 30%;
-	float: left;
+    width: 30%;
+    float: left;
 }
 
 .messageBody{
