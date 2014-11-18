@@ -184,7 +184,7 @@
                 // TODO - default config object
                 config.actions = config.actions || [];
                 config.onShow = config.onShow || function(){};
-                
+                config.onHide = config.onHide || function(){}; 
                 var model = config.model || {};
 
                 // if the template was provided, use that
@@ -212,6 +212,7 @@
 
                 // perform onShow function after modal is visible
                 modal.$el.one("shown.bs.modal.", config.onShow.bind(modal));
+		modal.$el.one("hidden.bs.modal.", config.onHide.bind(modal));
             }
 
             return {

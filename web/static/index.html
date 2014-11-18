@@ -23,6 +23,7 @@
     <!-- Custom styles for this template -->
     <link href="/static/css/main.css" rel="stylesheet" />
 
+    <link rel="stylesheet" href="/static/lib/codemirror/lib/codemirror.css">
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
     <script src="/static/lib/bootstrap/assets/js/html5shiv.js"></script>
@@ -61,8 +62,15 @@
     <script src="/static/js/modules/serviceHealth.js"></script>
     <script src="/static/js/modules/modalService.js"></script>
     <script src="/static/js/modules/resourcesService.js"></script>
-  </head>
 
+    <script src="/static/lib/codemirror/lib/codemirror.js"></script>
+    <script src="/static/lib/angular-ui-codemirror/ui-codemirror.min.js"></script>
+    <script src="/static/lib/codemirror/mode/properties/properties.js"></script>
+    <script src="/static/lib/codemirror/mode/yaml/yaml.js"></script>
+    <script src="/static/lib/codemirror/mode/xml/xml.js"></script>
+    <script src="/static/lib/codemirror/mode/shell/shell.js"></script>
+    <script src="/static/lib/codemirror/mode/javascript/javascript.js"></script>
+  </head>
   <body>
     <div class="container" ng-view>
 
