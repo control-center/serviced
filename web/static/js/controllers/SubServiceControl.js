@@ -489,6 +489,13 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 bigModal: true,
                 actions: [
                     {
+                        classes: "btn-default",
+                        label: "download",
+                        action: function(){
+                            downloadFile('/services/' + serviceState.ServiceID + '/' + serviceState.ID + '/logs/download');
+                        },
+                        icon: "glyphicon-download"
+                    },{
                         role: "cancel",
                         classes: "btn-default",
                         label: "close"

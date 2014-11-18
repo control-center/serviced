@@ -22,7 +22,7 @@
                 </div>\
             </div>';
 
-            var actionButtonTemplate = '<button type="button" class="btn {{classes}}">{{label}}</button>';
+            var actionButtonTemplate = '<button type="button" class="btn {{classes}}"><span ng-show="icon" class="glyphicon {{icon}}"></span> {{label}}</button>';
 
             var defaultRoles = {
                 "cancel": {

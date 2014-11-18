@@ -164,6 +164,7 @@
     "deployed_tbl_pool": "Resource Pool",
     "deployed_tbl_state": "Status",
     "docker_login_warning": "You're not logged in to Docker Hub. Any application dependencies on private repositories will cause deployment to fail.",
+    "download": "Download",
     "entry_content": "",
     "error": "Error",
     "graphs": "Graphs",

@@ -24,7 +24,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
+	"fmt"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -761,6 +761,38 @@ func restGetServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *no
 		return
 	}
 	w.WriteJson(&simpleResponse{logs, servicesLinks()})
+}
+
+func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceStateID, err := url.QueryUnescape(r.PathParam("serviceStateId"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Bad Request: %v", err)))
+		return
+	}
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Bad Request: %v", err)))
+		return
+	}
+
+	request := dao.ServiceStateRequest{serviceID, serviceStateID}
+
+	var logs string
+	err = client.GetServiceStateLogs(request, &logs)
+
+	if err != nil {
+		glog.Errorf("Unexpected error getting service state logs: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte(fmt.Sprintf("Internal Server Error: %v", err)))
+		return
+	}
+
+	var filename = serviceID + time.Now().Format("2006-01-02-15-04-05") + ".log"
+	w.Header().Set("Content-Disposition", "attachment; filename=" + filename)
+	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
+	w.Write([]byte(logs))
 }
 
 func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

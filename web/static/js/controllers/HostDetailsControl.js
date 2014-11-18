@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -42,6 +42,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 title: "title_log",
                 bigModal: true,
                 actions: [
+                    {
+                        classes: "btn-default",
+                        label: "download",
+                        action: function(){
+                            downloadFile('/services/' + running.ServiceID + '/' + running.ID + '/logs/download');
+                        },
+                        icon: "glyphicon-download"
+                    },
                     {
                         role: "cancel",
                         classes: "btn-default",
