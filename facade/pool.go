@@ -253,6 +253,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	glog.V(4).Infof("'%s' resource pool not found; creating...", id)
 	entity = pool.New(id)
 	entity.Realm = defaultRealm
+	entity.Description = "Default Pool"
 	if err := f.AddResourcePool(ctx, entity); err != nil {
 		return err
 	}
