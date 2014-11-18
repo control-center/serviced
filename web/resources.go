@@ -789,7 +789,8 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *n
 		return
 	}
 
-	w.Header().Set("Content-Disposition", "attachment; filename=" + serviceID + ".log")
+	var filename = serviceID + time.Now().Format("2006-01-02-15-04-05") + ".log"
+	w.Header().Set("Content-Disposition", "attachment; filename=" + filename)
 	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 	w.Write([]byte(logs))
 }
