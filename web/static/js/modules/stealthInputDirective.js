@@ -149,7 +149,8 @@
                     if(!isDirty()) return;
 
                     var oldVal = scope.value,
-                        val = $input.val();
+                        val = $input.val(),
+                        promise;
 
                     // coerce val to number if input type
                     // is number
@@ -165,24 +166,29 @@
                     endEdit();
 
                     if(scope.onChange()){
-                        scope.onChange()(function(err){
-                            endSpinning();
+                        promise = scope.onChange()();
 
-                            // restore the old value
-                            scope.value = oldVal;
-                            
-                            // need to wait a tick to do this so angular
-                            // can get all the updaty stuff out of its system
-                            setTimeout(function(){
-                                // put the dirty val back in the input
-                                $input.val(val);
-                                // dirty check
-                                markIfDirty();
-                            }, 0);
-                        });
+                        // if scope.onChange returns a promise, we can use
+                        // it to add a helpful loading spinner
+                        if(promise && typeof promise.then === "function"){
+                            startSpinning();
+
+                            promise.error(function(err){
+                                scope.value = oldVal;
+                                // need to wait a tick to do this so angular
+                                // can get all the updaty stuff out of its system
+                                setTimeout(function(){
+                                    // put the dirty val back in the input
+                                    $input.val(val);
+                                    // dirty check
+                                    markIfDirty();
+                                }, 0);
+                            })
+                            .finally(function(){
+                                endSpinning();
+                            });
+                        }
                     }
-
-                    startSpinning();
                 };
             }
         };

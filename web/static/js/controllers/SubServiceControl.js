@@ -518,6 +518,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 .success(function(data, status){
                     $notification.create("Updated service", serviceId).success();
                     refreshServices($scope, resourcesService, false);
+                })
+                .error(function(data, status){
+                    $notification.create("Update service failed", data.Detail).error();
                 });
         }
     };
