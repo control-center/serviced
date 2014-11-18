@@ -469,7 +469,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                         classes: "btn-default",
                         label: "download",
                         action: function(){
-                            createDownloadLinkAndClick($scope.editService.Name + "_" + Date.now() + ".log", $scope.editService.log);
+                            window.location = '/services/' + serviceState.ServiceID + '/' + serviceState.ID + '/logs/download'
                         },
                         icon: "glyphicon-download"
                     },{

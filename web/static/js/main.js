@@ -819,14 +819,6 @@ function httpifyDeferred(defer){
     return defer;
 }
 
-function createDownloadLinkAndClick(filename, content){
-    // here we create a link and click it programatically so we can take advantage of the "download" tag in HTML5
-    var download = document.createElement("a");
-    download.setAttribute("href", "data:text/plain,"+encodeURIComponent(content));
-    download.setAttribute("download", filename);
-    download.click();
-}
-
 // keep notifications stuck to bottom of nav, or top of window
 // if nav is out ovf view.
 var $window = $(window);
