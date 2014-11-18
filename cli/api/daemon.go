@@ -198,19 +198,28 @@ func (d *daemon) run() error {
 		glog.Fatalf("Could not parse docker registry: %s", err)
 	}
 
+	iaddrs, err := net.InterfaceAddrs()
+	if err != nil {
+		glog.Fatalf("Could not look up interface addresses: %s", err)
+	}
+
 	addrs, err := net.LookupIP(host)
 	if err != nil {
 		glog.Fatalf("Could not resolve ips for the given docker registry host %s: %s", host, err)
 	}
 
-	if isLoopback := func(addrs []net.IP) bool {
-		for _, addr := range addrs {
-			if addr.IsLoopback() {
-				return true
+	if isLoopback := func(iaddrs []net.Addr, addrs []net.IP) bool {
+		for _, iaddr := range iaddrs {
+			if ipnet, ok := iaddr.(*net.IPNet); ok {
+				for _, addr := range addrs {
+					if ipnet.Contains(addr) {
+						return true
+					}
+				}
 			}
 		}
 		return false
-	}(addrs); !isLoopback || port != "5000" {
+	}(iaddrs, addrs); !isLoopback || port != "5000" {
 		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
 		proxy := httputil.NewSingleHostReverseProxy(&url.URL{
 			Scheme: "http",
