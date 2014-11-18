@@ -27,7 +27,7 @@
             var defaultRoles = {
                 "cancel": {
                     label: "Cancel",
-                    icon: "glyphicon-close",
+                    icon: "glyphicon-remove",
                     classes: "btn-link",
                     action: function(){
                         this.close();
@@ -122,7 +122,7 @@
 
                     var $button = this.$el.find(selector),
                         $buttonClone,
-                        buttonText, startWidth, endWidth;
+                        buttonContent, startWidth, endWidth;
 
                     // button wasnt found 
                     if(!$button.length){
@@ -140,7 +140,7 @@
 
                     $button.width(startWidth);
 
-                    buttonText = $button.text();
+                    buttonContent = $button.html();
                     $button.prop("disabled", true)
                         .addClass("disabled")
                         .text(disabledText)
@@ -150,7 +150,7 @@
                     return function(){
                         $button.prop("disabled", false)
                             .removeClass("disabled")
-                            .text(buttonText)
+                            .html(buttonContent)
                             .width(startWidth);
                     };
                 }

@@ -1035,6 +1035,12 @@ rect {
      * when text content changes to "Submitting..." */
     min-width: 110px;
 }
+.modal .modal-footer .glyphicon {
+    top: 2px;
+}
+.modal .modal-footer .btn-primary .glyphicon {
+    padding-right: 8px;
+}
 
 /* notifications */
 
@@ -1599,4 +1605,8 @@ input[type=file] {
 @-webkit-keyframes spin {
     from {transform:rotate(0deg);}
     to {transform:rotate(360deg);}
+}
+
+.modal .big .CodeMirror {
+    height: 500px;
 }
