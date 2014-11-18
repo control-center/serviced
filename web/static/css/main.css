@@ -1026,6 +1026,15 @@ rect {
 .modal {
     overflow: auto;
 }
+/* make modal submit button resize nicely */
+.modal .submit {
+    -webkit-transition: width 0.5s;
+    -moz-transition: width 0.5s;
+    transition: width 0.5s;
+    /* set min width to avoid funky size transitions
+     * when text content changes to "Submitting..." */
+    min-width: 110px;
+}
 
 /* notifications */
 
@@ -1209,7 +1218,7 @@ rect {
     cursor: default;
 }
 .healthCheck.wide {
-    width: 46px;
+    width: 75px;
 }
 .healthCheck.zoom {
     animation: zoom .3s;
@@ -1432,8 +1441,8 @@ input[type=file] {
 }
 
 .messageMeta{
-	width: 30%;
-	float: left;
+    width: 30%;
+    float: left;
 }
 
 .messageBody{

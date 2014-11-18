@@ -36,7 +36,7 @@
                 "ok": {
                     label: "Ok",
                     icon: "glyphicon-ok",
-                    classes: "btn-primary",
+                    classes: "btn-primary submit",
                     action: function(){
                         this.close();
                     }
@@ -113,6 +113,46 @@
                 // convenience method for attaching notifications to the modal
                 createNotification: function(title, message){
                     return $notification.create(title, message, this.$notificationEl);
+                },
+
+                // convenience method to disable the default ok/submit button
+                disableSubmitButton: function(selector, disabledText){
+                    selector = selector || ".submit";
+                    disabledText = disabledText || "Submitting...";
+
+                    var $button = this.$el.find(selector),
+                        $buttonClone,
+                        buttonText, startWidth, endWidth;
+
+                    // button wasnt found 
+                    if(!$button.length){
+                        return;
+                    }
+
+                    // explicitly set width so it can be animated
+                    startWidth = $button.width();
+                    
+                    // clone the button and set the ending text so the
+                    // explicit width can be calculated
+                    $buttonClone = $button.clone().width("auto").text(disabledText).appendTo("body");
+                    endWidth = $buttonClone.width();
+                    $buttonClone.remove();
+
+                    $button.width(startWidth);
+
+                    buttonText = $button.text();
+                    $button.prop("disabled", true)
+                        .addClass("disabled")
+                        .text(disabledText)
+                        .width(endWidth);
+
+                    // return a function used to reenable the button
+                    return function(){
+                        $button.prop("disabled", false)
+                            .removeClass("disabled")
+                            .text(buttonText)
+                            .width(startWidth);
+                    };
                 }
             };
             

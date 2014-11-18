@@ -67,6 +67,9 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
                     label: "add_pool",
                     action: function(){
                         if(this.validate()){
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
                             $scope.add_pool()
                                 .success(function(data, status){
                                     $notification.create("Added new Pool", data.Detail).success();
@@ -74,6 +77,7 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Adding pool failed", data.Detail).error();
+                                    enableSubmit();
                                 }.bind(this));
                         }
                     }

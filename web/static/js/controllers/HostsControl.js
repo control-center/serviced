@@ -30,15 +30,20 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
                     label: "add_host",
                     action: function(){
                         if(this.validate()){
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
                             $scope.add_host()
                                 .success(function(data, status){
                                     $notification.create("", data.Detail).success();
                                     this.close();
                                     $scope.newHost = {};
-                                })
+                                }.bind(this))
                                 .error(function(data, status){
                                     // TODO - form error highlighting
                                     this.createNotification("", data.Detail).error();
+                                    // reenable button
+                                    enableSubmit();
                                 }.bind(this));
                         }
                     }
@@ -73,6 +78,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
                     label: "remove_host",
                     classes: "btn-danger",
                     action: function(){
+
                         resourcesService.remove_host(hostId)
                             .success(function(data, status) {
                                 $notification.create("Removed host", hostId).success();

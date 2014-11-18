@@ -14,6 +14,8 @@ var RPC_CLIENT_SIZE = 1
 var clientCache = make(map[string]*clientList)
 var cacheLock = sync.RWMutex{}
 
+var addrLocks = make(map[string]*sync.RWMutex)
+
 // GetCachedClient createa or gets a cached Client.
 func GetCachedClient(addr string) (Client, error) {
 	cList, err := getClientList(addr)
@@ -24,19 +26,36 @@ func GetCachedClient(addr string) (Client, error) {
 }
 
 func getClientList(addr string) (*clientList, error) {
-	cacheLock.RLock()
+	addrLock := getAddrLock(addr)
+	addrLock.RLock()
 	clients, found := clientCache[addr]
-	cacheLock.RUnlock()
+	addrLock.RUnlock()
 	if !found {
 		return setAndGetClientList(addr)
 	}
 	return clients, nil
 }
 
+func getAddrLock(addr string) *sync.RWMutex {
+	cacheLock.RLock()
+	addrLock, found := addrLocks[addr]
+	cacheLock.RUnlock()
+	if !found {
+		cacheLock.Lock()
+		defer cacheLock.Unlock()
+		if addrLock, found = addrLocks[addr]; !found {
+			addrLock = &sync.RWMutex{}
+			addrLocks[addr] = addrLock
+		}
+	}
+	return addrLock
+}
+
 func setAndGetClientList(addr string) (*clientList, error) {
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
 	var err error
+	addrLock := getAddrLock(addr)
+	addrLock.Lock()
+	defer addrLock.Unlock()
 	clients, found := clientCache[addr]
 	if !found {
 		clients, err = newClientList(addr, RPC_CLIENT_SIZE)
