@@ -135,6 +135,7 @@ deb: stage_deb
 		-d net-tools \
 		-d nfs-common \
 		-d 'lxc-docker >= 1.3.0' \
+		-d logrotate \
 		-t deb \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -161,6 +162,7 @@ rpm: stage_rpm
 		-d util-linux \
 		-d bash-completion \
 		-d 'docker >= 1.3.0' \
+		-d logrotate \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \

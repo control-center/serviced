@@ -15,6 +15,7 @@ package web
 
 import (
 	"fmt"
+	"log"
 	"mime"
 	"net/http"
 	"net/http/httputil"
@@ -143,8 +144,14 @@ func (sc *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
+	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	if err != nil {
+		glog.Errorf("Could not create access log file.")
+	}
+
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
+		Logger: log.New(accessLogFile, "", log.LstdFlags),
 	}
 
 	routes := sc.getRoutes()
