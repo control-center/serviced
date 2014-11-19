@@ -102,6 +102,20 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 	store := f.serviceStore
 
 	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
+		// remove all address assignments
+		for _, endpoint := range svc.Endpoints {
+			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpoint.Name); err != nil {
+				glog.Errorf("Could not find address assignment %s for service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+				return err
+			} else if assignment != nil {
+				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
+					glog.Errorf("Could not remove address assignment %s from service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
+					return err
+				}
+			}
+			endpoint.RemoveAssignment()
+		}
+
 		if err := zkAPI(f).RemoveService(svc); err != nil {
 			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
 			return err
