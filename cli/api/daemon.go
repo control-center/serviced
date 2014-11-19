@@ -209,15 +209,37 @@ func (d *daemon) run() error {
 	}
 
 	if isLoopback := func(iaddrs []net.Addr, addrs []net.IP) bool {
-		for _, iaddr := range iaddrs {
-			if ipnet, ok := iaddr.(*net.IPNet); ok {
-				for _, addr := range addrs {
-					if ipnet.Contains(addr) {
-						return true
-					}
-				}
+		glog.Infof("Looking in interface addrs: %+v for docker registry host %s with ips:%+v ", iaddrs, host, addrs)
+
+		for _, addr := range addrs {
+			if addr.IsLoopback() {
+				glog.Infof("The docker registry ip %s is a loopback address", addr)
+				return true
 			}
 		}
+
+		for _, iaddr := range iaddrs {
+			var ip net.IP
+			switch iaddr.(type) {
+			case *net.IPNet:
+				ip = iaddr.(*net.IPNet).IP
+			case *net.IPAddr:
+				ip = iaddr.(*net.IPAddr).IP
+			default:
+				continue
+			}
+
+			for _, addr := range addrs {
+				if addr.Equal(ip) {
+					glog.Infof("local ip %s is the docker registry ip %s", ip, addr)
+					return true
+				}
+
+				glog.V(2).Infof("local ip %s is not the docker registry ip %s", ip, addr)
+			}
+		}
+
+		glog.Infof("local interfaces did not contain the docker registry host %s with ips %+v", host, addrs)
 		return false
 	}(iaddrs, addrs); !isLoopback || port != "5000" {
 		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
@@ -232,6 +254,8 @@ func (d *daemon) run() error {
 		}
 		http.Handle("/", proxy)
 		go http.ListenAndServe(dockerRegistry, nil)
+	} else {
+		glog.Infof("Not starting reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
