@@ -10,12 +10,12 @@
       <div class="details-form">
         <div class="vertical-info">
             <label for="app_data_name">{{'label_service_name'|translate}}</label>
-            <input stealth-input type="text" id="app_data_name" data-value="services.current.Name" data-on-change="updateService" ng-disabled="services.current.isvc"></input>
+            <input stealth-input type="text" id="app_data_name" data-value="services.current.Name" data-on-change="updateService" ng-disabled="services.current.isvc" style="width:160px;"></input>
         </div>
 
         <div class="vertical-info">
             <label for="app_data_description">{{'label_service_description'|translate}}</label>
-            <input stealth-input type="text" id="app_data_description" data-value="services.current.Description" data-on-change="updateService" ng-disabled="services.current.isvc"></input>
+            <input stealth-input type="text" id="app_data_description" data-value="services.current.Description" data-on-change="updateService" ng-disabled="services.current.isvc" style="width:160px;"></input>
         </div>
 
         <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
