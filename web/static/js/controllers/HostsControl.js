@@ -85,7 +85,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
                                 // After removing, refresh our list
                                 refreshHosts($scope, resourcesService, false, hostCallback);
                                 this.close();
-                            })
+                            }.bind(this))
                             .error(function(data, status){
                                 $notification.create("Removing host failed", data.Detail).error();
                                 this.close();
