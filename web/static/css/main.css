@@ -1473,7 +1473,6 @@ input[type=file] {
 
 .stealthInput input {
     position: relative;
-    width: 160px;
     border: none;
     padding: 2px;
     padding-right: 14px;
