@@ -221,12 +221,14 @@ $(GODEP): | $(missing_godep_SRC)
 install_DIRS  = $(_DESTDIR)$(prefix)
 install_DIRS += $(_DESTDIR)/usr/bin
 install_DIRS += $(_DESTDIR)$(prefix)/bin
+install_DIRS += $(_DESTDIR)$(prefix)/etc
 install_DIRS += $(_DESTDIR)$(prefix)/doc
 install_DIRS += $(_DESTDIR)$(prefix)/share/web
 install_DIRS += $(_DESTDIR)$(prefix)/share/shell
 install_DIRS += $(_DESTDIR)$(prefix)/isvcs
 install_DIRS += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
+install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.daily
 
 # Specify the stuff to install as attributes of the various
 # install directories we know about.
@@ -237,6 +239,8 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 #     $(dir)_TARGETS = src_filename:dest_filename
 #
 default_INSTCMD = cp
+$(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
+$(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
