@@ -144,7 +144,7 @@ func (sc *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
-	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0666)
+	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
 	if err != nil {
 		glog.Errorf("Could not create access log file.")
 	}
