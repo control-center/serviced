@@ -620,6 +620,15 @@ func (c *Controller) Run() (err error) {
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
+	// Signal to health check registry that this instance is giving up the ghost.
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return nil
+	}
+	defer client.Close()
+	var unused int
+	_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, "__instance_shutdown", time.Now().String(), "passed"}, &unused)
 	return nil
 }
 
