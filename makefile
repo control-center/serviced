@@ -243,6 +243,7 @@ $(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
+$(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/opt/serviced/bin/serviced-isvcs
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
@@ -266,10 +267,13 @@ endif
 
 ifeq "$(_PKG)" "deb"
 $(_DESTDIR)$(sysconfdir)/init_TARGETS      = pkg/serviced.upstart:serviced.conf
+$(_DESTDIR)$(sysconfdir)/init_TARGETS     += pkg/serviced-isvcs.upstart:serviced-isvcs.conf
 endif
 ifeq "$(_PKG)" "rpm"
 $(_DESTDIR)/usr/lib/systemd/system_TARGETS = pkg/serviced.service:serviced.service
 $(_DESTDIR)$(prefix)/bin_TARGETS		  += pkg/serviced-systemd.sh:serviced-systemd.sh
+$(_DESTDIR)/usr/lib/systemd/system_TARGETS += pkg/serviced-isvcs.service:serviced-isvcs.service
+$(_DESTDIR)$(prefix)/bin_TARGETS		  += pkg/serviced-isvcs-systemd.sh:serviced-isvcs-systemd.sh
 endif
 
 #-----------------------------------#

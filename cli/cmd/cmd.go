@@ -17,18 +17,18 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"syscall"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
 // ServicedCli is the client ui for serviced
@@ -160,6 +160,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
+		cli.BoolFlag{"isvcs", "run isvcs containers"},
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
 		cli.BoolTFlag{"tls", "enable TLS"},
 		cli.StringFlag{"var", configEnv("VARPATH", varPath), "path to store serviced data"},
@@ -232,6 +233,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		DockerDNS:            ctx.GlobalStringSlice("docker-dns"),
 		Master:               ctx.GlobalBool("master"),
 		Agent:                ctx.GlobalBool("agent"),
+		ISVCS:                ctx.GlobalBool("isvcs"),
 		MuxPort:              ctx.GlobalInt("mux"),
 		TLS:                  ctx.GlobalBool("tls"),
 		VarPath:              ctx.GlobalString("var"),
@@ -295,7 +297,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	// Start server mode
-	if (options.Master || options.Agent) && len(ctx.Args()) == 0 {
+	if (options.ISVCS || options.Master || options.Agent) && len(ctx.Args()) == 0 {
 		rpcutils.RPC_CLIENT_SIZE = options.MaxRPCClients
 		c.driver.StartServer()
 		return fmt.Errorf("running server mode")
@@ -349,7 +351,7 @@ func setLogging(ctx *cli.Context) error {
 	// Listen for SIGUSR1 and, when received, toggle the log level between
 	// 0 and 2.  If the log level is anything but 0, we set it to 0, and on
 	// subsequent signals, set it to 2.
-	go func(){
+	go func() {
 		signalChan := make(chan os.Signal, 1)
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {

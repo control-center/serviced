@@ -37,6 +37,7 @@ type Options struct {
 	Master               bool
 	DockerDNS            []string
 	Agent                bool
+	ISVCS                bool
 	MuxPort              int
 	TLS                  bool
 	KeyPEMFile           string
@@ -165,4 +166,3 @@ func (a *api) connectDAO() (dao.ControlPlane, error) {
 	}
 	return a.dao, nil
 }
-
