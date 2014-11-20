@@ -86,20 +86,4 @@ function NavbarControl($scope, $rootScope, $cookies, $location, $route, $transla
 
     $scope.cookies = $cookies;
 
-    positionNotificationHolder();
-    // reposition on resize as it can cause scrollbar
-    // to appear/disappear
-    $(window).on("resize", positionNotificationHolder);
-
-    // resize / reposition notification holder
-    function positionNotificationHolder(){
-        var navWidth = $(".navbar-zen").outerWidth(),
-            windowWidth = $(window).width();
-
-        $("#notifications").css({
-            "width": navWidth + "px",
-            "left": (windowWidth * 0.5) - (navWidth * 0.5) + "px"
-        });
-    }
-
 }
