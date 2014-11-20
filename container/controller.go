@@ -620,6 +620,15 @@ func (c *Controller) Run() (err error) {
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
+	// Signal to health check registry that this instance is giving up the ghost.
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return nil
+	}
+	defer client.Close()
+	var unused int
+	client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, "__instance_shutdown", time.Now().String(), "passed"}, &unused)
 	return nil
 }
 
@@ -759,10 +768,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 			case err := <-exited:
 				if err == nil {
 					glog.V(4).Infof("Health check %s succeeded.", name)
-					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
+					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
 				} else {
 					glog.Warningf("Health check %s failed.", name)
-					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
+					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 				}
 			case <-exitChannel:
 				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)
