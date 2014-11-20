@@ -995,6 +995,10 @@ rect {
     padding-right: 15px;
 }
 
+.navWrapper {
+    position: relative;
+}
+
 /* force stuff to stay 1140px or wider */
 .table,
 .details,
@@ -1046,8 +1050,9 @@ rect {
 
 /* this is the main notification holder */
 #notifications {
-    position: fixed;
-    top: 80px;
+    position: absolute;
+    top: 50px;
+    width: 100%;
     opacity: 0.9;
     z-index: 999;
 }

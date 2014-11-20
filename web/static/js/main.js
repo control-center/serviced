@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
@@ -822,21 +822,6 @@ function httpifyDeferred(defer){
 function downloadFile(url){
     window.location = url;
 }
-
-// keep notifications stuck to bottom of nav, or top of window
-// if nav is out ovf view.
-var $window = $(window);
-$window.on("scroll", function(){
-    var currScrollTop = $window.scrollTop(),
-        $notifications = $("#notifications");
-
-    if(currScrollTop > 0){
-        var top = Math.max(80 - currScrollTop, 0);
-        $notifications.css("top", top+"px");
-    }else{
-        $notifications.css("top", "80px");
-    }
-});
 
 function getModeFromFilename(filename){
     var re = /(?:\.([^.]+))?$/;
