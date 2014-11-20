@@ -150,6 +150,10 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 		instanceStatus = make(map[string]*healthStatus)
 		serviceStatus[instanceID] = instanceStatus
 	}
+	if name == "__instance_shutdown" {
+		delete(serviceStatus, instanceID)
+		return
+	}
 	thisStatus, ok := instanceStatus[name]
 	if !ok {
 		healthChecks, err := f.GetHealthChecksForService(datastore.Get(), serviceID)
