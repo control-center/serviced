@@ -709,9 +709,6 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 		if len(endpoint.VHosts) > 0 {
 			// TODO: check to see if this vhost is in use by another app
 		}
-		if svc.RAMCommitment < 0 {
-			return fmt.Errorf("service RAM commitment cannot be negative")
-		}
 	}
 
 	// add additional validation checks to the services

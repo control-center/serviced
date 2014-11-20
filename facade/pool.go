@@ -288,7 +288,7 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 
 	memCommitment := uint64(0)
 	for _, service := range services {
-		memCommitment = memCommitment + service.RAMCommitment
+		memCommitment = memCommitment + service.RAMCommitment.Value
 	}
 
 	pool.MemoryCommitment = memCommitment

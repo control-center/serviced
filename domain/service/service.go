@@ -85,7 +85,7 @@ type Service struct {
 	LogConfigs        []servicedefinition.LogConfig
 	Snapshot          servicedefinition.SnapshotCommands
 	Runs              map[string]string
-	RAMCommitment     uint64
+	RAMCommitment     utils.EngNotation
 	CPUCommitment     uint64
 	Actions           map[string]string
 	HealthChecks      map[string]domain.HealthCheck // A health check for the service.

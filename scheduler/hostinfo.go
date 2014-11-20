@@ -63,7 +63,7 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 			return // this host won't be scheduled
 		}
 
-		cr += int64(s.RAMCommitment)
+		cr += int64(s.RAMCommitment.Value)
 	}
 
 	glog.V(2).Infof("For host %s: Total Memory = %s, Total Existing Commitments = %s", host, host.Memory, cr)
