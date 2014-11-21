@@ -61,7 +61,7 @@ prxy [OPTIONS] SERVICE_ID
   -keyfile="": path to private key file (defaults to compiled in private key)
   -mux=true: enable port multiplexing
   -muxport=22250: multiplexing port to use
-  -tls=true: enable TLS
+  tls is always enabled
 
 To terminate the prxy service connect to it via port 4321 and it will exit.
 The netcat (nc) command is particularly useful for this:
