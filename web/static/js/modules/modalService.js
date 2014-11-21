@@ -211,8 +211,16 @@
                 modals = [modal];
 
                 // perform onShow function after modal is visible
-                modal.$el.one("shown.bs.modal.", config.onShow.bind(modal));
-		modal.$el.one("hidden.bs.modal.", config.onHide.bind(modal));
+                modal.$el.one("shown.bs.modal.", function(){
+                    // search for and autofocus the focusme element
+                    modal.$el.find("[focusme]").first().focus();
+
+                    // call user provided onShow function
+                    config.onShow.bind(modal);
+                });
+
+                modal.$el.one("hidden.bs.modal.", config.onHide.bind(modal));
+
             }
 
             return {
