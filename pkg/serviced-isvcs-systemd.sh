@@ -40,7 +40,7 @@ case "$1" in
 	echo "$(date): starting serviced-isvcs daemon for $(hostid)"
 	export SERVICED_MASTER=0
 	export SERVICED_AGENT=0
-	exec $(dirname -- $0)/$(basename -- $0 .sh)
+	exec $(dirname -- $0)/serviced-isvcs
 	;;
   *)
         echo $"Usage: $0 {pre-start|post-stop}"

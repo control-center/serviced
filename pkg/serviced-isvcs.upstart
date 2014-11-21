@@ -37,7 +37,7 @@ script
     export SERVICED_MASTER=0
 
     cd $SERVICED_HOME 
-    exec ./bin/serviced-isvcs -isvcs $SERVICED_OPTS
+    exec ./bin/serviced-isvcs $SERVICED_OPTS
 
 end script
 

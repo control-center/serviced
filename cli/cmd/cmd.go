@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -33,8 +34,9 @@ import (
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
-	driver api.API
-	app    *cli.App
+	driver   api.API
+	app      *cli.App
+	basename string
 }
 
 const envPrefix = "SERVICED_"
@@ -97,8 +99,9 @@ func New(driver api.API) *ServicedCli {
 	)
 
 	c := &ServicedCli{
-		driver: driver,
-		app:    cli.NewApp(),
+		driver:   driver,
+		app:      cli.NewApp(),
+		basename: "",
 	}
 
 	c.app.Name = "serviced"
@@ -219,6 +222,7 @@ func New(driver api.API) *ServicedCli {
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
+	c.basename = filepath.Base(os.Args[0])
 	c.app.Run(args)
 }
 
@@ -270,6 +274,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
+	}
+	if c.basename == "serviced-isvcs" {
+		options.Master = false
+		options.Agent = false
+		options.ISVCS = true
+		fmt.Fprintf(os.Stderr, "disabled master and agent to run isvcs only for executable %s\n", c.basename)
 	}
 	if os.Getenv("SERVICED_MUX_TLS") == "0" {
 		options.TLS = false
