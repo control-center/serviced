@@ -17,18 +17,18 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"syscall"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
 // ServicedCli is the client ui for serviced
@@ -161,7 +161,6 @@ func New(driver api.API) *ServicedCli {
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
-		cli.BoolTFlag{"tls", "enable TLS"},
 		cli.StringFlag{"var", configEnv("VARPATH", varPath), "path to store serviced data"},
 		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
@@ -233,7 +232,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Master:               ctx.GlobalBool("master"),
 		Agent:                ctx.GlobalBool("agent"),
 		MuxPort:              ctx.GlobalInt("mux"),
-		TLS:                  ctx.GlobalBool("tls"),
+		TLS:                  true,
 		VarPath:              ctx.GlobalString("var"),
 		KeyPEMFile:           ctx.GlobalString("keyfile"),
 		CertPEMFile:          ctx.GlobalString("certfile"),
@@ -268,9 +267,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
-	}
-	if os.Getenv("SERVICED_MUX_TLS") == "0" {
-		options.TLS = false
 	}
 
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
@@ -349,7 +345,7 @@ func setLogging(ctx *cli.Context) error {
 	// Listen for SIGUSR1 and, when received, toggle the log level between
 	// 0 and 2.  If the log level is anything but 0, we set it to 0, and on
 	// subsequent signals, set it to 2.
-	go func(){
+	go func() {
 		signalChan := make(chan os.Signal, 1)
 		signal.Notify(signalChan, syscall.SIGUSR1)
 		for {

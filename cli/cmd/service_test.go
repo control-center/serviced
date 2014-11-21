@@ -692,7 +692,6 @@ func ExampleServicedCLI_CmdServiceProxy_usage() {
 	// OPTIONS:
 	//    --muxport '22250'			multiplexing port to use
 	//    --mux				enable port multiplexing
-	//    --tls				enable tls
 	//    --keyfile 				path to private key file (defaults to compiled in private keys
 	//    --certfile 				path to public certificate file (defaults to compiled in public cert)
 	//    --endpoint '10.87.103.1:4979'	serviced endpoint address

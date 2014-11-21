@@ -701,7 +701,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("/serviced/%s", binary),
 		"service",
 		"proxy",
-		fmt.Sprintf("--tls=%v", a.useTLS),
 		svc.ID,
 		strconv.Itoa(serviceState.InstanceID),
 		svc.Startup)
