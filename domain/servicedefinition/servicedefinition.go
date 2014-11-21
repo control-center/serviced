@@ -15,6 +15,7 @@ package servicedefinition
 
 import (
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/utils"
 
 	"errors"
 	"strings"
@@ -45,7 +46,7 @@ type ServiceDefinition struct {
 	Volumes           []Volume               // list of volumes to bind into containers
 	LogConfigs        []LogConfig
 	Snapshot          SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment     uint64                        // expected RAM commitment to use for scheduling
+	RAMCommitment     utils.EngNotation             // expected RAM commitment to use for scheduling
 	CPUCommitment     uint64                        // expected CPU commitment (#cores) to use for scheduling
 	Runs              map[string]string             // Map of commands that can be executed with 'serviced run ...'
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'

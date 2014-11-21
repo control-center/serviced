@@ -360,6 +360,11 @@ type runtimeContext struct {
 	InstanceID int
 }
 
+// Allow templates to access Service.RAMCommitment.Value via {{.RAMCommitment}}
+func (service *runtimeContext) RAMCommitment() uint64 {
+	return service.Service.RAMCommitment.Value
+}
+
 // newRuntimeContext wraps a given Service with a runtimeContext, adding any
 // extra attributes passed in.
 func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
@@ -368,6 +373,7 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 		instanceID,
 	}
 }
+
 
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID

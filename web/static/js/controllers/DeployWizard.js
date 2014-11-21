@@ -180,6 +180,26 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
         // if Services, iterate and sum up their commitment values
         if(template.Services){
+            var suffixToMultiplier = {
+                "":  1,
+                "k": 1 << 10,
+                "m": 1 << 20,
+                "g": 1 << 30,
+                "t": 1 << 40
+            }
+            var engNotationRE = /([0-9]*)([kKmMgGtT]?)/;
+            // Convert an engineeringNotation string to a number
+            function toBytes(RAMCommitment){
+                if (RAMCommitment == "") {
+                    return 0;
+                }
+                var match = RAMCommitment.match(engNotationRE);
+                var numeric = match[1];
+                var suffix = match[2].toLowerCase();
+                var multiplier = suffixToMultiplier[suffix]
+                var val = parseInt(numeric)
+                return val * multiplier
+            };
             // recursively calculate cpu and ram commitments
             (function calcCommitment(services){
                 services.forEach(function(service){
@@ -188,7 +208,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                     ret.CPUCommitment = Math.max(ret.CPUCommitment, service.CPUCommitment);
                     // RAMCommitment should be a sum of all ram needed
                     // by all services
-                    ret.RAMCommitment += service.RAMCommitment;
+                    ret.RAMCommitment += toBytes(service.RAMCommitment);
 
                     // recurse!
                     if(service.Services) calcCommitment(service.Services);
