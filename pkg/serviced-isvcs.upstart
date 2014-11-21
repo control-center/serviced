@@ -1,4 +1,4 @@
-description "Zenoss ServiceD"
+description "Zenoss ServiceD ISVCS"
 
 start on (filesystem and started docker and (started network-interface or started network-manager or started networking) )
 
@@ -10,7 +10,7 @@ limit nofile 1048576 1048576
 # this pre-start script is necessary to wait for docker
 pre-start script
     echo ""  # annoying, but this line ensures below echo is in upstart serviced log
-    echo "$(date): starting serviced daemon for $(hostid) - waiting for docker"
+    echo "$(date): starting serviced-isvcs daemon for $(hostid) - waiting for docker"
     while ! /usr/bin/docker ps; do date ; sleep 1 ; done
     echo "$(date): docker is now ready - done with pre-start"
     sleep 1s
@@ -19,8 +19,6 @@ end script
 
 script
     export SERVICED_HOME=/opt/serviced
-    export SERVICED_AGENT=1
-    export SERVICED_MASTER=1
     export TZ=UTC
     export HOME=/root
     export GOMAXPROCS=2
@@ -35,27 +33,34 @@ script
         done
     fi
 
+    export SERVICED_AGENT=0
+    export SERVICED_MASTER=0
+
     cd $SERVICED_HOME 
-    exec ./bin/serviced $SERVICED_OPTS
+    exec ./bin/serviced-isvcs $SERVICED_OPTS
 
 end script
 
 post-stop script
-    echo "$(date): post-stopping serviced daemon - waiting for serviced to stop"
+    echo "$(date): post-stopping serviced-isvcs daemon - waiting for serviced-isvcs to stop"
 
-    # wait for serviced daemon to stop
+    # wait for serviced-isvcs daemon to stop
     echo "$(date): waiting for serviced daemon to stop"
-    while pgrep -fla "bin/serviced$|bin/serviced "; do
+    while pgrep -fla "bin/serviced-isvcs"; do
         sleep 5
     done
 
-    # wait for serviced to stop listening
-    echo "$(date): waiting for serviced to stop listening"
-    while netstat -plant | grep 'LISTEN.*/serviced$'; do
+    # wait for serviced-isvcs to stop listening
+    echo "$(date): waiting for serviced-isvcs to stop listening"
+    while netstat -plant | grep 'LISTEN.*/serviced-isvcs$'; do
         sleep 2
     done
 
-    echo "$(date): serviced is now stopped - done with post-stop"
+    # stop potentially running isvcs even though serviced stopped (column 2 is IMAGEID)
+    echo "$(date): waiting for serviced isvcs to stop"
+    docker ps --no-trunc | awk '$2 ~ /^zenoss\/serviced-isvcs/{print $1}' | while read c; do docker stop $c; done
+
+    echo "$(date): serviced-isvcs is now stopped - done with post-stop"
     echo ""  # annoying, but this line ensures above echo is in upstart serviced log
 end script
 

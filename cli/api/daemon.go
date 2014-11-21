@@ -129,95 +129,72 @@ func (d *daemon) getEsClusterName(Type string) string {
 	return clusterName
 }
 
-func (d *daemon) run() error {
-	var err error
-	d.hostID, err = utils.HostID()
-	if err != nil {
-		glog.Fatalf("could not get hostid: %s", err)
-	}
-
-	// Start the debug port listener, if configured
-	if options.DebugPort > 0 {
-		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
-				glog.Errorf("Unable to bind debug port to %v. Is another instance running?", err)
-				return
-			}
-			glog.Infof("Started debug listener on port %d", options.DebugPort)
-		}()
-	}
-
-	l, err := net.Listen("tcp", options.Listen)
-	if err != nil {
-		glog.Fatalf("Could not bind to port %v. Is another instance running", err)
-	}
-
-	//This asserts isvcs
-	//TODO: should this just be in startMaster
+func (d *daemon) startISVCS() {
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir(path.Join(options.VarPath, "isvcs"))
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
-		glog.Fatalf("could not set es-serviced option: %s", err)
+		glog.Fatalf("Could not set es-serviced option: %s", err)
 	}
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", d.getEsClusterName("elasticsearch-logstash")); err != nil {
-		glog.Fatalf("could not set es-logstash option: %s", err)
+		glog.Fatalf("Could not set es-logstash option: %s", err)
+	}
+	if err := d.initISVCS(); err != nil {
+		glog.Fatalf("Could not start isvcs: %s", err)
+	}
+}
+
+func (d *daemon) startRPC() {
+	if options.DebugPort > 0 {
+		go func() {
+			if err := http.ListenAndServe(fmt.Sprintf(":%d", options.DebugPort), nil); err != nil {
+				glog.Errorf("Unable to bind to debug port %s. Is another instance running?", err)
+				return
+			}
+		}()
 	}
 
-	dockerVersion, err := node.GetDockerVersion()
+	listener, err := net.Listen("tcp", options.Listen)
 	if err != nil {
-		glog.Fatalf("could not determine docker version: %s", err)
-	}
-
-	if minDockerVersion.Compare(dockerVersion.Client) < 0 {
-		glog.Fatalf("serviced needs at least docker >= %s", minDockerVersion)
-	}
-
-	//TODO: is this needed for both agent and master?
-	if _, ok := volume.Registered(options.FSType); !ok {
-		glog.Fatalf("no driver registered for %s", options.FSType)
+		glog.Fatalf("Unable to bind to port %s. Is another instance running?")
 	}
 
 	rpcutils.SetDialTimeout(options.RPCDialTimeout)
-
-	if options.Master {
-		if err = d.startMaster(); err != nil {
-			glog.Fatalf("%v", err)
-		}
-	}
-	if options.Agent {
-		if err = d.startAgent(); err != nil {
-			glog.Fatalf("%v", err)
-		}
-	}
-
 	d.rpcServer.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
 
-	// check the docker registry
+	glog.V(0).Infof("Listening on %s", listener.Addr().String())
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				glog.Fatalf("Error accepting connections: %s", err)
+			}
+			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+		}
+	}()
+}
+
+func (d *daemon) startDockerRegistryProxy() {
 	host, port, err := net.SplitHostPort(options.DockerRegistry)
 	if err != nil {
 		glog.Fatalf("Could not parse docker registry: %s", err)
 	}
 
-	iaddrs, err := net.InterfaceAddrs()
-	if err != nil {
-		glog.Fatalf("Could not look up interface addresses: %s", err)
-	}
-
-	addrs, err := net.LookupIP(host)
-	if err != nil {
-		glog.Fatalf("Could not resolve ips for the given docker registry host %s: %s", host, err)
-	}
-
-	if isLoopback := func(iaddrs []net.Addr, addrs []net.IP) bool {
-		glog.Infof("Looking in interface addrs: %+v for docker registry host %s with ips:%+v ", iaddrs, host, addrs)
-
+	if isLocalAddress := func(host string) bool {
+		addrs, err := net.LookupIP(host)
+		if err != nil {
+			glog.Fatalf("Could not resolve ips for docker registry host %s: %s", host, err)
+		}
 		for _, addr := range addrs {
 			if addr.IsLoopback() {
-				glog.Infof("The docker registry ip %s is a loopback address", addr)
+				glog.Infof("Docker registry host %s is a loopback address at %s", host, addr)
 				return true
 			}
 		}
 
+		iaddrs, err := net.InterfaceAddrs()
+		if err != nil {
+			glog.Fatalf("Could not look up interface address: %s", err)
+		}
 		for _, iaddr := range iaddrs {
 			var ip net.IP
 			switch iaddr.(type) {
@@ -229,69 +206,101 @@ func (d *daemon) run() error {
 				continue
 			}
 
-			for _, addr := range addrs {
-				if addr.Equal(ip) {
-					glog.Infof("local ip %s is the docker registry ip %s", ip, addr)
-					return true
+			if !ip.IsLoopback() {
+				glog.Infof("Checking interface address at %s", iaddr)
+				for _, addr := range addrs {
+					if addr.Equal(ip) {
+						glog.Infof("Host %s is a local address at %s", host, ip)
+						return true
+					}
 				}
-
-				glog.V(2).Infof("local ip %s is not the docker registry ip %s", ip, addr)
 			}
 		}
 
-		glog.Infof("local interfaces did not contain the docker registry host %s with ips %+v", host, addrs)
+		glog.Infof("Host %s is not a local address", host)
 		return false
-	}(iaddrs, addrs); !isLoopback || port != "5000" {
-		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
-		proxy := httputil.NewSingleHostReverseProxy(&url.URL{
-			Scheme: "http",
-			Host:   options.DockerRegistry,
-		})
-		proxy.Director = func(r *http.Request) {
-			r.Host = options.DockerRegistry
-			r.URL.Host = r.Host
-			r.URL.Scheme = "http"
-		}
-		http.Handle("/", proxy)
-		go http.ListenAndServe(dockerRegistry, nil)
-	} else {
-		glog.Infof("Not starting reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+	}(host); isLocalAddress && port == "5000" {
+		return
 	}
 
-	glog.V(0).Infof("Listening on %s", l.Addr().String())
+	glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+		Scheme: "http",
+		Host:   options.DockerRegistry,
+	})
+	proxy.Director = func(r *http.Request) {
+		r.Host = options.DockerRegistry
+		r.URL.Host = r.Host
+		r.URL.Scheme = "http"
+	}
+	http.Handle("/", proxy)
 	go func() {
-		for {
-			conn, err := l.Accept()
-			if err != nil {
-				glog.Fatalf("Error accepting connections: %s", err)
-			}
-			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
+		if err := http.ListenAndServe(dockerRegistry, nil); err != nil {
+			glog.Fatalf("Unable to bind to docker registry port (:5000) %s. Is another instance already running?")
 		}
 	}()
+}
 
-	signalChan := make(chan os.Signal, 10)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
-	<-signalChan
-	glog.V(0).Info("Shutting down due to interrupt")
+func (d *daemon) run() (err error) {
+	if d.hostID, err = utils.HostID(); err != nil {
+		glog.Fatalf("Could not get host ID: %s", err)
+	}
+
+	if currentDockerVersion, err := node.GetDockerVersion(); err != nil {
+		glog.Fatalf("Could not get docker version: %s", err)
+	} else if minDockerVersion.Compare(currentDockerVersion.Client) < 0 {
+		glog.Fatalf("serviced requires docker >= %s", minDockerVersion)
+	}
+
+	if _, ok := volume.Registered(options.FSType); !ok {
+		glog.Fatalf("no driver registered for %s", options.FSType)
+	}
+
+	if options.ISVCS {
+		if !options.Master && options.Agent {
+			glog.Fatalf("isvcs must run as standalone or with MASTER enabled")
+		}
+
+		d.startISVCS()
+	} else {
+		defer zzk.ShutdownConnections()
+		d.startRPC()
+		d.startDockerRegistryProxy()
+	}
+
+	if options.Master {
+		if err := d.startMaster(); err != nil {
+			glog.Fatal(err)
+		}
+	}
+
+	if options.Agent {
+		if err := d.startAgent(); err != nil {
+			glog.Fatal(err)
+		}
+	}
+
+	signalC := make(chan os.Signal, 10)
+	signal.Notify(signalC, syscall.SIGINT, syscall.SIGTERM)
+	<-signalC
+	glog.Info("Shutting down due to interrupt")
 	close(d.shutdown)
 
-	doneWaiting := make(chan struct{})
+	done := make(chan struct{})
 	go func() {
-		glog.Info("Waiting for wait group")
+		defer close(done)
+		glog.Info("Stopping sub-processes")
 		d.waitGroup.Wait()
-		glog.Info("wait group is done")
-		close(doneWaiting)
+		glog.Info("Sub-processes have stopped")
 	}()
 
 	select {
-	case <-doneWaiting:
-		glog.Info("Shutdown")
+	case <-done:
+		glog.Infof("Shutdown")
 	case <-time.After(60 * time.Second):
-		glog.Info("Timed out waiting for shutdown")
-		//Return error???
+		glog.Infof("Timeout waiting for shutdown")
 	}
-	// finally, close all connections to zookeeper
-	zzk.ShutdownConnections()
+
 	return nil
 }
 
@@ -311,10 +320,6 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 }
 
 func (d *daemon) startMaster() error {
-	if err := d.initISVCS(); err != nil {
-		return err
-	}
-
 	var err error
 	if d.dsDriver, err = d.initDriver(); err != nil {
 		return err

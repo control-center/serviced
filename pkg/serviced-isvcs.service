@@ -1,0 +1,17 @@
+[Unit]
+Description=Zenoss ServiceD ISVCS
+Requires=network-online.target docker.service
+After=network.target docker.service
+
+[Service]
+Environment=SERVICED_HOME=/opt/serviced SERVICED_MASTER=0 SERVICED_AGENT=0 TZ=UTC HOME=/root GOMAXPROCS=2
+EnvironmentFile=/etc/default/serviced
+WorkingDirectory=/opt/serviced
+ExecStartPre=/opt/serviced/bin/serviced-isvcs-systemd.sh pre-start
+ExecStart=/opt/serviced/bin/serviced-isvcs-systemd.sh start
+ExecStopPost=/opt/serviced/bin/serviced-isvcs-systemd.sh post-stop
+TimeoutStopSec=60
+LimitNOFILE=1048576
+
+[Install]
+WantedBy=multi-user.target

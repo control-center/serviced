@@ -19,7 +19,7 @@ case "$1" in
 
 	# wait for serviced daemon to stop
 	echo "$(date): waiting for serviced daemon to stop"
-	while pgrep -fla "bin/serviced\s+"; do
+	while pgrep -fla "bin/serviced$|bin/serviced "; do
 	    sleep 5
 	done
 
@@ -28,10 +28,6 @@ case "$1" in
 	while netstat -plant | grep 'LISTEN.*/serviced$'; do
 		sleep 2
 	done
-
-	# stop potentially running isvcs even though serviced stopped (column 2 is IMAGEID)
-	echo "$(date): waiting for serviced isvcs to stop"
-	docker ps --no-trunc | awk '$2 ~ /^zenoss\/serviced-isvcs/{print $1}' | while read c; do docker stop $c; done
 
 	echo "$(date): serviced is now stopped - done with post-stop"
 	rc=0

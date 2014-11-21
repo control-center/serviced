@@ -52,7 +52,7 @@ trap cleanup EXIT
 
 start_serviced() {
     echo "Starting serviced..."
-    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${SERVICED} -master -agent &
+    sudo GOPATH=${GOPATH} PATH=${PATH} SERVICED_NOREGISTRY="true" ${SERVICED} -master -agent -isvcs &
     echo "Waiting 120 seconds for serviced to become the leader..."
     retry 180 wget --no-check-certificate http://${HOSTNAME}:443 -O- &>/dev/null
     return $?
