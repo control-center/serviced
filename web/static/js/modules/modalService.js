@@ -216,7 +216,7 @@
                     modal.$el.find("[focusme]").first().focus();
 
                     // call user provided onShow function
-                    config.onShow.bind(modal);
+                    config.onShow.call(modal);
                 });
 
                 modal.$el.one("hidden.bs.modal.", config.onHide.bind(modal));
