@@ -1,6 +1,7 @@
 /*
     good: #0084DB
     bad: #9C1200;
+    light good: #B2E0FF
 
     action/link: #325385;
     action/link hover: #4F83D1;
@@ -166,9 +167,9 @@ table .btn,
     font-weight: bold;
 }
 
-.toggle.btn-group .btn + .btn, 
-.toggle.btn-group .btn + .btn-group, 
-.toggle.btn-group .btn-group + .btn, 
+.toggle.btn-group .btn + .btn,
+.toggle.btn-group .btn + .btn-group,
+.toggle.btn-group .btn-group + .btn,
 .toggle.btn-group .btn-group + .btn-group {
     margin-left: -11px;
 }
@@ -211,11 +212,11 @@ table .btn,
     -moz-appearance: radio-label;
 }
 
-.table-bordered.side-flush > thead > tr > th, 
-.table-bordered.side-flush > tbody > tr > th, 
-.table-bordered.side-flush > tfoot > tr > th, 
-.table-bordered.side-flush > thead > tr > td, 
-.table-bordered.side-flush > tbody > tr > td, 
+.table-bordered.side-flush > thead > tr > th,
+.table-bordered.side-flush > tbody > tr > th,
+.table-bordered.side-flush > tfoot > tr > th,
+.table-bordered.side-flush > thead > tr > td,
+.table-bordered.side-flush > tbody > tr > td,
 .table-bordered.side-flush > tfoot > tr > td {
     border-left: 0px;
 }
@@ -250,7 +251,7 @@ table .btn,
     background-color: #515151;
 }
 
-.navbar-zen a.navbar-brand:hover, 
+.navbar-zen a.navbar-brand:hover,
 .navbar-zen li > button:hover,
 .navbar-zen li > a:hover {
     background-color: #969696;
@@ -337,7 +338,13 @@ table .btn,
     }
 }
 
-.btn-primary {
+.btn-primary{
+    background-color: #6b6b6b;
+    border-color: #555;
+}
+.btn-primary[disabled],
+.btn-primary[disabled]:hover{
+    opacity: 0.65;
     background-color: #6b6b6b;
     border-color: #555;
 }
@@ -354,7 +361,7 @@ table .btn,
     background-color: #f5f5f5;
     margin-bottom: 30px;
 }
-    
+
 .breadcrumb {
     margin: 0px 15px;
     padding: 8px 0px;
@@ -393,9 +400,13 @@ table .glyphicon {
     color: #8197B8 !important;
 }
 .form-signin {
-    max-width: 330px;
-    padding: 15px;
-    margin: 100px 0px 0px 300px;
+    width: 500px;
+    margin: 60px auto 0;
+    padding: 61px;
+    background-color: white;
+    text-align: center;
+    border-radius: 4px;
+    box-shadow: 0px 0px 8px rgba(0,0,0,.4);
 }
 .form-signin .form-signin-heading,
 .form-signin .checkbox {
@@ -428,9 +439,21 @@ table .glyphicon {
     border-top-right-radius: 0;
 }
 .login-container {
-    width: 671px;
-    height: 360px;
-    background: transparent url('/static/img/zenoss-login.png') no-repeat;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: url("../img/theMcKrakenBG1.png") #516685;
+}
+.fancyMcKraken {
+    position: absolute;
+    left: -80px;
+    top: 35px;
+    transform: rotate(18deg);
+    -webkit-transform: rotate(18deg);
+    -moz-transform: rotate(18deg);
+    -ms-transform: rotate(18deg);
 }
 .nav-tree {
     list-style: none;
@@ -599,7 +622,6 @@ li.active > .pool-data {
     content: "\00a0";
 }
 .disabled {
-    cursor: not-allowed;
     opacity: 0.65;
 }
 
@@ -649,7 +671,7 @@ input.instances {
     width: 70px;
 }
 input.startup {
-    width: 350px;
+    width: 320px;
 }
 
 .search-control label {
@@ -679,7 +701,8 @@ input.startup {
 
 .vertical-info {
     display: inline-block;
-    padding: 8px 15px;
+    padding: 8px 13px;
+    vertical-align: top;
 }
 .vertical-info > label {
     display: block;
@@ -791,6 +814,9 @@ input.startup {
     text-shadow: 1px 1px 2px #c0c0c0;
     color: #1a1a1a;
 }
+.modal-notify {
+    position: relative;
+}
 
 .flow {
     background-color: #F0F3F7;
@@ -827,22 +853,17 @@ input.startup {
     position: relative;
     height: 200px;
 }
-/* Visualization.js style changes */
-.nodata:before {
-  content: "No Data Available";
-}
 
-.nodata {
-  display: block;
-  position: relative;
+.noData {
   margin: auto;
   top: 40px;
   color: #AAA;
   text-align: center;
-  font-size: 18pt;
+  font-size: 1.2em;
   font-style: italic;
 }
 
+/* Visualization.js style changes */
 /* d3 related below */
 
 .node {
@@ -899,22 +920,22 @@ rect {
     fill: white;
 }
 
-.node.service rect { 
+.node.service rect {
     fill: #29A3CC;
     stroke: black;
 }
 
-.node.service.notrunning rect { 
+.node.service.notrunning rect {
     fill: #AAAAAA;
     stroke: black;
 }
 
-.node.service.meta rect { 
+.node.service.meta rect {
     fill: #19627A;
     stroke: black;
 }
 
-.node.service text { 
+.node.service text {
     fill: white;
 }
 
@@ -974,6 +995,10 @@ rect {
     padding-right: 15px;
 }
 
+.navWrapper {
+    position: relative;
+}
+
 /* force stuff to stay 1140px or wider */
 .table,
 .details,
@@ -1005,21 +1030,38 @@ rect {
 .modal {
     overflow: auto;
 }
+/* make modal submit button resize nicely */
+.modal .submit {
+    -webkit-transition: width 0.5s;
+    -moz-transition: width 0.5s;
+    transition: width 0.5s;
+    /* set min width to avoid funky size transitions
+     * when text content changes to "Submitting..." */
+    min-width: 110px;
+}
+.modal .modal-footer .glyphicon {
+    top: 2px;
+}
+.modal .modal-footer .btn-primary .glyphicon {
+    padding-right: 8px;
+}
 
 /* notifications */
 
 /* this is the main notification holder */
 #notifications {
-    position: fixed;
-    top: 80px;
+    position: absolute;
+    top: 50px;
+    width: 100%;
     opacity: 0.9;
     z-index: 999;
 }
 
 #loginNotifications {
-    width: 671px;
+    width: 500px;
     margin: auto;
     position: relative;
+    top: -4px;
 }
 
 .notification {
@@ -1059,8 +1101,11 @@ rect {
 .notification.bg-info .dialogIcon {
     color: #7890b6;
 }
+.notification.bg-success {
+    background-color: #B2E0FF;
+}
 .notification.bg-success .dialogIcon {
-    color: green;
+    color: #0084DB;
 }
 .notification.bg-danger .dialogIcon {
     color: #7A0000;
@@ -1086,6 +1131,12 @@ rect {
   0%   { opacity: 1; }
   10%  { opacity: .5;}
   20% { opacity: 1; }
+}
+
+/* NOTIFICATION OVERRIDES */
+.modal-notify .notification {
+    position: relative;
+    box-shadow: rgba(0,0,0,0.4) 0 0px 4px inset;
 }
 
 
@@ -1178,7 +1229,7 @@ rect {
     cursor: default;
 }
 .healthCheck.wide {
-    width: 46px;
+    width: 75px;
 }
 .healthCheck.zoom {
     animation: zoom .3s;
@@ -1398,4 +1449,168 @@ input[type=file] {
     padding: 0px 5px 5px 5px;
     vertical-align: middle;
     cursor: pointer;
+}
+
+.messageMeta{
+    width: 30%;
+    float: left;
+}
+
+.messageBody{
+   width: 70%;
+   float: left;
+}
+/* stealthy input fields */
+.stealthInput {
+    display: block;
+    position: relative;
+    border: solid 1px transparent;
+    border-bottom-color: #CCC;
+}
+.stealthInput.disabled {
+    border-bottom-color: transparent;
+    opacity: 1;
+}
+.stealthInput.isEditing {
+    border: solid 1px #CCC;
+    background-color: white;
+}
+
+.stealthInput input {
+    position: relative;
+    border: none;
+    padding: 2px;
+    padding-right: 14px;
+    outline: none;
+    background-color: transparent;
+    text-overflow: ellipsis;
+}
+
+.stealthInput .controls {
+    opacity: 0;
+    top: -1px;
+    position: absolute;
+    padding: 1px 4px 0;
+    right: 0px;
+    background-color: white;
+    border: solid #CCC 1px;
+    border-left: none;
+    border-radius: 0 4px 4px 0;
+
+    transition: right .2s, opacity .15s;
+}
+
+.stealthInput.isEditing.isDirty .controls {
+    opacity: 1;
+    right: -30px;
+}
+
+.stealthInput.isSpinning .controls {
+    opacity: 0;
+    right: 0;
+}
+
+.stealthInput .save,
+.stealthInput .cancel {
+    opacity: 0.75;
+    position: relative;
+    text-align: center;
+    font-family: 'Glyphicons Halflings';
+    top: 1px;
+    cursor: pointer;
+}
+.stealthInput .save:hover,
+.stealthInput .cancel:hover {
+    opacity: 1 !important;
+}
+
+.stealthInput .save {
+    color: #325385;
+}
+.stealthInput .cancel {
+    color: #888;
+}
+
+.stealthInput .save::after{
+    content: "\e084";
+}
+.stealthInput .cancel::after {
+    content: "\e014";
+}
+
+.stealthInput .edit {
+    position: absolute;
+    right: 0;
+    top: 4px;
+    text-align: center;
+    font-family: 'Glyphicons Halflings';
+    font-size: .8em;
+    opacity: 0;
+
+    transition: opacity .2s;
+}
+.stealthInput .edit::after {
+    content: "\270F";
+    color: #AAA;
+}
+.stealthInput:hover .edit{
+    opacity: 1;
+}
+.stealthInput.isSpinning .edit,
+.stealthInput.isEditing .edit,
+.stealthInput.isDirty .edit,
+.stealthInput.disabled .edit {
+    opacity: 0;
+}
+
+.stealthInput .dirty {
+    position: absolute;
+    padding: 0 4px;
+    right: 0;
+    top: 2px;
+    text-align: center;
+    opacity: 0;
+    font-weight: bold;
+    color: #325385;
+
+    transition: opacity .2s;
+}
+.stealthInput .dirty::after {
+    content: "!";
+}
+.stealthInput.isDirty .dirty {
+    opacity: 1;
+}
+.stealthInput.isDirty.isEditing .dirty {
+    opacity: 0;
+}
+
+.stealthInput .working{
+    position: absolute;
+    right: 0;
+    top: 0;
+    text-align: center;
+    font-family: 'Glyphicons Halflings';
+    opacity: 0;
+
+    transition: opacity .2s;
+    -webkit-animation: spin .7s infinite linear;
+    transform-origin: 50% 55%;
+}
+.stealthInput .working::after {
+    content: "\e031";
+    color: #AAA;
+}
+.stealthInput.isSpinning .working{
+    opacity: 1;
+}
+
+
+@-webkit-keyframes spin {
+    from {transform:rotate(0deg);}
+    to {transform:rotate(360deg);}
+}
+
+.modal .big .CodeMirror {
+    height: 500px;
 }

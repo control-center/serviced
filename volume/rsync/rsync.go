@@ -14,6 +14,7 @@
 package rsync
 
 import (
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 
@@ -118,27 +119,38 @@ func (c *RsyncConn) Snapshot(label string) (err error) {
 	}
 	argv := []string{"-a", c.Path() + "/", dest + "/"}
 	glog.Infof("Performing snapshot rsync command: %s %s", exe, argv)
-	rsync := exec.Command(exe, argv...)
 
-	done, output, err := make(chan interface{}), []byte{}, nil
-	go func() {
-		defer close(done)
-		output, err = rsync.CombinedOutput()
-	}()
+	var output []byte
+	for i := 0; i < 3; i++ {
+		rsync := exec.Command(exe, argv...)
+		done := make(chan interface{})
+		go func() {
+			defer close(done)
+			output, err = rsync.CombinedOutput()
+		}()
 
-	select {
-	case <-time.After(c.timeout):
-		glog.V(2).Infof("Received signal to kill rsync")
-		rsync.Process.Kill()
-	case <-done:
+		select {
+		case <-time.After(c.timeout):
+			glog.V(2).Infof("Received signal to kill rsync")
+			rsync.Process.Kill()
+			<-done
+		case <-done:
+		}
+		if err == nil {
+			return nil
+		}
+		if exitStatus, ok := utils.GetExitStatus(err); !ok || exitStatus != 24 {
+			glog.Errorf("Could not perform rsync: %s", string(output))
+			return err
+		}
+		glog.Infof("trying snapshot again: %s", label)
 	}
-
-	<-done
-	if err != nil {
-		glog.V(2).Infof("Could not perform rsync: %s", string(output))
-		return err
+	if exitStatus, _ := utils.GetExitStatus(err); exitStatus == 24 {
+		glog.Warningf("snapshot completed with errors: Partial transfer due to vanished source files")
+		return nil
 	}
-	return nil
+	glog.Errorf("Could not perform rsync: %s", string(output))
+	return err
 }
 
 // Snapshots returns the current snapshots on the volume

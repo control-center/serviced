@@ -246,10 +246,10 @@ func setupConfigFiles(svc *service.Service) error {
 }
 
 // setupLogstashFiles sets up logstash files
-func setupLogstashFiles(service *service.Service, resourcePath string) error {
+func setupLogstashFiles(service *service.Service, instanceID string, resourcePath string) error {
 	// write out logstash files
 	if len(service.LogConfigs) != 0 {
-		err := writeLogstashAgentConfig(logstashContainerConfig, service, resourcePath)
+		err := writeLogstashAgentConfig(logstashContainerConfig, service, instanceID, resourcePath)
 		if err != nil {
 			return err
 		}
@@ -325,7 +325,7 @@ func NewController(options ControllerOptions) (*Controller, error) {
 	}
 
 	if options.Logforwarder.Enabled {
-		if err := setupLogstashFiles(service, filepath.Dir(options.Logforwarder.Path)); err != nil {
+		if err := setupLogstashFiles(service, options.Service.InstanceID, filepath.Dir(options.Logforwarder.Path)); err != nil {
 			glog.Errorf("Could not setup logstash files error:%s", err)
 			return c, fmt.Errorf("container: invalid LogStashFiles error:%s", err)
 		}
@@ -610,7 +610,7 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
 			if doRegisterEndpoints {
-				c.registerExportedEndpoints()
+				registerExportedEndpoints(c, rpcDead)
 				doRegisterEndpoints = false
 			}
 			startAfter = nil
@@ -620,7 +620,40 @@ func (c *Controller) Run() (err error) {
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
-	return
+	// Signal to health check registry that this instance is giving up the ghost.
+	client, err := node.NewLBClient(c.options.ServicedEndpoint)
+	if err != nil {
+		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
+		return nil
+	}
+	defer client.Close()
+	var unused int
+	client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, "__instance_shutdown", time.Now().String(), "passed"}, &unused)
+	return nil
+}
+
+func registerExportedEndpoints(c *Controller, closing chan struct{}) {
+
+	for {
+		err := c.registerExportedEndpoints()
+		if err == nil {
+			return
+		}
+		client, err2 := node.NewLBClient(c.options.ServicedEndpoint)
+		if err2 != nil {
+			glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err2)
+
+		} else {
+			client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: fmt.Sprintf("error registering exported endpoints: %s", err)}, nil)
+			client.Close()
+		}
+		select {
+		case <-time.After(time.Second):
+		case <-closing:
+			return
+		}
+		glog.Errorf("could not register exported expoints: %s", err)
+	}
 }
 
 func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}) error {
@@ -735,10 +768,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 			case err := <-exited:
 				if err == nil {
 					glog.V(4).Infof("Health check %s succeeded.", name)
-					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
+					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
 				} else {
 					glog.Warningf("Health check %s failed.", name)
-					_ = client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
+					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 				}
 			case <-exitChannel:
 				proc.KillGroup(cmd.Process.Pid, sigtermTimeout)

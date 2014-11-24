@@ -65,8 +65,8 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	done := make(chan status)
 
 	for _, svc := range svcs {
-		if svc.DesiredState == service.SVCRun {
-			defer dfs.facade.StartService(datastore.Get(), svc.ID)
+		if svc.DesiredState == int(service.SVCRun) {
+			defer dfs.facade.StartService(datastore.Get(), dao.ScheduleServiceRequest{svc.ID, false})
 			processing[svc.ID] = struct{}{}
 
 			go func(poolID, serviceID string) {
@@ -117,6 +117,12 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 		return "", err
 	}
 
+	// dump the service definitions
+	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), getChildServices(tenantID, svcs)); err != nil {
+		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.Path(), err)
+		return "", err
+	}
+
 	tagID := time.Now().UTC().Format(timeFormat)
 	label := fmt.Sprintf("%s_%s", tenantID, tagID)
 
@@ -129,12 +135,6 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	// tag all of the images
 	if err := tag(tenantID, DockerLatest, tagID); err != nil {
 		glog.Errorf("Could not tag new snapshot for %s (%s): %s", tenant.Name, tenant.ID, err)
-		return "", err
-	}
-
-	// dump the service definitions
-	if err := exportJSON(filepath.Join(snapshotVolume.SnapshotPath(label), serviceJSON), getChildServices(tenantID, svcs)); err != nil {
-		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.SnapshotPath(label), err)
 		return "", err
 	}
 
@@ -318,7 +318,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 }
 
 func (dfs *DistributedFilesystem) pause(cancel <-chan interface{}, conn client.Connection, serviceID string) error {
-	if err := dfs.facade.PauseService(datastore.Get(), serviceID); err != nil {
+	if _, err := dfs.facade.PauseService(datastore.Get(), dao.ScheduleServiceRequest{serviceID, false}); err != nil {
 		return err
 	}
 
@@ -377,7 +377,7 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 		for _, svc := range serviceTree[parentID] {
 			serviceID := svc.ID
 			svc.DatabaseVersion = 0
-			svc.DesiredState = service.SVCStop
+			svc.DesiredState = int(service.SVCStop)
 			svc.ParentServiceID = parentID
 
 			// update the image

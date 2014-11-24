@@ -32,6 +32,9 @@
 # Set the default serviced RPC endpoint to dial
 # SERVICED_ENDPOINT=$SERVICED_MASTER_IP:4979
 
+# Set the max number of rpc clients (pool) to an endpoint
+# SERVICED_MAX_RPC_CLIENTS=3
+
 # Set the RPC port to listen on
 # SERVICED_RPC_PORT=4979
 
@@ -50,14 +53,15 @@
 # Set the TLS certfile
 # SERVICED_CERT_FILE=/etc/....
 
-# Set the driver type for the volumes (rsync/btrfs)
-# SERVICED_VFS=rsync
+# Set the driver type for the underlying file system (rsync/btrfs)
+# SERVICED_FS_TYPE=rsync
 
 # Set the aliases for this host (use in vhost muxing)
 # SERVICED_VHOST_ALIASES=foobar.com,example.com
 
 # Set the max stopped container age (in seconds) before serviced will remove it
-# SERVICED_MAX_CONTAINER_AGE=$(expr 24*60*60)
+#    86400 = number of seconds in one day = 24 hr/day * 60 min/hr * 60 sec/min
+# SERVICED_MAX_CONTAINER_AGE=86400
 
 # Set the subnet that dynamic endpoints use, inside the containers
 # SERVICED_VIRTUAL_ADDRESS_SUBNET=10.3
@@ -91,6 +95,13 @@
 #   internal service, KEY is the environment variable to set for that
 #   service, and VAL is the value to which to set the variable.
 # SERVICED_ISVCS_ENV_0=elasticsearch-logstash:ES_JAVA_OPTS=-Xmx4g
+
+# Set the user group that can log in to control center
+#   wheel is the default on RHEL and sudo is the default on Ubuntu
+# SERVICED_ADMIN_GROUP=wheel
+
+# Set to 0 in order to disable root user control center login
+# SERVICED_ALLOW_ROOT_LOGIN=1
 
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=

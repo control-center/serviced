@@ -1,4 +1,4 @@
-<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
 <h3 class="pull-left">
   {{'pools'|translate}}
@@ -23,12 +23,14 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-hide="pools.data.length">
+    <tr ng-hide="pools.data.length !== undefined">
         <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
+    <tr ng-hide="pools.data.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+    </tr>
     <tr ng-repeat="pool in pools.data | orderBy:pools.sort">
-      <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID}}</td>
-      <td>{{pool.Priority}}</td>
+      <td ng-click="click_pool(pool.ID)" class="link">{{pool.ID | cut:true:50}}</td>
       <td>{{pool.CoreCapacity}}</td>
       <td><span ng-class="{error: pool.MemoryCommitment>pool.MemoryCapacity}">{{pool.MemoryCommitment | toGB}}</span> / {{pool.MemoryCapacity | toGB}}</td>
       <td>{{pool.CreatedAt | date : 'medium'}}</td>

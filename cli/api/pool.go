@@ -28,11 +28,10 @@ type PoolConfig struct {
 	Realm       string
 	CoreLimit   int
 	MemoryLimit uint64
-	Priority    int
 }
 
 // Returns a list of all pools
-func (a *api) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (a *api) GetResourcePools() ([]pool.ResourcePool, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
@@ -63,7 +62,6 @@ func (a *api) AddResourcePool(config PoolConfig) (*pool.ResourcePool, error) {
 		Realm:       config.Realm,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
-		Priority:    config.Priority,
 	}
 
 	if err := client.AddResourcePool(p); err != nil {

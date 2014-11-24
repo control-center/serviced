@@ -22,7 +22,7 @@ import (
 // HostSyncHandler is the handler for synchronizing local host data
 type HostSyncHandler interface {
 	// GetHostsByPool looks up all host given the pool ID
-	GetHostsByPool(string) ([]*host.Host, error)
+	GetHostsByPool(string) ([]host.Host, error)
 	// AddUpdateHost adds or updates a host
 	AddUpdateHost(*host.Host) error
 	// RemoteHost removes an existing host
@@ -64,8 +64,8 @@ func (l *HostSynchronizer) GetAll() ([]zzk.Node, error) {
 	}
 
 	nodes := make([]zzk.Node, len(hosts))
-	for i, host := range hosts {
-		nodes[i] = &HostNode{Host: host}
+	for i := range hosts {
+		nodes[i] = &HostNode{Host: &hosts[i]}
 	}
 	return nodes, nil
 }

@@ -1,4 +1,4 @@
-<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 <h3 class="pull-left">
   {{'hosts'|translate}}
 </h3>
@@ -36,13 +36,16 @@
     <tr ng-hide="hosts.filtered !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
+    <tr ng-hide="hosts.filtered.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+    </tr>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
-      <td>
-        <i ng-if="host.active === 'yes'" class="healthIcon glyphicon glyphicon-ok-sign good"></i>
-        <i ng-if="!host.active" class="healthIcon glyphicon glyphicon-question-sign unknown"></i>
+      <td style="text-align:center;">
+        <div ng-if="host.active === 'yes'" class="healthCheck good"><i class="healthIcon glyphicon"></i></div>
+        <div ng-if="!host.active" class="healthCheck down"><i class="healthIcon glyphicon"></i></div>
       </td>
-      <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath}}</td>
+      <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath|cut:true:50}}</td>
       <td>{{host.Memory | toGB}}</td>
       <td>{{host.Cores}}</td>
       <td>{{host.KernelVersion}}</td>

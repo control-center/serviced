@@ -37,6 +37,7 @@ func init() {
 			Ports:       []int{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
 			HealthCheck: registryHealthCheck,
+			HostNetwork: true,
 		},
 	)
 	if err != nil {

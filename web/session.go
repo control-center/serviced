@@ -16,6 +16,7 @@ package web
 import (
 	userdomain "github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/node"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -23,11 +24,15 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 )
 
 const sessionCookie = "ZCPToken"
 const usernameCookie = "ZUsername"
+
+var adminGroup = "sudo"
 
 type sessionT struct {
 	ID       string
@@ -38,10 +43,26 @@ type sessionT struct {
 
 var sessions map[string]*sessionT
 
+var allowRootLogin bool = true
+
 func init() {
+	falses := []string{"0", "false", "f", "no"}
+	if v := strings.ToLower(os.Getenv("SERVICED_ALLOW_ROOT_LOGIN")); v != "" {
+		for _, t := range falses {
+			if v == t {
+				allowRootLogin  = false
+			}
+		}
+	}
+
+	if utils.Platform == utils.Rhel {
+		adminGroup = "wheel"
+	}
+
 	sessions = make(map[string]*sessionT)
 	go purgeOldsessionTs()
 }
+
 
 func purgeOldsessionTs() {
 	for {
@@ -119,7 +140,13 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 		return
 	}
 
-	if pamValidateLogin(&creds) || cpValidateLogin(&creds, client) {
+	if creds.Username == "root" && ! allowRootLogin {
+		glog.V(1).Info("root login disabled")
+		writeJSON(w, &simpleResponse{"Root login disabled", loginLink()}, http.StatusUnauthorized)
+		return
+	}
+
+	if pamValidateLogin(&creds, adminGroup) || cpValidateLogin(&creds, client) {
 		session, err := createsessionT(creds.Username)
 		if err != nil {
 			writeJSON(w, &simpleResponse{"sessionT could not be created", loginLink()}, http.StatusInternalServerError)

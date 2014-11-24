@@ -292,12 +292,13 @@
             // up their respective class thing
             $(".healthCheck").each(function(i, el){
                 var $el = $(el),
-                    id = el.dataset.id,
-                    lastStatus = el.dataset.lastStatus,
+                    id = $el.attr("data-id"),
+                    lastStatus = $el.attr("data-lastStatus"),
                     $healthIcon, $badge,
                     statusObj, popoverHTML,
                     hideHealthChecks,
-                    placement = "right";
+                    placement = "right",
+                    popoverObj, template;
 
                 // if this is an unintialized healthcheck html element,
                 // put template stuff inside
@@ -340,10 +341,6 @@
                 }
                
                 // setup popover
-                // remove any existing popover if not currently visible
-                if($el.popover && !$el.next('div.popover:visible').length){
-                    $el.popover('destroy');
-                }
 
                 // if this $el is inside an h3, make the popover point down
                 if($el.parent().prop("tagName").toLowerCase() === "h3"){
@@ -404,21 +401,53 @@
                     popoverHTML = popoverHTML.join("");
                 }
 
-                // configure popover
-                // TODO - dont touch dom!
-                $el.popover({
-                    trigger: "hover",
-                    placement: placement,
-                    delay: 0,
-                    title: statusObj.description,
-                    html: true,
-                    content: popoverHTML,
+                // choose a popover template which is just a title,
+                // or a title and content
+                template = hideHealthChecks || !popoverHTML ?
+                    '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3></div>' :
+                    '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3><div class="popover-content"></div></div>';
+                
+                // NOTE: directly accessing the bootstrap popover
+                // data object here.
+                popoverObj = $el.data("bs.popover");
+                
+                // if popover element already exists, update it
+                if(popoverObj){
+                    // update title, content, and template
+                    popoverObj.options.title = statusObj.description;
+                    popoverObj.options.content = popoverHTML;
+                    popoverObj.options.template = template;
+                    
+                    // if the tooltip already exists, change the contents
+                    // to the new template
+                    if(popoverObj.$tip){
+                        popoverObj.$tip.html($(template).html());
+                    }
 
-                    // if hideHealthChecks or no popoverHTML, make the popover just a title
-                    template: hideHealthChecks || !popoverHTML ?
-                        '<div class="popover" role="tooltip"><div class="arrow"></div><h3 class="popover-title"></h3></div>' :
-                        undefined
-                });
+                    // force popover to update using the new options
+                    popoverObj.setContent();
+
+                    // if the popover is currently visible, update
+                    // it immediately, but turn off animation to
+                    // prevent it fading in
+                    if(popoverObj.$tip.is(":visible")){
+                        popoverObj.options.animation = false;
+                        popoverObj.show();
+                        popoverObj.options.animation = true;
+                    }
+            
+                // if popover element doesn't exist, create it
+                } else {
+                    $el.popover({
+                        trigger: "hover",
+                        placement: placement,
+                        delay: 0,
+                        title: statusObj.description,
+                        html: true,
+                        content: popoverHTML,
+                        template: template
+                    });
+                }
 
                 $el.removeClass(Object.keys(STATUS_STYLES).join(" "))
                     .addClass(statusObj.status);
@@ -429,7 +458,7 @@
                     bounceStatus($el);
                 }
                 // store the status for comparison later
-                el.dataset.lastStatus = statusObj.status;
+                $el.attr("data-lastStatus", statusObj.status);
             });
         }
         function bindHealthCheckRowTemplate(hc){

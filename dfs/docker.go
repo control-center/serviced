@@ -44,34 +44,85 @@ type imagemeta struct {
 	Filename string
 }
 
+// ResetRegistry will update the host:port of the docker registry
+func (dfs *DistributedFilesystem) ResetRegistry() error {
+	// get all the services in the system
+	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	if err != nil {
+		glog.Errorf("Could not get services for updating the registry")
+		return err
+	}
+
+	imagemap := make(map[string]struct{})
+	for _, svc := range svcs {
+		imageID, err := commons.ParseImageID(svc.ImageID)
+		if err != nil {
+			glog.Errorf("Could not parse image ID (%s) for service %s (%s): %s", svc.ImageID, svc.Name, svc.ID, err)
+			return err
+		}
+
+		if imageID.Host == dfs.dockerHost && imageID.Port == dfs.dockerPort {
+			continue
+		}
+
+		if _, ok := imagemap[imageID.BaseName()]; !ok {
+			if err := dfs.registerImages(imageID.BaseName()); err != nil {
+				glog.Errorf("Could not reregister image %s: %s", imageID.BaseName(), err)
+				return err
+			}
+			imagemap[imageID.BaseName()] = struct{}{}
+		}
+
+		imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
+		svc.ImageID = imageID.String()
+		if err := dfs.facade.UpdateService(datastore.Get(), svc); err != nil {
+			glog.Errorf("Could not update service %s (%s) with image %s", svc.Name, svc.ID, svc.ImageID)
+			return err
+		}
+	}
+
+	return nil
+}
+
 // Commit will merge a container into existing services' image
 func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
-	// get the container and verify that it is not running
+	// get the container
 	ctr, err := docker.FindContainer(dockerID)
 	if err != nil {
 		glog.Errorf("Could not get container %s: %s", dockerID, err)
 		return "", err
 	}
 
+	// verify the container is not currently running
 	if ctr.IsRunning() {
 		err := fmt.Errorf("cannot commit a running container")
 		glog.Errorf("Error committing container %s: %s", ctr.ID, err)
 		return "", err
 	}
 
-	// parse the image information
-	imageID, err := commons.ParseImageID(ctr.Config.Image)
+	// find the image to commit (ctr.Config.Image is the repotag)
+	image, err := docker.FindImage(ctr.Config.Image, false)
 	if err != nil {
-		glog.Errorf("Could not parse image information for %s: %s", dockerID, err)
+		glog.Errorf("Could not find image %s from %s: %s", ctr.Config.Image, dockerID, err)
 		return "", err
 	}
-	tenantID := imageID.User
 
-	// find the image that is being committed
-	image, err := findImage(tenantID, ctr.Image, DockerLatest)
+	// verify the container is not stale (ctr.Image is the UUID)
+	if !image.ID.IsLatest() || image.UUID != ctr.Image {
+		err := fmt.Errorf("cannot commit a stale container")
+		glog.Errorf("Could not commit %s (%s): %s", dockerID, image.ID, err)
+		return "", err
+	}
+
+	// verify the tenantID
+	tenantID, err := dfs.facade.GetTenantID(datastore.Get(), image.ID.User)
 	if err != nil {
-		glog.Errorf("Could not find image %s: %s", dockerID, err)
-		return "", fmt.Errorf("cannot commit a stale container")
+		glog.Errorf("Could not look up tenant %s from image %s for container %s: %s", image.ID.User, image.ID, dockerID, err)
+		return "", err
+	} else if tenantID != image.ID.User {
+		err := fmt.Errorf("service is not the tenant")
+		glog.Errorf("Could not commit %s (%s): %s", dockerID, image.ID, err)
+		return "", err
 	}
 
 	// check the number of image layers
@@ -86,13 +137,14 @@ func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	}
 
 	// commit the container to the image and tag
-	if _, err := ctr.Commit(image.ID.BaseName()); err != nil {
-		glog.Errorf("Error trying to commit %s to %s: %s", dockerID, image.ID, err)
+	newImage, err := ctr.Commit(image.ID.BaseName())
+	if err != nil {
+		glog.Errorf("Could not commit %s (%s): %s", dockerID, image.ID, err)
 		return "", err
 	}
 
 	// desynchronize any running containers
-	if err := dfs.desynchronize(image.ID, time.Now()); err != nil {
+	if err := dfs.desynchronize(newImage); err != nil {
 		glog.Warningf("Could not denote all desynchronized services: %s", err)
 	}
 
@@ -106,44 +158,51 @@ func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	return snapshotID, nil
 }
 
-func (dfs *DistributedFilesystem) desynchronize(imageID commons.ImageID, commit time.Time) error {
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+func (dfs *DistributedFilesystem) desynchronize(image *docker.Image) error {
+	// inspect the image
+	dImg, err := image.Inspect()
 	if err != nil {
-		glog.Errorf("Could not get all services", err)
+		glog.Errorf("Could not inspect image %s (%s): %s", image.ID, image.UUID, err)
+		return err
+	}
+
+	// look up services for that tenant
+	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: image.ID.User})
+	if err != nil {
+		glog.Errorf("Could not get services for tenant %s from %s (%s): %s", image.ID.User, image.ID, image.UUID, err)
 		return err
 	}
 
 	for _, svc := range svcs {
+		// figure out which services are using the provided image
+		svcImageID, err := commons.ParseImageID(svc.ImageID)
+		if err != nil {
+			glog.Warningf("Could not parse image %s for %s (%s): %s", svc.ImageID, svc.Name, svc.ID)
+			continue
+		} else if !svcImageID.Equals(image.ID) {
+			continue
+		}
+
+		// TODO: we need to switch to using dao.ControlPlane
 		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 		if err != nil {
-			glog.Errorf("Could not acquire connection to coordinator (%s): %s", svc.PoolID, err)
-			return err
-		}
-
-		// figure out which services use the provided image
-		img, err := commons.ParseImageID(svc.ImageID)
-		if err != nil {
-			glog.Errorf("Error while parsing image %s for %s (%s): %s", svc.ImageID, svc.Name, svc.ID)
-			return err
-		}
-
-		if !img.Equals(imageID) {
+			glog.Warningf("Could not acquire connection to the coordinator (%s): %s", svc.PoolID, err)
 			continue
 		}
 
 		states, err := zkservice.GetServiceStates(conn, svc.ID)
 		if err != nil {
-			glog.Errorf("Could not get running services for %s (%s): %s", svc.Name, svc.ID)
-			return err
+			glog.Warningf("Could not get running services for %s (%s): %s", svc.Name, svc.ID)
+			continue
 		}
 
 		for _, state := range states {
 			// check if the instance has been running since before the commit
-			if state.IsRunning() && state.Started.Before(commit) {
+			if state.IsRunning() && state.Started.Before(dImg.Created) {
 				state.InSync = false
 				if err := zkservice.UpdateServiceState(conn, &state); err != nil {
-					glog.Errorf("Could not update service state %s for %s (%s) as out of sync: %s", state.ID, svc.Name, svc.ID, err)
-					return err
+					glog.Warningf("Could not update service state %s for %s (%s) as out of sync: %s", state.ID, svc.Name, svc.ID, err)
+					continue
 				}
 			}
 		}
@@ -220,19 +279,27 @@ func (dfs *DistributedFilesystem) importImages(dirpath string, images []imagemet
 	return nil
 }
 
-func findImage(tenantID, uuid, tag string) (*docker.Image, error) {
+func (dfs *DistributedFilesystem) registerImages(basename string) error {
 	images, err := docker.Images()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	for _, image := range images {
-		if image.ID.User == tenantID && image.UUID == uuid && image.ID.Tag == tag {
-			return image, nil
+		imageID := image.ID
+		if imageID.BaseName() == basename {
+			imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
+			if t, err := image.Tag(imageID.String()); err != nil {
+				glog.Errorf("Could not add tag %s to %s: %s", imageID, image.ID, err)
+				return err
+			} else if err := docker.PushImage(t.ID.String()); err != nil {
+				glog.Errorf("Could not push image %s: %s", t.ID, err)
+				return err
+			}
 		}
 	}
 
-	return nil, fmt.Errorf("image not found")
+	return nil
 }
 
 func findImages(tenantID, tag string) ([]*docker.Image, error) {

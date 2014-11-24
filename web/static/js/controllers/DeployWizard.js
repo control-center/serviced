@@ -67,16 +67,18 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             return false;
         }
 
-        resourcesService.add_host($scope.newHost, function(){
-            step += 1;
-            resetError();
-            $scope.step_page = $scope.steps[step].content;
-        }, function(data){
-            showError(data.Detail);
-        });
+        resourcesService.add_host($scope.newHost)
+            .success(function(){
+                step += 1;
+                resetError();
+                $scope.step_page = $scope.steps[step].content;
+            })
+            .error(function(data){
+                showError(data.Detail);
+            });
 
         return false;
-    }
+    };
 
     var resetStepPage = function() {
         step = 0;
@@ -178,6 +180,26 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
         // if Services, iterate and sum up their commitment values
         if(template.Services){
+            var suffixToMultiplier = {
+                "":  1,
+                "k": 1 << 10,
+                "m": 1 << 20,
+                "g": 1 << 30,
+                "t": 1 << 40
+            }
+            var engNotationRE = /([0-9]*)([kKmMgGtT]?)/;
+            // Convert an engineeringNotation string to a number
+            function toBytes(RAMCommitment){
+                if (RAMCommitment == "") {
+                    return 0;
+                }
+                var match = RAMCommitment.match(engNotationRE);
+                var numeric = match[1];
+                var suffix = match[2].toLowerCase();
+                var multiplier = suffixToMultiplier[suffix]
+                var val = parseInt(numeric)
+                return val * multiplier
+            };
             // recursively calculate cpu and ram commitments
             (function calcCommitment(services){
                 services.forEach(function(service){
@@ -186,7 +208,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                     ret.CPUCommitment = Math.max(ret.CPUCommitment, service.CPUCommitment);
                     // RAMCommitment should be a sum of all ram needed
                     // by all services
-                    ret.RAMCommitment += service.RAMCommitment;
+                    ret.RAMCommitment += toBytes(service.RAMCommitment);
 
                     // recurse!
                     if(service.Services) calcCommitment(service.Services);
@@ -274,7 +296,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             $('#addApp').modal('hide');
             $("#deploy-save-button").removeAttr("disabled");
             $("#deploy-save-button").removeClass('active');
-												$("#deploy-start-save-button").removeAttr("disabled");
             resetStepPage();
             resetError();
         };
@@ -288,7 +309,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
         $("#deploy-save-button").toggleClass('active');
         $("#deploy-save-button").attr("disabled", "disabled");
-								$("#deploy-start-save-button").attr("disabled", "disabled");
 
         var selected = $scope.selectedTemplates();
         var f = true;
@@ -313,14 +333,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             var checkStatus = true;
             resourcesService.deploy_app_template(deploymentDefinition, function(result) {
                 refreshServices($scope, resourcesService, false, function(){
-                    //start the service if requested
-                    if($scope.install.startNow){
-                        for(var i=0; i < $scope.services.data.length; ++i){
-                            if (result.Detail == $scope.services.data[i].ID){
-                                toggleRunning($scope.services.data[i], "start", resourcesService);
-                            }
-                        }
-                    }
                     checkStatus = false;
                     closeModal();
                 });
@@ -355,11 +367,6 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
         }
 
         nextClicked = false;
-    };
-
-    $scope.wizard_deploy_start = function(){
-        $scope.install.startNow = true;
-        $scope.wizard_finish();
     };
 
     resourcesService.get_app_templates(false, function(templatesMap) {

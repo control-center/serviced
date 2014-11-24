@@ -135,7 +135,7 @@ func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.St
 		return dao.Status{}, err
 	}
 
-	if hostState.DesiredState == service.SVCStop {
+	if hostState.DesiredState == int(service.SVCStop) {
 		switch status {
 		case dao.Running, dao.Paused:
 			status = dao.Stopping
@@ -144,7 +144,7 @@ func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.St
 		default:
 			return dao.Status{}, ErrUnknownState
 		}
-	} else if hostState.DesiredState == service.SVCRun {
+	} else if hostState.DesiredState == int(service.SVCRun) {
 		switch status {
 		case dao.Stopped:
 			status = dao.Starting
@@ -155,7 +155,7 @@ func getStatus(conn client.Connection, state *servicestate.ServiceState) (dao.St
 		default:
 			return dao.Status{}, ErrUnknownState
 		}
-	} else if hostState.DesiredState == service.SVCPause {
+	} else if hostState.DesiredState == int(service.SVCPause) {
 		switch status {
 		case dao.Running:
 			status = dao.Pausing

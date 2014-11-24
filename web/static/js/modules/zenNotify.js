@@ -90,6 +90,11 @@ var lastMessage;
                 this.updateTitle(this.title || $translate.instant("warning"));
                 this.updateStatus(this.msg || "");
                 notificationFactory.store(this);
+		if(!autoclose){
+                    // show close button and make it active
+                    this.$el.find(".close").show().off().on("click", this.onClose);
+                    notificationFactory.store(this);
+		}
                 this.show(autoclose);
 
                 return this;
@@ -159,6 +164,11 @@ var lastMessage;
                     lastMessage.hide();
                 }
 
+                // if $attachPoint is no longer in the document
+                // use the default attachPoint
+                if(!$.contains(document, this.$attachPoint[0])){
+                    this.$attachPoint = $("#notifications"); 
+                }
                 this.$attachPoint.append(this.$el);
 
                 autoclose = typeof autoclose !== 'undefined' ? autoclose : true;

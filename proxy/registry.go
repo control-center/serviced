@@ -16,8 +16,8 @@
 package proxy
 
 import (
-	"github.com/dotcloud/docker/pkg/proxy"
 	"github.com/control-center/serviced/commons"
+	"github.com/docker/docker/pkg/proxy"
 
 	"errors"
 	"fmt"

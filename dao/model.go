@@ -22,6 +22,8 @@ import (
 	"github.com/control-center/serviced/utils"
 )
 
+type NullRequest struct{}
+
 type User struct {
 	Name     string // the unique identifier for a user
 	Password string // no requirements on passwords yet

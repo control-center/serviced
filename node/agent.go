@@ -80,9 +80,10 @@ type HostAgent struct {
 	dockerDNS            []string             // docker dns addresses
 	varPath              string               // directory to store serviced	 data
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
-	vfs                  string               // driver for container volumes
+	fsType               string               // driver for container volumes
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
+	useTLS               bool // Whether the mux uses TLS
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
 	dockerRegistry       string        // the docker registry to use
@@ -115,9 +116,10 @@ type AgentOptions struct {
 	DockerDNS            []string
 	VarPath              string
 	Mount                []string
-	VFS                  string
+	FSType               string
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
+	UseTLS               bool
 	DockerRegistry       string
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
 	VirtualAddressSubnet string
@@ -134,8 +136,9 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.dockerDNS = options.DockerDNS
 	agent.varPath = options.VarPath
 	agent.mount = options.Mount
-	agent.vfs = options.VFS
+	agent.fsType = "rsync"
 	agent.mux = options.Mux
+	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 
@@ -264,17 +267,16 @@ func reapContainers(maxAge time.Duration) error {
 	}
 
 	cutoff := time.Now().Add(-maxAge)
-	for _, container := range containers {
-		if container.IsRunning() {
-			continue
-		} else if container.State.FinishedAt.Before(cutoff) {
+	for _, ctr := range containers {
+		// Do not reap if the container is running, it has never started, or it finished after the cutoff time
+		if ctr.IsRunning() || ctr.State.FinishedAt.Unix() < 0 || ctr.State.FinishedAt.After(cutoff) {
 			continue
 		}
 
 		// attempt to delete the container
-		glog.Infof("About to remove container %s", container.ID)
-		if err := container.Delete(true); err != nil {
-			glog.Errorf("Could not remove container %s: %s", container.ID, err)
+		glog.Infof("About to remove container %s", ctr.ID)
+		if err := ctr.Delete(true); err != nil {
+			glog.Errorf("Could not remove container %s: %s", ctr.ID, err)
 		}
 	}
 
@@ -679,6 +681,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_IS_SERVICE_SHELL=false"),
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
 		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
+		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
 
 	// add dns values to setup
@@ -725,7 +728,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
 	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
-	sv, err := dfs.GetSubvolume(a.vfs, a.varPath, tenantID)
+	sv, err := dfs.GetSubvolume(a.fsType, a.varPath, tenantID)
 	if err != nil {
 		return "", fmt.Errorf("Could not create subvolume: %s", err)
 	}
@@ -804,13 +807,15 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// 3) receieves signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
+		glog.Infof("Host Agent successfully started")
 		zzk.Start(shutdown, conn, hsListener, virtualIPListener, actionListener)
-		glog.Infof("Host Agent Listeners are done")
 
 		select {
 		case <-shutdown:
+			glog.Infof("Host Agent shutting down")
 			return
 		default:
+			glog.Infof("Host Agent restarting")
 		}
 	}
 }

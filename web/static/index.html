@@ -18,10 +18,12 @@
     <!-- Bootstrap core CSS -->
     <link href="/static/lib/bootstrap/dist/css/bootstrap.css" rel="stylesheet" />
     <link href="/static/lib/jquery-ui/themes/base/jquery-ui.css" rel="stylesheet" />
+    <link href="/static/lib/jquery-datetimepicker/jquery.datetimepicker.css" rel="stylesheet" />
 
     <!-- Custom styles for this template -->
     <link href="/static/css/main.css" rel="stylesheet" />
 
+    <link rel="stylesheet" href="/static/lib/codemirror/lib/codemirror.css">
     <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
     <script src="/static/lib/bootstrap/assets/js/html5shiv.js"></script>
@@ -30,6 +32,7 @@
     <script src="/static/lib/jquery/jquery.js"></script>
     <script src="/static/lib/jquery-timeago/jquery.timeago.js"></script>
     <script src="/static/lib/jquery-ui/ui/jquery-ui.js"></script>
+    <script src="/static/lib/jquery-datetimepicker/jquery.datetimepicker.js"></script>
     <script src="/static/lib/bootstrap/dist/js/bootstrap.js"></script>
     <script src="/static/lib/bootstrap/js/tooltip.js"></script>
     <script src="/static/lib/bootstrap/js/popover.js"></script>
@@ -53,12 +56,22 @@
     <script src="/metrics/static/performance/query/moment-timezone.js"></script>
     <script src="/metrics/static/performance/query/moment-timezone-data.js"></script>
     <script src="/static/lib/angular-moment/angular-moment.min.js"></script>
+    <script src="/static/js/modules/uiDateTimePicker.js"></script>
     <script src="/static/js/modules/zenNotify.js"></script>
+    <script src="/static/js/modules/stealthInputDirective.js"></script>
     <script src="/static/js/modules/serviceHealth.js"></script>
     <script src="/static/js/modules/modalService.js"></script>
     <script src="/static/js/modules/resourcesService.js"></script>
-  </head>
+    <script src="/static/lib/angular-sticky/sticky.min.js"></script>
 
+    <script src="/static/lib/codemirror/lib/codemirror.js"></script>
+    <script src="/static/lib/angular-ui-codemirror/ui-codemirror.js"></script>
+    <script src="/static/lib/codemirror/mode/properties/properties.js"></script>
+    <script src="/static/lib/codemirror/mode/yaml/yaml.js"></script>
+    <script src="/static/lib/codemirror/mode/xml/xml.js"></script>
+    <script src="/static/lib/codemirror/mode/shell/shell.js"></script>
+    <script src="/static/lib/codemirror/mode/javascript/javascript.js"></script>
+  </head>
   <body>
     <div class="container" ng-view>
 

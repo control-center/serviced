@@ -19,10 +19,6 @@
 package node
 
 import (
-	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
-
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -30,14 +26,14 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
 )
 
 // A serviced client.
 type ControlClient struct {
 	addr      string
-	rpcClient *rpc.Client
+	rpcClient rpcutils.Client
 }
 
 // Ensure that ControlClient implements the ControlPlane interface.
@@ -45,14 +41,13 @@ var _ dao.ControlPlane = &ControlClient{}
 
 // Create a new ControlClient.
 func NewControlClient(addr string) (s *ControlClient, err error) {
-	s = new(ControlClient)
-	s.addr = addr
-	glog.V(4).Infof("Connecting to %s", addr)
-	conn, err := net.Dial("tcp", s.addr)
+	client, err := rpcutils.GetCachedClient(addr)
 	if err != nil {
 		return nil, err
 	}
-	s.rpcClient = jsonrpc.NewClient(conn)
+	s = new(ControlClient)
+	s.addr = addr
+	s.rpcClient = client
 	return s, nil
 }
 
@@ -145,16 +140,16 @@ func (s *ControlClient) GetServiceStates(serviceId string, states *[]servicestat
 	return s.rpcClient.Call("ControlPlane.GetServiceStates", serviceId, states)
 }
 
-func (s *ControlClient) StartService(serviceId string, hostId *string) (err error) {
-	return s.rpcClient.Call("ControlPlane.StartService", serviceId, hostId)
+func (s *ControlClient) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StartService", request, affected)
 }
 
-func (s *ControlClient) RestartService(serviceId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.RestartService", serviceId, unused)
+func (s *ControlClient) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.RestartService", request, affected)
 }
 
-func (s *ControlClient) StopService(serviceId string, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.StopService", serviceId, unused)
+func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.StopService", request, affected)
 }
 
 func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
@@ -195,6 +190,10 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *
 
 func (s *ControlClient) GetVolume(serviceID string, volume *volume.Volume) error {
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume)
+}
+
+func (s *ControlClient) ResetRegistry(request dao.EntityRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.ResetRegistry", request, unused)
 }
 
 func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {

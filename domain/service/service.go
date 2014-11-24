@@ -28,11 +28,28 @@ import (
 )
 
 // Desired states of services.
+type DesiredState int
+
+func (state DesiredState) String() string {
+	switch state {
+	case SVCRestart:
+		return "restart"
+	case SVCStop:
+		return "stop"
+	case SVCRun:
+		return "go"
+	case SVCPause:
+		return "pause"
+	default:
+		return "unknown"
+	}
+}
+
 const (
-	SVCRun     = 1
-	SVCStop    = 0
-	SVCRestart = -1
-	SVCPause   = 2
+	SVCRestart = DesiredState(-1)
+	SVCStop    = DesiredState(0)
+	SVCRun     = DesiredState(1)
+	SVCPause   = DesiredState(2)
 )
 
 // Service A Service that can run in serviced.
@@ -68,7 +85,7 @@ type Service struct {
 	LogConfigs        []servicedefinition.LogConfig
 	Snapshot          servicedefinition.SnapshotCommands
 	Runs              map[string]string
-	RAMCommitment     uint64
+	RAMCommitment     utils.EngNotation
 	CPUCommitment     uint64
 	Actions           map[string]string
 	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
@@ -84,6 +101,11 @@ type Service struct {
 type ServiceEndpoint struct {
 	servicedefinition.EndpointDefinition
 	AddressAssignment addressassignment.AddressAssignment
+}
+
+// IsConfigurable returns true if the endpoint is configurable
+func (endpoint ServiceEndpoint) IsConfigurable() bool {
+	return endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol != ""
 }
 
 // NewService Create a new Service.

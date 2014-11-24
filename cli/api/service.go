@@ -40,6 +40,11 @@ type ServiceConfig struct {
 	RemotePorts     *PortMap
 }
 
+type SchedulerConfig struct {
+	ServiceID  string
+	AutoLaunch bool
+}
+
 // IPConfig is the deserialized object from the command-line
 type IPConfig struct {
 	ServiceID string
@@ -173,12 +178,9 @@ func (a *api) RemoveService(id string) error {
 		return err
 	}
 
-	if err := client.RemoveService(id, &unusedInt); err != nil {
+	if err := client.RemoveService(id, new(int)); err != nil {
 		return fmt.Errorf("could not remove service %s: %s", id, err)
-	} else if err := client.DeleteSnapshots(id, &unusedInt); err != nil {
-		return fmt.Errorf("could not remove snapshots for service %s: %s", id, err)
 	}
-
 	return nil
 }
 
@@ -205,32 +207,39 @@ func (a *api) UpdateService(reader io.Reader) (*service.Service, error) {
 }
 
 // StartService starts a service
-func (a *api) StartService(id string) error {
+func (a *api) StartService(config SchedulerConfig) (int, error) {
 	client, err := a.connectDAO()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	var unused string
-	if err := client.StartService(id, &unused); err != nil {
-		return err
+	var affected int
+	err = client.StartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch}, &affected)
+	return affected, err
+}
+
+// Restart
+func (a *api) RestartService(config SchedulerConfig) (int, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return 0, err
 	}
 
-	return nil
+	var affected int
+	err = client.RestartService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch}, &affected)
+	return affected, err
 }
 
 // StopService stops a service
-func (a *api) StopService(id string) error {
+func (a *api) StopService(config SchedulerConfig) (int, error) {
 	client, err := a.connectDAO()
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	if err := client.StopService(id, &unusedInt); err != nil {
-		return err
-	}
-
-	return nil
+	var affected int
+	err = client.StopService(dao.ScheduleServiceRequest{config.ServiceID, config.AutoLaunch}, &affected)
+	return affected, err
 }
 
 // AssignIP assigns an IP address to a service

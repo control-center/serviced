@@ -15,6 +15,7 @@ package web
 
 import (
 	"fmt"
+	"log"
 	"mime"
 	"net/http"
 	"net/http/httputil"
@@ -43,7 +44,7 @@ type ServiceConfig struct {
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, aGroup string) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
@@ -52,6 +53,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		muxTLS:      muxTLS,
 		muxPort:     muxPort,
 	}
+	adminGroup = aGroup
 	if len(cfg.agentPort) == 0 {
 		cfg.agentPort = "127.0.0.1:4979"
 	}
@@ -118,10 +120,23 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	if err != nil {
 		glog.Fatalf("Could not prepare key.pem file: %s", err)
 	}
-	err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
-	if err != nil {
-		glog.Fatalf("could not setup webserver: %s", err)
-	}
+	go func() {
+		redirect := func(w http.ResponseWriter, req *http.Request) {
+			http.Redirect(w, req, fmt.Sprintf("https://%s:%s%s", req.Host, sc.bindPort, req.URL), http.StatusMovedPermanently)
+		}
+		err = http.ListenAndServe(":80", http.HandlerFunc(redirect))
+		if err != nil {
+			glog.Errorf("could not setup HTTP webserver: %s", err)
+		}
+	}()
+	go func() {
+		err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
+		if err != nil {
+			glog.Fatalf("could not setup HTTPS webserver: %s", err)
+		}
+	}()
+	blockerChan := make(chan bool)
+	<-blockerChan
 }
 
 // ServeUI is a blocking call that runs the UI hander on port :7878
@@ -129,8 +144,14 @@ func (sc *ServiceConfig) ServeUI() {
 	mime.AddExtensionType(".json", "application/json")
 	mime.AddExtensionType(".woff", "application/font-woff")
 
+	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
+	if err != nil {
+		glog.Errorf("Could not create access log file.")
+	}
+
 	handler := rest.ResourceHandler{
 		EnableRelaxedContentType: true,
+		Logger: log.New(accessLogFile, "", log.LstdFlags),
 	}
 
 	routes := sc.getRoutes()
@@ -215,7 +236,7 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 }
 
 func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
-	glog.Info("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
+	glog.Infof("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
 	c, err := master.NewClient(sc.agentPort)
 	if err != nil {
 		glog.Errorf("Could not create a control center client to %v: %v", sc.agentPort, err)

@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"syscall"
 	"time"
 
 	"github.com/control-center/serviced/commons"
@@ -194,20 +195,37 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	return &Container{ctr, cd.HostConfig}, nil
 }
 
-// FindContainer looks up a container using its id.
+// FindContainer looks up a container using its id or name.
 func FindContainer(id string) (*Container, error) {
-	cl, err := Containers()
+	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
-		return nil, fmt.Errorf("docker: unable to find container %s: %v", id, err)
+		return nil, err
 	}
 
-	for _, c := range cl {
-		if c.ID == id {
-			return c, nil
+	ctr, err := dc.InspectContainer(id)
+	if err != nil {
+		if _, ok := err.(*dockerclient.NoSuchContainer); ok {
+			return nil, ErrNoSuchContainer
 		}
+		return nil, err
+	}
+	return &Container{ctr, dockerclient.HostConfig{}}, nil
+}
+
+// Logs calls docker logs for a running service container
+func Logs(dockerID string, args []string) error {
+	if _, err := FindContainer(dockerID); err != nil {
+		return err
 	}
 
-	return nil, ErrNoSuchContainer
+	var command []string = []string{"/usr/bin/docker", "logs"}
+	if len(args) > 0 {
+		command = append(command, args...)
+	}
+	command = append(command, dockerID)
+
+	glog.V(1).Infof("exec logs command for container:%v command: %+v\n", dockerID, command)
+	return syscall.Exec(command[0], command[0:], os.Environ())
 }
 
 // Containers retrieves a list of all the Docker containers.

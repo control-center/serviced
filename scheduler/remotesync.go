@@ -138,7 +138,7 @@ func (s *scheduler) getEndpointSynchronizer(local client.Connection) zzk.Listene
 	return registry.NewEndpointSynchronizer(local, s.registry, zzk.GetRemoteConnection)
 }
 
-func (s *scheduler) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (s *scheduler) GetResourcePools() ([]pool.ResourcePool, error) {
 	return s.facade.GetResourcePools(datastore.Get())
 }
 
@@ -174,7 +174,7 @@ func (s *scheduler) RemoveService(id string) error {
 	return s.facade.RemoveService(datastore.Get(), id)
 }
 
-func (s *scheduler) GetHostsByPool(id string) ([]*host.Host, error) {
+func (s *scheduler) GetHostsByPool(id string) ([]host.Host, error) {
 	return s.facade.FindHostsInPool(datastore.Get(), id)
 }
 

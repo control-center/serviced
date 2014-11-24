@@ -56,10 +56,10 @@ func (node *PoolNode) Version() interface{} { return node.version }
 // SetVersion implements client.Node
 func (node *PoolNode) SetVersion(version interface{}) { node.version = version }
 
-func SyncResourcePools(conn client.Connection, pools []*pool.ResourcePool) error {
+func SyncResourcePools(conn client.Connection, pools []pool.ResourcePool) error {
 	nodes := make([]zzk.Node, len(pools))
 	for i := range pools {
-		nodes[i] = &PoolNode{ResourcePool: pools[i]}
+		nodes[i] = &PoolNode{ResourcePool: &pools[i]}
 	}
 	return zzk.Sync(conn, nodes, poolpath())
 }

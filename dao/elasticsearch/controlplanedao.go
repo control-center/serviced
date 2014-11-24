@@ -46,7 +46,7 @@ type ControlPlaneDao struct {
 	hostName       string
 	port           int
 	varpath        string
-	vfs            string
+	fsType         string
 	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
 	dockerRegistry string
@@ -69,6 +69,8 @@ func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildServi
 		svc, err := f.FindChildService(ctx, svcID, childName)
 		if err != nil {
 			return service.Service{}, err
+		} else if svc == nil {
+			return service.Service{}, fmt.Errorf("no service found")
 		}
 		return *svc, nil
 	}
@@ -111,10 +113,6 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 	return err
 }
 
-func (this *ControlPlaneDao) RestartService(serviceID string, unused *int) error {
-	return dao.ControlPlaneError{Msg: "unimplemented"}
-}
-
 // Create a elastic search control center data access object
 func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
@@ -129,7 +127,7 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vfs string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -142,14 +140,14 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, vf
 	s.facade = facade
 
 	s.varpath = varpath
-	s.vfs = vfs
+	s.fsType = fsType
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {
 		return nil, err
 	}
 
-	dfs, err := dfs.NewDistributedFilesystem(vfs, varpath, dockerRegistry, facade, maxdfstimeout)
+	dfs, err := dfs.NewDistributedFilesystem(fsType, varpath, dockerRegistry, facade, maxdfstimeout)
 	if err != nil {
 		return nil, err
 	}

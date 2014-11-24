@@ -17,32 +17,30 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
 
-	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
 	"time"
 )
 
 // A LBClient implementation.
 type LBClient struct {
 	addr      string
-	rpcClient *rpc.Client
+	rpcClient rpcutils.Client
 }
 
 // assert that this implemenents the Agent interface
 var _ LoadBalancer = &LBClient{}
 
 // Create a new AgentClient.
-func NewLBClient(addr string) (s *LBClient, err error) {
-	s = new(LBClient)
-	s.addr = addr
-	conn, err := net.Dial("tcp", s.addr)
+func NewLBClient(addr string) (*LBClient, error) {
+	client, err := rpcutils.GetCachedClient(addr)
 	if err != nil {
 		return nil, err
 	}
-	s.rpcClient = jsonrpc.NewClient(conn)
+	s := new(LBClient)
+	s.addr = addr
+	s.rpcClient = client
 	return s, nil
 }
 

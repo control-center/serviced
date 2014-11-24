@@ -36,6 +36,7 @@ import (
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/scheduler"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
@@ -59,6 +60,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -69,10 +71,12 @@ import (
 	"time"
 
 	// Needed for profiling
+	"net/http/httputil"
 	_ "net/http/pprof"
 )
 
 var minDockerVersion = version{0, 11, 1}
+var dockerRegistry = "localhost:5000"
 
 type daemon struct {
 	servicedEndpoint string
@@ -169,9 +173,11 @@ func (d *daemon) run() error {
 	}
 
 	//TODO: is this needed for both agent and master?
-	if _, ok := volume.Registered(options.VFS); !ok {
-		glog.Fatalf("no driver registered for %s", options.VFS)
+	if _, ok := volume.Registered(options.FSType); !ok {
+		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
+
+	rpcutils.SetDialTimeout(options.RPCDialTimeout)
 
 	if options.Master {
 		if err = d.startMaster(); err != nil {
@@ -185,6 +191,72 @@ func (d *daemon) run() error {
 	}
 
 	d.rpcServer.HandleHTTP(rpc.DefaultRPCPath, rpc.DefaultDebugPath)
+
+	// check the docker registry
+	host, port, err := net.SplitHostPort(options.DockerRegistry)
+	if err != nil {
+		glog.Fatalf("Could not parse docker registry: %s", err)
+	}
+
+	iaddrs, err := net.InterfaceAddrs()
+	if err != nil {
+		glog.Fatalf("Could not look up interface addresses: %s", err)
+	}
+
+	addrs, err := net.LookupIP(host)
+	if err != nil {
+		glog.Fatalf("Could not resolve ips for the given docker registry host %s: %s", host, err)
+	}
+
+	if isLoopback := func(iaddrs []net.Addr, addrs []net.IP) bool {
+		glog.Infof("Looking in interface addrs: %+v for docker registry host %s with ips:%+v ", iaddrs, host, addrs)
+
+		for _, addr := range addrs {
+			if addr.IsLoopback() {
+				glog.Infof("The docker registry ip %s is a loopback address", addr)
+				return true
+			}
+		}
+
+		for _, iaddr := range iaddrs {
+			var ip net.IP
+			switch iaddr.(type) {
+			case *net.IPNet:
+				ip = iaddr.(*net.IPNet).IP
+			case *net.IPAddr:
+				ip = iaddr.(*net.IPAddr).IP
+			default:
+				continue
+			}
+
+			for _, addr := range addrs {
+				if addr.Equal(ip) {
+					glog.Infof("local ip %s is the docker registry ip %s", ip, addr)
+					return true
+				}
+
+				glog.V(2).Infof("local ip %s is not the docker registry ip %s", ip, addr)
+			}
+		}
+
+		glog.Infof("local interfaces did not contain the docker registry host %s with ips %+v", host, addrs)
+		return false
+	}(iaddrs, addrs); !isLoopback || port != "5000" {
+		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+		proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+			Scheme: "http",
+			Host:   options.DockerRegistry,
+		})
+		proxy.Director = func(r *http.Request) {
+			r.Host = options.DockerRegistry
+			r.URL.Host = r.Host
+			r.URL.Scheme = "http"
+		}
+		http.Handle("/", proxy)
+		go http.ListenAndServe(dockerRegistry, nil)
+	} else {
+		glog.Infof("Not starting reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
 	go func() {
@@ -275,6 +347,7 @@ func (d *daemon) startMaster() error {
 	}
 
 	health.SetDao(d.cpDao)
+	go health.Cleanup(d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
 		return err
@@ -298,7 +371,13 @@ func (d *daemon) startMaster() error {
 	}
 
 	// This is storage related
-	thisHost, err := host.Build(agentIP, d.masterPoolID)
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID)
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
@@ -389,7 +468,14 @@ func (d *daemon) startAgent() error {
 			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
 	}
-	thisHost, err := host.Build(agentIP, "unknown")
+
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, "unknown")
 	if err != nil {
 		panic(err)
 	}
@@ -402,41 +488,45 @@ func (d *daemon) startAgent() error {
 	go func() {
 		var poolID string
 		for {
-			glog.Infof("Trying to discover my pool...")
-			var myHost *host.Host
-			masterClient, err := master.NewClient(d.servicedEndpoint)
-			if err != nil {
-				glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
-			} else {
+			poolID = func() string {
+				glog.Infof("Trying to discover my pool...")
+				var myHost *host.Host
+				masterClient, err := master.NewClient(d.servicedEndpoint)
+				if err != nil {
+					glog.Errorf("master.NewClient failed (endpoint %+v) : %v", d.servicedEndpoint, err)
+					return ""
+				}
+				defer masterClient.Close()
 				myHost, err = masterClient.GetHost(myHostID)
 				if err != nil {
 					glog.Warningf("masterClient.GetHost %v failed: %v (has this host been added?)", myHostID, err)
+					return ""
 				}
-			}
-			if err != nil {
-				//wait to try getting pool again or for shutdow, whichever comes first
-				select {
-				case <-d.shutdown:
-					return
-				case <-time.After(5 * time.Second):
-					continue
+				poolID = myHost.PoolID
+				glog.Infof(" My PoolID: %v", poolID)
+				//send updated host info
+				updatedHost, err := host.UpdateHostInfo(*myHost)
+				if err != nil {
+					glog.Infof("Could not send updated host information: %v", err)
+					return poolID
 				}
-			}
-			poolID = myHost.PoolID
-			glog.Infof(" My PoolID: %v", poolID)
-			//send updated host info
-			updatedHost, err := host.UpdateHostInfo(*myHost)
-			if err != nil {
-				glog.Infof("Could not send updated host information: %v", err)
+				err = masterClient.UpdateHost(updatedHost)
+				if err != nil {
+					glog.Warningf("Could not update host information: %v", err)
+					return poolID
+				}
+				glog.V(2).Infof("Sent updated host info %#v", updatedHost)
+				return poolID
+			}()
+			if poolID != "" {
 				break
 			}
-			err = masterClient.UpdateHost(updatedHost)
-			if err != nil {
-				glog.Warningf("Could not update host information: %v", err)
-				break
+			select {
+			case <-d.shutdown:
+				return
+			case <-time.After(5 * time.Second):
+				continue
 			}
-			glog.V(2).Infof("Sent updated host info %#v", updatedHost)
-			break
 		}
 
 		thisHost.PoolID = poolID
@@ -493,10 +583,11 @@ func (d *daemon) startAgent() error {
 			DockerDNS:            options.DockerDNS,
 			VarPath:              options.VarPath,
 			Mount:                options.Mount,
-			VFS:                  options.VFS,
+			FSType:               options.FSType,
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
-			DockerRegistry:       options.DockerRegistry,
+			UseTLS:               options.TLS,
+			DockerRegistry:       dockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 		}
@@ -544,7 +635,7 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, options.DockerRegistry)
+		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry)
 		http.ListenAndServe(":50000", sio)
 	}()
 
@@ -586,7 +677,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(options.DockerRegistry)
+	f := facade.New(dockerRegistry)
 	return f
 }
 
@@ -602,7 +693,7 @@ func (d *daemon) initISVCS() error {
 		case <-d.shutdown:
 			return
 		case <-time.After(10 * time.Minute):
-			isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+			isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
 		}
 		// Now run every 6 hours
 		for {
@@ -610,7 +701,7 @@ func (d *daemon) initISVCS() error {
 			case <-d.shutdown:
 				return
 			case <-time.After(6 * time.Hour):
-				isvcs.PurgeLogstashIndices(options.LogstashMaxDays)
+				isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
 			}
 		}
 	}()
@@ -630,13 +721,13 @@ func (d *daemon) initISVCS() error {
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.VFS, dfsTimeout, options.DockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, dfsTimeout, dockerRegistry)
 }
 
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup)
 	go cpserver.ServeUI()
 	go cpserver.Serve(d.shutdown)
 }

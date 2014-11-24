@@ -21,6 +21,7 @@ import (
 	"io"
 	"net"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -155,14 +156,62 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 		}
 	}
 
-	go func() {
-		io.Copy(conn, svc)
-		conn.Close()
-		svc.Close()
-	}()
-	go func() {
-		io.Copy(svc, conn)
-		conn.Close()
-		svc.Close()
-	}()
+	quit := make(chan bool)
+	go ProxyLoop(conn, svc, quit)
+
+//	go func() {
+//		io.Copy(conn, svc)
+//		conn.Close()
+//		svc.Close()
+//	}()
+//	go func() {
+//		io.Copy(svc, conn)
+//		conn.Close()
+//		svc.Close()
+//	}()
+}
+
+func ProxyLoop(client net.Conn, backend net.Conn,  quit chan bool) {
+//	backend, err := net.DialTCP("tcp", nil, backendAddr)
+//	if err != nil {
+//		glog.Errorf("Can't forward traffic to backend tcp/%v: %s\n", backendAddr, err)
+//		client.Close()
+//		return
+//	}
+
+	event := make(chan int64)
+	var broker = func(to, from net.Conn) {
+		written, err := io.Copy(to, from)
+		if err != nil {
+			// If the socket we are writing to is shutdown with
+			// SHUT_WR, forward it to the other end of the pipe:
+			if err, ok := err.(*net.OpError); ok && err.Err == syscall.EPIPE {
+				from.Close()
+			}
+		}
+		to.Close()
+		event <- written
+	}
+
+	go broker(client, backend)
+	go broker(backend, client)
+
+	var transferred int64 = 0
+	for i := 0; i < 2; i++ {
+		select {
+		case written := <-event:
+			transferred += written
+		case <-quit:
+			// Interrupt the two brokers and "join" them.
+			client.Close()
+			backend.Close()
+			for ; i < 2; i++ {
+				transferred += <-event
+			}
+			return
+		}
+	}
+//	glog.Infof("transferred %v bytes between %v", transferred, backendAddr)
+	client.Close()
+	backend.Close()
 }

@@ -1,12 +1,10 @@
-<div id="loginNotifications"></div>
-
 <div class="container login-container">
   <form id="login" class="form-signin {{extra_class}}" ng-submit="login()" form-autofill-fix>
-    <h3>Control Center</h3>
+    <img class="loginLogo" src="static/img/theMcKrakenLogo.png" style="padding: 0 0 35px;">
     <input type="text" ng-model="username" class="form-control" placeholder="Username" autofocus required>
     <input type="password" ng-model="password" class="form-control" placeholder="Password" required>
-    <button class="btn btn-lg btn-primary btn-block" type="submit">{{login_button_text}}</button>
-    <div id="login_alert" class="alert {{login_status}}">{{login_message}}</div>
+    <button class="btn btn-lg btn-block btn-primary" type="submit" ng-disabled="loginDisabled">{{login_button_text}}</button>
   </form>
+  <div id="loginNotifications"></div>
 </div>
-
+<img src="static/img/theMcKrakenFancyMan.png" class="fancyMcKraken">

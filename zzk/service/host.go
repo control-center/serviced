@@ -51,7 +51,7 @@ func NewHostState(state *servicestate.ServiceState) *HostState {
 		HostID:         state.HostID,
 		ServiceID:      state.ServiceID,
 		ServiceStateID: state.ID,
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 	}
 }
 
@@ -180,7 +180,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		}
 
 		glog.V(2).Infof("Processing %s (%s); Desired State: %d", svc.Name, svc.ID, hs.DesiredState)
-		switch hs.DesiredState {
+		switch service.DesiredState(hs.DesiredState) {
 		case service.SVCRun:
 			var err error
 			if !state.IsRunning() {
@@ -353,11 +353,11 @@ func pauseInstance(conn client.Connection, hostID, stateID string) error {
 	if err := conn.Get(hpath, &hs); err != nil {
 		return err
 	}
-	if hs.DesiredState != service.SVCRun {
+	if hs.DesiredState != int(service.SVCRun) {
 		return nil
 	}
 	glog.V(2).Infof("Pausing service instance %s via host %s", stateID, hostID)
-	hs.DesiredState = service.SVCPause
+	hs.DesiredState = int(service.SVCPause)
 	return conn.Set(hpath, &hs)
 }
 
@@ -368,11 +368,11 @@ func resumeInstance(conn client.Connection, hostID, stateID string) error {
 	if err := conn.Get(hpath, &hs); err != nil {
 		return err
 	}
-	if hs.DesiredState != service.SVCPause {
+	if hs.DesiredState != int(service.SVCPause) {
 		return nil
 	}
 	glog.V(2).Infof("Resuming service instance %s via host %s", stateID, hostID)
-	hs.DesiredState = service.SVCRun
+	hs.DesiredState = int(service.SVCRun)
 	return conn.Set(hpath, &hs)
 }
 
@@ -383,6 +383,6 @@ func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
 		return err
 	}
 	glog.V(2).Infof("Stopping instance %s via host %s", stateID, hostID)
-	hs.DesiredState = service.SVCStop
+	hs.DesiredState = int(service.SVCStop)
 	return conn.Set(hpath, &hs)
 }

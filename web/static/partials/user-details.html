@@ -20,18 +20,29 @@
 <ul class="well list-group">
     <li class="list-group-item" ng-repeat="message in messages.messages track by message.id">
         <div ng-if="message.read < message.count" class="message unreadMessage" ng-click="markRead(message)">
-            <span class="messageCounter">{{ message.count - message.read > 1 ? message.count - message.read : ""}}</span>
-            <i class="glyphicon glyphicon-envelope"></i>
-            <span class="date">{{message.date | date : 'medium'}} -</span>
-            <span class="title">{{message.title}}:</span>
-            <span class="message">{{message.msg}}</span>
+
+	    <span class="messageMeta">
+                <span class="messageCounter">{{ message.count - message.read > 1 ? message.count - message.read : ""}}</span>
+                <i class="glyphicon glyphicon-envelope"></i>
+                <span class="date">{{message.date | date : 'medium'}}</span>
+            </span>
+            <span class="messageBody">
+		<span class="title">{{message.title}}:</span>
+                <span class="message">{{message.msg}}</span>
+            </span>
+	    <div class="clearfix"></div>
         </div>
         <div ng-if="message.read >= message.count" class="message readMessage">
-            <span class="messageCounter"></span>
-            <i class="glyphicon glyphicon-ok"></i>
-            <span class="date">{{message.date | date : 'medium'}} -</span>
-            <span class="title">{{message.title}}:</span>
-            <span class="message">{{message.msg}}</span>
+	    <span class="messageMeta">
+                <span class="messageCounter"></span>
+                <i class="glyphicon glyphicon-ok"></i>
+                <span class="date">{{message.date | date : 'medium'}}</span>
+	    </span>
+	    <span class="messageBody">
+	            <span class="title">{{message.title}}:</span>
+        	    <span class="message">{{message.msg}}</span>
+            </span>
+	    <div class="clearfix"></div>
         </div>
     </li>
 </ul>

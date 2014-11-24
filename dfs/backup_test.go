@@ -414,7 +414,7 @@ func TestBackup_IntegrationTest(t *testing.T) {
 				}
 
 				// Write some data to the DFS
-				volume, e := getSubvolume(dt.Dao.vfs, "default", serviceId)
+				volume, e := getSubvolume(dt.Dao.fsType, "default", serviceId)
 				if e != nil {
 					t.Fatalf("Failed to get subvolume: %s", e)
 				}

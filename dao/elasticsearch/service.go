@@ -25,6 +25,14 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
 		return err
 	}
+
+	// Create the tenant volume
+	if tenantID, err := this.facade.GetTenantID(datastore.Get(), svc.ID); err != nil {
+		glog.Warningf("Could not get tenant for service %s: %s", svc.ID, err)
+	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	}
+
 	*serviceId = svc.ID
 	return nil
 }
@@ -34,12 +42,21 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 	if err := this.facade.UpdateService(datastore.Get(), svc); err != nil {
 		return err
 	}
+
+	// Create the tenant volume
+	if tenantID, err := this.facade.GetTenantID(datastore.Get(), svc.ID); err != nil {
+		glog.Warningf("Could not get tenant for service %s: %s", svc.ID, err)
+	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	}
 	return nil
 }
 
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	if err := this.facade.RemoveService(datastore.Get(), id); err != nil {
+		return err
+	} else if err := this.DeleteSnapshots(id, unused); err != nil {
 		return err
 	}
 	return nil
@@ -110,13 +127,21 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map
 }
 
 // start the provided service
-func (this *ControlPlaneDao) StartService(serviceID string, unused *string) error {
-	return this.facade.StartService(datastore.Get(), serviceID)
+func (this *ControlPlaneDao) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.StartService(datastore.Get(), request)
+	return err
+}
+
+// restart the provided service
+func (this *ControlPlaneDao) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.RestartService(datastore.Get(), request)
+	return err
 }
 
 // stop the provided service
-func (this *ControlPlaneDao) StopService(id string, unused *int) error {
-	return this.facade.StopService(datastore.Get(), id)
+func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {
+	*affected, err = this.facade.StopService(datastore.Get(), request)
+	return err
 }
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig

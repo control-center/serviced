@@ -15,29 +15,24 @@ package agent
 
 import (
 	"github.com/control-center/serviced/domain/host"
-	"github.com/zenoss/glog"
-
-	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
+	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
 // Client rpc client to interact with agent
 type Client struct {
 	addr      string
-	rpcClient *rpc.Client
+	rpcClient rpcutils.Client
 }
 
 // NewClient Create a new Client.
 func NewClient(addr string) (*Client, error) {
-	s := new(Client)
-	s.addr = addr
-	glog.V(4).Infof("Agent connecting to %s", addr)
-	conn, err := net.Dial("tcp", s.addr)
+	client, err := rpcutils.GetCachedClient(addr)
 	if err != nil {
 		return nil, err
 	}
-	s.rpcClient = jsonrpc.NewClient(conn)
+	s := new(Client)
+	s.addr = addr
+	s.rpcClient = client
 	return s, nil
 }
 

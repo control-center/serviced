@@ -22,6 +22,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"os"
+	"bufio"
 )
 
 // statReporter perically collects statistics at the given
@@ -38,9 +40,17 @@ func statReporter(statsUrl string, interval time.Duration) {
 }
 
 var eth0StatsDir = "/sys/devices/virtual/net/eth0/statistics"
+var procNetFiles = map[string]string{
+	"tcp": "/proc/net/tcp",
+	"udp": "/proc/net/udp",
+	"raw": "/proc/net/raw",
+}
 
-// collect eth0 statistics
 func collect(ts time.Time, statsUrl string) {
+	// TODO: At some point we can look at refactoring this to use the
+	// 'serviced metric' code
+
+	// collect eth0 statistics
 	netStats, err := readInt64Stats(eth0StatsDir)
 	if err != nil {
 		glog.Errorf("Could not collect eth0 stats: %s", err)
@@ -61,6 +71,25 @@ func collect(ts time.Time, statsUrl string) {
 		}
 		i++
 	}
+
+	// collect open connection statistics
+	for proto, procFile := range procNetFiles {
+		conns, err := getOpenConnections(procFile)
+		if err != nil {
+			glog.Errorf("Could not collect open connection information: %s", err)
+			return
+		}
+
+		sample := stats.Sample{
+			Metric:    "net.open_connections." + proto,
+			Value:     strconv.FormatInt(int64(conns), 10),
+			Timestamp: now,
+			Tags:      map[string]string{"protocol": proto},
+		}
+		samples = append(samples, sample)
+	}
+
+
 	glog.V(4).Infof("posting samples: %+v", samples)
 	if err := stats.Post(statsUrl, samples); err != nil {
 		glog.Errorf("could not post stats: %s", err)
@@ -92,4 +121,27 @@ func readInt64Stats(dir string) (results map[string]int64, err error) {
 		results[finfo.Name()] = i
 	}
 	return results, nil
+}
+
+func getOpenConnections(fileLoc string) (openConns int, err error) {
+	file, err := os.Open(fileLoc)
+	if err != nil {
+		return -1, err
+	}
+	defer file.Close()
+
+	openConns = 0
+	scanner := bufio.NewScanner(file)
+	scanner.Scan() // Skip the first line of headers
+	for scanner.Scan() {
+		splitString := strings.Fields(scanner.Text())
+		if len(splitString) > 4 {
+			if splitString[3] != "06" {
+				openConns++
+			}
+		} else {
+			glog.Errorf("Unable to read open connection information from %s", fileLoc)
+		}
+	}
+	return openConns, scanner.Err()
 }

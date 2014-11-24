@@ -19,26 +19,24 @@
 package node
 
 import (
-	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
+	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
 // AgentClient is an interface that the serviced agent implements to provide
 // information about the host it is running on.
 type AgentClient struct {
 	addr      string
-	rpcClient *rpc.Client
+	rpcClient rpcutils.Client
 }
 
 // Create a new AgentClient.
 func NewAgentClient(addr string) (s *AgentClient, err error) {
-	s = new(AgentClient)
-	s.addr = addr
-	conn, err := net.Dial("tcp", s.addr)
+	client, err := rpcutils.GetCachedClient(addr)
 	if err != nil {
 		return nil, err
 	}
-	s.rpcClient = jsonrpc.NewClient(conn)
+	s = new(AgentClient)
+	s.addr = addr
+	s.rpcClient = client
 	return s, nil
 }
