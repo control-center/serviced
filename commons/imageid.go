@@ -237,16 +237,9 @@ func ParseImageID(iid string) (*ImageID, error) {
 func (iid ImageID) Equals(iid2 ImageID) bool {
 	if iid.BaseName() != iid2.BaseName() {
 		return false
-	} else if iid.Tag == iid2.Tag {
-		return true
 	}
 
-	switch iid.Tag {
-	case "", "latest":
-		return iid2.Tag == "" || iid2.Tag == "latest"
-	}
-
-	return false
+	return iid.Tag == iid2.Tag || (iid.IsLatest() && iid2.IsLatest())
 }
 
 // String returns a string representation of the ImageID structure
@@ -296,6 +289,15 @@ func (iid ImageID) Registry() string {
 	}
 
 	return strings.Join(s, "")
+}
+
+// IsLatest returns a boolean that indicates that the image ID is the latest
+func (iid ImageID) IsLatest() bool {
+	switch iid.Tag {
+	case "", "latest":
+		return true
+	}
+	return false
 }
 
 // Validate returns true if the ImageID structure is valid.

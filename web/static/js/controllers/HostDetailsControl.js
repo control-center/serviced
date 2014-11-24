@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -32,32 +32,6 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { id: 'MAC Address', name: 'ip_addresses_mac' }
     ]);
 
-    $scope.viewConfig = function(running) {
-        $scope.editService = $.extend({}, running);
-        $scope.editService.config = 'TODO: Implement';
-        $modalService.create({
-            templateUrl: "edit-config.html",
-            model: $scope,
-            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
-            bigModal: true,
-            actions: [
-                {
-                    role: "cancel"
-                },{
-                    role: "ok",
-                    label: "save",
-                    action: function(){
-                        if(this.validate()){
-                            $scope.updateService();
-                            // NOTE: should wait for response before closing
-                            this.close();
-                        }
-                    }
-                }
-            ]
-        });
-    };
-
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
         resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {
@@ -68,6 +42,14 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
                 title: "title_log",
                 bigModal: true,
                 actions: [
+                    {
+                        classes: "btn-default",
+                        label: "download",
+                        action: function(){
+                            downloadFile('/services/' + running.ServiceID + '/' + running.ID + '/logs/download');
+                        },
+                        icon: "glyphicon-download"
+                    },
                     {
                         role: "cancel",
                         classes: "btn-default",
@@ -117,6 +99,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
     //     by angular's processing engine
     $scope.drawn = {};
 
+
     //index: graph index for div id selection
     //graph: the graph to display
     $scope.viz = function(index, graph) {
@@ -127,8 +110,56 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
             } else {
                 graph.timezone = jstz.determine().name();
                 zenoss.visualization.chart.create(id, graph);
-                $scope.drawn[id] = true;
+                $scope.drawn[id] = graph;
+                $scope.aggregator = graph.datapoints[0].aggregator;
             }
         }
+    };
+
+    $scope.options = {
+        maxTime: new Date(),
+        maxDate: new Date(),
+        mask:true
+    };
+    var now = new Date(),
+        end = moment(now),
+        start = moment().subtract(1, "hours");
+    $scope.timeRange = {
+        time_start: start.format("YYYY/MM/DD HH:mm"),
+        time_end: end.format("YYYY/MM/DD HH:mm")
+    };
+
+    $scope.updateGraphs = function(){
+        for(var i in $scope.drawn){
+            $scope.updateGraph(i, $scope.drawn[i]);
+        }
+    };
+
+    $scope.updateGraph = function(id, config){
+        config.range.start = moment($scope.timeRange.time_start)._d.getTime();
+        config.range.end = moment($scope.timeRange.time_end)._d.getTime();
+        zenoss.visualization.chart.update(id, config);
+    };
+
+    // TODO - make this more generic to handle updating any
+    // graph config propery
+    $scope.aggregators = [
+        {
+            name: "Average",
+            val: "avg"
+        },{
+            name: "Sum",
+            val: "sum"
+        }
+    ];
+    $scope.updateGraphsAggregator = function(){
+        // iterate each graphDef
+        for(var i in $scope.drawn){
+            // then iterate each graphDef's datapoints
+            $scope.drawn[i].datapoints.forEach(function(dp){
+                dp.aggregator = $scope.aggregator;
+            });
+        }
+        $scope.updateGraphs();
     };
 }

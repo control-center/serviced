@@ -1,4 +1,4 @@
-<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+<div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 <h3>{{hosts.current.Name}}</h3>
 <div class="details">
   <div class="details-form">
@@ -38,19 +38,37 @@
     </div>
   </div>
 </div>
-
-<h3>{{'graphs'|translate}}</h3>
-<div class="graphsContainer" style="margin-bottom: 20px;">
-  <div ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
-    <div class="zenchartContainer">
-      <h4>{{graph.name}}</h4>
-      <div class="graphDescrip">{{graph.description}} over the past hour.</div>
-      <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
-    </div>
-  </div>
-  <br style="clear: both;">
+<div class="infoWrapper">
+  <h3>{{'graphs'|translate}}</h3>
+  <div class="graphsContainer" style="margin-bottom: 20px;">
+    <div class="graphsControls">
+      <div class="graphControl">
+        <label class="control-label">{{'date_range'|translate}}</label><input id="time_range_start" datetimepicker  dateOptions="options" ng-model="timeRange.time_start" > -
+        <input id="time_range_end" datetimepicker dateOptions="options" ng-model="timeRange.time_end">
+        </div>
+        <div class="graphControl">
+          <label class="control-label">Aggregator</label>
+          <select
+              ng-model="aggregator"
+              ng-options="agg.val as agg.name for agg in aggregators"
+              ng-change="updateGraphsAggregator()"
+              class="aggregator form-control">
+          </select>
+        </div>
+        <div class="graphControl">
+          <button ng-click="updateGraphs()" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i></button>
+        </div>
+      </div>
+      <div ng-repeat="graph in hosts.current.MonitoringProfile.GraphConfigs track by $index">
+        <div class="zenchartContainer">
+          <h4>{{graph.name}}</h4>
+          <div class="graphDescrip">{{graph.description}} over the past hour.</div>
+          <div id="{{hosts.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+        </div>
+      </div>
+      <br style="clear: both;">
+      </div>
 </div>
-
 <h3>{{'ip_addresses'|translate}}</h3>
 <table class="table table-striped side-flush">
   <thead>
@@ -61,6 +79,9 @@
   <tbody>
     <tr ng-hide="hosts.current.IPs !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
+    <tr ng-hide="hosts.current.IPs.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
     </tr>
     <tr ng-repeat="address in hosts.current.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
@@ -84,6 +105,9 @@
     <tr ng-hide="running.data !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
+    <tr ng-hide="running.data.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+    </tr>
     <tr ng-repeat="app in running.data | orderBy:running.sort">
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
       <td>
@@ -92,7 +116,7 @@
       </td>
       <td>
           <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
-          <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService, app.ServiceID)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+          <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
       </td>
     </tr>
   </tbody>

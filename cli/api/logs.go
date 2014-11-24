@@ -46,6 +46,9 @@ type ExportLogsConfig struct {
 // from: yyyy.mm.dd (inclusive), "" means unbounded
 // to: yyyy.mm.dd (inclusive), "" means unbounded
 // outfile: the exported logs will tgz'd and written here. "" means "./serviced-log-export.tgz".
+//
+// TODO: This code is racy - creating then erasing the output file does not
+// guarantee that it will be safe to write to at the end of the function
 func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 	var e error
 	files := []*os.File{}
@@ -57,7 +60,10 @@ func (a *api) ExportLogs(config ExportLogsConfig) (err error) {
 		if e != nil {
 			return fmt.Errorf("could not determine current directory: %s", e)
 		}
-		config.Outfile = filepath.Join(pwd, "serviced-log-export.tgz")
+		now := time.Now().UTC()
+		// time.RFC3339 = "2006-01-02T15:04:05Z07:00"
+		nowString := strings.Replace(now.Format(time.RFC3339), ":", "", -1)
+		config.Outfile = filepath.Join(pwd, fmt.Sprintf("serviced-log-export-%s.tgz", nowString))
 	}
 	fp, e := filepath.Abs(config.Outfile)
 	if e != nil {

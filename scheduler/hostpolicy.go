@@ -37,17 +37,27 @@ func NewServiceHostPolicy(s *service.Service, cp dao.ControlPlane) *ServiceHostP
 }
 
 func (sp *ServiceHostPolicy) SelectHost(hosts []*host.Host) (*host.Host, error) {
+	var host *host.Host
+	var err error
+
 	switch sp.svc.HostPolicy {
 	case servicedefinition.PreferSeparate:
 		glog.V(2).Infof("Using PREFER_SEPARATE host policy")
-		return sp.preferSeparateHosts(hosts)
+		host, err = sp.preferSeparateHosts(hosts)
 	case servicedefinition.RequireSeparate:
 		glog.V(2).Infof("Using REQUIRE_SEPARATE host policy")
-		return sp.requireSeparateHosts(hosts)
+		host, err = sp.requireSeparateHosts(hosts)
 	default:
 		glog.V(2).Infof("Using LEAST_COMMITTED host policy")
-		return sp.leastCommittedHost(hosts)
+		host, err = sp.leastCommittedHost(hosts)
 	}
+
+	if err != nil{
+		glog.V(2).Infof("Error choosing host: %s", err)
+	} else {
+		glog.V(2).Infof("Chose host %s", host)
+	}
+	return host, err
 }
 
 func (sp *ServiceHostPolicy) firstFreeHost(svc *service.Service, hosts []*host.Host) *host.Host {

@@ -26,10 +26,11 @@ const (
 )
 
 //createFields makes the map of tags for the logstash config including the type
-func createFields(service *service.Service, logConfig *servicedefinition.LogConfig) map[string]string {
+func createFields(service *service.Service, instanceID string, logConfig *servicedefinition.LogConfig) map[string]string {
 	fields := make(map[string]string)
 	fields["type"] = logConfig.Type
 	fields["service"] = service.ID
+	fields["instance"] = instanceID
 	for _, tag := range logConfig.LogTags {
 		fields[tag.Name] = tag.Value
 	}
@@ -50,7 +51,7 @@ func formatTagsForConfFile(tags map[string]string) string {
 }
 
 // writeLogstashAgentConfig creates the logstash forwarder config file
-func writeLogstashAgentConfig(confPath string, service *service.Service, resourcePath string) error {
+func writeLogstashAgentConfig(confPath string, service *service.Service, instanceID string, resourcePath string) error {
 	glog.Infof("Using logstash resourcePath: %s", resourcePath)
 
 	// generate the json config.
@@ -60,14 +61,14 @@ func writeLogstashAgentConfig(confPath string, service *service.Service, resourc
 			"paths": [ "%s" ],
 			"fields": %s
 		}`
-	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(service, &service.LogConfigs[0])))
+	logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, service.LogConfigs[0].Path, formatTagsForConfFile(createFields(service, instanceID, &service.LogConfigs[0])))
 	for _, logConfig := range service.LogConfigs[1:] {
 		logstashForwarderLogConf = logstashForwarderLogConf + `,
 				{
 					"paths": [ "%s" ],
 					"fields": %s
 				}`
-		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(service, &logConfig)))
+		logstashForwarderLogConf = fmt.Sprintf(logstashForwarderLogConf, logConfig.Path, formatTagsForConfFile(createFields(service, instanceID, &logConfig)))
 	}
 
 	logstashForwarderShipperConf := `

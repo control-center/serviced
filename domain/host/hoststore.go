@@ -14,12 +14,11 @@
 package host
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/search"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/datastore"
 
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 )
@@ -35,16 +34,14 @@ type HostStore struct {
 }
 
 // FindHostsWithPoolID returns all hosts with the given poolid.
-func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]*Host, error) {
+func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) ([]Host, error) {
 	id := strings.TrimSpace(poolID)
 	if id == "" {
 		return nil, errors.New("empty poolId not allowed")
 	}
-
 	q := datastore.NewQuery(ctx)
-	queryString := fmt.Sprintf("PoolID:%s", id)
-	query := search.Query().Search(queryString)
-	search := search.Search("controlplane").Type(kind).Query(query)
+	query := search.Query().Term("PoolID", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {
 		return nil, err
@@ -52,8 +49,30 @@ func (hs *HostStore) FindHostsWithPoolID(ctx datastore.Context, poolID string) (
 	return convert(results)
 }
 
+// GetHostByIP looks up a host by the given ip address
+func (hs *HostStore) GetHostByIP(ctx datastore.Context, hostIP string) (*Host, error) {
+	if hostIP = strings.TrimSpace(hostIP); hostIP == "" {
+		return nil, errors.New("empty hostIP not allowed")
+	}
+
+	query := search.Query().Term("IPs.IPAddress", hostIP)
+	search := search.Search("controlplane").Type(kind).Query(query)
+	results, err := datastore.NewQuery(ctx).Execute(search)
+	if err != nil {
+		return nil, err
+	}
+
+	if results.Len() == 0 {
+		return nil, nil
+	} else if hosts, err := convert(results); err != nil {
+		return nil, err
+	} else {
+		return &hosts[0], nil
+	}
+}
+
 // GetN returns all hosts up to limit.
-func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]*Host, error) {
+func (hs *HostStore) GetN(ctx datastore.Context, limit uint64) ([]Host, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Search("_exists_:ID")
 	search := search.Search("controlplane").Type(kind).Size(strconv.FormatUint(limit, 10)).Query(query)
@@ -70,8 +89,8 @@ func HostKey(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func convert(results datastore.Results) ([]*Host, error) {
-	hosts := make([]*Host, results.Len())
+func convert(results datastore.Results) ([]Host, error) {
+	hosts := make([]Host, results.Len())
 	glog.V(4).Infof("Results are %v", results)
 	for idx := range hosts {
 		var host Host
@@ -80,7 +99,7 @@ func convert(results datastore.Results) ([]*Host, error) {
 			return nil, err
 		}
 		glog.V(4).Infof("Adding %v to hosts", host)
-		hosts[idx] = &host
+		hosts[idx] = host
 	}
 	return hosts, nil
 }

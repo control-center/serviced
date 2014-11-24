@@ -24,20 +24,8 @@ fail() {
     exit 1
 }
 
-# until ubuntu delivers util-linux-2.24, install required nsenter
+# install prereqs
 install_prereqs() {
-    if [ -z "$(which nsenter)" ]; then
-        echo "nsenter is not installed - installing nsenter"
-        # TODO: replace apt-* with yum commands for fedora
-        sudo apt-add-repository "deb [ arch=amd64 ] http://apt.zendev.org/apt/ubuntu trusty multiverse"
-        sudo apt-get --yes update
-        wget -q http://apt.zendev.org/key/zendev_signing_key.pub -O- | sudo apt-key add -
-        sudo apt-get --yes install docker-smuggle
-        if [ -z "$(which nsenter)" ]; then
-            fail "ERROR: nsenter is not installed - serviced attach tests will fail"
-        fi
-    fi
-
     local wget_image="zenoss/ubuntu:wget"
     if ! docker inspect "${wget_image}" >/dev/null; then
         docker pull "${wget_image}"
@@ -58,7 +46,6 @@ cleanup() {
     sudo pkill -9 serviced
     docker kill $(docker ps -q)
     sudo rm -rf /tmp/serviced-root/var
-    sudo tree -L 2 /tmp/serviced-root
 }
 trap cleanup EXIT
 
@@ -130,7 +117,7 @@ test_dir_config() {
 }
 
 test_attached() {
-    varx=$(${SERVICED} service attach s1 whoami)
+    varx=$(${SERVICED} service attach s1 whoami | tr -d '\r')
     if [[ "$varx" == "root" ]]; then
         return 0
     fi

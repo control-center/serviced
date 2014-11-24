@@ -17,11 +17,13 @@ pkg/build/
 pkg/pkgroot/
 pkg/serviced*.rpm
 pkg/serviced*.deb
+pkg/*.tgz
 isvcs/images/
 isvcs/.isvcs_export_container_id
 pkg/templates/
 coordinator/storage/zookeeper-3.3.3
 coordinator/client/zookeeper/zookeeper-3.3.3
+output/
 
 # emacs tags file
 TAGS

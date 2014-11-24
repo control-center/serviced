@@ -26,7 +26,7 @@ type HostConfig struct {
 }
 
 // Returns a list of all hosts
-func (a *api) GetHosts() ([]*host.Host, error) {
+func (a *api) GetHosts() ([]host.Host, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err

@@ -4,6 +4,7 @@
 // You may obtain a copy of the License at
 //
 //     http://www.apache.org/licenses/LICENSE-2.0
+
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -26,7 +27,7 @@ type PriorityQueue []*hostitem
 // hostitem is what is stored in the least commited RAM scheduler's priority queue
 type hostitem struct {
 	host     *host.Host
-	priority uint64 // the host's available RAM
+	priority int64 // the host's available RAM
 	index    int    // the index of the hostitem in the heap
 }
 

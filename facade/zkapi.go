@@ -39,6 +39,7 @@ type zkfuncs interface {
 	UpdateService(service *service.Service) error
 	RemoveService(service *service.Service) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
+	StopServiceInstance(poolID, hostID, stateID string) error
 	CheckRunningVHost(vhostName, serviceID string) error
 	AddHost(host *host.Host) error
 	UpdateHost(host *host.Host) error
@@ -60,29 +61,22 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 	if err != nil {
 		return err
 	}
-
 	return zkservice.UpdateService(conn, service)
 }
 
 func (zk *zkf) RemoveService(service *service.Service) error {
+	// acquire the service lock to prevent that service from being scheduled
+	// as it is being deleted
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
 	if err != nil {
 		return err
 	}
 
-	cancel := make(chan interface{})
-	errC := make(chan error)
-	go func() {
-		defer close(errC)
-		errC <- zkservice.RemoveService(cancel, conn, service.ID)
-	}()
-
-	go func() {
-		defer close(cancel)
-		<-time.After(30 * time.Second)
-	}()
-
-	return <-errC
+	// FIXME: this may be a long-running operation, should we institute a timeout?
+	mutex := zkservice.ServiceLock(conn)
+	mutex.Lock()
+	defer mutex.Unlock()
+	return zkservice.RemoveService(conn, service.ID)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
@@ -93,6 +87,15 @@ func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceSta
 
 	*states, err = zkservice.GetServiceStates(conn, serviceIDs...)
 	return err
+}
+
+func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+	if err != nil {
+		return err
+	}
+
+	return zkservice.StopServiceInstance(conn, hostID, stateID)
 }
 
 func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
@@ -112,19 +115,12 @@ func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
 		glog.Errorf("GetVHostKeyChildren failed %v: %v", vhostName, err)
 		return err
 	}
-	if len(vhostEphemeralNodes) == 0 {
-		glog.Warningf("Currently, there are no ephemeral nodes for vhost: %v", vhostName)
-		return nil
-	} else if len(vhostEphemeralNodes) > 1 {
-		return fmt.Errorf("There is more than one ephemeral node for vhost: %v", vhostName)
-	}
 
-	for _, vhostEphemeralNode := range vhostEphemeralNodes {
-		if vhostEphemeralNode.ServiceID == serviceID {
-			glog.Infof("validated: vhost %v is already running under THIS servicedID: %v", vhostName, serviceID)
-			return nil
+	if len(vhostEphemeralNodes) > 0 {
+		if vhost := vhostEphemeralNodes[0]; vhost.ServiceID != serviceID {
+			err := fmt.Errorf("virtual host %s is already running under service %s", vhostName, vhost.ServiceID)
+			return err
 		}
-		return fmt.Errorf("failed validation: vhost %v is already running under a different serviceID: %s", vhostName, vhostEphemeralNode.ServiceID)
 	}
 
 	return nil
@@ -147,11 +143,25 @@ func (z *zkf) UpdateHost(host *host.Host) error {
 }
 
 func (z *zkf) RemoveHost(host *host.Host) error {
+	// acquire the service lock to prevent services from being scheduled
+	// to that pool
 	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(host.PoolID))
 	if err != nil {
 		return err
 	}
-	return zkhost.RemoveHost(conn, host.ID)
+
+	// FIXME: this may be a long-running operation, should we institute a timeout?
+	mutex := zkservice.ServiceLock(conn)
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	cancel := make(chan interface{})
+	go func() {
+		defer close(cancel)
+		<-time.After(2 * time.Minute)
+	}()
+
+	return zkhost.RemoveHost(cancel, conn, host.ID)
 }
 
 func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {

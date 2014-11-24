@@ -147,13 +147,15 @@ func TestHostStateListener_Listen(t *testing.T) {
 	}
 
 	// verify the service has started
-	<-eventC
-	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
-	}
 	if s.Started.UnixNano() <= s.Terminated.UnixNano() {
-		t.Fatalf("Service instance %s not started", s.ID)
+		<-eventC
+		eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
+		if err != nil {
+			t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
+		}
+		if s.Started.UnixNano() <= s.Terminated.UnixNano() {
+			t.Fatalf("Service instance %s not started", s.ID)
+		}
 	}
 
 	// schedule stopping the instance
@@ -220,7 +222,7 @@ func TestHostStateListener_Listen_BadState(t *testing.T) {
 		HostID:         listener.hostID,
 		ServiceID:      svc.ID,
 		ServiceStateID: "fail123",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 	}
 	if err := conn.Create(hostpath(badstate.HostID, badstate.ServiceStateID), badstate); err != nil {
 		t.Fatalf("Could not add host state %s: %s", badstate.ServiceStateID, err)

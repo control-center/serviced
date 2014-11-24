@@ -47,7 +47,7 @@ var DefaultTestServices = []service.Service{
 		InstanceLimits: domain.MinMax{0, 0, 0},
 		ImageID:        "quay.io/zenossinc/tenantid1-core5x",
 		PoolID:         "default",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-resmgr",
 		Runs: map[string]string{
@@ -62,7 +62,7 @@ var DefaultTestServices = []service.Service{
 		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "quay.io/zenossinc/tenantid2-core5x",
 		PoolID:         "default",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		DeploymentID:   "Zenoss-core",
 	}, {
@@ -73,7 +73,7 @@ var DefaultTestServices = []service.Service{
 		InstanceLimits: domain.MinMax{2, 2, 2},
 		ImageID:        "quay.io/zenossinc/tenantid1-opentsdb",
 		PoolID:         "remote",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "manual",
 		DeploymentID:   "Zenoss-core",
 	},
@@ -89,7 +89,7 @@ type ServiceAPITest struct {
 	api.API
 	fail      bool
 	services  []service.Service
-	pools     []*pool.ResourcePool
+	pools     []pool.ResourcePool
 	snapshots []string
 }
 
@@ -104,7 +104,7 @@ func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 	return t.services, nil
 }
 
-func (t ServiceAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.fail {
 		return nil, ErrInvalidService
 	}
@@ -183,24 +183,34 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 	return &s, nil
 }
 
-func (t ServiceAPITest) StartService(id string) error {
-	if s, err := t.GetService(id); err != nil {
-		return err
+func (t ServiceAPITest) StartService(cfg api.SchedulerConfig) (int, error) {
+	if s, err := t.GetService(cfg.ServiceID); err != nil {
+		return 0, err
 	} else if s == nil {
-		return ErrNoServiceFound
+		return 0, ErrNoServiceFound
 	}
 
-	return nil
+	return 1, nil
 }
 
-func (t ServiceAPITest) StopService(id string) error {
-	if s, err := t.GetService(id); err != nil {
-		return err
+func (t ServiceAPITest) RestartService(cfg api.SchedulerConfig) (int, error) {
+	if s, err := t.GetService(cfg.ServiceID); err != nil {
+		return 0, err
 	} else if s == nil {
-		return ErrNoServiceFound
+		return 0, ErrNoServiceFound
 	}
 
-	return nil
+	return 1, nil
+}
+
+func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
+	if s, err := t.GetService(cfg.ServiceID); err != nil {
+		return 0, err
+	} else if s == nil {
+		return 0, ErrNoServiceFound
+	}
+
+	return 1, nil
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
@@ -547,13 +557,6 @@ func ExampleServicedCLI_CmdServiceAssignIPs_err() {
 	// service not found
 }
 
-func ExampleServicedCLI_CmdServiceStart() {
-	InitServiceAPITest("serviced", "service", "start", "test-service-1")
-
-	// Output:
-	// Service scheduled to start.
-}
-
 func ExampleServicedCLI_CmdServiceStart_usage() {
 	InitServiceAPITest("serviced", "service", "start")
 
@@ -570,6 +573,7 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 	//    serviced service start SERVICEID
 	//
 	// OPTIONS:
+	//    --auto-launch	Recursively schedules child services
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
@@ -588,11 +592,53 @@ func ExampleServicedCLI_CmdServiceStart_err() {
 	// service not found
 }
 
-func ExampleServicedCLI_CmdServiceStop() {
-	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
+func ExampleServicedCLI_CmdServiceStart() {
+	InitServiceAPITest("serviced", "service", "start", "test-service-2")
 
 	// Output:
-	// Service scheduled to stop.
+	// Scheduled 1 service(s) to start
+}
+
+func ExampleServicedCLI_CmdServiceRestart_usage() {
+	InitServiceAPITest("serviced", "service", "restart")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    restart - Restarts a service
+	//
+	// USAGE:
+	//    command restart [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service restart SERVICEID
+	//
+	// OPTIONS:
+	//    --auto-launch	Recursively schedules child services
+}
+
+func ExampleServicedCLI_CmdServiceRestart_fail() {
+	DefaultServiceAPITest.fail = true
+	defer func() { DefaultServiceAPITest.fail = false }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-1")
+
+	// Output:
+	// invalid service
+}
+
+func ExampleServicedCLI_CmdServiceRestart_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-0")
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceRestart() {
+	InitServiceAPITest("serviced", "service", "restart", "test-service-2")
+
+	// Output:
+	// Restarting 1 service(s)
 }
 
 func ExampleServicedCLI_CmdServiceStop_usage() {
@@ -611,6 +657,7 @@ func ExampleServicedCLI_CmdServiceStop_usage() {
 	//    serviced service stop SERVICEID
 	//
 	// OPTIONS:
+	//    --auto-launch	Recursively schedules child services
 }
 
 func ExampleServicedCLI_CmdServiceStop_err() {
@@ -618,6 +665,13 @@ func ExampleServicedCLI_CmdServiceStop_err() {
 
 	// Output:
 	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceStop() {
+	InitServiceAPITest("serviced", "service", "stop", "test-service-2")
+
+	// Output:
+	// Scheduled 1 service(s) to stop
 }
 
 func ExampleServicedCLI_CmdServiceProxy_usage() {
@@ -638,7 +692,6 @@ func ExampleServicedCLI_CmdServiceProxy_usage() {
 	// OPTIONS:
 	//    --muxport '22250'			multiplexing port to use
 	//    --mux				enable port multiplexing
-	//    --tls				enable tls
 	//    --keyfile 				path to private key file (defaults to compiled in private keys
 	//    --certfile 				path to public certificate file (defaults to compiled in public cert)
 	//    --endpoint '10.87.103.1:4979'	serviced endpoint address
@@ -670,7 +723,7 @@ func ExampleServicedCLI_CmdServiceShell_usage() {
 	//    command shell [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service shell SERVICEID COMMAND
+	//    serviced service shell SERVICEID [COMMAND]
 	//
 	// OPTIONS:
 	//    --saveas, -s 				saves the service instance with the given name

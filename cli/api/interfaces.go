@@ -33,13 +33,13 @@ type API interface {
 	StartProxy(ControllerOptions) error
 
 	// Hosts
-	GetHosts() ([]*host.Host, error)
+	GetHosts() ([]host.Host, error)
 	GetHost(string) (*host.Host, error)
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
 
 	// Pools
-	GetResourcePools() ([]*pool.ResourcePool, error)
+	GetResourcePools() ([]pool.ResourcePool, error)
 	GetResourcePool(string) (*pool.ResourcePool, error)
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
 	RemoveResourcePool(string) error
@@ -56,8 +56,9 @@ type API interface {
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
-	StartService(string) error
-	StopService(string) error
+	StartService(SchedulerConfig) (int, error)
+	RestartService(SchedulerConfig) (int, error)
+	StopService(SchedulerConfig) (int, error)
 	AssignIP(IPConfig) error
 
 	// RunningServices (ServiceStates)
@@ -90,9 +91,13 @@ type API interface {
 	Restore(string) error
 
 	// Docker
+	ResetRegistry() error
 	Squash(imageName, downToLayer, newName, tempDir string) (string, error)
 	RegistrySync() error
 
 	// Logs
 	ExportLogs(config ExportLogsConfig) error
+
+	// Metric
+	PostMetric(metricName string, metricValue string) (string, error)
 }

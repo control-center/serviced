@@ -61,7 +61,7 @@ func init() {
 	healthStatuses["isvc-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
 	healthStatuses["isvc-celery"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
 	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	go cleanup()
+
 }
 
 func getService(serviceID, instanceID string) *dao.RunningService {
@@ -83,10 +83,12 @@ func isService(serviceID string) bool {
 }
 
 // Removes no longer running services and updates service start time.
-func cleanup() {
+func Cleanup(shutdown <-chan interface{}) {
 	var empty interface{}
 	for {
 		select {
+		case <-shutdown:
+			return
 		case <-time.After(time.Second * 5):
 			if cpDao == nil {
 				break
@@ -147,6 +149,10 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 	if !ok {
 		instanceStatus = make(map[string]*healthStatus)
 		serviceStatus[instanceID] = instanceStatus
+	}
+	if name == "__instance_shutdown" {
+		delete(serviceStatus, instanceID)
+		return
 	}
 	thisStatus, ok := instanceStatus[name]
 	if !ok {

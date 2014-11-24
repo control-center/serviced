@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 
 	"github.com/codegangsta/cli"
@@ -45,7 +44,7 @@ func (c *ServicedCli) initPool() {
 				Name:  "add",
 				Usage: "Adds a new resource pool",
 				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY REALM",
-				Description:  "serviced pool add POOLID PRIORITY",
+				Description:  "serviced pool add POOLID",
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
 			}, {
@@ -155,24 +154,22 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 		}
 	} else {
 		tablePool := newtable(0, 8, 2)
-		tablePool.printrow("ID", "PARENT" /*"CORE", "MEM",*/, "PRI")
+		tablePool.printrow("ID" /*"CORE", "MEM",*/)
 		for _, p := range pools {
-			tablePool.printrow(p.ID, p.ParentID /*p.CoreLimit, p.MemoryLimit,*/, p.Priority)
+			tablePool.printrow(p.ID /*p.CoreLimit, p.MemoryLimit,*/)
 		}
 		tablePool.flush()
 	}
 }
 
-// serviced pool add POOLID PRIORITY
+// serviced pool add POOLID
 func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add")
 		return
 	}
-
-	var err error
 
 	cfg := api.PoolConfig{}
 	cfg.PoolID = args[0]
@@ -190,12 +187,6 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 		return
 	}
 	*/
-
-	cfg.Priority, err = strconv.Atoi(args[1])
-	if err != nil {
-		fmt.Println("PRIORITY must be a number")
-		return
-	}
 
 	/* TODO: 1.1
 	if len(args) > 2 {

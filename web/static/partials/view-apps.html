@@ -1,4 +1,4 @@
-    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'"></div>
+    <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
     <h3 class="pull-left">
         {{'applications'|translate}}
@@ -31,12 +31,15 @@
         <tr ng-hide="services.data !== undefined">
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
+        <tr ng-hide="services.data.length !== 0">
+            <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        </tr>
         <tr ng-hide="services.deploying.length == 0" ng-repeat="app in services.deploying | orderBy:services.sort" ng-model="services.deploying">
             <td>{{app.templateName}}</td>
             <td>{{app.Description}}</td>
             <td>&nbsp;</td>
             <td>{{app.DeploymentID}}</td>
-            <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID}}</td>
+            <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID|cut:true:50}}</td>
             <td>&nbsp;</td>
             <td><span style="color:#AAA;font-style:italic;">{{'deploying'|translate}}...</span></td>
         </tr>
@@ -47,7 +50,7 @@
               <div class="healthCheck" data-id="{{app.ID}}"></div>
           </td>
           <td>{{app.DeploymentID}}</td>
-          <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID}}</td>
+          <td ng-click="click_pool(app.PoolID)" ng-if="!app.isvc" class="link">{{app.PoolID|cut:true:30}}</td>
           <td ng-if="app.isvc" class="ntsh">N/A</td>
           <td ng-if="!app.isvc">
               <span ng-repeat="vhost in collect_vhosts(app) track by $index">
@@ -90,6 +93,9 @@
         <tbody>
         <tr ng-hide="templates.data !== undefined">
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+        </tr>
+        <tr ng-hide="templates.data.length !== 0">
+            <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
         </tr>
         <tr ng-repeat="template in templates.data | orderBy:templates.sort">
             <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>

@@ -74,6 +74,7 @@ type ContainerDescription struct {
 	Configuration map[string]interface{}              // A container specific configuration
 	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
 	volumesDir    string                              // directory to store volume data
+	HostNetwork   bool                                // use host network in container, eg docker run ... --net=host
 }
 
 type Container struct {
@@ -320,6 +321,9 @@ func (c *Container) run() (*exec.Cmd, chan error) {
 	exitChan := make(chan error, 1)
 	args := make([]string, 0)
 	args = append(args, "run", "--rm", "--name", containerName)
+	if c.HostNetwork {
+		args = append(args, "--net=host")
+	}
 
 	// attach all exported ports
 	for _, port := range c.Ports {
@@ -417,7 +421,7 @@ func (c *Container) Stop() error {
 }
 
 // RunCommand runs a command inside the container.
-func (c *Container) RunCommand(command []string, useSudo bool) error {
+func (c *Container) RunCommand(command []string) error {
 	var id string
 	ids, err := c.getMatchingContainersIds()
 	if err != nil {
@@ -428,7 +432,7 @@ func (c *Container) RunCommand(command []string, useSudo bool) error {
 		return fmt.Errorf("No docker container found for %s", c.Name)
 	}
 	id = (*ids)[0]
-	output, err := utils.AttachAndRunMaybeSudo(id, command, useSudo)
+	output, err := utils.AttachAndRun(id, command)
 	if err != nil {
 		return err
 	}

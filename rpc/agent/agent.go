@@ -17,6 +17,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/zenoss/glog"
 
+	"fmt"
 	"os/exec"
 )
 
@@ -48,7 +49,7 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	*hostResponse = host.Host{}
 
 	glog.Infof("local static ips %v [%d]", a.staticIPs, len(a.staticIPs))
-	h, err := host.Build(request.IP, request.PoolID, a.staticIPs...)
+	h, err := host.Build(request.IP, fmt.Sprintf("%d", request.Port), request.PoolID, a.staticIPs...)
 	if err != nil {
 		return err
 	}

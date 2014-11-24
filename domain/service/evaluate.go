@@ -65,6 +65,18 @@ func flattenContext(svc Service, gs GetService, prefix string, ctx *map[string]i
 	return nil
 }
 
+func getContext(gs GetService) func(s *runtimeContext, key string) (interface{}, error) {
+	return func(s *runtimeContext, key string) (interface{}, error) {
+		ctx := make(map[string]interface{})
+		err := flattenContext(s.Service, gs, "", &ctx)
+		if err != nil {
+			glog.Errorf("Flattening context for %s (%s): %s", s.Name, s.ID, err)
+		}
+
+		return ctx[key], err
+	}
+}
+
 func context(gs GetService) func(s *runtimeContext) (map[string]interface{}, error) {
 	return func(s *runtimeContext) (map[string]interface{}, error) {
 		ctx := make(map[string]interface{})
@@ -169,6 +181,7 @@ func (service *Service) evaluateTemplate(gs GetService, fc FindChildService, ins
 		"parent":        parent(gs),
 		"child":         child(fc),
 		"context":       context(gs),
+		"getContext":    getContext(gs),
 		"contextFilter": contextFilter(gs),
 		"percentScale":  percentScale,
 		"bytesToMB":     bytesToMB,
@@ -347,6 +360,11 @@ type runtimeContext struct {
 	InstanceID int
 }
 
+// Allow templates to access Service.RAMCommitment.Value via {{.RAMCommitment}}
+func (service *runtimeContext) RAMCommitment() uint64 {
+	return service.Service.RAMCommitment.Value
+}
+
 // newRuntimeContext wraps a given Service with a runtimeContext, adding any
 // extra attributes passed in.
 func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
@@ -355,6 +373,7 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 		instanceID,
 	}
 }
+
 
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID

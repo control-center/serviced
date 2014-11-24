@@ -14,11 +14,7 @@
 package master
 
 import (
-	"github.com/zenoss/glog"
-
-	"net"
-	"net/rpc"
-	"net/rpc/jsonrpc"
+	"github.com/control-center/serviced/rpc/rpcutils"
 )
 
 var (
@@ -28,19 +24,18 @@ var (
 // Client a client for interacting with the serviced master
 type Client struct {
 	addr      string
-	rpcClient *rpc.Client
+	rpcClient rpcutils.Client
 }
 
 // NewClient Create a new rpc client.
 func NewClient(addr string) (*Client, error) {
-	s := new(Client)
-	s.addr = addr
-	glog.V(4).Infof("Connecting to %s", addr)
-	conn, err := net.Dial("tcp", s.addr)
+	client, err := rpcutils.GetCachedClient(addr)
 	if err != nil {
 		return nil, err
 	}
-	s.rpcClient = jsonrpc.NewClient(conn)
+	s := new(Client)
+	s.addr = addr
+	s.rpcClient = client
 	return s, nil
 }
 

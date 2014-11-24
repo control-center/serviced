@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'modalService', 'angular-data.DSCacheFactory']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
@@ -209,8 +209,26 @@ controlplane.
         return function(input){
             return (input/1073741824).toFixed(2) + " GB";
         };
-    }
-);
+    }).
+    filter('cut', function(){
+        return function (value, wordwise, max, tail) {
+            if (!value) return '';
+
+            max = parseInt(max, 10);
+            if (!max) return value;
+            if (value.length <= max) return value;
+
+            value = value.substr(0, max);
+            if (wordwise) {
+                            var lastspace = value.lastIndexOf(' ');
+                            if (lastspace != -1) {
+                                                value = value.substr(0, lastspace);
+                                            }
+                        }
+
+            return value + (tail || ' …');
+        };
+    });
 
 /* begin constants */
 var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
@@ -531,12 +549,17 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     });
 }
 
-function toggleRunning(app, status, servicesService, serviceId) {
-    // possible values for app.Launch
-    // TODO - move this into a provider for constant values
-    var LAUNCH_MANUAL = "manual";
+function toggleRunning(app, status, servicesService, skipChildren) {
+    var serviceId;
 
-    serviceId = serviceId || app.ID;
+    // if app is an instance, use ServiceId
+    if(isInstanceOfService(app)){
+        serviceId = app.ServiceID;
+
+    // else, app is a service, so use ID
+    } else {
+        serviceId = app.ID;
+    }
 
     var newState = -1;
     switch(status) {
@@ -544,41 +567,17 @@ function toggleRunning(app, status, servicesService, serviceId) {
         case 'stop': newState = 0; break;
         case 'restart': newState = -1; break;
     }
-    if (newState === app.DesiredState) {
-        if(DEBUG) console.log('Same status. Ignoring click');
-        return;
-    }
 
-    // recursively set service's children to its desired state
-    // TODO - poll services from server which will automatically
-    // reflect the correct desired state and make this unnecessary
-    var updateApp = function(services, state){
-        if(!services) return;
-
-        services.forEach(function(service){
-            if(service.Launch !== LAUNCH_MANUAL){
-                service.DesiredState = state;
-            }
-
-            // recurse!
-            if(service.children) updateApp(service.children, state);
-        });
-    };
+    app.DesiredState = newState;
 
     // stop service
     if ((newState === 0) || (newState === -1)) {
-        app.DesiredState = newState;
-        servicesService.stop_service(serviceId, function() {
-            updateApp(app.children, newState);
-        });
+        servicesService.stop_service(serviceId, function(){}, skipChildren);
     }
 
     // start service
     if ((newState === 1) || (newState === -1)) {
-        app.DesiredState = newState;
-        servicesService.start_service(serviceId, function() {
-            updateApp(app.children, newState);
-        });
+        servicesService.start_service(serviceId, function(){}, skipChildren);
     }
 }
 
@@ -653,7 +652,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
             // if this guy is already in the running list
             if(oldServiceIndex !== -1){
                 oldService = running[oldServiceIndex];
-                
+
                 // merge changes in
                 for(var i in runningService){
                     oldService[i] = runningService[i];
@@ -661,7 +660,7 @@ function refreshRunningForService($scope, resourcesService, serviceId, extracall
 
                 // remove this id from the oldIds list
                 oldIds[oldServiceIndex] = null;
-                
+
             // else this is a new running service, so add it
             } else {
                 running.push(runningService);
@@ -796,17 +795,58 @@ function itemClass(item) {
     return cls;
 }
 
-// keep notifications stuck to bottom of nav, or top of window
-// if nav is out ovf view.
-var $window = $(window);
-$window.on("scroll", function(){
-    var currScrollTop = $window.scrollTop(),
-        $notifications = $("#notifications");
+// determines if an object is an instance of a service
+function isInstanceOfService(service){
+    return "InstanceID" in service;
+}
 
-    if(currScrollTop > 0){
-        var top = Math.max(72 - currScrollTop, 0);
-        $notifications.css("top", top+"px");
-    }else{
-        $notifications.css("top", "72px");
+// accepts a preferred  and decorates it with success 
+// and error functions to simulate $http promise
+function httpifyDeferred(defer){
+    // TODO - move this to a utils function where we 
+    // can access $q and make our own defer
+
+    // simulate an angular $http promise
+    defer.promise.success = function(callback){
+        defer.promise.then(callback);
+        return defer.promise;
+    };
+    defer.promise.error = function(callback){
+        defer.promise.then(null, callback);
+        return defer.promise;
+    };
+
+    return defer;
+}
+
+function downloadFile(url){
+    window.location = url;
+}
+
+function getModeFromFilename(filename){
+    var re = /(?:\.([^.]+))?$/;
+    var ext = re.exec(filename)[1];
+    var mode;
+    switch(ext) {
+        case "conf":
+            mode="properties";
+            break;
+        case "xml":
+            mode = "xml";
+            break;
+        case "yaml":
+            mode = "yaml";
+            break;
+        case "txt":
+            mode = "plain";
+            break;
+            case "json":
+            mode = "javascript";
+            break;
+        default:
+            mode = "shell";
+            break;
     }
-});
+
+    return mode;
+}

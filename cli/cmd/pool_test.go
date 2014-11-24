@@ -32,23 +32,17 @@ const (
 
 var DefaultPoolAPITest = PoolAPITest{pools: DefaultTestPools, hostIPs: DefaultTestHostIPs}
 
-var DefaultTestPools = []*pool.ResourcePool{
+var DefaultTestPools = []pool.ResourcePool{
 	{
 		ID:          "test-pool-id-1",
-		ParentID:    "",
-		Priority:    1,
 		CoreLimit:   8,
 		MemoryLimit: 0,
 	}, {
 		ID:          "test-pool-id-2",
-		ParentID:    "test-pool-id-1",
-		Priority:    2,
 		CoreLimit:   4,
 		MemoryLimit: 4 * 1024 * 1024 * 1024,
 	}, {
 		ID:          "test-pool-id-3",
-		ParentID:    "test-pool-id-1",
-		Priority:    3,
 		CoreLimit:   2,
 		MemoryLimit: 512 * 1024 * 1024,
 	},
@@ -78,7 +72,7 @@ var (
 type PoolAPITest struct {
 	api.API
 	fail    bool
-	pools   []*pool.ResourcePool
+	pools   []pool.ResourcePool
 	hostIPs []host.HostIPResource
 }
 
@@ -86,7 +80,7 @@ func InitPoolAPITest(args ...string) {
 	New(DefaultPoolAPITest).Run(args)
 }
 
-func (t PoolAPITest) GetResourcePools() ([]*pool.ResourcePool, error) {
+func (t PoolAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.fail {
 		return nil, ErrInvalidPool
 	}
@@ -101,7 +95,7 @@ func (t PoolAPITest) GetResourcePool(id string) (*pool.ResourcePool, error) {
 
 	for _, p := range t.pools {
 		if p.ID == id {
-			return p, nil
+			return &p, nil
 		}
 	}
 
@@ -117,8 +111,6 @@ func (t PoolAPITest) AddResourcePool(config api.PoolConfig) (*pool.ResourcePool,
 
 	p := &pool.ResourcePool{
 		ID:          config.PoolID,
-		ParentID:    "",
-		Priority:    0,
 		CoreLimit:   config.CoreLimit,
 		MemoryLimit: config.MemoryLimit,
 	}
@@ -184,7 +176,7 @@ func TestServicedCLI_CmdPoolList_all(t *testing.T) {
 		t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 	}
 	for i, _ := range actual {
-		if !actual[i].Equals(expected[i]) {
+		if !actual[i].Equals(&expected[i]) {
 			t.Fatalf("\ngot:\n%+v\nwant:\n%+v", actual, expected)
 		}
 	}
@@ -209,7 +201,7 @@ func ExampleServicedCLI_CmdPoolList_fail() {
 }
 
 func ExampleServicedCLI_CmdPoolList_err() {
-	DefaultPoolAPITest.pools = make([]*pool.ResourcePool, 0)
+	DefaultPoolAPITest.pools = make([]pool.ResourcePool, 0)
 	defer func() { DefaultPoolAPITest.pools = DefaultTestPools }()
 	// Pool not found
 	pipeStderr(InitPoolAPITest, "serviced", "pool", "list", "test-pool-id-0")
@@ -235,15 +227,10 @@ func ExampleServicedCLI_CmdPoolAdd() {
 	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc", "1024", "3")
 	// // Bad MemoryLimit
 	// InitPoolAPITest("serviced", "pool", "add", "test-pool", "4", "abc", "3")
-	// Bad Priority
-	InitPoolAPITest("serviced", "pool", "add", "test-pool", "abc")
-	// Bad Result
-	InitPoolAPITest("serviced", "pool", "add", "test-pool-id-1", "3")
 	// Success
 	InitPoolAPITest("serviced", "pool", "add", "test-pool", "3")
 
 	// Output:
-	// PRIORITY must be a number
 	// test-pool
 }
 
@@ -260,7 +247,7 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced pool add POOLID PRIORITY
+	//    serviced pool add POOLID
 	//
 	// OPTIONS:
 }

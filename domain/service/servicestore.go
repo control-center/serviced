@@ -19,7 +19,6 @@ import (
 	"github.com/zenoss/elastigo/search"
 
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 )
@@ -93,8 +92,14 @@ func (s *Store) GetServicesByPool(ctx datastore.Context, poolID string) ([]Servi
 	if id == "" {
 		return nil, errors.New("empty poolID not allowed")
 	}
-	queryString := fmt.Sprintf("PoolID:%s", id)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("PoolID", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //GetServicesByDeployment returns services with the given deployment id
@@ -103,8 +108,14 @@ func (s *Store) GetServicesByDeployment(ctx datastore.Context, deploymentID stri
 	if id == "" {
 		return nil, errors.New("empty deploymentID not allowed")
 	}
-	queryString := fmt.Sprintf("DeploymentID:%s", id)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("DeploymentID", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 //GetChildServices returns services that are children of the given parent service id
@@ -113,9 +124,45 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]Serv
 	if id == "" {
 		return nil, errors.New("empty parent service id not allowed")
 	}
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("ParentServiceID", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
 
-	queryString := fmt.Sprintf("ParentServiceID:%s", parentID)
-	return query(ctx, queryString)
+func (s *Store) FindChildService(ctx datastore.Context, parentID, serviceName string) (*Service, error) {
+	parentID = strings.TrimSpace(parentID)
+	serviceName = strings.TrimSpace(serviceName)
+
+	if parentID == "" {
+		return nil, errors.New("empty parent service ID not allowed")
+	} else if serviceName == "" {
+		return nil, errors.New("empty service name not allowed")
+	}
+
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ParentServiceID", parentID),
+		search.Filter().Terms("Name", serviceName),
+	)
+
+	q := datastore.NewQuery(ctx)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+
+	if results.Len() == 0 {
+		return nil, nil
+	} else if svcs, err := convert(results); err != nil {
+		return nil, err
+	} else {
+		return &svcs[0], nil
+	}
 }
 
 func query(ctx datastore.Context, query string) ([]Service, error) {

@@ -38,7 +38,8 @@ const (
 //---------------------------------------------------------------------------
 // Host CRUD
 
-// AddHost register a host with serviced. Returns an error if host already exists
+// AddHost register a host with serviced. Returns an error if host already
+// exists or if the host's IP is a virtual IP
 func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	glog.V(2).Infof("Facade.AddHost: %v", entity)
 	exists, err := f.GetHost(ctx, entity.ID)
@@ -68,6 +69,15 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	}
 	if pool == nil {
 		return fmt.Errorf("error creating host, pool %s does not exists", entity.PoolID)
+	}
+
+	// verify that there are no virtual IPs with the given host IP(s)
+	for _, ip := range entity.IPs {
+		if exists, err := f.hasVirtualIP(ctx, pool.ID, ip.IPAddress); err != nil {
+			return fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
+		} else if exists {
+			return fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
+		}
 	}
 
 	ec := newEventCtx()
@@ -131,14 +141,14 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	if _host, err = f.GetHost(ctx, hostID); err != nil {
 		return err
 	} else if _host == nil {
-		return nil
+		return fmt.Errorf("HostID %s does not exist", hostID)
 	}
 
 	//grab all services that are address assigned this HostID
 	query := []string{fmt.Sprintf("Endpoints.AddressAssignment.HostID:%s", hostID)}
 	services, err := f.GetTaggedServices(ctx, query)
 	if err != nil {
-		glog.Errorf("Failed to grab servies with endpoints assigned to host %s: %s", _host.Name, err)
+		glog.Errorf("Failed to grab services with endpoints assigned to host %s: %s", _host.Name, err)
 		return err
 	}
 
@@ -182,6 +192,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		}
 		if err = f.AssignIPs(ctx, request); err != nil {
 			glog.Warningf("Failed assigning another ip to service %s: %s", reassign[i], err)
+			f.StopService(ctx, dao.ScheduleServiceRequest{reassign[i], false})
 		}
 	}
 
@@ -205,7 +216,7 @@ func (f *Facade) GetHost(ctx datastore.Context, hostID string) (*host.Host, erro
 }
 
 // GetHosts returns a list of all registered hosts
-func (f *Facade) GetHosts(ctx datastore.Context) ([]*host.Host, error) {
+func (f *Facade) GetHosts(ctx datastore.Context) ([]host.Host, error) {
 	return f.hostStore.GetN(ctx, 10000)
 }
 
@@ -228,6 +239,10 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 }
 
 // FindHostsInPool returns a list of all hosts with poolID
-func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]*host.Host, error) {
+func (f *Facade) FindHostsInPool(ctx datastore.Context, poolID string) ([]host.Host, error) {
 	return f.hostStore.FindHostsWithPoolID(ctx, poolID)
+}
+
+func (f *Facade) GetHostByIP(ctx datastore.Context, hostIP string) (*host.Host, error) {
+	return f.hostStore.GetHostByIP(ctx, hostIP)
 }

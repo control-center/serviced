@@ -16,13 +16,17 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
+	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 )
@@ -141,6 +145,11 @@ func New(driver api.API) *ServicedCli {
 		zks = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
 	}
 
+	defaultAdminGroup := "sudo"
+	if utils.Platform == utils.Rhel {
+		defaultAdminGroup = "wheel"
+	}
+
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
@@ -152,7 +161,6 @@ func New(driver api.API) *ServicedCli {
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
-		cli.BoolTFlag{"tls", "enable TLS"},
 		cli.StringFlag{"var", configEnv("VARPATH", varPath), "path to store serviced data"},
 		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
@@ -160,13 +168,14 @@ func New(driver api.API) *ServicedCli {
 		// TODO: 1.1
 		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
-		cli.StringFlag{"vfs", "rsync", "filesystem for container volumes"},
+		cli.StringFlag{"fstype", configEnv("FS_TYPE", "rsync"), "driver for underlying file system"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
 		cli.IntFlag{"max-dfs-timeout", configInt("MAX_DFS_TIMEOUT", 60*5), "max timeout to perform a dfs snapshot"},
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
+		cli.StringFlag{"admin-group", configEnv("ADMIN_GROUP", defaultAdminGroup), "system group that can log in to control center"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", configEnv("STATS_PORT", "127.0.0.1:8443"), "container statistics for host:port"},
@@ -176,6 +185,8 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},
 		cli.StringSliceFlag{"isvcs-env", &isvcs_env, "internal-service environment variable: ISVC:KEY=VAL"},
 		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
+		cli.IntFlag{"max-rpc-clients", configInt("MAX_RPC_CLIENTS", 3), "max number of rpc clients to an endpoint"},
+		cli.IntFlag{"rpc-dial-timeout", configInt("RPC_DIAL_TIMEOUT", 30), "timeout for creating rpc connections"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -183,6 +194,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "127.0.0.1:5042"), "logstash url and port"},
 		cli.StringFlag{"logstash-es", configEnv("LOGSTASH_ES", "127.0.0.1:9100"), "host and port for logstash elastic search"},
 		cli.IntFlag{"logstash-max-days", configInt("LOGSTASH_MAX_DAYS", 14), "days to keep Logstash data"},
+		cli.IntFlag{"logstash-max-size", configInt("LOGSTASH_MAX_SIZE", 10), "max size of Logstash data to keep in gigabytes"},
 		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
@@ -197,6 +209,7 @@ func New(driver api.API) *ServicedCli {
 	c.initSnapshot()
 	c.initLog()
 	c.initBackup()
+	c.initMetric()
 	c.initDocker()
 
 	return c
@@ -219,14 +232,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Master:               ctx.GlobalBool("master"),
 		Agent:                ctx.GlobalBool("agent"),
 		MuxPort:              ctx.GlobalInt("mux"),
-		TLS:                  ctx.GlobalBool("tls"),
+		TLS:                  true,
 		VarPath:              ctx.GlobalString("var"),
 		KeyPEMFile:           ctx.GlobalString("keyfile"),
 		CertPEMFile:          ctx.GlobalString("certfile"),
 		Zookeepers:           ctx.GlobalStringSlice("zk"),
 		RemoteZookeepers:     ctx.GlobalStringSlice("remote-zk"),
 		Mount:                ctx.GlobalStringSlice("mount"),
-		VFS:                  ctx.GlobalString("vfs"),
+		FSType:               ctx.GlobalString("fstype"),
 		HostAliases:          ctx.GlobalStringSlice("alias"),
 		ESStartupTimeout:     ctx.GlobalInt("es-startup-timeout"),
 		ReportStats:          ctx.GlobalBool("report-stats"),
@@ -243,7 +256,11 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		OutboundIP:           ctx.GlobalString("outbound"),
 		LogstashES:           ctx.GlobalString("logstash-es"),
 		LogstashMaxDays:      ctx.GlobalInt("logstash-max-days"),
+		LogstashMaxSize:      ctx.GlobalInt("logstash-max-size"),
 		DebugPort:            ctx.GlobalInt("debug-port"),
+		AdminGroup:           ctx.GlobalString("admin-group"),
+		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
+		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -275,6 +292,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 
 	// Start server mode
 	if (options.Master || options.Agent) && len(ctx.Args()) == 0 {
+		rpcutils.RPC_CLIENT_SIZE = options.MaxRPCClients
 		c.driver.StartServer()
 		return fmt.Errorf("running server mode")
 	}
@@ -323,6 +341,24 @@ func setLogging(ctx *cli.Context) error {
 			return err
 		}
 	}
+
+	// Listen for SIGUSR1 and, when received, toggle the log level between
+	// 0 and 2.  If the log level is anything but 0, we set it to 0, and on
+	// subsequent signals, set it to 2.
+	go func() {
+		signalChan := make(chan os.Signal, 1)
+		signal.Notify(signalChan, syscall.SIGUSR1)
+		for {
+			<-signalChan
+			glog.Infof("Received signal SIGUSR1")
+			if glog.GetVerbosity() == 0 {
+				glog.SetVerbosity(2)
+			} else {
+				glog.SetVerbosity(0)
+			}
+			glog.Infof("Log level changed to %v", glog.GetVerbosity())
+		}
+	}()
 
 	return nil
 }

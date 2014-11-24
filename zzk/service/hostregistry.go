@@ -208,10 +208,10 @@ func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
 	return hostIDs, nil
 }
 
-func SyncHosts(conn client.Connection, hosts []*host.Host) error {
+func SyncHosts(conn client.Connection, hosts []host.Host) error {
 	nodes := make([]zzk.Node, len(hosts))
 	for i := range hosts {
-		nodes[i] = &HostNode{Host: hosts[i]}
+		nodes[i] = &HostNode{Host: &hosts[i]}
 	}
 	return zzk.Sync(conn, nodes, hostpath())
 }
@@ -234,10 +234,41 @@ func UpdateHost(conn client.Connection, host *host.Host) error {
 	return conn.Set(hostpath(host.ID), &node)
 }
 
-func RemoveHost(conn client.Connection, hostID string) error {
-	err := conn.Delete(hostpath(hostID))
-	if err == client.ErrNoNode {
+func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string) error {
+	if exists, err := zzk.PathExists(conn, hostpath(hostID)); err != nil {
+		return err
+	} else if !exists {
 		return nil
 	}
-	return err
+
+	// stop all the instances running on that host
+	nodes, err := conn.Children(hostpath(hostID))
+	if err != nil {
+		return err
+	}
+	for _, stateID := range nodes {
+		if err := StopServiceInstance(conn, hostID, stateID); err != nil {
+			return err
+		}
+	}
+
+	// wait until all the service instances have stopped
+	for {
+		nodes, event, err := conn.ChildrenW(hostpath(hostID))
+		if err != nil {
+			return err
+		} else if len(nodes) == 0 {
+			break
+		}
+
+		select {
+		case <-event:
+			// pass
+		case <-cancel:
+			return ErrShutdown
+		}
+	}
+
+	// remove the parent node
+	return conn.Delete(hostpath(hostID))
 }

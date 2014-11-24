@@ -84,14 +84,6 @@ function NavbarControl($scope, $rootScope, $cookies, $location, $route, $transla
         }
     };
 
-    // resize / reposition notification holder
-    var navWidth = $(".navbar-zen").outerWidth(),
-        windowWidth = $(window).width();
-
-    $("#notifications").css({
-        "width": navWidth + "px",
-        "left": (windowWidth * 0.5) - (navWidth * 0.5)
-    });
-
     $scope.cookies = $cookies;
+
 }

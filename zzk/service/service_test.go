@@ -65,12 +65,12 @@ func TestServiceListener_Listen(t *testing.T) {
 		{
 			ID:           "test-service-1",
 			Endpoints:    make([]service.ServiceEndpoint, 1),
-			DesiredState: service.SVCRun,
+			DesiredState: int(service.SVCRun),
 			Instances:    3,
 		}, {
 			ID:           "test-service-2",
 			Endpoints:    make([]service.ServiceEndpoint, 1),
-			DesiredState: service.SVCRun,
+			DesiredState: int(service.SVCRun),
 			Instances:    2,
 		},
 	}
@@ -161,7 +161,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 			if err := conn.Get(hpath, &hs); err != nil {
 				t.Fatalf("Error looking up instance %s: %s", ssID, err)
 			}
-			if hs.DesiredState == service.SVCRun {
+			if hs.DesiredState == int(service.SVCRun) {
 				count++
 			}
 		}
@@ -170,7 +170,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 	t.Log("Starting service with 2 instances")
 	svc.Instances = 2
-	svc.DesiredState = service.SVCRun
+	svc.DesiredState = int(service.SVCRun)
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not update service %s: %s", svc.ID, err)
 	}
@@ -180,7 +180,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 	}
 
 	t.Log("Pause service")
-	svc.DesiredState = service.SVCPause
+	svc.DesiredState = int(service.SVCPause)
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not pause service %s: %s", svc.ID, err)
 	}
@@ -194,7 +194,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 		}
 	}
 
-	svc.DesiredState = service.SVCRun
+	svc.DesiredState = int(service.SVCRun)
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not update service %s: %s", svc.ID, err)
 	}
@@ -209,7 +209,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 	// Stop service
 	t.Log("Stopping service")
-	svc.DesiredState = service.SVCStop
+	svc.DesiredState = int(service.SVCStop)
 	if err := UpdateService(conn, svc); err != nil {
 		t.Fatalf("Could not update service %s: %s", svc.ID, err)
 	}
@@ -320,7 +320,7 @@ func TestServiceListener_sync(t *testing.T) {
 		hpath := hostpath(handler.Host.ID, rs.ID)
 		if err := conn.Get(hpath, &hs); err != nil {
 			t.Fatalf("Error while looking up %s: %s", hpath, err)
-		} else if hs.DesiredState == service.SVCStop {
+		} else if hs.DesiredState == int(service.SVCStop) {
 			t.Errorf("Found stopped service at %s", hpath)
 		}
 	}
@@ -351,7 +351,7 @@ func TestServiceListener_sync(t *testing.T) {
 		hpath := hostpath(handler.Host.ID, rs.ID)
 		if err := conn.Get(hpath, &hs); err != nil {
 			t.Fatalf("Error while looking up %s: %s", hpath, err)
-		} else if hs.DesiredState == service.SVCStop {
+		} else if hs.DesiredState == int(service.SVCStop) {
 			t.Errorf("Found stopped service at %s", hpath)
 		}
 	}
@@ -373,7 +373,7 @@ func TestServiceListener_sync(t *testing.T) {
 		hpath := hostpath(handler.Host.ID, rs.ID)
 		if err := conn.Get(hpath, &hs); err != nil {
 			t.Fatalf("Error while looking up %s", hpath, err)
-		} else if hs.DesiredState == service.SVCStop {
+		} else if hs.DesiredState == int(service.SVCStop) {
 			stopped = append(stopped, &hs)
 		}
 	}
@@ -478,7 +478,7 @@ func TestServiceListener_start(t *testing.T) {
 	if hs.ServiceID != svc.ID {
 		t.Errorf("MISMATCH: service ids do not match (%s != %s): %s", hs.ServiceID, svc.ID, hpath)
 	}
-	if hs.DesiredState != service.SVCRun {
+	if hs.DesiredState != int(service.SVCRun) {
 		t.Errorf("MISMATCH: incorrect service state (%d != %d): %s", hs.DesiredState, service.SVCRun, hpath)
 	}
 }
@@ -515,7 +515,7 @@ func TestServiceListener_pause(t *testing.T) {
 	hpath := hostpath(handler.Host.ID, rss[0].ID)
 	if err := conn.Get(hpath, &hs); err != nil {
 		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	} else if hs.DesiredState != service.SVCPause {
+	} else if hs.DesiredState != int(service.SVCPause) {
 		t.Errorf("MISMATCH: expected service state paused (%d); actual (%d): %s", service.SVCPause, hs.DesiredState, hpath)
 	}
 }
@@ -551,14 +551,14 @@ func TestServiceListener_stop(t *testing.T) {
 	hpath := hostpath(handler.Host.ID, rss[0].ID)
 	if err := conn.Get(hpath, &hs); err != nil {
 		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	} else if hs.DesiredState != service.SVCStop {
+	} else if hs.DesiredState != int(service.SVCStop) {
 		t.Errorf("MISMATCH: expected service stopped (%d); actual (%d): %s", service.SVCStop, hs.DesiredState, hpath)
 	}
 
 	hpath = hostpath(handler.Host.ID, rss[1].ID)
 	if err := conn.Get(hpath, &hs); err != nil {
 		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	} else if hs.DesiredState != service.SVCRun {
+	} else if hs.DesiredState != int(service.SVCRun) {
 		t.Errorf("MISMATCH: expected service started (%d); actual (%d): %s", service.SVCRun, hs.DesiredState, hpath)
 	}
 }

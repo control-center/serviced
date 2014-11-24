@@ -74,26 +74,19 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 	return err
 }
 
-func (f *Facade) virtualIPExists(ctx datastore.Context, proposedVirtualIP pool.VirtualIP) (bool, error) {
-	poolIPs, err := f.GetPoolIPs(ctx, proposedVirtualIP.PoolID)
-	if err != nil {
-		glog.Errorf("GetPoolIps failed: %v", err)
+func (f *Facade) hasVirtualIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error) {
+	if exists, err := f.poolStore.HasVirtualIP(ctx, poolID, ipAddr); err != nil {
+		glog.Errorf("Could not look up ip %s for pool %s: %s", ipAddr, poolID, err)
 		return false, err
+	} else if exists {
+		return true, nil
 	}
 
-	for _, virtualIP := range poolIPs.VirtualIPs {
-		// the IP address is unique
-		// TODO: Is an IP address unique to just a pool? Suppose virtual IP X. Can pools X and Y both contain X?
-		// if so, we need to check PoolID as well
-		if proposedVirtualIP.IP == virtualIP.IP {
-			return true, nil
-		}
-	}
-
-	for _, staticIP := range poolIPs.HostIPs {
-		if proposedVirtualIP.IP == staticIP.IPAddress {
-			return true, nil
-		}
+	if host, err := f.GetHostByIP(ctx, ipAddr); err != nil {
+		glog.Errorf("Could not look up static host by ip %s: %s", ipAddr, err)
+		return false, err
+	} else if host != nil && host.PoolID == poolID {
+		return true, nil
 	}
 
 	return false, nil
@@ -142,7 +135,7 @@ func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.Re
 					return err
 				}
 
-				ipAddressAlreadyExists, err := f.virtualIPExists(ctx, proposedVirtualIP)
+				ipAddressAlreadyExists, err := f.hasVirtualIP(ctx, proposedPool.ID, proposedVirtualIP.IP)
 				if err != nil {
 					return err
 				} else if ipAddressAlreadyExists {
@@ -183,43 +176,47 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 	glog.V(2).Infof("Facade.RemoveResourcePool: %s", id)
 
 	if hosts, err := f.FindHostsInPool(ctx, id); err != nil {
-		return fmt.Errorf("error verifying no hosts in pool: %v", err)
-	} else if len(hosts) > 0 {
-		return errors.New("cannot delete resource pool with hosts")
-	} else if err := zkAPI(f).RemoveResourcePool(id); err != nil {
-		return errors.New("cannot remove resource pool from zookeeper")
+		return fmt.Errorf("could not verify hosts in pool %s: %s", id, err)
+	} else if count := len(hosts); count > 0 {
+		return fmt.Errorf("cannot delete pool %s: found %d hosts", id, count)
+	}
+
+	if svcs, err := f.GetServicesByPool(ctx, id); err != nil {
+		return fmt.Errorf("could not verify services in pool %s: %s", id, err)
+	} else if count := len(svcs); count > 0 {
+		return fmt.Errorf("cannot delete pool %s: found %d services", id, count)
 	}
 
 	return f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete)
 }
 
 //GetResourcePools Returns a list of all ResourcePools
-func (f *Facade) GetResourcePools(ctx datastore.Context) ([]*pool.ResourcePool, error) {
+func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePools(ctx)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not load pools: %v", err)
 	}
 
-	for _, pool := range pools {
-		f.calcPoolCapacity(ctx, pool)
-		f.calcPoolCommitment(ctx, pool)
+	for i := range pools {
+		f.calcPoolCapacity(ctx, &pools[i])
+		f.calcPoolCommitment(ctx, &pools[i])
 	}
 
 	return pools, err
 }
 
 //GetResourcePoolsByRealm Returns a list of all ResourcePools by Realm
-func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]*pool.ResourcePool, error) {
+func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]pool.ResourcePool, error) {
 	pools, err := f.poolStore.GetResourcePoolsByRealm(ctx, realm)
 
 	if err != nil {
 		return nil, fmt.Errorf("Could not load pools: %v", err)
 	}
 
-	for _, pool := range pools {
-		f.calcPoolCapacity(ctx, pool)
-		f.calcPoolCommitment(ctx, pool)
+	for i := range pools {
+		f.calcPoolCapacity(ctx, &pools[i])
+		f.calcPoolCommitment(ctx, &pools[i])
 	}
 
 	return pools, err
@@ -256,6 +253,7 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 	glog.V(4).Infof("'%s' resource pool not found; creating...", id)
 	entity = pool.New(id)
 	entity.Realm = defaultRealm
+	entity.Description = "Default Pool"
 	if err := f.AddResourcePool(ctx, entity); err != nil {
 		return err
 	}
@@ -291,7 +289,7 @@ func (f *Facade) calcPoolCommitment(ctx datastore.Context, pool *pool.ResourcePo
 
 	memCommitment := uint64(0)
 	for _, service := range services {
-		memCommitment = memCommitment + service.RAMCommitment
+		memCommitment = memCommitment + service.RAMCommitment.Value
 	}
 
 	pool.MemoryCommitment = memCommitment
@@ -361,12 +359,11 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.
 
 	for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
 		if virtualIP.IP == requestedVirtualIP.IP {
-			// delete the current VirtualIP
-			if err := zkAPI(f).RemoveVirtualIP(&requestedVirtualIP); err != nil {
-				return err
-			}
 			myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
 			if err := f.UpdateResourcePool(ctx, myPool); err != nil {
+				return err
+			}
+			if err := zkAPI(f).RemoveVirtualIP(&requestedVirtualIP); err != nil {
 				return err
 			}
 			glog.Infof("Removed virtual IP: %v from pool: %v", virtualIP.IP, requestedVirtualIP.PoolID)

@@ -23,7 +23,7 @@ RUN	apt-get install -qqy iptables ca-certificates aufs-tools
 RUN	apt-get install -y -q wget curl git
 
 # Install Go
-RUN	curl -s http://go.googlecode.com/files/go1.2.1.linux-amd64.tar.gz | tar -v -C /usr/local -xz
+RUN	curl -s https://storage.googleapis.com/golang/go1.3.3.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 ENV	GOPATH  /go
 ENV	PATH $PATH:/go/bin:/usr/local/go/bin
 

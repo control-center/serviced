@@ -21,10 +21,12 @@ import (
 	"path"
 	"strings"
 	"syscall"
+	"text/template"
 	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
@@ -61,6 +63,7 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
+					cli.StringFlag{"format", "", "format the output using the given go template"},
 				},
 			}, {
 				Name:        "status",
@@ -108,12 +111,27 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service start SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStart,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+				},
+			}, {
+				Name:         "restart",
+				Usage:        "Restarts a service",
+				Description:  "serviced service restart SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceRestart,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+				},
 			}, {
 				Name:         "stop",
 				Usage:        "Stops a service",
 				Description:  "serviced service stop SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceStop,
+				Flags: []cli.Flag{
+					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
+				},
 			}, {
 				Name:         "proxy",
 				Usage:        "Starts a server proxy for a container",
@@ -125,7 +143,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"forwarder-config", "/etc/logstash-forwarder.conf", "path to the logstash-forwarder config file"},
 					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
 					cli.BoolTFlag{"mux", "enable port multiplexing"},
-					cli.BoolTFlag{"tls", "enable tls"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
@@ -140,7 +157,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "shell",
 				Usage:        "Starts a service instance",
-				Description:  "serviced service shell SERVICEID COMMAND",
+				Description:  "serviced service shell SERVICEID [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceShell,
 				Flags: []cli.Flag{
@@ -179,6 +196,15 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service action { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } ACTION",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAction,
+			}, {
+				Name:         "logs",
+				Usage:        "Output the logs of a running service container - calls docker logs",
+				Description:  "serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }",
+				BashComplete: c.printServicesFirst,
+				Before:       c.cmdServiceLogs,
+				Flags: []cli.Flag{
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+				},
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -379,7 +405,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 func cmdSetTreeCharset(ctx *cli.Context) {
 	if ctx.Bool("ascii") {
 		treeCharset = treeASCII
-	} else if !isatty(os.Stdout) {
+	} else if !utils.Isatty(os.Stdout) {
 		treeCharset = treeSPACE
 	} else if configBool("TREE_ASCII", false) {
 		treeCharset = treeASCII
@@ -432,7 +458,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	}
-	hostmap := make(map[string]*host.Host)
+	hostmap := make(map[string]host.Host)
 	for _, host := range hosts {
 		hostmap[host.ID] = host
 	}
@@ -456,7 +482,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 		if statemap == nil || len(statemap) == 0 {
 			if svc.Instances > 0 {
-				switch svc.DesiredState {
+				switch service.DesiredState(svc.DesiredState) {
 				case service.SVCRun:
 					lines[iid]["Status"] = dao.Scheduled.String()
 				case service.SVCPause:
@@ -539,10 +565,21 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			fmt.Fprintln(os.Stderr, err)
 		} else if service == nil {
 			fmt.Fprintln(os.Stderr, "service not found")
-		} else if jsonService, err := json.MarshalIndent(service, " ", "  "); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal service definition: %s\n", err)
+			return
 		} else {
-			fmt.Println(string(jsonService))
+			if ctx.String("format") == "" {
+				if jsonService, err := json.MarshalIndent(service, " ", "  "); err != nil {
+					fmt.Fprintf(os.Stderr, "failed to marshal service definition: %s\n", err)
+				} else {
+					fmt.Println(string(jsonService))
+				}
+			} else {
+				if tmpl, err := template.New("template").Parse(ctx.String("format")); err != nil {
+					glog.Errorf("Template parsing error: %s", err)
+				} else if err := tmpl.Execute(os.Stdout, service); err != nil {
+					glog.Errorf("Template execution error: %s", err)
+				}
+			}
 		}
 		return
 	}
@@ -562,7 +599,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		} else {
 			fmt.Println(string(jsonService))
 		}
-	} else {
+	} else if ctx.String("format") == "" {
 
 		cmdSetTreeCharset(ctx)
 
@@ -584,6 +621,16 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 			return row[1].(string)
 		})
 		tableService.flush()
+	} else {
+		tmpl, err := template.New("template").Parse(ctx.String("format"))
+		if err != nil {
+			glog.Errorf("Template parsing error: %s", err)
+		}
+		for _, service := range services {
+			if err := tmpl.Execute(os.Stdout, service); err != nil {
+				glog.Errorf("Template execution error: %s", err)
+			}
+		}
 	}
 }
 
@@ -730,10 +777,34 @@ func (c *ServicedCli) cmdServiceStart(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StartService(svc.ID); err != nil {
+	if affected, err := c.driver.StartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	} else if affected == 0 {
+		fmt.Println("Service already started")
+	} else {
+		fmt.Printf("Scheduled %d service(s) to start\n", affected)
+	}
+}
+
+// serviced service restart SERVICEID
+func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "restart")
+		return
+	}
+
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		fmt.Printf("Service scheduled to start.\n")
+		fmt.Printf("Restarting %d service(s)\n", affected)
 	}
 }
 
@@ -752,10 +823,12 @@ func (c *ServicedCli) cmdServiceStop(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.StopService(svc.ID); err != nil {
+	if affected, err := c.driver.StopService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+	} else if affected == 0 {
+		fmt.Println("Service already stopped")
 	} else {
-		fmt.Printf("Service scheduled to stop.\n")
+		fmt.Printf("Scheduled %d service(s) to stop\n", affected)
 	}
 }
 
@@ -781,7 +854,7 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	options := api.ControllerOptions{
 		MuxPort:                 ctx.GlobalInt("muxport"),
 		Mux:                     ctx.GlobalBool("mux"),
-		TLS:                     ctx.GlobalBool("tls"),
+		TLS:                     true,
 		KeyPEMFile:              ctx.GlobalString("keyfile"),
 		CertPEMFile:             ctx.GlobalString("certfile"),
 		ServicedEndpoint:        ctx.GlobalString("endpoint"),
@@ -811,10 +884,10 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service proxy")
 }
 
-// serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID COMMAND
+// serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID [COMMAND]
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	args := ctx.Args()
-	if len(args) < 2 {
+	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		return nil
 	}
@@ -822,6 +895,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	var (
 		command string
 		argv    []string
+		isTTY   bool
 	)
 
 	svc, err := c.searchForService(args[0])
@@ -830,7 +904,14 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		return err
 	}
 
-	command = args[1]
+	if len(args) < 2 {
+		command = "/bin/bash"
+		isTTY = true
+	} else {
+		command = args[1]
+		isTTY = ctx.GlobalBool("interactive")
+	}
+
 	if len(args) > 2 {
 		argv = args[2:]
 	}
@@ -841,7 +922,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		Command:          command,
 		Args:             argv,
 		SaveAs:           ctx.GlobalString("saveas"),
-		IsTTY:            ctx.GlobalBool("interactive"),
+		IsTTY:            isTTY,
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: "localhost" + agentPort,
 	}
@@ -968,7 +1049,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 	if err != nil {
 		return nil, err
 	}
-	hostmap := make(map[string]*host.Host)
+	hostmap := make(map[string]host.Host)
 	for _, host := range hosts {
 		hostmap[host.ID] = host
 	}
@@ -1047,7 +1128,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 		if err != nil {
 			return err
 		}
-		hostmap := make(map[string]*host.Host)
+		hostmap := make(map[string]host.Host)
 		for _, host := range hosts {
 			hostmap[host.ID] = host
 		}
@@ -1125,6 +1206,61 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	}
 
 	return fmt.Errorf("serviced service attach")
+}
+
+// serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }
+func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
+	// verify args
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "logs")
+		return nil
+	}
+
+	rs, err := c.searchForRunningService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return err
+	}
+
+	// docker logs on remote host if service is running on remote
+	myHostID, err := utils.HostID()
+	if err != nil {
+		return err
+	}
+
+	if rs.HostID != myHostID {
+		hosts, err := c.driver.GetHosts()
+		if err != nil {
+			return err
+		}
+		hostmap := make(map[string]host.Host)
+		for _, host := range hosts {
+			hostmap[host.ID] = host
+		}
+
+		endpointArg := ctx.GlobalString("endpoint")
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "logs", args[0]}
+		if len(args) > 1 {
+			cmd = append(cmd, args[1:]...)
+		}
+
+		glog.V(1).Infof("outputting remote logs with: %s\n", cmd)
+		return syscall.Exec(cmd[0], cmd[0:], os.Environ())
+	}
+
+	// docker logs on local host if service is running locally
+	var argv []string
+	if len(args) > 2 {
+		argv = args[2:]
+	}
+
+	if err := dockerclient.Logs(rs.DockerID, argv); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	return fmt.Errorf("serviced service logs")
 }
 
 // serviced service list-snapshot SERVICEID

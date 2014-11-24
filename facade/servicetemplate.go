@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dotcloud/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
@@ -251,7 +251,7 @@ func (f *Facade) DeployService(ctx datastore.Context, parentID string, sd servic
 
 func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) (string, error) {
 	// Always deploy in stopped state, starting is a separate step
-	ds := service.SVCStop
+	ds := int(service.SVCStop)
 
 	exportedVolumes := make(map[string]string)
 	for k, v := range volumes {

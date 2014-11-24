@@ -16,7 +16,6 @@ package elasticsearch
 import (
 	"fmt"
 	"strconv"
-	"strings"
 	"testing"
 	"time"
 
@@ -313,7 +312,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
-		DesiredState:   service.SVCRun,
+		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
 		CreatedAt:      time.Now(),
@@ -350,14 +349,14 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	if err = dt.Dao.AddService(childService2, &childService2Id); err != nil {
 		glog.Fatalf("Failed Loading Child Service 2: %+v, %s", childService2, err)
 	}
-	var unused int
-	var stringUnused string
+
 	// start the service
-	if err = dt.Dao.StartService(id, &stringUnused); err != nil {
+	var affected int
+	if err = dt.Dao.StartService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// stop the parent
-	if err = dt.Dao.StopService(id, &unused); err != nil {
+	if err = dt.Dao.StopService(dao.ScheduleServiceRequest{id, true}, &affected); err != nil {
 		glog.Fatalf("Unable to stop parent service: %+v, %s", svc, err)
 	}
 	// verify the children have all stopped
@@ -365,7 +364,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 	var serviceRequest dao.ServiceRequest
 	err = dt.Dao.GetServices(serviceRequest, &services)
 	for _, subService := range services {
-		if subService.DesiredState == service.SVCRun && subService.ParentServiceID == id {
+		if subService.DesiredState == int(service.SVCRun) && subService.ParentServiceID == id {
 			t.Errorf("Was expecting child services to be stopped %v", subService)
 		}
 	}
@@ -378,7 +377,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s0.Name = "name"
 	s0.PoolID = "default"
 	s0.Launch = "auto"
-	s0.DesiredState = service.SVCStop
+	s0.DesiredState = int(service.SVCStop)
 
 	s01, _ := service.NewService()
 	s01.ID = "01"
@@ -386,7 +385,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s01.PoolID = "default"
 	s01.Launch = "auto"
 	s01.ParentServiceID = "0"
-	s01.DesiredState = service.SVCStop
+	s01.DesiredState = int(service.SVCStop)
 
 	s011, _ := service.NewService()
 	s011.ID = "011"
@@ -394,7 +393,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s011.PoolID = "default"
 	s011.Launch = "auto"
 	s011.ParentServiceID = "01"
-	s011.DesiredState = service.SVCStop
+	s011.DesiredState = int(service.SVCStop)
 
 	s02, _ := service.NewService()
 	s02.ID = "02"
@@ -402,7 +401,7 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	s02.PoolID = "default"
 	s02.Launch = "auto"
 	s02.ParentServiceID = "0"
-	s02.DesiredState = service.SVCStop
+	s02.DesiredState = int(service.SVCStop)
 
 	err := dt.Dao.AddService(*s0, &id)
 	t.Assert(err, IsNil)
@@ -413,31 +412,32 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 	err = dt.Dao.AddService(*s02, &id)
 	t.Assert(err, IsNil)
 
-	if err := dt.Dao.StartService("0", &unusedStr); err != nil {
+	var affected int
+	if err := dt.Dao.StartService(dao.ScheduleServiceRequest{"0", true}, &affected); err != nil {
 		t.Fatalf("could not start services: %v", err)
 	}
 
 	svc := service.Service{}
 	dt.Dao.GetService("0", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 0 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("01", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 01 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("011", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 011 not requested to run: %+v", svc)
 		t.Fail()
 	}
 
 	dt.Dao.GetService("02", &svc)
-	if svc.DesiredState != service.SVCRun {
+	if svc.DesiredState != int(service.SVCRun) {
 		t.Errorf("Service: 02 not requested to run: %+v", svc)
 		t.Fail()
 	}
@@ -524,7 +524,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", assignIPsPool.ID, []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, []string{}...)
 	if err != nil {
 		t.Fatalf("Error creating host: %v", err)
 	}
@@ -582,82 +582,6 @@ func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
 	err := dt.Dao.RemoveAddressAssignment("fake", nil)
 	if err == nil {
 		t.Errorf("Expected error removing address %v", err)
-	}
-}
-
-func (dt *DaoTest) TestAssignAddress(t *C) {
-	aa := addressassignment.AddressAssignment{}
-	aid := ""
-	err := dt.Dao.AssignAddress(aa, &aid)
-	if err == nil {
-		t.Error("Expected error")
-	}
-
-	//set up host with IP
-	hostid := "TestHost"
-	ip := "10.0.1.5"
-	endpoint := "default"
-	serviceId := ""
-	h, err := host.Build("", "default", []string{}...)
-	t.Assert(err, IsNil)
-	h.ID = hostid
-	h.IPs = []host.HostIPResource{host.HostIPResource{hostid, ip, "ifname", "macaddress"}}
-	err = dt.Facade.AddHost(dt.CTX, h)
-	if err != nil {
-		t.Errorf("Unexpected error adding host: %v", err)
-		return
-	}
-	defer dt.Facade.RemoveHost(dt.CTX, hostid)
-
-	//set up service with endpoint
-	svc, _ := service.NewService()
-	svc.Name = "name"
-	svc.Launch = "auto"
-	svc.PoolID = "default"
-	ep := service.ServiceEndpoint{}
-	ep.Name = endpoint
-	ep.AddressConfig = servicedefinition.AddressResourceConfig{8080, commons.TCP}
-	svc.Endpoints = []service.ServiceEndpoint{ep}
-	err = dt.Dao.AddService(*svc, &serviceId)
-	t.Assert(err, IsNil)
-
-	//test for bad service id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, "blamsvc", endpoint, version}
-	aid = ""
-	err = dt.Dao.AssignAddress(aa, &aid)
-	if err == nil || "No such entity {kind:service, id:blamsvc}" != err.Error() {
-		t.Errorf("Expected error adding address %v", err)
-	}
-
-	//test for bad endpoint id
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, "blam", version}
-	aid = ""
-	err = dt.Dao.AssignAddress(aa, &aid)
-	if err == nil || !strings.HasPrefix(err.Error(), "Endpoint blam not found on service") {
-		t.Errorf("Expected error adding address %v", err)
-	}
-
-	// Valid assignment
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
-	aid = ""
-	err = dt.Dao.AssignAddress(aa, &aid)
-	if err != nil {
-		t.Errorf("Unexpected error adding address %v", err)
-		return
-	}
-
-	// try to reassign; should fail
-	aa = addressassignment.AddressAssignment{"", "static", hostid, "", ip, 100, serviceId, endpoint, version}
-	other_aid := ""
-	err = dt.Dao.AssignAddress(aa, &other_aid)
-	if err == nil || "Address Assignment already exists" != err.Error() {
-		t.Errorf("Expected error adding address %v", err)
-	}
-
-	//test removing address
-	err = dt.Dao.RemoveAddressAssignment(aid, nil)
-	if err != nil {
-		t.Errorf("Unexpected error removing address %v", err)
 	}
 }
 

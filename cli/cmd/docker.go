@@ -46,6 +46,12 @@ func (c *ServicedCli) initDocker() {
 					cli.StringFlag{"endpoint", "unix:///var/run/docker.sock", "docker endpoint"},
 				},
 			},
+			{
+				Name:        "reset-registry",
+				Usage:       "serviced docker reset-registry",
+				Description: "Migrates all the docker images into the new registry",
+				Action:      c.cmdResetRegistry,
+			},
 		},
 	})
 }
@@ -84,5 +90,11 @@ func (c *ServicedCli) cmdRegistrySync(ctx *cli.Context) {
 	err := c.driver.RegistrySync()
 	if err != nil {
 		glog.Fatalf("error syncing docker images to local registry: %s", err)
+	}
+}
+
+func (c *ServicedCli) cmdResetRegistry(ctx *cli.Context) {
+	if err := c.driver.ResetRegistry(); err != nil {
+		glog.Fatalf("error while resetting the registry: %s", err)
 	}
 }

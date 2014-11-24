@@ -15,7 +15,6 @@ package pool
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
@@ -34,20 +33,47 @@ type Store struct {
 }
 
 //GetResourcePools Get a list of all the resource pools
-func (ps *Store) GetResourcePools(ctx datastore.Context) ([]*ResourcePool, error) {
+func (ps *Store) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePools")
 	return query(ctx, "_exists_:ID")
 }
 
 // GetResourcePoolsByRealm gets a list of resource pools for a given realm
-func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]*ResourcePool, error) {
+func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
 	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
 	id := strings.TrimSpace(realm)
 	if id == "" {
 		return nil, errors.New("empty realm not allowed")
 	}
-	queryString := fmt.Sprintf("Realm:%s", id)
-	return query(ctx, queryString)
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("Realm", id)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
+// HasVirtualIP returns true if there is a virtual ip found for the given pool
+func (s *Store) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return false, errors.New("empty pool id not allowed")
+	} else if virtualIP = strings.TrimSpace(virtualIP); virtualIP == "" {
+		return false, errors.New("empty virtual ip not allowed")
+	}
+
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ID", poolID),
+		search.Filter().Terms("VirtualIPs.IP", virtualIP),
+	)
+
+	results, err := datastore.NewQuery(ctx).Execute(search)
+	if err != nil {
+		return false, err
+	}
+	return results.Len() > 0, nil
 }
 
 //Key creates a Key suitable for getting, putting and deleting ResourcePools
@@ -55,7 +81,7 @@ func Key(id string) datastore.Key {
 	return datastore.NewKey(kind, id)
 }
 
-func query(ctx datastore.Context, query string) ([]*ResourcePool, error) {
+func query(ctx datastore.Context, query string) ([]ResourcePool, error) {
 	q := datastore.NewQuery(ctx)
 	elasticQuery := search.Query().Search(query)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(elasticQuery)
@@ -66,8 +92,8 @@ func query(ctx datastore.Context, query string) ([]*ResourcePool, error) {
 	return convert(results)
 }
 
-func convert(results datastore.Results) ([]*ResourcePool, error) {
-	pools := make([]*ResourcePool, results.Len())
+func convert(results datastore.Results) ([]ResourcePool, error) {
+	pools := make([]ResourcePool, results.Len())
 	for idx := range pools {
 		var pool ResourcePool
 		err := results.Get(idx, &pool)
@@ -75,7 +101,7 @@ func convert(results datastore.Results) ([]*ResourcePool, error) {
 			return nil, err
 		}
 
-		pools[idx] = &pool
+		pools[idx] = pool
 	}
 	return pools, nil
 }

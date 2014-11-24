@@ -68,7 +68,7 @@ func (s *S) Test_HostCRUD(t *C) {
 	}
 
 	//fill host with required values
-	host, err = Build("", "pool-id", []string{}...)
+	host, err = Build("", "65535", "pool-id", []string{}...)
 	host.ID = "testid"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -108,7 +108,7 @@ func (s *S) Test_HostCRUD(t *C) {
 
 func (s *S) TestDaoGetHostWithIPs(t *C) {
 	//Add host to test scenario where host exists but no IP resource registered
-	h, err := Build("", "pool-id", []string{}...)
+	h, err := Build("", "65535", "pool-id", []string{}...)
 	h.ID = "TestDaoGetHostWithIPs"
 	h.IPs = []HostIPResource{
 		HostIPResource{h.ID, "testip", "ifname", "address1"},
@@ -139,7 +139,7 @@ func (s *S) Test_GetHosts(t *C) {
 	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts1"))
 	defer s.hs.Delete(s.ctx, HostKey("Test_GetHosts2"))
 
-	host, err := Build("", "pool-id", []string{}...)
+	host, err := Build("", "65535", "pool-id", []string{}...)
 	host.ID = "Test_GetHosts1"
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -179,7 +179,7 @@ func (s *S) Test_FindHostsInPool(t *C) {
 	defer s.hs.Delete(s.ctx, HostKey(id2))
 	defer s.hs.Delete(s.ctx, HostKey(id3))
 
-	host, err := Build("", "pool1", []string{}...)
+	host, err := Build("", "65535", "pool1", []string{}...)
 	host.ID = id1
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
@@ -219,5 +219,33 @@ func (s *S) Test_FindHostsInPool(t *C) {
 		t.Errorf("Unexpected error: %v", err)
 	} else if len(hosts) != 2 {
 		t.Errorf("Expected %v results, got %v :%v", 2, len(hosts), hosts)
+	}
+}
+
+func (s *S) Test_GetHostByIP(t *C) {
+	host, err := Build("", "65535", "pool1")
+	if err != nil {
+		t.Fatalf("Unexpected error building host: %v", err)
+	}
+
+	host.ID = "Test_GetHostByIP1"
+	host.IPs = append(host.IPs, HostIPResource{IPAddress: "111.22.333.4"})
+	if err := s.hs.Put(s.ctx, HostKey(host.ID), host); err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	}
+	defer s.hs.Delete(s.ctx, HostKey(host.ID))
+
+	result, err := s.hs.GetHostByIP(s.ctx, "111.22.333.4")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if result == nil || result.ID != host.ID {
+		t.Errorf("Expected %v, got %v", host, result)
+	}
+
+	result, err = s.hs.GetHostByIP(s.ctx, "abc123")
+	if err != nil {
+		t.Errorf("Unexpected error: %v", err)
+	} else if result != nil {
+		t.Errorf("Expected nil, got %v", result)
 	}
 }

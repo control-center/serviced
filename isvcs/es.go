@@ -49,6 +49,7 @@ func init() {
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
 			Configuration: make(map[string]interface{}),
 			HealthCheck:   elasticsearchHealthCheck(9200),
+			HostNetwork:   true,
 		},
 	)
 	if err != nil {
@@ -139,11 +140,18 @@ func elasticsearchHealthCheck(port int) func() error {
 	}
 }
 
-func PurgeLogstashIndices(days int) error {
+func PurgeLogstashIndices(days int, gb int) error {
 	container := elasticsearch_logstash
 	port := container.Ports[0]
 	glog.Infof("Purging logstash entries older than %d days", days)
+	err := container.RunCommand([]string{
+		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
+		"delete", "--older-than", fmt.Sprintf("%d", days)})
+	if err != nil {
+		return err
+	}
+	glog.Infof("Purging oldest logstash entries to limit disk usage to %d GB.", gb)
 	return container.RunCommand([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--older-than", fmt.Sprintf("%d", days)}, false)
+		"delete", "--disk-space", fmt.Sprintf("%d", gb)})
 }
