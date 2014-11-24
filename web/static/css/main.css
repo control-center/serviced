@@ -375,6 +375,17 @@ table .btn,
     color: #cccccc;
     content: "\00a0/"; /* reverse order of space and separator */
 }
+.breadcrumb .crumb {
+    color: #AAA;
+}
+.breadcrumb .crumb:hover {
+    color: #666;
+}
+.breadcrumb .crumb.current {
+    font-weight: bold;
+    color: #666;
+}
+
 .highlighted {
     background-color: #d0d0d0;
     font-weight: bold
@@ -1053,7 +1064,6 @@ rect {
     position: absolute;
     top: 50px;
     width: 100%;
-    opacity: 0.9;
     z-index: 999;
 }
 
@@ -1613,4 +1623,60 @@ input[type=file] {
 
 .modal .big .CodeMirror {
     height: 500px;
+}
+
+/* sticky service controls */
+.serviceDetails {
+    margin-bottom: 20px;
+    height: 93px;
+}
+.serviceDetails .serviceControls {
+    height: 45px;
+    position: relative;
+    border-bottom: solid 1px #0084DB;
+    background-color: white;
+    z-index:100;
+    padding: 4px 0;
+}
+.serviceDetails .serviceActions {
+    position: absolute;
+    right: 0;
+    bottom: 4px;
+}
+.serviceDetails .serviceTitle {
+    position: relative;
+    margin: 0;
+}
+.serviceDetails .serviceDescription {
+    padding: 4px;
+    color: #999;
+}
+.serviceDetails .serviceBoxGradient {
+    opacity: 0;
+    height: 7px;
+    position: absolute;
+    left: 0;
+    bottom: -8px;
+    width: 100%;
+
+    background: -moz-linear-gradient(top,  rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(0,0,0,0.3)), color-stop(100%,rgba(0,0,0,0))); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#a6000000', endColorstr='#00000000',GradientType=0 ); /* IE6-9 */
+
+    transition: opacity .5s;
+    -webkit-transition: opacity .5s;
+    -moz-transition: opacity .5s;
+}
+.serviceControls.stickied .serviceBoxGradient{
+    opacity: 1;
+}
+
+
+.warningMessage {
+    color: #0084DB;
+    font-size: .9em;
 }

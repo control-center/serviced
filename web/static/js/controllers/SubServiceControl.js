@@ -803,12 +803,52 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.toggleChildren = function($event, app){
         var $e = $($event.target);
         $e.is(".glyphicon-chevron-down") ? hideChildren(app) : showChildren(app);
-    }
+    };
 
     //we need to bring this function into scope so we can use ng-hide if an object is empty
     $scope.isEmptyObject = function(obj){
         return angular.equals({}, obj);
-    }
+    };
+
+    $scope.editCurrentService = function(){
+
+        // clone service for editing
+        $scope.editableService = $.extend({}, $scope.services.current);
+        
+        $modalService.create({
+            templateUrl: "edit-service.html",
+            model: $scope,
+            title: "title_edit_service",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "btn_save_changes",
+                    action: function(){
+                        if(this.validate()){
+
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
+                            // update service with recently edited service
+                            resourcesService.update_service($scope.editableService.ID, $scope.editableService)
+                                .success(function(data, status){
+                                    $notification.create("Updated service", $scope.editableService.ID).success();
+                                    refreshServices($scope, resourcesService, false);
+                                    this.editableService = {};
+                                    this.close();
+                                }.bind(this))
+                                .error(function(data, status){
+                                    this.createNotification("Update service failed", data.Detail).error();
+                                    enableSubmit();
+                                }.bind(this));
+                        }
+                    }
+                }
+            ]
+        });
+    };
 
     function hideChildren(app){
         if(app.children){
@@ -843,4 +883,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         $e.removeClass("glyphicon-chevron-right");
         $e.addClass("glyphicon-chevron-down");
     }
+    
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, false);
 }
