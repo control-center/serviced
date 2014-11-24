@@ -260,6 +260,7 @@
     "nav_pools": "Resource Pools",
     "nav_servicesmap": "Services Map",
     "nav_backuprestore": "Backup / Restore",
+    "no_backups": "No Backup Files found",
     "no_data": "No Data Found",
     "placeholder_host_and_port": "example.com:4979",
     "placeholder_host_parent": "default",
