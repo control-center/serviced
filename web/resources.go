@@ -20,6 +20,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/user"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -800,13 +802,7 @@ func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *nod
 }
 
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-
-	dir := home + "/backup"
+	dir := ""
 	filePath := ""
 	err := client.AsyncBackup(dir, &filePath)
 	if err != nil {
@@ -855,12 +851,17 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	}
 
 	fileData := []JsonizableFileInfo{}
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
+
+	var home = ""
+	if servicedHome := strings.TrimSpace(os.Getenv("SERVICED_HOME")); servicedHome != "" {
+		home = servicedHome
+	} else if user, err := user.Current(); err != nil {
+		home = path.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username))
+	} else {
+		home = path.Join(os.TempDir(), "serviced")
 	}
-	backupDir := home + "/backup"
+
+	backupDir := home + "/backups"
 	backupFiles, _ := ioutil.ReadDir(backupDir)
 
 	hostIP, err := utils.GetIPAddress()
