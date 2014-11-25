@@ -182,6 +182,7 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 		if len(hosts) > 0 {
 			return hosts, nil
 		}
+		glog.Warningf("No hosts are registered in pool; did you add hosts or bounce running agents?")
 
 		select {
 		case <-eventW:
