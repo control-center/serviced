@@ -1,4 +1,257 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/** @scratch /panels/5
+ *
+ * include::panels/trends.asciidoc[]
+ */
 
-define("panels/trends/module",["angular","app","underscore","kbn"],function(a,b,c,d){var e=a.module("kibana.panels.trends",[]);b.useModule(e),e.controller("trends",["$scope","kbnIndex","querySrv","dashboard","filterSrv",function(b,e,f,g,h){function i(a,b){return 0===a?null:100*(b-a)/a}b.panelMeta={modals:[{description:"Inspect",icon:"icon-info-sign",partial:"app/partials/inspector.html",show:b.panel.spyable}],editorTabs:[{title:"Queries",src:"app/partials/querySelect.html"}],status:"Beta",description:'A stock-ticker style representation of how queries are moving over time. For example, if the time is 1:10pm, your time picker was set to "Last 10m", and the "Time Ago" parameter was set to \'1h\', the panel would show how much the query results have changed since 12:00-12:10pm'};var j={ago:"1d",arrangement:"vertical",spyable:!0,queries:{mode:"all",ids:[]},style:{"font-size":"14pt"}};c.defaults(b.panel,j),b.init=function(){b.hits=0,b.$on("refresh",function(){b.get_data()}),b.get_data()},b.get_data=function(i,j){if(delete b.panel.error,b.panelMeta.loading=!0,0!==g.indices.length){b.index=i>0?b.index:g.indices;var l=c.uniq(c.pluck(h.getByType("time"),"field"));if(l.length>1)return b.panel.error="Time field must be consistent amongst time filters",void 0;if(0===l.length)return b.panel.error="A time filter must exist for this panel to function",void 0;l=l[0],b.time=h.timeRange("last"),b.old_time={from:new Date(b.time.from.getTime()-d.interval_to_ms(b.panel.ago)),to:new Date(b.time.to.getTime()-d.interval_to_ms(b.panel.ago))};var m=c.isUndefined(i)?0:i,n=b.ejs.Request(),o=c.difference(h.ids,h.idsByType("time"));b.panel.queries.ids=f.idsByMode(b.panel.queries);var p=f.getQueryObjs(b.panel.queries.ids);c.each(p,function(a){var c=b.ejs.FilteredQuery(f.toEjsObj(a),h.getBoolFilter(o).must(b.ejs.RangeFilter(l).from(b.time.from).to(b.time.to)));n=n.facet(b.ejs.QueryFacet(a.id).query(c)).size(0)}),c.each(p,function(a){var c=b.ejs.FilteredQuery(f.toEjsObj(a),h.getBoolFilter(o).must(b.ejs.RangeFilter(l).from(b.old_time.from).to(b.old_time.to)));n=n.facet(b.ejs.QueryFacet("old_"+a.id).query(c)).size(0)}),b.inspector=a.toJson(JSON.parse(n.toString()),!0),0===m?e.indices(b.old_time.from,b.old_time.to,g.current.index.pattern,g.current.index.interval).then(function(a){b.index=c.union(a,b.index),n=n.indices(b.index[m]),k(n.doSearch(),m,j)}):k(n.indices(b.index[m]).doSearch(),m,j)}};var k=function(a,d,e){a.then(function(a){if(b.panelMeta.loading=!1,0===d&&(b.hits={},b.data=[],e=b.query_id=(new Date).getTime()),!c.isUndefined(a.error))return b.panel.error=b.parse_error(a.error),void 0;if(b.query_id===e){var g=0,h=f.getQueryObjs(b.panel.queries.ids);c.each(h,function(e){var f=a.facets[e.id].count,h=a.facets["old_"+e.id].count,j={"new":c.isUndefined(b.data[g])||0===d?f:b.data[g].hits.new+f,old:c.isUndefined(b.data[g])||0===d?h:b.data[g].hits.old+h};b.hits.new+=f,b.hits.old+=h;var k=null==i(j.old,j.new)?"?":Math.round(100*i(j.old,j.new))/100;b.data[g]={info:e,hits:{"new":j.new,old:j.old},percent:k},g++}),b.$emit("render"),d<b.index.length-1?b.get_data(d+1,e):b.trends=b.data}})};b.set_refresh=function(a){b.refresh=a},b.close_edit=function(){b.refresh&&b.get_data(),b.refresh=!1,b.$emit("render")}}])});
+/** @scratch /panels/trends/0
+ *
+ * == trends
+ * Status: *Beta*
+ *
+ * A stock-ticker style representation of how queries are moving over time. For example, if the
+ * time is 1:10pm, your time picker was set to "Last 10m", and the "Time Ago" parameter was set to
+ * "1h", the panel would show how much the query results have changed since 12:00-12:10pm
+ *
+ */
+define([
+  'angular',
+  'app',
+  'lodash',
+  'kbn'
+],
+function (angular, app, _, kbn) {
+  'use strict';
+
+  var module = angular.module('kibana.panels.trends', []);
+  app.useModule(module);
+
+  module.controller('trends', function($scope, kbnIndex, querySrv, dashboard, filterSrv) {
+
+    $scope.panelMeta = {
+      modals : [
+        {
+          description: "Inspect",
+          icon: "icon-info-sign",
+          partial: "app/partials/inspector.html",
+          show: $scope.panel.spyable
+        }
+      ],
+      editorTabs : [
+        {title:'Queries', src:'app/partials/querySelect.html'}
+      ],
+      status  : "Beta",
+      description : "A stock-ticker style representation of how queries are moving over time. "+
+      "For example, if the time is 1:10pm, your time picker was set to \"Last 10m\", and the \"Time "+
+      "Ago\" parameter was set to '1h', the panel would show how much the query results have changed"+
+      " since 12:00-12:10pm"
+    };
+
+    // Set and populate defaults
+    var _d = {
+      /** @scratch /panels/trends/5
+       *
+       * === Parameters
+       *
+       * ago:: A date math formatted string describing the relative time period to compare the
+       * queries to.
+       */
+      ago     : '1d',
+      /** @scratch /panels/trends/5
+       * arrangement:: `horizontal' or `vertical'
+       */
+      arrangement : 'vertical',
+      /** @scratch /panels/trends/5
+       * reverse:: true or false. If true, use red for positive, green for negative
+       */
+      reverse : false,
+      /** @scratch /panels/trends/5
+       * spyable:: Set to false to disable the inspect icon
+       */
+      spyable: true,
+      /** @scratch /panels/trends/5
+       *
+       * ==== Queries
+       * queries object:: This object describes the queries to use on this panel.
+       * queries.mode::: Of the queries available, which to use. Options: +all, pinned, unpinned, selected+
+       * queries.ids::: In +selected+ mode, which query ids are selected.
+       */
+      queries     : {
+        mode        : 'all',
+        ids         : []
+      },
+      style   : { "font-size": '14pt'},
+    };
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function () {
+      $scope.hits = 0;
+
+      $scope.$on('refresh', function(){$scope.get_data();});
+
+      $scope.get_data();
+    };
+
+    $scope.get_data = function(segment,query_id) {
+      delete $scope.panel.error;
+      $scope.panelMeta.loading = true;
+
+      // Make sure we have everything for the request to complete
+      if(dashboard.indices.length === 0) {
+        return;
+      } else {
+        $scope.index = segment > 0 ? $scope.index : dashboard.indices;
+      }
+
+      // Determine a time field
+      var timeField = _.uniq(_.pluck(filterSrv.getByType('time'),'field'));
+      if(timeField.length > 1) {
+        $scope.panel.error = "Time field must be consistent amongst time filters";
+        return;
+      } else if(timeField.length === 0) {
+        $scope.panel.error = "A time filter must exist for this panel to function";
+        return;
+      } else {
+        timeField = timeField[0];
+      }
+
+      // This logic can be simplified greatly with the new kbn.parseDate
+      $scope.time = filterSrv.timeRange('last');
+
+
+      $scope.old_time = {
+        from : new Date($scope.time.from.getTime() - kbn.interval_to_ms($scope.panel.ago)).valueOf(),
+        to   : new Date($scope.time.to.getTime() - kbn.interval_to_ms($scope.panel.ago)).valueOf()
+      };
+
+      var _segment = _.isUndefined(segment) ? 0 : segment;
+      var request = $scope.ejs.Request();
+      var _ids_without_time = _.difference(filterSrv.ids,filterSrv.idsByType('time'));
+
+      $scope.panel.queries.ids = querySrv.idsByMode($scope.panel.queries);
+      var queries = querySrv.getQueryObjs($scope.panel.queries.ids);
+
+      // Build the question part of the query
+      _.each(queries, function(query) {
+        var q = $scope.ejs.FilteredQuery(
+          querySrv.toEjsObj(query),
+          filterSrv.getBoolFilter(filterSrv.ids()));
+
+        request = request
+          .facet($scope.ejs.QueryFacet(query.id)
+            .query(q)
+          ).size(0);
+      });
+
+
+      // And again for the old time period
+      _.each(queries, function(query) {
+        var q = $scope.ejs.FilteredQuery(
+          querySrv.toEjsObj(query),
+          filterSrv.getBoolFilter(_ids_without_time).must(
+            $scope.ejs.RangeFilter(timeField)
+            .from($scope.old_time.from)
+            .to($scope.old_time.to)
+          ));
+        request = request
+          .facet($scope.ejs.QueryFacet("old_"+query.id)
+            .query(q)
+          ).size(0);
+      });
+
+
+      // Populate the inspector panel
+      $scope.inspector = angular.toJson(JSON.parse(request.toString()),true);
+
+      // If we're on the first segment we need to get our indices
+      if (_segment === 0) {
+        kbnIndex.indices(
+          $scope.old_time.from,
+          $scope.old_time.to,
+          dashboard.current.index.pattern,
+          dashboard.current.index.interval
+        ).then(function (p) {
+          $scope.index = _.union(p,$scope.index);
+          request = request.indices($scope.index[_segment]);
+          process_results(request.doSearch(),_segment,query_id);
+        });
+      } else {
+        process_results(request.indices($scope.index[_segment]).doSearch(),_segment,query_id);
+      }
+
+    };
+
+    // Populate scope when we have results
+    var process_results = function(results,_segment,query_id) {
+      results.then(function(results) {
+        $scope.panelMeta.loading = false;
+        if(_segment === 0) {
+          $scope.hits = {};
+          $scope.data = [];
+          query_id = $scope.query_id = new Date().getTime();
+        }
+
+        // Check for error and abort if found
+        if(!(_.isUndefined(results.error))) {
+          $scope.panel.error = $scope.parse_error(results.error);
+          return;
+        }
+
+        // Make sure we're still on the same query/queries
+        if($scope.query_id === query_id) {
+          var i = 0;
+          var queries = querySrv.getQueryObjs($scope.panel.queries.ids);
+
+          _.each(queries, function(query) {
+            var n = results.facets[query.id].count;
+            var o = results.facets['old_'+query.id].count;
+
+            var hits = {
+              new : _.isUndefined($scope.data[i]) || _segment === 0 ? n : $scope.data[i].hits.new+n,
+              old : _.isUndefined($scope.data[i]) || _segment === 0 ? o : $scope.data[i].hits.old+o
+            };
+
+            $scope.hits.new += n;
+            $scope.hits.old += o;
+
+            var percent = percentage(hits.old,hits.new) == null ?
+              '?' : Math.round(percentage(hits.old,hits.new)*100)/100;
+            // Create series
+            $scope.data[i] = {
+              info: query,
+              hits: {
+                new : hits.new,
+                old : hits.old
+              },
+              percent: percent
+            };
+
+            i++;
+          });
+          $scope.$emit('render');
+          if(_segment < $scope.index.length-1) {
+            $scope.get_data(_segment+1,query_id);
+          } else {
+            $scope.trends = $scope.data;
+          }
+        }
+      });
+    };
+
+    function percentage(x,y) {
+      return x === 0 ? null : 100*(y-x)/x;
+    }
+
+    $scope.set_refresh = function (state) {
+      $scope.refresh = state;
+    };
+
+    $scope.close_edit = function() {
+      if($scope.refresh) {
+        $scope.get_data();
+      }
+      $scope.refresh =  false;
+      $scope.$emit('render');
+    };
+
+  });
+});

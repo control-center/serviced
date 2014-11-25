@@ -1,4 +1,6 @@
-<div class="modal-body"><style>.timepicker-to-column {
+  <div class="modal-body">
+    <style>
+      .timepicker-to-column {
         margin-top: 10px;
       }
 
@@ -28,4 +30,14 @@
       }
       div.timepicker-now {
         float: right;
-      }</style><h4>Top 10 terms in field {{modalField}}</h4><div><kibana-simple-panel ng-click="dismiss();" type="'{{facetType}}'" panel="{{facetPanel}}" ng-cloak=""></kibana-simple-panel></div></div><div class="modal-footer"><form name="input" style="margin-bottom:0"><button ng-click="dismiss();" class="btn btn-danger">Close</button></form></div>
+      }
+    </style>
+    <h4>Top 10 terms in field {{modalField}}</h4>
+    <kibana-simple-panel ng-click="dismiss();" type="'{{facetType}}'" panel='{{facetPanel}}' ng-cloak></kibana-simple-panel>
+  </div>
+
+  <div class="modal-footer">
+    <form name="input" style="margin-bottom:0">
+    <button ng-click="dismiss();" class="btn btn-danger">Close</button>
+    </form>
+  </div>

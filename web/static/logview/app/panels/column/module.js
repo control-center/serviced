@@ -1,4 +1,119 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/** @scratch /panels/5
+ *
+ * include::panels/column.asciidoc[]
+ */
 
-define("panels/column/module",["angular","app","underscore","config"],function(a,b,c,d){var e=a.module("kibana.panels.column",[]);b.useModule(e),e.controller("column",["$scope","$rootScope","$timeout",function(a,b,d){a.panelMeta={status:"Stable",description:"A pseudo panel that lets you add other panels to be arranged in a column withdefined heights."};var e={panels:[]};c.defaults(a.panel,e),a.init=function(){a.reset_panel()},a.toggle_row=function(b){b.collapse=b.collapse?!1:!0,b.collapse||d(function(){a.send_render()})},a.send_render=function(){a.$broadcast("render")},a.add_panel=function(b){a.panel.panels.push(b)},a.reset_panel=function(b){a.new_panel={loading:!1,error:!1,sizeable:!1,span:12,height:"150px",editable:!0,type:b,draggable:!1}}}]),e.directive("columnEdit",["$compile","$timeout",function(b,d){return{scope:{new_panel:"=panel",row:"=",config:"=",dashboards:"=",type:"=type"},link:function(e,f){e.$on("render",function(){d(function(){e.panel=e.new_panel;var d="<div ng-include src=\"partial('panelgeneral')\"></div>";c.isUndefined(e.type)||""===e.type||(d=d+"<div ng-include src=\"'app/panels/"+e.type+"/editor.html'\"></div>"),f.html(b(a.element(d))(e))})})}}}]),e.filter("withoutColumn",function(){return function(){return c.without(d.panel_names,"column")}})});
+/** @scratch /panels/column/0
+ *
+ * == Column
+ * Status: *Stable*
+ *
+ * A pseudo panel that lets you add other panels to be arranged in a column with defined heights.
+ * While the column panel is stable, it does have many limitations, including the inability to drag
+ * and drop panels within its borders. It may be removed in a future release.
+ *
+ */
+define([
+  'angular',
+  'app',
+  'lodash',
+  'config'
+],
+function (angular, app, _, config) {
+  'use strict';
+
+  var module = angular.module('kibana.panels.column', []);
+
+  app.useModule(module);
+
+  module.controller('column', function($scope, $rootScope, $timeout) {
+    $scope.panelMeta = {
+      status  : "Stable",
+      description : "A pseudo panel that lets you add other panels to be arranged in a column with"+
+        "defined heights."
+    };
+
+    // Set and populate defaults
+    var _d = {
+      /** @scratch /panels/column/3
+       *
+       * === Parameters
+       *
+       * panel:: An array of panel objects
+       */
+      panels : []
+    };
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function(){
+      $scope.reset_panel();
+    };
+
+    $scope.toggle_row = function(panel) {
+      panel.collapse = panel.collapse ? false : true;
+      if (!panel.collapse) {
+        $timeout(function() {
+          $scope.send_render();
+        });
+      }
+    };
+
+    $scope.send_render = function() {
+      $scope.$broadcast('render');
+    };
+
+    $scope.add_panel = function(panel,newPanel) {
+      panel.panels.push(newPanel);
+    };
+
+    $scope.reset_panel = function(type) {
+      $scope.new_panel = {
+        loading: false,
+        error: false,
+        sizeable: false,
+        draggable: false,
+        removable: false,
+        span: 10,
+        height: "150px",
+        editable: true,
+        type: type
+      };
+    };
+
+  });
+
+  module.directive('columnEdit', function($compile,$timeout) {
+    return {
+      scope : {
+        new_panel:"=panel",
+        row:"=",
+        config:"=",
+        dashboards:"=",
+        type:"=type"
+      },
+      link: function(scope, elem) {
+        scope.$on('render', function () {
+
+          // Make sure the digest has completed and populated the attributes
+          $timeout(function() {
+            // Create a reference to the new_panel as panel so that the existing
+            // editors work with our isolate scope
+            scope.panel = scope.new_panel;
+            var template = '<div ng-include src="partial(\'panelgeneral\')"></div>';
+
+            if(!(_.isUndefined(scope.type)) && scope.type !== "") {
+              template = template+'<div ng-include src="\'app/panels/'+scope.type+'/editor.html\'"></div>';
+            }
+            elem.html($compile(angular.element(template))(scope));
+          });
+        });
+      }
+    };
+  });
+
+  module.filter('withoutColumn', function() {
+    return function() {
+      return _.without(config.panel_names,'column');
+    };
+  });
+});

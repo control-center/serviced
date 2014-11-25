@@ -1,8 +1,8 @@
         <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
+
         <iframe 
             id="logsframe"
             src="/static/logview/#/dashboard/file/zenoss.json"
             style="width:100%; border: none; overflow: hidden"
         >
         </iframe>
-        <div show-if-empty ng-include="'/static/partials/wizard-modal.html'"></div>
