@@ -121,11 +121,6 @@ controlplane.
             }
         };
     }).
-    directive('showIfEmpty', function(){
-        return function(scope, elem, attrs){
-            scope.showIfEmpty();
-        };
-    }).
     directive('popover', function(){
         return function(scope, elem, attrs){
             $(elem).popover({
