@@ -1,65 +1,37 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
-    <h3 style="position: relative;">
-        <div ng-if="services.current.children === undefined || services.current.Startup" class="healthCheck" data-id="{{services.current.ID}}" style="display: inline-block; font-size: .6em;"></div>
-        {{services.current.Name}}
-        <span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span>
-    </h3>
+    <!-- Service Details -->
+    <div class="serviceDetails">
+        <div class="serviceControls" sticky sticky-class="stickied">
 
-    <div class="details">
-      <div class="details-form">
-        <div class="vertical-info">
-            <label for="app_data_name">{{'label_service_name'|translate}}</label>
-            <input stealth-input type="text" id="app_data_name" data-value="services.current.Name" data-on-change="updateService" ng-disabled="services.current.isvc" style="width:160px;"></input>
+            <h2 class="serviceTitle">
+                <div ng-if="services.current.children === undefined || services.current.Startup" class="healthCheck" data-id="{{services.current.ID}}" style="display: inline-block; font-size: .6em;"></div>
+                {{services.current.Name}}
+                <span class="version" ng-show="services.current.Version"> (v{{services.current.Version}})</span>
+            </h2>
+
+            <div class="serviceActions">
+                <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> Edit Service</button>
+                <button ng-click="clickEditContext(services.current, servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
+
+                <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
+                <div ng-if="services.current.DesiredState !== 2" style="display: inline-block;">
+                    <button ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
+                    <button ng-click="clickRunningApp(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+                    <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="killRunningInstances(services.current)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+                </div>
+
+                <div ng-if="services.current.DesiredState === 2" style="display: inline-block;">
+                    <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
+                </div>
+            </div>
+            <div class="serviceBoxGradient"></div>
         </div>
 
-        <div class="vertical-info">
-            <label for="app_data_description">{{'label_service_description'|translate}}</label>
-            <input stealth-input type="text" id="app_data_description" data-value="services.current.Description" data-on-change="updateService" ng-disabled="services.current.isvc" style="width:160px;"></input>
-        </div>
 
-        <!-- Only show instance field if there are no defined constraints, the max is defined, or the min is defined but not the max -->
-        <div class="vertical-info" ng-show="!services.current.InstanceLimits || services.current.InstanceLimits.Max > 0 || services.current.InstanceLimits.Min > services.current.InstanceLimits.Max">
-          <label for="app_data_instances">{{'label_service_instances'|translate}}</label>
-          <input stealth-input type="number" 
-            min="{{services.current.InstanceLimits.Min}}"
-            id="app_data_instances" class="instances" 
-            data-value="services.current.Instances" 
-            ng-disabled="canChangeInstanceCount(services.current.InstanceLimits.Max, services.current.InstanceLimits.Min)" 
-            data-on-change="updateService"></input>
+        <div class="serviceDescription">
+            {{services.current.Description}}
         </div>
-
-        <div class="vertical-info" ng-if="!services.current.isvc">
-          <label for="app_data_startup">{{'label_service_startup'|translate}}</label>
-          <input stealth-input type="text" id="app_data_startup" class="startup" data-value="services.current.Startup" data-on-change="updateService"></input>
-        </div>
-
-        <div class="vertical-info" ng-show="dev">
-          <label for="app_data_image">{{'label_service_image'|translate}}</label>
-          <input type="text" id="app_data_image" class="image" ng-model="services.current.ImageID">
-        </div>
-
-        <div class="vertical-info" ng-if="!services.current.isvc">
-          <label>{{'context_vars'|translate}}</label>
-          <a ng-click="clickEditContext(services.current, servicesService)" class="link">{{'edit_context'|translate}}...</a>
-        </div>
-
-        <div class="vertical-info" ng-if="!services.current.isvc" style="float:right; border-left: solid white 2px;">
-          <label>{{'running_tbl_actions'|translate}}</label>
-          <div ng-if="services.current.DesiredState !== 2">
-            <button ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
-            <button ng-click="clickRunningApp(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
-          </div>
-          <div ng-if="services.current.DesiredState === 2">
-            <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
-          </div>
-        </div>
-      </div>
-      <!--<div class="details-actions" ng-if="!services.current.isvc">
-        <button class="btn btn-primary" ng-click="updateService()">{{'btn_save_changes'|translate}}</button>
-        <button class="btn" ng-show="dev" ng-click="showAddService()">{{'btn_add_service'|translate}}</button>
-        <button class="btn" ng-show="dev" ng-click="deleteService()">{{'btn_delete'|translate}}</button>
-      </div>-->
     </div>
 
     <!-- Virtual Host Names -->

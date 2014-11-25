@@ -45,8 +45,8 @@
   <div class="details">
       <ol class="breadcrumb inline">
           <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
-              <span ng-switch-when="undefined">{{crumb.label|translate|cut:true:25}}</span>
-              <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label|translate}}</a>
+              <span ng-switch-when="undefined" class="crumb current">{{crumb.label|translate|cut:true:25}}</span>
+              <a ng-switch-default ng-href="{{crumb.url}}" class="crumb">{{crumb.label|translate}}</a>
           </li>
       </ol>
   </div>
