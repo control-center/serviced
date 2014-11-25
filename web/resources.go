@@ -800,13 +800,7 @@ func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *nod
 }
 
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-
-	dir := home + "/backup"
+	dir := ""
 	filePath := ""
 	err := client.AsyncBackup(dir, &filePath)
 	if err != nil {
@@ -818,12 +812,6 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 }
 
 func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-
 	err := r.ParseForm()
 	filePath := r.FormValue("filename")
 
@@ -834,7 +822,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 
 	unused := 0
 
-	err = client.AsyncRestore(home+"/backup/"+filePath, &unused)
+	err = client.AsyncRestore(filepath.Join(utils.BackupDir(), filePath), &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		restServerError(w, err)
@@ -855,12 +843,8 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 	}
 
 	fileData := []JsonizableFileInfo{}
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-	backupDir := home + "/backup"
+
+	backupDir := utils.BackupDir()
 	backupFiles, _ := ioutil.ReadDir(backupDir)
 
 	hostIP, err := utils.GetIPAddress()

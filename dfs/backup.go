@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/utils"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
@@ -48,7 +49,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string) (string, error) {
 	// get the full path of the backup
 	name := time.Now().Format("backup-2006-01-02-150405")
 	if dirpath == "" {
-		dirpath = filepath.Join(getHome(), "backups")
+		dirpath = utils.BackupDir()
 	}
 	filename := filepath.Join(dirpath, fmt.Sprintf("%s.tgz", name))
 	dirpath = filepath.Join(dirpath, name)
@@ -160,7 +161,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		}
 	}()
 
-	dirpath := filepath.Join(getHome(), "restore")
+	dirpath := filepath.Join(utils.BackupDir(), "restore")
 	if err := os.RemoveAll(dirpath); err != nil {
 		glog.Errorf("Could not remove %s: %s", dirpath, err)
 		return err
