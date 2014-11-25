@@ -20,9 +20,13 @@ package utils
 
 import (
 	"os"
+	"os/user"
+	"fmt"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
+	"github.com/zenoss/glog"
 )
 
 //ServiceDHome gets the home location of serviced by looking at the enviornment
@@ -44,4 +48,21 @@ func LocalDir(p string) string {
 // ResourcesDir points to internal services resources directory
 func ResourcesDir() string {
 	return LocalDir("isvcs/resources")
+}
+
+// BackupDir gets the directory where backup files are stored
+func BackupDir() string {
+	homeDir := ServiceDHome()
+	backupDir := ""
+
+	if homeDir != "" {
+		backupDir = filepath.Join(homeDir, "backups")
+	} else if user, err := user.Current(); err != nil {
+		backupDir = path.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username))
+	} else {
+		backupDir = path.Join(os.TempDir(), "serviced")
+		glog.Warningf("Defaulting home to %s", os.TempDir())
+	}
+
+	return filepath.Join(backupDir, "backups")
 }

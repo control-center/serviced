@@ -15,12 +15,8 @@ package dfs
 
 import (
 	"errors"
-	"fmt"
-	"os"
-	"os/user"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
@@ -48,16 +44,4 @@ func GetSubvolume(fsType, varpath, serviceID string) (*volume.Volume, error) {
 	}
 	glog.Infof("Mounting fsType: %v; tenantID: %v; baseDir: %v", fsType, serviceID, baseDir)
 	return volume.Mount(fsType, serviceID, baseDir)
-}
-
-func getHome() string {
-	if servicedHome := strings.TrimSpace(os.Getenv("SERVICED_HOME")); servicedHome != "" {
-		return servicedHome
-	} else if user, err := user.Current(); err != nil {
-		return path.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username))
-	}
-
-	home := path.Join(os.TempDir(), "serviced")
-	glog.Warningf("Defaulting home to %s", home)
-	return home
 }
