@@ -43,14 +43,12 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
-	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
@@ -744,21 +742,6 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 
 	glog.V(4).Infof("resourcePath: %s  containerPath: %s", resourcePath, volume.ContainerPath)
 	return resourcePath, nil
-}
-
-func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
-	rpcMaster, err := master.NewClient(a.master)
-	if err != nil {
-		glog.Errorf("Failed to get RPC master: %v", err)
-		return nil, err
-	}
-	defer rpcMaster.Close()
-	myHost, err := rpcMaster.GetHost(hostID)
-	if err != nil {
-		glog.Errorf("Could not get host %s: %s", hostID, err)
-		return nil, err
-	}
-	return myHost, nil
 }
 
 // main loop of the HostAgent

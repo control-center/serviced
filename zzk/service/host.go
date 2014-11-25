@@ -20,7 +20,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	// "github.com/control-center/serviced/health"
-	"github.com/control-center/serviced/domain/host"
+
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
@@ -67,7 +67,6 @@ func (node *HostState) SetVersion(version interface{}) {
 
 // HostHandler is the handler for running the HostListener
 type HostStateHandler interface {
-	GetHost(string) (*host.Host, error)
 	AttachService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	StartService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
 	PauseService(*service.Service, *servicestate.ServiceState) error
@@ -101,11 +100,9 @@ func (l *HostStateListener) GetPath(nodes ...string) string {
 
 // Ready adds an ephemeral node to the host registry
 func (l *HostStateListener) Ready() error {
-	host, err := l.handler.GetHost(l.hostID)
-	if err != nil {
+	var node HostNode
+	if err := l.conn.Get(l.GetPath(), &node); err != nil {
 		return err
-	} else if host == nil {
-		return ErrHostInvalid
 	}
 
 	// Create an ephemeral node at /registry/host
@@ -113,7 +110,7 @@ func (l *HostStateListener) Ready() error {
 	// CreateEphemeral returns the full path from the root.  Since these are
 	// pool-based connections, the path from the root is actually
 	// /pools/POOLID/registry/host/EHOSTID
-	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
+	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: node.Host})
 	if err != nil {
 		return err
 	}
