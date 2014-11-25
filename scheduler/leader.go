@@ -75,6 +75,7 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 	var ipAddr string
 	var hostid string
 
+	glog.Infof("Looking for available hosts in pool %s", l.poolID)
 	hosts, err := l.hostRegistry.GetHosts()
 	if err != nil {
 		glog.Errorf("Could not get available hosts for pool %s: %s", l.poolID, err)
