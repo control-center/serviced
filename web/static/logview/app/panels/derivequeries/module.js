@@ -1,4 +1,53 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/*
+  ## Derivequeries
 
-define("panels/derivequeries/module",["angular","app","underscore"],function(a,b,c){var d=a.module("kibana.panels.derivequeries",[]);b.useModule(d),d.controller("derivequeries",["$scope",function(a){a.panelMeta={status:"Deprecated",description:"This panel has been replaced with the 'topN' mode in the query pull down."};var b={loading:!1,label:"Search",query:"*",ids:[],field:"_type",fields:[],spyable:!0,rest:!1,size:5,mode:"terms only",exclude:[],history:[],remember:10};c.defaults(a.panel,b),a.init=function(){a.editing=!1}}])});
+  ### Parameters
+  * label :: The label to stick over the field
+  * query :: A string to use as a filter for the terms facet
+  * field :: the field to facet on
+  * rest  :: include a filter that matches all other terms,
+  * size :: how many queries to generate
+  * fields :: a list of fields known to us
+  * query_mode :: how to create query
+
+*/
+define([
+  'angular',
+  'app',
+  'lodash'
+],
+function (angular, app, _) {
+  'use strict';
+
+  var module = angular.module('kibana.panels.derivequeries', []);
+  app.useModule(module);
+
+  module.controller('derivequeries', function($scope) {
+    $scope.panelMeta = {
+      status  : "Deprecated",
+      description : "This panel has been replaced with the 'topN' mode in the query pull down."
+    };
+
+    // Set and populate defaults
+    var _d = {
+      loading : false,
+      label   : "Search",
+      query   : "*",
+      ids     : [],
+      field   : '_type',
+      fields  : [],
+      spyable : true,
+      rest    : false,
+      size    : 5,
+      mode    : 'terms only',
+      exclude : [],
+      history : [],
+      remember: 10 // max: 100, angular strap can't take a variable for items param
+    };
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function() {
+      $scope.editing = false;
+    };
+  });
+});
