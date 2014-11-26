@@ -6,129 +6,88 @@ package upgrades
 
 import (
 	"fmt"
-	"strings"
-	"unicode"
 
 	"github.com/control-center/serviced/commons"
 )
 
 var (
-	commandFactories map[string]func(*parseContext, []string) (command, error)
-	emptyCMD         = emptyCommand("")
+	nodeFactories map[string]func(*parseContext, string, []string) (node, error)
+
+	DESCRIPTION = "DESCRIPTION"
+	VERSION     = "VERSION"
+	SNAPSHOT    = "SNAPSHOT"
+	USE         = "USE"
+	SVC_RUN     = "SVC_RUN"
+	DEPENDENCY  = "DEPENDENCY"
 )
 
 func init() {
-	commandFactories = map[string]func(*parseContext, []string) (command, error){
-		"":            newEmtpyCommand,
-		"#":           newComment,
-		"DESCRIPTION": newDescription,
-		"VERSION":     newVersion,
-		"SNAPSHOT":    newSnapshot,
-		"USE":         newUse,
-		"SVC_RUN":     newSvcRun,
-		"DEPENDENCY":  newDependency,
+	nodeFactories = map[string]func(*parseContext, string, []string) (node, error){
+		"":          parseEmtpyCommand,
+		"#":         parseEmtpyCommand,
+		DESCRIPTION: parseDescription,
+		VERSION:     parseOneArg,
+		SNAPSHOT:    parseNoArgs,
+		USE:         parseImageID,
+		SVC_RUN:     parseSvcRun,
+		DEPENDENCY:  parseOneArg,
 	}
 }
 
-func newEmtpyCommand(ctx *parseContext, args []string) (command, error) {
-	if strings.TrimLeftFunc(ctx.line, unicode.IsSpace) != "" {
-		return nil, fmt.Errorf("expected empty line, got: %s", ctx.line)
-	}
-	if len(args) != 0 {
-		return nil, fmt.Errorf("expected empty args, got: %s", ctx.line)
-	}
-	return emptyCMD, nil
+// node is the struct created from parsing a line; cmd is the command on the line, args are the remainder of the line, line is
+// the original line and lineNum is the line number where the line occurred.
+type node struct {
+	cmd     string
+	args    []string
+	line    string
+	lineNum int
 }
 
-func newComment(ctx *parseContext, args []string) (command, error) {
-	if !strings.HasPrefix(strings.TrimLeftFunc(ctx.line, unicode.IsSpace), "#") {
-		return nil, fmt.Errorf("expected comment line, got: %s", ctx.line)
-	}
-
-	return comment(ctx.line), nil
+func parseEmtpyCommand(ctx *parseContext, cmd string, args []string) (node, error) {
+	return node{line: ctx.line, lineNum: ctx.lineNum, args: []string{}}, nil
 }
 
-func newDescription(ctx *parseContext, args []string) (command, error) {
+func parseDescription(ctx *parseContext, cmd string, args []string) (node, error) {
 	if len(args) == 0 {
-		return nil, fmt.Errorf("DESCRIPTION is empty", args)
+		return node{}, fmt.Errorf("line %d: %s is empty", ctx.lineNum, cmd, args)
 	}
 	if ctx.descriptionCount > 0 {
-		ctx.addErrorf("Extra DESCRIPTION at line %d: %s", ctx.lineNum, ctx.line)
+		ctx.addErrorf("line %d: extra %s: %s", ctx.lineNum, cmd, ctx.line)
 	}
 	ctx.descriptionCount += 1
-	desc := strings.TrimFunc(strings.Trim(strings.TrimLeftFunc(ctx.line, unicode.IsSpace), "DESCRIPTION"), unicode.IsSpace)
-	return description(desc), nil
+	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
-func newVersion(ctx *parseContext, args []string) (command, error) {
-	if len(args) == 0 || len(args) > 1 {
-		return nil, fmt.Errorf("expected one argument, got: %s", ctx.line)
+func parseOneArg(ctx *parseContext, cmd string, args []string) (node, error) {
+	if len(args) != 1 {
+		return node{}, fmt.Errorf("line %d: expected one argument, got: %s", ctx.lineNum, ctx.line)
 	}
-	return version(args[0]), nil
+	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
-func newSnapshot(ctx *parseContext, args []string) (command, error) {
+func parseNoArgs(ctx *parseContext, cmd string, args []string) (node, error) {
 	if len(args) != 0 {
-		return nil, fmt.Errorf("SNAPSHOT does not accept arguments: %s", ctx.line)
+		return node{}, fmt.Errorf("line %d: %s does not accept arguments: %s", ctx.lineNum, cmd, ctx.line)
 	}
-	return snapshot(ctx.line), nil
-}
-func newUse(ctx *parseContext, args []string) (command, error) {
-	if len(args) == 0 || len(args) > 1 {
-		return nil, fmt.Errorf("expected one argument, got: %s", ctx.line)
-	}
-	return createUse(args[0])
+	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: []string{}}, nil
 }
 
-func createUse(image string) (use, error) {
-	imageID, err := commons.ParseImageID(image)
+func parseImageID(ctx *parseContext, cmd string, args []string) (node, error) {
+	if len(args) != 1 {
+		return node{}, fmt.Errorf("line %d: expected one argument, got: %s", ctx.lineNum, ctx.line)
+	}
+	_, err := commons.ParseImageID(args[0])
 	if err != nil {
-		return use{}, err
+		return node{}, err
 	}
-	return use{*imageID}, nil
+
+	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
-func newSvcRun(ctx *parseContext, args []string) (command, error) {
+func parseSvcRun(ctx *parseContext, cmd string, args []string) (node, error) {
 	if len(args) < 2 {
-		return nil, fmt.Errorf("expected at least two arguments, got: %s", ctx.line)
+		return node{}, fmt.Errorf("line %d: expected at least two arguments, got: %s", ctx.lineNum, ctx.line)
 	}
 	//TODO: validate contents
-	return svc_run{args[0], args[1], args[2:len(args)]}, nil
-}
-
-func newDependency(ctx *parseContext, args []string) (command, error) {
-	if len(args) == 0 || len(args) > 1 {
-		return nil, fmt.Errorf("expected one argument, got: %s", ctx.line)
-	}
-	//TODO: verify content format
-	return dependency(args[0]), nil
-}
-
-type emptyCommand string
-
-// comment starts with #
-type comment string
-
-// DEPENDS serviced_version
-type dependency string
-
-//DESCRIPTION  Zenoss RM 5.0.1 upgrade
-type description string
-
-//VERSION   resmgr-5.0.1
-type version string
-
-//SNAPSHOT
-type snapshot string
-
-//USE  zenoss/resmgr-stable:5.0.1
-type use struct {
-	image commons.ImageID
-}
-
-//SVC_RUN  /zope upgrade
-type svc_run struct {
-	container string
-	command   string
-	args      []string
+	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }

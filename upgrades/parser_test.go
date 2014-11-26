@@ -31,31 +31,69 @@ SVC_RUN   /zope upgrade
 SVC_RUN   /hbase/regionserver upgrade arg1 arg2
 `
 
+func (vs *UpgradeSuite) Test_parseFile(t *C) {
+	ctx, err := parseFile("descriptor_test.txt")
+	t.Assert(err, IsNil)
+
+	ctx.line = "USE  zenoss/resmgr-stable:5.0.1"
+	ctx.lineNum = 9
+	use1, _ := parseImageID(ctx, "USE", []string{"zenoss/resmgr-stable:5.0.1"})
+
+	ctx.line = "USE  zenoss/hbase:v5"
+	ctx.lineNum = 10
+	use2, _ := parseImageID(ctx, "USE", []string{"zenoss/hbase:v5"})
+	expected := []node{
+		node{lineNum: 1, args: []string{}},
+		node{lineNum: 2, line: "#comment", args: []string{}},
+		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
+		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
+		node{lineNum: 5, cmd: DEPENDENCY, args: []string{"1.1"}, line: "DEPENDENCY 1.1"},
+		node{lineNum: 6, cmd: SNAPSHOT, line: "SNAPSHOT", args: []string{}},
+		node{lineNum: 7, args: []string{}},
+		node{lineNum: 8, line: "#comment 2", args: []string{}},
+		use1,
+		use2,
+		node{lineNum: 11, cmd: SVC_RUN, line: "SVC_RUN   /zope upgrade", args: []string{"/zope", "upgrade"}},
+		node{lineNum: 12, cmd: SVC_RUN, line: "SVC_RUN   /hbase/regionserver upgrade arg1 arg2", args: []string{"/hbase/regionserver", "upgrade", "arg1", "arg2"}},
+	}
+	t.Assert(len(ctx.nodes), Equals, len(expected))
+
+	for i, val := range expected {
+		t.Assert(ctx.nodes[i], DeepEquals, val)
+	}
+
+}
+
 func (vs *UpgradeSuite) Test_parseDescriptor(t *C) {
 	r := strings.NewReader(descriptor)
 	ctx, err := parseDescriptor(r)
 	t.Assert(err, IsNil)
 
-	use1, _ := createUse("zenoss/resmgr-stable:5.0.1")
-	use2, _ := createUse("zenoss/hbase:v5")
-	expected := []command{
-		emptyCMD,
-		comment("#comment"),
-		description("Zenoss RM 5.0.1 upgrade"),
-		version("resmgr-5.0.1"),
-		dependency("1.1"),
-		snapshot("SNAPSHOT"),
-		emptyCMD,
-		comment("#comment 2"),
+	ctx.line = "USE  zenoss/resmgr-stable:5.0.1"
+	ctx.lineNum = 9
+	use1, _ := parseImageID(ctx, "USE", []string{"zenoss/resmgr-stable:5.0.1"})
+
+	ctx.line = "USE  zenoss/hbase:v5"
+	ctx.lineNum = 10
+	use2, _ := parseImageID(ctx, "USE", []string{"zenoss/hbase:v5"})
+	expected := []node{
+		node{lineNum: 1, args: []string{}},
+		node{lineNum: 2, line: "#comment", args: []string{}},
+		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
+		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
+		node{lineNum: 5, cmd: DEPENDENCY, args: []string{"1.1"}, line: "DEPENDENCY 1.1"},
+		node{lineNum: 6, cmd: SNAPSHOT, line: "SNAPSHOT", args: []string{}},
+		node{lineNum: 7, args: []string{}},
+		node{lineNum: 8, line: "#comment 2", args: []string{}},
 		use1,
 		use2,
-		svc_run{"/zope", "upgrade", []string{}},
-		svc_run{"/hbase/regionserver", "upgrade", []string{"arg1", "arg2"}},
+		node{lineNum: 11, cmd: SVC_RUN, line: "SVC_RUN   /zope upgrade", args: []string{"/zope", "upgrade"}},
+		node{lineNum: 12, cmd: SVC_RUN, line: "SVC_RUN   /hbase/regionserver upgrade arg1 arg2", args: []string{"/hbase/regionserver", "upgrade", "arg1", "arg2"}},
 	}
-	t.Assert(len(ctx.commands), Equals, len(expected))
+	t.Assert(len(ctx.nodes), Equals, len(expected))
 
 	for i, val := range expected {
-		t.Assert(ctx.commands[i], DeepEquals, val)
+		t.Assert(ctx.nodes[i], DeepEquals, val)
 	}
 
 }
@@ -69,8 +107,7 @@ DESCRIPTION  blam
 	ctx, err := parseDescriptor(r)
 	t.Assert(err, IsNil)
 	t.Assert(len(ctx.errors), Equals, 1)
-	t.Assert(ctx.errors[0].Error(), Equals, "Extra DESCRIPTION at line 3: DESCRIPTION  blam")
-
+	t.Assert(ctx.errors[0], ErrorMatches, "line 3: extra DESCRIPTION: DESCRIPTION  blam")
 }
 
 func (vs *UpgradeSuite) Test_parseLine(t *C) {

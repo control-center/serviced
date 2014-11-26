@@ -149,5 +149,3 @@ import (
 //	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, name, tag)
 //	return commons.ParseImageID(newImageID)
 //}
-
-

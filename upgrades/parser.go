@@ -19,11 +19,11 @@ type parseContext struct {
 	errors           []error
 	descriptionCount int
 	versionCount     int
-	commands         []command
+	nodes            []node
 }
 
 func newParseContext() *parseContext {
-	return &parseContext{errors: []error{}, commands: []command{}}
+	return &parseContext{errors: []error{}, nodes: []node{}}
 }
 
 func (pc *parseContext) addErrorf(format string, a ...interface{}) {
@@ -44,7 +44,7 @@ func parseDescriptor(r io.Reader) (*parseContext, error) {
 	parse := func(num int, line string) error {
 		ctx.lineNum = num
 		ctx.line = line
-		return parseCommand(ctx)
+		return parseNode(ctx)
 	}
 	if err := ForEachLine(r, parse); err != nil {
 		return nil, err
@@ -62,9 +62,6 @@ func ForEachLine(r io.Reader, apply func(num int, line string) error) error {
 		}
 	}
 	return scanner.Err()
-}
-
-type command interface {
 }
 
 //parseLine returns the command and args array if any. If line is empty empty string and args are returned
@@ -89,18 +86,18 @@ func parseLine(line string) (string, []string) {
 }
 
 // parseCommand parses current line and creates a command
-func parseCommand(ctx *parseContext) error {
+func parseNode(ctx *parseContext) error {
 	prefix, args := parseLine(ctx.line)
 	fmt.Println(prefix)
 
-	f, found := commandFactories[prefix]
+	f, found := nodeFactories[prefix]
 	if !found {
-		return fmt.Errorf("no command for line: %s", ctx.line)
+		return fmt.Errorf("could not parse line %d: %s", ctx.lineNum, ctx.line)
 	}
-	cmd, err := f(ctx, args)
+	node, err := f(ctx, prefix, args)
 	if err != nil {
 		return err
 	}
-	ctx.commands = append(ctx.commands, cmd)
+	ctx.nodes = append(ctx.nodes, node)
 	return nil
 }

@@ -10,140 +10,122 @@ import (
 
 func (vs *UpgradeSuite) Test_emtpy(t *C) {
 	ctx := newParseContext()
-	cmd, err := newEmtpyCommand(ctx, []string{})
+	n, err := parseEmtpyCommand(ctx, "", []string{})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, Equals, emptyCMD)
+	t.Assert(n, DeepEquals, node{args: []string{}})
 
-	cmd, err = newEmtpyCommand(ctx, []string{"blamo"})
-	t.Assert(err, NotNil)
-
-	ctx.line = "sjfskd"
-	cmd, err = newEmtpyCommand(ctx, []string{})
-	t.Assert(err, NotNil)
-}
-
-func (vs *UpgradeSuite) Test_comment(t *C) {
-	ctx := newParseContext()
 	ctx.line = "#new comment"
-	cmd, err := newComment(ctx, []string{"new", "comment"})
+	n, err = parseEmtpyCommand(ctx, "#", []string{"new comment"})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, Equals, comment("#new comment"))
-
-	ctx.line = "    # other comment"
-	cmd, err = newComment(ctx, []string{})
-	t.Assert(err, IsNil)
-
-	ctx.line = "//bad comment"
-	cmd, err = newComment(ctx, []string{})
-	t.Assert(err, NotNil)
+	t.Assert(n, DeepEquals, node{line: "#new comment", args: []string{}})
 }
 
+//
+//func (vs *UpgradeSuite) Test_comment(t *C) {
+//	ctx := newParseContext()
+//	ctx.line = "#new comment"
+//	cmd, err := newComment(ctx, []string{"new", "comment"})
+//	t.Assert(err, IsNil)
+//	t.Assert(cmd, Equals, comment("#new comment"))
+//
+//	ctx.line = "    # other comment"
+//	cmd, err = newComment(ctx, []string{})
+//	t.Assert(err, IsNil)
+//
+//	ctx.line = "//bad comment"
+//	cmd, err = newComment(ctx, []string{})
+//	t.Assert(err, NotNil)
+//}
+//
 func (vs *UpgradeSuite) Test_description(t *C) {
 	ctx := newParseContext()
-	ctx.line = "DESCRIPTION new desc"
-	cmd, err := newDescription(ctx, []string{"new", "desc"})
+	line := "DESCRIPTION new desc"
+	ctx.line = line
+	n, err := parseDescription(ctx, DESCRIPTION, []string{"new", "desc"})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, Equals, description("new desc"))
+	t.Assert(n, DeepEquals, node{cmd: DESCRIPTION, line: line, args: []string{"new", "desc"}})
 
 	ctx.line = "DESCRIPTION"
-	cmd, err = newDescription(ctx, []string{})
+	n, err = parseDescription(ctx, DESCRIPTION, []string{})
 	t.Assert(err, NotNil)
 }
 
-func (vs *UpgradeSuite) Test_dependency(t *C) {
+func (vs *UpgradeSuite) Test_NoArgs(t *C) {
 	ctx := newParseContext()
-	ctx.line = "DEPENDENCY 1.1"
-	cmd, err := newDependency(ctx, []string{"1.1"})
+	ctx.line = SNAPSHOT
+	cmd, err := parseNoArgs(ctx, SNAPSHOT, []string{})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, Equals, dependency("1.1"))
+	t.Assert(cmd, DeepEquals, node{cmd: SNAPSHOT, line: SNAPSHOT, args: []string{}})
+
+	ctx.line = "SNAPSHOT 1"
+	cmd, err = parseNoArgs(ctx, SNAPSHOT, []string{"1"})
+	t.Assert(err, NotNil)
+}
+
+func (vs *UpgradeSuite) Test_OneArg(t *C) {
+	ctx := newParseContext()
+	line := "DEPENDENCY 1.1"
+	ctx.line = line
+	cmd, err := parseOneArg(ctx, DEPENDENCY, []string{"1.1"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: DEPENDENCY, line: line, args: []string{"1.1"}})
 
 	ctx.line = "DEPENDENCY 1 1"
-	cmd, err = newDependency(ctx, []string{"1", "1"})
+	cmd, err = parseOneArg(ctx, DEPENDENCY, []string{"1", "1"})
 	t.Assert(err, NotNil)
 
 	ctx.line = "DEPENDENCY"
-	cmd, err = newDependency(ctx, []string{})
+	cmd, err = parseOneArg(ctx, DEPENDENCY, []string{})
 	t.Assert(err, NotNil)
 }
 
-func (vs *UpgradeSuite) Test_version(t *C) {
-	ctx := newParseContext()
-	ctx.line = "VERSION 1.1"
-	cmd, err := newVersion(ctx, []string{"1.1"})
-	t.Assert(err, IsNil)
-	t.Assert(cmd, Equals, version("1.1"))
-
-	ctx.line = "VERSION 1 1"
-	cmd, err = newVersion(ctx, []string{"1", "1"})
-	t.Assert(err, NotNil)
-
-	ctx.line = "VERSION"
-	cmd, err = newVersion(ctx, []string{})
-	t.Assert(err, NotNil)
-}
-
-func (vs *UpgradeSuite) Test_snapshot(t *C) {
-	ctx := newParseContext()
-	ctx.line = "SNAPSHOT"
-	cmd, err := newSnapshot(ctx, []string{})
-	t.Assert(err, IsNil)
-	t.Assert(cmd, Equals, snapshot("SNAPSHOT"))
-
-	ctx.line = "SNAPSHOT 1"
-	cmd, err = newSnapshot(ctx, []string{"1"})
-	t.Assert(err, NotNil)
-}
+//USE:         parseImageID,
+//SVC_RUN:     parseSvcRun,
 
 func (vs *UpgradeSuite) Test_use(t *C) {
 	ctx := newParseContext()
-	ctx.line = "USE zenoss/resmgr-stable:5.0.1"
-	cmd, err := newUse(ctx, []string{"zenoss/resmgr-stable:5.0.1"})
+	line := "USE zenoss/resmgr-stable:5.0.1"
+	ctx.line = line
+	cmd, err := parseImageID(ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
 	t.Assert(err, IsNil)
-	expected, _ := createUse("zenoss/resmgr-stable:5.0.1")
-	t.Assert(cmd, Equals, expected)
+	t.Assert(cmd, DeepEquals, node{cmd: USE, line: line, args: []string{"zenoss/resmgr-stable:5.0.1"}})
+
+	ctx.line = "USE zenoss/resmgr-stable:5.0.1 blam"
+	cmd, err = parseImageID(ctx, USE, []string{})
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "line 0: expected one argument, got: USE zenoss/resmgr-stable:5.0.1 blam")
 
 	ctx.line = "USE"
-	cmd, err = newUse(ctx, []string{})
+	cmd, err = parseImageID(ctx, USE, []string{})
 	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "line 0: expected one argument, got: USE")
 
 	ctx.line = "USE *(^&*blamo::::"
-	cmd, err = newUse(ctx, []string{"*(^&*blamo::::"})
+	cmd, err = parseImageID(ctx, USE, []string{"*(^&*blamo::::"})
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "invalid ImageID .*")
 }
 
 func (vs *UpgradeSuite) Test_svcrun(t *C) {
 	ctx := newParseContext()
-	ctx.line = "SVC_RUN zope upgrade"
-	cmd, err := newSvcRun(ctx, []string{"zope", "upgrade"})
+	line := "SVC_RUN zope upgrade"
+	ctx.line = line
+	cmd, err := parseSvcRun(ctx, SVC_RUN, []string{"zope", "upgrade"})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, DeepEquals, svc_run{"zope", "upgrade", []string{}})
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_RUN, line: line, args: []string{"zope", "upgrade"}})
 
-	ctx.line = "SVC_RUN zope upgrade arg"
-	cmd, err = newSvcRun(ctx, []string{"zope", "upgrade", "arg"})
+	line = "SVC_RUN zope upgrade arg"
+	ctx.line = line
+	cmd, err = parseSvcRun(ctx, SVC_RUN, []string{"zope", "upgrade", "arg"})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, DeepEquals, svc_run{"zope", "upgrade", []string{"arg"}})
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_RUN, line: line, args: []string{"zope", "upgrade", "arg"}})
 
 	ctx.line = "SVC_RUN blam"
-	cmd, err = newSvcRun(ctx, []string{"blam"})
-	t.Assert(err, ErrorMatches, "expected at least two arguments.*")
+	cmd, err = parseSvcRun(ctx, SVC_RUN, []string{"blam"})
+	t.Assert(err, ErrorMatches, "line 0: expected at least two arguments, got: SVC_RUN blam")
 
 	ctx.line = "SVC_RUN"
-	cmd, err = newSvcRun(ctx, []string{})
-	t.Assert(err, ErrorMatches, "expected at least two arguments.*")
+	cmd, err = parseSvcRun(ctx, SVC_RUN, []string{})
+	t.Assert(err, ErrorMatches, "line 0: expected at least two arguments, got: SVC_RUN")
 
 }
-//	expected := []command{
-//		emptyCMD,
-//		comment("#comment"),
-//		description("Zenoss RM 5.0.1 upgrade"),
-//		version("resmgr-5.0.1"),
-//		dependency("1.1"),
-//		snapshot("SNAPSHOT"),
-//		emptyCMD,
-//		comment("#comment 2"),
-//		use("zenoss/resmgr-stable:5.0.1"),
-//		use("zenoss/hbase:v5"),
-//		svc_run{"/zope", "upgrade"},
-//		svc_run{"/hbase/regionserver", "upgrade"},
-//	}
