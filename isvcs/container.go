@@ -19,7 +19,8 @@
 package isvcs
 
 import (
-	"github.com/control-center/serviced/commons/circular"
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	"github.com/rcrowley/go-metrics"
@@ -30,161 +31,422 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"os/exec"
 	"os/user"
-	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
-type containerOp int
-
-const (
-	containerOpStart containerOp = iota
-	containerOpStop
+var (
+	isvcsVolumes = map[string]string{
+		utils.ResourcesDir(): "/usr/local/serviced/resources",
+	}
 )
 
-type containerOpRequest struct {
-	op       containerOp
+var (
+	ErrNotRunning       = errors.New("isvc: not running")
+	ErrRunning          = errors.New("isvc: running")
+	ErrBadContainerSpec = errors.New("isvc: bad service specification")
+)
+
+type ExitError int
+
+func (err ExitError) Error() string {
+	return fmt.Sprintf("isvc: service receieved exit code %d", int(err))
+}
+
+type action int
+
+const (
+	start action = iota
+	stop
+	restart
+)
+
+type actionrequest struct {
+	action   action
 	response chan error
 }
 
-var ErrNotRunning error
-var ErrRunning error
-var ErrBadContainerSpec error
-
-func init() {
-	ErrNotRunning = errors.New("container: not running")
-	ErrRunning = errors.New("container: already running")
-	ErrBadContainerSpec = errors.New("container: bad container specification")
+type IServiceDefinition struct {
+	Name          string                             // name of the service (used in naming containers)
+	Repo          string                             // the service's docker repository
+	Tag           string                             // the service's docker repository tag
+	Command       func() string                      // the command to run in the container
+	Volumes       map[string]string                  // volumes to bind mount to the container
+	Ports         []uint16                           // ports to expose to the host
+	HealthCheck   func() error                       // A function to verify the service is healthy
+	Configuration map[string]interface{}             // service specific configuration
+	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
+	PostStart     func(*IService) error              // A function to run after the initial start of the service
+	HostNetwork   bool                               // enables host network in the container
 }
 
-type ContainerDescription struct {
-	Name          string                              // name of the container (used for docker named containers)
-	Repo          string                              // the repository the image for this container uses
-	Tag           string                              // the repository tag this container uses
-	Command       func() string                       // the actual command to run inside the container
-	Volumes       map[string]string                   // Volumes to bind mount in to the containers
-	Ports         []int                               // Ports to expose to the host
-	HealthCheck   func() error                        // A function to verify that the service is healthy
-	Configuration map[string]interface{}              // A container specific configuration
-	Notify        func(*Container, interface{}) error // A function to run when notified of a data event
-	volumesDir    string                              // directory to store volume data
-	HostNetwork   bool                                // use host network in container, eg docker run ... --net=host
+type IService struct {
+	IServiceDefinition
+	exited  <-chan int
+	root    string
+	actions chan actionrequest
 }
 
-type Container struct {
-	ContainerDescription
-	client *dockerclient.Client
-	ops    chan containerOpRequest // channel for communicating to the container's loop
-}
-
-func NewContainer(cd ContainerDescription) (*Container, error) {
-	client, err := dockerclient.NewClient("unix:///var/run/docker.sock")
-	if err != nil {
-		glog.Errorf("Could not create docker client: %s", err)
-		return nil, err
-	}
-
-	if len(cd.Name) == 0 || len(cd.Repo) == 0 || len(cd.Tag) == 0 || cd.Command == nil {
+func NewIService(sd IServiceDefinition) (*IService, error) {
+	if strings.TrimSpace(sd.Name) == "" || strings.TrimSpace(sd.Repo) == "" || sd.Command == nil {
 		return nil, ErrBadContainerSpec
 	}
 
-	if cd.Configuration == nil {
-		cd.Configuration = make(map[string]interface{})
-	}
-	c := Container{
-		ContainerDescription: cd,
-
-		ops:    make(chan containerOpRequest),
-		client: client,
+	if sd.Configuration == nil {
+		sd.Configuration = make(map[string]interface{})
 	}
 
-	envPerService[cd.Name] = make(map[string]string)
+	svc := IService{sd, nil, "", make(chan actionrequest)}
+	envPerService[sd.Name] = make(map[string]string)
+	go svc.run()
 
-	go c.loop()
-	return &c, nil
+	return &svc, nil
 }
 
-func (c *Container) SetVolumesDir(volumesDir string) {
-	c.volumesDir = volumesDir
+func (svc *IService) SetRoot(root string) {
+	svc.root = strings.TrimSpace(root)
 }
 
-func (c *Container) VolumesDir() string {
-	if len(c.volumesDir) > 0 {
-		return c.volumesDir
-	}
-	if user, err := user.Current(); err == nil {
-		return fmt.Sprintf("/tmp/serviced-%s/var/isvcs", user.Username)
-	}
-	return "/tmp/serviced/var/isvcs"
+func (svc *IService) IsRunning() bool {
+	return svc.exited != nil
 }
 
-// loop maintains the state of the container; it handles requests to start() &
-// stop() containers as well as detect container failures.
-func (c *Container) loop() {
+func (svc *IService) Start() error {
+	response := make(chan error)
+	svc.actions <- actionrequest{start, response}
+	return <-response
+}
 
-	var exitChan chan error
-	var cmd *exec.Cmd
-	statsExitChan := make(chan bool)
+func (svc *IService) Stop() error {
+	response := make(chan error)
+	svc.actions <- actionrequest{stop, response}
+	return <-response
+}
+
+func (svc *IService) Restart() error {
+	response := make(chan error)
+	svc.actions <- actionrequest{restart, response}
+	return <-response
+}
+
+func (svc *IService) Exec(command []string) error {
+	ctr, err := docker.FindContainer(svc.name())
+	if err != nil {
+		return err
+	}
+
+	output, err := utils.AttachAndRun(ctr.ID, command)
+	if err != nil {
+		return err
+	}
+	os.Stdout.Write(output)
+	return nil
+}
+
+func (svc *IService) getResourcePath(p string) string {
+	const defaultdir string = "isvcs"
+
+	if svc.root == "" {
+		if p := strings.TrimSpace(os.Getenv("SERVICED_VARPATH")); p != "" {
+			svc.root = filepath.Join(p, defaultdir)
+		} else if p := strings.TrimSpace(os.Getenv("SERVICED_HOME")); p != "" {
+			svc.root = filepath.Join(p, "var", defaultdir)
+		} else if user, err := user.Current(); err == nil {
+			svc.root = filepath.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username), "var", defaultdir)
+		} else {
+			svc.root = filepath.Join(os.TempDir(), "serviced", "var", defaultdir)
+		}
+	}
+
+	return filepath.Join(svc.root, svc.Name, p)
+}
+
+func (svc *IService) name() string {
+	return fmt.Sprintf("serviced-isvcs_%s", svc.Name)
+}
+
+func (svc *IService) create() (*docker.Container, error) {
+	var config dockerclient.Config
+	cd := &docker.ContainerDefinition{
+		dockerclient.CreateContainerOptions{Name: svc.name(), Config: &config},
+		dockerclient.HostConfig{},
+	}
+
+	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)
+	config.Cmd = []string{"/bin/sh", "-c", svc.Command()}
+
+	// set the host network (if enabled)
+	if svc.HostNetwork {
+		cd.NetworkMode = "host"
+	}
+
+	// attach all exported ports
+	if svc.Ports != nil && len(svc.Ports) > 0 {
+		config.ExposedPorts = make(map[dockerclient.Port]struct{})
+		cd.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
+		for _, portno := range svc.Ports {
+			port := dockerclient.Port(fmt.Sprintf("%d", portno))
+			config.ExposedPorts[port] = struct{}{}
+			cd.PortBindings[port] = append(cd.PortBindings[port], dockerclient.PortBinding{HostPort: fmt.Sprintf("%d", portno)})
+		}
+	}
+
+	// attach all exported volumes
+	config.Volumes = make(map[string]struct{})
+	cd.Binds = []string{}
+
+	// service-specific volumes
+	if svc.Volumes != nil && len(svc.Volumes) > 0 {
+		for src, dest := range svc.Volumes {
+			hostpath := svc.getResourcePath(src)
+			if exists, _ := isDir(hostpath); !exists {
+				if err := os.MkdirAll(hostpath, 0777); err != nil {
+					glog.Errorf("could not create %s on host: %s", hostpath, err)
+					return nil, err
+				}
+			}
+			cd.Binds = append(cd.Binds, fmt.Sprintf("%s:%s", hostpath, dest))
+			config.Volumes[dest] = struct{}{}
+		}
+	}
+
+	// global volumes
+	if isvcsVolumes != nil && len(isvcsVolumes) > 0 {
+		for src, dest := range isvcsVolumes {
+			if exists, _ := isDir(src); !exists {
+				glog.Warningf("Could not mount source %s: path does not exist", src)
+				continue
+			}
+			cd.Binds = append(cd.Binds, fmt.Sprintf("%s:%s", src, dest))
+			config.Volumes[dest] = struct{}{}
+		}
+	}
+
+	// attach environment variables
+	for key, val := range envPerService[svc.Name] {
+		config.Env = append(config.Env, fmt.Sprintf("%s=%s", key, val))
+	}
+
+	return docker.NewContainer(cd, false, 5*time.Second, nil, nil)
+}
+
+func (svc *IService) attach() (*docker.Container, error) {
+	ctr, _ := docker.FindContainer(svc.name())
+	if ctr != nil {
+		notify := make(chan int, 1)
+		if !ctr.IsRunning() {
+			glog.Infof("isvc %s found but not running; removing container %s", svc.name(), ctr.ID)
+			go svc.remove(notify)
+		} else if !svc.checkvolumes(ctr) {
+			glog.Infof("isvc %s found but volumes are missing or incomplete; removing container %s", svc.name(), ctr.ID)
+			ctr.OnEvent(docker.Die, func(cid string) { svc.remove(notify) })
+			svc.stop()
+		} else {
+			glog.Infof("Attaching to isvc %s at %s", svc.name(), ctr.ID)
+			return ctr, nil
+		}
+		<-notify
+	}
+
+	glog.Infof("Creating a new container for isvc %s", svc.name())
+	return svc.create()
+}
+
+func (svc *IService) start() (<-chan int, error) {
+	ctr, err := svc.attach()
+	if err != nil {
+		return nil, err
+	}
+
+	// destroy the container when it dies
+	notify := make(chan int, 1)
+	ctr.OnEvent(docker.Die, func(cid string) { svc.remove(notify) })
+
+	// start the container
+	if err := ctr.Start(10 * time.Second); err != nil && err != docker.ErrAlreadyStarted {
+		return nil, err
+	}
+
+	// perform healthcheck
+	select {
+	case err := <-svc.healthcheck():
+		if err != nil {
+			svc.stop()
+			return nil, err
+		}
+	case rc := <-notify:
+		return nil, ExitError(rc)
+	}
+
+	return notify, nil
+}
+
+func (svc *IService) stop() error {
+	ctr, err := docker.FindContainer(svc.name())
+	if err == docker.ErrNoSuchContainer {
+		return nil
+	} else if err != nil {
+		return err
+	}
+
+	return ctr.Stop(45 * time.Second)
+}
+
+func (svc *IService) remove(notify chan<- int) {
+	defer close(notify)
+	ctr, err := docker.FindContainer(svc.name())
+	if err == docker.ErrNoSuchContainer {
+		return
+	} else if err != nil {
+		glog.Errorf("Could not get isvc container %s", svc.Name)
+		return
+	}
+
+	// report the log output
+	if output, err := exec.Command("docker", "logs", "--tail", "1000", ctr.ID).CombinedOutput(); err != nil {
+		glog.Warningf("Could not get logs for container %s", ctr.Name)
+	} else {
+		glog.V(1).Infof("Exited isvc %s:\n %s", svc.Name, string(output))
+	}
+
+	// kill the container if it is running
+	if ctr.IsRunning() {
+		glog.Warningf("isvc %s is still running; killing", svc.Name)
+		ctr.Kill()
+	}
+
+	// get the exit code
+	rc, _ := ctr.Wait(time.Second)
+	defer func() { notify <- rc }()
+
+	// delete the container
+	if err := ctr.Delete(true); err != nil {
+		glog.Errorf("Could not remove isvc %s: %s", ctr.Name, err)
+	}
+}
+
+func (svc *IService) run() {
+	var err error
+	var collecting bool
+	haltStats := make(chan struct{})
 
 	for {
 		select {
-		case req := <-c.ops:
-			switch req.op {
-			case containerOpStop:
-				glog.Infof("containerOpStop(): %s", c.Name)
-				statsExitChan <- true
-				if exitChan == nil {
+		case req := <-svc.actions:
+			switch req.action {
+			case stop:
+				glog.Infof("Stopping isvc %s", svc.Name)
+				if svc.exited == nil {
 					req.response <- ErrNotRunning
 					continue
 				}
-				oldCmd := cmd
-				cmd = nil
-				exitChan = nil        // setting extChan to nil will disable reading from it in the select()
-				oldCmd.Process.Kill() // kill the docker run() wrapper
-				c.stop()              // stop the container if it's not already stopped
-				c.rm()                // remove the container if it's not already gone
+
+				if collecting {
+					haltStats <- struct{}{}
+					collecting = false
+				}
+
+				if err := svc.stop(); err != nil {
+					req.response <- err
+					continue
+				}
+
+				if rc := <-svc.exited; rc != 0 {
+					glog.Warningf("isvc %s receieved exit code %d", svc.Name, rc)
+				}
+				svc.exited = nil
 				req.response <- nil
-			case containerOpStart:
-				glog.Infof("containerOpStart(): %s", c.Name)
-				if cmd != nil {
+			case start:
+				glog.Infof("Starting isvc %s", svc.Name)
+				if svc.exited != nil {
 					req.response <- ErrRunning
 					continue
 				}
-				c.stop()                // stop the container, if it's not stoppped
-				c.rm()                  // remove it if it was not already removed
-				cmd, exitChan = c.run() // run the actual container
 
-				healthCheckChan := make(chan error)
-				go func() {
-					if c.HealthCheck != nil {
-						healthCheckChan <- c.HealthCheck() // run the HealthCheck if it exists
-					} else {
-						healthCheckChan <- nil
-					}
-				}()
-				select {
-				case exited := <-exitChan:
-					req.response <- exited
-				case healthCheck := <-healthCheckChan:
-					if healthCheck == nil {
-						go c.doStats(statsExitChan)
-					}
-					req.response <- healthCheck
+				if svc.exited, err = svc.start(); err != nil {
+					req.response <- err
+					continue
 				}
+
+				if !collecting {
+					go svc.stats(haltStats)
+					collecting = true
+				}
+				req.response <- nil
+			case restart:
+				glog.Infof("Restarting isvc %s", svc.Name)
+				if svc.exited != nil {
+					if err := svc.stop(); err != nil {
+						req.response <- err
+						continue
+					}
+					<-svc.exited
+				}
+				if svc.exited, err = svc.start(); err != nil {
+					req.response <- err
+					continue
+				}
+				req.response <- nil
 			}
-		case exitErr := <-exitChan:
-			glog.Errorf("Unexpected failure of %s, got %s", c.Name, exitErr)
-			c.stop()                // stop the container, if it's not stoppped
-			c.rm()                  // remove it if it was not already removed
-			cmd, exitChan = c.run() // run the actual container
+		case rc := <-svc.exited:
+			glog.Errorf("isvc %s unexpectedly receieved exit code %d", svc.Name, rc)
+			if svc.exited, err = svc.start(); err != nil {
+				glog.Errorf("Error restarting isvc %s: %s")
+			}
 		}
 	}
+}
+
+func (svc *IService) checkvolumes(ctr *docker.Container) bool {
+	dctr, err := ctr.Inspect()
+	if err != nil {
+		return false
+	}
+
+	if svc.Volumes != nil {
+		for src, dest := range svc.Volumes {
+			if p, ok := dctr.Volumes[dest]; ok {
+				src, _ = filepath.EvalSymlinks(svc.getResourcePath(src))
+				if rel, _ := filepath.Rel(filepath.Clean(src), p); rel != "." {
+					return false
+				}
+			} else {
+				return false
+			}
+		}
+	}
+
+	if isvcsVolumes != nil {
+		for src, dest := range isvcsVolumes {
+			if p, ok := dctr.Volumes[dest]; ok {
+				if rel, _ := filepath.Rel(src, p); rel != "." {
+					return false
+				}
+			} else {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+func (svc *IService) healthcheck() <-chan error {
+	err := make(chan error, 1)
+	go func() {
+		if svc.HealthCheck != nil {
+			err <- svc.HealthCheck()
+		} else {
+			err <- nil
+		}
+	}()
+	return err
 }
 
 type containerStat struct {
@@ -194,54 +456,48 @@ type containerStat struct {
 	Tags      map[string]string `json:"tags"`
 }
 
-// doStats
-func (c *Container) doStats(exitChan chan bool) {
+func (svc *IService) stats(halt <-chan struct{}) {
 	registry := metrics.NewRegistry()
-	id := ""
 	tc := time.Tick(10 * time.Second)
+
 	for {
 		select {
-		case _ = <-exitChan:
+		case <-halt:
 			return
 		case t := <-tc:
-			if id == "" {
-				ids, err := c.getMatchingContainersIds()
-				if err != nil {
-					glog.Warningf("Error collecting isvc container IDs.")
-				}
-				if len(*ids) < 1 {
-					break
-				}
-				id = (*ids)[0]
+			ctr, err := docker.FindContainer(svc.name())
+			if err != nil {
+				glog.Warningf("Could not find container for isvc %s: %s", svc.Name, err)
+				break
 			}
-			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Cpuacct)); err != nil {
-				glog.Warningf("Couldn't read CpuacctStat:", err)
-				id = ""
+
+			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(ctr.ID, cgroup.Cpuacct)); err != nil {
+				glog.Warningf("Could not read CpuacctStat for isvc %s: %s", svc.Name, err)
 				break
 			} else {
 				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
 				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
 			}
-			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(id, cgroup.Memory)); err != nil {
-				glog.Warningf("Couldn't read MemoryStat:", err)
-				id = ""
+
+			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(ctr.ID, cgroup.Memory)); err != nil {
+				glog.Warningf("Could not read MemoryStat for isvc %s: %s", svc.Name, err)
 				break
 			} else {
 				metrics.GetOrRegisterGauge("cgroup.memory.pgmajfault", registry).Update(memoryStat.Pgfault)
 				metrics.GetOrRegisterGauge("cgroup.memory.totalrss", registry).Update(memoryStat.TotalRss)
 				metrics.GetOrRegisterGauge("cgroup.memory.cache", registry).Update(memoryStat.Cache)
 			}
-			// Gather the stats.
+			// Gather the stats
 			stats := []containerStat{}
 			registry.Each(func(name string, i interface{}) {
 				if metric, ok := i.(metrics.Gauge); ok {
 					tagmap := make(map[string]string)
-					tagmap["isvcname"] = c.Name
+					tagmap["isvcname"] = svc.Name
 					stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 				}
 				if metricf64, ok := i.(metrics.GaugeFloat64); ok {
 					tagmap := make(map[string]string)
-					tagmap["isvcname"] = c.Name
+					tagmap["isvcname"] = svc.Name
 					stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 				}
 			})
@@ -267,175 +523,4 @@ func (c *Container) doStats(exitChan chan bool) {
 			}
 		}
 	}
-}
-
-// getMatchingContainersIds
-func (c *Container) getMatchingContainersIds() (*[]string, error) {
-	containers, err := c.client.ListContainers(dockerclient.ListContainersOptions{All: true})
-	if err != nil {
-		return nil, err
-	}
-	matching := make([]string, 0)
-	for _, container := range containers {
-		for _, name := range container.Names {
-			if strings.HasPrefix(name, "/"+c.Name) {
-				matching = append(matching, container.ID)
-			}
-		}
-	}
-	return &matching, nil
-}
-
-// attempt to stop all matching containers
-func (c *Container) stop() error {
-	if ids, err := c.getMatchingContainersIds(); err != nil {
-		return err
-	} else {
-		for _, id := range *ids {
-			c.client.StopContainer(id, 20)
-		}
-	}
-	return nil
-}
-
-// attempt to remove all matching containers
-func (c *Container) rm() error {
-	if ids, err := c.getMatchingContainersIds(); err != nil {
-		return err
-	} else {
-		for _, id := range *ids {
-			c.client.RemoveContainer(dockerclient.RemoveContainerOptions{ID: id})
-		}
-	}
-	return nil
-}
-
-// Run() an instance of this container and return it's exec.Command reference and a
-// channel that sends the exit code, when the container exits
-func (c *Container) run() (*exec.Cmd, chan error) {
-
-	// the container name is semi random because containers can get wedged
-	// in docker and can not be removed until a reboot (or aufs trickery)
-	containerName := c.Name + "-" + uuid()
-
-	exitChan := make(chan error, 1)
-	args := make([]string, 0)
-	args = append(args, "run", "--rm", "--name", containerName)
-	if c.HostNetwork {
-		args = append(args, "--net=host")
-	}
-
-	// attach all exported ports
-	for _, port := range c.Ports {
-		args = append(args, "-p", fmt.Sprintf("%d:%d", port, port))
-	}
-
-	// attach resources directory to all containers
-	args = append(args, "-v", utils.ResourcesDir()+":"+"/usr/local/serviced/resources")
-
-	// attach all exported volumes
-	for name, volume := range c.Volumes {
-		hostDir := path.Join(c.VolumesDir(), c.Name, name)
-		if exists, _ := isDir(hostDir); !exists {
-			if err := os.MkdirAll(hostDir, 0777); err != nil {
-				glog.Errorf("could not create %s on host: %s", hostDir, err)
-				exitChan <- err
-				return nil, exitChan
-			}
-		}
-		args = append(args, "-v", hostDir+":"+volume)
-	}
-
-	for key, val := range envPerService[c.Name] {
-		args = append(args, "-e", key+"="+val)
-	}
-
-	// set the image and command to run
-	args = append(args, c.Repo+":"+c.Tag, "/bin/sh", "-c", c.Command())
-
-	glog.V(1).Infof("Executing docker %s", args)
-	var cmd *exec.Cmd
-	tries := 5
-	var err error
-	const bufferSize = 1000
-	lastStdout := circular.NewBuffer(bufferSize)
-	lastStderr := circular.NewBuffer(bufferSize)
-	for {
-		if tries > 0 {
-			cmd = exec.Command("docker", args...)
-			if stdout, err := cmd.StdoutPipe(); err != nil {
-				glog.Fatal("Could not open stdout pipe for launching isvc %s: %s", c.Name, err)
-			} else {
-				go io.Copy(lastStdout, stdout)
-			}
-			if stderr, err := cmd.StderrPipe(); err != nil {
-				glog.Fatal("Could not open stderr pipe for launching isvc %s: %s", c.Name, err)
-			} else {
-				go io.Copy(lastStderr, stderr)
-			}
-			if err := cmd.Start(); err != nil {
-				glog.Errorf("Could not start: %s", c.Name)
-				c.stop()
-				c.rm()
-				time.Sleep(time.Second * 5)
-			} else {
-				break
-			}
-		} else {
-			exitChan <- err
-			return cmd, exitChan
-		}
-		tries = -1
-	}
-	go func() {
-		exitChan <- cmd.Wait()
-		results := make([]byte, bufferSize)
-		if n, err := lastStdout.Read(results); err == nil && n > 0 {
-			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
-		}
-		if n, err := lastStderr.Read(results); err == nil && n > 0 {
-			glog.V(1).Infof("Stdout exited isvc %s: %s", c.Name, string(results))
-		}
-	}()
-	return cmd, exitChan
-}
-
-// Start() a container by sending the loop() a request
-func (c *Container) Start() error {
-	req := containerOpRequest{
-		op:       containerOpStart,
-		response: make(chan error),
-	}
-	c.ops <- req
-	return <-req.response
-}
-
-// Stop() a container by sending the loop() a request
-func (c *Container) Stop() error {
-	req := containerOpRequest{
-		op:       containerOpStop,
-		response: make(chan error),
-	}
-	c.ops <- req
-	return <-req.response
-}
-
-// RunCommand runs a command inside the container.
-func (c *Container) RunCommand(command []string) error {
-	var id string
-	ids, err := c.getMatchingContainersIds()
-	if err != nil {
-		glog.Warningf("Error collecting isvc container IDs.")
-	}
-	if len(*ids) == 0 {
-		// Container hasn't started yet
-		return fmt.Errorf("No docker container found for %s", c.Name)
-	}
-	id = (*ids)[0]
-	output, err := utils.AttachAndRun(id, command)
-	if err != nil {
-		return err
-	}
-	os.Stdout.Write(output)
-	return nil
 }
