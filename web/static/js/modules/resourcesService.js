@@ -938,7 +938,6 @@
                       successCallback(data);
                   }).
                   error(function(data, status) {
-                      $notification.create("", 'Failed retrieving status of restore.').warning();
                       redirectIfUnauthorized(status);
                       failCallback(data, status);
                   });
