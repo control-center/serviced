@@ -14,12 +14,10 @@ import (
 )
 
 type parseContext struct {
-	lineNum          int
-	line             string
-	errors           []error
-	descriptionCount int
-	versionCount     int
-	nodes            []node
+	lineNum int
+	line    string
+	errors  []error
+	nodes   []node
 }
 
 func newParseContext() *parseContext {
@@ -88,7 +86,6 @@ func parseLine(line string) (string, []string) {
 // parseCommand parses current line and creates a command
 func parseNode(ctx *parseContext) error {
 	prefix, args := parseLine(ctx.line)
-	fmt.Println(prefix)
 
 	f, found := nodeFactories[prefix]
 	if !found {
@@ -98,6 +95,8 @@ func parseNode(ctx *parseContext) error {
 	if err != nil {
 		return err
 	}
-	ctx.nodes = append(ctx.nodes, node)
+	if node.cmd != EMPTY {
+		ctx.nodes = append(ctx.nodes, node)
+	}
 	return nil
 }

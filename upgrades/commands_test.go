@@ -12,31 +12,14 @@ func (vs *UpgradeSuite) Test_emtpy(t *C) {
 	ctx := newParseContext()
 	n, err := parseEmtpyCommand(ctx, "", []string{})
 	t.Assert(err, IsNil)
-	t.Assert(n, DeepEquals, node{args: []string{}})
+	t.Assert(n, DeepEquals, emptyNode)
 
 	ctx.line = "#new comment"
 	n, err = parseEmtpyCommand(ctx, "#", []string{"new comment"})
 	t.Assert(err, IsNil)
-	t.Assert(n, DeepEquals, node{line: "#new comment", args: []string{}})
+	t.Assert(n, DeepEquals, emptyNode)
 }
 
-//
-//func (vs *UpgradeSuite) Test_comment(t *C) {
-//	ctx := newParseContext()
-//	ctx.line = "#new comment"
-//	cmd, err := newComment(ctx, []string{"new", "comment"})
-//	t.Assert(err, IsNil)
-//	t.Assert(cmd, Equals, comment("#new comment"))
-//
-//	ctx.line = "    # other comment"
-//	cmd, err = newComment(ctx, []string{})
-//	t.Assert(err, IsNil)
-//
-//	ctx.line = "//bad comment"
-//	cmd, err = newComment(ctx, []string{})
-//	t.Assert(err, NotNil)
-//}
-//
 func (vs *UpgradeSuite) Test_description(t *C) {
 	ctx := newParseContext()
 	line := "DESCRIPTION new desc"
@@ -67,6 +50,7 @@ func (vs *UpgradeSuite) Test_OneArg(t *C) {
 	line := "DEPENDENCY 1.1"
 	ctx.line = line
 	cmd, err := parseOneArg(ctx, DEPENDENCY, []string{"1.1"})
+	ctx.nodes = append(ctx.nodes, cmd)
 	t.Assert(err, IsNil)
 	t.Assert(cmd, DeepEquals, node{cmd: DEPENDENCY, line: line, args: []string{"1.1"}})
 
@@ -78,9 +62,6 @@ func (vs *UpgradeSuite) Test_OneArg(t *C) {
 	cmd, err = parseOneArg(ctx, DEPENDENCY, []string{})
 	t.Assert(err, NotNil)
 }
-
-//USE:         parseImageID,
-//SVC_RUN:     parseSvcRun,
 
 func (vs *UpgradeSuite) Test_use(t *C) {
 	ctx := newParseContext()

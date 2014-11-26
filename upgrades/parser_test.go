@@ -43,14 +43,10 @@ func (vs *UpgradeSuite) Test_parseFile(t *C) {
 	ctx.lineNum = 10
 	use2, _ := parseImageID(ctx, "USE", []string{"zenoss/hbase:v5"})
 	expected := []node{
-		node{lineNum: 1, args: []string{}},
-		node{lineNum: 2, line: "#comment", args: []string{}},
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
 		node{lineNum: 5, cmd: DEPENDENCY, args: []string{"1.1"}, line: "DEPENDENCY 1.1"},
 		node{lineNum: 6, cmd: SNAPSHOT, line: "SNAPSHOT", args: []string{}},
-		node{lineNum: 7, args: []string{}},
-		node{lineNum: 8, line: "#comment 2", args: []string{}},
 		use1,
 		use2,
 		node{lineNum: 11, cmd: SVC_RUN, line: "SVC_RUN   /zope upgrade", args: []string{"/zope", "upgrade"}},
@@ -77,14 +73,10 @@ func (vs *UpgradeSuite) Test_parseDescriptor(t *C) {
 	ctx.lineNum = 10
 	use2, _ := parseImageID(ctx, "USE", []string{"zenoss/hbase:v5"})
 	expected := []node{
-		node{lineNum: 1, args: []string{}},
-		node{lineNum: 2, line: "#comment", args: []string{}},
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
 		node{lineNum: 5, cmd: DEPENDENCY, args: []string{"1.1"}, line: "DEPENDENCY 1.1"},
 		node{lineNum: 6, cmd: SNAPSHOT, line: "SNAPSHOT", args: []string{}},
-		node{lineNum: 7, args: []string{}},
-		node{lineNum: 8, line: "#comment 2", args: []string{}},
 		use1,
 		use2,
 		node{lineNum: 11, cmd: SVC_RUN, line: "SVC_RUN   /zope upgrade", args: []string{"/zope", "upgrade"}},
@@ -102,12 +94,21 @@ func (vs *UpgradeSuite) Test_parseErrors(t *C) {
 	testDescriptor := `
 DESCRIPTION  Zenoss RM 5.0.1 upgrade
 DESCRIPTION  blam
+USE blam
+SNAPSHOT
+SVC_RUN blam foo
+#DEPENDENCY cannot appear after USE, SVC_RUN, SNAPSHOT
+DEPENDENCY 1.1
 	`
 	r := strings.NewReader(testDescriptor)
 	ctx, err := parseDescriptor(r)
 	t.Assert(err, IsNil)
-	t.Assert(len(ctx.errors), Equals, 1)
+	t.Assert(len(ctx.errors), Equals, 4)
 	t.Assert(ctx.errors[0], ErrorMatches, "line 3: extra DESCRIPTION: DESCRIPTION  blam")
+	t.Assert(ctx.errors[1], ErrorMatches, "line 8: DEPENDENCY must be declared before USE")
+	t.Assert(ctx.errors[2], ErrorMatches, "line 8: DEPENDENCY must be declared before SNAPSHOT")
+	t.Assert(ctx.errors[3], ErrorMatches, "line 8: DEPENDENCY must be declared before SVC_RUN")
+
 }
 
 func (vs *UpgradeSuite) Test_parseLine(t *C) {

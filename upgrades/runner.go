@@ -5,57 +5,106 @@
 package upgrades
 
 import (
-//	"fmt"
-//	"regexp"
-//
-//	"github.com/control-center/serviced/commons"
-//	"github.com/control-center/serviced/commons/docker"
-//	"github.com/control-center/serviced/domain/service"
-//	"github.com/docker/docker/pkg/parsers"
+	"errors"
+	"fmt"
+	"io"
+	"strings"
+	//	"regexp"
+
+	"github.com/control-center/serviced/commons"
+	//	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain/service"
+	//	"github.com/docker/docker/pkg/parsers"
+	"github.com/zenoss/glog"
 )
 
-//type Descriptor struct {
-//	Description string
-//	Version     string
-//	Images      []string
-//	Commands    []Command
-//}
-//
-//type Command struct {
-//	Type    string
-//	Command string
-//}
-//
-//var SERVICE_RUN_TYPE = "service_run"
-//
-//type Runner interface {
-//	Upgrade(serviceID string, descriptor Descriptor) error
-//}
-//
-//type ServiceLookup func(serviceID string) (*service.Service, error)
-//type Snapshot func(serviceID string) (string, error)
-//
-//func NewRunner() Runner {
-//	return nil
-//}
-//
-//type runner struct {
-//	svcLookup      ServiceLookup
-//	snapshot       Snapshot
-//	dockerRegistry string
-//}
-//
-//func (r *runner) Upgrade(serviceID string, descriptor Descriptor) error {
-//	svc, err := r.svcLookup(serviceID)
-//	if err != nil || svc == nil {
-//		return fmt.Errorf("could not find service %s for upgrade: %s", serviceID, err)
-//	}
-//	if svc.ParentID != "" && svc.ParentID != svc.ID {
-//		return error.New("must provide parent service for performing upgrade")
-//	}
-//
-//	//TODO: validate descriptor
-//
+var (
+	cmdEval map[string]func(*runner, node) error
+)
+
+func init() {
+	cmdEval = map[string]func(*runner, node) error{
+		"":          evalEmpty,
+		DESCRIPTION: evalEmpty,
+		VERSION:     evalEmpty,
+		SNAPSHOT:    evalSnapshot,
+		USE:         evalUSE,
+		SVC_RUN:     evalSvcRun,
+		DEPENDENCY:  evalDependency,
+	}
+}
+
+type Runner interface {
+	Upgrade(serviceID string) error
+}
+
+type ServiceLookup func(serviceID string) (*service.Service, error)
+
+type Snapshot func(serviceID string) (string, error)
+
+type SnapshotRestore func(serviceID string, snapshotID string) error
+
+func NewRunner(r io.Reader) (Runner, error) {
+	pctx, err := parseDescriptor(r)
+	if err != nil {
+		return nil, err
+	}
+	if len(pctx.errors) > 0 {
+		//TODO: print each error
+		return nil, errors.New("error parsing serviced runner file")
+	}
+	return &runner{}, nil
+}
+
+type runner struct {
+	parseCtx       parseContext
+	svcLookup      ServiceLookup
+	snapshot       Snapshot
+	dockerRegistry string
+	rollback       SnapshotRestore
+	snapshotID     string
+	exitFunctions  []func(bool) //each is called on exit of upgrade, bool denotes if upgrade exited with an error
+	failed         bool
+}
+
+func (r *runner) Upgrade(serviceID string) error {
+	defer r.runExitFunctions()
+	svc, err := r.svcLookup(serviceID)
+	if err != nil || svc == nil {
+		return fmt.Errorf("could not find service %s for upgrade: %s", serviceID, err)
+	}
+	if svc.ParentServiceID != "" && svc.ParentServiceID != svc.ID {
+		return errors.New("must provide parent service for performing upgrade")
+	}
+	r.failed = true
+	if err := r.evalNodes(r.parseCtx.nodes); err != nil {
+		return err
+	}
+	r.failed = false
+	return nil
+}
+
+func (r *runner) evalNodes(nodes []node) error {
+	for i, n := range nodes {
+		if f, found := cmdEval[n.cmd]; found {
+			glog.Infof("executing step %d: %s", i, n.line)
+			if err := f(r, n); err != nil {
+				glog.Errorf("error executing step %d: %s", i, err)
+				return err
+			}
+		} else {
+			glog.Infof("skipping step %d unknown function: %s", i, n.line)
+		}
+	}
+	return nil
+}
+
+func (r *runner) runExitFunctions() {
+	for _, ef := range r.exitFunctions {
+		ef(r.failed)
+	}
+}
+
 //	//Pull all images
 //	imageIDs := make([]commons.ImageID, len(descriptor.Images))
 //	for _, imageName := range descriptor.Images {
@@ -149,3 +198,29 @@ import (
 //	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, name, tag)
 //	return commons.ParseImageID(newImageID)
 //}
+
+func evalEmpty(r *runner, n node) error {
+	glog.V(1).Infof("nothing to eval: %s", n.line)
+	return nil
+}
+func evalSnapshot(r *runner, n node) error {
+	glog.V(0).Info("performing snapshot")
+	return nil
+}
+func evalUSE(r *runner, n node) error {
+	imageName := n.args[0]
+	glog.V(0).Infof("preparing to use image: %s", imageName)
+	_, err := commons.ParseImageID(imageName)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+func evalSvcRun(r *runner, n node) error {
+	glog.V(0).Infof("running: serviced service run %s", strings.Join(n.args, " "))
+	return nil
+}
+func evalDependency(r *runner, n node) error {
+	glog.V(0).Infof("checking serviced dependency: %s", n.args[0])
+	return nil
+}
