@@ -131,11 +131,11 @@ table > thead.light {
 
 .table-striped > tbody > tr:nth-child(even) > td,
 .table-striped > tbody > tr:nth-child(even) > th {
-    background-color: white;
+    background-color: #F0F3F7;
 }
 .table-striped > tbody > tr:nth-child(odd) > td,
 .table-striped > tbody > tr:nth-child(odd) > th {
-    background-color: #F0F3F7;
+    background-color: white;
 }
 
 .table-bordered {
