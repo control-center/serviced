@@ -19,6 +19,7 @@
     "breadcrumb_backuprestore": "Respaldar / Restaurar",
     "backuprestore": "Respaldar / Restaurar",
     "backup_create": "Crear respaldo",
+    "backup_complete": "Respaldo completo",
     "backup_restore": "Restaurar respaldo",
     "backup_running": "Ejecutando restauracion",
     "restore_running": "Restauraci\u00f3n a partir de un respaldo",
