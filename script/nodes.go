@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package upgrades
+package script
 
 import (
 	"fmt"
@@ -18,7 +18,8 @@ var (
 	DESCRIPTION = "DESCRIPTION"
 	VERSION     = "VERSION"
 	SNAPSHOT    = "SNAPSHOT"
-	USE         = "USE"
+	REQUIRE_SVC = "REQUIRE_SVC"
+	USE         = "SVC_USE"
 	SVC_RUN     = "SVC_RUN"
 	DEPENDENCY  = "DEPENDENCY"
 
@@ -32,9 +33,10 @@ func init() {
 		"#":         parseEmtpyCommand,
 		DESCRIPTION: atMost(1, parseDescription),
 		VERSION:     atMost(1, parseOneArg),
-		SNAPSHOT:    parseNoArgs,
-		USE:         parseImageID,
-		SVC_RUN:     parseSvcRun,
+		REQUIRE_SVC: atMost(1, parseNoArgs),
+		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseNoArgs),
+		USE:         require([]string{REQUIRE_SVC}, parseImageID),
+		SVC_RUN:     require([]string{REQUIRE_SVC}, parseSvcRun),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseOneArg)),
 	}
 }
@@ -93,7 +95,7 @@ func parseSvcRun(ctx *parseContext, cmd string, args []string) (node, error) {
 	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
-//validParents checks that previous commands are valid or no previous commands are present
+//validParents checks that there are no previous command or previous commands are only in parents list
 func validParents(parents []string, parser lineParser) lineParser {
 	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
 		n, err := parser(ctx, cmd, args)
@@ -105,6 +107,31 @@ func validParents(parents []string, parser lineParser) lineParser {
 			for _, previousNode := range ctx.nodes {
 				if _, found := parentMap[previousNode.cmd]; !found {
 					ctx.addErrorf("line %d: %s must be declared before %s", ctx.lineNum, cmd, previousNode.cmd)
+				}
+			}
+		}
+		return n, err
+	}
+	return f
+}
+
+//require checks required commands are already present
+func require(required []string, parser lineParser) lineParser {
+	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
+		n, err := parser(ctx, cmd, args)
+		if err == nil {
+			requiredMap := make(map[string]bool)
+			for _, r := range required {
+				requiredMap[r] = false //hasn't been found het
+			}
+			for _, previousNode := range ctx.nodes {
+				if _, found := requiredMap[previousNode.cmd]; found {
+					requiredMap[previousNode.cmd] = true
+				}
+			}
+			for key, found := range requiredMap {
+				if !found {
+					ctx.addErrorf("line %d: %s depends on %s", ctx.lineNum, cmd, key)
 				}
 			}
 		}

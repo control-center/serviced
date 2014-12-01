@@ -2,13 +2,13 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package upgrades
+package script
 
 import (
 	. "gopkg.in/check.v1"
 )
 
-func (vs *UpgradeSuite) Test_emtpy(t *C) {
+func (vs *ScriptSuite) Test_emtpy(t *C) {
 	ctx := newParseContext()
 	n, err := parseEmtpyCommand(ctx, "", []string{})
 	t.Assert(err, IsNil)
@@ -20,7 +20,7 @@ func (vs *UpgradeSuite) Test_emtpy(t *C) {
 	t.Assert(n, DeepEquals, emptyNode)
 }
 
-func (vs *UpgradeSuite) Test_description(t *C) {
+func (vs *ScriptSuite) Test_description(t *C) {
 	ctx := newParseContext()
 	line := "DESCRIPTION new desc"
 	ctx.line = line
@@ -33,7 +33,7 @@ func (vs *UpgradeSuite) Test_description(t *C) {
 	t.Assert(err, NotNil)
 }
 
-func (vs *UpgradeSuite) Test_NoArgs(t *C) {
+func (vs *ScriptSuite) Test_NoArgs(t *C) {
 	ctx := newParseContext()
 	ctx.line = SNAPSHOT
 	cmd, err := parseNoArgs(ctx, SNAPSHOT, []string{})
@@ -45,7 +45,7 @@ func (vs *UpgradeSuite) Test_NoArgs(t *C) {
 	t.Assert(err, NotNil)
 }
 
-func (vs *UpgradeSuite) Test_OneArg(t *C) {
+func (vs *ScriptSuite) Test_OneArg(t *C) {
 	ctx := newParseContext()
 	line := "DEPENDENCY 1.1"
 	ctx.line = line
@@ -63,7 +63,7 @@ func (vs *UpgradeSuite) Test_OneArg(t *C) {
 	t.Assert(err, NotNil)
 }
 
-func (vs *UpgradeSuite) Test_use(t *C) {
+func (vs *ScriptSuite) Test_use(t *C) {
 	ctx := newParseContext()
 	line := "USE zenoss/resmgr-stable:5.0.1"
 	ctx.line = line
@@ -87,7 +87,7 @@ func (vs *UpgradeSuite) Test_use(t *C) {
 	t.Assert(err, ErrorMatches, "invalid ImageID .*")
 }
 
-func (vs *UpgradeSuite) Test_svcrun(t *C) {
+func (vs *ScriptSuite) Test_svcrun(t *C) {
 	ctx := newParseContext()
 	line := "SVC_RUN zope upgrade"
 	ctx.line = line

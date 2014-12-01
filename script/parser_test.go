@@ -2,7 +2,7 @@
 // Use of this source code is governed by a
 // license that can be found in the LICENSE file.
 
-package upgrades
+package script
 
 import (
 	"strings"
@@ -13,9 +13,9 @@ import (
 
 func Test(t *testing.T) { TestingT(t) }
 
-type UpgradeSuite struct{}
+type ScriptSuite struct{}
 
-var _ = Suite(&UpgradeSuite{})
+var _ = Suite(&ScriptSuite{})
 
 var descriptor = `
 #comment
@@ -25,32 +25,33 @@ DEPENDENCY 1.1
 SNAPSHOT
 
 #comment 2
-USE  zenoss/resmgr-stable:5.0.1
-USE  zenoss/hbase:v5
+SVC_USE  zenoss/resmgr-stable:5.0.1
+SVC_USE  zenoss/hbase:v5
 SVC_RUN   /zope upgrade
 SVC_RUN   /hbase/regionserver upgrade arg1 arg2
 `
 
-func (vs *UpgradeSuite) Test_parseFile(t *C) {
+func (vs *ScriptSuite) Test_parseFile(t *C) {
 	ctx, err := parseFile("descriptor_test.txt")
 	t.Assert(err, IsNil)
 
-	ctx.line = "USE  zenoss/resmgr-stable:5.0.1"
-	ctx.lineNum = 9
-	use1, _ := parseImageID(ctx, "USE", []string{"zenoss/resmgr-stable:5.0.1"})
-
-	ctx.line = "USE  zenoss/hbase:v5"
+	ctx.line = "SVC_USE  zenoss/resmgr-stable:5.0.1"
 	ctx.lineNum = 10
-	use2, _ := parseImageID(ctx, "USE", []string{"zenoss/hbase:v5"})
+	use1, _ := parseImageID(ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
+
+	ctx.line = "SVC_USE  zenoss/hbase:v5"
+	ctx.lineNum = 11
+	use2, _ := parseImageID(ctx, USE, []string{"zenoss/hbase:v5"})
 	expected := []node{
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
 		node{lineNum: 5, cmd: DEPENDENCY, args: []string{"1.1"}, line: "DEPENDENCY 1.1"},
-		node{lineNum: 6, cmd: SNAPSHOT, line: "SNAPSHOT", args: []string{}},
+		node{lineNum: 6, cmd: REQUIRE_SVC, line: REQUIRE_SVC, args: []string{}},
+		node{lineNum: 7, cmd: SNAPSHOT, line: SNAPSHOT, args: []string{}},
 		use1,
 		use2,
-		node{lineNum: 11, cmd: SVC_RUN, line: "SVC_RUN   /zope upgrade", args: []string{"/zope", "upgrade"}},
-		node{lineNum: 12, cmd: SVC_RUN, line: "SVC_RUN   /hbase/regionserver upgrade arg1 arg2", args: []string{"/hbase/regionserver", "upgrade", "arg1", "arg2"}},
+		node{lineNum: 12, cmd: SVC_RUN, line: "SVC_RUN   /zope upgrade", args: []string{"/zope", "upgrade"}},
+		node{lineNum: 13, cmd: SVC_RUN, line: "SVC_RUN   /hbase/regionserver upgrade arg1 arg2", args: []string{"/hbase/regionserver", "upgrade", "arg1", "arg2"}},
 	}
 	t.Assert(len(ctx.nodes), Equals, len(expected))
 
@@ -60,18 +61,18 @@ func (vs *UpgradeSuite) Test_parseFile(t *C) {
 
 }
 
-func (vs *UpgradeSuite) Test_parseDescriptor(t *C) {
+func (vs *ScriptSuite) Test_parseDescriptor(t *C) {
 	r := strings.NewReader(descriptor)
 	ctx, err := parseDescriptor(r)
 	t.Assert(err, IsNil)
 
-	ctx.line = "USE  zenoss/resmgr-stable:5.0.1"
+	ctx.line = "SVC_USE  zenoss/resmgr-stable:5.0.1"
 	ctx.lineNum = 9
-	use1, _ := parseImageID(ctx, "USE", []string{"zenoss/resmgr-stable:5.0.1"})
+	use1, _ := parseImageID(ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
 
-	ctx.line = "USE  zenoss/hbase:v5"
+	ctx.line = "SVC_USE  zenoss/hbase:v5"
 	ctx.lineNum = 10
-	use2, _ := parseImageID(ctx, "USE", []string{"zenoss/hbase:v5"})
+	use2, _ := parseImageID(ctx, USE, []string{"zenoss/hbase:v5"})
 	expected := []node{
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
@@ -90,11 +91,11 @@ func (vs *UpgradeSuite) Test_parseDescriptor(t *C) {
 
 }
 
-func (vs *UpgradeSuite) Test_parseErrors(t *C) {
+func (vs *ScriptSuite) Test_parseErrors(t *C) {
 	testDescriptor := `
 DESCRIPTION  Zenoss RM 5.0.1 upgrade
 DESCRIPTION  blam
-USE blam
+SVC_USE blam
 SNAPSHOT
 SVC_RUN blam foo
 #DEPENDENCY cannot appear after USE, SVC_RUN, SNAPSHOT
@@ -103,15 +104,18 @@ DEPENDENCY 1.1
 	r := strings.NewReader(testDescriptor)
 	ctx, err := parseDescriptor(r)
 	t.Assert(err, IsNil)
-	t.Assert(len(ctx.errors), Equals, 4)
+	t.Assert(len(ctx.errors), Equals, 7)
 	t.Assert(ctx.errors[0], ErrorMatches, "line 3: extra DESCRIPTION: DESCRIPTION  blam")
-	t.Assert(ctx.errors[1], ErrorMatches, "line 8: DEPENDENCY must be declared before USE")
-	t.Assert(ctx.errors[2], ErrorMatches, "line 8: DEPENDENCY must be declared before SNAPSHOT")
-	t.Assert(ctx.errors[3], ErrorMatches, "line 8: DEPENDENCY must be declared before SVC_RUN")
+	t.Assert(ctx.errors[1], ErrorMatches, "line 4: SVC_USE depends on REQUIRE_SVC")
+	t.Assert(ctx.errors[2], ErrorMatches, "line 5: SNAPSHOT depends on REQUIRE_SVC")
+	t.Assert(ctx.errors[3], ErrorMatches, "line 6: SVC_RUN depends on REQUIRE_SVC")
+	t.Assert(ctx.errors[4], ErrorMatches, "line 8: DEPENDENCY must be declared before SVC_USE")
+	t.Assert(ctx.errors[5], ErrorMatches, "line 8: DEPENDENCY must be declared before SNAPSHOT")
+	t.Assert(ctx.errors[6], ErrorMatches, "line 8: DEPENDENCY must be declared before SVC_RUN")
 
 }
 
-func (vs *UpgradeSuite) Test_parseLine(t *C) {
+func (vs *ScriptSuite) Test_parseLine(t *C) {
 	type test struct {
 		line string
 		cmd  string
@@ -135,7 +139,7 @@ func (vs *UpgradeSuite) Test_parseLine(t *C) {
 		t.Assert(args, DeepEquals, testCase.args)
 	}
 }
-func (vs *UpgradeSuite) Test_parseCommand(t *C) {
+func (vs *ScriptSuite) Test_parseCommand(t *C) {
 	type test struct {
 		line string
 		cmd  string

@@ -3,10 +3,11 @@
 DESCRIPTION  Zenoss RM 5.0.1 upgrade
 VERSION   resmgr-5.0.1
 DEPENDENCY 1.1
+REQUIRE_SVC
 SNAPSHOT
 
 #comment 2
-USE  zenoss/resmgr-stable:5.0.1
-USE  zenoss/hbase:v5
+SVC_USE  zenoss/resmgr-stable:5.0.1
+SVC_USE  zenoss/hbase:v5
 SVC_RUN   /zope upgrade
 SVC_RUN   /hbase/regionserver upgrade arg1 arg2
