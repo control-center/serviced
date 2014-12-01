@@ -129,13 +129,8 @@ table > thead.light {
     border: 0px;
 }
 
-.table-striped > tbody > tr:nth-child(even) > td,
-.table-striped > tbody > tr:nth-child(even) > th {
+.table > tbody > tr:hover > td {
     background-color: #F0F3F7;
-}
-.table-striped > tbody > tr:nth-child(odd) > td,
-.table-striped > tbody > tr:nth-child(odd) > th {
-    background-color: white;
 }
 
 .table-bordered {
