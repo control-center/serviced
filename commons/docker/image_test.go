@@ -269,6 +269,7 @@ func (s *ImageTestSuite) TestDeleteImage(c *C) {
 	}
 }
 
+/*
 func (s *ImageTestSuite) TestFindThruLocalRepository(c *C) {
 	img, err := FindImage(rawbase, true)
 	if err != nil {
@@ -294,6 +295,7 @@ func (s *ImageTestSuite) TestFindThruLocalRepository(c *C) {
 		c.Fatalf("can't find %s in local registry: %v", basetag, err)
 	}
 }
+*/
 
 func (s *ImageTestSuite) TestImportImage(c *C) {
 	_, err := FindImage(imptag, false)

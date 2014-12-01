@@ -26,19 +26,19 @@ import (
 	"time"
 )
 
-var zookeeper *Container
+var zookeeper *IService
 
 func init() {
 
 	var err error
 	command := "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground"
-	zookeeper, err = NewContainer(
-		ContainerDescription{
+	zookeeper, err = NewIService(
+		IServiceDefinition{
 			Name:        "zookeeper",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
 			Command:     func() string { return command },
-			Ports:       []int{2181, 12181},
+			Ports:       []uint16{2181, 12181},
 			Volumes:     map[string]string{"data": "/tmp"},
 			HealthCheck: zkHealthCheck,
 			HostNetwork: true,

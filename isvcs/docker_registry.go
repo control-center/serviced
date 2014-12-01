@@ -21,23 +21,22 @@ import (
 	"time"
 )
 
-var dockerRegistry *Container
+var dockerRegistry *IService
 
 const registryPort = 5000
 
 func init() {
 	var err error
 	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`
-	dockerRegistry, err = NewContainer(
-		ContainerDescription{
+	dockerRegistry, err = NewIService(
+		IServiceDefinition{
 			Name:        "docker-registry",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
 			Command:     func() string { return command },
-			Ports:       []int{registryPort},
+			Ports:       []uint16{registryPort},
 			Volumes:     map[string]string{"registry": "/tmp/registry"},
 			HealthCheck: registryHealthCheck,
-			HostNetwork: true,
 		},
 	)
 	if err != nil {

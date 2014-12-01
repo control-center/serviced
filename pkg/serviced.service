@@ -9,6 +9,7 @@ EnvironmentFile=/etc/default/serviced
 WorkingDirectory=/opt/serviced
 ExecStartPre=/opt/serviced/bin/serviced-systemd.sh pre-start
 ExecStart=/opt/serviced/bin/serviced
+ExecReload=/bin/pkill --signal SIGHUP -f /opt/serviced/bin/serviced
 ExecStopPost=/opt/serviced/bin/serviced-systemd.sh post-stop
 TimeoutStopSec=60
 LimitNOFILE=1048576

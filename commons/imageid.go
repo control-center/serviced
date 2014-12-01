@@ -233,6 +233,11 @@ func ParseImageID(iid string) (*ImageID, error) {
 	return result, nil
 }
 
+// JoinRepoTag joins an image repo with the tag
+func JoinRepoTag(repo, tag string) string {
+	return fmt.Sprintf("%s:%s", repo, tag)
+}
+
 // Equals compares to ImageID objects to verify they are the same
 func (iid ImageID) Equals(iid2 ImageID) bool {
 	if iid.BaseName() != iid2.BaseName() {
