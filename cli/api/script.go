@@ -19,13 +19,15 @@ import (
 
 // ScriptRun
 func (a *api) ScriptRun(fileName string, config script.Config) error {
-	r, err := script.NewRunner(fileName, config)
-
+	r, err := script.NewRunnerFromFile(fileName, config)
+	if err !=nil{
+		return err
+	}
 	r.Run()
 	return err
 }
 
 func (a *api) ScriptParse(fileName string, config script.Config) error {
-	_, err := script.NewRunner(fileName, config)
+	_, err := script.NewRunnerFromFile(fileName, config)
 	return err
 }

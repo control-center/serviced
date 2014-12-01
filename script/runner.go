@@ -45,7 +45,7 @@ type Runner interface {
 }
 
 func NewRunnerFromFile(fileName string, config Config) (Runner, error) {
-	f, err := os.Open("descriptor_test.txt")
+	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
 	}

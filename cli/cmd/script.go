@@ -15,6 +15,8 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/codegangsta/cli"
 
 	"github.com/control-center/serviced/script"
@@ -31,15 +33,15 @@ func (c *ServicedCli) initScript() {
 				Name:        "parse",
 				Usage:       "Parse a script",
 				Description: "serviced script parse file ",
-				Before:      c.cmdScriptParse,
+				Action:      c.cmdScriptParse,
 			},
 			{
 				Name:        "run",
 				Usage:       "Run a script",
 				Description: "serviced script run file ",
-				Before:      c.cmdScriptRun,
+				Action:      c.cmdScriptRun,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"no-op", "n", "Run through script without modifying system"},
+					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
 					cli.StringFlag{"service-id", "", "Service ID argument for script, optional"},
 				},
 			},
@@ -48,36 +50,36 @@ func (c *ServicedCli) initScript() {
 }
 
 // cmdScriptRun serviced script run filename
-func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) error {
+func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) != 1 {
-		return fmt.Printf("Incorrect Usage.\n\n")
+		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
+		return
 	}
 	fileName := args[0]
 	config := script.Config{}
 	//TODO: get the right dockerRegistry
-	config.NoOp = ctx.GlobalBool("no-op")
-	config.ServiceID = ctx.GlobalString("service-id")
-
-	message, err := c.driver.ScriptRun(fileName, config)
+	config.NoOp = ctx.Bool("no-op") 
+	config.ServiceID = ctx.String("service-id")
+	err := c.driver.ScriptRun(fileName, config)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
 	}
-	return nil
+	return
 }
 
 // cmdScriptRun serviced script run filename
-func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) error {
+func (c *ServicedCli) cmdScriptParse(ctx *cli.Context)  {
 	args := ctx.Args()
 	if len(args) != 1 {
-		return fmt.Printf("Incorrect Usage.\n\n")
+		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
+		return
 	}
 	fileName := args[0]
-	config.NoOp = ctx.GlobalBool("no-op")
-	config.ServiceID = ctx.GlobalString("service-id")
-	message, err := c.driver.ScriptParse(fileName, config)
+	config := script.Config{}
+	err := c.driver.ScriptParse(fileName, config)
 	if err != nil {
-		return err
+		fmt.Fprintln(os.Stderr, err)
 	}
-	return nil
+	return
 }

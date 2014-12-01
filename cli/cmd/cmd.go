@@ -218,7 +218,10 @@ func New(driver api.API) *ServicedCli {
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
-	c.app.Run(args)
+	err := c.app.Run(args)
+	if err != nil{
+		fmt.Sprintf("%v/n",err)
+	}
 }
 
 // cmdInit starts the server if no subcommands are called
