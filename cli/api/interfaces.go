@@ -100,4 +100,7 @@ type API interface {
 
 	// Metric
 	PostMetric(metricName string, metricValue string) (string, error)
+
+	ScriptRun(fileName string, noOp bool) error
+	ScriptParse(fileName string) error
 }
