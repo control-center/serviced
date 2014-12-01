@@ -45,7 +45,7 @@
             </button>
         </span>
     </div>
-    <table class="table table-striped" id="vhosts_data">
+    <table class="table" id="vhosts_data">
         <thead>
             <tr>
                 <th ng-repeat="header in vhosts.headers">{{header.name|translate}}
@@ -75,7 +75,7 @@
     <!-- IP Assignments -->
   <div ng-if="!services.current.isvc">
     <h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
-    <table class="table table-striped" id="ips_data">
+    <table class="table" id="ips_data">
         <thead>
             <tr>
                 <th ng-repeat="header in ips.headers">{{header.name|translate}}
@@ -107,7 +107,7 @@
     <!-- Config Files -->
   <div ng-if="!services.current.isvc">
     <h3 class="pull-left">{{'title_config_files' | translate }}</h3>
-    <table class="table table-striped">
+    <table class="table">
         <thead>
           <tr>
             <th>{{'path'|translate}}</th>
@@ -133,7 +133,7 @@
 
   <!-- This table has sub service definitions -->
     <h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
-    <table class="table table-striped" ng-show="services.subservices.length > 0">
+    <table class="table" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
@@ -185,7 +185,7 @@
 
   <!-- This table has running instances -->
   <h3 ng-show="running.data.length > 0">{{'running_tbl_instances'|translate}}</h3>
-  <table class="table table-striped" ng-show="running.data.length > 0">
+  <table class="table" ng-show="running.data.length > 0">
     <thead>
       <tr>
         <th>{{'running_tbl_instance_id'|translate}}</th>
@@ -221,7 +221,7 @@
 
   <div ng-if="!services.current.isvc">
     <h3>{{'scheduled_tasks'|translate}}</h3>
-      <table class="table table-striped">
+      <table class="table">
           <thead>
               <tr>
                 <th>{{'task_schedule'|translate}}</th>
