@@ -4,8 +4,6 @@ function LoginControl($scope, $location, $notification, $translate, authService)
         $notification.create("", $translate.instant("compatibility_mode"), $("#loginNotifications")).warning(false);
     }
 
-    $scope.brand_label = "CONTROL CENTER";
-
     enableLoginButton();
 
     // Makes XHR POST with contents of login form
@@ -25,12 +23,12 @@ function LoginControl($scope, $location, $notification, $translate, authService)
     };
 
     function enableLoginButton(){
-        $scope.login_button_text = $translate.instant("log_in");
+        $scope.login_button_text = "log_in";
         $scope.loginDisabled = false;
     }
 
     function disableLoginButton(){
-        $scope.login_button_text = $translate.instant("logging_in"); 
+        $scope.login_button_text = "logging_in";
         $scope.loginDisabled = true;
     }
 }
