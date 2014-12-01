@@ -5,9 +5,6 @@
 package script
 
 import (
-	"bufio"
-	"os"
-
 	. "gopkg.in/check.v1"
 )
 
@@ -16,14 +13,8 @@ func (vs *ScriptSuite) Test_evalNodes(t *C) {
 	//	findImage = testFindImageSucceed
 	//	tagImage = testTagSucceed
 	//	execCommand = testExec
-	f, err := os.Open("descriptor_test.txt")
-	t.Assert(err, IsNil)
-	r := bufio.NewReader(f)
-	//	pctx, err := parseDescriptor(r)
-	//	t.Assert(err, IsNil)
-	//	t.Assert(len(pctx.errors), Equals, 0)
 	config := Config{NoOp: true, ServiceID: "TEST_SERVICE_ID_12345"}
-	runner, err := NewRunner(r, config)
+	runner, err := NewRunnerFromFile("descriptor_test.txt", config)
 	t.Assert(err, IsNil)
 	err = runner.Run()
 	t.Assert(err, IsNil)

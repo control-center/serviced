@@ -73,7 +73,9 @@ func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) error {
 		return fmt.Printf("Incorrect Usage.\n\n")
 	}
 	fileName := args[0]
-	message, err := c.driver.ScriptParse(fileName, noOp)
+	config.NoOp = ctx.GlobalBool("no-op")
+	config.ServiceID = ctx.GlobalString("service-id")
+	message, err := c.driver.ScriptParse(fileName, config)
 	if err != nil {
 		return err
 	}

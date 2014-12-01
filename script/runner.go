@@ -5,9 +5,11 @@
 package script
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"strings"
 
 	"github.com/control-center/serviced/commons"
@@ -40,6 +42,15 @@ type Config struct {
 
 type Runner interface {
 	Run() error
+}
+
+func NewRunnerFromFile(fileName string, config Config) (Runner, error) {
+	f, err := os.Open("descriptor_test.txt")
+	if err != nil {
+		return nil, err
+	}
+	r := bufio.NewReader(f)
+	return NewRunner(r, config)
 }
 
 func NewRunner(r io.Reader, config Config) (Runner, error) {

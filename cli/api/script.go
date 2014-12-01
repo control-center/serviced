@@ -18,14 +18,14 @@ import (
 )
 
 // ScriptRun
-func (a *api) ScriptRun(fileName string, noOp bool) error {
-	r, err := script.NewRunner(fileName)
+func (a *api) ScriptRun(fileName string, config script.Config) error {
+	r, err := script.NewRunner(fileName, config)
 
 	r.Run()
 	return err
 }
 
-func (a *api) ScriptParse(fileName string) error {
-	_, err := script.NewRunner(fileName)
+func (a *api) ScriptParse(fileName string, config script.Config) error {
+	_, err := script.NewRunner(fileName, config)
 	return err
 }
