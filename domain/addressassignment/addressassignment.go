@@ -27,3 +27,19 @@ type AddressAssignment struct {
 	EndpointName   string //Endpoint in the service using the assignment
 	datastore.VersionedEntity
 }
+
+// EqualIP verifies the address assignment is the same by IP ONLY
+func (assign AddressAssignment) EqualIP(b AddressAssignment) bool {
+	if assign.PoolID != b.PoolID {
+		return false
+	} else if assign.IPAddr == b.IPAddr {
+		return false
+	} else if assign.Port != b.Port {
+		return false
+	} else if assign.ServiceID != b.ServiceID {
+		return false
+	} else if assign.EndpointName != b.EndpointName {
+		return false
+	}
+	return true
+}
