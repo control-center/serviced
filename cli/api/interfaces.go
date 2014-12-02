@@ -102,6 +102,6 @@ type API interface {
 	// Metric
 	PostMetric(metricName string, metricValue string) (string, error)
 
-	ScriptRun(fileName string, config script.Config) error
-	ScriptParse(fileName string, config script.Config) error
+	ScriptRun(fileName string, config *script.Config) error
+	ScriptParse(fileName string, config *script.Config) error
 }

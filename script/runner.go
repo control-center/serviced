@@ -36,11 +36,12 @@ func init() {
 
 type Config struct {
 	ServiceID      string
-	DockerRegistry string          //docker registry being used for tagging images
-	NoOp           bool            //Should commands modify the system
-	TenantLookup   TenantIDLookup  //function for looking up a service
-	Snapshot       Snapshot        //function for creating snapshots
-	Restore        SnapshotRestore //function to do the rollback to a snapshot
+	DockerRegistry string            //docker registry being used for tagging images
+	NoOp           bool              //Should commands modify the system
+	TenantLookup   TenantIDLookup    //function for looking up a service
+	Snapshot       Snapshot          //function for creating snapshots
+	Restore        SnapshotRestore   //function to do the rollback to a snapshot
+	SvcIDFromPath  ServiceIDFromPath // function to find a service id from a path
 }
 
 type Runner interface {
@@ -80,6 +81,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		tenantIDLookup: config.TenantLookup,
 		snapshot:       config.Snapshot,
 		restore:        config.Restore,
+		svcFromPath:    config.SvcIDFromPath,
 		findImage:      docker.FindImage,
 		pullImage:      docker.PullImage,
 		execCommand:    defaultExec,
@@ -107,6 +109,7 @@ type runner struct {
 	tenantIDLookup TenantIDLookup    //function for looking up a service
 	snapshot       Snapshot          //function for creating snapshots
 	restore        SnapshotRestore   //function to do the rollback to a snapshot
+	svcFromPath    ServiceIDFromPath //function to find a service from a path and tenant
 	findImage      findImage
 	pullImage      pullImage
 	execCommand    execCmd
@@ -175,7 +178,7 @@ func evalSnapshot(r *runner, n node) error {
 	exitFunc := func(failed bool) {
 		if failed && r.snapshotID == mySnapshotID {
 			glog.Infof("restoring snapshot %s", mySnapshotID)
-			if err := r.restore(svcID, mySnapshotID); err != nil {
+			if err := r.restore(mySnapshotID); err != nil {
 				glog.Errorf("failed restoring snapshot %s: %v", mySnapshotID, err)
 
 			}
@@ -228,6 +231,25 @@ func evalUSE(r *runner, n node) error {
 }
 
 func evalSvcRun(r *runner, n node) error {
+	if r.svcFromPath == nil {
+		return fmt.Errorf("no service id lookup function for %s", SVC_RUN)
+	}
+
+	svcPath := n.args[0]
+	tenantID, found := r.env["TENANT_ID"]
+	if !found {
+		return fmt.Errorf("no service tenant id specified for %s", SVC_RUN)
+	}
+	svcID, err := r.svcFromPath(tenantID, svcPath)
+	if err != nil {
+		return err
+	}
+	if svcID == "" {
+		return fmt.Errorf("no service id found for %s", svcPath)
+	}
+
+	n.args[0] = svcID
+
 	glog.V(0).Infof("running: serviced service run %s", strings.Join(n.args, " "))
 	args := []string{"service", "run"}
 	args = append(args, n.args...)
@@ -244,12 +266,20 @@ func evalDependency(r *runner, n node) error {
 }
 
 func evalRequireSvc(r *runner, n node) error {
-	glog.V(0).Infof("checking serivce requirement")
+	if r.tenantIDLookup == nil {
+		return fmt.Errorf("no tenant lookup function provided for %s", REQUIRE_SVC)
+	}
+	glog.V(0).Infof("checking service requirement")
 	if r.config.ServiceID == "" {
 		return errors.New("no service id specified")
 	}
 	glog.V(0).Infof("verifying service %s", r.config.ServiceID)
 	//lookup tenant id for service
-	r.env["TENANT_ID"] = r.config.ServiceID
+	tID, err := r.tenantIDLookup(r.config.ServiceID)
+	if err != nil {
+		return err
+	}
+	glog.V(0).Infof("found %s tenant id for service %s", tID, r.config.ServiceID)
+	r.env["TENANT_ID"] = tID
 	return nil
 }

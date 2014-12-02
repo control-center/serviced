@@ -14,6 +14,11 @@
 package api
 
 import (
+	"fmt"
+	"path"
+
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/script"
 )
 
@@ -33,21 +38,61 @@ func (a *api) ScriptParse(fileName string, config *script.Config) error {
 	return err
 }
 
-func initConfig(config *script.Config, a api) {
+func initConfig(config *script.Config, a *api) {
 	config.Snapshot = a.AddSnapshot
 	config.Restore = a.Rollback
-
 	tenantLookup := func(svcID string) (string, error) {
 		client, err := a.connectDAO()
 		if err != nil {
 			return "", err
 		}
 		var tID string
-		err = client.GetTenantId(svcID, tID)
+		err = client.GetTenantId(svcID, &tID)
 		if err != nil {
 			return "", err
 		}
 		return tID, nil
 	}
-	config.TenantLookup = tentantLookup
+	config.TenantLookup = tenantLookup
+	config.SvcIDFromPath = cliServiceIDFromPath(a)
+}
+
+func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
+
+	return func(tenantID string, svcPath string) (string, error) {
+		client, err := a.connectDAO()
+		if err != nil {
+			return "", err
+		}
+		var svcs []service.Service
+		serviceRequest := dao.ServiceRequest{
+			TenantID: tenantID,
+		}
+		if err := client.GetServices(serviceRequest, &svcs); err != nil {
+			return "", err
+		}
+
+		svcMap := make(map[string]service.Service)
+		for _, svc := range svcs {
+			svcMap[svc.ID] = svc
+		}
+
+		// recursively build full path for all services
+		pathmap := make(map[string]string) //path to service id
+		for _, svc := range svcs {
+			fullpath := svc.Name
+			parentServiceID := svc.ParentServiceID
+
+			for parentServiceID != "" {
+				fullpath = path.Join(svcMap[parentServiceID].Name, fullpath)
+				parentServiceID = svcMap[parentServiceID].ParentServiceID
+			}
+			pathmap[fullpath] = svc.ID
+		}
+		svcID, found := pathmap[svcPath]
+		if !found {
+			return "", fmt.Errorf("did not find service %s", svcPath)
+		}
+		return svcID, nil
+	}
 }

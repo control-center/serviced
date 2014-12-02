@@ -19,6 +19,7 @@ import (
 
 	"github.com/codegangsta/cli"
 
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/script"
 )
 
@@ -42,11 +43,47 @@ func (c *ServicedCli) initScript() {
 				Action:      c.cmdScriptRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
-					cli.StringFlag{"service-id", "", "Service ID argument for script, optional"},
+				},
+			},
+			{
+				Name:        "service",
+				Usage:       "Run a script with a service as an argument",
+				Description: "serviced script SERVICEID file ",
+				Action:      c.cmdScriptSvcRun,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
 				},
 			},
 		},
 	})
+}
+
+// cmdScriptSvcRun serviced script <service> filename
+func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) != 2 {
+		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
+		os.Exit(1)
+	}
+	svcID := args[0]
+	//verify service or translate to ID
+	svc, err := c.searchForService(svcID)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	if svc == nil {
+		fmt.Fprintln(os.Stderr, "service %s not found", svcID)
+		os.Exit(1)
+	}
+
+	fmt.Printf("%#v\n", svc)
+	fileName := args[1]
+	config := &script.Config{
+		ServiceID: svc.ID,
+	}
+	fmt.Printf("%#v\n", config)
+	runScript(c, ctx, fileName, config)
 }
 
 // cmdScriptRun serviced script run filename
@@ -57,16 +94,8 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 		return
 	}
 	fileName := args[0]
-	config := script.Config{}
-	//TODO: get the right dockerRegistry
-	config.NoOp = ctx.Bool("no-op")
-	config.ServiceID = ctx.String("service-id")
-	config.DockerRegisty = docker.DEFAULT_REGISTRY
-	err := c.driver.ScriptRun(fileName, &config)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-	}
-	return
+	config := &script.Config{}
+	runScript(c, ctx, fileName, config)
 }
 
 // cmdScriptRun serviced script run filename
@@ -83,4 +112,14 @@ func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, err)
 	}
 	return
+}
+
+func runScript(c *ServicedCli, ctx *cli.Context, fileName string, config *script.Config) {
+	config.NoOp = ctx.Bool("no-op")
+	config.DockerRegistry = docker.DEFAULT_REGISTRY
+	err := c.driver.ScriptRun(fileName, config)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 }

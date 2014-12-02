@@ -23,6 +23,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
@@ -219,8 +220,8 @@ func New(driver api.API) *ServicedCli {
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
 	err := c.app.Run(args)
-	if err != nil{
-		fmt.Sprintf("%v/n",err)
+	if err != nil {
+		fmt.Sprintf("%v/n", err)
 	}
 }
 

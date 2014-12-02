@@ -31,7 +31,9 @@ type TenantIDLookup func(service string) (string, error)
 
 type Snapshot func(serviceID string) (string, error)
 
-type SnapshotRestore func(serviceID string, snapshotID string) error
+type SnapshotRestore func(snapshotID string) error
+
+type ServiceIDFromPath func(tenantID string, path string) (string, error)
 
 type execCmd func(string, ...string) error
 
@@ -50,17 +52,6 @@ func defaultExec(name string, args ...string) error {
 
 func defaultTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
 	return image.Tag(newTag)
-}
-
-func defaultFindTenant(service string) (string, error) {
-	return service, nil
-}
-
-func defaultRestore(serviceID string, snapshotID string) error {
-	return nil
-}
-func defaultSnapshot(serviceID string) (string, error) {
-	return "123", nil
 }
 
 func renameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*commons.ImageID, error) {
@@ -83,7 +74,7 @@ func noOpTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
 	return image, nil
 }
 
-func noOpRestore(serviceID string, snapshotID string) error {
+func noOpRestore(snapshotID string) error {
 	return nil
 }
 func noOpSnapshot(serviceID string) (string, error) {
