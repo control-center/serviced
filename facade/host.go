@@ -73,7 +73,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 
 	// verify that there are no virtual IPs with the given host IP(s)
 	for _, ip := range entity.IPs {
-		if exists, err := f.hasVirtualIP(ctx, pool.ID, ip.IPAddress); err != nil {
+		if exists, err := f.HasIP(ctx, pool.ID, ip.IPAddress); err != nil {
 			return fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
 		} else if exists {
 			return fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)

@@ -413,17 +413,23 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 					// TODO: enable this to generate a new service ID, instead of recycling
 					// the old one
 					svc.ID = ""
-					newServiceID, err = dfs.facade.AddService(svc)
+					svc.ID, err = dfs.facade.AddService(svc)
 					if err != nil {
 						glog.Errorf("Could not add service %s: %s", serviceID, err)
 						return err
 					}
 
 					// Update the service
-					serviceTree[newServiceID] = serviceTree[serviceID]
+					serviceTree[svc.ID] = serviceTree[serviceID]
 					delete(serviceTree, serviceID)
-					serviceID = newServiceID
+					serviceID = svc.ID
 				*/
+
+				// restore the address assignments
+				if err := dfs.facade.RestoreIPs(datastore.Get(), svc); err != nil {
+					glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
+				}
+
 			}
 
 			if err := traverse(serviceID); err != nil {

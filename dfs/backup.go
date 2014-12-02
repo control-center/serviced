@@ -26,11 +26,13 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
-	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
@@ -38,6 +40,8 @@ import (
 const (
 	imageDir     = "images"
 	snapshotDir  = "snapshots"
+	poolJSON     = "resourcepools.json"
+	hostJSON     = "hosts.json"
 	templateJSON = "templates.json"
 	serviceJSON  = "services.json"
 	imageJSON    = "images.json"
@@ -79,6 +83,32 @@ func (dfs *DistributedFilesystem) Backup(dirpath string) (string, error) {
 		glog.Errorf("Could not get services: %s", err)
 		return "", err
 	}
+
+	// export pools (and virtual ips)
+	dfs.log("Exporting resource pools")
+	pools, err := dfs.facade.GetResourcePools(datastore.Get())
+	if err != nil {
+		glog.Errorf("Could not get resource pools: %s", err)
+		return "", err
+	}
+	if err := exportJSON(filepath.Join(dirpath, poolJSON), pools); err != nil {
+		glog.Errorf("Could not export resource pools: %s", err)
+		return "", err
+	}
+	dfs.log("Resource pool export successful")
+
+	// export hosts
+	dfs.log("Exporting hosts")
+	hosts, err := dfs.facade.GetHosts(datastore.Get())
+	if err != nil {
+		glog.Errorf("Could not get hosts: %s", err)
+		return "", err
+	}
+	if err := exportJSON(filepath.Join(dirpath, hostJSON), hosts); err != nil {
+		glog.Errorf("Could not export hosts: %s", err)
+		return "", err
+	}
+	dfs.log("Host export successful")
 
 	// export all template definitions
 	dfs.log("Exporting template definitions")
@@ -184,6 +214,52 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		return err
 	}
 
+	var pools []pool.ResourcePool
+	if err := importJSON(filepath.Join(dirpath, poolJSON), &pools); err != nil {
+		glog.Errorf("Could not read resource pools from %s: %s", filename, err)
+		return err
+	}
+
+	// restore the resource pools (and virtual ips)
+	dfs.log("Loading resource pools")
+	for _, pool := range pools {
+		pool.DatabaseVersion = 0
+
+		glog.V(1).Infof("Restoring resource pool %s", pool.ID)
+		var err error
+		if err = dfs.facade.AddResourcePool(datastore.Get(), &pool); err == facade.ErrPoolExists {
+			err = dfs.facade.UpdateResourcePool(datastore.Get(), &pool)
+		}
+		if err != nil {
+			glog.Errorf("Could not restore resource pool %s: %s", pool.ID, err)
+			return err
+		}
+	}
+	dfs.log("Resource pool load successful")
+
+	var hosts []host.Host
+	if err := importJSON(filepath.Join(dirpath, hostJSON), &hosts); err != nil {
+		glog.Errorf("Could not read hosts from %s: %s", filename, err)
+		return err
+	}
+
+	// restore the hosts (add it if it doesn't exist; assume hosts don't need to be updated from backup)
+	dfs.log("Loading static ips")
+	for _, host := range hosts {
+		host.DatabaseVersion = 0
+		glog.V(1).Infof("Restoring host %s (%s)", host.ID, host.IPAddr)
+		if exists, err := dfs.facade.HasIP(datastore.Get(), host.PoolID, host.IPAddr); err != nil {
+			glog.Errorf("Could not check IP %s for pool %s: %s", host.IPAddr, host.PoolID, err)
+			return err
+		} else if exists {
+			glog.Warningf("Could not restore host %s (%s): ip already exists", host.ID, host.IPAddr)
+		} else if err := dfs.facade.AddHost(datastore.Get(), &host); err != nil {
+			glog.Errorf("Could not add host %s: %s", host.ID, err)
+			return err
+		}
+	}
+	dfs.log("Static ip load successful")
+
 	var templates map[string]servicetemplate.ServiceTemplate
 	if err := importJSON(filepath.Join(dirpath, templateJSON), &templates); err != nil {
 		glog.Errorf("Could not read templates from %s: %s", filename, err)
@@ -193,6 +269,8 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	// restore the service templates
 	dfs.log("Loading service templates")
 	for templateID, template := range templates {
+		template.DatabaseVersion = 0
+
 		glog.V(1).Infof("Restoring service template %s", templateID)
 		template.ID = templateID
 		if err := dfs.facade.UpdateServiceTemplate(datastore.Get(), template); err != nil {
