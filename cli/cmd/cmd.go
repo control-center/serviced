@@ -111,7 +111,7 @@ func New(driver api.API) *ServicedCli {
 		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
 	}
 
-	defaultDockerRegistry := "localhost:5000"
+	defaultDockerRegistry := docker.DEFAULT_REGISTRY
 	if hostname, err := os.Hostname(); err == nil {
 		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
 	}

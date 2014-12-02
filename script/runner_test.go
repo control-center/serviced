@@ -14,7 +14,7 @@ func (vs *ScriptSuite) Test_evalNodes(t *C) {
 	//	tagImage = testTagSucceed
 	//	execCommand = testExec
 	config := Config{NoOp: true, ServiceID: "TEST_SERVICE_ID_12345"}
-	runner, err := NewRunnerFromFile("descriptor_test.txt", config)
+	runner, err := NewRunnerFromFile("descriptor_test.txt", &config)
 	t.Assert(err, IsNil)
 	err = runner.Run()
 	t.Assert(err, IsNil)

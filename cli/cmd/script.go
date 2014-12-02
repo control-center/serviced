@@ -59,9 +59,10 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 	fileName := args[0]
 	config := script.Config{}
 	//TODO: get the right dockerRegistry
-	config.NoOp = ctx.Bool("no-op") 
+	config.NoOp = ctx.Bool("no-op")
 	config.ServiceID = ctx.String("service-id")
-	err := c.driver.ScriptRun(fileName, config)
+	config.DockerRegisty = docker.DEFAULT_REGISTRY
+	err := c.driver.ScriptRun(fileName, &config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
@@ -69,7 +70,7 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 }
 
 // cmdScriptRun serviced script run filename
-func (c *ServicedCli) cmdScriptParse(ctx *cli.Context)  {
+func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
@@ -77,7 +78,7 @@ func (c *ServicedCli) cmdScriptParse(ctx *cli.Context)  {
 	}
 	fileName := args[0]
 	config := script.Config{}
-	err := c.driver.ScriptParse(fileName, config)
+	err := c.driver.ScriptParse(fileName, &config)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}

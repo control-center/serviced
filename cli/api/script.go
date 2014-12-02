@@ -18,16 +18,36 @@ import (
 )
 
 // ScriptRun
-func (a *api) ScriptRun(fileName string, config script.Config) error {
+func (a *api) ScriptRun(fileName string, config *script.Config) error {
+
+	initConfig(config, a)
 	r, err := script.NewRunnerFromFile(fileName, config)
-	if err !=nil{
+	if err != nil {
 		return err
 	}
-	r.Run()
+	return r.Run()
+}
+
+func (a *api) ScriptParse(fileName string, config *script.Config) error {
+	_, err := script.NewRunnerFromFile(fileName, config)
 	return err
 }
 
-func (a *api) ScriptParse(fileName string, config script.Config) error {
-	_, err := script.NewRunnerFromFile(fileName, config)
-	return err
+func initConfig(config *script.Config, a api) {
+	config.Snapshot = a.AddSnapshot
+	config.Restore = a.Rollback
+
+	tenantLookup := func(svcID string) (string, error) {
+		client, err := a.connectDAO()
+		if err != nil {
+			return "", err
+		}
+		var tID string
+		err = client.GetTenantId(svcID, tID)
+		if err != nil {
+			return "", err
+		}
+		return tID, nil
+	}
+	config.TenantLookup = tentantLookup
 }

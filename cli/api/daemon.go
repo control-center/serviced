@@ -16,6 +16,7 @@ package api
 import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dao/elasticsearch"
@@ -76,7 +77,6 @@ import (
 )
 
 var minDockerVersion = version{0, 11, 1}
-var dockerRegistry = "localhost:5000"
 
 type daemon struct {
 	servicedEndpoint string
@@ -242,7 +242,7 @@ func (d *daemon) run() error {
 		glog.Infof("local interfaces did not contain the docker registry host %s with ips %+v", host, addrs)
 		return false
 	}(iaddrs, addrs); !isLoopback || port != "5000" {
-		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+		glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, docker.DEFAULT_REGISTRY)
 		proxy := httputil.NewSingleHostReverseProxy(&url.URL{
 			Scheme: "http",
 			Host:   options.DockerRegistry,
@@ -253,9 +253,9 @@ func (d *daemon) run() error {
 			r.URL.Scheme = "http"
 		}
 		http.Handle("/", proxy)
-		go http.ListenAndServe(dockerRegistry, nil)
+		go http.ListenAndServe(docker.DEFAULT_REGISTRY, nil)
 	} else {
-		glog.Infof("Not starting reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+		glog.Infof("Not starting reverse proxy for docker registry %s at %s", options.DockerRegistry, docker.DEFAULT_REGISTRY)
 	}
 
 	glog.V(0).Infof("Listening on %s", l.Addr().String())
@@ -587,7 +587,7 @@ func (d *daemon) startAgent() error {
 			Zookeepers:           options.Zookeepers,
 			Mux:                  mux,
 			UseTLS:               options.TLS,
-			DockerRegistry:       dockerRegistry,
+			DockerRegistry:       docker.DEFAULT_REGISTRY,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 		}
@@ -635,7 +635,7 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry)
+		sio := shell.NewProcessExecutorServer(options.Endpoint, docker.DEFAULT_REGISTRY)
 		http.ListenAndServe(":50000", sio)
 	}()
 
@@ -677,7 +677,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(dockerRegistry)
+	f := facade.New(docker.DEFAULT_REGISTRY)
 	return f
 }
 
@@ -721,7 +721,7 @@ func (d *daemon) initISVCS() error {
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, dfsTimeout, dockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, dfsTimeout, docker.DEFAULT_REGISTRY)
 }
 
 func (d *daemon) initWeb() {

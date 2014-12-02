@@ -36,15 +36,18 @@ func init() {
 
 type Config struct {
 	ServiceID      string
-	DockerRegistry string //docker registry being used for tagging images
-	NoOp           bool   //Should commands modify the system
+	DockerRegistry string          //docker registry being used for tagging images
+	NoOp           bool            //Should commands modify the system
+	TenantLookup   TenantIDLookup  //function for looking up a service
+	Snapshot       Snapshot        //function for creating snapshots
+	Restore        SnapshotRestore //function to do the rollback to a snapshot
 }
 
 type Runner interface {
 	Run() error
 }
 
-func NewRunnerFromFile(fileName string, config Config) (Runner, error) {
+func NewRunnerFromFile(fileName string, config *Config) (Runner, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
 		return nil, err
@@ -53,7 +56,7 @@ func NewRunnerFromFile(fileName string, config Config) (Runner, error) {
 	return NewRunner(r, config)
 }
 
-func NewRunner(r io.Reader, config Config) (Runner, error) {
+func NewRunner(r io.Reader, config *Config) (Runner, error) {
 	pctx, err := parseDescriptor(r)
 	if err != nil {
 		return nil, err
@@ -65,7 +68,7 @@ func NewRunner(r io.Reader, config Config) (Runner, error) {
 	return newRunner(config, pctx), nil
 }
 
-func newRunner(config Config, pctx *parseContext) *runner {
+func newRunner(config *Config, pctx *parseContext) *runner {
 	if config.DockerRegistry == "" {
 		config.DockerRegistry = "localhost:5000"
 	}
@@ -74,9 +77,9 @@ func newRunner(config Config, pctx *parseContext) *runner {
 		config:         config,
 		exitFunctions:  make([]func(bool), 0),
 		env:            make(map[string]string),
-		tenantIDLookup: defaultFindTenant,
-		snapshot:       defaultSnapshot,
-		restore:        defaultRestore,
+		tenantIDLookup: config.TenantLookup,
+		snapshot:       config.Snapshot,
+		restore:        config.Restore,
 		findImage:      docker.FindImage,
 		pullImage:      docker.PullImage,
 		execCommand:    defaultExec,
@@ -97,7 +100,7 @@ func newRunner(config Config, pctx *parseContext) *runner {
 
 type runner struct {
 	parseCtx       *parseContext
-	config         Config
+	config         *Config
 	exitFunctions  []func(bool)      //each is called on exit of upgrade, bool denotes if upgrade exited with an error
 	snapshotID     string            //the last snapshot taken
 	env            map[string]string //context variables available to runner
@@ -149,6 +152,13 @@ func evalEmpty(r *runner, n node) error {
 }
 func evalSnapshot(r *runner, n node) error {
 	glog.V(0).Info("performing snapshot")
+
+	if r.snapshot == nil {
+		return fmt.Errorf("no snapshot function provided for %s", SNAPSHOT)
+	}
+	if r.restore == nil {
+		return fmt.Errorf("no restore function provided for %s", SNAPSHOT)
+	}
 
 	svcID, found := r.env["TENANT_ID"]
 	if !found {
