@@ -211,13 +211,17 @@ func New(driver api.API) *ServicedCli {
 	c.initBackup()
 	c.initMetric()
 	c.initDocker()
+	c.initScript()
 
 	return c
 }
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
-	c.app.Run(args)
+	err := c.app.Run(args)
+	if err != nil{
+		fmt.Sprintf("%v/n",err)
+	}
 }
 
 // cmdInit starts the server if no subcommands are called
