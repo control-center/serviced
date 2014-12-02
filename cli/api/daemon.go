@@ -302,10 +302,16 @@ func (d *daemon) run() (err error) {
 		defer glog.Infof("Timeout waiting for shutdown")
 	}
 
-	if options.Master && sig != syscall.SIGHUP {
-		d.stopISVCS()
-	} else {
-		glog.Infof("Not shutting down isvcs")
+	if options.Master {
+		switch sig {
+		case syscall.SIGHUP:
+			glog.Infof("Not shutting down isvcs")
+			command := os.Args
+			glog.Infof("Reloading by calling syscall.exec for command: %+v\n", command)
+			syscall.Exec(command[0], command[0:], os.Environ())
+		default:
+			d.stopISVCS()
+		}
 	}
 
 	return nil
