@@ -52,11 +52,11 @@ func ResourcesDir() string {
 
 // BackupDir gets the directory where backup files are stored
 func BackupDir() string {
-	homeDir := ServiceDHome()
+	varDir := os.Getenv("SERVICED_VARPATH")
 	backupDir := ""
 
-	if homeDir != "" {
-		backupDir = filepath.Join(homeDir, "backups")
+	if varDir != "" {
+		backupDir = varDir
 	} else if user, err := user.Current(); err != nil {
 		backupDir = path.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username))
 	} else {
