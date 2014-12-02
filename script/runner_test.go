@@ -13,7 +13,13 @@ func (vs *ScriptSuite) Test_evalNodes(t *C) {
 	//	findImage = testFindImageSucceed
 	//	tagImage = testTagSucceed
 	//	execCommand = testExec
-	config := Config{NoOp: true, ServiceID: "TEST_SERVICE_ID_12345"}
+
+	config := Config{
+		NoOp:          true,
+		ServiceID:     "TEST_SERVICE_ID_12345",
+		TenantLookup:  func(service string) (string, error) { return service, nil },
+		SvcIDFromPath: func(tenantID string, path string) (string, error) { return tenantID, nil },
+	}
 	runner, err := NewRunnerFromFile("descriptor_test.txt", &config)
 	t.Assert(err, IsNil)
 	err = runner.Run()

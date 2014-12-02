@@ -48,6 +48,22 @@ type Runner interface {
 	Run() error
 }
 
+type runner struct {
+	parseCtx       *parseContext
+	config         *Config
+	exitFunctions  []func(bool)      //each is called on exit of upgrade, bool denotes if upgrade exited with an error
+	snapshotID     string            //the last snapshot taken
+	env            map[string]string //context variables available to runner
+	tenantIDLookup TenantIDLookup    //function for looking up a service
+	snapshot       Snapshot          //function for creating snapshots
+	restore        SnapshotRestore   //function to do the rollback to a snapshot
+	svcFromPath    ServiceIDFromPath //function to find a service from a path and tenant
+	findImage      findImage
+	pullImage      pullImage
+	execCommand    execCmd
+	tagImage       tagImage
+}
+
 func NewRunnerFromFile(fileName string, config *Config) (Runner, error) {
 	f, err := os.Open(fileName)
 	if err != nil {
@@ -98,22 +114,6 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 	}
 
 	return r
-}
-
-type runner struct {
-	parseCtx       *parseContext
-	config         *Config
-	exitFunctions  []func(bool)      //each is called on exit of upgrade, bool denotes if upgrade exited with an error
-	snapshotID     string            //the last snapshot taken
-	env            map[string]string //context variables available to runner
-	tenantIDLookup TenantIDLookup    //function for looking up a service
-	snapshot       Snapshot          //function for creating snapshots
-	restore        SnapshotRestore   //function to do the rollback to a snapshot
-	svcFromPath    ServiceIDFromPath //function to find a service from a path and tenant
-	findImage      findImage
-	pullImage      pullImage
-	execCommand    execCmd
-	tagImage       tagImage
 }
 
 func (r *runner) Run() error {

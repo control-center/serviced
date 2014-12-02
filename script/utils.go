@@ -16,16 +16,6 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 )
 
-var (
-//	findImage    = docker.FindImage
-//	pullImage    = docker.PullImage
-//	execCommand  = defaultExec
-//	execSnapshot = defaultSnapshot
-//	execRestore  = defaultRestore
-//	findTenant   = defaultFindTenant
-//	tagImage     = defaultTagImage
-)
-
 //Lookup a tenant ID given a service (name, id, or path)
 type TenantIDLookup func(service string) (string, error)
 
