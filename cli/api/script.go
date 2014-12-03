@@ -44,6 +44,17 @@ func initConfig(config *script.Config, a *api) {
 	config.Restore = cliRestore(a)
 	config.TenantLookup = cliTenantLookup(a)
 	config.SvcIDFromPath = cliServiceIDFromPath(a)
+	config.SvcStart = cliServiceSTart(a)
+}
+
+func cliServiceSTart(a *api) script.ServiceStart {
+	return func(svcID string) error {
+		svcConfig := SchedulerConfig{ServiceID: svcID, AutoLaunch: false}
+		if _, err := a.StartService(svcConfig); err != nil {
+			return err
+		}
+		return nil
+	}
 }
 
 func cliTenantLookup(a *api) script.TenantIDLookup {
