@@ -1,11 +1,10 @@
-
 #comment
+DESCRIPTION  Zenoss RM 5.0.1 upgrade
 DESCRIPTION  Zenoss RM 5.0.1 upgrade
 VERSION   resmgr-5.0.1
 DEPENDENCY 1.1
-REQUIRE_SVC
-SNAPSHOT
 
+SNAPSHOT
 #comment 2
 SVC_USE  zenoss/resmgr-stable:5.0.1
 SVC_USE  zenoss/hbase:v5

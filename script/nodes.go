@@ -21,6 +21,7 @@ var (
 	REQUIRE_SVC = "REQUIRE_SVC"
 	USE         = "SVC_USE"
 	SVC_RUN     = "SVC_RUN"
+	SVC_START   = "SVC_START"
 	DEPENDENCY  = "DEPENDENCY"
 
 	EMPTY     = "EMPTY"
@@ -37,6 +38,7 @@ func init() {
 		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseNoArgs),
 		USE:         require([]string{REQUIRE_SVC}, parseImageID),
 		SVC_RUN:     require([]string{REQUIRE_SVC}, parseSvcRun),
+		SVC_START:   require([]string{REQUIRE_SVC}, atMost(1, parseOneArg)),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseOneArg)),
 	}
 }

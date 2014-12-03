@@ -28,6 +28,9 @@ type SnapshotRestore func(tenantID, snapshotID string) error
 // ServiceIDFromPath get a service id of a service given the tenant id the path to the services
 type ServiceIDFromPath func(tenantID string, path string) (string, error)
 
+// ServiceStart starts a service
+type ServiceStart func(serviceID string) error
+
 type execCmd func(string, ...string) error
 
 type findImage func(string, bool) (*docker.Image, error)
@@ -60,6 +63,10 @@ func renameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*
 }
 
 func noOpExec(name string, args ...string) error {
+	return nil
+}
+
+func noOpServiceStart(serviceID string) error {
 	return nil
 }
 

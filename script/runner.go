@@ -28,6 +28,7 @@ func init() {
 		SVC_RUN:     evalSvcRun,
 		DEPENDENCY:  evalDependency,
 		REQUIRE_SVC: evalRequireSvc,
+		SVC_START:   evalSvcStart,
 	}
 }
 
@@ -39,6 +40,7 @@ type Config struct {
 	Snapshot       Snapshot          //function for creating snapshots
 	Restore        SnapshotRestore   //function to do the rollback to a snapshot
 	SvcIDFromPath  ServiceIDFromPath // function to find a service id from a path
+	SvcStart       ServiceStart      // function to start a service
 }
 
 type Runner interface {
@@ -55,6 +57,7 @@ type runner struct {
 	snapshot       Snapshot          //function for creating snapshots
 	restore        SnapshotRestore   //function to do the rollback to a snapshot
 	svcFromPath    ServiceIDFromPath //function to find a service from a path and tenant
+	svcStart       ServiceStart      //function to start a service
 	findImage      findImage
 	pullImage      pullImage
 	execCommand    execCmd
@@ -98,6 +101,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		snapshot:       config.Snapshot,
 		restore:        config.Restore,
 		svcFromPath:    config.SvcIDFromPath,
+		svcStart:       config.SvcStart,
 		findImage:      docker.FindImage,
 		pullImage:      docker.PullImage,
 		execCommand:    defaultExec,
@@ -111,6 +115,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		r.snapshot = noOpSnapshot
 		r.pullImage = noOpPull
 		r.findImage = noOpFindImage
+		r.svcStart = noOpServiceStart
 	}
 
 	return r

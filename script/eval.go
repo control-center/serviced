@@ -94,6 +94,37 @@ func evalUSE(r *runner, n node) error {
 	return nil
 }
 
+func evalSvcStart(r *runner, n node) error {
+
+	if r.svcFromPath == nil {
+		return fmt.Errorf("no service id lookup function for %s", SVC_START)
+	}
+
+	if r.svcStart == nil {
+		return fmt.Errorf("no service start function for %s", SVC_START)
+	}
+
+	svcPath := n.args[0]
+	tenantID, found := r.env["TENANT_ID"]
+	if !found {
+		return fmt.Errorf("no service tenant id specified for %s", SVC_START)
+	}
+	svcID, err := r.svcFromPath(tenantID, svcPath)
+	if err != nil {
+		return err
+	}
+	if svcID == "" {
+		return fmt.Errorf("no service id found for %s", svcPath)
+	}
+
+	glog.Infof("starting service %s %s", svcPath, svcID)
+	if err := r.svcStart(svcID); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func evalSvcRun(r *runner, n node) error {
 	if r.svcFromPath == nil {
 		return fmt.Errorf("no service id lookup function for %s", SVC_RUN)
@@ -123,6 +154,7 @@ func evalSvcRun(r *runner, n node) error {
 
 	return nil
 }
+
 func evalDependency(r *runner, n node) error {
 	glog.V(0).Infof("checking serviced dependency: %s", n.args[0])
 	glog.V(0).Info("dependency check for serviced not implemented, skipping...")

@@ -5,15 +5,13 @@
 package script
 
 import (
+	"errors"
+	"fmt"
+
 	. "gopkg.in/check.v1"
 )
 
-func (vs *ScriptSuite) Test_evalNodes(t *C) {
-	//	pullImage = testPullSucceed
-	//	findImage = testFindImageSucceed
-	//	tagImage = testTagSucceed
-	//	execCommand = testExec
-
+func (vs *ScriptSuite) Test_Run(t *C) {
 	config := Config{
 		NoOp:          true,
 		ServiceID:     "TEST_SERVICE_ID_12345",
@@ -24,6 +22,23 @@ func (vs *ScriptSuite) Test_evalNodes(t *C) {
 	t.Assert(err, IsNil)
 	err = runner.Run()
 	t.Assert(err, IsNil)
+
+	runner, err = NewRunnerFromFile("bad_descriptor.txt", &config)
+	t.Assert(err, ErrorMatches, "error parsing script")
+
+	config = Config{
+		NoOp:      true,
+		ServiceID: "TEST_SERVICE_ID_12345",
+		TenantLookup: func(service string) (string, error) {
+			fmt.Println("BLKDJSFLKSDJFSD")
+			return "", errors.New("tenant error for test")
+		},
+	}
+	runner, err = NewRunnerFromFile("descriptor_test.txt", &config)
+	t.Assert(err, IsNil)
+	err = runner.Run()
+	t.Assert(err, ErrorMatches, "tenant error for test")
+
 }
 
 //func testExec(cmd string, args ...string) error {
