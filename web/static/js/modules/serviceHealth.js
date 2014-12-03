@@ -342,8 +342,8 @@
                
                 // setup popover
 
-                // if this $el is inside an h3, make the popover point down
-                if($el.parent().prop("tagName").toLowerCase() === "h3"){
+                // if this $el is inside a .serviceTitle, make the popover point down
+                if($el.parent().hasClass("serviceTitle")){
                     placement = "bottom";
                 }
 
