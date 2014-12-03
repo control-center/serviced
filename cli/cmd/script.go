@@ -77,12 +77,10 @@ func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
 		os.Exit(1)
 	}
 
-	fmt.Printf("%#v\n", svc)
 	fileName := args[1]
 	config := &script.Config{
 		ServiceID: svc.ID,
 	}
-	fmt.Printf("%#v\n", config)
 	runScript(c, ctx, fileName, config)
 }
 
