@@ -210,9 +210,9 @@ func (dfs *DistributedFilesystem) desynchronize(image *docker.Image) error {
 	return nil
 }
 
-func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[string]servicetemplate.ServiceTemplate, services []service.Service) ([]imagemeta, error) {
+func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[string]servicetemplate.ServiceTemplate, services []service.Service, labels []string) ([]imagemeta, error) {
 	tRepos, sRepos := getImageRefs(templates, services)
-	imageTags, err := getImageTags(tRepos, sRepos)
+	imageTags, err := getImageTags(tRepos, sRepos, labels)
 	if err != nil {
 		return nil, err
 	}
@@ -355,55 +355,53 @@ func tag(tenantID, oldtag, newtag string) error {
 	return nil
 }
 
-func getImageTags(templateRepos []string, serviceRepos []string) (map[string][]string, error) {
-	// make a map of all docker images
-	images, err := docker.Images()
-	if err != nil {
-		return nil, err
-	}
+func getImageTags(templateRepos []string, serviceRepos []string, tags []string) (map[string][]string, error) {
+	imagemap := make(map[string][]string)
 
-	// TODO: enable tagmap if we are storing all snapshots in a backup
-	// tagmap := make(map[string][]string)
-	imap := make(map[string]string)
-
-	for _, image := range images {
-
+	// find all the template repos
+	for _, repo := range templateRepos {
+		image, err := docker.FindImage(repo, false)
+		if err == docker.ErrNoSuchImage {
+			glog.Warningf("Could not find template image %s", repo)
+			continue
+		} else if err != nil {
+			glog.Errorf("Could not look up repo %s: %s", repo, err)
+			return nil, err
+		}
 		if image.ID.Tag == DockerLatest {
 			image.ID.Tag = ""
 		}
-		// repo := image.ID.BaseName()
-		// tagmap[repo] = append(tagmap[repo], image.ID.String())
-		imap[image.ID.String()] = image.UUID
+		images := imagemap[image.UUID]
+		imagemap[image.UUID] = append(images, image.ID.String())
 	}
 
-	repos := append(templateRepos, serviceRepos...)
-
-	// TODO: Enable this if we are storing all snapshots in a backup
-	// Get all the tags related to a service
-	/*
-		repos := templateRepos
-		for _, repo := range serviceRepos {
-			imageID, err := commons.ParseImageID(repo)
-			if err != nil {
-				glog.Errorf("Invalid image %s: %s", repo, err)
-				return nil, err
-			}
-			repos = append(repos, tagmap[imageID.BaseName()]...)
-		}
-	*/
-
-	// Organize repos by UUID
-	result := make(map[string][]string)
-	for _, repo := range repos {
-		if imageID, ok := imap[repo]; ok {
-			result[imageID] = append(result[imageID], repo)
-		} else {
-			err := fmt.Errorf("not found: %s", repo)
+	// find all the service repos
+	for _, repo := range serviceRepos {
+		image, err := docker.FindImage(repo, false)
+		if err != nil {
+			glog.Errorf("Could not look up repo %s: %s", repo, err)
 			return nil, err
 		}
+		if image.ID.Tag == DockerLatest {
+			image.ID.Tag = ""
+		}
+		images := imagemap[image.UUID]
+		imagemap[image.UUID] = append(images, image.ID.String())
+
+		for _, tag := range tags {
+			image, err := docker.FindImage(commons.JoinRepoTag(repo, tag), false)
+			if err == docker.ErrNoSuchImage {
+				continue
+			} else if err != nil {
+				glog.Errorf("Could not look up repo %s: %s", commons.JoinRepoTag(repo, tag), err)
+				return nil, err
+			}
+			images := imagemap[image.UUID]
+			imagemap[image.UUID] = append(images, image.ID.String())
+		}
 	}
 
-	return result, nil
+	return imagemap, nil
 }
 
 func getImageRefs(templates map[string]servicetemplate.ServiceTemplate, services []service.Service) (t []string, s []string) {
