@@ -6,7 +6,6 @@ package script
 
 import (
 	"errors"
-	"fmt"
 
 	. "gopkg.in/check.v1"
 )
@@ -30,7 +29,6 @@ func (vs *ScriptSuite) Test_Run(t *C) {
 		NoOp:      true,
 		ServiceID: "TEST_SERVICE_ID_12345",
 		TenantLookup: func(service string) (string, error) {
-			fmt.Println("BLKDJSFLKSDJFSD")
 			return "", errors.New("tenant error for test")
 		},
 	}
@@ -40,21 +38,3 @@ func (vs *ScriptSuite) Test_Run(t *C) {
 	t.Assert(err, ErrorMatches, "tenant error for test")
 
 }
-
-//func testExec(cmd string, args ...string) error {
-//	return nil
-//}
-//func testTagSucceed(image *docker.Image, newTag string) (*docker.Image, error) {
-//	return image, nil
-//}
-//func testPullSucceed(image string) error {
-//	return nil
-//}
-//
-//func testFindImageSucceed(image string, pull bool) (*docker.Image, error) {
-//	id, err := commons.ParseImageID(image)
-//	if err != nil {
-//		return nil, err
-//	}
-//	return &docker.Image{"123456789", *id}, nil
-//}
