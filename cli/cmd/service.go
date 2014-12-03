@@ -939,14 +939,15 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		return nil
+		os.Exit(1)
 	}
 
 	if len(args) < 2 {
 		for _, s := range c.serviceRuns(args[0]) {
 			fmt.Println(s)
 		}
-		return fmt.Errorf("serviced service run")
+		fmt.Fprintf(os.Stderr, "serviced service run")
+		os.Exit(1)
 	}
 
 	var (
@@ -957,7 +958,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return err
+		os.Exit(1)
 	}
 
 	command = args[1]
@@ -983,6 +984,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 
 	if err := c.driver.RunShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
 	}
 
 	return fmt.Errorf("serviced service run")

@@ -15,6 +15,7 @@ package api
 
 import (
 	"fmt"
+	"os"
 	"path"
 
 	"github.com/control-center/serviced/dao"
@@ -92,9 +93,9 @@ func cliRestore(a *api) script.SnapshotRestore {
 		}
 		//try to restart previously running services
 		for runningID, name := range runningServices {
-			req = dao.ScheduleServiceRequest{ServiceID: running, AutoLaunch: false}
+			req = dao.ScheduleServiceRequest{ServiceID: runningID, AutoLaunch: false}
 			if err := client.StartService(req, &count); err != nil {
-				glog.Warnf("could not restart service %s %s after restore: %v", runningID, name, err)
+				fmt.Fprintf(os.Stderr, "could not restart service %s %s after restore: %v\n", runningID, name, err)
 			}
 		}
 		return nil

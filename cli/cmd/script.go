@@ -73,7 +73,7 @@ func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
 		os.Exit(1)
 	}
 	if svc == nil {
-		fmt.Fprintln(os.Stderr, "service %s not found", svcID)
+		fmt.Fprintf(os.Stderr, "service %s not found\n", svcID)
 		os.Exit(1)
 	}
 
