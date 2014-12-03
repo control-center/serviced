@@ -14,6 +14,9 @@
 package volume
 
 import (
+	"os"
+	"sort"
+
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -22,6 +25,21 @@ import (
 var (
 	drivers = make(map[string]Driver)
 )
+
+type FileInfoSlice []os.FileInfo
+
+func (p FileInfoSlice) Len() int           { return len(p) }
+func (p FileInfoSlice) Less(i, j int) bool { return p[i].ModTime().Before(p[j].ModTime()) }
+func (p FileInfoSlice) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+
+func (p FileInfoSlice) Labels() []string {
+	sort.Sort(p)
+	labels := make([]string, p.Len())
+	for i, label := range p {
+		labels[i] = label.Name()
+	}
+	return labels
+}
 
 type Driver interface {
 	Mount(volumeName, root string) (Conn, error)
@@ -37,6 +55,8 @@ type Conn interface {
 	RemoveSnapshot(label string) error
 	Rollback(label string) error
 	Unmount() error
+	Export(label, parent, filename string) error
+	Import(label, filename string) error
 }
 
 type Volume struct {

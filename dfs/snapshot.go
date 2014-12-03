@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -275,14 +274,10 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 	}
 
 	for _, image := range images {
-		imageID := image.ID
-		imageID.Tag = timestamp
-		img, err := docker.FindImage(imageID.String(), false)
-		if err != nil {
-			glog.Errorf("Could not remove tag from image %s: %s", imageID, err)
-			continue
+		glog.Infof("Removing image %s", image.ID)
+		if err := image.Delete(); err != nil {
+			glog.Warningf("Error while removing image %s: %s", image.ID, err)
 		}
-		img.Delete()
 	}
 
 	return nil

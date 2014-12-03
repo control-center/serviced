@@ -28,7 +28,7 @@ func (this *ControlPlaneDao) Backup(dirpath string, filename *string) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
 	var err error
-	*filename, err = this.dfs.Backup(dirpath)
+	*filename, err = this.dfs.Backup(dirpath, 0)
 	return err
 }
 
