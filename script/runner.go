@@ -79,7 +79,10 @@ func NewRunner(r io.Reader, config *Config) (Runner, error) {
 		return nil, err
 	}
 	if len(pctx.errors) > 0 {
-		//TODO: print each error
+		for _, e := range pctx.errors {
+			glog.Errorf("%v", e)
+		}
+
 		return nil, errors.New("error parsing serviced runner file")
 	}
 	return newRunner(config, pctx), nil
