@@ -27,12 +27,12 @@ func evalSnapshot(r *runner, n node) error {
 		return fmt.Errorf("no restore function provided for %s", SNAPSHOT)
 	}
 
-	svcID, found := r.env["TENANT_ID"]
+	tID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", SNAPSHOT)
 	}
 
-	mySnapshotID, err := r.snapshot(svcID)
+	mySnapshotID, err := r.snapshot(tID)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func evalSnapshot(r *runner, n node) error {
 	exitFunc := func(failed bool) {
 		if failed && r.snapshotID == mySnapshotID {
 			glog.Infof("restoring snapshot %s", mySnapshotID)
-			if err := r.restore(mySnapshotID); err != nil {
+			if err := r.restore(tID, mySnapshotID); err != nil {
 				glog.Errorf("failed restoring snapshot %s: %v", mySnapshotID, err)
 
 			}
