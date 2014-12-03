@@ -83,7 +83,7 @@ func NewRunner(r io.Reader, config *Config) (Runner, error) {
 			glog.Errorf("%v", e)
 		}
 
-		return nil, errors.New("error parsing serviced runner file")
+		return nil, errors.New("error parsing script")
 	}
 	return newRunner(config, pctx), nil
 }
