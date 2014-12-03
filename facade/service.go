@@ -534,7 +534,7 @@ func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, port ui
 	// Pick an ip
 	total := len(ips)
 	if total == 0 {
-		err := fmt.Errorf("no IPs available")
+		err := fmt.Errorf("No IPs are available to be assigned")
 		glog.Errorf("Error acquiring IP assignment: %s", err)
 		return ipinfo{}, err
 	}
