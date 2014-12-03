@@ -15,6 +15,9 @@ package web
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -24,9 +27,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"fmt"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
@@ -493,7 +493,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 
-	//for each endpoint, evaluate it's EndpointTemplates
+	//for each endpoint, evaluate its EndpointTemplates
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := client.GetService(svcID, &svc)
@@ -532,7 +532,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	//automatically assign virtual ips to new service
 	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
-		glog.Error("Failed to automatically assign IPs: %+v -> %v", request, err)
+		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w, err)
 		return
 	}
@@ -790,7 +790,7 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *n
 	}
 
 	var filename = serviceID + time.Now().Format("2006-01-02-15-04-05") + ".log"
-	w.Header().Set("Content-Disposition", "attachment; filename=" + filename)
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 	w.Write([]byte(logs))
 }
