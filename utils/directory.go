@@ -52,7 +52,7 @@ func ResourcesDir() string {
 
 // BackupDir gets the directory where backup files are stored
 func BackupDir() string {
-	varDir := os.Getenv("SERVICED_VARPATH")
+	varDir := os.Getenv("SERVICED_HOME")
 	backupDir := ""
 
 	if varDir != "" {
