@@ -20,7 +20,6 @@ import (
 	"time"
 )
 
-var oneHundred int = 100
 var zero int = 0
 
 var InternalServicesISVC Service
@@ -67,7 +66,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -179,7 +178,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -277,7 +276,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -390,7 +389,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -503,7 +502,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -616,7 +615,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -729,7 +728,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -842,7 +841,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
