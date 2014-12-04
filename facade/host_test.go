@@ -188,7 +188,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	}
 
 	ep = services[0].Endpoints[0]
-	if ep.AddressAssignment.IPAddr != "192.168.0.2" && ep.AddressAssignment.HostID != "h2" {
+	if ep.AddressAssignment.IPAddr == "192.168.0.2" || ep.AddressAssignment.HostID == "h2" {
 		t.Fatalf("Incorrect IPAddress and HostID after remove host")
 	}
 }
