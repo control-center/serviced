@@ -23,8 +23,8 @@ type TenantIDLookup func(service string) (string, error)
 // Snapshot an application
 type Snapshot func(serviceID string) (string, error)
 
-// SnapshotRestore restore a given tenant ID and snapshot ID.
-type SnapshotRestore func(tenantID, snapshotID string) error
+// SnapshotRestore restore a given a snapshot ID.
+type SnapshotRestore func(snapshotID string) error
 
 // ServiceIDFromPath get a service id of a service given the tenant id the path to the services
 type ServiceIDFromPath func(tenantID string, path string) (string, error)
@@ -77,7 +77,7 @@ func noOpTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
 	return image, nil
 }
 
-func noOpRestore(tenantID, snapshotID string) error {
+func noOpRestore(snapshotID string) error {
 	return nil
 }
 func noOpSnapshot(serviceID string) (string, error) {

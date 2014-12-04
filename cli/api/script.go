@@ -15,7 +15,6 @@ package api
 
 import (
 	"fmt"
-	"os"
 	"path"
 
 	"github.com/control-center/serviced/dao"
@@ -41,7 +40,7 @@ func (a *api) ScriptParse(fileName string, config *script.Config) error {
 
 func initConfig(config *script.Config, a *api) {
 	config.Snapshot = a.AddSnapshot
-	config.Restore = cliRestore(a)
+	config.Restore = a.Rollback
 	config.TenantLookup = cliTenantLookup(a)
 	config.SvcIDFromPath = cliServiceIDFromPath(a)
 	config.SvcStart = cliServiceStart(a)
@@ -69,47 +68,6 @@ func cliTenantLookup(a *api) script.TenantIDLookup {
 			return "", err
 		}
 		return tID, nil
-	}
-}
-
-func cliRestore(a *api) script.SnapshotRestore {
-	return func(tenantID, snapshotID string) error {
-		client, err := a.connectDAO()
-		if err != nil {
-			return fmt.Errorf("please restore snaphsot %s manually: %v", snapshotID, err)
-		}
-		var svcs []service.Service
-		serviceRequest := dao.ServiceRequest{
-			TenantID: tenantID,
-		}
-		if err := client.GetServices(serviceRequest, &svcs); err != nil {
-			return fmt.Errorf("please restore snaphsot %s manually: %v", snapshotID, err)
-		}
-		runningServices := make(map[string]string, 0)
-		//find all services that should be running
-		for _, svc := range svcs {
-			if svc.DesiredState == int(service.SVCRun) {
-				runningServices[svc.ID] = svc.Name
-			}
-		}
-		//shut the app down recursively
-		req := dao.ScheduleServiceRequest{ServiceID: tenantID, AutoLaunch: true}
-		var count int
-		if err := client.StopService(req, &count); err != nil {
-			return fmt.Errorf("could not stop service, please restore snaphsot %s manually: %v", snapshotID, err)
-		}
-
-		if err := a.Rollback(snapshotID); err != nil {
-			return fmt.Errorf("could not restore snapshot %s, please restore manually: %v", snapshotID, err)
-		}
-		//try to restart previously running services
-		for runningID, name := range runningServices {
-			req = dao.ScheduleServiceRequest{ServiceID: runningID, AutoLaunch: false}
-			if err := client.StartService(req, &count); err != nil {
-				fmt.Fprintf(os.Stderr, "could not restart service %s %s after restore: %v\n", runningID, name, err)
-			}
-		}
-		return nil
 	}
 }
 
