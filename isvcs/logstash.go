@@ -22,18 +22,18 @@ import (
 	"github.com/zenoss/glog"
 )
 
-var logstash *Container
+var logstash *IService
 
 func init() {
 	var err error
 	command := "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
-	logstash, err = NewContainer(
-		ContainerDescription{
+	logstash, err = NewIService(
+		IServiceDefinition{
 			Name:        "logstash",
 			Repo:        IMAGE_REPO,
 			Tag:         IMAGE_TAG,
 			Command:     func() string { return command },
-			Ports:       []int{5042, 5043, 9292},
+			Ports:       []uint16{5042, 5043, 9292},
 			Volumes:     map[string]string{},
 			Notify:      notifyLogstashConfigChange,
 			HostNetwork: true,
@@ -43,12 +43,11 @@ func init() {
 	}
 }
 
-func notifyLogstashConfigChange(c *Container, value interface{}) error {
+func notifyLogstashConfigChange(svc *IService, value interface{}) error {
 
 	if message, ok := value.(string); ok {
 		if message == "restart logstash" {
-			c.Stop()
-			return c.Start()
+			return svc.Restart()
 		}
 	}
 	return nil

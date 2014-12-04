@@ -35,6 +35,13 @@ const (
 	afterPoolDelete  = afterEvent("AfterPoolDelete")
 )
 
+var (
+	ErrPoolExists    = errors.New("facade: resource pool exists")
+	ErrPoolNotExists = errors.New("facade: resource pool does not exist")
+	ErrIPExists      = errors.New("facade: ip exists in resource pool")
+	ErrIPNotExists   = errors.New("facade: ip does not exist in resource pool")
+)
+
 //PoolIPs type for IP resources available in a ResourcePool
 type PoolIPs struct {
 	PoolID     string
@@ -42,39 +49,97 @@ type PoolIPs struct {
 	VirtualIPs []pool.VirtualIP
 }
 
-// AddResourcePool add resource pool to index
+// AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
-	glog.V(2).Infof("Facade.AddResourcePool: %+v", entity)
-	if exists, err := f.GetResourcePool(ctx, entity.ID); err != nil {
+	if pool, err := f.GetResourcePool(ctx, entity.ID); err != nil {
 		return err
-	} else if exists != nil {
-		return fmt.Errorf("pool already exists: %s", entity.ID)
+	} else if pool != nil {
+		return ErrPoolExists
 	}
 
-	var err error
-	ec := newEventCtx()
-	defer f.afterEvent(afterPoolAdd, ec, entity, err)
-
-	if err = f.beforeEvent(beforePoolAdd, ec, entity); err != nil {
-		return err
-	}
-
+	vips := entity.VirtualIPs
+	entity.VirtualIPs = []pool.VirtualIP{}
 	// TODO: Get rid of me when we have front-end functionality of pool realms
 	if entity.Realm == "" {
 		entity.Realm = defaultRealm
 	}
-
 	now := time.Now()
 	entity.CreatedAt = now
 	entity.UpdatedAt = now
-	if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+
+	// Add the pool
+	evtctx := newEventCtx()
+	err := f.beforeEvent(beforePoolAdd, evtctx, entity)
+	defer f.afterEvent(afterPoolAdd, evtctx, entity, err)
+	if err != nil {
+		return err
+	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).AddResourcePool(entity); err != nil {
 		return err
 	}
-	err = zkAPI(f).AddResourcePool(entity)
-	return err
+
+	if vips != nil && len(vips) > 0 {
+		entity.VirtualIPs = vips
+		return f.UpdateResourcePool(ctx, entity)
+	}
+	return nil
 }
 
-func (f *Facade) hasVirtualIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error) {
+// UpdateResourcePool updates an existing resource pool
+func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
+	current, err := f.GetResourcePool(ctx, entity.ID)
+	if err != nil {
+		return err
+	} else if current == nil {
+		return ErrPoolNotExists
+	}
+
+	currentVIPs := make(map[string]pool.VirtualIP)
+	for _, vip := range current.VirtualIPs {
+		currentVIPs[vip.IP] = vip
+	}
+
+	var newVIPs []pool.VirtualIP
+
+	// Add the virtual ips that do not already exist
+	for _, vip := range entity.VirtualIPs {
+		if _, ok := currentVIPs[vip.IP]; ok {
+			delete(currentVIPs, vip.IP)
+		} else if err := f.addVirtualIP(ctx, &vip); err != nil {
+			glog.Warningf("Could not add virtual ip %s: %s", vip.IP, err)
+		} else {
+			newVIPs = append(newVIPs, vip)
+		}
+	}
+
+	// Delete the remaining virtual ips
+	for _, vip := range currentVIPs {
+		if err := f.removeVirtualIP(ctx, vip.PoolID, vip.IP); err != nil {
+			glog.Warningf("Could not remove virtual ip %s: %s", vip.IP, err)
+			newVIPs = append(newVIPs, vip)
+		}
+	}
+
+	entity.VirtualIPs = newVIPs
+	entity.UpdatedAt = time.Now()
+
+	evtctx := newEventCtx()
+	err = f.beforeEvent(beforePoolUpdate, evtctx, entity)
+	defer f.afterEvent(afterPoolUpdate, evtctx, entity, err)
+	if err != nil {
+		return err
+	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// HasIP checks if a pool uses a particular IP address
+func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error) {
 	if exists, err := f.poolStore.HasVirtualIP(ctx, poolID, ipAddr); err != nil {
 		glog.Errorf("Could not look up ip %s for pool %s: %s", ipAddr, poolID, err)
 		return false, err
@@ -92,83 +157,102 @@ func (f *Facade) hasVirtualIP(ctx datastore.Context, poolID string, ipAddr strin
 	return false, nil
 }
 
-/*
-Ensure that any new virtual IPs are valid.
-Valid means that the strings representing the IP address and netmask are valid.
-Valid means that the IP is NOT already in the pool (neither as a static IP nor a virtual IP)
-*/
-func (f *Facade) validateVirtualIPs(ctx datastore.Context, proposedPool *pool.ResourcePool) error {
-	currentPool, err := f.GetResourcePool(ctx, proposedPool.ID)
+// AddVirtualIP adds a virtualIP to a pool
+func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
+	entity, err := f.GetResourcePool(ctx, vip.PoolID)
 	if err != nil {
-		glog.Errorf("Unable to load resource pool: %v", proposedPool.ID)
 		return err
-	} else if currentPool == nil {
-		msg := fmt.Sprintf("Pool ID: %v could not be found", proposedPool.ID)
-		return errors.New(msg)
+	} else if entity == nil {
+		return ErrPoolNotExists
 	}
 
-	// are the virtual IPs the same?
-	if !currentPool.VirtualIPsEqual(proposedPool) {
-		currentVirtualIPs := make(map[string]pool.VirtualIP)
-		for _, virtualIP := range currentPool.VirtualIPs {
-			currentVirtualIPs[virtualIP.IP] = virtualIP
-		}
-		proposedVirtualIPs := make(map[string]pool.VirtualIP)
-		for _, virtualIP := range proposedPool.VirtualIPs {
-			if _, keyAlreadyExists := proposedVirtualIPs[virtualIP.IP]; keyAlreadyExists {
-				return fmt.Errorf("duplicate virtual IP request: %v", virtualIP.IP)
-			}
-			proposedVirtualIPs[virtualIP.IP] = virtualIP
-		}
-
-		for key, proposedVirtualIP := range proposedVirtualIPs {
-			// check to see if the proposedVirtualIP is a NEW one
-			if _, keyExists := currentVirtualIPs[key]; !keyExists {
-				// virtual IPs will be added, need to validate this virtual IP
-				if err := validation.IsIP(proposedVirtualIP.IP); err != nil {
-					return err
-				}
-				if err := validation.IsIP(proposedVirtualIP.Netmask); err != nil {
-					return err
-				}
-				if err := validation.NotEmpty("Bind Interface", proposedVirtualIP.BindInterface); err != nil {
-					return err
-				}
-
-				ipAddressAlreadyExists, err := f.hasVirtualIP(ctx, proposedPool.ID, proposedVirtualIP.IP)
-				if err != nil {
-					return err
-				} else if ipAddressAlreadyExists {
-					return fmt.Errorf("cannot add requested virtual IP address: %v as it already exists in pool: %v", proposedVirtualIP.IP, proposedVirtualIP.PoolID)
-				}
-			}
-		}
+	if err := f.addVirtualIP(ctx, &vip); err != nil {
+		return err
 	}
+	entity.VirtualIPs = append(entity.VirtualIPs, vip)
+	entity.UpdatedAt = time.Now()
+
+	evtctx := newEventCtx()
+	err = f.beforeEvent(beforePoolUpdate, evtctx, entity)
+	defer f.afterEvent(afterPoolUpdate, evtctx, entity, err)
+	if err != nil {
+		return err
+	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
+		return err
+	}
+
 	return nil
 }
 
-// UpdateResourcePool updates a ResourcePool
-func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
-	glog.V(2).Infof("Facade.UpdateResourcePool: %+v", entity)
-	if err := f.validateVirtualIPs(ctx, entity); err != nil {
+func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error {
+	pool, err := f.GetResourcePool(ctx, vip.PoolID)
+	if err != nil {
+		return err
+	} else if pool == nil {
+		return ErrPoolNotExists
+	}
+
+	if err := validation.IsIP(vip.IP); err != nil {
+		return err
+	} else if err := validation.IsIP(vip.Netmask); err != nil {
+		return err
+	} else if validation.NotEmpty("Bind Interface", vip.BindInterface); err != nil {
 		return err
 	}
 
-	var err error
-	ec := newEventCtx()
-	defer f.afterEvent(afterPoolUpdate, ec, entity, err)
+	if exists, err := f.HasIP(ctx, vip.PoolID, vip.IP); err != nil {
+		return err
+	} else if exists {
+		return ErrIPExists
+	}
 
-	if err = f.beforeEvent(beforePoolUpdate, ec, entity); err != nil {
+	// add virtual ip to zookeeper
+	return zkAPI(f).AddVirtualIP(vip)
+}
+
+// RemoveVirtualIP removes a virtual ip from a pool
+func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
+	entity, err := f.GetResourcePool(ctx, vip.PoolID)
+	if err != nil {
+		return err
+	} else if entity == nil {
+		return ErrPoolNotExists
+	}
+
+	if err := f.removeVirtualIP(ctx, vip.PoolID, vip.IP); err != nil {
+		return err
+	}
+	for i, currentVIP := range entity.VirtualIPs {
+		if currentVIP.IP == vip.IP {
+			entity.VirtualIPs = append(entity.VirtualIPs[:i], entity.VirtualIPs[i+1:]...)
+			break
+		}
+	}
+
+	evtctx := newEventCtx()
+	err = f.beforeEvent(beforePoolUpdate, evtctx, entity)
+	defer f.afterEvent(afterPoolUpdate, evtctx, entity, err)
+	if err != nil {
+		return err
+	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+		return err
+	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
 		return err
 	}
 
-	now := time.Now()
-	entity.UpdatedAt = now
-	if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
+	return nil
+}
+
+func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) error {
+	if exists, err := f.poolStore.HasVirtualIP(ctx, poolID, ipAddr); err != nil {
 		return err
+	} else if !exists {
+		return ErrIPNotExists
 	}
-	err = zkAPI(f).UpdateResourcePool(entity)
-	return err
+
+	return zkAPI(f).RemoveVirtualIP(&pool.VirtualIP{PoolID: poolID, IP: ipAddr})
 }
 
 // RemoveResourcePool removes a ResourcePool
@@ -325,54 +409,6 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, err
 	virtualIPs = append(virtualIPs, myPool.VirtualIPs...)
 
 	return &PoolIPs{PoolID: poolID, HostIPs: hostIPs, VirtualIPs: virtualIPs}, nil
-}
-
-func (f *Facade) AddVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
-	myPool, err := f.GetResourcePool(ctx, requestedVirtualIP.PoolID)
-	if err != nil {
-		glog.Errorf("Unable to load resource pool: %v", requestedVirtualIP.PoolID)
-		return err
-	} else if myPool == nil {
-		msg := fmt.Sprintf("Pool ID: %v could not be found", requestedVirtualIP.PoolID)
-		return errors.New(msg)
-	}
-
-	myPool.VirtualIPs = append(myPool.VirtualIPs, requestedVirtualIP)
-	if err := f.UpdateResourcePool(ctx, myPool); err != nil {
-		return err
-	}
-	if err := zkAPI(f).AddVirtualIP(&requestedVirtualIP); err != nil {
-		return err
-	}
-	return nil
-}
-
-func (f *Facade) RemoveVirtualIP(ctx datastore.Context, requestedVirtualIP pool.VirtualIP) error {
-	myPool, err := f.GetResourcePool(ctx, requestedVirtualIP.PoolID)
-	if err != nil {
-		glog.Errorf("Unable to load resource pool: %v", requestedVirtualIP.PoolID)
-		return err
-	} else if myPool == nil {
-		msg := fmt.Sprintf("Pool ID: %v could not be found", requestedVirtualIP.PoolID)
-		return errors.New(msg)
-	}
-
-	for virtualIPIndex, virtualIP := range myPool.VirtualIPs {
-		if virtualIP.IP == requestedVirtualIP.IP {
-			myPool.VirtualIPs = append(myPool.VirtualIPs[:virtualIPIndex], myPool.VirtualIPs[virtualIPIndex+1:]...)
-			if err := f.UpdateResourcePool(ctx, myPool); err != nil {
-				return err
-			}
-			if err := zkAPI(f).RemoveVirtualIP(&requestedVirtualIP); err != nil {
-				return err
-			}
-			glog.Infof("Removed virtual IP: %v from pool: %v", virtualIP.IP, requestedVirtualIP.PoolID)
-			return nil
-		}
-	}
-
-	errMsg := fmt.Sprintf("Cannot remove requested virtual IP address: %v (does not exist)", requestedVirtualIP.IP)
-	return errors.New(errMsg)
 }
 
 var defaultRealm = "default"

@@ -103,6 +103,10 @@
 # Set to 0 in order to disable root user control center login
 # SERVICED_ALLOW_ROOT_LOGIN=1
 
+# Max size of Logstash data to keep in gigabytes
+# SERVICED_LOGSTASH_MAX_SIZE=10
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
+
 

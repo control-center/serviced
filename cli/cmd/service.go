@@ -180,6 +180,7 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
 					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"user", "", "container username used to run command"},
 				},
 			}, {
 				Name:         "attach",
@@ -970,6 +971,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
+		Username:         ctx.GlobalString("user"),
 		Args:             argv,
 		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),

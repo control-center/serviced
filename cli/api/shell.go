@@ -34,6 +34,7 @@ type ShellConfig struct {
 	ServiceID        string
 	Command          string
 	Args             []string
+	Username         string
 	SaveAs           string
 	IsTTY            bool
 	Mounts           []string
@@ -155,12 +156,17 @@ func (a *api) RunShell(config ShellConfig) error {
 	quotedArgs := utils.ShellQuoteArgs(config.Args)
 	command = strings.Join([]string{command, quotedArgs}, " ")
 
+	asUser := "su - root -c "
+	if config.Username != "" && config.Username != "root" {
+		asUser = fmt.Sprintf("su - %s -c ", config.Username)
+	}
+
 	cfg := shell.ProcessConfig{
 		ServiceID:   config.ServiceID,
 		IsTTY:       config.IsTTY,
 		SaveAs:      config.SaveAs,
 		Mount:       mounts,
-		Command:     "su - zenoss -c " + utils.ShellQuoteArg(command),
+		Command:     asUser + utils.ShellQuoteArg(command),
 		LogToStderr: config.LogToStderr,
 	}
 

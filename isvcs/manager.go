@@ -19,15 +19,18 @@
 package isvcs
 
 import (
+	"time"
+
+	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/zenoss/glog"
-	"github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path"
-	"strings"
+	"sync"
 )
 
 // managerOp is a type of manager operation (stop, start, notify)
@@ -44,16 +47,25 @@ const (
 	managerOpWipe                               // wipe all data associated with volumes
 )
 
-var ErrManagerUnknownOp error
-var ErrManagerNotRunning error
-var ErrManagerRunning error
-var ErrImageNotExists error
-
-func init() {
-	ErrManagerUnknownOp = errors.New("manager: unknown operation")
+var (
+	ErrManagerUnknownOp  = errors.New("manager: unknown operation")
+	ErrManagerUnknownArg = errors.New("manager: unknown arg type")
 	ErrManagerNotRunning = errors.New("manager: not running")
-	ErrManagerRunning = errors.New("manager: already running")
-	ErrImageNotExists = errors.New("manager: image does not exist")
+	ErrManagerRunning    = errors.New("manager: already running")
+	ErrImageNotExists    = errors.New("manager: image does not exist")
+	ErrNotifyFailed      = errors.New("manager: notification failure")
+)
+
+type StartError int
+
+func (err StartError) Error() string {
+	return fmt.Sprintf("manager: could not start %d isvcs", int(err))
+}
+
+type StopError int
+
+func (err StopError) Error() string {
+	return fmt.Sprintf("manager: coulf not stop %d isvcs", int(err))
 }
 
 // A managerRequest describes an operation for the manager loop() to perform and a response channel
@@ -65,54 +77,32 @@ type managerRequest struct {
 
 // A manager of docker services run in ephemeral containers
 type Manager struct {
-	dockerAddress string              // the docker endpoint address to talk to
-	imagesDir     string              // local directory where images could be loaded from
-	volumesDir    string              // local directory where volumes are stored
-	requests      chan managerRequest // the main loops request channel
-	containers    map[string]*Container
+	imagesDir  string              // local directory where images could be loaded from
+	volumesDir string              // local directory where volumes are stored
+	requests   chan managerRequest // the main loops request channel
+	services   map[string]*IService
 }
 
 // Returns a new Manager struct and starts the Manager's main loop()
-func NewManager(dockerAddress, imagesDir, volumesDir string) *Manager {
+func NewManager(imagesDir, volumesDir string) *Manager {
 	manager := &Manager{
-		dockerAddress: dockerAddress,
-		imagesDir:     imagesDir,
-		volumesDir:    volumesDir,
-		requests:      make(chan managerRequest),
-		containers:    make(map[string]*Container),
+		imagesDir:  imagesDir,
+		volumesDir: volumesDir,
+		requests:   make(chan managerRequest),
+		services:   make(map[string]*IService),
 	}
 	go manager.loop()
 	return manager
 }
 
-// newDockerClient is a function pointer to the client contructor so that it can be mocked in tests
-var newDockerClient func(address string) (*docker.Client, error)
-
-func init() {
-	newDockerClient = docker.NewClient
-}
-
 // checks to see if the given repo:tag exists in docker
 func (m *Manager) imageExists(repo, tag string) (bool, error) {
-	glog.V(1).Infof("Checking for imageExists %s:%s", repo, tag)
-	if client, err := newDockerClient(m.dockerAddress); err != nil {
-		glog.Errorf("unable to start docker client at docker address: %+v", m.dockerAddress)
+	if _, err := docker.FindImage(commons.JoinRepoTag(repo, tag), false); err == docker.ErrNoSuchImage {
+		return false, nil
+	} else if err != nil {
 		return false, err
-	} else {
-		repoTag := repo + ":" + tag
-		if images, err := client.ListImages(false); err != nil {
-			return false, err
-		} else {
-			for _, image := range images {
-				for _, tagi := range image.RepoTags {
-					if string(tagi) == repoTag {
-						return true, nil
-					}
-				}
-			}
-		}
 	}
-	return false, nil
+	return true, nil
 }
 
 // SetVolumesDir sets the volumes dir for *Manager
@@ -120,53 +110,25 @@ func (m *Manager) SetVolumesDir(dir string) {
 	m.volumesDir = dir
 }
 
-func (m *Manager) SetConfigurationOption(container, key string, value interface{}) error {
-	c, found := m.containers[container]
+func (m *Manager) SetConfigurationOption(name, key string, value interface{}) error {
+	svc, found := m.services[name]
 	if !found {
-		return errors.New("could not find container")
+		return errors.New("could not find isvc")
 	}
-	glog.Infof("setting %s, %s: %s", container, key, value)
-	c.Configuration[key] = value
+	glog.Infof("setting %s, %s: %s", name, key, value)
+	svc.Configuration[key] = value
 	return nil
 }
 
 // checks for the existence of all the container images
 func (m *Manager) allImagesExist() error {
-	for _, c := range m.containers {
+	for _, c := range m.services {
 		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
 			return err
 		} else {
 			if !exists {
 				return ErrImageNotExists
 			}
-		}
-	}
-	return nil
-}
-
-// loadImage() loads a docker image from a tar export
-func loadImage(tarball, dockerAddress, repoTag string) error {
-
-	if file, err := os.Open(tarball); err != nil {
-		return err
-	} else {
-		defer file.Close()
-		cmd := exec.Command("docker", "-H", dockerAddress, "import", "-")
-		cmd.Stdin = file
-		glog.Infof("Loading docker image %+v with docker import cmd: %+v", repoTag, cmd.Args)
-		output, err := cmd.CombinedOutput()
-		if err != nil {
-			glog.Errorf("unable to import docker image %+v with command:%+v output:%s err:%s", repoTag, cmd.Args, output, err)
-			return err
-		}
-
-		importedImageName := strings.Trim(string(output), "\n")
-		tagcmd := exec.Command("docker", "-H", dockerAddress, "tag", importedImageName, repoTag)
-		glog.Infof("Tagging imported docker image %s with tag %s using docker tag cmd: %+v", importedImageName, repoTag, tagcmd.Args)
-		output, err = tagcmd.CombinedOutput()
-		if err != nil {
-			glog.Errorf("unable to tag imported image %s using command:%+v output:%s err: %s\n", importedImageName, tagcmd.Args, output, err)
-			return err
 		}
 	}
 	return nil
@@ -187,15 +149,35 @@ func (m *Manager) wipe() error {
 
 	// remove volumeDir by running a container as root
 	// FIXME: detect if already root and avoid running docker
-	cmd := exec.Command("docker", "-H", m.dockerAddress,
-		"run", "--rm", "-v", m.volumesDir+":/mnt/volumes:rw", "ubuntu", "/bin/sh", "-c", "rm -Rf /mnt/volumes/*")
-	return cmd.Run()
+	var config dockerclient.Config
+	cd := &docker.ContainerDefinition{
+		dockerclient.CreateContainerOptions{Config: &config},
+		dockerclient.HostConfig{},
+	}
+
+	config.Image = "ubuntu"
+	config.Cmd = []string{"/bin/sh", "-c", "rm -Rf /mnt/volumes/*"}
+	config.Volumes = map[string]struct{}{
+		"/mnt/volumes": struct{}{},
+	}
+
+	cd.Binds = []string{m.volumesDir + ":/mnt/volumes"}
+	ctr, err := docker.NewContainer(cd, false, 5*time.Second, nil, nil)
+	if err != nil {
+		return err
+	}
+
+	ctr.OnEvent(docker.Die, func(cid string) {
+		ctr.Delete(true)
+	})
+
+	return ctr.Start(10 * time.Second)
 }
 
 // loadImages() loads all the images defined in the registered services
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
-	for _, c := range m.containers {
+	for _, c := range m.services {
 		glog.Infof("Checking isvcs container %+v", c)
 		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
 			return err
@@ -210,16 +192,15 @@ func (m *Manager) loadImages() error {
 				continue
 			}
 			if _, err := os.Stat(localTar); err == nil {
-				if err := loadImage(localTar, m.dockerAddress, imageRepoTag); err != nil {
+				if err := docker.ImportImage(imageRepoTag, localTar); err != nil {
 					return err
 				}
 				glog.Infof("Loaded %s from %s", imageRepoTag, localTar)
 				loadedImages[imageRepoTag] = true
 			} else {
 				glog.Infof("Pulling image %s", imageRepoTag)
-				cmd := exec.Command("docker", "-H", m.dockerAddress, "pull", imageRepoTag)
-				if output, err := cmd.CombinedOutput(); err != nil {
-					return fmt.Errorf("Failed to pull image:(%s) %s ", err, output)
+				if err := docker.PullImage(imageRepoTag); err != nil {
+					return fmt.Errorf("Failed to pull image %s: %s", imageRepoTag, err)
 				}
 				glog.Infof("Pulled %s", imageRepoTag)
 				loadedImages[imageRepoTag] = true
@@ -237,126 +218,135 @@ type containerStartResponse struct {
 // loop() maitainers the Manager's state
 func (m *Manager) loop() {
 
-	var running map[string]*Container
+	var once sync.Once
 
 	for {
 		select {
 		case request := <-m.requests:
 			switch request.op {
 			case managerOpWipe:
-				if running != nil {
-					request.response <- ErrManagerRunning
-					continue
+				// stop all iservices
+				var wg sync.WaitGroup
+				for name, svc := range m.services {
+					if svc.IsRunning() {
+						wg.Add(1)
+						go func(svc *IService) {
+							defer wg.Done()
+							if err := svc.Stop(); err != nil {
+								glog.Errorf("Error stopping isvc %s: %s", svc.Name, err)
+							}
+						}(m.services[name])
+					}
 				}
-				//TODO: didn't  we just check running for nil?
-				responses := make(chan error, len(running))
-				for _, c := range running {
-					go func(con *Container) {
-						responses <- con.Stop()
-					}(c)
-				}
-				runningCount := len(running)
-				for i := 0; i < runningCount; i++ {
-					<-responses
-				}
-				running = nil
+				wg.Wait()
 				request.response <- m.wipe()
-
 			case managerOpNotify:
-				var retErr error
-				for _, c := range running {
-					if c.Notify != nil {
-						if err := c.Notify(c, request.val); err != nil {
-							retErr = err
+				var failed bool
+				for _, svc := range m.services {
+					if svc.Notify != nil && svc.IsRunning() {
+						if err := svc.Notify(svc, request.val); err != nil {
+							glog.Errorf("Could not notify isvc %s: %s", svc.Name, err)
+							failed = true
 						}
 					}
 				}
-				request.response <- retErr
-				continue
-
+				if failed {
+					request.response <- ErrNotifyFailed
+				} else {
+					request.response <- nil
+				}
 			case managerOpExit:
 				request.response <- nil
 				return // this will exit the loop()
-
 			case managerOpStart:
-				if running != nil {
-					request.response <- ErrManagerRunning
-					continue
-				}
-
-				if err := m.loadImages(); err != nil {
+				var err error
+				once.Do(func() {
+					if err = m.loadImages(); err != nil {
+						return
+					} else if err = m.allImagesExist(); err != nil {
+						return
+					}
+				})
+				if err != nil {
 					request.response <- err
 					continue
 				}
-				if err := m.allImagesExist(); err != nil {
-					request.response <- err
-				} else {
-					// start a map of running containers
-					running = make(map[string]*Container)
 
-					// start a channel to track responses
-					started := make(chan containerStartResponse, len(m.containers))
+				// track the number of services that haven't started
+				started := make(chan int)
+				var count int
+				go func() {
+					for s := range started {
+						count += s
+					}
+				}()
 
-					// start containers in parallel
-					for _, c := range m.containers {
-						running[c.Name] = c
-						go func(con *Container, respc chan containerStartResponse) {
-							glog.Infof("calling start on %s", con.Name)
-							con.SetVolumesDir(m.volumesDir)
-							resp := containerStartResponse{
-								name: con.Name,
-								err:  con.Start(),
+				// start services in parallel
+				var wg sync.WaitGroup
+				for name, svc := range m.services {
+					if !svc.IsRunning() {
+						wg.Add(1)
+						go func(svc *IService) {
+							defer wg.Done()
+							started <- 1
+							if err := svc.Start(); err != nil {
+								glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
+								return
 							}
-							respc <- resp
-						}(c, started)
+							started <- -1
+						}(m.services[name])
 					}
-
-					// wait for containers to respond to start
-					var returnErr error
-					for _, _ = range m.containers {
-						res := <-started
-						if res.err != nil {
-							returnErr = res.err
-							glog.Errorf("%s failed with %s", res.name, res.err)
-							delete(running, res.name)
-						} else {
-							glog.Infof("%s started", res.name)
-						}
-					}
-					request.response <- returnErr
 				}
-			case managerOpStop:
-				if running == nil {
-					request.response <- ErrManagerNotRunning
-					continue
-				}
-				responses := make(chan error, len(running))
-				for _, c := range running {
-					go func(con *Container) {
-						responses <- con.Stop()
-					}(c)
-				}
-				runningCount := len(running)
-				for i := 0; i < runningCount; i++ {
-					<-responses
-				}
-				running = nil
-				request.response <- nil
-			case managerOpRegisterContainer:
-				if running != nil {
-					request.response <- ErrManagerRunning
-					continue
-				}
-				if container, ok := request.val.(*Container); !ok {
-					panic(errors.New("manager unknown arg type"))
+				wg.Wait()
+				close(started)
+				if count > 0 {
+					request.response <- StartError(count)
 				} else {
-					m.containers[container.Name] = container
 					request.response <- nil
 				}
-				continue
+			case managerOpStop:
+				// track the number of services that haven't stopped
+				stopped := make(chan int)
+				var count int
+				go func() {
+					for s := range stopped {
+						count += s
+					}
+				}()
+
+				// stop services in parallel
+				var wg sync.WaitGroup
+				for name, svc := range m.services {
+					if svc.IsRunning() {
+						wg.Add(1)
+						go func(svc *IService) {
+							defer wg.Done()
+							stopped <- 1
+							if err := svc.Stop(); err != nil {
+								glog.Errorf("Error stopping isvc %s: %s", svc.Name, err)
+								return
+							}
+							stopped <- -1
+						}(m.services[name])
+					}
+				}
+				wg.Wait()
+				close(stopped)
+				if count > 0 {
+					request.response <- StopError(count)
+				} else {
+					request.response <- nil
+				}
+			case managerOpRegisterContainer:
+				svc, ok := request.val.(*IService)
+				if !ok {
+					request.response <- ErrManagerUnknownArg
+				} else {
+					m.services[svc.Name] = svc
+					request.response <- nil
+				}
 			case managerOpInit:
 				request.response <- nil
-
 			default:
 				request.response <- ErrManagerUnknownOp
 			}
@@ -375,10 +365,10 @@ func (m *Manager) makeRequest(op managerOp) error {
 }
 
 // Register() registers a container to be managed by the *Manager
-func (m *Manager) Register(c *Container) error {
+func (m *Manager) Register(svc *IService) error {
 	request := managerRequest{
 		op:       managerOpRegisterContainer,
-		val:      c,
+		val:      svc,
 		response: make(chan error),
 	}
 	m.requests <- request

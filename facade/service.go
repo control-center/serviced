@@ -388,6 +388,41 @@ type ipinfo struct {
 	Port   uint16
 }
 
+func (f *Facade) RestoreIPs(ctx datastore.Context, svc service.Service) error {
+	for _, ep := range svc.Endpoints {
+		if ep.IsConfigurable() && ep.AddressAssignment.IPAddr != "" {
+			if assign, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, ep.Name); err != nil {
+				glog.Errorf("Could not look up address assignment %s for service %s (%s): %s", ep.Name, svc.Name, svc.ID, err)
+				return err
+			} else if assign == nil || !assign.EqualIP(ep.AddressAssignment) {
+				ip, err := f.getManualAssignment(ctx, svc.PoolID, ep.AddressAssignment.IPAddr, ep.AddressConfig.Port)
+				if err != nil {
+					glog.Warningf("Could not assign ip (%s) to endpoint %s for service %s (%s): %s", ep.AddressAssignment.IPAddr, ep.Name, svc.Name, svc.ID, err)
+					continue
+				}
+
+				assign = &addressassignment.AddressAssignment{
+					AssignmentType: ip.Type,
+					HostID:         ip.HostID,
+					PoolID:         svc.PoolID,
+					IPAddr:         ip.IP,
+					Port:           ip.Port,
+					ServiceID:      svc.ID,
+					EndpointName:   ep.Name,
+				}
+				if _, err := f.assign(ctx, *assign); err != nil {
+					glog.Errorf("Could not restore address assignment for %s of service %s at %s:%d: %s", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port, err)
+					return err
+				}
+				glog.Infof("Restored address assignment for endpoint %s of service %s at %s:%d", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port)
+			} else {
+				glog.Infof("Endpoint %s for service %s (%s) already assigned; skipping", assign.EndpointName, assign.ServiceID)
+			}
+		}
+	}
+	return nil
+}
+
 func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest) error {
 	visitor := func(svc *service.Service) error {
 		for _, endpoint := range svc.Endpoints {
@@ -499,7 +534,7 @@ func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, port ui
 	// Pick an ip
 	total := len(ips)
 	if total == 0 {
-		err := fmt.Errorf("no IPs available")
+		err := fmt.Errorf("No IPs are available to be assigned")
 		glog.Errorf("Error acquiring IP assignment: %s", err)
 		return ipinfo{}, err
 	}
@@ -826,7 +861,7 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 			}
 
 			// verify the ip exists
-			if exists, err := f.hasVirtualIP(ctx, svc.PoolID, assignment.IPAddr); err != nil {
+			if exists, err := f.HasIP(ctx, svc.PoolID, assignment.IPAddr); err != nil {
 				glog.Errorf("Error validating address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
 				return err
 			} else if !exists {

@@ -17,18 +17,18 @@ import (
 	"github.com/zenoss/glog"
 )
 
-var celery *Container
+var celery *IService
 
 func init() {
 	var err error
 	command := "supervisord -n -c /opt/celery/etc/supervisor.conf"
-	celery, err = NewContainer(
-		ContainerDescription{
+	celery, err = NewIService(
+		IServiceDefinition{
 			Name:    "celery",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
-			Command: func() string {return command},
-			Ports:   []int{},
+			Command: func() string { return command },
+			Ports:   []uint16{},
 			Volumes: map[string]string{"celery": "/opt/celery/var"},
 		})
 	if err != nil {

@@ -22,7 +22,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -48,8 +47,8 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 		return "", err
 	}
 
-	// Pause all running services
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	// Pause all running services for that tenant
+	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
 		glog.Errorf("Could not get all services: %s", err)
 		return "", err
@@ -118,7 +117,7 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	}
 
 	// dump the service definitions
-	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), getChildServices(tenantID, svcs)); err != nil {
+	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), svcs); err != nil {
 		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.Path(), err)
 		return "", err
 	}
@@ -150,7 +149,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 	}
 
 	// fail if any services are running
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
@@ -275,14 +274,10 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 	}
 
 	for _, image := range images {
-		imageID := image.ID
-		imageID.Tag = timestamp
-		img, err := docker.FindImage(imageID.String(), false)
-		if err != nil {
-			glog.Errorf("Could not remove tag from image %s: %s", imageID, err)
-			continue
+		glog.Infof("Removing image %s", image.ID)
+		if err := image.Delete(); err != nil {
+			glog.Warningf("Error while removing image %s: %s", image.ID, err)
 		}
-		img.Delete()
 	}
 
 	return nil
@@ -413,17 +408,23 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 					// TODO: enable this to generate a new service ID, instead of recycling
 					// the old one
 					svc.ID = ""
-					newServiceID, err = dfs.facade.AddService(svc)
+					svc.ID, err = dfs.facade.AddService(svc)
 					if err != nil {
 						glog.Errorf("Could not add service %s: %s", serviceID, err)
 						return err
 					}
 
 					// Update the service
-					serviceTree[newServiceID] = serviceTree[serviceID]
+					serviceTree[svc.ID] = serviceTree[serviceID]
 					delete(serviceTree, serviceID)
-					serviceID = newServiceID
+					serviceID = svc.ID
 				*/
+
+				// restore the address assignments
+				if err := dfs.facade.RestoreIPs(datastore.Get(), svc); err != nil {
+					glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
+				}
+
 			}
 
 			if err := traverse(serviceID); err != nil {
@@ -461,30 +462,6 @@ func parseLabel(snapshotID string) (string, string, error) {
 		return "", "", fmt.Errorf("malformed label")
 	}
 	return parts[0], parts[1], nil
-}
-
-func getChildServices(tenantID string, svcs []service.Service) []service.Service {
-	var result []service.Service
-
-	svcMap := make(map[string][]service.Service)
-	for _, svc := range svcs {
-		if svc.ID == tenantID {
-			result = append(result, svc)
-		} else {
-			childSvcs := svcMap[svc.ParentServiceID]
-			svcMap[svc.ParentServiceID] = append(childSvcs, svc)
-		}
-	}
-
-	var walk func(root string)
-	walk = func(root string) {
-		for _, svc := range svcMap[root] {
-			result = append(result, svc)
-			walk(svc.ID)
-		}
-	}
-	walk(tenantID)
-	return result
 }
 
 func exportJSON(filename string, v interface{}) error {

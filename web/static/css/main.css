@@ -129,12 +129,7 @@ table > thead.light {
     border: 0px;
 }
 
-.table-striped > tbody > tr:nth-child(even) > td,
-.table-striped > tbody > tr:nth-child(even) > th {
-    background-color: white;
-}
-.table-striped > tbody > tr:nth-child(odd) > td,
-.table-striped > tbody > tr:nth-child(odd) > th {
+.table > tbody > tr:hover > td {
     background-color: #F0F3F7;
 }
 
@@ -945,13 +940,30 @@ rect {
     margin-top: 20px;
 }
 
+/* health and status popover content */
 .popover{
     max-width: none;
+    line-height: 1.5;
 }
 
 .popover table{
     white-space: nowrap;
 }
+.popover .healthTooltipDetailRow {
+    position: relative;
+    font-size: 12px;
+}
+.popover .healthTooltipDetailRow .healthTooltipDetailName {
+    display: inline-block;
+}
+.popover .healthTooltipDetailRow .healthIcon {
+    top: 1px;
+    font-size: 15px;
+}
+.popover .healthTooltipDetailRow .healthTooltipDetailName {
+    padding-left: 18px;
+}
+
 
 .chartContainer {
   position: relative;
@@ -1293,20 +1305,6 @@ rect {
     content: "\e082";
 }
 
-.healthTooltipDetailRow {
-    position: relative;
-    font-size: 12px;
-}
-.healthTooltipDetailRow .healthTooltipDetailName {
-    display: inline-block;
-}
-.healthTooltipDetailRow .healthIcon {
-    top: 1px;
-    font-size: 15px;
-}
-.healthTooltipDetailRow .healthTooltipDetailName {
-    padding-left: 18px;
-}
 
 h3 .healthCheck {
     top: 2px;
