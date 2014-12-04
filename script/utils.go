@@ -7,6 +7,7 @@ package script
 import (
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"regexp"
 
@@ -43,6 +44,8 @@ type findTenant func(string) (string, error)
 
 func defaultExec(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
+	cmd.Stderr = os.Stderr
+	cmd.Stdout = os.Stdout
 	return cmd.Run()
 }
 
