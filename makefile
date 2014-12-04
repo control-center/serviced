@@ -244,6 +244,7 @@ $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logr
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
+$(_DESTDIR)$(prefix)/doc_TARGETS                  += doc/licenses.html:.
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
 $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
