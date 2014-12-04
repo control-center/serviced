@@ -58,7 +58,6 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "isvcname": [isvcname]
             },
             "type": "line",
-            "downsample": "1m-avg",
             "timezone": jstz.determine().name()
         };
     };
@@ -92,7 +91,6 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "isvcname": [isvcname]
             },
             "type": "line",
-            "downsample": "1m-avg",
             "timezone": jstz.determine().name()
         };
     };

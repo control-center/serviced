@@ -75,7 +75,6 @@ func init() {
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
 					Type:       "area",
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -115,7 +114,6 @@ func init() {
 					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -188,7 +186,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -229,7 +226,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -286,7 +282,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-serviced"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -327,7 +322,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-serviced"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -399,7 +393,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -440,7 +433,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -512,7 +504,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -553,7 +544,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -625,7 +615,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -666,7 +655,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -738,7 +726,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -779,7 +766,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -851,7 +837,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -892,7 +877,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
