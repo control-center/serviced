@@ -10,8 +10,6 @@ import (
 	"github.com/control-center/serviced/commons"
 )
 
-type lineParser func(*parseContext, string, []string) (node, error)
-
 var (
 	nodeFactories map[string]lineParser
 
@@ -32,14 +30,14 @@ func init() {
 	nodeFactories = map[string]lineParser{
 		"":          parseEmtpyCommand,
 		"#":         parseEmtpyCommand,
-		DESCRIPTION: atMost(1, parseDescription),
-		VERSION:     atMost(1, parseOneArg),
-		REQUIRE_SVC: atMost(1, parseNoArgs),
-		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseNoArgs),
-		USE:         require([]string{REQUIRE_SVC}, parseImageID),
-		SVC_RUN:     require([]string{REQUIRE_SVC}, parseSvcRun),
-		SVC_START:   require([]string{REQUIRE_SVC}, atMost(1, parseOneArg)),
-		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseOneArg)),
+		DESCRIPTION: atMost(1, parseArgCount(min(1), buildNode)),
+		VERSION:     atMost(1, parseArgCount(equals(1), buildNode)),
+		REQUIRE_SVC: atMost(1, parseArgCount(equals(0), buildNode)),
+		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseArgCount(equals(0), buildNode)),
+		USE:         require([]string{REQUIRE_SVC}, parseImageID(parseArgCount(equals(1), buildNode))),
+		SVC_RUN:     require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
+		SVC_START:   require([]string{REQUIRE_SVC}, parseArgCount(equals(1), buildNode)),
+		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
 
@@ -52,49 +50,60 @@ type node struct {
 	lineNum int
 }
 
+type lineParser func(*parseContext, string, []string) (node, error)
+
+type match func(int) error
+
+func equals(n int) match {
+	return func(x int) error {
+		if x != n {
+			return fmt.Errorf("expected %v, got %v", n, x)
+		}
+		return nil
+	}
+}
+
+func min(n int) match {
+	return func(x int) error {
+		if n <= x {
+			return nil
+		}
+		return fmt.Errorf("expected at least %v, got %v", n, x)
+	}
+}
+
 func parseEmtpyCommand(ctx *parseContext, cmd string, args []string) (node, error) {
 	return emptyNode, nil
 }
 
-func parseDescription(ctx *parseContext, cmd string, args []string) (node, error) {
-	if len(args) == 0 {
-		return node{}, fmt.Errorf("line %d: %s is empty", ctx.lineNum, cmd, args)
-	}
+func buildNode(ctx *parseContext, cmd string, args []string) (node, error) {
 	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
-func parseOneArg(ctx *parseContext, cmd string, args []string) (node, error) {
-	if len(args) != 1 {
-		return node{}, fmt.Errorf("line %d: expected one argument, got: %s", ctx.lineNum, ctx.line)
+func parseArgCount(matcher match, parser lineParser) lineParser {
+	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
+		n, err := parser(ctx, cmd, args)
+		if err == nil {
+			if err := matcher(len(args)); err != nil {
+				fmt.Printf("matching args %#v\n", n)
+				return node{}, fmt.Errorf("line %d: %v: %s", ctx.lineNum, err, ctx.line)
+			}
+		}
+		return n, err
 	}
-	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
+	return f
 }
-
-func parseNoArgs(ctx *parseContext, cmd string, args []string) (node, error) {
-	if len(args) != 0 {
-		return node{}, fmt.Errorf("line %d: %s does not accept arguments: %s", ctx.lineNum, cmd, ctx.line)
+func parseImageID(parser lineParser) lineParser {
+	return func(ctx *parseContext, cmd string, args []string) (node, error) {
+		n, err := parser(ctx, cmd, args)
+		if err == nil {
+			_, err := commons.ParseImageID(args[0])
+			if err != nil {
+				return node{}, err
+			}
+		}
+		return n, err
 	}
-	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: []string{}}, nil
-}
-
-func parseImageID(ctx *parseContext, cmd string, args []string) (node, error) {
-	if len(args) != 1 {
-		return node{}, fmt.Errorf("line %d: expected one argument, got: %s", ctx.lineNum, ctx.line)
-	}
-	_, err := commons.ParseImageID(args[0])
-	if err != nil {
-		return node{}, err
-	}
-
-	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
-}
-
-func parseSvcRun(ctx *parseContext, cmd string, args []string) (node, error) {
-	if len(args) < 2 {
-		return node{}, fmt.Errorf("line %d: expected at least two arguments, got: %s", ctx.lineNum, ctx.line)
-	}
-	//TODO: validate contents
-	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
 //validParents checks that there are no previous command or previous commands are only in parents list

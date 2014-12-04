@@ -37,11 +37,11 @@ func (vs *ScriptSuite) Test_parseFile(t *C) {
 
 	ctx.line = "SVC_USE  zenoss/resmgr-stable:5.0.1"
 	ctx.lineNum = 10
-	use1, _ := parseImageID(ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
+	use1, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
 
 	ctx.line = "SVC_USE  zenoss/hbase:v5"
 	ctx.lineNum = 11
-	use2, _ := parseImageID(ctx, USE, []string{"zenoss/hbase:v5"})
+	use2, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/hbase:v5"})
 	expected := []node{
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
@@ -69,11 +69,11 @@ func (vs *ScriptSuite) Test_parseDescriptor(t *C) {
 
 	ctx.line = "SVC_USE  zenoss/resmgr-stable:5.0.1"
 	ctx.lineNum = 9
-	use1, _ := parseImageID(ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
+	use1, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
 
 	ctx.line = "SVC_USE  zenoss/hbase:v5"
 	ctx.lineNum = 10
-	use2, _ := parseImageID(ctx, USE, []string{"zenoss/hbase:v5"})
+	use2, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/hbase:v5"})
 	expected := []node{
 		node{lineNum: 3, cmd: DESCRIPTION, args: []string{"Zenoss", "RM", "5.0.1", "upgrade"}, line: "DESCRIPTION  Zenoss RM 5.0.1 upgrade"},
 		node{lineNum: 4, cmd: VERSION, args: []string{"resmgr-5.0.1"}, line: "VERSION   resmgr-5.0.1"},
