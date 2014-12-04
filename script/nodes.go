@@ -6,6 +6,7 @@ package script
 
 import (
 	"fmt"
+	"regexp"
 
 	"github.com/control-center/serviced/commons"
 )
@@ -20,6 +21,8 @@ var (
 	USE         = "SVC_USE"
 	SVC_RUN     = "SVC_RUN"
 	SVC_START   = "SVC_START"
+	SVC_STOP    = "SVC_STOP"
+	SVC_RESTART = "SVC_RESTART"
 	DEPENDENCY  = "DEPENDENCY"
 
 	EMPTY     = "EMPTY"
@@ -36,7 +39,9 @@ func init() {
 		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseArgCount(equals(0), buildNode)),
 		USE:         require([]string{REQUIRE_SVC}, parseImageID(parseArgCount(equals(1), buildNode))),
 		SVC_RUN:     require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
-		SVC_START:   require([]string{REQUIRE_SVC}, parseArgCount(equals(1), buildNode)),
+		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
+		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
+		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
@@ -63,6 +68,27 @@ func equals(n int) match {
 	}
 }
 
+func bounds(minN, maxN int) match {
+	return func(x int) error {
+		if err := min(minN)(x); err != nil {
+			return err
+		}
+		if err := max(maxN)(x); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func max(n int) match {
+	return func(x int) error {
+		if n >= x {
+			return nil
+		}
+		return fmt.Errorf("expected at at most %v, got %v", n, x)
+	}
+}
+
 func min(n int) match {
 	return func(x int) error {
 		if n <= x {
@@ -80,12 +106,31 @@ func buildNode(ctx *parseContext, cmd string, args []string) (node, error) {
 	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
 
+func parseArgMatch(argN int, pattern string, optional bool, parser lineParser) lineParser {
+	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
+		n, err := parser(ctx, cmd, args)
+		if err == nil {
+			if argN < len(args) {
+				//try to match
+				if matched, err := regexp.MatchString(pattern, args[argN]); !matched {
+					return node{}, fmt.Errorf("line %d: arg %s did not match %s", ctx.lineNum, args[argN], pattern)
+				} else if err != nil {
+					return node{}, fmt.Errorf("line %d: %v", ctx.lineNum, err)
+				}
+			} else if !optional {
+				return node{}, fmt.Errorf("line %d: no arg at position %v", ctx.lineNum, argN)
+			}
+		}
+		return n, err
+	}
+	return f
+}
+
 func parseArgCount(matcher match, parser lineParser) lineParser {
 	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
 		n, err := parser(ctx, cmd, args)
 		if err == nil {
 			if err := matcher(len(args)); err != nil {
-				fmt.Printf("matching args %#v\n", n)
 				return node{}, fmt.Errorf("line %d: %v: %s", ctx.lineNum, err, ctx.line)
 			}
 		}

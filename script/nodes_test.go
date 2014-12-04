@@ -5,6 +5,8 @@
 package script
 
 import (
+	"fmt"
+
 	. "gopkg.in/check.v1"
 )
 
@@ -108,5 +110,38 @@ func (vs *ScriptSuite) Test_svcrun(t *C) {
 	ctx.line = "SVC_RUN"
 	cmd, err = nodeFactories[SVC_RUN](ctx, SVC_RUN, []string{})
 	t.Assert(err, ErrorMatches, "line 0: expected at least 2, got 0: SVC_RUN")
+
+}
+
+func (vs *ScriptSuite) Test_svcStartStopRestart(t *C) {
+
+	cmds := []string{SVC_START, SVC_STOP, SVC_RESTART}
+
+	for _, cmd := range cmds {
+		ctx := newParseContext()
+		line := fmt.Sprintf("%s zope", cmd)
+		ctx.line = line
+		n, err := nodeFactories[cmd](ctx, cmd, []string{"zope"})
+		t.Assert(err, IsNil)
+		t.Assert(n, DeepEquals, node{cmd: cmd, line: line, args: []string{"zope"}})
+
+		line = fmt.Sprintf("%s zope auto", cmd)
+		ctx.line = line
+		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "auto"})
+		t.Assert(err, IsNil)
+		t.Assert(n, DeepEquals, node{cmd: cmd, line: line, args: []string{"zope", "auto"}})
+
+		line = fmt.Sprintf("%s zope recurse", cmd)
+		ctx.line = line
+		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "recurse"})
+		t.Assert(err, IsNil)
+		t.Assert(n, DeepEquals, node{cmd: cmd, line: line, args: []string{"zope", "recurse"}})
+
+		line = fmt.Sprintf("%s zope recurse", cmd)
+		ctx.line = line
+		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "recurseauto"})
+		t.Assert(err, NotNil)
+
+	}
 
 }

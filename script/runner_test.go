@@ -26,15 +26,14 @@ func (vs *ScriptSuite) Test_Run(t *C) {
 	t.Assert(err, ErrorMatches, "error parsing script")
 
 	config = Config{
-		NoOp:      true,
-		ServiceID: "TEST_SERVICE_ID_12345",
-		TenantLookup: func(service string) (string, error) {
-			return "", errors.New("tenant error for test")
-		},
+		NoOp:          true,
+		ServiceID:     "TEST_SERVICE_ID_12345",
+		TenantLookup:  func(service string) (string, error) { return service, nil },
+		SvcIDFromPath: func(tenant, path string) (string, error) { return "", errors.New("test error id from path") },
 	}
 	runner, err = NewRunnerFromFile("descriptor_test.txt", &config)
 	t.Assert(err, IsNil)
 	err = runner.Run()
-	t.Assert(err, ErrorMatches, "tenant error for test")
+	t.Assert(err, ErrorMatches, "test error id from path")
 
 }
