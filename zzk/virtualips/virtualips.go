@@ -221,8 +221,8 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 		case <-shutdown:
 			if err := l.unbind(ip); err != nil {
 				glog.Errorf("Could not unbind to virtual ip %s: %s", ip, err)
-				return
 			}
+			return
 		}
 	}
 }

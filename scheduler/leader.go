@@ -71,10 +71,6 @@ func (l *leader) TakeSnapshot(serviceID string) (string, error) {
 // has an address assignment the host will already be selected. If not the host with the least amount
 // of memory committed to running containers will be chosen.
 func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
-	var assignmentType string
-	var ipAddr string
-	var hostid string
-
 	glog.Infof("Looking for available hosts in pool %s", l.poolID)
 	hosts, err := l.hostRegistry.GetHosts()
 	if err != nil {
@@ -82,40 +78,38 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		return nil, err
 	}
 
-	for _, ep := range s.Endpoints {
-		if ep.AddressAssignment != (addressassignment.AddressAssignment{}) {
-			assignmentType = ep.AddressAssignment.AssignmentType
-			ipAddr = ep.AddressAssignment.IPAddr
-			hostid = ep.AddressAssignment.HostID
+	var assignment *addressassignment.AddressAssignment
+	for i, ep := range s.Endpoints {
+		if ep.IsConfigurable() && ep.AddressAssignment.IPAddr != "" {
+			assignment = &s.Endpoints[i].AddressAssignment
 			break
 		}
 	}
-
-	if assignmentType == commons.VIRTUAL {
-		// populate hostid
+	if assignment != nil {
+		glog.Infof("Found an address assignment for %s (%s) at %s, checking host availability", s.Name, s.ID, assignment.IPAddr)
+		var hostID string
 		var err error
-		hostid, err = virtualips.GetHostID(l.conn, ipAddr)
-		if err != nil {
-			return nil, err
-		}
-		glog.Infof("Service: %v has been assigned virtual IP: %v which has been locked and configured on host %s", s.Name, ipAddr, hostid)
-	}
 
-	if hostid != "" {
-		return poolHostFromAddressAssignments(hostid, hosts)
+		// Get the hostID from the address assignment
+		if assignment.AssignmentType == commons.VIRTUAL {
+			if hostID, err = virtualips.GetHostID(l.conn, assignment.IPAddr); err != nil {
+				glog.Errorf("Host not available for virtual ip address %s: %s", assignment.IPAddr, err)
+				return nil, err
+			}
+		} else {
+			hostID = assignment.HostID
+		}
+
+		// Checking host availability
+		for i, host := range hosts {
+			if host.ID == hostID {
+				return hosts[i], nil
+			}
+		}
+
+		glog.Errorf("Host %s not available in pool %s.  Check to see if the host is running or reassign ips for service %s (%s)", hostID, l.poolID, s.Name, s.ID)
+		return nil, fmt.Errorf("host %s not available in pool %s", hostID, l.poolID)
 	}
 
 	return NewServiceHostPolicy(s, l.dao).SelectHost(hosts)
-}
-
-// poolHostFromAddressAssignments determines the pool host for the service from its address assignment(s).
-func poolHostFromAddressAssignments(hostid string, hosts []*host.Host) (*host.Host, error) {
-	// ensure the assigned host is in the pool
-	for _, h := range hosts {
-		if h.ID == hostid {
-			return h, nil
-		}
-	}
-
-	return nil, fmt.Errorf("assigned host is not in pool")
 }
