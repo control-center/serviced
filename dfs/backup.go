@@ -382,7 +382,7 @@ func (dfs *DistributedFilesystem) saveSnapshots(tenantID, directory string, last
 		return "", nil, err
 	}
 	if count := len(snapshots); count > last+1 {
-		snapshots = snapshots[count-last+1:]
+		snapshots = snapshots[count-(last+1):]
 	}
 
 	var parent string
