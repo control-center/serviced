@@ -23,6 +23,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
@@ -33,8 +34,9 @@ import (
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
-	driver api.API
-	app    *cli.App
+	driver       api.API
+	app          *cli.App
+	exitDisabled bool
 }
 
 const envPrefix = "SERVICED_"
@@ -111,7 +113,7 @@ func New(driver api.API) *ServicedCli {
 		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
 	}
 
-	defaultDockerRegistry := "localhost:5000"
+	defaultDockerRegistry := docker.DEFAULT_REGISTRY
 	if hostname, err := os.Hostname(); err == nil {
 		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
 	}
@@ -211,13 +213,17 @@ func New(driver api.API) *ServicedCli {
 	c.initBackup()
 	c.initMetric()
 	c.initDocker()
+	c.initScript()
 
 	return c
 }
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
-	c.app.Run(args)
+	err := c.app.Run(args)
+	if err != nil {
+		fmt.Sprintf("%v/n", err)
+	}
 }
 
 // cmdInit starts the server if no subcommands are called
@@ -298,6 +304,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func (c *ServicedCli) exit(code int) {
+	if c.exitDisabled{
+		return
+	}
+	os.Exit(code)
+		
 }
 
 func setLogging(ctx *cli.Context) error {

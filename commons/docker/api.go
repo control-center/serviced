@@ -27,6 +27,8 @@ import (
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
+var DEFAULT_REGISTRY = "localhost:5000"
+
 // Container represents a Docker container.
 type Container struct {
 	*dockerclient.Container

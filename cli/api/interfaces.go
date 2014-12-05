@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/script"
 )
 
 // API is the intermediary between the command-line interface and the dao layer
@@ -100,4 +101,7 @@ type API interface {
 
 	// Metric
 	PostMetric(metricName string, metricValue string) (string, error)
+
+	ScriptRun(fileName string, config *script.Config) error
+	ScriptParse(fileName string, config *script.Config) error
 }
