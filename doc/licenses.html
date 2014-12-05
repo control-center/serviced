@@ -1,0 +1,442 @@
+<html><head><meta content="text/html; charset=UTF-8" http-equiv="Content-Type"/><title>1 - 5.x Zenoss Control Plane Report</title>
+<style type="text/css">
+body{ font-family:Verdana, Arial, Helvetica, serif; font-size:0.65em; }
+table,tr,td,th{ font-size:1.0em; }
+table{ border-collapse:collapse; margin-top:20px; margin-bottom:20px; mso-padding-alt:0in 0in 0in 0in; }
+th{ padding:5px 15px; }
+td{ padding:2px 5px; }
+#noWrapText{ white-space:nowrap; }
+.titleHeadFootComm{ width:100%; text-align:center; }
+.disclaimer{ width:80%; font-size:1.20em; margin-left:10%; margin-bottom:60px; padding:2px; border-collapse:separate; }
+.disclaimer td{ display:table-cell; padding:2px; border:0px; }
+.disclaimer th{ display:table-cell; padding:2px; vertical-align:top; font-weight:bold; }
+.disclaimerInUse{ display:table-cell; padding:2px; vertical-align:top; font-weight:bold; text-align:right; }
+#topLink{ white-space:nowrap; vertical-align:middle; border:0px; height:30px; font-size:1.30em; text-align:left; }
+#sectionHeader{ display:table-cell; white-space:nowrap; vertical-align:middle; border:0px; background-color:#DBE2EA; color:#376297; height:30px; font-size:1.30em; text-align:left; }
+#hlYel{ background-color:#FFFF99; }
+.toc{ border:0px; width:100%; padding:0px; border-collapse:collapse; }
+.toc td{ display:table-cell; font-weight:bold; border:0px; height:20px; font-size:1.20em; vertical-align:middle; text-align:left; }
+.toc th{ display:table-cell; font-weight:bold; vertical-align:middle; border:0px; height:20px; padding:2px 5px; font-size:1.30em; text-align:left; }
+.reportTable{ text-align:left; border:0px; clear:both; display:block; min-width:95%; width:95%; padding:0px; border-collapse:collapse; }
+.reportTable th{ font-size:1.10em; vertical-align:middle; border:1px solid #7C8EA2; color:#FFFFFF; background-color:#6C7E92; }
+.reportTable td{ vertical-align:middle; word-wrap:break-word; border:1px solid #B1BCD0; color:#000000; }
+#apstA span{ background-color:#B8FBB8; }
+#apstPA span{ background-color:#FFFF99; }
+#apstD span{ background-color:#FF9596; }
+#altCol{ background-color:#F5F5F5; }
+</style>
+</head>
+<table class="disclaimer"><tbody><tr><th>Confidential</th><th class="disclaimerInUse">For Internal Use Only</th></tr><tr><th>DISCLAIMER</th><td>This report was created using Black Duck(TM) Protex software compliance management products and services. The results contained in the report reflect the user's analysis and decision making. Recipient of the results bears all of the risks relating to use of, or reliance upon, such results or any other content contained in this report. Black Duck Software makes no representation or warranty to any party regarding the contents of this report, its accuracy, completeness or correctness, and Black Duck Software hereby disclaims any and all warranties (both express and implied) with respect thereto.</td></tr></tbody></table>
+<h1 class="titleHeadFootComm">1 - 5.x Zenoss Control Plane Report</h1>
+<h4 class="titleHeadFootComm">November 26, 2014  11:59 AM</h4>
+<br/>
+<table class="toc"><thead><tr><th><a id="TableOfContents">Table Of Contents</a></th></tr><tr><td>&#160;</td></tr></thead>
+<tbody><tr><td><a href="#LICENSES_IN_EFFECT_Licenses in Effect">Licenses in Effect</a></td></tr><tr><td><a href="#LICENSE_TEXTS_License Texts">License Texts</a></td></tr></tbody></table>
+<br/><br/><br/>
+<table class="reportTable"><tbody><tr><td id="topLink"><a href="#TableOfContents" id="LICENSES_IN_EFFECT_Licenses in Effect">Top</a></td></tr></tbody></table>
+<table class="reportTable"><thead><tr><th id="sectionHeader" colspan="3">Licenses in Effect</th></tr><tr><th>License Name</th><th>Ship Status</th><th>Custom Fields</th></tr></thead>
+<tbody><tr><td>[template] Basic Proprietary Commercial License</td><td>Ship</td><td></td></tr><tr id="altCol"><td>Apache License 2.0</td><td>Ship</td><td></td></tr><tr><td>BSD 2.0</td><td>Ship</td><td></td></tr><tr id="altCol"><td>Do What The F*ck You Want To Public License</td><td>Ship</td><td></td></tr><tr><td>MIT License V2</td><td>Ship</td><td></td></tr></tbody></table>
+<br/><br/><br/>
+<table class="reportTable"><tbody><tr><td id="topLink"><a href="#TableOfContents" id="LICENSE_TEXTS_License Texts">Top</a></td></tr></tbody></table>
+<table class="reportTable"><thead><tr><th id="sectionHeader" colspan="3">License Texts</th></tr><tr><th>License</th><th>Used By</th><th>Text</th></tr></thead>
+<tbody><tr><td>[template] Basic Proprietary Commercial License</td><td>1 - 5.x Zenoss Control Plane</td><td><h1>END-USER LICENSE AGREEMENT FOR ACME SOFTWARE</h1> 
+<b>IMPORTANT</b> 
+<b>READ CAREFULLY: This ACME End-User License Agreement (&quot;EULA&quot;) is a legal 
+agreement between you (either an individual or a single entity) and ACME Corporation for the 
+ACME software product identified above, which includes computer software and may include 
+associated media, printed materials, and &quot;online&quot; or electronic documentation 
+(&quot;SOFTWARE PRODUCT&quot;). The SOFTWARE PRODUCT also includes any updates and 
+supplements to the original SOFTWARE PRODUCT provided to you by ACME. Any software provided 
+along with the SOFTWARE PRODUCT that is associated with a separate end-user license 
+agreement is licensed to you under the terms of that license agreement. By installing, 
+copying, downloading, accessing, or otherwise using the SOFTWARE PRODUCT, you agree to be 
+bound by the terms of this EULA. If you do not agree to the terms of this EULA, do not 
+install or use the SOFTWARE PRODUCT; you may, however, return it to your place of purchase 
+for a full refund.</b><br><br> 
+<h2>SOFTWARE PRODUCT LICENSE</h2>The SOFTWARE PRODUCT is protected by copyright laws and international copyright treaties, as well as other 
+intellectual property laws and treaties. The SOFTWARE PRODUCT is licensed, not sold. 
+<ol> 
+<li><b>GRANT OF LICENSE.</b> This EULA grants you the following rights: 
+<ul> 
+<li><b>Applications Software.</b> You may install, use, access, display, run, or otherwise 
+interact with (&quot;RUN&quot;) one copy of the SOFTWARE PRODUCT, or any prior version for 
+the same operating system, on a single computer, workstation, terminal, handheld PC, pager, 
+&quot;smart phone,&quot; or other digital electronic device (&quot;COMPUTER&quot;). The 
+primary user of the COMPUTER on which the SOFTWARE PRODUCT is installed may make a second 
+copy for his or her exclusive use on a portable computer. 
+<li><b>Reservation of Rights.</b> All rights not expressly granted are reserved by ACME. 
+</ul><p>
+<li><b>DESCRIPTION OF OTHER RIGHTS AND LIMITATIONS.</b> 
+<ul> 
+<li><b>Not for Resale Software.</b> If the SOFTWARE PRODUCT is labeled &quot;Not For 
+Resale&quot; or &quot;NFR,&quot; then, notwithstanding other sections of this EULA, your use 
+of the SOFTWARE PRODUCT is limited to use for demonstration, test, or evaluation purposes 
+and you may not resell, or otherwise transfer for value, the SOFTWARE PRODUCT. 
+<li><b>Limitations on Reverse Engineering, Decompilation, and Disassembly.</b> You may not 
+reverse engineer, decompile, or disassemble the SOFTWARE PRODUCT, except and only to the 
+extent that such activity is expressly permitted by applicable law. 
+<li><b>Separation of Components.</b> The SOFTWARE PRODUCT is licensed as a single product. 
+Its component parts may not be separated for use on more than one COMPUTER. 
+<li><b>Trademarks.</b> This EULA does not grant you any rights in connection with any 
+trademarks or service marks of ACME. 
+<li><b>Rental.</b> You may not rent, lease, or lend the SOFTWARE PRODUCT. 
+<li><b>Support Services.</b> ACME may provide you with support services related to the 
+SOFTWARE PRODUCT (&quot;Support Services&quot;). Use of Support Services is governed by the 
+ACME policies and programs described in the user manual, in &quot;online&quot; 
+documentation, and/or in other ACME-provided materials. Any supplemental software code 
+provided to you as part of the Support Services shall be considered part of the SOFTWARE 
+PRODUCT and subject to the terms and conditions of this EULA. 
+<li><b>Software Transfer.</b> The initial licensee of the SOFTWARE PRODUCT may make a 
+one-time permanent transfer of this EULA and SOFTWARE PRODUCT only directly to an end user. 
+This transfer must include all of the SOFTWARE PRODUCT (including all component parts, the 
+media and printed materials, any upgrades, this EULA, and, if applicable, the Certificate of 
+Authenticity). Such transfer may not be by way of consignment or any other indirect 
+transfer. The transferee of such one-time transfer must agree to comply with the terms of 
+this EULA, including the obligation not to further transfer this EULA and SOFTWARE PRODUCT. 
+<li><b>Termination.</b> Without prejudice to any other rights, ACME may terminate this EULA 
+if you fail to comply with the terms and conditions of this EULA. In such event, you must 
+destroy all copies of the SOFTWARE PRODUCT and all of its component parts. 
+</ul><p>
+<li><b>COPYRIGHT.</b> All title and copyrights in and to the SOFTWARE PRODUCT (including but 
+not limited to any images, photographs, animations, video, audio, music, text, and 
+&quot;applets&quot; incorporated into the SOFTWARE PRODUCT), the accompanying printed 
+materials, and any copies of the SOFTWARE PRODUCT are owned by ACME or its suppliers. All 
+title and intellectual property rights in and to the content that may be accessed through 
+use of the SOFTWARE PRODUCT is the property of the respective content owner and may be 
+protected by applicable copyright or other intellectual property laws and treaties. This 
+EULA grants you no rights to use such content. If this SOFTWARE PRODUCT contains 
+documentation that is provided only in electronic form, you may print one copy of such 
+electronic documentation. You may not copy the printed materials accompanying the SOFTWARE 
+PRODUCT.<p>
+<li><b>BACKUP COPY.</b> After installation of one copy of the SOFTWARE PRODUCT pursuant to 
+this EULA, you may keep the original media on which the SOFTWARE PRODUCT was provided by 
+ACME solely for backup or archival purposes. If the original media is required to use the 
+SOFTWARE PRODUCT on the COMPUTER, you may make one copy of the SOFTWARE PRODUCT solely for 
+backup or archival purposes. Except as expressly provided in this EULA, you may not 
+otherwise make copies of the SOFTWARE PRODUCT or the printed materials accompanying the 
+SOFTWARE PRODUCT.<p>
+<li><b>U.S. GOVERNMENT RESTRICTED RIGHTS.</b> All SOFTWARE PRODUCT provided to the U.S. 
+Government pursuant to solicitations issued on or after December 1, 1995 is provided with 
+the commercial rights and restrictions described elsewhere herein. All SOFTWARE PRODUCT 
+provided to the U.S. Government pursuant to solicitations issued prior to December 1, 1995 
+is provided with RESTRICTED RIGHTS as provided for in FAR, 48 CFR 52.227-14 (JUNE 1987) or 
+FAR, 48 CFR 252.227-7013 (OCT 1988), as applicable.<p>
+<li><b>EXPORT RESTRICTIONS. </b>This SOFTWARE PRODUCT has been classified by the US 
+Government as exportable under License Exception TSU. Therefore the following terms apply: 
+You agree that you will not export or re-export the SOFTWARE PRODUCT, any part thereof, or 
+any process or service that is the direct product of the SOFTWARE PRODUCT (the foregoing 
+collectively referred to as the Restricted Components), to any country, person or entity 
+subject to U.S. export restrictions. You specifically agree not to export or re-export any 
+of the Restricted Components (i) to any country to which the U.S. has embargoed or 
+restricted the export of goods or services, which currently include, but are not necessarily 
+limited to Cuba, Iran, Iraq, Libya, North Korea, Sudan and Syria, or to any national of any 
+such country, wherever located, who intends to transmit or transport the Restricted 
+Components back to such country; (ii) to any person or entity who you know or have reason to 
+know will utilize the Restricted Components in the design, development or production of 
+nuclear, chemical or biological weapons; or (iii) to any person or entity who has been 
+prohibited from participating in U.S. export transactions by any federal agency of the U.S. 
+government. You warrant and represent that neither the Bureau of Export Administration nor 
+any other U.S. federal agency has suspended, revoked or denied your export privileges. 
+</ol><p>
+<h2>MISCELLANEOUS</h2>This EULA is governed by the laws of the 
+Commonwealth of Massachusetts and the United States of America.<br><br> 
+<h2>LIMITED WARRANTY</h2>ACME warrants that (a) the SOFTWARE 
+PRODUCT will perform substantially in accordance with the accompanying written materials for 
+a period of ninety (90) days from the date of receipt, and (b) any Support Services provided 
+by ACME shall be substantially as described in applicable written materials provided to you 
+by ACME, and ACME support engineers will make commercially reasonable efforts to solve any 
+problem issues. Some states and jurisdictions do not allow limitations on duration of an 
+implied warranty, so the above limitation may not apply to you. <br><br> 
+<br> 
+<b>CUSTOMER REMEDIES.</b> ACMEs and its suppliersentire liability and your exclusive remedy shall be, at ACMEs option, either (a) return of the price paid, if any, or (b) repair or 
+replacement of the SOFTWARE PRODUCT that does not meet ACMEs Limited Warranty and which is 
+returned to ACME with a copy of your receipt. This Limited Warranty is void if failure of 
+the SOFTWARE PRODUCT has resulted from accident, abuse, or misapplication. Any replacement 
+SOFTWARE PRODUCT will be warranted for the remainder of the original warranty period or 
+thirty (30) days, whichever is longer. <br><br> 
+<b><u>NO OTHER WARRANTIES</u>. TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, ACME AND 
+ITS SUPPLIERS DISCLAIM ALL OTHER WARRANTIES AND CONDITIONS, EITHER EXPRESS OR IMPLIED, 
+INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT, WITH REGARD TO THE SOFTWARE PRODUCT, AND 
+THE PROVISION OF OR FAILURE TO PROVIDE SUPPORT SERVICES.<i> </i>THIS LIMITED WARRANTY GIVES 
+YOU SPECIFIC LEGAL RIGHTS. YOU MAY HAVE OTHERS, WHICH VARY FROM STATE/JURISDICTION TO 
+STATE/JURISDICTION.<br> 
+</b>&nbsp;<br> 
+<b><u>LIMITATION OF LIABILITY</u>. To the maximum extent permitted by applicable law, in no 
+event shall ACME or its suppliers be liable for any special, incidental, indirect, or 
+consequential damages whatsoever (including, without limitation, damages for loss of 
+business profits, business interruption, loss of business information, or any other 
+pecuniary loss) arising out of the use of or inability to use the SOFTWARE PRODUCT or the 
+provision of or failure to provide Support Services, even if ACME has been advised of the 
+possibility of such damages. In any case, ACMEs entire liability under any provision of this 
+EULA shall be limited to the greater of the amount actually paid by you for the SOFTWARE 
+PRODUCT or U.S. $5.00; provided, however, if you have entered into a ACME Support Services 
+Agreement, ACMEs entire liability regarding Support Services shall be governed by the terms 
+of that agreement. Because some states and jurisdictions do not allow the exclusion or 
+limitation of liability, the above limitation may not apply to you.</td></tr><tr id="altCol"><td>Apache License 2.0</td><td>elasticsearch, fluent-plugin-kibana-server, Apache License 2.0, kibana, logstash, Bootstrap, Apache License 2.0</td><td><H1><center>Apache License<br />
+Version 2.0, January 2004</center></H1>
+<br />
+
+http://www.apache.org/licenses/
+</p>
+<p>
+TERMS AND CONDITIONS FOR USE, REPRODUCTION, AND DISTRIBUTION
+</p>
+<p><b>1. Definitions</b>.</p>
+<p>
+      "License" shall mean the terms and conditions for use, reproduction,
+      and distribution as defined by Sections 1 through 9 of this document.
+</p>
+<p>
+      "Licensor" shall mean the copyright owner or entity authorized by
+      the copyright owner that is granting the License.
+</p>
+
+<p>
+      "Legal Entity" shall mean the union of the acting entity and all
+      other entities that control, are controlled by, or are under common
+      control with that entity. For the purposes of this definition,
+      "control" means (i) the power, direct or indirect, to cause the
+      direction or management of such entity, whether by contract or
+      otherwise, or (ii) ownership of fifty percent (50%) or more of the
+      outstanding shares, or (iii) beneficial ownership of such entity.
+</p>
+<p>
+      "You" (or "Your") shall mean an individual or Legal Entity
+      exercising permissions granted by this License.
+</p>
+<p>
+      "Source" form shall mean the preferred form for making modifications,
+      including but not limited to software source code, documentation
+      source, and configuration files.
+</p>
+<p>
+      "Object" form shall mean any form resulting from mechanical
+      transformation or translation of a Source form, including but
+      not limited to compiled object code, generated documentation,
+      and conversions to other media types.
+</p>
+<p>
+
+      "Work" shall mean the work of authorship, whether in Source or
+      Object form, made available under the License, as indicated by a
+      copyright notice that is included in or attached to the work
+      (an example is provided in the Appendix below).
+</p>
+<p>
+      "Derivative Works" shall mean any work, whether in Source or Object
+      form, that is based on (or derived from) the Work and for which the
+      editorial revisions, annotations, elaborations, or other modifications
+      represent, as a whole, an original work of authorship. For the purposes
+      of this License, Derivative Works shall not include works that remain
+      separable from, or merely link (or bind by name) to the interfaces of,
+      the Work and Derivative Works thereof.
+</p>
+<p>
+      "Contribution" shall mean any work of authorship, including
+      the original version of the Work and any modifications or additions
+      to that Work or Derivative Works thereof, that is intentionally
+      submitted to Licensor for inclusion in the Work by the copyright owner
+      or by an individual or Legal Entity authorized to submit on behalf of
+      the copyright owner. For the purposes of this definition, "submitted"
+      means any form of electronic, verbal, or written communication sent
+      to the Licensor or its representatives, including but not limited to
+      communication on electronic mailing lists, source code control systems,
+      and issue tracking systems that are managed by, or on behalf of, the
+      Licensor for the purpose of discussing and improving the Work, but
+      excluding communication that is conspicuously marked or otherwise
+      designated in writing by the copyright owner as "Not a Contribution."
+</p>
+<p>
+      "Contributor" shall mean Licensor and any individual or Legal Entity
+      on behalf of whom a Contribution has been received by Licensor and
+      subsequently incorporated within the Work.
+</p>
+<p><b>2. Grant of Copyright License</b>.
+Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, <a name="feeForSoftwareRestrictionLicense1">no-charge, royalty-free, irrevocable
+      copyright license</a> to reproduce, prepare Derivative Works of,
+      publicly display, publicly perform, <a name="maximumUsageLevelLicense">sublicense, and distribute the
+      Work and such Derivative Works in Source or Object form.</a>
+
+</p>
+<p><b>3. Grant of Patent License</b>.
+<a name="expressPatentLicenseRestrictionLicense">Subject to the terms and conditions of
+      this License, each Contributor hereby grants to You a perpetual,
+      worldwide, non-exclusive, no-charge, royalty-free, irrevocable
+      (except as stated in this section) patent license to make, have made,
+      use, offer to sell, sell, import, and otherwise transfer the Work,
+      where such license applies only to those patent claims licensable
+      by such Contributor that are necessarily infringed by their
+      Contribution(s) alone or by combination of their Contribution(s)
+      with the Work to which such Contribution(s) was submitted.</a> <a name="patentRetaliationRestrictionLicense">If You
+      institute patent litigation against any entity (including a
+      cross-claim or counterclaim in a lawsuit) alleging that the Work
+      or a Contribution incorporated within the Work constitutes direct
+      or contributory patent infringement, then any patent licenses
+      granted to You under this License for that Work shall terminate
+      as of the date such litigation is filed.</a>
+</p>
+<p><b>4. Redistribution</b>.
+<a name="copyRestrictionLicense">You may reproduce and distribute copies</a> of the
+      Work or Derivative Works thereof in any medium, <a name="modificationRestrictionLicense">with or without
+      modifications</a>, and in Source or Object form, provided that You
+      meet the following conditions:
+<ol type="a">
+<li>You must give any other recipients of the Work or
+          Derivative Works a copy of this License; and
+<br /> <br /></li>
+
+<li><a name="sourceNoticesRestrictionLicense">You must cause any modified files to carry prominent notices
+          stating that You changed the files</a>; and
+<br /> <br /></li>
+
+<li>You must retain, in the Source form of any Derivative Works
+          that You distribute, all copyright, patent, trademark, and
+          attribution notices from the Source form of the Work,
+          excluding those notices that do not pertain to any part of
+          the Derivative Works; and
+<br /> <br /></li>
+
+<li>If the Work includes a "NOTICE" text file as part of its
+          distribution, then any Derivative Works that You distribute must
+          include a readable copy of the attribution notices contained
+          within such NOTICE file, excluding those notices that do not
+          pertain to any part of the Derivative Works, in at least one
+          of the following places: within a NOTICE text file distributed
+          as part of the Derivative Works; within the Source form or
+          documentation, if provided along with the Derivative Works; or,
+          within a display generated by the Derivative Works, if and
+          wherever such third-party notices normally appear. The contents
+          of the NOTICE file are for informational purposes only and
+          do not modify the License. You may add Your own attribution
+          notices within Derivative Works that You distribute, alongside
+          or as an addendum to the NOTICE text from the Work, provided
+          that such additional attribution notices cannot be construed
+          as modifying the License.</li>
+</ol>
+      You may add Your own copyright statement to Your modifications and
+      may provide additional or different license terms and conditions
+      for use, reproduction, or distribution of Your modifications, or
+      for any such Derivative Works as a whole, provided Your use,
+      reproduction, and distribution of the Work otherwise complies with
+      the conditions stated in this License.
+</p>
+<p><b>5. Submission of Contributions</b>.
+Unless You explicitly state otherwise,
+      any Contribution intentionally submitted for inclusion in the Work
+      by You to the Licensor shall be under the terms and conditions of
+      this License, without any additional terms or conditions.
+      Notwithstanding the above, nothing herein shall supersede or modify
+      the terms of any separate license agreement you may have executed
+      with Licensor regarding such Contributions.
+</p>
+<p><b>6. Trademarks</b>.
+This License does not grant permission to use the trade
+      names, trademarks, service marks, or product names of the Licensor,
+      except as required for reasonable and customary use in describing the
+      origin of the Work and reproducing the content of the NOTICE file.
+</p>
+<p><b>7. Disclaimer of Warranty</b>.
+<a name="disclaimerRestrictionLicense">Unless required by applicable law or
+      agreed to in writing, Licensor provides the Work (and each
+      Contributor provides its Contributions) on an "AS IS" BASIS,
+      WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or
+      implied, including, without limitation, any warranties or conditions
+      of TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A
+      PARTICULAR PURPOSE. You are solely responsible for determining the
+      appropriateness of using or redistributing the Work and assume any
+      risks associated with Your exercise of permissions under this License.</a>
+</p>
+<p><b><a name="excludeDamagesRestrictionLicense">8. Limitation of Liability</b>.
+In no event and under no legal theory,
+      whether in tort (including negligence), contract, or otherwise,
+      unless required by applicable law (such as deliberate and grossly
+      negligent acts) or agreed to in writing, shall any Contributor be
+      liable to You for damages, including any direct, indirect, special,
+      incidental, or consequential damages of any character arising as a
+      result of this License or out of the use or inability to use the
+      Work (including but not limited to damages for loss of goodwill,
+      work stoppage, computer failure or malfunction, or any and all
+      other commercial damages or losses), even if such Contributor
+      has been advised of the possibility of such damages.</a>
+
+</p>
+<p><b>9. Accepting Warranty or Additional Liability</b>.
+<a name="indemnificationRestrictionLicense">While redistributing
+      the Work or Derivative Works thereof, You may choose to offer,
+      and charge a fee for, acceptance of support, warranty, indemnity,
+      or other liability obligations and/or rights consistent with this
+      License. However, in accepting such obligations, You may act only
+      on Your own behalf and on Your sole responsibility, not on behalf
+      of any other Contributor, and only if You agree to indemnify,
+      defend, and hold each Contributor harmless for any liability
+      incurred by, or claims asserted against, such Contributor by reason
+      of your accepting any such warranty or additional liability.</a>
+</p>
+<p>
+END OF TERMS AND CONDITIONS
+</p>
+                 
+<h4>
+   APPENDIX: How to apply the Apache License to your work
+</h4>
+
+<p>
+      To apply the Apache License to your work, attach the following
+      boilerplate notice, with the fields enclosed by brackets "[]"
+      replaced with your own identifying information. (Don't include
+      the brackets!)  The text should be enclosed in the appropriate
+      comment syntax for the file format. We also recommend that a
+      file or class name and description of purpose be included on the
+      same "printed page" as the copyright notice for easier
+      identification within third-party archives.
+
+</p>
+<blockquote>
+   Copyright [yyyy] [name of copyright owner]
+
+   Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.</blockquote></td></tr><tr><td>BSD 2.0</td><td>d3</td><td><br>
+Copyright (c) &lt;YEAR&gt;, &lt;OWNER&gt;<br>
+All rights reserved.<br><br>
+Redistribution and use in source and binary forms, with or without modification, are permitted provided that the following conditions are met:
+<ul>
+<li>Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer. 
+<li>Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution. 
+<li>Neither the name of the &lt;ORGANIZATION&gt; nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission. 
+</ul><br>
+THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS &quot;AS IS&quot; AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.<br><br></td></tr><tr id="altCol"><td>Do What The F*ck You Want To Public License</td><td>angular-translate</td><td><H1>Do What You Want License</H1>
+<!-- Title added by Steve Snow of Black Duck Software for identification purposes only -->
+ DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE<br>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Version 2, December 2004
+<br><br>
+ <tt>Copyright (C) 2004 Sam Hocevar</tt><br>
+  22 rue de Plaisance, 75014 Paris, France<br>
+ <a name="maximumUsageLevelLicense">Everyone is permitted to copy and distribute verbatim or modified
+ copies of this license document,</a> and changing it is allowed as long
+ as the name is changed.<br><br>
+<center>
+            DO WHAT THE FUCK YOU WANT TO PUBLIC LICENSE<br>
+   TERMS AND CONDITIONS FOR COPYING, DISTRIBUTION AND MODIFICATION
+</center><br>
+  0. You just DO WHAT THE FUCK YOU WANT TO.</td></tr><tr><td>MIT License V2</td><td>jQuery JavaScript Library, jqueryui.com, Angular-dragdrop, Bootstrap, jasmine, socket.io-client, angular.js, term.js, angular-ui, MIT License, dagre, CodeMirror, datetimepicker, jquery-timeago, Angular Translate URL Loader, jQuery UI - jquery-ui from code.google.com, AngularJS - org.webjars:angularjs, Graphlib, angular-translate</td><td><h1>The MIT License</h1>
+<tt>Copyright (c) &lt;year&gt; &lt;copyright holders&gt;</tt><br><br>
+<a name="feeForSoftwareLicense"><a name="feeForDistributionLicense">Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the &quot;Software&quot;), to deal in the Software without restriction,</a> <a name="copyRestrictionLicense"><a name="modificationRestrictionLicense">including without limitation the rights to use, copy,</a> modify, merge,</a> publish, distribute, sublicense, and/or sell copies of the Software,</a> and to permit persons to whom the Software is furnished to do so, subject to the following conditions:<br><br>
+The above copyright notice and <a name="includeLicenseRestrictionLicense"><a name="includeAddedCodeRestrictionLicense"><a name="includeLicenseRestrictionLicense">this permission notice shall be included in all copies or substantial portions of the Software.</a></a></a><br><br>
+<a name="disclaimerRestrictionLicense">THE SOFTWARE IS PROVIDED &quot;AS IS&quot;, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.</a> <a name="excludeDamagesRestrictionLicense">IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.</a><br></td></tr></tbody></table>
+<table class="disclaimer"><tbody><tr><th>Confidential</th><th class="disclaimerInUse">For Internal Use Only</th></tr><tr><th>DISCLAIMER</th><td>This report was created using Black Duck(TM) Protex software compliance management products and services. The results contained in the report reflect the user's analysis and decision making. Recipient of the results bears all of the risks relating to use of, or reliance upon, such results or any other content contained in this report. Black Duck Software makes no representation or warranty to any party regarding the contents of this report, its accuracy, completeness or correctness, and Black Duck Software hereby disclaims any and all warranties (both express and implied) with respect thereto.</td></tr></tbody></table>
+</html>
