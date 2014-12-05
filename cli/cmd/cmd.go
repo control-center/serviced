@@ -34,8 +34,9 @@ import (
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
-	driver api.API
-	app    *cli.App
+	driver       api.API
+	app          *cli.App
+	exitDisabled bool
 }
 
 const envPrefix = "SERVICED_"
@@ -303,6 +304,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	}
 
 	return nil
+}
+
+func (c *ServicedCli) exit(code int) {
+	if c.exitDisabled{
+		return
+	}
+	os.Exit(code)
+		
 }
 
 func setLogging(ctx *cli.Context) error {
