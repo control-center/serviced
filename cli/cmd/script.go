@@ -14,7 +14,6 @@
 package cmd
 
 import (
-	"runtime/debug"
 	"fmt"
 	"os"
 
@@ -61,7 +60,6 @@ func (c *ServicedCli) initScript() {
 
 // cmdScriptSvcRun serviced script <service> filename
 func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
-	debug.PrintStack()
 	args := ctx.Args()
 	if len(args) != 2 {
 		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
