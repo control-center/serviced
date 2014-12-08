@@ -248,11 +248,10 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 				glog.V(1).Infof("Shutdown closing watch for %v", vhost)
 				close(ch)
 			}
-			break
+			return nil
 		default:
 		}
 	}
-	return nil
 }
 
 func vhostWatchError(path string, err error) {

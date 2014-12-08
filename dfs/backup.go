@@ -468,7 +468,7 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 		return err
 	}
 	// Rollback the snapshot
-	if err := dfs.Rollback(label); err != nil {
+	if err := dfs.Rollback(label, false); err != nil {
 		glog.Errorf("Could not rollback to snapshot %s: %s", label, err)
 		return err
 	}
@@ -531,7 +531,7 @@ func (dfs *DistributedFilesystem) importSnapshots(filename string) error {
 		}
 	}()
 
-	if err := dfs.Rollback(snapshotID); err != nil {
+	if err := dfs.Rollback(snapshotID, false); err != nil {
 		glog.Errorf("Could not rollback to snapshot %s: %s", snapshotID, err)
 		return err
 	}

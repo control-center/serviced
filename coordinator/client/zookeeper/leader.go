@@ -21,9 +21,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/control-center/serviced/coordinator/client"
 	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/coordinator/client"
 )
 
 var (
@@ -62,7 +62,7 @@ func (l *Leader) Current(node client.Node) (err error) {
 
 	children, _, err := l.c.conn.Children(l.path)
 	if err != nil {
-		return err
+		return xlateError(err)
 	}
 
 	var lowestSeq uint64
@@ -71,7 +71,7 @@ func (l *Leader) Current(node client.Node) (err error) {
 	for _, p := range children {
 		s, err := parseSeq(p)
 		if err != nil {
-			return err
+			return xlateError(err)
 		}
 		if s < lowestSeq {
 			lowestSeq = s
@@ -99,7 +99,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 
 	data, err := json.Marshal(l.node)
 	if err != nil {
-		return nil, err
+		return nil, xlateError(err)
 	}
 
 	path := ""
@@ -122,21 +122,21 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 				}
 				_, err := l.c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
 				if err != nil && err != zklib.ErrNodeExists {
-					return nil, err
+					return nil, xlateError(err)
 				}
 			}
 		} else if err == nil {
 			break
 		} else {
-			return nil, err
+			return nil, xlateError(err)
 		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, xlateError(err)
 	}
 	seq, err := parseSeq(path)
 	if err != nil {
-		return nil, err
+		return nil, xlateError(err)
 	}
 
 	// This implements the leader election recipe recommeded by ZooKeeper
@@ -144,7 +144,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 	for {
 		children, _, err := l.c.conn.Children(l.path)
 		if err != nil {
-			return nil, err
+			return nil, xlateError(err)
 		}
 
 		lowestSeq := seq
@@ -154,7 +154,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 		for _, p := range children {
 			s, err := parseSeq(p)
 			if err != nil {
-				return nil, err
+				return nil, xlateError(err)
 			}
 			if s < lowestSeq {
 				lowestSeq = s
@@ -173,7 +173,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 		// Wait on the node next in line for the lock
 		_, _, ch, err := l.c.conn.GetW(l.path + "/" + prevSeqPath)
 		if err != nil && err != zklib.ErrNoNode {
-			return nil, err
+			return nil, xlateError(err)
 		} else if err != nil && err == zklib.ErrNoNode {
 			// try again
 			continue
@@ -181,7 +181,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 
 		ev := <-ch
 		if ev.Err != nil {
-			return nil, ev.Err
+			return nil, xlateError(ev.Err)
 		}
 	}
 
@@ -194,7 +194,7 @@ func (l *Leader) TakeLead() (echan <-chan client.Event, err error) {
 	} else {
 		l.c.Delete(path)
 	}
-	return toClientEvent(event), err
+	return toClientEvent(event), xlateError(err)
 }
 
 // ReleaseLead release the current leader role. It will return ErrNotLocked if
@@ -208,7 +208,7 @@ func (l *Leader) ReleaseLead() error {
 		return fmt.Errorf("lost connection")
 	}
 	if err := l.c.conn.Delete(l.lockPath, -1); err != nil {
-		return err
+		return xlateError(err)
 	}
 	l.lockPath = ""
 	l.seq = 0
