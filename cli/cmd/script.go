@@ -33,13 +33,13 @@ func (c *ServicedCli) initScript() {
 			{
 				Name:        "parse",
 				Usage:       "Parse a script",
-				Description: "serviced script parse file ",
+				Description: "serviced script parse FILE",
 				Action:      c.cmdScriptParse,
 			},
 			{
 				Name:        "run",
 				Usage:       "Run a script",
-				Description: "serviced script run file ",
+				Description: "serviced script run FILE [-n]",
 				Action:      c.cmdScriptRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
@@ -48,7 +48,7 @@ func (c *ServicedCli) initScript() {
 			{
 				Name:        "service",
 				Usage:       "Run a script with a service as an argument",
-				Description: "serviced script SERVICEID file ",
+				Description: "serviced script service SERVICEID FILE [-n]",
 				Action:      c.cmdScriptSvcRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
@@ -57,6 +57,7 @@ func (c *ServicedCli) initScript() {
 		},
 	})
 }
+
 
 // cmdScriptSvcRun serviced script <service> filename
 func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
