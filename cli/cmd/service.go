@@ -171,7 +171,7 @@ func (c *ServicedCli) initService() {
 				Usage:        "Runs a service command in a service instance",
 				Description:  "serviced service run SERVICEID COMMAND [ARGS]",
 				BashComplete: c.printServiceRun,
-				Action:       c.cmdServiceRun,
+				Before:       c.cmdServiceRun,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.BoolFlag{"logtostderr", "enable/disable detailed serviced run logging (false by default)"},
@@ -936,12 +936,11 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 }
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
-func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) {
+func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error{
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		c.exit(1)
-		return
+		return c.exit(1)
 	}
 
 	if len(args) < 2 {
@@ -949,8 +948,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) {
 			fmt.Println(s)
 		}
 		fmt.Fprintf(os.Stderr, "serviced service run")
-		c.exit(1)
-		return
+		return c.exit(1)
 	}
 
 	var (
@@ -961,8 +959,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) {
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		c.exit(1)
-		return
+		return c.exit(1)
 	}
 
 	command = args[1]
@@ -989,11 +986,10 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) {
 
 	if err := c.driver.RunShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		c.exit(1)
-		return 
+		return c.exit(1)
 	}
 
-	return 
+	return c.exit(0)
 }
 
 // buildRunningServicePaths returns a map where map[rs.ID] = fullpath

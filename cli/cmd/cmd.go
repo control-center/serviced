@@ -306,12 +306,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	return nil
 }
 
-func (c *ServicedCli) exit(code int) {
+func (c *ServicedCli) exit(code int) error{
 	if c.exitDisabled{
-		return
+		return fmt.Errorf("exit code %v", code)
 	}
 	os.Exit(code)
-		
+	return nil	
 }
 
 func setLogging(ctx *cli.Context) error {
