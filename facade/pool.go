@@ -292,7 +292,11 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return fmt.Errorf("cannot delete pool %s: found %d services", id, count)
 	}
 
-	return f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete)
+	if err := f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete); err != nil {
+		return err
+	}
+
+	return zkAPI(f).RemoveResourcePool(id)
 }
 
 //GetResourcePools Returns a list of all ResourcePools
