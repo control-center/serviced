@@ -62,7 +62,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
     };
 
     var validHost = function(){
-        if($("#new_host_name").val() === ""){
+        if($("#new_host_name").val() === "" && $scope.hosts.all.length === 0){
             showError($translate.instant("invalid_host_error"));
             return false;
         }
@@ -74,8 +74,18 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                 $scope.step_page = $scope.steps[step].content;
             })
             .error(function(data){
-                showError(data.Detail);
+                // if it already exists then allow the user to continue
+                if (data.Detail.indexOf('already exists') !== -1) {
+                    step += 1;
+                    resetError();
+                    $scope.step_page = $scope.steps[step].content;
+                } else {
+                    showError(data.Detail);
+                }
             });
+
+
+
 
         return false;
     };
@@ -186,7 +196,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                 "m": 1 << 20,
                 "g": 1 << 30,
                 "t": 1 << 40
-            }
+            };
             var engNotationRE = /([0-9]*)([kKmMgGtT]?)/;
             // Convert an engineeringNotation string to a number
             function toBytes(RAMCommitment){
@@ -196,9 +206,9 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                 var match = RAMCommitment.match(engNotationRE);
                 var numeric = match[1];
                 var suffix = match[2].toLowerCase();
-                var multiplier = suffixToMultiplier[suffix]
-                var val = parseInt(numeric)
-                return val * multiplier
+                var multiplier = suffixToMultiplier[suffix];
+                var val = parseInt(numeric);
+                return val * multiplier;
             };
             // recursively calculate cpu and ram commitments
             (function calcCommitment(services){
@@ -292,7 +302,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
     $scope.wizard_finish = function() {
 
-        closeModal = function(){
+        var closeModal = function(){
             $('#addApp').modal('hide');
             $("#deploy-save-button").removeAttr("disabled");
             $("#deploy-save-button").removeClass('active');
