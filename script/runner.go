@@ -29,16 +29,18 @@ func init() {
 		DEPENDENCY:  evalDependency,
 		REQUIRE_SVC: evalRequireSvc,
 		SVC_START:   evalSvcStart,
+		SVC_EXEC:    evalSvcExec,
 	}
 }
 
 type Config struct {
 	ServiceID      string
-	DockerRegistry string            //docker registry being used for tagging images
-	NoOp           bool              //Should commands modify the system
-	TenantLookup   TenantIDLookup    //function for looking up a service
-	Snapshot       Snapshot          //function for creating snapshots
-	Restore        SnapshotRestore   //function to do the rollback to a snapshot
+	DockerRegistry string            // docker registry being used for tagging images
+	NoOp           bool              // Should commands modify the system
+	TenantLookup   TenantIDLookup    // function for looking up a service
+	Snapshot       Snapshot          // function for creating snapshots
+	Commit         ContainerCommit   // function for committing a container
+	Restore        SnapshotRestore   // function to do the rollback to a snapshot
 	SvcIDFromPath  ServiceIDFromPath // function to find a service id from a path
 	SvcStart       ServiceStart      // function to start a service
 }
@@ -48,20 +50,21 @@ type Runner interface {
 }
 
 type runner struct {
-	parseCtx       *parseContext
-	config         *Config
-	exitFunctions  []func(bool)      //each is called on exit of upgrade, bool denotes if upgrade exited with an error
-	snapshotID     string            //the last snapshot taken
-	env            map[string]string //context variables available to runner
-	tenantIDLookup TenantIDLookup    //function for looking up a service
-	snapshot       Snapshot          //function for creating snapshots
-	restore        SnapshotRestore   //function to do the rollback to a snapshot
-	svcFromPath    ServiceIDFromPath //function to find a service from a path and tenant
-	svcStart       ServiceStart      //function to start a service
-	findImage      findImage
-	pullImage      pullImage
-	execCommand    execCmd
-	tagImage       tagImage
+	parseCtx        *parseContext
+	config          *Config
+	exitFunctions   []func(bool)      // each is called on exit of upgrade, bool denotes if upgrade exited with an error
+	snapshotID      string            // the last snapshot taken
+	env             map[string]string // context variables available to runner
+	tenantIDLookup  TenantIDLookup    // function for looking up a service
+	snapshot        Snapshot          // function for creating snapshots
+	commitContainer ContainerCommit   // function for committing a container
+	restore         SnapshotRestore   // function to do the rollback to a snapshot
+	svcFromPath     ServiceIDFromPath // function to find a service from a path and tenant
+	svcStart        ServiceStart      // function to start a service
+	findImage       findImage
+	pullImage       pullImage
+	execCommand     execCmd
+	tagImage        tagImage
 }
 
 func NewRunnerFromFile(fileName string, config *Config) (Runner, error) {
@@ -93,19 +96,20 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		config.DockerRegistry = "localhost:5000"
 	}
 	r := &runner{
-		parseCtx:       pctx,
-		config:         config,
-		exitFunctions:  make([]func(bool), 0),
-		env:            make(map[string]string),
-		tenantIDLookup: config.TenantLookup,
-		snapshot:       config.Snapshot,
-		restore:        config.Restore,
-		svcFromPath:    config.SvcIDFromPath,
-		svcStart:       config.SvcStart,
-		findImage:      docker.FindImage,
-		pullImage:      docker.PullImage,
-		execCommand:    defaultExec,
-		tagImage:       defaultTagImage,
+		parseCtx:        pctx,
+		config:          config,
+		exitFunctions:   make([]func(bool), 0),
+		env:             make(map[string]string),
+		tenantIDLookup:  config.TenantLookup,
+		commitContainer: config.Commit,
+		snapshot:        config.Snapshot,
+		restore:         config.Restore,
+		svcFromPath:     config.SvcIDFromPath,
+		svcStart:        config.SvcStart,
+		findImage:       docker.FindImage,
+		pullImage:       docker.PullImage,
+		execCommand:     defaultExec,
+		tagImage:        defaultTagImage,
 	}
 	if config.NoOp {
 		glog.Infof("creatng no op runner")
@@ -113,6 +117,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		r.tagImage = noOpTagImage
 		r.restore = noOpRestore
 		r.snapshot = noOpSnapshot
+		r.commitContainer = noOpCommit
 		r.pullImage = noOpPull
 		r.findImage = noOpFindImage
 		r.svcStart = noOpServiceStart

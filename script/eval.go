@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/zenoss/glog"
@@ -42,6 +43,7 @@ func evalSnapshot(r *runner, n node) error {
 	exitFunc := func(failed bool) {
 		if failed && r.snapshotID == mySnapshotID {
 			glog.Infof("restoring snapshot %s", mySnapshotID)
+			// TODO: Add the force option here once Summer's code is done
 			if err := r.restore(mySnapshotID); err != nil {
 				glog.Errorf("failed restoring snapshot %s: %v", mySnapshotID, err)
 
@@ -145,13 +147,53 @@ func evalSvcRun(r *runner, n node) error {
 
 	n.args[0] = svcID
 
-	glog.V(0).Infof("running: serviced service run %s", strings.Join(n.args, " "))
+	glog.V(0).Infof("running: serviced service run -i %s", strings.Join(n.args, " "))
 	args := []string{"service", "run"}
 	args = append(args, n.args...)
 	if err := r.execCommand("serviced", args...); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func evalSvcExec(r *runner, n node) error {
+	if r.svcFromPath == nil {
+		return fmt.Errorf("no service id lookup function for %s", SVC_RUN)
+	}
+
+	svcPath := n.args[1]
+	tenantID, found := r.env["TENANT_ID"]
+	if !found {
+		return fmt.Errorf("no service tenant id specified for %s", SVC_RUN)
+	}
+	svcID, err := r.svcFromPath(tenantID, svcPath)
+	if err != nil {
+		return err
+	}
+	if svcID == "" {
+		return fmt.Errorf("no service id found for %s", svcPath)
+	}
+
+	n.args[1] = svcID
+	// "HMS-YMD_svcID" will be the name of the container
+	containerName := time.Now().Format("150405-20060102") + "_" + svcID
+
+	glog.V(0).Infof("running: serviced service shell -i -s %s %s", containerName, strings.Join(n.args[1:], " "))
+	args := []string{"service", "shell", "-i", "-s", containerName}
+	args = append(args, n.args[1:]...)
+	if err := r.execCommand("serviced", args...); err != nil {
+		return err
+	}
+
+	// Now commit the container (if 'COMMIT' was specified)
+	switch n.args[0] {
+	case "COMMIT":
+		glog.V(0).Infof("committing container %s", containerName)
+		if _, err := r.commitContainer(containerName); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

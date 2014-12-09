@@ -23,6 +23,9 @@ type TenantIDLookup func(service string) (string, error)
 // Snapshot an application
 type Snapshot func(serviceID string) (string, error)
 
+// Commit a container
+type ContainerCommit func(containerID string) (string, error)
+
 // SnapshotRestore restore a given a snapshot ID.
 type SnapshotRestore func(snapshotID string) error
 
@@ -80,8 +83,13 @@ func noOpTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
 func noOpRestore(snapshotID string) error {
 	return nil
 }
+
 func noOpSnapshot(serviceID string) (string, error) {
 	return "no_op_snapshot", nil
+}
+
+func noOpCommit(containerID string) (string, error) {
+	return "no_op_commit", nil
 }
 
 func noOpPull(image string) error {

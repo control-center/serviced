@@ -44,6 +44,7 @@ func initConfig(config *script.Config, a *api) {
 	config.TenantLookup = cliTenantLookup(a)
 	config.SvcIDFromPath = cliServiceIDFromPath(a)
 	config.SvcStart = cliServiceStart(a)
+	config.Commit = a.Commit
 }
 
 func cliServiceStart(a *api) script.ServiceStart {
