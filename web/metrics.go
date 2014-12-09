@@ -322,7 +322,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "User",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -335,7 +340,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "System",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -348,7 +358,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Nice",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -361,7 +376,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "IOWait",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -374,7 +394,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "IRQ",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -387,7 +412,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Steal",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 			domain.DataPoint{
 				Aggregator:   "avg",
@@ -400,7 +430,12 @@ func newCpuConfigGraph(tags map[string][]string, totalCores int) domain.GraphCon
 				MetricSource: "cpu",
 				Name:         "Idle",
 				Rate:         true,
-				Type:         "area",
+				RateOptions: &domain.DataPointRateOptions{
+					Counter: true,
+					// supress extreme outliers
+					ResetThreshold: 1,
+				},
+				Type: "area",
 			},
 		},
 		ID:     "cpu.usage",
