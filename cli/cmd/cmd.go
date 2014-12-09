@@ -89,10 +89,20 @@ func configBool(key string, defaultVal bool) bool {
 
 const defaultRPCPort = 4979
 
+
 // New instantiates a new command-line client
+
+func getLocalAgentIP()string{
+	ip := configEnv("OUTBOUND_IP", "")
+	if ip == "" {
+		return api.GetAgentIP()
+	}
+	return ip
+}
+
 func New(driver api.API) *ServicedCli {
 	var (
-		agentIP          = api.GetAgentIP()
+		agentIP          = getLocalAgentIP()
 		varPath          = api.GetVarPath()
 		esStartupTimeout = api.GetESStartupTimeout()
 		dockerDNS        = cli.StringSlice(api.GetDockerDNS())
