@@ -23,7 +23,6 @@ import (
 	"syscall"
 	"text/template"
 	"time"
-	"os/exec"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
@@ -891,7 +890,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		return c.exit(1)
+		return nil
 	}
 
 	var (
@@ -903,7 +902,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return c.exit(1)
+		return err
 	}
 
 	if len(args) < 2 {
@@ -931,17 +930,9 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 
 	if err := c.driver.StartShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			if exitErr != nil && exitErr.ProcessState != nil && exitErr.ProcessState.Sys() != nil {
-				if status, ok := exitErr.ProcessState.Sys().(syscall.WaitStatus); ok {
-					return c.exit(status.ExitStatus())
-				}
-			}
-		}
-		return c.exit(1)
-	} else {
-		return c.exit(0)
 	}
+
+	return fmt.Errorf("serviced service shell")
 }
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
