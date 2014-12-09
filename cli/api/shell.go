@@ -112,9 +112,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
-
-	return nil
+	return cmd.Run()
 }
 
 // RunShell runs a predefined service shell command via the service definition
