@@ -29,7 +29,10 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "metric": "cgroup.cpuacct.system",
                 "name": "CPU (System)",
                 "rate": true,
-                "rateOptions": {},
+                "rateOptions": {
+                    // supress outliers
+                    "resetThreshold": 1
+                },
                 "type": "line"
             }, {
                 "aggregator": "avg",
@@ -41,7 +44,10 @@ function IsvcsControl($scope, $routeParams, $location, resourcesService, authSer
                 "metric": "cgroup.cpuacct.user",
                 "name": "CPU (User)",
                 "rate": true,
-                "rateOptions": {},
+                "rateOptions": {
+                    // supress outliers
+                    "resetThreshold": 1
+                },
                 "type": "line"
             }],
             "footer": false,

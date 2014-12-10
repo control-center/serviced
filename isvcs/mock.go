@@ -86,7 +86,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -97,7 +102,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -197,7 +207,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -208,7 +223,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -293,7 +313,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -304,7 +329,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -404,7 +434,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -415,7 +450,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -515,7 +555,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -526,7 +571,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -626,7 +676,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -637,7 +692,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -737,7 +797,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -748,7 +813,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -848,7 +918,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -859,7 +934,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
