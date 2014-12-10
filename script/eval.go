@@ -147,7 +147,7 @@ func evalSvcRun(r *runner, n node) error {
 
 	n.args[0] = svcID
 
-	glog.V(0).Infof("running: serviced service run -i %s", strings.Join(n.args, " "))
+	glog.V(0).Infof("running: serviced service run %s", strings.Join(n.args, " "))
 	args := []string{"service", "run"}
 	args = append(args, n.args...)
 	if err := r.execCommand("serviced", args...); err != nil {
@@ -179,8 +179,8 @@ func evalSvcExec(r *runner, n node) error {
 	// "HMS-YMD_svcID" will be the name of the container
 	containerName := time.Now().Format("150405-20060102") + "_" + svcID
 
-	glog.V(0).Infof("running: serviced service shell -i -s %s %s", containerName, strings.Join(n.args[1:], " "))
-	args := []string{"service", "shell", "-i", "-s", containerName}
+	glog.V(0).Infof("running: serviced service shell -s %s %s", containerName, strings.Join(n.args[1:], " "))
+	args := []string{"service", "shell", "-s", containerName}
 	args = append(args, n.args[1:]...)
 	if err := r.execCommand("serviced", args...); err != nil {
 		return err
