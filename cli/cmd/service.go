@@ -165,7 +165,7 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "run",
@@ -180,7 +180,7 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.StringFlag{"user", "", "container username used to run command"},
 				},
 			}, {
@@ -190,7 +190,7 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "action",
@@ -205,7 +205,7 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
 				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "list-snapshots",
