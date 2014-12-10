@@ -78,11 +78,15 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		return nil, err
 	}
 
+	// make sure all of the endpoints have address assignments
 	var assignment *addressassignment.AddressAssignment
 	for i, ep := range s.Endpoints {
-		if ep.IsConfigurable() && ep.AddressAssignment.IPAddr != "" {
-			assignment = &s.Endpoints[i].AddressAssignment
-			break
+		if ep.IsConfigurable() {
+			if ep.AddressAssignment.IPAddr != "" {
+				assignment = &s.Endpoints[i].AddressAssignment
+			} else {
+				return nil, fmt.Errorf("missing address assignment")
+			}
 		}
 	}
 	if assignment != nil {
