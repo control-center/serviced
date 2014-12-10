@@ -24,10 +24,12 @@ var (
 	SVC_START   = "SVC_START"
 	SVC_STOP    = "SVC_STOP"
 	SVC_RESTART = "SVC_RESTART"
+	SVC_WAIT    = "SVC_WAIT"
 	DEPENDENCY  = "DEPENDENCY"
 
 	EMPTY     = "EMPTY"
 	emptyNode = node{cmd: EMPTY}
+
 )
 
 func init() {
@@ -42,10 +44,10 @@ func init() {
 		SVC_RUN:     require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
 		// eg., SVC_EXEC NO_COMMIT Zenoss.core/Zope /run/my/script.sh --arg1 arg2
 		SVC_EXEC:    require([]string{REQUIRE_SVC}, parseArgMatch(0, "^(NO_)?COMMIT$", false, parseArgCount(min(3), buildNode))),
-		// TODO: Add wati for start option in here
 		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
+		SVC_WAIT:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^started$|^stopped$|^paused$", false, parseArgMatch(2, "^[0-9]?$", true, parseArgCount(bounds(2, 3), buildNode)))),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }

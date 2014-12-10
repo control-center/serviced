@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"strings"
 	"time"
+	"strconv"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/zenoss/glog"
@@ -95,6 +96,47 @@ func evalUSE(r *runner, n node) error {
 	return nil
 }
 
+func evalSvcWait(r *runner, n node) error {
+
+	if r.svcFromPath == nil {
+		return fmt.Errorf("no service id lookup function for %s", SVC_WAIT)
+	}
+
+	if r.svcWait == nil {
+		return fmt.Errorf("no service wait function for %s", SVC_WAIT)
+	}
+
+	svcPath := n.args[0]
+	tenantID, found := r.env["TENANT_ID"]
+	if !found {
+		return fmt.Errorf("no service tenant id specified for %s", SVC_WAIT)
+	}
+	svcID, err := r.svcFromPath(tenantID, svcPath)
+	if err != nil {
+		return err
+	}
+	if svcID == "" {
+		return fmt.Errorf("no service id found for %s", svcPath)
+	}
+
+	state := ServiceState(n.args[1])
+	timeout := uint32(0)
+	if len(n.args) > 2 {
+		var timeout64 uint64
+		if timeout64, err = strconv.ParseUint(n.args[2], 10, 32); err != nil {
+			fmt.Errorf("Unable to parse timeout value %s", n.args[2])
+		}
+		timeout = uint32(timeout64)
+	}
+
+	glog.Infof("waiting for service %s %s to be %s", svcPath, svcID, state)
+	if err := r.svcWait(svcID, state, timeout); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func evalSvcStart(r *runner, n node) error {
 
 	if r.svcFromPath == nil {
@@ -118,8 +160,85 @@ func evalSvcStart(r *runner, n node) error {
 		return fmt.Errorf("no service id found for %s", svcPath)
 	}
 
+	recursive := false
+	if len(n.args) > 1 {
+		recursive = true
+	}
+
 	glog.Infof("starting service %s %s", svcPath, svcID)
-	if err := r.svcStart(svcID); err != nil {
+	if err := r.svcStart(svcID, recursive); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func evalSvcStop(r *runner, n node) error {
+
+	if r.svcFromPath == nil {
+		return fmt.Errorf("no service id lookup function for %s", SVC_STOP)
+	}
+
+	if r.svcStop == nil {
+		return fmt.Errorf("no service stop function for %s", SVC_STOP)
+	}
+
+	svcPath := n.args[0]
+	tenantID, found := r.env["TENANT_ID"]
+	if !found {
+		return fmt.Errorf("no service tenant id specified for %s", SVC_STOP)
+	}
+	svcID, err := r.svcFromPath(tenantID, svcPath)
+	if err != nil {
+		return err
+	}
+	if svcID == "" {
+		return fmt.Errorf("no service id found for %s", svcPath)
+	}
+
+	recursive := false
+	if len(n.args) > 1 {
+		recursive = true
+	}
+
+	glog.Infof("stopping service %s %s", svcPath, svcID)
+	if err := r.svcStop(svcID, recursive); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func evalSvcRestart(r *runner, n node) error {
+
+	if r.svcFromPath == nil {
+		return fmt.Errorf("no service id lookup function for %s", SVC_RESTART)
+	}
+
+	if r.svcRestart == nil {
+		return fmt.Errorf("no service restart function for %s", SVC_RESTART)
+	}
+
+	svcPath := n.args[0]
+	tenantID, found := r.env["TENANT_ID"]
+	if !found {
+		return fmt.Errorf("no service tenant id specified for %s", SVC_RESTART)
+	}
+	svcID, err := r.svcFromPath(tenantID, svcPath)
+	if err != nil {
+		return err
+	}
+	if svcID == "" {
+		return fmt.Errorf("no service id found for %s", svcPath)
+	}
+
+	recursive := false
+	if len(n.args) > 1 {
+		recursive = true
+	}
+
+	glog.Infof("restarting service %s %s", svcPath, svcID)
+	if err := r.svcRestart(svcID, recursive); err != nil {
 		return err
 	}
 

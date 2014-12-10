@@ -16,6 +16,8 @@ package api
 import (
 	"fmt"
 	"path"
+	"time"
+	"math"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
@@ -43,14 +45,48 @@ func initConfig(config *script.Config, a *api) {
 	config.Restore = a.Rollback
 	config.TenantLookup = cliTenantLookup(a)
 	config.SvcIDFromPath = cliServiceIDFromPath(a)
-	config.SvcStart = cliServiceStart(a)
+	config.SvcStart = cliServiceControl(a.StartService)
+	config.SvcStop = cliServiceControl(a.StopService)
+	config.SvcRestart = cliServiceControl(a.RestartService)
+	config.SvcWait = cliServiceWait(a)
 	config.Commit = a.Commit
 }
 
-func cliServiceStart(a *api) script.ServiceStart {
-	return func(svcID string) error {
-		svcConfig := SchedulerConfig{ServiceID: svcID, AutoLaunch: false}
-		if _, err := a.StartService(svcConfig); err != nil {
+func cliServiceControl(svcControlMethod ServiceStateController) script.ServiceControl {
+	return func(svcID string, recursive bool) error {
+		svcConfig := SchedulerConfig{ServiceID: svcID, AutoLaunch: recursive}
+		if _, err := svcControlMethod(svcConfig); err != nil {
+			return err
+		}
+		return nil
+	}
+}
+
+func cliServiceWait(a *api) script.ServiceWait {
+	return func(svcID string, state script.ServiceState, timeout uint32) error {
+		client, err := a.connectDAO()
+		if err != nil {
+			return err
+		}
+
+		var desiredState service.DesiredState
+		switch state {
+		case "started":
+			desiredState = service.SVCRun
+		case "stopped":
+			desiredState = service.SVCStop
+		case "paused":
+			desiredState = service.SVCPause
+		default:
+			return fmt.Errorf("Unknown service state %s", state)
+		}
+		if timeout == 0 {
+			timeout = math.MaxUint32
+		}
+		wsr := dao.WaitServiceRequest{ServiceIDs: []string{svcID},
+			DesiredState: desiredState,
+			Timeout:      time.Duration(timeout) * time.Second}
+		if err = client.WaitService(wsr, nil); err != nil {
 			return err
 		}
 		return nil
