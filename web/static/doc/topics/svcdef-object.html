@@ -1,0 +1,478 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="en-us">
+<head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta charset="UTF-8"><meta name="copyright" content="(C) Copyright 2014">
+<meta name="DC.rights.owner" content="(C) Copyright 2014">
+<meta name="DC.Type" content="reference">
+<meta name="description" content="The information that Control Center needs to start and manage a service, in JavaScript Object Notation (JSON) format."><meta name="prodname" content="Control Center">
+<meta name="version" content="0">
+<meta name="release" content="8">
+<meta name="modification" content="0">
+<meta name="DC.Publisher" content="Zenoss, Inc.">
+<meta name="DC.Format" content="XHTML">
+<meta name="DC.Identifier" content="referenceid">
+<link rel="stylesheet" type="text/css" href="../commonltr.css">
+<title>ServiceDefinition object</title>
+</head>
+<body id="referenceid">
+
+
+  <h1 class="title topictitle1"><span class="keyword">ServiceDefinition</span> object</h1>
+
+  
+  <div class="body refbody"><p class="shortdesc">The information that <span class="ph">Control Center</span> needs to start and manage a service,
+    in JavaScript Object Notation (JSON) format.</p>
+
+    <div class="section">
+      <div class="note note"><span class="notetitle">Note:</span> Most values may contain Go templates, with <span class="ph">Control Center</span> functions. For
+        more information, see <span class="xref"></span>.</div>
+
+    
+<div class="tablenoborder"><table cellpadding="4" cellspacing="0" summary="" class="table" frame="border" border="1" rules="all">
+        
+        
+        
+        <thead class="thead" align="left">
+          <tr class="row">
+            <th class="entry" valign="top" width="26.31578947368421%" id="d8696e62">Atttribute</th>
+
+            <th class="entry" valign="top" width="10.526315789473683%" id="d8696e65">Value</th>
+
+            <th class="entry" valign="top" width="63.1578947368421%" id="d8696e68">Description</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody class="tbody">
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Name</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The service name.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Command</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The command that starts and runs the service.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Description</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The service description.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Tags</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of strings</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Searchable words or phrases for the service.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">ImageID</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The Docker image ID for the service.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Instances</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The number of instances of the service to run at the same time, in different
+                containers. This object has two members. <dl class="dl">
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">Min</samp></dt>
+
+                    <dd class="dd">The minimum number of instances to run. If the value is zero, no instances
+                      are started. If non-zero, the value must be greater than or equal to
+                      zero.</dd>
+
+                  
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">Max</samp></dt>
+
+                    <dd class="dd">The maximum number of instances to run. If the value is zero, only
+                        <samp class="ph codeph">Min</samp> is used. If non-zero, the value must be greater than or
+                      equal to <samp class="ph codeph">Min</samp>.</dd>
+
+                  
+                </dl>
+
+              </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">ChangeOptions</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of strings</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Control options for what happens when a running instance of the service is
+              changed. </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Launch</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Determines whether the service starts when its parent service starts. 
+              <dl class="dl">
+                
+                  <dt class="dt dlterm"><samp class="ph codeph">AUTO</samp></dt>
+
+                  <dd class="dd">(Default) Start the service when the parent service starts.</dd>
+
+                
+                
+                  <dt class="dt dlterm"><samp class="ph codeph">MANUAL</samp></dt>
+
+                  <dd class="dd">Do not start the service when the parent service starts.</dd>
+
+                
+              </dl>
+
+            </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">HostPolicy</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Determines how to schedule instances of the service on hosts in a resource pool. <dl class="dl">
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">LeastCommitted</samp></dt>
+
+                    <dd class="dd">(Default) Select the host with the smallest amount of memory committed to
+                      other services.</dd>
+
+                  
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">PreferSeparate</samp></dt>
+
+                    <dd class="dd">Attempt to schedule instances of the service on separate hosts.</dd>
+
+                  
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">RequireSeparate</samp></dt>
+
+                    <dd class="dd">Schedule instances of the service on separate hosts only.</dd>
+
+                  
+                </dl>
+
+              </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Hostname</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The virtual host name to use when an instance of the service is run.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Privileged</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 "><samp class="ph codeph">true</samp> or <samp class="ph codeph">false</samp></td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Determines whether containers (in which instances of the service run) have
+                extended privileges. </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">ConfigFiles</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The configuration file templates to install in containers (in which instances of
+                the service run). <p class="p">Each member of this object is a string containing the absolute
+                  path of a configuration file template and a <span class="xref">ConfigFile</span> object.</p>
+
+              </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Context</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">
+              
+            </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Endpoints</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The network endpoints that the service uses, as 
+              <span class="xref">Endpoint</span> objects.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Services</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The subservices that are part of the service, as <span class="xref">ServiceDefinition</span> objects.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Tasks</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">
+              
+            </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">LogFilters</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Pairs of strings and values mapping log filter names to log filter definitions.
+                </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Volumes</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The list of file system directories to bind mount in containers (in which
+                instances of the service run). Each item is a <span class="xref">Volume</span> object.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">LogConfigs</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">A list of <span class="keyword cmdname">logstash</span> configurations for the log files of the
+              service, as <span class="xref">LogConfig</span> objects.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Snapshot</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The <span class="keyword cmdname">bash</span> commands to pause and resume the service. Between
+                commands, <span class="ph">Control Center</span> copies the file system of the service's
+                container. <p class="p">This object has two members:</p>
+
+                <dl class="dl">
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">Pause</samp></dt>
+
+                    <dd class="dd">The <span class="keyword cmdname">bash</span> command to stop file system writes, or stop the
+                      service.</dd>
+
+                  
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">Resume</samp></dt>
+
+                    <dd class="dd">The <span class="keyword cmdname">bash</span> command to return the service to normal
+                      processing.</dd>
+
+                  
+                </dl>
+
+              </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">RAMCommitment</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Integer </td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The amount of main memory the service requires, in bytes. This value is used to
+              help schedule the service into the best available resource pool.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">CPUCommitment</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Integer</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The number of CPU cores the service requires. This value is used to
+              help schedule the service into the best available resource pool.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Runs</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The commands the service executes inside its container when invoked with
+                  <samp class="ph codeph">serviced run <var class="keyword varname">Command</var></samp>. This object contains one
+                or more command names, each paired with the <span class="keyword cmdname">bash</span> command to run
+                inside the containers.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Actions</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The commands the service executes inside its container when invoked with
+                  <samp class="ph codeph">serviced action <var class="keyword varname">Command</var></samp>. This object contains
+                one or more command names, each paired with the <span class="keyword cmdname">bash</span> command to
+                run inside the containers.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">HealthChecks</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The commands to invoke (at regular intervals) to gather data about health of the
+                service. Each member of this object is a health check name paired with a <span class="xref">HealthCheck</span> object.</td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">Prereqs</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Array of objects</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The scripts to run successfully inside a container before starting the
+                service in the container. Each item is an object with two members:
+              <dl class="dl">
+                
+                  <dt class="dt dlterm"><samp class="ph codeph">Name</samp></dt>
+
+                  <dd class="dd">The name of the prerequisite.</dd>
+
+                
+                
+                  <dt class="dt dlterm"><samp class="ph codeph">Script</samp></dt>
+
+                  <dd class="dd">The <span class="keyword cmdname">bash</span> command to invoke inside the container.</dd>
+
+                
+              </dl>
+
+            </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">MonitoringProfile</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">Object</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">Metadata descriptions of the metrics, graphs, and thresholds the service makes
+                available to external monitoring services. The members of this object are the
+                following pairs, in order: <dl class="dl">
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">MetricConfigs</samp></dt>
+
+                    <dd class="dd">An array of <span class="xref">MetricConfig</span>
+                      objects.</dd>
+
+                  
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">GraphConfigs</samp></dt>
+
+                    <dd class="dd">An array of <span class="xref">GraphConfig</span>
+                      objects.</dd>
+
+                  
+                  
+                    <dt class="dt dlterm"><samp class="ph codeph">ThresholdConfigs</samp></dt>
+
+                    <dd class="dd">An array of <span class="xref">ThresholdConfig</span>
+                      objects.</dd>
+
+                  
+                </dl>
+
+              </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">MemoryLimit</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">float64</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">
+              
+            </td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">CPUShares</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">int64</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 "></td>
+
+          </tr>
+
+          <tr class="row">
+            <td class="entry" valign="top" width="26.31578947368421%" headers="d8696e62 "><samp class="ph codeph">PIDFile</samp></td>
+
+            <td class="entry" valign="top" width="10.526315789473683%" headers="d8696e65 ">String</td>
+
+            <td class="entry" valign="top" width="63.1578947368421%" headers="d8696e68 ">The path, or the command to generate the path, for the PID file to which signals
+                are copied.</td>
+
+          </tr>
+
+        </tbody>
+
+      </table>
+</div>
+
+    </div>
+
+  </div>
+
+
+</body>
+</html>
