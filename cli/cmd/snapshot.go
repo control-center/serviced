@@ -52,9 +52,12 @@ func (c *ServicedCli) initSnapshot() {
 				Description: "serviced snapshot commit DOCKERID",
 				Action:      c.cmdSnapshotCommit,
 			}, {
-				Name:         "rollback",
-				Usage:        "Restores the environment to the state of the given snapshot",
-				Description:  "serviced snapshot rollback SNAPSHOTID",
+				Name:        "rollback",
+				Usage:       "Restores the environment to the state of the given snapshot",
+				Description: "serviced snapshot rollback SNAPSHOTID",
+				Flags: []cli.Flag{
+					cli.BoolFlag{"force-restart", "restarts running services during rollback"},
+				},
 				BashComplete: c.printSnapshotsFirst,
 				Action:       c.cmdSnapshotRollback,
 			},
@@ -191,7 +194,7 @@ func (c *ServicedCli) cmdSnapshotCommit(ctx *cli.Context) {
 	}
 }
 
-// serviced snapshot rollback SNAPSHOTID
+// serviced snapshot rollback SNAPSHOTID [--force-restart]
 func (c *ServicedCli) cmdSnapshotRollback(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 1 {
@@ -200,7 +203,7 @@ func (c *ServicedCli) cmdSnapshotRollback(ctx *cli.Context) {
 		return
 	}
 
-	if err := c.driver.Rollback(args[0]); err != nil {
+	if err := c.driver.Rollback(args[0], ctx.Bool("force-restart")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
 		fmt.Println(args[0])

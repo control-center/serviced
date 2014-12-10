@@ -62,10 +62,10 @@ func (this *ControlPlaneDao) DeleteSnapshots(serviceID string, unused *int) erro
 }
 
 // Rollback rolls back the dfs to a particular snapshot
-func (this *ControlPlaneDao) Rollback(snapshotID string, unused *int) error {
+func (this *ControlPlaneDao) Rollback(request dao.RollbackRequest, unused *int) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
-	return this.dfs.Rollback(snapshotID)
+	return this.dfs.Rollback(request.SnapshotID, request.ForceRestart)
 }
 
 // Snapshot takes a snapshot of the dfs and its respective images

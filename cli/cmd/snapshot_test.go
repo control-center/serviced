@@ -102,7 +102,7 @@ func (t SnapshotAPITest) Commit(dockerID string) (string, error) {
 	return t.AddSnapshot(dockerID)
 }
 
-func (t SnapshotAPITest) Rollback(id string) error {
+func (t SnapshotAPITest) Rollback(id string, f bool) error {
 	return t.RemoveSnapshot(id)
 }
 
@@ -286,6 +286,7 @@ func ExampleServicedCLI_CmdSnapshotRollback_usage() {
 	//    serviced snapshot rollback SNAPSHOTID
 	//
 	// OPTIONS:
+	//    --force-restart	restarts running services during rollback
 }
 
 func ExampleServicedCLI_CmdSnapshotRollback_err() {

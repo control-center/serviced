@@ -291,7 +291,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequ
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
 func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, error) {
-	glog.V(2).Infof("Facade.GetTenantId: %s", serviceID)
+	glog.V(3).Infof("Facade.GetTenantId: %s", serviceID)
 	gs := func(id string) (service.Service, error) {
 		return f.getService(ctx, id)
 	}
@@ -363,6 +363,75 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 
 	err := f.walkServices(ctx, serviceID, autoLaunch, visitor)
 	return affected, err
+}
+
+func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
+	glog.V(4).Infof("Facade.GetServiceStates %s", serviceID)
+
+	svc, err := f.GetService(ctx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not find service %s: %s", serviceID, err)
+		return nil, err
+	}
+
+	var states []servicestate.ServiceState
+	if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
+		return nil, err
+	}
+
+	return states, nil
+}
+
+func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error {
+	glog.V(4).Infof("Facade.WaitService (%s)", dstate)
+
+	if dstate.String() == "unknown" {
+		return fmt.Errorf("desired state unknown")
+	}
+
+	type waitstatus struct {
+		ServiceID string
+		Err       error
+	}
+
+	cancel := make(chan interface{})
+	processing := make(map[string]struct{})
+	done := make(chan waitstatus)
+
+	defer close(cancel)
+	for _, serviceID := range serviceIDs {
+		svc, err := f.GetService(ctx, serviceID)
+		if err != nil {
+			glog.Errorf("Error while getting service %s: %s", serviceID, err)
+			return err
+		}
+		processing[svc.ID] = struct{}{}
+		go func(s *service.Service) {
+			err := zkAPI(f).WaitService(s, dstate, cancel)
+			select {
+			case done <- waitstatus{s.ID, err}:
+			case <-cancel:
+			}
+			glog.V(1).Infof("Finished waiting for %s (%s) to %s: %s", s.Name, s.ID, dstate, err)
+		}(svc)
+	}
+
+	timeoutC := time.After(timeout)
+	for len(processing) > 0 {
+		select {
+		case result := <-done:
+			delete(processing, result.ServiceID)
+			if result.Err != nil {
+				glog.Errorf("Error while waiting for service %s to %s: %s", result.ServiceID, dstate, result.Err)
+				return result.Err
+			}
+		case <-timeoutC:
+			return fmt.Errorf("timeout")
+		}
+	}
+
+	return nil
 }
 
 func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {

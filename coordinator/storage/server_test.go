@@ -55,7 +55,7 @@ func TestServer(t *testing.T) {
 	t.Skip() // the zookeeper part doesnt work in this test, but does work in real life
 	zookeeper.EnsureZkFatjar()
 	basePath := ""
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}

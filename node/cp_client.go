@@ -152,6 +152,10 @@ func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected
 	return s.rpcClient.Call("ControlPlane.StopService", request, affected)
 }
 
+func (s *ControlClient) WaitService(request dao.WaitServiceRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.WaitService", request, unused)
+}
+
 func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
@@ -204,8 +208,8 @@ func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
 }
 
-func (s *ControlClient) Rollback(serviceId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
+func (s *ControlClient) Rollback(request dao.RollbackRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Rollback", request, unused)
 }
 
 func (s *ControlClient) Snapshot(serviceId string, label *string) error {

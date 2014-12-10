@@ -264,7 +264,6 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
 
-	defer zzk.ShutdownConnections()
 	d.startRPC()
 	d.startDockerRegistryProxy()
 
@@ -301,6 +300,8 @@ func (d *daemon) run() (err error) {
 	case <-time.After(60 * time.Second):
 		defer glog.Infof("Timeout waiting for shutdown")
 	}
+
+	zzk.ShutdownConnections()
 
 	if options.Master {
 		switch sig {

@@ -77,7 +77,7 @@ type API interface {
 	AddSnapshot(string) (string, error)
 	RemoveSnapshot(string) error
 	Commit(string) (string, error)
-	Rollback(string) error
+	Rollback(string, bool) error
 
 	// Templates
 	GetServiceTemplates() ([]template.ServiceTemplate, error)

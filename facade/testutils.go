@@ -120,3 +120,7 @@ func (z *zkMock) RemoveResourcePool(poolID string) error {
 func (z *zkMock) CheckRunningVHost(vhostName, serviceID string) error {
 	return nil
 }
+
+func (z *zkMock) WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
+	return nil
+}

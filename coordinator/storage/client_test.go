@@ -33,7 +33,7 @@ import (
 func TestClient(t *testing.T) {
 	zookeeper.EnsureZkFatjar()
 	basePath := ""
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}

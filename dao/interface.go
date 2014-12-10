@@ -55,6 +55,12 @@ type ScheduleServiceRequest struct {
 	AutoLaunch bool
 }
 
+type WaitServiceRequest struct {
+	ServiceIDs   []string
+	DesiredState service.DesiredState
+	Timeout      time.Duration
+}
+
 type HostServiceRequest struct {
 	HostID         string
 	ServiceStateID string
@@ -69,6 +75,11 @@ type AttachRequest struct {
 type FindChildRequest struct {
 	ServiceID string
 	ChildName string
+}
+
+type RollbackRequest struct {
+	SnapshotID   string
+	ForceRestart bool
 }
 
 // The ControlPlane interface is the API for a serviced master.
@@ -127,6 +138,9 @@ type ControlPlane interface {
 
 	// Stop a running instance of a service
 	StopRunningInstance(request HostServiceRequest, unused *int) error
+
+	// Wait for a particular service state
+	WaitService(request WaitServiceRequest, unused *int) error
 
 	// Update the service state
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error
@@ -201,7 +215,7 @@ type ControlPlane interface {
 	DeleteSnapshots(tenantID string, unused *int) error
 
 	// Rollback a service to a particular snapshot
-	Rollback(snapshotID string, unused *int) error
+	Rollback(request RollbackRequest, unused *int) error
 
 	// Snapshot takes a snapshot of the filesystem and images
 	Snapshot(serviceID string, snapshotID *string) error

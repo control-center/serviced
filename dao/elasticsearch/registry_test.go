@@ -15,13 +15,14 @@
 package elasticsearch
 
 import (
+	"path"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 
-	"fmt"
 	"time"
 )
 
@@ -80,31 +81,6 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
-	epr.SetEphemeral(false)
-
-	//test get and set
-	verifySetGet := func(expected registry.EndpointNode) {
-		glog.V(1).Infof("verifying set/get for expected %+v", expected)
-		for ii := 0; ii < 3; ii++ {
-			path, err := epr.SetItem(dt.zkConn, expected)
-			glog.V(1).Infof("expected item[%s]: %+v", path, expected)
-			t.Assert(err, IsNil)
-			t.Assert(path, Not(Equals), 0)
-
-			if epr.IsEphemeral() {
-				var obtained *registry.EndpointNode
-				obtained, err = epr.GetItem(dt.zkConn, path)
-				glog.V(1).Infof("obtained item[%s]: %+v", path, expected)
-				t.Assert(err, IsNil)
-				t.Assert(obtained, NotNil)
-				//remove version for equals
-				expected.SetVersion(nil)
-				obtained.SetVersion(nil)
-				t.Assert(expected, Equals, *obtained)
-			}
-		}
-	}
-
 	aep := dao.ApplicationEndpoint{
 		ServiceID:     "epn_service",
 		ContainerIP:   "192.168.0.1",
@@ -114,6 +90,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		HostPort:      12345,
 		Protocol:      "epn_tcp",
 	}
+
 	epn1 := registry.EndpointNode{
 		ApplicationEndpoint: aep,
 		TenantID:            "epn_tenant",
@@ -121,113 +98,248 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		HostID:              "epn_host1",
 		ContainerID:         "epn_container",
 	}
+	t.Logf("Creating a new node: %+v", epn1)
 
-	verifySetGet(epn1)
+	// verify that only one node gets set per host-container combo for the
+	// tenant-endpoint key (regardless of whether the node is ephemeral)
+	func(expected registry.EndpointNode) {
+		// case 1: add a single non-ephemeral node
+		epr.SetEphemeral(false)
+		p, err := epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(p, Not(Equals), "")
+		defer dt.zkConn.Delete(path.Dir(p))
 
-	epn2 := epn1
-	epn2.EndpointID = "epn_.*"
-	epn2.ContainerID = "epn_container2"
-	verifySetGet(epn2)
+		actual, err := epr.GetItem(dt.zkConn, p)
+		t.Assert(err, IsNil)
+		t.Assert(actual, NotNil)
 
-	// test remove
-	verifyRemove := func(expected registry.EndpointNode) {
+		expected.SetVersion(nil)
+		actual.SetVersion(nil)
+		t.Assert(expected, Equals, *actual)
+
+		// case 2: update the node
+		expected.ContainerIP = "192.168.1.1"
+		path2, err := epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(path2, Equals, p)
+
+		actual, err = epr.GetItem(dt.zkConn, path2)
+		t.Assert(err, IsNil)
+		t.Assert(actual, NotNil)
+
+		expected.SetVersion(nil)
+		actual.SetVersion(nil)
+		t.Assert(expected, Equals, *actual)
+
+		// case 3: add the same node ephemerally
+		epr.SetEphemeral(true)
+		expected.ContainerIP = "192.168.2.2"
+		path3, err := epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(path3, Equals, p)
+
+		actual, err = epr.GetItem(dt.zkConn, path3)
+		t.Assert(err, IsNil)
+		t.Assert(actual, NotNil)
+
+		expected.SetVersion(nil)
+		actual.SetVersion(nil)
+		t.Assert(expected, Equals, *actual)
+
+		// case 4: add a new ephemeral node
+		expected.ContainerID = "epn_container_E"
+		path4, err := epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(path4, Not(Equals), p)
+
+		actual, err = epr.GetItem(dt.zkConn, path4)
+		t.Assert(err, IsNil)
+		t.Assert(actual, NotNil)
+
+		expected.SetVersion(nil)
+		actual.SetVersion(nil)
+		t.Assert(expected, Equals, *actual)
+
+		// case 5: add the same node non-ephemerally
+		/*
+			epr.SetEphemeral(false)
+			expected.ContainerIP = "192.168.3.3"
+			path5, err := epr.SetItem(dt.zkConn, expected)
+			t.Assert(err, IsNil)
+			t.Assert(path5, Equals, path4)
+
+			actual, err = epr.GetItem(dt.zkConn, path5)
+			t.Assert(err, IsNil)
+			t.Assert(actual, NotNil)
+
+			expected.SetVersion(nil)
+			actual.SetVersion(nil)
+			t.Assert(expected, Equals, *actual)
+		*/
+	}(epn1)
+
+	t.Logf("Testing removal of endpoint node %+v", epn1)
+	func(expected registry.EndpointNode) {
+		// case 1: remove non-ephemeral node
+		epr.SetEphemeral(false)
+		p, err := epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(p, Not(Equals), "")
+		defer dt.zkConn.Delete(path.Dir(p))
+
 		err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
 		t.Assert(err, IsNil)
-	}
-	verifyRemove(epn1)
-	verifyRemove(epn2)
+		exists, _ := dt.zkConn.Exists(p)
+		t.Assert(exists, Equals, false)
 
-	//test watch tenant endpoint
-	verifyWatch := func(expected registry.EndpointNode) {
-		numEndpoints := 0
-		var obtained *registry.EndpointNode
+		// case 2: remove non-ephemeral node as ephemeral
+		/*
+			p, err = epr.SetItem(dt.zkConn, expected)
+			t.Assert(err, IsNil)
+			t.Assert(p, Not(Equals), "")
+
+			epr.SetEphemeral(true)
+			err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+			if err != nil {
+				defer dt.zkConn.Delete(p)
+			}
+			t.Assert(err, IsNil)
+			exists, _ = dt.zkConn.Exists(p)
+			t.Assert(exists, Equals, false)
+		*/
+
+		// case 3: remove ephemeral node
+		p, err = epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(p, Not(Equals), "")
+
+		err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+		t.Assert(err, IsNil)
+		exists, _ = dt.zkConn.Exists(p)
+		t.Assert(exists, Equals, false)
+
+		// case 4: remove ephemeral node as non-ephemeral
+		p, err = epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+		t.Assert(p, Not(Equals), "")
+
+		epr.SetEphemeral(false)
+		err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+		if err != nil {
+			defer dt.zkConn.Delete(p)
+		}
+		t.Assert(err, IsNil)
+		exists, _ = dt.zkConn.Exists(p)
+		t.Assert(exists, Equals, false)
+	}(epn1)
+
+	t.Logf("Testing endpoint watcher")
+	func(expected registry.EndpointNode) {
+		errC := make(chan error)
+		eventC := make(chan int)
+
+		// case 0: no parent
 		go func() {
-			errorWatcher := func(path string, err error) {}
-			countEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
-				numEndpoints++
-				glog.Infof("seeing event %d parentPath:%s nodeIDs:%v", numEndpoints, parentPath, nodeIDs)
+			parentKey := registry.TenantEndpointKey("bad_tenant", "bad_endpoint")
+			errC <- epr.WatchTenantEndpoint(dt.zkConn, parentKey, nil, nil)
+		}()
+		select {
+		case err := <-errC:
+			t.Assert(err, Equals, client.ErrNoNode)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("Timeout from WatchTenantEndpoint")
+			// TODO: cancel listener here
+		}
 
-				if len(nodeIDs) > 0 {
-					obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
-					t.Assert(err, IsNil)
-					t.Assert(obtained, NotNil)
-				}
+		t.Logf("Starting endpoint listener")
+		go func() {
+			changeEvt := func(conn client.Connection, parent string, nodeIDs ...string) {
+				eventC <- len(nodeIDs)
 			}
 
-			tenantEndpointKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
-			glog.Infof("watching tenant endpoint %s", tenantEndpointKey)
-			err = epr.WatchTenantEndpoint(dt.zkConn, tenantEndpointKey, countEvents, errorWatcher)
+			errEvt := func(path string, err error) {
+				errC <- err
+			}
+
+			parentKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
+			_, err := epr.EnsureKey(dt.zkConn, parentKey)
 			t.Assert(err, IsNil)
+
+			epr.WatchTenantEndpoint(dt.zkConn, parentKey, changeEvt, errEvt)
+			close(errC)
 		}()
 
-		time.Sleep(2 * time.Second)
-
-		const numEndpointsExpected int = 3
-		for i := 0; i < numEndpointsExpected; i++ {
-			glog.Infof("SetItem %+v", expected)
-			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
-			_, err = epr.SetItem(dt.zkConn, expected)
-			t.Assert(err, IsNil)
-			time.Sleep(1 * time.Second)
+		select {
+		case count := <-eventC:
+			t.Assert(count, Equals, 0)
+		case err := <-errC:
+			t.Fatalf("unexpected error running endpoint listener: %s", err)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("Timeout from WatchTenantEndpoint: %+v", expected)
+			// TODO: cancel listener here
 		}
 
-		time.Sleep(2 * time.Second)
-		//remove version for equals
-		expected.SetVersion(nil)
-		obtained.SetVersion(nil)
-		t.Assert(expected, Equals, *obtained)
-
-		// remove items
-		for i := 0; i < numEndpointsExpected; i++ {
-			glog.Infof("RemoveItem %+v", expected)
-			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
-			err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
-			t.Assert(err, IsNil)
-			time.Sleep(1 * time.Second)
-		}
-
-		err = epr.RemoveTenantEndpointKey(dt.zkConn, expected.TenantID, expected.EndpointID)
+		// case 1: add item
+		p, err := epr.SetItem(dt.zkConn, expected)
 		t.Assert(err, IsNil)
 
-		glog.Warning("TODO - deficiency of epr.WatchTenantEndpoint - notice how countEvents is not called after RemoveTenantEndpointKey")
-		for i := 0; i < numEndpointsExpected; i++ {
-			glog.Infof("SetItem %+v", expected)
-			expected.ContainerID = fmt.Sprintf("epn_container_%d", i)
-			_, err = epr.SetItem(dt.zkConn, expected)
-			t.Assert(err, IsNil)
-			time.Sleep(1 * time.Second)
-		}
-	}
-
-	epn3 := epn1
-	verifyWatch(epn3)
-
-	// make sure that watching non-existent path does not result in panic
-	epn4 := registry.EndpointNode{
-		ApplicationEndpoint: aep,
-		TenantID:            "epn_tenant4",
-		EndpointID:          "epn_endpoint4",
-		HostID:              "epn_host4",
-		ContainerID:         "epn_container4",
-	}
-	verifyWatchNonExistentKey := func(expected registry.EndpointNode) {
-		var obtained *registry.EndpointNode
-		errorWatcher := func(path string, err error) {}
-		showEvents := func(conn client.Connection, parentPath string, nodeIDs ...string) {
-			glog.Infof("seeing event parentPath:%s nodeIDs:%v", parentPath, nodeIDs)
-
-			if len(nodeIDs) > 0 {
-				obtained, err = epr.GetItem(dt.zkConn, fmt.Sprintf("%s/%s", parentPath, nodeIDs[0]))
-				t.Assert(err, IsNil)
-				t.Assert(obtained, NotNil)
-			}
+		select {
+		case count := <-eventC:
+			t.Assert(count, Equals, 1)
+		case err := <-errC:
+			t.Fatalf("unexpected error running endpoint listener: %s", err)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("Timeout from WatchTenantEndpoint: %+v", expected)
+			// TODO: cancel listener here
 		}
 
-		tenantEndpointKey := registry.TenantEndpointKey(expected.TenantID, expected.EndpointID)
-		glog.Infof("watching tenant endpoint %s", tenantEndpointKey)
-		err = epr.WatchTenantEndpoint(dt.zkConn, tenantEndpointKey, showEvents, errorWatcher)
-		t.Assert(err, NotNil)
-		t.Assert(err, Equals, client.ErrNoNode)
-	}
-	verifyWatchNonExistentKey(epn4)
+		// case 2: update an item (should not receieve an event)
+		expected.ContainerIP = "192.168.23.12"
+		_, err = epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+
+		// case 3: add another item
+		expected.ContainerID = "test_container_2"
+		_, err = epr.SetItem(dt.zkConn, expected)
+		t.Assert(err, IsNil)
+
+		select {
+		case count := <-eventC:
+			t.Assert(count, Equals, 2)
+		case err := <-errC:
+			t.Fatalf("unexpected error running endpoint listener: %s", err)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("Timeout from WatchTenantEndpoint: %+v", expected)
+			// TODO: cancel listener here
+		}
+
+		// case 4: remove item
+		err = epr.RemoveItem(dt.zkConn, expected.TenantID, expected.EndpointID, expected.HostID, expected.ContainerID)
+		t.Assert(err, IsNil)
+
+		select {
+		case count := <-eventC:
+			t.Assert(count, Equals, 1)
+		case err := <-errC:
+			t.Fatalf("unexpected error running endpoint listener: %s", err)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("Timeout from WatchTenantEndpoint: %+v", expected)
+			// TODO: cancel listener here
+		}
+
+		// case 5: remove parent
+		err = dt.zkConn.Delete(path.Dir(p))
+		t.Assert(err, IsNil)
+
+		select {
+		case count := <-eventC:
+			t.Assert(count, Equals, 0)
+		case err := <-errC:
+			t.Assert(err, Equals, client.ErrNoNode)
+		case <-time.After(5 * time.Second):
+			t.Fatalf("Timeout from WatchTenantEndpoint: %+v", expected)
+			// TODO: cancel listener here
+		}
+	}(epn1)
 }
