@@ -144,7 +144,8 @@ func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, aff
 	return err
 }
 
-func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, unused *int) (err error) {
+// WaitService waits for the given service IDs to reach a particular state
+func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *struct{}) (err error) {
 	return this.facade.WaitService(datastore.Get(), request.DesiredState, request.Timeout, request.ServiceIDs...)
 }
 

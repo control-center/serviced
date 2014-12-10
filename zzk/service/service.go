@@ -406,8 +406,10 @@ func RemoveService(conn client.Connection, serviceID string) error {
 	return conn.Delete(servicepath(serviceID))
 }
 
+// WaitService waits for a particular service's instances to reach a particular state
 func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID string, desiredState service.DesiredState) error {
 	for {
+		// Get the list of service states
 		stateIDs, event, err := conn.ChildrenW(servicepath(serviceID))
 		if err != nil {
 			return err
@@ -416,13 +418,16 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 
 		switch desiredState {
 		case service.SVCStop:
+			// if there are no instances, then the service is stopped
 			if count == 0 {
 				return nil
 			}
 		case service.SVCRun, service.SVCRestart:
+			// figure out which service instances are actively running and decrement non-running instances
 			for _, stateID := range stateIDs {
 				var state ServiceStateNode
 				if err := conn.Get(servicepath(serviceID, stateID), &state); err == client.ErrNoNode {
+					// if the instance does not exist, then that instance is no running
 					count--
 				} else if err != nil {
 					return err
@@ -431,6 +436,8 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 				}
 			}
 
+			// Get the service node and verify that the number of running instances meets or exceeds the number
+			// of instances required by the service
 			var service ServiceNode
 			if err := conn.Get(servicepath(serviceID), &service); err != nil {
 				return err
@@ -438,9 +445,11 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 				return nil
 			}
 		case service.SVCPause:
+			// figure out which services have stopped or paused
 			for _, stateID := range stateIDs {
 				var state ServiceStateNode
 				if err := conn.Get(servicepath(serviceID, stateID), &state); err == client.ErrNoNode {
+					// if the instance does not exist, then it is not runng (so it is paused)
 					count--
 				} else if err != nil {
 					return err
@@ -448,21 +457,33 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 					count--
 				}
 			}
+			// no instances should be running for all instances to be considered paused
 			if count == 0 {
 				return nil
 			}
+		default:
+			return fmt.Errorf("invalid desired state")
 		}
 
-		for _, stateID := range stateIDs {
-			if err := wait(shutdown, conn, serviceID, stateID, desiredState); err != nil {
-				return err
+		if len(stateIDs) > 0 {
+			// wait for each instance to reach the desired state
+			for _, stateID := range stateIDs {
+				if err := wait(shutdown, conn, serviceID, stateID, desiredState); err != nil {
+					return err
+				}
 			}
-		}
-
-		select {
-		case <-event:
-		case <-shutdown:
-			return zzk.ErrShutdown
+			select {
+			case <-shutdown:
+				return zzk.ErrShutdown
+			default:
+			}
+		} else {
+			// otherwise, wait for a change in the number of children
+			select {
+			case <-event:
+			case <-shutdown:
+				return zzk.ErrShutdown
+			}
 		}
 	}
 }

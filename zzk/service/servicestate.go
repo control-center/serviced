@@ -75,11 +75,13 @@ func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState
 	return conn.Set(path, &node)
 }
 
+// wait waits for an individual service state to reach its desired state
 func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string, dstate service.DesiredState) error {
 	for {
 		var node ServiceStateNode
 		event, err := conn.GetW(servicepath(serviceID, stateID), &node)
 		if err == client.ErrNoNode {
+			// if the node no longer exists, then there is nothing to watch, so we are done
 			return nil
 		} else if err != nil {
 			glog.Errorf("Got an error while looking for %s (%s): %s", stateID, serviceID, err)
@@ -88,15 +90,20 @@ func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateI
 
 		switch dstate {
 		case service.SVCStop:
+			// pass through, because the node needs to be deleted to be considered Stopped
 		case service.SVCRun, service.SVCRestart:
 			if node.IsRunning() {
+				// instance reached the desired state
 				return nil
 			}
 		case service.SVCPause:
 			if node.IsPaused() {
+				// instance reached the desired state
 				return nil
 			}
 		}
+
+		// wait for something to change on the node or shutdown
 		select {
 		case <-event:
 		case <-shutdown:

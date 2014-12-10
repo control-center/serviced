@@ -53,14 +53,18 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 
 	serviceIDs := make([]string, len(svcs))
 	for i, svc := range svcs {
+		// Check if each service is paused (or stopped)
 		if svc.DesiredState != int(service.SVCPause) && svc.DesiredState != int(service.SVCStop) {
+			// Restore the service state when the function exits
 			defer dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.DesiredState(svc.DesiredState))
+			// Set the service to "paused"
 			glog.V(1).Infof("Scheduling service %s (%s) to %s", svc.Name, svc.ID, service.SVCPause)
 			if _, err := dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.SVCPause); err != nil {
 				glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
 				return "", err
 			}
 		}
+		// Add the service ID to the list of services that we need to watch
 		serviceIDs[i] = svc.ID
 	}
 
@@ -118,17 +122,22 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		// wait for all services to stop
 		serviceIDs := make([]string, len(svcs))
 		for i, svc := range svcs {
+			// If the service's desired state is not stopped, set the state as such
 			if svc.DesiredState != int(service.SVCStop) {
+				// restore the service's desired state when this function exits
 				defer dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.DesiredState(svc.DesiredState))
+				// set the service to "stop"
 				glog.V(1).Infof("Scheduling service %s (%s) to %s", svc.Name, svc.ID, service.SVCStop)
 				if _, err := dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.SVCStop); err != nil {
 					glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
 					return err
 				}
 			}
+			// Add the service to the list of service IDs we need to watch
 			serviceIDs[i] = svc.ID
 		}
 
+		// Wait for all service instances to reach the desired state
 		if err := dfs.facade.WaitService(datastore.Get(), service.SVCStop, dfs.timeout, serviceIDs...); err != nil {
 			glog.Errorf("Error while waiting for services to %s: %s", service.SVCStop, err)
 			return err
