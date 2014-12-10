@@ -6,6 +6,7 @@ package script
 
 import (
 	"fmt"
+	"regexp"
 
 	. "gopkg.in/check.v1"
 )
@@ -111,6 +112,29 @@ func (vs *ScriptSuite) Test_svcrun(t *C) {
 	cmd, err = nodeFactories[SVC_RUN](ctx, SVC_RUN, []string{})
 	t.Assert(err, ErrorMatches, "line 0: expected at least 2, got 0: SVC_RUN")
 
+}
+
+func (vs *ScriptSuite) Test_svcexec(t *C) {
+	ctx := newParseContext()
+	line := "SVC_EXEC NO_COMMIT zope ls -al"
+	ctx.line = line
+	cmd, err := nodeFactories[SVC_EXEC](ctx, SVC_EXEC, []string{"NO_COMMIT", "zope", "ls", "-al"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_EXEC, line: line, args: []string{"NO_COMMIT", "zope", "ls", "-al"}})
+
+	line = "SVC_EXEC garbage zope ls -al"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_EXEC](ctx, SVC_EXEC, []string{"garbage", "zope", "ls", "-al"})
+	t.Assert(err, ErrorMatches, regexp.QuoteMeta("line 0: arg garbage did not match ^(NO_)?COMMIT$"))
+
+	line = "SVC_EXEC COMMIT zope"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_EXEC](ctx, SVC_EXEC, []string{"COMMIT", "zope"})
+	t.Assert(err, ErrorMatches, regexp.QuoteMeta("line 0: expected at least 3, got 2: SVC_EXEC COMMIT zope"))
+
+	ctx.line = "SVC_EXEC"
+	cmd, err = nodeFactories[SVC_EXEC](ctx, SVC_EXEC, []string{})
+	t.Assert(err, ErrorMatches, "line 0: expected at least 3, got 0: SVC_EXEC")
 }
 
 func (vs *ScriptSuite) Test_svcStartStopRestart(t *C) {
