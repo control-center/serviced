@@ -22,6 +22,8 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strings"
+	"sync"
 
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
@@ -68,6 +70,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	glog.V(1).Infof("starting vhost synching")
 	//start getting vhost endpoints
 	go sc.syncVhosts(shutdown)
+	//start watching global vhosts as they are added/deleted/updated in services
+	go sc.syncGlobalVhosts(shutdown)
 
 	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +92,25 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		ui.ServeHTTP(w, r)
 	}
 
+	httphandler := func(w http.ResponseWriter, r *http.Request) {
+		glog.V(2).Infof("httphandler handling: %+v", r)
+
+		httphost := r.Host
+		parts := strings.Split(httphost, ".")
+		subdomain := parts[0]
+		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
+
+		allvhostsLock.Lock()
+		defer allvhostsLock.Unlock()
+		if _, ok := allvhosts[httphost]; ok {
+			sc.vhosthandler(w, r, httphost)
+		} else if _, ok := allvhosts[subdomain]; ok {
+			sc.vhosthandler(w, r, subdomain)
+		} else {
+			uihandler(w, r)
+		}
+	}
+
 	r := mux.NewRouter()
 
 	if hnm, err := os.Hostname(); err == nil {
@@ -101,13 +124,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	defaultHostAlias = sc.hostaliases[0]
 
-	for _, ha := range sc.hostaliases {
-		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
-		r.HandleFunc("/{path:.*}", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
-		r.HandleFunc("/", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
-	}
-
-	r.HandleFunc("/{path:.*}", uihandler)
+	r.HandleFunc("/", httphandler)
+	r.HandleFunc("/{path:.*}", httphandler)
 
 	http.Handle("/", r)
 
@@ -307,3 +325,24 @@ type ctxhandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestCo
 type checkFunc func(w *rest.ResponseWriter, r *rest.Request) bool
 
 type getRoutes func(sc *ServiceConfig) []rest.Route
+
+var (
+	allvhostsLock sync.RWMutex
+	allvhosts     map[string]bool
+)
+
+func init() {
+	allvhosts = make(map[string]bool)
+}
+
+func (sc *ServiceConfig) syncGlobalVhosts(shutdown <-chan interface{}) error {
+	allvhostsLock.Lock()
+	defer allvhostsLock.Unlock()
+
+	// TODO: replace these hardcoded vhosts from services in zookeeper
+	allvhosts["zenoss5x"] = true
+	allvhosts["rabbitmq"] = true
+	allvhosts["hbase"] = true
+	allvhosts["opentsdb"] = true
+	return nil
+}
