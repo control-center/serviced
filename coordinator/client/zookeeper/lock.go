@@ -24,10 +24,10 @@ type Lock struct {
 
 // Lock attempts to acquire the lock.
 func (l *Lock) Lock() (err error) {
-	return l.lock.Lock()
+	return xlateError(l.lock.Lock())
 }
 
 // Unlock attempts to release the lock.
 func (l *Lock) Unlock() error {
-	return l.lock.Unlock()
+	return xlateError(l.lock.Unlock())
 }

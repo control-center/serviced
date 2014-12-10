@@ -43,8 +43,7 @@ func evalSnapshot(r *runner, n node) error {
 	exitFunc := func(failed bool) {
 		if failed && r.snapshotID == mySnapshotID {
 			glog.Infof("restoring snapshot %s", mySnapshotID)
-			// TODO: Add the force option here once Summer's code is done
-			if err := r.restore(mySnapshotID); err != nil {
+			if err := r.restore(mySnapshotID, true); err != nil {
 				glog.Errorf("failed restoring snapshot %s: %v", mySnapshotID, err)
 
 			}

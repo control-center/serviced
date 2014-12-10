@@ -15,6 +15,8 @@ package api
 
 import (
 	"fmt"
+
+	"github.com/control-center/serviced/dao"
 )
 
 const ()
@@ -102,13 +104,13 @@ func (a *api) Commit(dockerID string) (string, error) {
 }
 
 // Rollback rolls back the system to the state of the given snapshot
-func (a *api) Rollback(snapshotID string) error {
+func (a *api) Rollback(snapshotID string, forceRestart bool) error {
 	client, err := a.connectDAO()
 	if err != nil {
 		return err
 	}
 
-	if err := client.Rollback(snapshotID, &unusedInt); err != nil {
+	if err := client.Rollback(dao.RollbackRequest{snapshotID, forceRestart}, &unusedInt); err != nil {
 		return err
 	}
 

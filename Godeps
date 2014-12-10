@@ -74,7 +74,7 @@
 		},
 		{
 			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "897888e14f7bd6c1c9a70e2973d0f5fbdb28bde0"
+			"Rev": "4a222ca51b4c7ca6f2895e0e68af2e9254acfdcc"
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",

@@ -38,6 +38,7 @@ var zkAPI func(f *Facade) zkfuncs = getZKAPI
 type zkfuncs interface {
 	UpdateService(service *service.Service) error
 	RemoveService(service *service.Service) error
+	WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
 	StopServiceInstance(poolID, hostID, stateID string) error
 	CheckRunningVHost(vhostName, serviceID string) error
@@ -77,6 +78,15 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	return zkservice.RemoveService(conn, service.ID)
+}
+
+func (zk *zkf) WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
+	if err != nil {
+		return err
+	}
+
+	return zkservice.WaitService(cancel, conn, service.ID, state)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {

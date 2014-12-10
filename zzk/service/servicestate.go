@@ -75,23 +75,33 @@ func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState
 	return conn.Set(path, &node)
 }
 
-// WaitPause waits for a service state is paused or receives an error
-func WaitPause(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string) error {
+func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string, dstate service.DesiredState) error {
 	for {
 		var node ServiceStateNode
 		event, err := conn.GetW(servicepath(serviceID, stateID), &node)
-		if err != nil {
+		if err == client.ErrNoNode {
+			return nil
+		} else if err != nil {
+			glog.Errorf("Got an error while looking for %s (%s): %s", stateID, serviceID, err)
 			return err
 		}
-		if node.IsPaused() {
-			return nil
+
+		switch dstate {
+		case service.SVCStop:
+		case service.SVCRun, service.SVCRestart:
+			if node.IsRunning() {
+				return nil
+			}
+		case service.SVCPause:
+			if node.IsPaused() {
+				return nil
+			}
 		}
 		select {
 		case <-event:
 		case <-shutdown:
 			return zzk.ErrShutdown
 		}
-
 	}
 }
 
