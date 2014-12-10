@@ -152,8 +152,8 @@ func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected
 	return s.rpcClient.Call("ControlPlane.StopService", request, affected)
 }
 
-func (s *ControlClient) WaitService(request dao.WaitServiceRequest, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.WaitService", request, unused)
+func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.WaitService", request, nil)
 }
 
 func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {

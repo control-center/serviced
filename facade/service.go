@@ -365,6 +365,7 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	return affected, err
 }
 
+// GetServiceStates returns all the service states given a service ID
 func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
 	glog.V(4).Infof("Facade.GetServiceStates %s", serviceID)
 
@@ -383,13 +384,16 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]se
 	return states, nil
 }
 
+// WaitService waits for service/s to reach a particular desired state within the designated timeout
 func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error {
 	glog.V(4).Infof("Facade.WaitService (%s)", dstate)
 
+	// error out if the desired state is invalid
 	if dstate.String() == "unknown" {
 		return fmt.Errorf("desired state unknown")
 	}
 
+	// waitstatus is the return result for the awaiting service
 	type waitstatus struct {
 		ServiceID string
 		Err       error
@@ -401,6 +405,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 
 	defer close(cancel)
 	for _, serviceID := range serviceIDs {
+		// spawn a goroutine to wait for each particular service
 		svc, err := f.GetService(ctx, serviceID)
 		if err != nil {
 			glog.Errorf("Error while getting service %s: %s", serviceID, err)
@@ -409,6 +414,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 		processing[svc.ID] = struct{}{}
 		go func(s *service.Service) {
 			err := zkAPI(f).WaitService(s, dstate, cancel)
+			// this blocks until we pass a waitstatus object into the channel or we get a signal to cancel
 			select {
 			case done <- waitstatus{s.ID, err}:
 			case <-cancel:
@@ -419,6 +425,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 
 	timeoutC := time.After(timeout)
 	for len(processing) > 0 {
+		// wait for all the services to return within the desired timeout
 		select {
 		case result := <-done:
 			delete(processing, result.ServiceID)

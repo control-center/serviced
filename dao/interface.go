@@ -56,9 +56,9 @@ type ScheduleServiceRequest struct {
 }
 
 type WaitServiceRequest struct {
-	ServiceIDs   []string
-	DesiredState service.DesiredState
-	Timeout      time.Duration
+	ServiceIDs   []string             // List of service IDs to monitor
+	DesiredState service.DesiredState // State which to monitor for
+	Timeout      time.Duration        // Time to wait before cancelling the subprocess
 }
 
 type HostServiceRequest struct {
@@ -140,7 +140,7 @@ type ControlPlane interface {
 	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Wait for a particular service state
-	WaitService(request WaitServiceRequest, unused *int) error
+	WaitService(request WaitServiceRequest, _ *struct{}) error
 
 	// Update the service state
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error
