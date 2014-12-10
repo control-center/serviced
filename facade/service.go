@@ -528,7 +528,11 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 		if err != nil {
 			glog.Errorf("Could not get ports for service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
+		} else if len(portmap) == 0 {
+			return nil
 		}
+
+		glog.V(1).Infof("Found %+v ports for service %s (%s)", portmap.List(), svc.Name, svc.ID)
 
 		// get all of the address assignments for the service
 		var assignments []addressassignment.AddressAssignment
@@ -989,6 +993,8 @@ func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service)
 }
 
 func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
+	store := addressassignment.NewStore()
+
 	for idx := range svc.Endpoints {
 		endpointName := svc.Endpoints[idx].Name
 		if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpointName); err != nil {
@@ -998,7 +1004,7 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 			// verify the ports match
 			if port := svc.Endpoints[idx].AddressConfig.Port; assignment.Port != port {
 				glog.Infof("Removing address assignment for endpoint %s of service %s (%s)", endpointName, svc.Name, svc.ID)
-				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
+				if err := store.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
 					glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
 					return err
 				}
@@ -1012,7 +1018,7 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 				return err
 			} else if !exists {
 				glog.Infof("Removing address assignment for endpoint %s of service %s (%s)", endpointName, svc.Name, svc.ID)
-				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
+				if err := store.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
 					glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
 					return err
 				}

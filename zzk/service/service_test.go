@@ -158,7 +158,9 @@ func TestServiceListener_Spawn(t *testing.T) {
 		for _, ssID := range stateIDs {
 			hpath := hostpath(handler.Host.ID, ssID)
 			var hs HostState
-			if err := conn.Get(hpath, &hs); err != nil {
+			if err := conn.Get(hpath, &hs); err == client.ErrNoNode {
+				// pass
+			} else if err != nil {
 				t.Fatalf("Error looking up instance %s: %s", ssID, err)
 			}
 			if hs.DesiredState == int(service.SVCRun) {
