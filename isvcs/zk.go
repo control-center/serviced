@@ -26,23 +26,21 @@ import (
 	"time"
 )
 
+var Zookeeper = IServiceDefinition{
+	Name:        "zookeeper",
+	Repo:        IMAGE_REPO,
+	Tag:         IMAGE_TAG,
+	Command:     func() string { return "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
+	Ports:       []uint16{2181, 12181},
+	Volumes:     map[string]string{"data": "/tmp"},
+	HealthCheck: zkHealthCheck,
+}
+
 var zookeeper *IService
 
 func init() {
-
 	var err error
-	command := "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground"
-	zookeeper, err = NewIService(
-		IServiceDefinition{
-			Name:        "zookeeper",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     func() string { return command },
-			Ports:       []uint16{2181, 12181},
-			Volumes:     map[string]string{"data": "/tmp"},
-			HealthCheck: zkHealthCheck,
-			HostNetwork: true,
-		})
+	zookeeper, err = NewIService(Zookeeper)
 	if err != nil {
 		glog.Fatal("Error initializing zookeeper container: %s", err)
 	}
