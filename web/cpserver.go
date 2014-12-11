@@ -24,10 +24,14 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -71,7 +75,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	//start getting vhost endpoints
 	go sc.syncVhosts(shutdown)
 	//start watching global vhosts as they are added/deleted/updated in services
-	go sc.syncGlobalVhosts(shutdown)
+	go sc.syncAllVhosts(shutdown)
 
 	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {
@@ -328,21 +332,51 @@ type getRoutes func(sc *ServiceConfig) []rest.Route
 
 var (
 	allvhostsLock sync.RWMutex
-	allvhosts     map[string]bool
+	allvhosts     map[string]string
 )
 
 func init() {
-	allvhosts = make(map[string]bool)
+	allvhosts = make(map[string]string)
 }
 
-func (sc *ServiceConfig) syncGlobalVhosts(shutdown <-chan interface{}) error {
-	allvhostsLock.Lock()
-	defer allvhostsLock.Unlock()
+func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
+	rootConn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Fatalf("syncAllVhosts - Error getting root zk connection: %v", err)
+		return err
+	}
 
-	// TODO: replace these hardcoded vhosts from services in zookeeper
-	allvhosts["zenoss5x"] = true
-	allvhosts["rabbitmq"] = true
-	allvhosts["hbase"] = true
-	allvhosts["opentsdb"] = true
+	cancelChan := make(chan bool)
+	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+
+		allvhostsLock.Lock()
+		defer allvhostsLock.Unlock()
+
+		allvhosts = make(map[string]string)
+		for _, sv := range childIDs {
+			parts := strings.SplitN(sv, "_", 2)
+			allvhosts[parts[1]] = parts[0]
+		}
+		glog.V(0).Infof("allvhosts: %+v", allvhosts)
+	}
+
+	for {
+		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
+		glog.V(0).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
+		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, vhostWatchError)
+		if err != nil {
+			glog.Warningf("will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
+			<-time.After(time.Second * 10)
+			continue
+		}
+		select {
+		case <-shutdown:
+			close(cancelChan)
+			return nil
+		default:
+		}
+	}
+
 	return nil
 }

@@ -65,13 +65,6 @@ func (node *ServiceVhostNode) SetVersion(version interface{}) { node.version = v
 func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	glog.V(2).Infof("UpdateServiceVhosts for ID:%s Name:%s", svc.ID, svc.Name)
 
-	// TODO: find solution for annoyance in having to override pool based connection
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("unable to retrieve global connection for UpdateServiceVhosts: %s", err)
-		return err
-	}
-
 	// generate map of current vhosts
 	currentvhosts := map[string]string{}
 	if svcvhosts, err := conn.Children(zkServiceVhosts); err == client.ErrNoNode {
