@@ -246,7 +246,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
-        return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
+        var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
+        return location.protocol + "//" + host + port
     };
 
     $scope.indent = function(depth){

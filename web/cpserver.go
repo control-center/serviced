@@ -358,7 +358,7 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 			parts := strings.SplitN(sv, "_", 2)
 			allvhosts[parts[1]] = parts[0]
 		}
-		glog.V(0).Infof("allvhosts: %+v", allvhosts)
+		glog.V(1).Infof("allvhosts: %+v", allvhosts)
 	}
 
 	for {
