@@ -44,6 +44,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -429,14 +430,13 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 	return nil
 }
 
-func manageTransparentProxy(endpoint service.ServiceEndpoint, ctr *docker.Container, isDelete bool) error {
+func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *addressassignment.AddressAssignment, ctr *docker.Container, isDelete bool) error {
 	var appendOrDeleteFlag string
 	if isDelete {
 		appendOrDeleteFlag = "-D"
 	} else {
 		appendOrDeleteFlag = "-A"
 	}
-	addressConfig := endpoint.GetAssignment()
 	return exec.Command(
 		"iptables",
 		"-t", "nat",
