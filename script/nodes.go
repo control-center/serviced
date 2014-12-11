@@ -47,7 +47,7 @@ func init() {
 		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
-		SVC_WAIT:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^started$|^stopped$|^paused$", false, parseArgMatch(2, "^[0-9]?$", true, parseArgCount(bounds(2, 3), buildNode)))),
+		SVC_WAIT:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^started$|^stopped$|^paused$", false, parseArgMatch(2, "^[0-9]+$", true, parseArgCount(bounds(2, 3), buildNode)))),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
