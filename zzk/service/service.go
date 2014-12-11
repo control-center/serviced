@@ -383,7 +383,11 @@ func UpdateService(conn client.Connection, svc *service.Service) error {
 		}
 	}
 	node.Service = svc
-	return conn.Set(spath, &node)
+	if err := conn.Set(spath, &node); err != nil {
+		return err
+	}
+
+	return UpdateServiceVhosts(conn, svc)
 }
 
 // RemoveService deletes a service
