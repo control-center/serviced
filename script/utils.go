@@ -15,6 +15,7 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+
 )
 
 //Lookup a tenant ID given a service (name, id, or path)
@@ -32,8 +33,13 @@ type SnapshotRestore func(snapshotID string, forceRestart bool) error
 // ServiceIDFromPath get a service id of a service given the tenant id the path to the services
 type ServiceIDFromPath func(tenantID string, path string) (string, error)
 
-// ServiceStart starts a service
-type ServiceStart func(serviceID string) error
+// ServiceControl is a func used to control the state of a service
+type ServiceControl func(serviceID string, recursive bool) error
+
+type ServiceState string
+
+// Wait for a service to be in a particular state
+type ServiceWait func(serviceID string, serviceState ServiceState, timeout uint32) error
 
 type execCmd func(string, ...string) error
 
@@ -72,7 +78,19 @@ func noOpExec(name string, args ...string) error {
 	return nil
 }
 
-func noOpServiceStart(serviceID string) error {
+func noOpServiceStart(serviceID string, recursive bool) error {
+	return nil
+}
+
+func noOpServiceStop(serviceID string, recursive bool) error {
+	return nil
+}
+
+func noOpServiceRestart(serviceID string, recursive bool) error {
+	return nil
+}
+
+func noOpServiceWait(serviceID string, serviceState ServiceState, timeout uint32) error {
 	return nil
 }
 

@@ -29,7 +29,10 @@ func init() {
 		DEPENDENCY:  evalDependency,
 		REQUIRE_SVC: evalRequireSvc,
 		SVC_START:   evalSvcStart,
+		SVC_STOP:    evalSvcStop,
+		SVC_RESTART: evalSvcRestart,
 		SVC_EXEC:    evalSvcExec,
+		SVC_WAIT:    evalSvcWait,
 	}
 }
 
@@ -42,7 +45,10 @@ type Config struct {
 	Commit         ContainerCommit   // function for committing a container
 	Restore        SnapshotRestore   // function to do the rollback to a snapshot
 	SvcIDFromPath  ServiceIDFromPath // function to find a service id from a path
-	SvcStart       ServiceStart      // function to start a service
+	SvcStart       ServiceControl    // function to start a service
+	SvcStop        ServiceControl    // function to stop a service
+	SvcRestart     ServiceControl    // function to restart a service
+	SvcWait        ServiceWait       // function to wait for a service to be in a desired state
 }
 
 type Runner interface {
@@ -60,7 +66,10 @@ type runner struct {
 	commitContainer ContainerCommit   // function for committing a container
 	restore         SnapshotRestore   // function to do the rollback to a snapshot
 	svcFromPath     ServiceIDFromPath // function to find a service from a path and tenant
-	svcStart        ServiceStart      // function to start a service
+	svcStart        ServiceControl    // function to start a service
+	svcStop         ServiceControl    // function to stop a service
+	svcRestart      ServiceControl    // function to restart a service
+	svcWait         ServiceWait
 	findImage       findImage
 	pullImage       pullImage
 	execCommand     execCmd
@@ -106,6 +115,9 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		restore:         config.Restore,
 		svcFromPath:     config.SvcIDFromPath,
 		svcStart:        config.SvcStart,
+		svcStop:         config.SvcStop,
+		svcWait:         config.SvcWait,
+		svcRestart:      config.SvcRestart,
 		findImage:       docker.FindImage,
 		pullImage:       docker.PullImage,
 		execCommand:     defaultExec,
@@ -121,6 +133,9 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		r.pullImage = noOpPull
 		r.findImage = noOpFindImage
 		r.svcStart = noOpServiceStart
+		r.svcStop = noOpServiceStop
+		r.svcRestart = noOpServiceRestart
+		r.svcWait = noOpServiceWait
 	}
 
 	return r

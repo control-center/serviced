@@ -114,6 +114,63 @@ func (vs *ScriptSuite) Test_svcrun(t *C) {
 
 }
 
+func (vs *ScriptSuite) Test_svcWait(t *C) {
+	ctx := newParseContext()
+	line := "SVC_WAIT zope started"
+	ctx.line = line
+	cmd, err := nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_WAIT, line: line, args: []string{"zope", "started"}})
+
+	line = "SVC_WAIT zope stopped"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "stopped"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_WAIT, line: line, args: []string{"zope", "stopped"}})
+
+	line = "SVC_WAIT zope paused"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "paused"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_WAIT, line: line, args: []string{"zope", "paused"}})
+
+	line = "SVC_WAIT"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope"})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope garbage"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "garbage"})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope started extra"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "extra"})
+	t.Assert(err, NotNil)
+
+	line = "SVC_WAIT zope started 0"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "0"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_WAIT, line: line, args: []string{"zope", "started", "0"}})
+
+	ctx.line = "SVC_WAIT zope started -1"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "-1"})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope started extra"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "extra"})
+	t.Assert(err, NotNil)
+
+	ctx.line = "SVC_WAIT zope started 4 extra"
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "extra"})
+	t.Assert(err, NotNil)
+
+}
+
 func (vs *ScriptSuite) Test_svcexec(t *C) {
 	ctx := newParseContext()
 	line := "SVC_EXEC NO_COMMIT zope ls -al"
@@ -155,15 +212,14 @@ func (vs *ScriptSuite) Test_svcStartStopRestart(t *C) {
 		t.Assert(err, IsNil)
 		t.Assert(n, DeepEquals, node{cmd: cmd, line: line, args: []string{"zope", "auto"}})
 
-		line = fmt.Sprintf("%s zope recurse", cmd)
+		line = fmt.Sprintf("%s zope wait", cmd)
 		ctx.line = line
-		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "recurse"})
-		t.Assert(err, IsNil)
-		t.Assert(n, DeepEquals, node{cmd: cmd, line: line, args: []string{"zope", "recurse"}})
+		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "wait"})
+		t.Assert(err, NotNil)
 
-		line = fmt.Sprintf("%s zope recurse", cmd)
+		line = fmt.Sprintf("%s zope recurse blam", cmd)
 		ctx.line = line
-		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "recurseauto"})
+		n, err = nodeFactories[cmd](ctx, cmd, []string{"zope", "recurse", "blam"})
 		t.Assert(err, NotNil)
 
 	}
