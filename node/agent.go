@@ -793,7 +793,9 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 	// Clean up any extant iptables chain, just in case
 	a.servicedChain.Remove()
 	// Add our chain for assigned IP rules
-	a.servicedChain.Inject()
+	if err := a.servicedChain.Inject(); err != nil {
+		glog.Errorf("Error creating SERVICED iptables chain (%v)", err)
+	}
 	// Clean up when we're done
 	defer a.servicedChain.Remove()
 
