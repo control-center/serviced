@@ -426,18 +426,39 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 	return nil
 }
 
+func manageTransparentProxy(endpoint service.ServiceEndpoint, ctr *docker.Container, isDelete bool) error {
+	var appendOrDeleteFlag string
+	if isDelete {
+		appendOrDeleteFlag = "-D"
+	} else {
+		appendOrDeleteFlag = "-A"
+	}
+	addressConfig := endpoint.GetAssignment()
+	return exec.Command(
+		"iptables",
+		"-t", "nat",
+		appendOrDeleteFlag, "PREROUTING",
+		"-d", fmt.Sprintf("%s", addressConfig.IPAddr),
+		"-p", endpoint.Protocol,
+		"--dport", fmt.Sprintf("%d", addressConfig.Port),
+		"-j", "DNAT",
+		"--to-destination", fmt.Sprintf("%s:%d", ctr.NetworkSettings.IPAddress, endpoint.PortNumber),
+	).Run()
+}
+
 func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 	glog.V(4).Infof("Looking for address assignment in service %s (%s)", svc.Name, svc.ID)
 	for _, endpoint := range svc.Endpoints {
 		if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
 			glog.V(4).Infof("Found address assignment for %s: %s endpoint %s", svc.Name, svc.ID, endpoint.Name)
-			proxyID := fmt.Sprintf("%v:%v", svc.ID, endpoint.Name)
-			frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
-			backEnd := proxy.ProxyAddress{IP: ctr.NetworkSettings.IPAddress, Port: endpoint.PortNumber}
-			if err := a.proxyRegistry.CreateProxy(proxyID, endpoint.Protocol, frontEnd, backEnd); err != nil {
-				glog.Warningf("Could not start External address proxy for %s: %s", proxyID, err)
+			if err := manageTransparentProxy(endpoint, ctr, false); err != nil {
+				glog.Warningf("Could not start external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
 			}
-			defer a.proxyRegistry.RemoveProxy(proxyID)
+			defer func() {
+				if err := manageTransparentProxy(endpoint, ctr, true); err != nil {
+					glog.Warningf("Could not remove external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
+				}
+			}()
 		}
 	}
 	ctr.Wait(time.Hour * 24 * 365)
