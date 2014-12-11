@@ -177,7 +177,7 @@ start_service              && succeed "Started service"                         
 retry 10 test_started      && succeed "Service containers started"               || fail "Unable to see service containers"
 
 retry 10 test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
-retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
+#retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
 retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
 
