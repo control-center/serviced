@@ -226,6 +226,10 @@ func (r *registryType) getChildren(conn client.Connection, nodeID string) ([]str
 	return result, nil
 }
 
+func WatchChildren(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
+	return watch(conn, path, cancel, processChildren, errorHandler)
+}
+
 func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	exists, err := zzk.PathExists(conn, path)
 	if err != nil {

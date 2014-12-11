@@ -62,7 +62,17 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 	if err != nil {
 		return err
 	}
-	return zkservice.UpdateService(conn, service)
+
+	if err := zkservice.UpdateService(conn, service); err != nil {
+		return err
+	}
+
+	rootconn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+
+	return zkservice.UpdateServiceVhosts(rootconn, service)
 }
 
 func (zk *zkf) RemoveService(service *service.Service) error {

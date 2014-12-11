@@ -26,7 +26,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -261,32 +260,29 @@ func vhostWatchError(path string, err error) {
 // Lookup the appropriate virtual host and forward the request to it.
 // TODO: when zookeeper registration is integrated we can be more event
 // driven and only refresh the vhost map when service states change.
-func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request) {
+func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request, vhostname string) {
 	start := time.Now()
 	glog.V(1).Infof("vhosthandler handling: %+v", r)
-	muxvars := mux.Vars(r)
-	subdomain := muxvars["subdomain"]
-	glog.V(1).Infof("muxvars: %+v", muxvars)
 
 	defer func() {
-		glog.V(1).Infof("Time to process %s vhost request %v: %v", subdomain, r.URL, time.Since(start))
+		glog.V(1).Infof("Time to process %s vhost request %v: %v", vhostname, r.URL, time.Since(start))
 	}()
 
-	vhInfo, found := vregistry.get(subdomain)
+	vhInfo, found := vregistry.get(vhostname)
 	if !found {
-		http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", subdomain), http.StatusNotFound)
+		http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", vhostname), http.StatusNotFound)
 		return
 	}
 	// TODO: implement a more intelligent strategy than "always pick the first one" when more
 	// than one service state is mapped to a given virtual host
 	vhEP, err := vhInfo.GetNext()
 	if err != nil {
-		glog.V(4).Infof("no endpoint found for vhost %s: %v", subdomain, err)
-		http.Error(w, fmt.Sprintf("no available service for vhost %v ", subdomain), http.StatusNotFound)
+		glog.V(4).Infof("no endpoint found for vhost %s: %v", vhostname, err)
+		http.Error(w, fmt.Sprintf("no available service for vhost %v ", vhostname), http.StatusNotFound)
 		return
 	}
 	rp := getReverseProxy(vhEP.hostIP, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
-	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", subdomain, r.URL, time.Since(start))
+	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", vhostname, r.URL, time.Since(start))
 
 	// Set up the X-Forwarded-Proto header so that downstream servers know
 	// the request originated as HTTPS.
