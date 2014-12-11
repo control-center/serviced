@@ -89,10 +89,9 @@ func configBool(key string, defaultVal bool) bool {
 
 const defaultRPCPort = 4979
 
-
 // New instantiates a new command-line client
 
-func getLocalAgentIP()string{
+func getLocalAgentIP() string {
 	ip := configEnv("OUTBOUND_IP", "")
 	if ip == "" {
 		return api.GetAgentIP()
@@ -154,7 +153,7 @@ func New(driver api.API) *ServicedCli {
 
 	aliases := cli.StringSlice{}
 	if len(configEnv("VHOST_ALIASES", "")) > 0 {
-		zks = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
+		aliases = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
 	}
 
 	defaultAdminGroup := "sudo"
@@ -316,12 +315,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	return nil
 }
 
-func (c *ServicedCli) exit(code int) error{
-	if c.exitDisabled{
+func (c *ServicedCli) exit(code int) error {
+	if c.exitDisabled {
 		return fmt.Errorf("exit code %v", code)
 	}
 	os.Exit(code)
-	return nil	
+	return nil
 }
 
 func setLogging(ctx *cli.Context) error {
