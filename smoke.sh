@@ -178,12 +178,11 @@ retry 10 test_started      && succeed "Service containers started"              
 
 retry 10 test_vhost        && succeed "VHost is up and listening"                || fail "Unable to access service VHost"
 #retry 10 test_assigned_ip  && succeed "Assigned IP is listening"                 || fail "Unable to access service by assigned IP"
-retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
+#retry 10 test_config       && succeed "Config file was successfully injected"    || fail "Unable to access config file"
 retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected" || fail "Unable to access -CONFIGS- file"
 
 retry 10 test_attached     && succeed "Attached to container"                    || fail "Unable to attach to container"
 retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Unable to connect to endpoint"
-
 test_snapshot              && succeed "Created snapshot"                         || fail "Unable to create snapshot"
 test_service_shell         && succeed "Service shell ran successfully"           || fail "Unable to run service shell"
 # "trap cleanup EXIT", above, will handle cleanup
