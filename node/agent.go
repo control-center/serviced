@@ -38,6 +38,7 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/iptables"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
@@ -84,9 +85,10 @@ type HostAgent struct {
 	useTLS               bool // Whether the mux uses TLS
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string        // the docker registry to use
-	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
-	virtualAddressSubnet string        // subnet for virtual addresses
+	dockerRegistry       string          // the docker registry to use
+	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
+	virtualAddressSubnet string          // subnet for virtual addresses
+	servicedChain        *iptables.Chain // Assigned IP rule chain
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -139,6 +141,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
+	agent.servicedChain = iptables.NewChain("SERVICED")
 
 	dsn := getZkDSN(options.Zookeepers)
 	basePath := ""
@@ -451,11 +454,14 @@ func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 	for _, endpoint := range svc.Endpoints {
 		if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
 			glog.V(4).Infof("Found address assignment for %s: %s endpoint %s", svc.Name, svc.ID, endpoint.Name)
-			if err := manageTransparentProxy(endpoint, ctr, false); err != nil {
+			frontendAddress := iptables.NewAddress(addressConfig.IPAddr, int(addressConfig.Port))
+			backendAddress := iptables.NewAddress(ctr.NetworkSettings.IPAddress, int(endpoint.PortNumber))
+
+			if err := a.servicedChain.Forward(iptables.Add, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
 				glog.Warningf("Could not start external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
 			}
 			defer func() {
-				if err := manageTransparentProxy(endpoint, ctr, true); err != nil {
+				if err := a.servicedChain.Forward(iptables.Delete, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
 					glog.Warningf("Could not remove external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
 				}
 			}()
@@ -783,6 +789,13 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		glog.Info("reapOldContainersLoop Done")
 		wg.Done()
 	}()
+
+	// Clean up any extant iptables chain, just in case
+	a.servicedChain.Remove()
+	// Add our chain for assigned IP rules
+	a.servicedChain.Inject()
+	// Clean up when we're done
+	defer a.servicedChain.Remove()
 
 	for {
 		// handle shutdown if we are waiting for a zk connection
