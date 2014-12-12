@@ -19,9 +19,20 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
+
+	. "gopkg.in/check.v1"
 )
+
+var _ = Suite(&ZZKTest{})
+
+type ZZKTest struct {
+	zzk.ZZKTestSuite
+}
+
+func Test(t *testing.T) {
+	TestingT(t)
+}
 
 type SnapshotResult struct {
 	Duration time.Duration
@@ -46,9 +57,19 @@ func (handler *TestSnapshotHandler) TakeSnapshot(serviceID string) (string, erro
 	return "", fmt.Errorf("service ID not found")
 }
 
-func TestSnapshotListener_Listen(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (handler *TestSnapshotHandler) expected(serviceID string) Snapshot {
+	result := handler.ResultMap[serviceID]
+
+	snapshot := Snapshot{ServiceID: serviceID, Label: result.Label}
+	if result.Err != nil {
+		snapshot.Err = result.Err.Error()
+	}
+	return snapshot
+}
+
+func (t *ZZKTest) TestSnapshotListener_Listen(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
 
 	handler := &TestSnapshotHandler{
 		ResultMap: map[string]SnapshotResult{
@@ -57,53 +78,48 @@ func TestSnapshotListener_Listen(t *testing.T) {
 		},
 	}
 
-	t.Log("Create snapshots and shutdown")
+	c.Log("Create snapshots and shutdown")
 	shutdown := make(chan interface{})
 	listener := NewSnapshotListener(handler)
-	go zzk.Listen(shutdown, make(chan error, 1), conn, listener)
 
-	// send success snapshot
-	var snapshot Snapshot
-	if nodeID, err := Send(conn, "service-id-success"); err != nil {
-		t.Fatalf("Could not send success snapshot")
-	} else if err := Recv(conn, nodeID, &snapshot); err != nil {
-		t.Fatalf("Could not receieve success snapshot")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+	}()
+
+	var actual Snapshot
+
+	c.Log("Sending success snapshot")
+	serviceID := "service-id-success"
+	if nodeID, err := Send(conn, serviceID); err != nil {
+		c.Errorf("Could not send success snasphot")
+	} else if err := Recv(conn, nodeID, &actual); err != nil {
+		c.Errorf("Could not receieve success snapshot")
 	}
+	actual.SetVersion(nil)
+	c.Assert(actual, Equals, handler.expected(serviceID))
 
-	// verify fields
-	result := handler.ResultMap["service-id-success"]
-	if snapshot.ServiceID != "service-id-success" {
-		t.Errorf("MISMATCH: Service IDs do not match 'service-id-success' != %s", snapshot.ServiceID)
-	} else if snapshot.Label != result.Label {
-		t.Errorf("MISMATCH: Labels do not match '%s' != '%s'", result.Label, snapshot.Label)
-	} else if result.Err != nil {
-		t.Errorf("MISMATCH: Err msgs do not match '%s' != '%s'", result.Err, snapshot.Err)
+	c.Log("Sending failure snapshot")
+	serviceID = "service-id-failure"
+	if nodeID, err := Send(conn, serviceID); err != nil {
+		c.Errorf("Could not send failure snapshot: ", err)
+	} else if err := Recv(conn, nodeID, &actual); err != nil {
+		c.Errorf("Could not receive failure snapshot: ", err)
 	}
+	actual.SetVersion(nil)
+	c.Assert(actual, Equals, handler.expected(serviceID))
 
-	// send fail snapshot and shutdown
-	if nodeID, err := Send(conn, "service-id-failure"); err != nil {
-		t.Fatal("Could not send failure snapshot: ", err)
-	} else if err := Recv(conn, nodeID, &snapshot); err != nil {
-		t.Fatal("Could not receive failure snapshot: ", err)
-	}
-
-	// verify the fields
-	result = handler.ResultMap["service-id-failure"]
-	if snapshot.ServiceID != "service-id-failure" {
-		t.Errorf("MISMATCH: Service IDs do not match 'service-id-success' != %s", snapshot.ServiceID)
-	} else if snapshot.Label != result.Label {
-		t.Errorf("MISMATCH: Labels do not match '%s' != '%s'", result.Label, snapshot.Label)
-	} else if result.Err == nil || result.Err.Error() != snapshot.Err {
-		t.Errorf("MISMATCH: Err msgs do not match '%s' != '%s'", result.Err, snapshot.Err)
-	}
-
-	// make sure listener shuts down
+	c.Log("Shutting down the listener")
 	close(shutdown)
+	wg.Wait()
 }
 
-func TestSnapshotListener_Spawn(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestSnapshotListener_Spawn(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
 	handler := &TestSnapshotHandler{
 		ResultMap: map[string]SnapshotResult{
 			"service-id-success": SnapshotResult{time.Second, "success-label", nil},
@@ -112,65 +128,53 @@ func TestSnapshotListener_Spawn(t *testing.T) {
 	}
 	listener := NewSnapshotListener(handler)
 	listener.SetConnection(conn)
-	var wg sync.WaitGroup
 
-	// send snapshots
-	t.Log("Sending successful snapshot")
-	nodeID, err := Send(conn, "service-id-success")
-	if err != nil {
-		t.Fatalf("Could not send success snapshot")
-	}
-	var snapshot Snapshot
-	event, err := conn.GetW(listener.GetPath(nodeID), &snapshot)
-	if err != nil {
-		t.Fatalf("Could not look up %s: %s", listener.GetPath("service-id-success"), err)
-	}
-	shutdown := make(chan interface{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		listener.Spawn(shutdown, "service-id-success")
-	}()
-	<-event
-	t.Logf("Shutting down listener")
-	close(shutdown)
-	wg.Wait()
-	if err := Recv(conn, "service-id-success", &snapshot); err != nil {
-		t.Fatalf("Could not receive success snapshot")
+	send := func(serviceID string) {
+		c.Logf("Sending snapshot %s", serviceID)
+		nodeID, err := Send(conn, serviceID)
+		c.Assert(err, IsNil)
+
+		var node Snapshot
+		event, err := conn.GetW(listener.GetPath(nodeID), &node)
+		c.Assert(err, IsNil)
+		node.SetVersion(nil)
+		c.Assert(node, Equals, Snapshot{ServiceID: serviceID})
+
+		var wg sync.WaitGroup
+		wg.Add(1)
+		shutdown := make(chan interface{})
+		go func() {
+			defer wg.Done()
+			listener.Spawn(shutdown, nodeID)
+		}()
+
+		// wait for the node to change
+		c.Logf("Waiting for %s to change", serviceID)
+		select {
+		case <-event:
+		case <-time.After(15 * time.Second):
+			// NOTE: you may have a race condition here if the timeout
+			// on the snapshot exceeds the time to wait
+			c.Errorf("timeout")
+		}
+
+		c.Logf("Shutting down listener for %s", serviceID)
+		close(shutdown)
+		wg.Wait()
+
+		c.Logf("Verifying snapshot for %s", serviceID)
+		var actual Snapshot
+		err = Recv(conn, nodeID, &actual)
+		actual.SetVersion(nil)
+		c.Assert(err, IsNil)
+		c.Assert(actual, Equals, handler.expected(serviceID))
+
+		c.Logf("Verifying cleanup for %s", serviceID)
+		exists, err := conn.Exists(listener.GetPath(nodeID))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, false)
 	}
 
-	// verify fields
-	result := handler.ResultMap["service-id-success"]
-	if snapshot.ServiceID != "service-id-success" {
-		t.Errorf("MISMATCH: Service IDs do not match 'service-id-success' != %s", snapshot.ServiceID)
-	} else if snapshot.Label != result.Label {
-		t.Errorf("MISMATCH: Labels do not match '%s' != '%s'", result.Label, snapshot.Label)
-	} else if result.Err != nil {
-		t.Errorf("MISMATCH: Err msgs do not match '%s' != '%s'", result.Err, snapshot.Err)
-	}
-
-	t.Log("Sending failure snapshot")
-	nodeID, err = Send(conn, "service-id-failure")
-	if err != nil {
-		t.Fatalf("Could not send success snapshot")
-	}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		listener.Spawn(make(<-chan interface{}), "service-id-failure")
-	}()
-	if err := Recv(conn, nodeID, &snapshot); err != nil {
-		t.Fatalf("Could not receive success snapshot")
-	}
-	wg.Wait()
-
-	// verify the fields
-	result = handler.ResultMap["service-id-failure"]
-	if snapshot.ServiceID != "service-id-failure" {
-		t.Errorf("MISMATCH: Service IDs do not match 'service-id-success' != %s", snapshot.ServiceID)
-	} else if snapshot.Label != result.Label {
-		t.Errorf("MISMATCH: Labels do not match '%s' != '%s'", result.Label, snapshot.Label)
-	} else if result.Err == nil || result.Err.Error() != snapshot.Err {
-		t.Errorf("MISMATCH: Err msgs do not match '%s' != '%s'", result.Err, snapshot.Err)
-	}
+	send("service-id-success")
+	send("service-id-failure")
 }
