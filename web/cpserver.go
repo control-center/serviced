@@ -97,20 +97,28 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	}
 
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
-		glog.V(2).Infof("httphandler handling: %+v", r)
+		glog.V(2).Infof("httphandler handling request: %+v", r)
+
+		vhostExists := func(vhostname string) bool {
+			allvhostsLock.RLock()
+			defer allvhostsLock.RUnlock()
+			_, ok := allvhosts[vhostname]
+			return ok
+		}
 
 		httphost := r.Host
 		parts := strings.Split(httphost, ".")
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 
-		allvhostsLock.Lock()
-		defer allvhostsLock.Unlock()
-		if _, ok := allvhosts[httphost]; ok {
+		if ok := vhostExists(httphost); ok {
+			glog.V(2).Infof("httphost: calling sc.vhosthandler")
 			sc.vhosthandler(w, r, httphost)
-		} else if _, ok := allvhosts[subdomain]; ok {
+		} else if ok := vhostExists(subdomain); ok {
+			glog.V(2).Infof("httphost: calling sc.vhosthandler")
 			sc.vhosthandler(w, r, subdomain)
 		} else {
+			glog.V(2).Infof("httphost: calling uihandler")
 			uihandler(w, r)
 		}
 	}
