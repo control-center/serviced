@@ -363,10 +363,10 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 
 	for {
 		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
-		glog.V(0).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
+		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
 		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, vhostWatchError)
 		if err != nil {
-			glog.Warningf("will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
+			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
 			<-time.After(time.Second * 10)
 			continue
 		}
