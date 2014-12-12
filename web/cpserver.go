@@ -111,10 +111,10 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 
-		if ok := vhostExists(httphost); ok {
+		if vhostExists(httphost) {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
 			sc.vhosthandler(w, r, httphost)
-		} else if ok := vhostExists(subdomain); ok {
+		} else if vhostExists(subdomain) {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
 			sc.vhosthandler(w, r, subdomain)
 		} else {
