@@ -146,6 +146,32 @@ func UpdateServiceVhost(conn client.Connection, serviceID, vhostname string) err
 	return conn.Set(spath, &node)
 }
 
+// RemoveServiceVhosts removes vhosts of a service
+func RemoveServiceVhosts(conn client.Connection, svc *service.Service) error {
+	glog.V(2).Infof("RemoveServiceVhosts for ID:%s Name:%s", svc.ID, svc.Name)
+
+	// generate map of current vhosts
+	if svcvhosts, err := conn.Children(zkServiceVhosts); err == client.ErrNoNode {
+	} else if err != nil {
+		glog.Errorf("UpdateServiceVhosts unable to retrieve vhost children at path %s %s", zkServiceVhosts, err)
+		return err
+	} else {
+		glog.V(2).Infof("RemoveServiceVhosts for svc.ID:%s from children:%+v", svc.ID, svcvhosts)
+		for _, svcvhost := range svcvhosts {
+			parts := strings.SplitN(svcvhost, "_", 2)
+			svcID := parts[0]
+			vhostname := parts[1]
+			if svcID == svc.ID {
+				if err := RemoveServiceVhost(conn, svc.ID, vhostname); err != nil {
+					return err
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
 // RemoveServiceVhost deletes a service vhost
 func RemoveServiceVhost(conn client.Connection, serviceID, vhostname string) error {
 	glog.V(2).Infof("RemoveServiceVhost serviceID:%s vhostname:%s", serviceID, vhostname)

@@ -83,6 +83,13 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 		return err
 	}
 
+	// remove the global list of all vhosts deployed
+	if rootconn, err := zzk.GetLocalConnection("/"); err != nil {
+		return err
+	} else if err := zkservice.RemoveServiceVhosts(rootconn, service); err != nil {
+		return err
+	}
+
 	// FIXME: this may be a long-running operation, should we institute a timeout?
 	mutex := zkservice.ServiceLock(conn)
 	mutex.Lock()
