@@ -7,6 +7,7 @@ package script
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 
@@ -52,7 +53,7 @@ type Config struct {
 }
 
 type Runner interface {
-	Run() error
+	Run(<-chan struct{}) error
 }
 
 type runner struct {
@@ -141,16 +142,19 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 	return r
 }
 
-func (r *runner) Run() error {
-	if err := r.evalNodes(r.parseCtx.nodes); err != nil {
+func (r *runner) Run(stop <-chan struct{}) error {
+	if err := r.evalNodes(r.parseCtx.nodes, stop); err != nil {
 		return err
 	}
+
 	return nil
 }
 
-func (r *runner) evalNodes(nodes []node) error {
+func (r *runner) evalNodes(nodes []node, stop <-chan struct{}) error {
+
 	failed := true
 	defer func() {
+		glog.Infof("Executing exit functions")
 		for _, ef := range r.exitFunctions {
 			ef(failed)
 		}
@@ -166,10 +170,20 @@ func (r *runner) evalNodes(nodes []node) error {
 		} else {
 			glog.Infof("skipping step %d unknown function: %s", i, n.line)
 		}
+
+		select {
+		case <-stop:
+			glog.Infof("Received signal, stopping script evaluation")
+			return fmt.Errorf("received stop signal, error executing step %d: %s", i, n.cmd)
+		default:
+		}
+
 	}
 	failed = false
+
 	return nil
 }
+
 func (r *runner) addExitFunction(ef func(bool)) {
 	r.exitFunctions = append(r.exitFunctions, ef)
 }

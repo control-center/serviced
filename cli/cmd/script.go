@@ -16,11 +16,14 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/codegangsta/cli"
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/script"
+	"github.com/zenoss/glog"
 )
 
 // Initializer for serviced metric
@@ -57,7 +60,6 @@ func (c *ServicedCli) initScript() {
 		},
 	})
 }
-
 
 // cmdScriptSvcRun serviced script <service> filename
 func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
@@ -117,9 +119,18 @@ func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) {
 }
 
 func runScript(c *ServicedCli, ctx *cli.Context, fileName string, config *script.Config) {
+	stopChan := make(chan struct{})
+	signalHandlerChan := make(chan os.Signal)
+	signal.Notify(signalHandlerChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-signalHandlerChan
+		glog.Infof("Received stop signal, stopping")
+		close(stopChan)
+	}()
+
 	config.NoOp = ctx.Bool("no-op")
 	config.DockerRegistry = docker.DEFAULT_REGISTRY
-	err := c.driver.ScriptRun(fileName, config)
+	err := c.driver.ScriptRun(fileName, config, stopChan)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)

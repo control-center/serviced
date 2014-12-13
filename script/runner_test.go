@@ -11,6 +11,7 @@ import (
 )
 
 func (vs *ScriptSuite) Test_Run(t *C) {
+	stopChan := make(chan struct{})
 	config := Config{
 		NoOp:          true,
 		ServiceID:     "TEST_SERVICE_ID_12345",
@@ -19,8 +20,16 @@ func (vs *ScriptSuite) Test_Run(t *C) {
 	}
 	runner, err := NewRunnerFromFile("descriptor_test.txt", &config)
 	t.Assert(err, IsNil)
-	err = runner.Run()
+	err = runner.Run(stopChan)
 	t.Assert(err, IsNil)
+
+	// Test sending a stop signal to the runner
+	runner, err = NewRunnerFromFile("descriptor_test.txt", &config)
+	t.Assert(err, IsNil)
+	newStopChan := make(chan struct{})
+	close(newStopChan)
+	err = runner.Run(newStopChan)
+	t.Assert(err, NotNil)
 
 	runner, err = NewRunnerFromFile("bad_descriptor.txt", &config)
 	t.Assert(err, ErrorMatches, "error parsing script")
@@ -33,7 +42,7 @@ func (vs *ScriptSuite) Test_Run(t *C) {
 	}
 	runner, err = NewRunnerFromFile("descriptor_test.txt", &config)
 	t.Assert(err, IsNil)
-	err = runner.Run()
+	err = runner.Run(stopChan)
 	t.Assert(err, ErrorMatches, "test error id from path")
 
 }
