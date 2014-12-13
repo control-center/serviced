@@ -15,7 +15,6 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
-
 )
 
 //Lookup a tenant ID given a service (name, id, or path)

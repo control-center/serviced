@@ -15,9 +15,9 @@ package api
 
 import (
 	"fmt"
+	"math"
 	"path"
 	"time"
-	"math"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
@@ -25,14 +25,15 @@ import (
 )
 
 // ScriptRun
-func (a *api) ScriptRun(fileName string, config *script.Config) error {
+func (a *api) ScriptRun(fileName string, config *script.Config, stopChan chan struct{}) error {
 
 	initConfig(config, a)
 	r, err := script.NewRunnerFromFile(fileName, config)
 	if err != nil {
 		return err
 	}
-	return r.Run()
+
+	return r.Run(stopChan)
 }
 
 func (a *api) ScriptParse(fileName string, config *script.Config) error {
