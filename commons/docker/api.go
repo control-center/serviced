@@ -726,7 +726,7 @@ func pushImage(repo, registry, tag string) error {
 		return err
 	}
 
-	glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
+	glog.V(0).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
 	opts := dockerclient.PushImageOptions{
 		Name:     repo,
 		Registry: registry,
@@ -739,5 +739,7 @@ func pushImage(repo, registry, tag string) error {
 		glog.V(2).Infof("failed to push %s: %v", repo, err)
 		return err
 	}
+
+	glog.V(0).Infof("finished pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
 	return nil
 }
