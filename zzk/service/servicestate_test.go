@@ -14,144 +14,119 @@
 package service
 
 import (
-	"testing"
+	"path"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/zzk"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestGetServiceStatus(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestGetServiceStatus(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
 
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 3}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
 
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
+	// Add a host
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+		return path.Base(p)
 	}
-	if err := AddHost(conn, &host.Host{ID: "test-host-1"}); err != nil {
-		t.Fatalf("Could not register host: %s", err)
-	}
+	register("test-host-1")
 
-	// 0 states
+	// Case 1: Zero service states
 	statusmap, err := GetServiceStatus(conn, svc.ID)
-	if err != nil {
-		t.Fatalf("Could not get status for service %s: %s", svc.ID, err)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(statusmap, NotNil)
+	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{})
 
-	if statusmap != nil && len(statusmap) > 0 {
-		t.Errorf("Expected 0 statuses returned; got %d", len(statusmap))
-	}
-
-	// Add service states
-	var states []*servicestate.ServiceState
-	for i := 0; i < 3; i++ {
-		state, err := servicestate.BuildFromService(svc, "test-host-1")
-		if err != nil {
-			t.Fatalf("Could not generate instance from service %s", svc.ID)
-		} else if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
 		}
-		states = append(states, state)
+		return stateIDs
+	}
+	stateIDs := addstates("test-host-1", &svc, 3)
+
+	states := make(map[string]servicestate.ServiceState)
+	updatestate := func(stateID, serviceID string, update func(state *servicestate.ServiceState)) servicestate.ServiceState {
+		var node ServiceStateNode
+		err = conn.Get(servicepath(serviceID, stateID), &node)
+		c.Assert(err, IsNil)
+		update(node.ServiceState)
+		err = conn.Set(servicepath(serviceID, stateID), &node)
+		c.Assert(err, IsNil)
+		return *node.ServiceState
 	}
 
-	expected := make(map[string]dao.Status)
 	// State 0 started
-	states[0].Started = time.Now()
-	if err := UpdateServiceState(conn, states[0]); err != nil {
-		t.Fatalf("Could not \"start\" service state %s: %s", states[0].ID, err)
-	}
-	expected[states[0].ID] = dao.Running
+	states[stateIDs[0]] = updatestate(stateIDs[0], svc.ID, func(s *servicestate.ServiceState) {
+		s.Started = time.Now()
+	})
 
 	// State 1 paused
-	states[1].Started = time.Now()
-	states[1].Paused = true
-	if err := UpdateServiceState(conn, states[1]); err != nil {
-		t.Fatalf("Could not \"pause\" service state %s: %s", states[1].ID, err)
-	}
-	expected[states[1].ID] = dao.Resuming
+	states[stateIDs[1]] = updatestate(stateIDs[1], svc.ID, func(s *servicestate.ServiceState) {
+		s.Started = time.Now()
+		s.Paused = true
+	})
 
 	// State 2 stopped (no update)
-	expected[states[2].ID] = dao.Starting
+	states[stateIDs[2]] = updatestate(stateIDs[2], svc.ID, func(s *servicestate.ServiceState) {})
 
-	t.Log("Desired state is RUN")
+	c.Log("Desired state is RUN")
 	statusmap, err = GetServiceStatus(conn, svc.ID)
-	if err != nil {
-		t.Fatalf("Could not get the status for service %s: %s", svc.ID, err)
-	} else if len(statusmap) != len(states) {
-		t.Errorf("MISMATCH: expected %d states; actual %d", len(states), len(statusmap))
-	}
+	c.Assert(err, IsNil)
+	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{
+		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Running},
+		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Resuming},
+		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Starting},
+	})
 
-	// Verify
-	for _, svcstatus := range statusmap {
-		expect, ok := expected[svcstatus.State.ID]
-		if !ok {
-			t.Fatalf("Missing service state %s", svcstatus.State.ID)
-		} else if expect != svcstatus.Status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
-		}
+	c.Log("Desired state is PAUSE")
+	for _, state := range stateIDs {
+		err := pauseInstance(conn, "test-host-1", state)
+		c.Assert(err, IsNil)
 	}
-
-	t.Log("Desired state is PAUSE")
-	for _, state := range states {
-		if err := pauseInstance(conn, state.HostID, state.ID); err != nil {
-			t.Fatalf("Could not pause instance %s: %s", state.ID, err)
-		}
-	}
-	expected[states[0].ID] = dao.Pausing
-	expected[states[1].ID] = dao.Paused
-	expected[states[2].ID] = dao.Stopped
-
 	statusmap, err = GetServiceStatus(conn, svc.ID)
-	if err != nil {
-		t.Fatalf("Could not get the status for service %s: %s", svc.ID, err)
-	} else if len(statusmap) != len(states) {
-		t.Errorf("MISMATCH: expected %d states; actual %d", len(states), len(statusmap))
-	}
+	c.Assert(err, IsNil)
+	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{
+		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Pausing},
+		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Paused},
+		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Stopped},
+	})
 
-	// Verify
-	for _, svcstatus := range statusmap {
-		expect, ok := expected[svcstatus.State.ID]
-		if !ok {
-			t.Fatalf("Missing service state %s", svcstatus.State.ID)
-		} else if expect != svcstatus.Status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
-		}
+	c.Log("Desired state is STOP")
+	for _, state := range stateIDs {
+		err := StopServiceInstance(conn, "test-host-1", state)
+		c.Assert(err, IsNil)
 	}
-
-	t.Log("Desired state is STOP")
-	for _, state := range states {
-		if err := StopServiceInstance(conn, state.HostID, state.ID); err != nil {
-			t.Fatalf("Could not stop instance %s: %s", state.ID, err)
-		}
-	}
-	expected[states[0].ID] = dao.Stopping
-	expected[states[1].ID] = dao.Stopping
-	expected[states[2].ID] = dao.Stopped
-
 	statusmap, err = GetServiceStatus(conn, svc.ID)
-	if err != nil {
-		t.Fatalf("Could not get the status for service %s: %s", svc.ID, err)
-	} else if len(statusmap) != len(states) {
-		t.Errorf("MISMATCH: expected %d states; actual %d", len(states), len(statusmap))
-	}
-
-	// Verify
-	for _, svcstatus := range statusmap {
-		expect, ok := expected[svcstatus.State.ID]
-		if !ok {
-			t.Fatalf("Missing service state %s", svcstatus.State.ID)
-		} else if expect != svcstatus.Status {
-			t.Errorf("MISMATCH: expected %s; actual %s", expect, svcstatus.Status)
-		}
-	}
-
+	c.Assert(err, IsNil)
+	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{
+		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Stopping},
+		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Stopping},
+		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Stopped},
+	})
 }
