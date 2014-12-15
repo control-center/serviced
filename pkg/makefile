@@ -134,7 +134,7 @@ deb: stage_deb
 		-d nfs-kernel-server \
 		-d net-tools \
 		-d nfs-common \
-		-d 'lxc-docker >= 1.3.2' \
+		-d 'lxc-docker = 1.3.3' \
 		-d logrotate \
 		-t deb \
 		-a x86_64 \
