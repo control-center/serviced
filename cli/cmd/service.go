@@ -18,12 +18,12 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"syscall"
 	"text/template"
 	"time"
-	"os/exec"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
@@ -945,7 +945,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 }
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
-func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error{
+func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
