@@ -22,6 +22,7 @@ import (
 	"github.com/codegangsta/cli"
 
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/script"
 	"github.com/zenoss/glog"
 )
@@ -42,52 +43,15 @@ func (c *ServicedCli) initScript() {
 			{
 				Name:        "run",
 				Usage:       "Run a script",
-				Description: "serviced script run FILE [-n]",
+				Description: "serviced script run FILE [--service SERVICEID] [-n]",
 				Action:      c.cmdScriptRun,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
-				},
-			},
-			{
-				Name:        "service",
-				Usage:       "Run a script with a service as an argument",
-				Description: "serviced script service SERVICEID FILE [-n]",
-				Action:      c.cmdScriptSvcRun,
-				Flags: []cli.Flag{
+					cli.StringFlag{"service", "", "Service to run this script against"},
 					cli.BoolFlag{"no-op, n", "Run through script without modifying system"},
 				},
 			},
 		},
 	})
-}
-
-// cmdScriptSvcRun serviced script <service> filename
-func (c *ServicedCli) cmdScriptSvcRun(ctx *cli.Context) {
-	args := ctx.Args()
-	if len(args) != 2 {
-		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
-		c.exit(1)
-		return
-	}
-	svcID := args[0]
-	//verify service or translate to ID
-	svc, err := c.searchForService(svcID)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		c.exit(1)
-		return
-	}
-	if svc == nil {
-		fmt.Fprintf(os.Stderr, "service %s not found\n", svcID)
-		c.exit(1)
-		return
-	}
-
-	fileName := args[1]
-	config := &script.Config{
-		ServiceID: svc.ID,
-	}
-	runScript(c, ctx, fileName, config)
 }
 
 // cmdScriptRun serviced script run filename
@@ -97,12 +61,33 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
 		return
 	}
+
+	var svc *service.Service
+	if svcID := ctx.String("service"); svcID != "" {
+		//verify service or translate to ID
+		var err error
+		svc, err = c.searchForService(svcID)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			c.exit(1)
+			return
+		}
+		fmt.Printf("svc is %#v\n", svc)
+		if svc == nil {
+			fmt.Fprintf(os.Stderr, "service %s not found\n", svcID)
+			c.exit(1)
+			return
+		}
+	}
 	fileName := args[0]
 	config := &script.Config{}
+	if svc != nil {
+		config.ServiceID = svc.ID
+	}
 	runScript(c, ctx, fileName, config)
 }
 
-// cmdScriptRun serviced script run filename
+// cmdScriptParse serviced script parse filename
 func (c *ServicedCli) cmdScriptParse(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) != 1 {
