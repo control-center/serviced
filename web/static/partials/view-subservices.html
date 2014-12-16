@@ -98,7 +98,7 @@
                 <td ng-click="click_host(ip.HostID)" class="link">{{ip.HostName}}</td>
                 <td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
                 <td>{{ip.IPAddr}}:{{ip.Port}}</td>
-                <td> <button ng-click="modalAssignIP(ip, services.current.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
+                <td> <button ng-click="modalAssignIP(ip, ip.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
             </tr>
         </tbody>
     </table>
