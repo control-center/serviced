@@ -154,7 +154,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 
 	hostID, err := utils.HostID()
 	if err != nil {
-		panic("Could not get hostid")
+		glog.Fatalf("unable to get valid hostid: %s", err)
 	}
 	agent.hostID = hostID
 	agent.currentServices = make(map[string]*exec.Cmd)
