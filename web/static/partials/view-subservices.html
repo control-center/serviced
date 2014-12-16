@@ -248,34 +248,4 @@
   </div>
 
   <!-- Graphs -->
-  <div ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0" class="infoWrapper">
-    <h3>{{services.current.Title}} {{'graphs'|translate}}</h3>
-    <div class="graphsControls">
-      <div class="graphControl">
-          <label class="control-label">{{'date_range'|translate}}</label><input id="time_range_start" datetimepicker  dateOptions="options" ng-model="timeRange.time_start" > -
-          <input id="time_range_end" datetimepicker dateOptions="options" ng-model="timeRange.time_end">
-      </div>
-      <div class="graphControl">
-        <label class="control-label">Aggregator</label>
-        <select
-          ng-model="$parent.aggregator"
-          ng-options="agg.val as agg.name for agg in aggregators"
-          ng-change="updateGraphsAggregator()"
-          class="aggregator form-control">
-        </select>
-      </div>
-      <div class="graphControl">
-        <button ng-click="updateGraphs()" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i></button>
-      </div>
-    </div>
-    <div class="graphsContainer" style="margin-bottom: 20px;">
-      <div ng-repeat="graph in services.current.MonitoringProfile.GraphConfigs track by $index">
-        <div class="zenchartContainer">
-          <h4>{{graph.name}}</h4>
-          <div class="graphDescrip" ng-if="graph.yAxisLabel"><span ng-if"graph.type === 'area'">Total</span> {{graph.yAxisLabel}} over the past Hour</div>
-          <div id="{{services.current.ID+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
-        </div>
-      </div>
-      <br style="clear: both;">
-    </div>
-  </div>
+  <graph-panel ng-if="services.current.MonitoringProfile.GraphConfigs.length > 0" data-service-id="services.current.ID" data-graph-configs="services.current.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>

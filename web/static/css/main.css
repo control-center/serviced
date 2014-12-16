@@ -1669,3 +1669,60 @@ input[type=file] {
     color: #0084DB;
     font-size: .9em;
 }
+
+.graphConfigPopover {
+    width: 250px;
+    position: absolute;
+    right: 5px;
+    top: 30px;
+    font-size: .9em;
+    border: solid #CCC 1px;
+    border-radius: 3px;
+    padding: 10px;
+    background-color: white;
+    z-index: 1;
+
+    -webkit-box-shadow: 0 3px 5px rgba(0, 0, 0, 0.125);
+    -moz-box-shadow: 0 3px 5px rgba(0, 0, 0, 0.125);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.125);
+}
+.graphConfigPopover .formLabel {
+    display: block;
+    margin-bottom: 2px;
+}
+.graphConfigPopover .formField {
+    width: 100%;
+    margin-bottom: 5px;
+}
+.graphConfigPopover .startEndWrapper {
+    border: solid 1px #CCC;
+    border-width: 1px 0;
+    margin-bottom: 10px;
+    padding: 5px 0;
+}
+.graphConfigPopover:before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    right: 8px;
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #CCC;
+}
+.graphConfigPopover:after {
+    content: "";
+    position: absolute;
+    top: -9px;
+    right: 8px;
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid white;
+}
+.graphPanel {
+    display: block;
+    position: relative;
+}
