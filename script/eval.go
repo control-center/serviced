@@ -106,31 +106,49 @@ func evalSvcWait(r *runner, n node) error {
 		return fmt.Errorf("no service wait function for %s", SVC_WAIT)
 	}
 
-	svcPath := n.args[0]
 	tenantID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", SVC_WAIT)
 	}
-	svcID, err := r.svcFromPath(tenantID, svcPath)
-	if err != nil {
-		return err
-	}
-	if svcID == "" {
-		return fmt.Errorf("no service id found for %s", svcPath)
+
+	var svcIDs []string
+	var stateIdx = -1
+	for i, arg := range(n.args) {
+		if arg == "started"  || arg == "stopped" || arg == "paused" {
+			stateIdx = i
+			break
+		}
+		svcPath := arg
+		svcID, err := r.svcFromPath(tenantID, arg)
+		if err != nil {
+			return err
+		}
+		if svcID == "" {
+			return fmt.Errorf("no service id found for %s", svcPath)
+		}
+		svcIDs = append(svcIDs, svcID)
 	}
 
-	state := ServiceState(n.args[1])
+	state := ServiceState(n.args[stateIdx])
+
 	timeout := uint32(0)
-	if len(n.args) > 2 {
+	hasTimeout := len(n.args) == stateIdx + 2
+	if hasTimeout {
 		var timeout64 uint64
-		if timeout64, err = strconv.ParseUint(n.args[2], 10, 32); err != nil {
-			fmt.Errorf("Unable to parse timeout value %s", n.args[2])
+		var err error
+		lastArg := n.args[len(n.args) - 1]
+		if timeout64, err = strconv.ParseUint(lastArg, 10, 32); err != nil {
+			return fmt.Errorf("Unable to parse timeout value %s: %s", lastArg, err)
 		}
 		timeout = uint32(timeout64)
 	}
 
-	glog.Infof("waiting for service %s %s to be %s", svcPath, svcID, state)
-	if err := r.svcWait(svcID, state, timeout); err != nil {
+	plural := ""
+	if stateIdx > 1 {
+		plural = "s"
+	}
+	glog.Infof("waiting %d for service%s %s to be %s", timeout, plural, strings.Join(n.args[:stateIdx], ", "), state)
+	if err := r.svcWait(svcIDs, state, timeout); err != nil {
 		return err
 	}
 

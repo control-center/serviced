@@ -7,6 +7,7 @@ package script
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/control-center/serviced/commons"
 )
@@ -47,7 +48,7 @@ func init() {
 		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
-		SVC_WAIT:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^started$|^stopped$|^paused$", false, parseArgMatch(2, "^[0-9]+$", true, parseArgCount(bounds(2, 3), buildNode)))),
+		SVC_WAIT:	 parseWait,
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
@@ -184,8 +185,9 @@ func require(required []string, parser lineParser) lineParser {
 		if err == nil {
 			requiredMap := make(map[string]bool)
 			for _, r := range required {
-				requiredMap[r] = false //hasn't been found het
+				requiredMap[r] = false //hasn't been found yet
 			}
+
 			for _, previousNode := range ctx.nodes {
 				if _, found := requiredMap[previousNode.cmd]; found {
 					requiredMap[previousNode.cmd] = true
@@ -202,7 +204,7 @@ func require(required []string, parser lineParser) lineParser {
 	return f
 }
 
-// atMost checks that the command type appeart at most n times
+// atMost checks that the command type appears at most n times
 func atMost(n int, parser lineParser) lineParser {
 	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
 
@@ -221,4 +223,34 @@ func atMost(n int, parser lineParser) lineParser {
 		return cmdNode, err
 	}
 	return f
+}
+
+// SVC_WAIT <service_id>+ (started|stopped|paused) <timeout>?
+func parseWait(ctx *parseContext, cmd string, args []string) (node, error) {
+	stateIdx := -1
+	for i, arg := range args {
+		if arg == "started"  || arg == "stopped" || arg == "paused" {
+			stateIdx = i
+			break
+		}
+	}
+
+	var err error
+	switch {
+	case stateIdx == -1:
+		err = fmt.Errorf("line %d: missing state argument (started|stopped|paused)", ctx.lineNum)
+	case stateIdx == 0:
+		err = fmt.Errorf("line %d: missing service id", ctx.lineNum)
+	case stateIdx < len(args) - 2:
+		err = fmt.Errorf("line %d: too many arguments following state: %v", ctx.lineNum, args[stateIdx:])
+	case stateIdx == len(args) - 2:
+		if strings.Trim(args[len(args)-1], "1234567890") != "" {
+			err = fmt.Errorf("line %d: expected integer timeout; got %s", ctx.lineNum, args[len(args)-1])
+		}
+	}
+
+	if err != nil {
+		return node{}, err
+	}
+	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
 }
