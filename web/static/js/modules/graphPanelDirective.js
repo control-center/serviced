@@ -38,18 +38,25 @@
                 //index: graph index for div id selection
                 //graph: the graph to display
                 $scope.viz = function(index, graph) {
-                    var id = $scope.serviceId+'-graph-'+index;
+                    var id = $scope.serviceId+'-graph-'+index,
+                        graphCopy;
+
                     if (!$scope.graphs[id]) {
                         if (window.zenoss === undefined) {
                             return "Not collecting stats, graphs unavailable";
                         } else {
+                            // create a copy of graph so that range changes
+                            // do not affect the original service def
+                            graphCopy = angular.copy(graph);
+
                             // set graphs to local browser time
-                            graph.timezone = jstz.determine().name();
+                            graphCopy.timezone = jstz.determine().name();
 
-                            updateGraphRequest(graph);
-                            zenoss.visualization.chart.create(id, graph);
+                            updateGraphRequest(graphCopy);
+                            zenoss.visualization.chart.create(id, graphCopy);
 
-                            $scope.graphs[id] = graph;
+                            // store graph def for later use
+                            $scope.graphs[id] = graphCopy;
 
                         }
                     }
@@ -191,7 +198,7 @@
                 };
                 angular.element("body").on("click", hideGraphControls);
 
-                $scope.$on("destroy", function(){
+                $scope.$on("$destroy", function(){
                     $interval.cancel($scope.refreshPromise);
                     angular.element("body").off("click", hideGraphControls);
                 });
