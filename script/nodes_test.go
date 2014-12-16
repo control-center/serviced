@@ -7,6 +7,7 @@ package script
 import (
 	"fmt"
 	"regexp"
+	"strings"
 
 	. "gopkg.in/check.v1"
 )
@@ -169,6 +170,22 @@ func (vs *ScriptSuite) Test_svcWait(t *C) {
 	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, []string{"zope", "started", "4", "extra"})
 	t.Assert(err, NotNil)
 
+	line = "SVC_WAIT zope mariadb started 0"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_WAIT, line: line, args: strings.Split(line, " ")})
+
+	line = "SVC_WAIT zope mariadb started"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_WAIT, line: line, args: strings.Split(line, " ")})
+
+	line = "SVC_WAIT zope mariadb started extra"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_WAIT](ctx, SVC_WAIT, strings.Split(line, " "))
+	t.Assert(err, NotNil)
 }
 
 func (vs *ScriptSuite) Test_svcexec(t *C) {
