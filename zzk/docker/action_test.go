@@ -15,12 +15,23 @@ package docker
 
 import (
 	"fmt"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/zzk"
+	. "gopkg.in/check.v1"
 )
+
+type ZZKTest struct {
+	zzk.ZZKTestSuite
+}
+
+var _ = Suite(&ZZKTest{})
+
+func Test(t *testing.T) {
+	TestingT(t)
+}
 
 type ActionResult struct {
 	Duration time.Duration
@@ -45,9 +56,10 @@ func (handler *TestActionHandler) AttachAndRun(dockerID string, command []string
 	return nil, fmt.Errorf("action not found")
 }
 
-func TestActionListener_Listen(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestActionListener_Listen(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
 	handler := &TestActionHandler{
 		ResultMap: map[string]ActionResult{
 			"success": ActionResult{2 * time.Second, []byte("success"), nil},
@@ -55,7 +67,7 @@ func TestActionListener_Listen(t *testing.T) {
 		},
 	}
 
-	t.Log("Start actions and shutdown")
+	c.Log("Start actions and shutdown")
 	shutdown := make(chan interface{})
 	done := make(chan interface{})
 
@@ -66,43 +78,43 @@ func TestActionListener_Listen(t *testing.T) {
 	}()
 
 	// send actions
-	success, err := SendAction(conn, &Action{
-		HostID:   listener.hostID,
-		DockerID: "success",
-		Command:  []string{"do", "some", "command"},
-	})
-	if err != nil {
-		t.Fatal("Could not send success action")
-	}
-	successW, err := conn.GetW(actionPath(listener.hostID, success), &Action{})
-	if err != nil {
-		t.Fatal("Failed creating watch for success action: ", err)
+	var wg sync.WaitGroup
+
+	sendAction := func(dockerID string, command []string) {
+		id, err := SendAction(conn, &Action{
+			HostID:   listener.hostID,
+			DockerID: dockerID,
+			Command:  command,
+		})
+		c.Assert(err, IsNil)
+
+		// There *might* be a race condition here if the node is processed before
+		// we acquire the event data (see duration timeouts above)
+		event, err := conn.GetW(actionPath(listener.hostID, id), &Action{})
+		c.Assert(err, IsNil)
+
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-event
+		}()
+		return
 	}
 
-	failure, err := SendAction(conn, &Action{
-		HostID:   listener.hostID,
-		DockerID: "failure",
-		Command:  []string{"do", "some", "bad", "command"},
-	})
-	if err != nil {
-		t.Fatalf("Could not send fail action")
-	}
-	failureW, err := conn.GetW(actionPath(listener.hostID, failure), &Action{})
-	if err != nil {
-		t.Fatal("Failed creating watch for failure action: ", err)
-	}
+	sendAction("success", []string{"do", "some", "command"})
+	sendAction("failure", []string{"do", "some", "bad", "command"})
 
-	// wait for actions to complete and shutdown
-	<-successW
-	<-failureW
+	c.Log("Waiting for actions to complete")
+	wg.Wait()
+	c.Log("Actions completed")
 	close(shutdown)
 	<-done
-
 }
 
-func TestActionListener_Spawn(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestActionListener_Spawn(c *C) {
+	conn, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+
 	handler := &TestActionHandler{
 		ResultMap: map[string]ActionResult{
 			"success": ActionResult{time.Second, []byte("success"), nil},
@@ -113,25 +125,25 @@ func TestActionListener_Spawn(t *testing.T) {
 	listener.SetConnection(conn)
 
 	// send actions
-	t.Logf("Sending successful command")
+	c.Logf("Sending successful command")
 	success, err := SendAction(conn, &Action{
 		HostID:   listener.hostID,
 		DockerID: "success",
 		Command:  []string{"do", "some", "command"},
 	})
 	if err != nil {
-		t.Fatalf("Could not send success action")
+		c.Fatalf("Could not send success action")
 	}
-	listener.Spawn(make(<-chan interface{}), success)
+	listener.Spawn(nil, success)
 
-	t.Logf("Sending failure command")
+	c.Logf("Sending failure command")
 	failure, err := SendAction(conn, &Action{
 		HostID:   listener.hostID,
 		DockerID: "failure",
 		Command:  []string{"do", "some", "bad", "command"},
 	})
 	if err != nil {
-		t.Fatalf("Could not send failure action")
+		c.Fatalf("Could not send failure action")
 	}
 	listener.Spawn(make(<-chan interface{}), failure)
 }

@@ -15,8 +15,8 @@ package service
 
 import (
 	"fmt"
-	"sync"
-	"testing"
+	"path"
+
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -24,589 +24,556 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+
+	. "gopkg.in/check.v1"
 )
 
-type TestHostStateHandler struct {
-	processing map[string]chan<- interface{}
-	states     map[string]*servicestate.ServiceState
+type action int
+
+const (
+	attach action = iota
+	start
+	pause
+	resume
+	stop
+)
+
+type request struct {
+	state    *servicestate.ServiceState
+	action   action
+	purge    func(string)
+	response chan<- error
 }
 
-func NewTestHostStateHandler() *TestHostStateHandler {
-	return new(TestHostStateHandler).init()
+type TestHostStateHandler struct {
+	instances map[string]func(string)
+	requestC  chan request
 }
 
 func (handler *TestHostStateHandler) init() *TestHostStateHandler {
-	*handler = TestHostStateHandler{
-		processing: make(map[string]chan<- interface{}),
-		states:     make(map[string]*servicestate.ServiceState),
-	}
-	return handler
-}
+	h := TestHostStateHandler{make(map[string]func(string)), make(chan request)}
 
-func (handler *TestHostStateHandler) GetHost(hostID string) (*host.Host, error) {
-	return &host.Host{ID: hostID}, nil
-}
-
-func (handler *TestHostStateHandler) AttachService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
-	if instanceC, ok := handler.processing[state.ID]; ok {
-		delete(handler.processing, state.ID)
-		close(instanceC)
-		handler.processing[state.ID] = done
-		return nil
-	}
-
-	return fmt.Errorf("instance %s not running", state.ID)
-}
-
-func (handler *TestHostStateHandler) StartService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
-	if _, ok := handler.processing[state.ID]; !ok {
-		handler.processing[state.ID] = done
-		handler.states[state.ID] = state
-		(*state).Started = time.Now()
-		return nil
-	}
-
-	return fmt.Errorf("instance %s already started", state.ID)
-}
-
-func (handler *TestHostStateHandler) PauseService(svc *service.Service, state *servicestate.ServiceState) error {
-	if !state.IsRunning() {
-		return fmt.Errorf("instance %s not running", state.ID)
-	} else if state.IsPaused() {
-		return fmt.Errorf("instance %s already paused", state.ID)
-	}
-	return nil
-}
-
-func (handler *TestHostStateHandler) ResumeService(svc *service.Service, state *servicestate.ServiceState) error {
-	if !state.IsRunning() {
-		return fmt.Errorf("instance %s not running", state.ID)
-	} else if !state.IsPaused() {
-		return fmt.Errorf("instance %s already resumed", state.ID)
-	}
-	return nil
-}
-
-func (handler *TestHostStateHandler) StopService(state *servicestate.ServiceState) error {
-	if instanceC, ok := handler.processing[state.ID]; ok {
-		delete(handler.processing, state.ID)
-		delete(handler.states, state.ID)
-		close(instanceC)
-	}
-	return nil
-}
-
-func (handler *TestHostStateHandler) UpdateInstance(state *servicestate.ServiceState) error {
-	if _, ok := handler.states[state.ID]; ok {
-		handler.states[state.ID] = state
-		return nil
-	}
-
-	return fmt.Errorf("instance %s not found", state.ID)
-}
-
-func TestHostStateListener_Listen(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	AddHost(conn, &host.Host{ID: listener.hostID})
-	shutdown := make(chan interface{})
-	wait := make(chan interface{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-		close(wait)
+		for req := range h.requestC {
+			switch req.action {
+			case attach:
+				if _, ok := h.instances[req.state.ID]; !ok {
+					req.response <- fmt.Errorf("attach: not running")
+					continue
+				}
+				h.instances[req.state.ID] = req.purge
+				req.state.Started = time.Now()
+				req.response <- nil
+			case start:
+				if _, ok := h.instances[req.state.ID]; ok {
+					req.response <- fmt.Errorf("start: running")
+					continue
+				}
+				h.instances[req.state.ID] = req.purge
+				req.state.Started = time.Now()
+				req.response <- nil
+			case pause:
+				if _, ok := h.instances[req.state.ID]; !ok || !req.state.IsRunning() {
+					req.response <- fmt.Errorf("pause: not running")
+					continue
+				} else if req.state.IsPaused() {
+					req.response <- fmt.Errorf("pause: paused")
+					continue
+				}
+				req.response <- nil
+			case resume:
+				if _, ok := h.instances[req.state.ID]; !ok || !req.state.IsRunning() {
+					req.response <- fmt.Errorf("resume: not running")
+					continue
+				} else if !req.state.IsPaused() {
+					req.response <- fmt.Errorf("resume: resumed")
+					continue
+				}
+				req.response <- nil
+			case stop:
+				purge, ok := h.instances[req.state.ID]
+				if !ok {
+					req.response <- fmt.Errorf("stop: not running")
+					continue
+				}
+
+				delete(h.instances, req.state.ID)
+				purge(req.state.ID)
+				req.response <- nil
+			}
+		}
 	}()
-
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
-	}
-
-	var states []*servicestate.ServiceState
-	for i := 0; i < 3; i++ {
-		// Create a service instance
-		state, err := servicestate.BuildFromService(svc, listener.hostID)
-		if err != nil {
-			t.Fatalf("Could not generate instance from service %s", svc.ID)
-		} else if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-		}
-		states = append(states, state)
-	}
-
-	spath := servicepath(states[0].ServiceID, states[0].ID)
-	var s servicestate.ServiceState
-	eventC, err := conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
-	}
-
-	// verify the service has started
-	if s.Started.UnixNano() <= s.Terminated.UnixNano() {
-		<-eventC
-		eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-		if err != nil {
-			t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
-		}
-		if s.Started.UnixNano() <= s.Terminated.UnixNano() {
-			t.Fatalf("Service instance %s not started", s.ID)
-		}
-	}
-
-	// schedule stopping the instance
-	<-time.After(3 * time.Second)
-	t.Logf("Stopping service instance %s", states[0].ID)
-	if err := StopServiceInstance(conn, listener.hostID, states[0].ID); err != nil {
-		t.Fatalf("Could not stop service instance %s: %s", states[0].ID, err)
-	}
-
-	// verify the instance stopped
-	<-eventC
-	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not get watch for service instance %s: %s", states[0].ID, err)
-	}
-	if s.Started.UnixNano() > s.Terminated.UnixNano() {
-		t.Fatalf("Service instance %s not stopped", s.ID)
-	}
-
-	// verify the instance was removed
-	if e := <-eventC; e.Type != client.EventNodeDeleted {
-		t.Errorf("Service instance %s still exists for service %s", s.ID, s.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
-		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.hostID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for host %s", s.ID, listener.hostID)
-	}
-
-	// shutdown
-	<-time.After(3 * time.Second)
-	close(shutdown)
-	<-wait
-	hpath := hostpath(listener.hostID)
-	if children, err := conn.Children(spath); err != nil {
-		t.Fatalf("Error checking children for %s: %s", spath, err)
-	} else if len(children) > 0 {
-		t.Errorf("Found nodes for %s: %s", spath, children)
-	} else if children, err := conn.Children(hpath); err != nil {
-		t.Fatalf("Error checking children for %s: %s", hpath, err)
-	} else if len(children) > 0 {
-		t.Errorf("Found nodes for %s: %s", hpath, children)
-	}
+	return &h
 }
 
-func TestHostStateListener_Listen_BadState(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	AddHost(conn, &host.Host{ID: listener.hostID})
-	shutdown := make(chan interface{})
-	var wg sync.WaitGroup
+func (h *TestHostStateHandler) AttachService(svc *service.Service, state *servicestate.ServiceState, purge func(stateID string)) error {
+	response := make(chan error)
+	h.requestC <- request{state, attach, purge, response}
+	return <-response
+}
 
-	// Create the service
-	svc := &service.Service{
-		ID: "test-service-1",
+func (h *TestHostStateHandler) StartService(svc *service.Service, state *servicestate.ServiceState, purge func(stateID string)) error {
+	response := make(chan error)
+	h.requestC <- request{state, start, purge, response}
+	return <-response
+}
+
+func (h *TestHostStateHandler) PauseService(svc *service.Service, state *servicestate.ServiceState) error {
+	response := make(chan error)
+	h.requestC <- request{state, pause, nil, response}
+	return <-response
+}
+
+func (h *TestHostStateHandler) ResumeService(svc *service.Service, state *servicestate.ServiceState) error {
+	response := make(chan error)
+	h.requestC <- request{state, resume, nil, response}
+	return <-response
+}
+
+func (h *TestHostStateHandler) StopService(state *servicestate.ServiceState) error {
+	response := make(chan error)
+	h.requestC <- request{state, stop, nil, response}
+	return <-response
+}
+
+func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	defer close(shutdown)
+	errC := make(chan error, 1)
+
+	handler := new(TestHostStateHandler).init()
+	listener := NewHostStateListener(handler, "test-host-1")
+	go zzk.Listen(shutdown, errC, conn, listener)
+
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 3}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add host
+	err = AddHost(conn, &host.Host{ID: "test-host-1"})
+	c.Assert(err, IsNil)
+
+	// Verify that the host is registered
+	c.Logf("Waiting for 'test-host-1' to be registered")
+	select {
+	case err := <-errC:
+		c.Assert(err, IsNil)
+		c.Assert(listener.registry, Not(Equals), "")
+
+		exists, err := conn.Exists(listener.registry)
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, true)
+	case <-time.After(zzk.ZKTestTimeout):
+		// NOTE: this timeout may be adjusted to satisfy race conditions
+		c.Fatalf("timeout waiting for host to be ready")
 	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
+
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+			c.Assert(state.IsRunning(), Equals, false)
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
+		}
+		return stateIDs
 	}
+	stateIDs := addstates("test-host-1", &svc, 3)
+
+	wait := func(serviceID string, dState service.DesiredState) {
+		errC := make(chan error)
+		c.Logf("Waiting for service instances on 'test-host-1' to %s", dState)
+		go func() {
+			errC <- WaitService(shutdown, conn, serviceID, dState)
+		}()
+
+		// Wait on services or fail trying
+		select {
+		case err := <-errC:
+			c.Assert(err, IsNil)
+		case <-time.After(zzk.ZKTestTimeout):
+			c.Fatalf("timeout waiting for instances to %s", dState)
+		}
+	}
+	wait(svc.ID, service.SVCRun)
+
+	// Pause states
+	for _, stateID := range stateIDs {
+		err = pauseInstance(conn, "test-host-1", stateID)
+		c.Assert(err, IsNil)
+	}
+	wait(svc.ID, service.SVCPause)
+
+	// Resume states
+	for _, stateID := range stateIDs {
+		err = resumeInstance(conn, "test-host-1", stateID)
+		c.Assert(err, IsNil)
+	}
+	wait(svc.ID, service.SVCRun)
+
+	// Stop states
+	for _, stateID := range stateIDs {
+		err = StopServiceInstance(conn, "test-host-1", stateID)
+		c.Assert(err, IsNil)
+	}
+	wait(svc.ID, service.SVCStop)
+}
+
+func (t *ZZKTest) TestHostStateListener_Listen_BadState(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	defer close(shutdown)
+	errC := make(chan error, 1)
+
+	handler := new(TestHostStateHandler).init()
+	listener := NewHostStateListener(handler, "test-host-1")
+
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 3}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add the host
+	err = AddHost(conn, &host.Host{ID: "test-host-1"})
+	c.Assert(err, IsNil)
 
 	// Create a host state without a service instance (this should not spin!)
-	badstate := &HostState{
+	badstate := HostState{
 		HostID:         listener.hostID,
 		ServiceID:      svc.ID,
 		ServiceStateID: "fail123",
 		DesiredState:   int(service.SVCRun),
 	}
-	if err := conn.Create(hostpath(badstate.HostID, badstate.ServiceStateID), badstate); err != nil {
-		t.Fatalf("Could not add host state %s: %s", badstate.ServiceStateID, err)
-	}
+	err = conn.Create(hostpath(badstate.HostID, badstate.ServiceStateID), &badstate)
+	c.Assert(err, IsNil)
+	err = conn.Set(hostpath(badstate.HostID, badstate.ServiceStateID), &badstate)
+	c.Assert(err, IsNil)
 
 	// Set up a watch
 	event, err := conn.GetW(hostpath(badstate.HostID, badstate.ServiceStateID), &HostState{})
-	if err != nil {
-		t.Fatalf("Could not watch host state %s: %s", badstate.ServiceStateID, err)
-	}
+	c.Assert(err, IsNil)
 
 	// Start the listener
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-	}()
+	go zzk.Listen(shutdown, errC, conn, listener)
 
-	// Wait for the event
-	if e := <-event; e.Type != client.EventNodeDeleted {
-		t.Errorf("Expected %v; Got %v", client.EventNodeDeleted, e.Type)
+	select {
+	case e := <-event:
+		c.Assert(e.Type, Equals, client.EventNodeDeleted)
+	case <-time.After(zzk.ZKTestTimeout):
+		c.Fatalf("timeout waiting for event")
 	}
-
-	// Shut down the listener
-	<-time.After(3 * time.Second)
-	close(shutdown)
-	wg.Wait()
 }
 
-func TestHostStateListener_Spawn_StartAndStop(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
+func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
 
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
-	}
-
-	// Create the service instance
-	state, err := servicestate.BuildFromService(svc, listener.hostID)
-	if err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	}
-
-	t.Log("Stop the instance and verify restart")
-	var s servicestate.ServiceState
-	spath := servicepath(state.ServiceID, state.ID)
-	eventC, err := conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not add watch to %s: %s", spath, err)
-	}
-
-	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		listener.Spawn(shutdown, state.ID)
-	}()
+	defer close(shutdown)
+	errC := make(chan error, 1)
 
-	// get the start time and stop the service
-	<-eventC
-	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not add watch to %s: %s", spath, err)
-	}
-	startTime := s.Started
-	stopTime := s.Terminated
-	if err := handler.StopService(&s); err != nil {
-		t.Fatalf("Could not stop instance %s: %s", s.ID, err)
-	}
-
-	// verify the instance stopped and started
-	<-eventC
-	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not add watch to %s: %s", spath, err)
-	}
-	if stopTime.UnixNano() == s.Terminated.UnixNano() {
-		t.Errorf("Service instance %s not stopped", s.ID)
-	}
-
-	<-eventC
-	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("Could not add watch to %s: %s", spath, err)
-	} else if startTime.UnixNano() == s.Started.UnixNano() {
-		t.Errorf("Service instance %s not started", s.ID)
-	}
-
-	// pause the service instance
-	if err := pauseInstance(conn, s.HostID, s.ID); err != nil {
-		t.Fatalf("Could not pause service instance %s: %s", s.ID, err)
-	}
-
-	// verify the instance is paused
-	<-eventC
-	eventC, err = conn.GetW(spath, &ServiceStateNode{ServiceState: &s})
-	if err != nil {
-		t.Fatalf("could not add watch to %s: %s", spath, err)
-	} else if !s.IsPaused() {
-		t.Errorf("Service instance %s not paused", s.ID)
-	}
-
-	// resume the service instance
-	if err := resumeInstance(conn, s.HostID, s.ID); err != nil {
-		t.Fatalf("Could not resume service instance %s: %s", s.ID, err)
-	}
-
-	// verify the instance is running
-	<-eventC
-	if err := conn.Get(spath, &ServiceStateNode{ServiceState: &s}); err != nil {
-		t.Fatalf("Could not get service instance %s: %s", s.ID, err)
-	} else if s.IsPaused() {
-		t.Errorf("Service instance %s not resumed", s.ID)
-	}
-
-	// stop the service instance and verify
-	StopServiceInstance(conn, listener.hostID, s.ID)
-	wg.Wait()
-	if exists, err := zzk.PathExists(conn, spath); err != nil {
-		t.Fatalf("Error checking the instance %s for service %s: %s", s.ID, s.ServiceID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for service %s", s.ID, s.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, s.ID)); err != nil {
-		t.Fatalf("Error checking the instance %s for host %s: %s", s.ID, listener.hostID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for host %s", s.ID, listener.hostID)
-	}
-}
-
-func TestHostStateListener_Spawn_AttachAndDelete(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
+	handler := new(TestHostStateHandler).init()
 	listener := NewHostStateListener(handler, "test-host-1")
 	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
 
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 1}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add a host
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+		return path.Base(p)
 	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
-	}
+	register("test-host-1")
 
-	// Create the service instance
-	state, err := servicestate.BuildFromService(svc, listener.hostID)
-	if err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	}
-
-	t.Log("Start the instance and verify attach")
-	spath := servicepath(state.ServiceID, state.ID)
-	if err := handler.StartService(make(chan interface{}), svc, state); err != nil {
-		t.Fatalf("Could not start instance %s: %s", state.ID, err)
-	}
-	defer handler.StopService(state)
-	// Update instance with the start time
-	if err := conn.Set(spath, &ServiceStateNode{ServiceState: state}); err != nil {
-		t.Fatalf("Could not update instance %s: %s", state.ID, err)
-	}
-
-	var wg sync.WaitGroup
-	shutdown := make(chan interface{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		listener.Spawn(shutdown, state.ID)
-	}()
-
-	// Remove the instance and verify stopped
-	<-time.After(3 * time.Second)
-	removeInstance(conn, state)
-	wg.Wait()
-	if exists, err := zzk.PathExists(conn, spath); err != nil {
-		t.Fatalf("Error checking the instance %s for service %s: %s", state.ID, state.ServiceID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for service %s", state.ID, state.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, state.ID)); err != nil {
-		t.Fatalf("Error checking the instance %s for host %s: %s", state.ID, listener.hostID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for host %s", state.ID, listener.hostID)
-	}
-}
-
-func TestHostStateListener_Spawn_Shutdown(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
-
-	// Create the service
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
-	}
-
-	// Create the service instance
-	state, err := servicestate.BuildFromService(svc, listener.hostID)
-	if err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	}
-
-	var wg sync.WaitGroup
-	shutdown := make(chan interface{})
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		listener.Spawn(shutdown, state.ID)
-	}()
-
-	// wait 3 seconds and shutdown
-	t.Log("Shutdown and verify the instance")
-	<-time.After(3)
-	close(shutdown)
-	spath := servicepath(state.ServiceID, state.ID)
-	wg.Wait()
-	if exists, err := zzk.PathExists(conn, spath); err != nil {
-		t.Fatalf("Error checking the instance %s for service %s: %s", state.ID, state.ServiceID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for service %s", state.ID, state.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, hostpath(listener.hostID, state.ID)); err != nil {
-		t.Fatalf("Error checking the instance %s for host %s: %s", state.ID, listener.hostID, err)
-	} else if exists {
-		t.Errorf("Instance %s still exists for host %s", state.ID, listener.hostID)
-	}
-}
-
-func TestHostStateListener_pauseInstance(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
-
-	// Create the instance
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-
-	t.Log("Adding and pausing an instance from the connection")
-	if state, err := servicestate.BuildFromService(svc, listener.hostID); err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	} else if err := handler.StartService(make(chan interface{}), svc, state); err != nil {
-		t.Fatalf("Could not start instance %s: %s", state.ID, err)
-	} else if err := listener.pauseInstance(svc, state); err != nil {
-		t.Fatalf("Could not pause instance %s from service %s", state.ID, state.ServiceID)
-	} else if !state.Paused {
-		t.Errorf("Service instance %s was not paused", state.ID)
-	}
-}
-
-func TestHostStateListener_resumeInstance(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
-
-	// Create the instance
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-
-	t.Log("Adding and pausing an instance from the connection")
-	if state, err := servicestate.BuildFromService(svc, listener.hostID); err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	} else if err := handler.StartService(make(chan interface{}), svc, state); err != nil {
-		t.Fatalf("Could not start instance %s: %s", state.ID, err)
-	} else if err := listener.pauseInstance(svc, state); err != nil {
-		t.Fatalf("Could not pause instance %s from service %s", state.ID, state.ServiceID)
-	} else if !state.Paused {
-		t.Errorf("Service instance %s was not paused", state.ID)
-	} else if err := listener.resumeInstance(svc, state); err != nil {
-		t.Fatalf("Could not resume instance %s from service %s", state.ID, state.ServiceID)
-	} else if state.Paused {
-		t.Errorf("Service instance %s was not resumed", state.ID)
-	}
-}
-
-func TestHostStateListener_stopInstance(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
-
-	// Create the instance
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-
-	t.Log("Adding and stopping an instance from the connection")
-	if state, err := servicestate.BuildFromService(svc, listener.hostID); err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	} else if err := listener.stopInstance(nil, state); err != nil {
-		t.Fatalf("Could not stop instance %s from service %s", state.ID, state.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-		t.Fatalf("Error while checking the existance of %s from service %s", state.ID, state.ServiceID)
-	} else if exists {
-		t.Errorf("Failed to delete node %s from %s", state.ID, state.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-		t.Fatalf("Error while checking the existance of %s from host %s", state.ID, state.HostID)
-	} else if exists {
-		t.Errorf("Failed to delete node %s from %s", state.ID, state.HostID)
-	}
-}
-
-func TestHostStateListener_detachInstance(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
-	handler := NewTestHostStateHandler()
-	listener := NewHostStateListener(handler, "test-host-1")
-	listener.SetConnection(conn)
-	AddHost(conn, &host.Host{ID: listener.hostID})
-
-	// Create the instance
-	svc := &service.Service{
-		ID:        "test-service-1",
-		Endpoints: make([]service.ServiceEndpoint, 1),
-	}
-
-	t.Log("Adding an instance from the connection and waiting to detach")
-	state, err := servicestate.BuildFromService(svc, listener.hostID)
-	if err != nil {
-		t.Fatalf("Could not generate instance from service %s", svc.ID)
-	} else if err := addInstance(conn, state); err != nil {
-		t.Fatalf("Could not add instance %s from service %s", state.ID, state.ServiceID)
-	}
-
-	done := make(chan interface{})
-	wait := make(chan interface{})
-	go func() {
-		defer close(wait)
-		if err := listener.stopInstance(done, state); err != nil {
-			t.Fatalf("Could not detach instance %s from service %s", state.ID, state.ServiceID)
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
 		}
+		return stateIDs
+	}
+	stateIDs := addstates("test-host-1", &svc, 1)
+	stateID := stateIDs[0]
+
+	wait := func(serviceID string, dState service.DesiredState) {
+		c.Logf("Waiting for service instances on 'test-host-1' to %s", dState)
+		go func() {
+			errC <- WaitService(shutdown, conn, serviceID, dState)
+		}()
+
+		// Wait on services or fail trying
+		select {
+		case err := <-errC:
+			c.Assert(err, IsNil)
+		case <-time.After(zzk.ZKTestTimeout):
+			c.Fatalf("timeout waiting for instances to %s", dState)
+		}
+	}
+
+	var node1, node2 ServiceStateNode
+	go func() {
+		listener.Spawn(shutdown, stateID)
 	}()
 
-	<-time.After(time.Second)
-	close(done)
-	<-wait
+	c.Logf("Checking instance start")
+	wait(svc.ID, service.SVCRun)
+	err = conn.Get(servicepath(svc.ID, stateID), &node1)
+	c.Assert(err, IsNil)
 
-	if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-		t.Fatalf("Error while checking the existance of %s from service %s", state.ID, state.ServiceID)
-	} else if exists {
-		t.Errorf("Failed to delete node %s from %s", state.ID, state.ServiceID)
-	} else if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-		t.Fatalf("Error while checking the existance of %s from host %s", state.ID, state.HostID)
-	} else if exists {
-		t.Errorf("Failed to delete node %s from %s", state.ID, state.HostID)
+	c.Logf("Stopping service instance")
+	err = handler.StopService(node1.ServiceState)
+	wait(svc.ID, service.SVCRun)
+	err = conn.Get(servicepath(svc.ID, stateID), &node2)
+	c.Assert(err, IsNil)
+	c.Assert(node2.Started.After(node1.Started), Equals, true)
+
+	c.Logf("Pausing service instance")
+	err = pauseInstance(conn, "test-host-1", stateID)
+	wait(svc.ID, service.SVCPause)
+
+	c.Logf("Resuming service instance")
+	err = resumeInstance(conn, "test-host-1", stateID)
+	c.Assert(err, IsNil)
+	wait(svc.ID, service.SVCRun)
+	// Verify the instance wasn't restarted
+	err = conn.Get(servicepath(svc.ID, stateID), &node1)
+	c.Assert(err, IsNil)
+	c.Assert(node1.Started.Unix(), Equals, node2.Started.Unix())
+
+	c.Logf("Stopping service instance")
+	err = StopServiceInstance(conn, "test-host-1", stateID)
+	wait(svc.ID, service.SVCStop)
+}
+
+func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	defer close(shutdown)
+
+	handler := new(TestHostStateHandler).init()
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
+
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 1}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add a host
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+		return path.Base(p)
 	}
+	register("test-host-1")
+
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
+		}
+		return stateIDs
+	}
+	stateIDs := addstates("test-host-1", &svc, 1)
+	stateID := stateIDs[0]
+
+	var node ServiceStateNode
+	err = conn.Get(servicepath(svc.ID, stateID), &node)
+	c.Assert(err, IsNil)
+
+	c.Logf("Starting the instance to attach")
+	err = handler.StartService(&svc, node.ServiceState, func(_ string) {})
+	c.Assert(err, IsNil)
+	// Update the start time
+	err = conn.Set(servicepath(svc.ID, stateID), &node)
+	c.Assert(err, IsNil)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		listener.Spawn(shutdown, stateID)
+	}()
+
+	c.Logf("Removing the instance to verify shutdown")
+	time.Sleep(zzk.ZKTestTimeout)
+	err = removeInstance(conn, node.ServiceState)
+
+	select {
+	case <-done:
+	case <-time.After(zzk.ZKTestTimeout):
+		c.Fatalf("timeout waiting for listener to shutdown")
+	}
+
+	exists, err := conn.Exists(servicepath(svc.ID, stateID))
+	c.Assert(err, IsNil)
+	c.Assert(exists, Equals, false)
+	exists, err = conn.Exists(hostpath("test-host-1", stateID))
+	c.Assert(err, IsNil)
+	c.Assert(exists, Equals, false)
+}
+
+func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+
+	handler := new(TestHostStateHandler).init()
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
+
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 1}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add a host
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+		return path.Base(p)
+	}
+	register("test-host-1")
+
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
+		}
+		return stateIDs
+	}
+	stateIDs := addstates("test-host-1", &svc, 1)
+	stateID := stateIDs[0]
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		listener.Spawn(shutdown, stateID)
+	}()
+
+	time.Sleep(zzk.ZKTestTimeout)
+	close(shutdown)
+
+	select {
+	case <-done:
+	case <-time.After(zzk.ZKTestTimeout):
+		c.Fatalf("timeout waiting for listener to shutdown")
+	}
+
+	exists, err := conn.Exists(servicepath(svc.ID, stateID))
+	c.Assert(err, IsNil)
+	c.Assert(exists, Equals, false)
+	exists, err = conn.Exists(hostpath("test-host-1", stateID))
+	c.Assert(err, IsNil)
+	c.Assert(exists, Equals, false)
+}
+
+func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	handler := new(TestHostStateHandler).init()
+	listener := NewHostStateListener(handler, "test-host-1")
+	listener.SetConnection(conn)
+
+	// Add a service
+	svc := service.Service{ID: "test-service-1", Instances: 1}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add a host
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+		return path.Base(p)
+	}
+	register("test-host-1")
+
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
+		}
+		return stateIDs
+	}
+	stateIDs := addstates("test-host-1", &svc, 1)
+	stateID := stateIDs[0]
+
+	var node ServiceStateNode
+	err = conn.Get(servicepath(svc.ID, stateID), &node)
+	c.Assert(err, IsNil)
+
+	err = handler.StartService(&svc, node.ServiceState, func(_ string) {})
+	c.Assert(err, IsNil)
+	err = listener.pauseInstance(&svc, node.ServiceState)
+	c.Assert(err, IsNil)
+	c.Assert(node.IsPaused(), Equals, true)
+	err = listener.resumeInstance(&svc, node.ServiceState)
+	c.Assert(node.IsPaused(), Equals, false)
 }

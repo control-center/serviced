@@ -115,6 +115,8 @@ func SendAction(conn client.Connection, action *Action) (string, error) {
 	node := actionPath(action.HostID, uuid)
 	if err := conn.Create(node, action); err != nil {
 		return "", err
+	} else if err := conn.Set(node, action); err != nil {
+		return "", err
 	}
 	return uuid, nil
 }

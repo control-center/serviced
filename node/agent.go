@@ -201,19 +201,19 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 }
 
 // AttachService attempts to attach to a running container
-func (a *HostAgent) AttachService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	ctr, err := docker.FindContainer(state.DockerID)
 	if err != nil {
 		return err
 	}
 
 	if !ctr.IsRunning() {
-		close(done)
+		defer exited(state.ID)
 		return nil
 	}
 
 	ctr.OnEvent(docker.Die, func(cid string) {
-		defer close(done)
+		defer exited(state.ID)
 		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
 		state.DockerID = cid
 		a.removeInstance(state.ID, ctr)
@@ -357,7 +357,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 }
 
 // StartService starts a new instance of the specified service and updates the control center state accordingly.
-func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+func (a *HostAgent) StartService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
@@ -407,7 +407,7 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 	})
 
 	ctr.OnEvent(docker.Die, func(cid string) {
-		defer close(done)
+		defer exited(state.ID)
 		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
 		state.DockerID = cid
 		a.removeInstance(state.ID, ctr)

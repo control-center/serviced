@@ -19,13 +19,14 @@
 package utils
 
 import (
+	"fmt"
 	"os"
 	"os/user"
-	"fmt"
 	"path"
 	"path/filepath"
 	"runtime"
 	"strings"
+
 	"github.com/zenoss/glog"
 )
 
@@ -57,12 +58,23 @@ func BackupDir() string {
 
 	if varDir != "" {
 		backupDir = varDir
-	} else if user, err := user.Current(); err != nil {
-		backupDir = path.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username))
 	} else {
-		backupDir = path.Join(os.TempDir(), "serviced")
-		glog.Warningf("Defaulting home to %s", os.TempDir())
+		backupDir = TempDir("")
 	}
 
 	return filepath.Join(backupDir, "backups")
+}
+
+// TempDir gets the temp serviced directory
+func TempDir(p string) string {
+	var tmp string
+
+	if user, err := user.Current(); err == nil {
+		tmp = path.Join(os.TempDir(), fmt.Sprintf("serviced-%s", user.Username), p)
+	} else {
+		tmp = path.Join(os.TempDir(), fmt.Sprintf("serviced"), p)
+		glog.Warningf("Defaulting home to %s", tmp)
+	}
+
+	return tmp
 }
