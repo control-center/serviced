@@ -80,7 +80,7 @@ func (t *ZZKTest) TestReady(c *C) {
 	select {
 	case err := <-errC:
 		c.Assert(err, Equals, ErrShutdown)
-	case <-time.After(5 * time.Second):
+	case <-time.After(ZKTestTimeout):
 		c.Errorf("timeout waiting for shutdown")
 	}
 
@@ -96,7 +96,7 @@ func (t *ZZKTest) TestReady(c *C) {
 	select {
 	case err := <-errC:
 		c.Assert(err, IsNil)
-	case <-time.After(5 * time.Second):
+	case <-time.After(ZKTestTimeout):
 		c.Errorf("timeout waiting for signal")
 	}
 }

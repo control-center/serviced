@@ -22,6 +22,9 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+// NOTE: this constant can be adjusted to satisfy race conditions
+const ZKTestTimeout = 5 * time.Second
+
 type ZZKTestSuite struct {
 	isvcs.ManagerTestSuite
 }
