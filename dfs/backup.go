@@ -172,6 +172,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 	}
 	dfs.log("Backup file created: %s", filename)
 
+	glog.Infof("Backup succeeded with fsType:%s saved to file:%s", dfs.fsType, filename)
 	return filename, nil
 }
 
@@ -339,6 +340,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		dfs.log("Successfully loaded %s", f)
 	}
 
+	glog.Infof("Restore succeeded with fsType:%s from file:%s", dfs.fsType, filename)
 	return nil
 }
 

@@ -101,6 +101,7 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 		return "", err
 	}
 
+	glog.Infof("Snapshot succeeded for tenantID:%s with fsType:%s using snapshotID:%s", tenantID, dfs.fsType, label)
 	return label, nil
 }
 
@@ -198,6 +199,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		return err
 	}
 
+	glog.Infof("Rollback succeeded for tenantID:%s with fsType:%s using snapshotID:%s", tenant.ID, dfs.fsType, snapshotID)
 	return nil
 }
 
