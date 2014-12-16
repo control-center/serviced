@@ -117,31 +117,11 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         // Run filter for pool and child pools, custom
         var treeFiltered = $filter('treeFilter')(filtered, 'poolID', $scope.subPools);
 
-        // As a side effect, save number of hosts before paging
-        if (treeFiltered) {
-            $scope.hosts.filteredCount = treeFiltered.length;
-        } else {
-            $scope.hosts.filteredCount = 0;
+        if(treeFiltered){
+            $scope.hosts.filtered = treeFiltered;
         }
-        var page = $scope.hosts.page? $scope.hosts.page : 1;
-        var pageSize = $scope.hosts.pageSize? $scope.hosts.pageSize : 5;
-        var itemsToTake = page * pageSize;
-        $scope.hosts.filteredCountLimit = itemsToTake;
-        if (treeFiltered) {
-            $scope.hosts.filtered = treeFiltered.splice(0, itemsToTake);
-        }
+
         return $scope.hosts.filtered;
-    };
-
-    $scope.loadMore = function() {
-        if ($scope.hosts.filteredCount && $scope.hosts.filteredCountLimit &&
-            $scope.hosts.filteredCountLimit < $scope.hosts.filteredCount) {
-            $scope.hosts.page += 1;
-            $scope.filterHosts();
-            return true;
-        }
-
-        return false;
     };
 
     // Build metadata for displaying a list of hosts
@@ -155,8 +135,6 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     });
 
     var hostCallback = function() {
-        $scope.hosts.page = 1;
-        $scope.hosts.pageSize = 10;
         $scope.filterHosts();
         updateActiveHosts();
     };
