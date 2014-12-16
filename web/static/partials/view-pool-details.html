@@ -60,3 +60,29 @@
     </tr>
   </tbody>
 </table>
+
+<h3 class="pull-left">{{'hosts'|translate}}</h3>
+<table class="table side-flush" id="hosts_data">
+  <thead>
+    <tr>
+      <th>{{'label_host_id' | translate}}</th>
+      <th>{{'label_host_memory' | translate}}</th>
+      <th>{{'label_host_cores' | translate}}</th>
+      <th>{{'label_host_kernel_version' | translate}}</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr ng-hide="hosts.filtered !== undefined">
+      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+    </tr>
+    <tr ng-hide="hosts.filtered.length !== 0">
+        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+    </tr>
+    <tr ng-repeat="host in hosts.filtered">
+      <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
+      <td>{{host.Memory | toGB}}</td>
+      <td>{{host.Cores}}</td>
+      <td>{{host.KernelVersion}}</td>
+    </tr>
+  </tbody>
+</table>

@@ -98,10 +98,25 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
         });
     };
 
+    // route host clicks to host page
+    $scope.clickHost = function(hostId) {
+        $location.path('/hosts/' + hostId);
+    };
+
     // Ensure we have a list of pools
     refreshPools($scope, resourcesService, true, function() {
         if ($scope.pools.current) {
             $scope.breadcrumbs.push({label: $scope.pools.current.ID, itemClass: 'active'});
+            
+            // TODO - use promises to clean up these async requests
+            // Also ensure we have a list of hosts
+            refreshHosts($scope, resourcesService, false, function(){
+                // reduce the list to hosts associated with this pool
+                $scope.hosts.filtered = $scope.hosts.all.filter(function(host){
+                    return host.PoolID === $scope.pools.current.ID;
+                });
+            });
         }
     });
+    
 }
