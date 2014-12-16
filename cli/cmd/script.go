@@ -72,7 +72,6 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 			c.exit(1)
 			return
 		}
-		fmt.Printf("svc is %#v\n", svc)
 		if svc == nil {
 			fmt.Fprintf(os.Stderr, "service %s not found\n", svcID)
 			c.exit(1)
