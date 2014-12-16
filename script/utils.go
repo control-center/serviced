@@ -38,7 +38,7 @@ type ServiceControl func(serviceID string, recursive bool) error
 type ServiceState string
 
 // Wait for a service to be in a particular state
-type ServiceWait func(serviceID string, serviceState ServiceState, timeout uint32) error
+type ServiceWait func(serviceID []string, serviceState ServiceState, timeout uint32) error
 
 type execCmd func(string, ...string) error
 
@@ -89,7 +89,7 @@ func noOpServiceRestart(serviceID string, recursive bool) error {
 	return nil
 }
 
-func noOpServiceWait(serviceID string, serviceState ServiceState, timeout uint32) error {
+func noOpServiceWait(serviceID []string, serviceState ServiceState, timeout uint32) error {
 	return nil
 }
 
