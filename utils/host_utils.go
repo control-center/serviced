@@ -21,6 +21,8 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+
+	"github.com/control-center/serviced/validation"
 )
 
 var hostIDCmdString = "/usr/bin/hostid"
@@ -31,27 +33,32 @@ var meminfoFile = "/proc/meminfo"
 var Platform = determinePlatform()
 
 const (
-   Rhel = iota
-   Debian
+	Rhel = iota
+	Debian
 )
 
 func determinePlatform() int {
-    if _, err := os.Stat("/etc/redhat-release"); err == nil {
-        return Rhel
-    } else {
-        return Debian
-    }
+	if _, err := os.Stat("/etc/redhat-release"); err == nil {
+		return Rhel
+	} else {
+		return Debian
+	}
 }
 
 // HostID retreives the system's unique id, on linux this maps
 // to /usr/bin/hostid.
-func HostID() (hostid string, err error) {
+func HostID() (string, error) {
 	cmd := exec.Command(hostIDCmdString)
 	stdout, err := cmd.Output()
 	if err != nil {
-		return hostid, err
+		return "", err
 	}
-	return strings.TrimSpace(string(stdout)), err
+
+	hostID := strings.TrimSpace(string(stdout))
+	if err := validation.ValidHostID(hostID); err != nil {
+		return "", fmt.Errorf("invalid hostid:'%s'", hostID)
+	}
+	return hostID, nil
 }
 
 // GetIPAddress attempts to find the IP address to the default outbout interface.
