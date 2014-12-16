@@ -100,7 +100,6 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
         }
 
         console.log('Preparing tree map');
-        $scope.hosts.filteredCount = $scope.hosts.all.length;
         hostsAddedToPools = true;
         for(var key in $scope.hosts.mapped) {
             var host = $scope.hosts.mapped[key];

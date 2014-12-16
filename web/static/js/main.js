@@ -185,21 +185,6 @@ controlplane.
             });
         };
     }).
-    filter('page', function() {
-        return function(items, hosts) {
-            if (!items) return;
-
-            var pageSize = hosts.pageSize? hosts.pageSize : 5;
-            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
-            if (!hosts.page || hosts.page >= hosts.pages) {
-                hosts.page = 0;
-            }
-            var page = hosts.page? hosts.page : 0;
-
-            var start = page * pageSize;
-            return items.splice(start, pageSize);
-        };
-    }).
     filter('toGB', function(){
         return function(input){
             return (input/1073741824).toFixed(2) + " GB";
@@ -765,8 +750,6 @@ function buildTable(sort, headers) {
         sort_icons: sort_icons,
         set_order: set_order,
         get_order_class: get_order_class,
-        page: 1,
-        pageSize: 5
     };
 }
 
