@@ -326,9 +326,19 @@ func evalSvcExec(r *runner, n node) error {
 	switch n.args[0] {
 	case "COMMIT":
 		glog.V(0).Infof("committing container %s", containerName)
-		if _, err := r.commitContainer(containerName); err != nil {
+		var snapshotID string
+		if snapshotID, err = r.commitContainer(containerName); err != nil {
 			return err
 		}
+		exitFunc := func(failed bool) {
+			if !failed {
+				glog.V(1).Infof("cleaning up snapshot %s", snapshotID)
+				if err := r.execCommand("serviced", "snapshot", "remove", snapshotID); err != nil {
+					glog.Errorf("failed deleting snapshot %s: %v", snapshotID, err)
+				}
+			}
+		}
+		r.addExitFunction(exitFunc)
 	}
 	return nil
 }
