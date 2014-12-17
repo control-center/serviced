@@ -41,6 +41,7 @@ import (
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/stats"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 	// Need to do btrfs driver initializations
@@ -252,6 +253,8 @@ func (d *daemon) startDockerRegistryProxy() {
 func (d *daemon) run() (err error) {
 	if d.hostID, err = utils.HostID(); err != nil {
 		glog.Fatalf("Could not get host ID: %s", err)
+	} else if err := validation.ValidHostID(d.hostID); err != nil {
+		glog.Errorf("invalid hostid: %s", d.hostID)
 	}
 
 	if currentDockerVersion, err := node.GetDockerVersion(); err != nil {
@@ -502,6 +505,8 @@ func (d *daemon) startAgent() error {
 	myHostID, err := utils.HostID()
 	if err != nil {
 		return fmt.Errorf("HostID failed: %v", err)
+	} else if err := validation.ValidHostID(myHostID); err != nil {
+		glog.Errorf("invalid hostid: %s", myHostID)
 	}
 
 	go func() {

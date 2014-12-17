@@ -45,8 +45,7 @@ import (
 )
 
 const (
-	HOSTID    = "hostID"
-	HOSTIPSID = "HostIPsId"
+	HOSTID = "deadbeef"
 )
 
 var unused int

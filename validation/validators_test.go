@@ -64,3 +64,28 @@ func (vs *ValidationSuite) Test_IsSubnet16(c *C) {
 		}
 	}
 }
+
+func (vs *ValidationSuite) Test_IsValidHostID(c *C) {
+	hostIDsValid := []string{
+		"570a276e", // 10.87.110.39
+		"6f0ae003", // 10.111.3.224
+	}
+
+	for _, hostID := range hostIDsValid {
+		if err := ValidHostID(hostID); err != nil {
+			c.Fatalf("Unexpected error validating valid hostid %s: %v", hostID, err)
+		}
+	}
+
+	hostIDsInvalid := []string{
+		"",
+		"0",
+		"00000000",
+	}
+
+	for _, hostID := range hostIDsInvalid {
+		if err := ValidHostID(hostID); err == nil {
+			c.Fatalf("Unexpected non-error validating invalid hostid %s: %v", hostID, err)
+		}
+	}
+}
