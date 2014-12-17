@@ -16,17 +16,16 @@ package web
 import (
 	"bytes"
 	"fmt"
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-json-rest"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/zenoss/glog"
+	"github.com/zenoss/go-json-rest"
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
@@ -822,7 +821,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 
 	unused := 0
 
-	err = client.AsyncRestore(filepath.Join(utils.BackupDir(), filePath), &unused)
+	err = client.AsyncRestore(filePath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		restServerError(w, err)
@@ -833,7 +832,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 
 // RestBackupFileList implements a rest call that will return a list of the current backup files.
 // The return value is a JSON struct of type JsonizableFileInfo.
-func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	type JsonizableFileInfo struct {
 		FullPath string      `json:"full_path"`
 		Name     string      `json:"name"`
@@ -842,10 +841,11 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		ModTime  time.Time   `json:"mod_time"`
 	}
 
-	fileData := []JsonizableFileInfo{}
-
-	backupDir := utils.BackupDir()
-	backupFiles, _ := ioutil.ReadDir(backupDir)
+	var filelist []string
+	if err := client.ListBackups("", &filelist); err != nil {
+		restServerError(w, err)
+		return
+	}
 
 	hostIP, err := utils.GetIPAddress()
 	if err != nil {
@@ -854,11 +854,19 @@ func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestCon
 		return
 	}
 
-	for _, backupFileInfo := range backupFiles {
-		if !backupFileInfo.IsDir() {
-			fullPath := hostIP + ":" + filepath.Join(backupDir, backupFileInfo.Name())
-			fileInfo := JsonizableFileInfo{fullPath, backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
-			fileData = append(fileData, fileInfo)
+	fileData := make([]JsonizableFileInfo, len(filelist))
+	for i := range filelist {
+		finfo, _ := os.Stat(filelist[i])
+		if err != nil {
+			restServerError(w, err)
+		}
+
+		fileData[i] = JsonizableFileInfo{
+			FullPath: fmt.Sprintf("%s:%s", hostIP, filelist[i]),
+			Name:     filelist[i],
+			Size:     finfo.Size(),
+			Mode:     finfo.Mode(),
+			ModTime:  finfo.ModTime(),
 		}
 	}
 

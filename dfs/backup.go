@@ -54,14 +54,35 @@ type metadata struct {
 	FSType string
 }
 
+// ListBackups lists all the backups in a given directory
+func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]string, error) {
+	// TODO: limit this to only backup files
+
+	if dirpath = strings.TrimSpace(dirpath); dirpath == "" {
+		dirpath = utils.BackupDir(dfs.varpath)
+	} else {
+		dirpath = filepath.Clean(dirpath)
+	}
+
+	filenames, err := ls(dirpath)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range filenames {
+		filenames[i] = filepath.Join(dirpath, filenames[i])
+	}
+	return filenames, nil
+}
+
 // Backup backs up serviced, saving the last n snapshots
 func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, error) {
 	dfs.log("Starting backup")
 
 	// get the full path of the backup
 	name := time.Now().Format("backup-2006-01-02-150405")
-	if dirpath == "" {
-		dirpath = utils.BackupDir()
+	if dirpath = strings.TrimSpace(dirpath); dirpath == "" {
+		dirpath = utils.BackupDir(dfs.varpath)
 	}
 	filename := filepath.Join(dirpath, fmt.Sprintf("%s.tgz", name))
 	dirpath = filepath.Join(dirpath, name)
@@ -208,7 +229,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		}
 	}()
 
-	dirpath := filepath.Join(utils.BackupDir(), "restore")
+	dirpath := filepath.Join(utils.BackupDir(dfs.varpath), "restore")
 	if err := os.RemoveAll(dirpath); err != nil {
 		glog.Errorf("Could not remove %s: %s", dirpath, err)
 		return err

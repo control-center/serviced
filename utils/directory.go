@@ -52,17 +52,12 @@ func ResourcesDir() string {
 }
 
 // BackupDir gets the directory where backup files are stored
-func BackupDir() string {
-	varDir := os.Getenv("SERVICED_VARPATH")
-	backupDir := ""
-
-	if varDir != "" {
-		backupDir = varDir
+func BackupDir(basepath string) string {
+	if backupDir := strings.TrimSpace(basepath); backupDir == "" {
+		return TempDir("backups")
 	} else {
-		backupDir = TempDir("")
+		return filepath.Join(filepath.Clean(backupDir), "backups")
 	}
-
-	return filepath.Join(backupDir, "backups")
 }
 
 // TempDir gets the temp serviced directory
