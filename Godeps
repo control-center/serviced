@@ -37,8 +37,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/proxy",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.3.3-d344625",
+			"Rev": "d3446258471733fe667f0abdf015ee3ebd2f3485"
 		},
 		{
 			"ImportPath": "github.com/syndtr/gocapability/capability",
@@ -98,28 +98,28 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/dockerversion",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.3.3-d344625",
+			"Rev": "d3446258471733fe667f0abdf015ee3ebd2f3485"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/term",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.3.3-d344625",
+			"Rev": "d3446258471733fe667f0abdf015ee3ebd2f3485"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/units",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.3.3-d344625",
+			"Rev": "d3446258471733fe667f0abdf015ee3ebd2f3485"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/utils",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.3.3-d344625",
+			"Rev": "d3446258471733fe667f0abdf015ee3ebd2f3485"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.3.3-d344625",
+			"Rev": "d3446258471733fe667f0abdf015ee3ebd2f3485"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",
