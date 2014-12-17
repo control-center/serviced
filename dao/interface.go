@@ -232,6 +232,9 @@ type ControlPlane interface {
 	// ReadyDFS notifies whether there are any running operations
 	ReadyDFS(bool, *int) error
 
+	// ListBackups lists the backup files for a particular directory
+	ListBackups(dirpath string, files *[]string) error
+
 	// Backup backs up dfs and imagesWrite a tgz file containing all templates and services
 	Backup(dirpath string, filename *string) error
 

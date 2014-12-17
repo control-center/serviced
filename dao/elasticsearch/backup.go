@@ -23,6 +23,12 @@ import (
 
 var backupError = make(chan error)
 
+// ListBackups lists the backup files in a given directory
+func (this *ControlPlaneDao) ListBackups(dirpath string, files *[]string) (err error) {
+	*files, err = this.dfs.ListBackups(dirpath)
+	return
+}
+
 // Backup saves templates, services, and snapshots into a tgz file
 func (this *ControlPlaneDao) Backup(dirpath string, filename *string) error {
 	this.dfs.Lock()
