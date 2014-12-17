@@ -17,17 +17,20 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
+	"time"
 
 	"github.com/codegangsta/cli"
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/script"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
-// Initializer for serviced metric
+// Initializer for serviced script
 func (c *ServicedCli) initScript() {
 	c.app.Commands = append(c.app.Commands, cli.Command{
 		Name:        "script",
@@ -78,11 +81,38 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 			return
 		}
 	}
+
 	fileName := args[0]
 	config := &script.Config{}
 	if svc != nil {
 		config.ServiceID = svc.ID
 	}
+
+	// exec unix script command to log output
+	if isWithin := os.Getenv("IS_WITHIN_UNIX_SCRIPT"); isWithin != "TRUE" {
+		os.Setenv("IS_WITHIN_UNIX_SCRIPT", "TRUE") // prevent inception problem
+
+		// DO NOT EXIT ON ANY ERRORS - continue without logging
+		if logdir, err := utils.UserHomeServicedDir(); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to log output - error getting home serviced dir: %s\n", err)
+		} else if err := os.MkdirAll(logdir, 0755); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to log output - error creating dir %s: %s", logdir, err)
+		} else {
+			logfile := time.Now().Format(fmt.Sprintf("%s/script.log-2006-01-02-150405", logdir))
+
+			// unix exec ourselves
+			cmd := []string{"/usr/bin/script", "--append", "--return", "--flush",
+				"-c", strings.Join(os.Args, " "), logfile}
+
+			fmt.Fprintf(os.Stderr, "Logging to logfile: %s\n", logfile)
+			glog.V(1).Infof("syscall.exec unix script with command: %+v", cmd)
+			if err := syscall.Exec(cmd[0], cmd[0:], os.Environ()); err != nil {
+				fmt.Fprintf(os.Stderr, "Unable to log output with command:%+v err:%s\n", cmd, err)
+			}
+		}
+	}
+
+	glog.V(1).Infof("runScript filename:%s %+v\n", fileName, config)
 	runScript(c, ctx, fileName, config)
 }
 
