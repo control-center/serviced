@@ -27,7 +27,7 @@ func TestContainerCommit(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -72,7 +72,7 @@ func TestOnContainerStart(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -119,7 +119,7 @@ func TestOnContainerCreated(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -145,7 +145,7 @@ func TestOnContainerStop(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -182,7 +182,7 @@ func TestCancelOnEvent(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -223,7 +223,7 @@ func TestRestartContainer(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -268,7 +268,7 @@ func TestListContainers(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -322,7 +322,7 @@ func TestWaitForContainer(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -364,7 +364,7 @@ func TestInspectContainer(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -416,7 +416,7 @@ func TestRepeatedStart(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -457,7 +457,7 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -516,7 +516,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -562,7 +562,7 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -609,7 +609,7 @@ func TestFindContainer(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
@@ -651,7 +651,7 @@ func TestContainerExport(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
-				Image: "base:latest",
+				Image: "ubuntu:latest",
 				Cmd:   []string{"watch", "ls"},
 			},
 		},
