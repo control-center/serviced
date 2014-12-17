@@ -64,7 +64,7 @@ func cliServiceControl(svcControlMethod ServiceStateController) script.ServiceCo
 }
 
 func cliServiceWait(a *api) script.ServiceWait {
-	return func(svcID string, state script.ServiceState, timeout uint32) error {
+	return func(svcIDs []string, state script.ServiceState, timeout uint32) error {
 		client, err := a.connectDAO()
 		if err != nil {
 			return err
@@ -84,7 +84,7 @@ func cliServiceWait(a *api) script.ServiceWait {
 		if timeout == 0 {
 			timeout = math.MaxUint32
 		}
-		wsr := dao.WaitServiceRequest{ServiceIDs: []string{svcID},
+		wsr := dao.WaitServiceRequest{ServiceIDs: svcIDs,
 			DesiredState: desiredState,
 			Timeout:      time.Duration(timeout) * time.Second}
 		if err = client.WaitService(wsr, nil); err != nil {
