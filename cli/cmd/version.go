@@ -15,6 +15,7 @@ package cmd
 
 import (
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 
 	"fmt"
@@ -26,7 +27,7 @@ func (c *ServicedCli) initVersion() {
 		Name:        "version",
 		Usage:       "shows version information",
 		Description: "",
-		Action: c.cmdVersion,
+		Action:      c.cmdVersion,
 	})
 }
 
@@ -38,5 +39,5 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 	fmt.Printf("Giturl:    %s\n", servicedversion.Giturl)
 	fmt.Printf("Date:      %s\n", servicedversion.Date)
 	fmt.Printf("Buildtag:  %s\n", servicedversion.Buildtag)
+	fmt.Printf("IsvcsImage: %s:%s\n", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG)
 }
-
