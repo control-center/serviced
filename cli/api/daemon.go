@@ -380,7 +380,6 @@ func (d *daemon) startMaster() error {
 	}
 
 	d.initWeb()
-	d.startScheduler()
 	d.addTemplates()
 
 	agentIP := options.OutboundIP
@@ -413,18 +412,13 @@ func (d *daemon) startMaster() error {
 	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
-		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, d.zClient)
+		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost)
 		if err != nil {
 			return err
 		}
-		d.waitGroup.Add(1)
-		go func() {
-			defer d.waitGroup.Done()
-			<-d.shutdown
-			glog.Infof("Shutting down storage handler")
-			d.storageHandler.Close()
-		}()
 	}
+
+	d.startScheduler()
 
 	return nil
 }
@@ -786,7 +780,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.cpDao, d.facade)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return

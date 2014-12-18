@@ -53,6 +53,15 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 		return nil, err
 	}
 	rs.MonitoringProfile = *profile
+
+	// set the ip of the address assignment
+	for _, ep := range service.Endpoints {
+		if ipaddr := ep.AddressAssignment.IPAddr; ipaddr != "" {
+			rs.IPAddress = ipaddr
+			break
+		}
+	}
+
 	return rs, nil
 }
 
