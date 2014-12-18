@@ -66,7 +66,8 @@ func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]string, error) 
 
 	filenames, err := ls(dirpath)
 	if err != nil {
-		return nil, err
+		// a directory not found error here is ok. It just means there are no backups yet.
+		return []string{}, nil
 	}
 
 	for i := range filenames {
