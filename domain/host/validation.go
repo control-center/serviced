@@ -26,9 +26,14 @@ import (
 func (h *Host) ValidEntity() error {
 	glog.V(4).Info("Validating host")
 
+	//if err := validation.ValidHostID(entity.ID); err != nil {
+	//	return fmt.Errorf("invalid hostid:'%s' for host Name:'%s' IP:%s", entity.ID, entity.Name, entity.IPAddr)
+	//}
+
 	trimmedID := strings.TrimSpace(h.ID)
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("Host.ID", h.ID))
+	violations.Add(validation.ValidHostID(h.ID))
 	violations.Add(validation.StringsEqual(h.ID, trimmedID, "leading and trailing spaces not allowed for host id"))
 	violations.Add(validation.ValidPort(h.RPCPort))
 	violations.Add(validation.NotEmpty("Host.PoolID", h.PoolID))

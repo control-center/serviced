@@ -73,3 +73,23 @@ func TempDir(p string) string {
 
 	return tmp
 }
+
+// UserHomeDir gets the home directory of the user
+func UserHomeDir() (string, error) {
+	userid, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("unable to retrieve userid: %s\n", err)
+	}
+
+	return userid.HomeDir, nil
+}
+
+// UserHomeServicedDir gets the serviced directory in the user home directory
+func UserHomeServicedDir() (string, error) {
+	homedir, err := UserHomeDir()
+	if err != nil {
+		return "", err
+	}
+
+	return path.Join(homedir, "serviced"), nil
+}
