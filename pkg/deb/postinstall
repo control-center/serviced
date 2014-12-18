@@ -1,0 +1,4 @@
+
+mkdir -p /var/log/serviced
+chmod 1777 /var/log/serviced
+
