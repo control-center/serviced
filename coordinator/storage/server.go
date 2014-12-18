@@ -57,11 +57,6 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	}
 
 	leader := conn.NewLeader("/storage/leader", node)
-	if err := leader.Current(&Node{}); err != zookeeper.ErrNoLeaderFound {
-		err := fmt.Errorf("storage.server: leader found")
-		return err
-	}
-
 	leaderW, err := leader.TakeLead()
 	if err != zookeeper.ErrDeadlock && err != nil {
 		glog.Errorf("Could not take storage lead: %s", err)
