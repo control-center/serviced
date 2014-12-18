@@ -231,7 +231,7 @@ func New(driver api.API) *ServicedCli {
 func (c *ServicedCli) Run(args []string) {
 	err := c.app.Run(args)
 	if err != nil {
-		fmt.Sprintf("%v/n", err)
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 	}
 }
 
