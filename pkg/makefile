@@ -148,6 +148,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--after-install deb/postinstall \
 		--config-files /etc/default/serviced \
 		.
 

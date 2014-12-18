@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"os/user"
 	"strings"
 	"syscall"
 	"time"
@@ -93,12 +94,11 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 		os.Setenv("IS_WITHIN_UNIX_SCRIPT", "TRUE") // prevent inception problem
 
 		// DO NOT EXIT ON ANY ERRORS - continue without logging
-		if logdir, err := utils.UserHomeServicedDir(); err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to log output - error getting home serviced dir: %s\n", err)
-		} else if err := os.MkdirAll(logdir, 0755); err != nil {
-			fmt.Fprintf(os.Stderr, "Unable to log output - error creating dir %s: %s", logdir, err)
+		logdir := utils.ServicedLogDir()
+		if userrec, err := user.Current(); err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to retrieve userid to log output: %s", err)
 		} else {
-			logfile := time.Now().Format(fmt.Sprintf("%s/script.log-2006-01-02-150405", logdir))
+			logfile := time.Now().Format(fmt.Sprintf("%s/script-2006-01-02-150405-%s.log", logdir, userrec.Username))
 
 			// unix exec ourselves
 			cmd := []string{"/usr/bin/script", "--append", "--return", "--flush",
