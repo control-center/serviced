@@ -93,8 +93,10 @@ const defaultRPCPort = 4979
 
 func getLocalAgentIP() string {
 	ip := configEnv("OUTBOUND_IP", "")
-	if ip == "" {
-		return api.GetAgentIP()
+	if ip != "" {
+		ip = ip + ":4979"
+	}else{
+		ip = api.GetAgentIP()
 	}
 	return ip
 }
