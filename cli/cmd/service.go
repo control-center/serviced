@@ -891,6 +891,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowSubcommandHelp(ctx)
 		return c.exit(1)
 	}
 
@@ -949,6 +950,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowSubcommandHelp(ctx)
 		return c.exit(1)
 	}
 
@@ -1120,7 +1122,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "attach")
+		cli.ShowSubcommandHelp(ctx)
 		return nil
 	}
 
@@ -1186,7 +1188,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "action")
+		cli.ShowSubcommandHelp(ctx)
 		return nil
 	}
 
@@ -1227,7 +1229,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
 		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "logs")
+		cli.ShowSubcommandHelp(ctx)
 		return nil
 	}
 
