@@ -232,7 +232,7 @@ func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
 	return s.rpcClient.Call("ControlPlane.ReadyDFS", unused, unusedint)
 }
 
-func (s *ControlClient) ListBackups(backupDirectory string, backupFiles *[]string) error {
+func (s *ControlClient) ListBackups(backupDirectory string, backupFiles *[]dao.BackupFile) error {
 	return s.rpcClient.Call("ControlPlane.ListBackups", backupDirectory, backupFiles)
 }
 

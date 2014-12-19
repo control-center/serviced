@@ -233,7 +233,7 @@ type ControlPlane interface {
 	ReadyDFS(bool, *int) error
 
 	// ListBackups lists the backup files for a particular directory
-	ListBackups(dirpath string, files *[]string) error
+	ListBackups(dirpath string, files *[]BackupFile) error
 
 	// Backup backs up dfs and imagesWrite a tgz file containing all templates and services
 	Backup(dirpath string, filename *string) error

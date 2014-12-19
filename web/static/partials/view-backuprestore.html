@@ -32,10 +32,11 @@
             <td>{{fileInfo.full_path}}</td>
             <td>{{fileInfo.mod_time | date: 'medium'}}</td>
             <td>
-                    <button class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
-                        <span class="glyphicon glyphicon-refresh"></span>
-                        {{'backup_restore'|translate}}
-                    </button>
+                <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
+                    <span class="glyphicon glyphicon-refresh"></span>
+                    {{'backup_restore'|translate}}
+                </button>
+                <span ng-show="fileInfo.in_progress" class="ntsh">In Progress...</span>
             </td>
         </tr>
     </tbody>
