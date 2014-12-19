@@ -76,6 +76,7 @@ type RunningService struct {
 	ID                string
 	ServiceID         string
 	HostID            string
+	IPAddress         string // IP that this service has assigned ports
 	DockerID          string
 	StartedAt         time.Time
 	InSync            bool

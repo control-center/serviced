@@ -572,6 +572,8 @@ func (c *Controller) Run() (err error) {
 		}
 	}
 
+	var reregister <-chan struct{}
+
 	for !exited {
 		select {
 		case sig := <-sigc:
@@ -610,11 +612,12 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("Starting service process.")
 			service, serviceExited = startService()
 			if doRegisterEndpoints {
-				registerExportedEndpoints(c, rpcDead)
+				reregister = registerExportedEndpoints(c, rpcDead)
 				doRegisterEndpoints = false
 			}
 			startAfter = nil
-
+		case <-reregister:
+			reregister = registerExportedEndpoints(c, rpcDead)
 		case <-rpcDead:
 			glog.Infof("RPC Server has gone away, cleaning up")
 			shutdownService(service, syscall.SIGTERM)
@@ -632,12 +635,12 @@ func (c *Controller) Run() (err error) {
 	return nil
 }
 
-func registerExportedEndpoints(c *Controller, closing chan struct{}) {
+func registerExportedEndpoints(c *Controller, closing chan struct{}) <-chan struct{} {
 
 	for {
 		err := c.registerExportedEndpoints()
 		if err == nil {
-			return
+			return c.watchregistry()
 		}
 		client, err2 := node.NewLBClient(c.options.ServicedEndpoint)
 		if err2 != nil {
@@ -650,7 +653,7 @@ func registerExportedEndpoints(c *Controller, closing chan struct{}) {
 		select {
 		case <-time.After(time.Second):
 		case <-closing:
-			return
+			return nil
 		}
 		glog.Errorf("could not register exported expoints: %s", err)
 	}

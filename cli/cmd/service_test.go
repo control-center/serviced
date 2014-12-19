@@ -742,6 +742,7 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 
 	// Output:
 	// service not found
+	// exit code 1
 }
 
 /*func ExampleServicedCLI_CmdServiceRun_list() {
@@ -794,6 +795,7 @@ func ExampleServicedCLI_CmdServiceRun_err() {
 
 	// Output:
 	// service not found
+	// exit code 1
 }
 
 func ExampleServicedCLI_CmdServiceRun_complete() {

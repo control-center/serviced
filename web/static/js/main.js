@@ -535,7 +535,8 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 }
 
 function toggleRunning(app, status, servicesService, skipChildren) {
-    var serviceId;
+    var serviceId,
+        newState;
 
     // if app is an instance, use ServiceId
     if(isInstanceOfService(app)){
@@ -546,24 +547,24 @@ function toggleRunning(app, status, servicesService, skipChildren) {
         serviceId = app.ID;
     }
 
-    var newState = -1;
     switch(status) {
-        case 'start': newState = 1; break;
-        case 'stop': newState = 0; break;
-        case 'restart': newState = -1; break;
+        case 'start':
+            newState = 1;
+            servicesService.start_service(serviceId, function(){}, skipChildren);
+            break;
+
+        case 'stop':
+            newState = 0;
+            servicesService.stop_service(serviceId, function(){}, skipChildren);
+            break;
+
+        case 'restart':
+            newState = -1;
+            servicesService.restart_service(serviceId, function(){}, skipChildren);
+            break;
     }
 
     app.DesiredState = newState;
-
-    // stop service
-    if ((newState === 0) || (newState === -1)) {
-        servicesService.stop_service(serviceId, function(){}, skipChildren);
-    }
-
-    // start service
-    if ((newState === 1) || (newState === -1)) {
-        servicesService.start_service(serviceId, function(){}, skipChildren);
-    }
 }
 
 function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
