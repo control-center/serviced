@@ -834,11 +834,12 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 // The return value is a JSON struct of type JsonizableFileInfo.
 func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	type JsonizableFileInfo struct {
-		FullPath string      `json:"full_path"`
-		Name     string      `json:"name"`
-		Size     int64       `json:"size"`
-		Mode     os.FileMode `json:"mode"`
-		ModTime  time.Time   `json:"mod_time"`
+		InProgress bool        `json:"in_progress"`
+		FullPath   string      `json:"full_path"`
+		Name       string      `json:"name"`
+		Size       int64       `json:"size"`
+		Mode       os.FileMode `json:"mode"`
+		ModTime    time.Time   `json:"mod_time"`
 	}
 
 	var filelist []string
