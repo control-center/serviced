@@ -14,6 +14,7 @@
 package elasticsearch
 
 import (
+	"github.com/control-center/serviced/dao"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -24,7 +25,7 @@ import (
 var backupError = make(chan error)
 
 // ListBackups lists the backup files in a given directory
-func (this *ControlPlaneDao) ListBackups(dirpath string, files *[]string) (err error) {
+func (this *ControlPlaneDao) ListBackups(dirpath string, files *[]dao.BackupFile) (err error) {
 	*files, err = this.dfs.ListBackups(dirpath)
 	return
 }

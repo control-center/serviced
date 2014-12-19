@@ -19,7 +19,6 @@ import (
 	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -833,44 +832,11 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 // RestBackupFileList implements a rest call that will return a list of the current backup files.
 // The return value is a JSON struct of type JsonizableFileInfo.
 func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	type JsonizableFileInfo struct {
-		InProgress bool        `json:"in_progress"`
-		FullPath   string      `json:"full_path"`
-		Name       string      `json:"name"`
-		Size       int64       `json:"size"`
-		Mode       os.FileMode `json:"mode"`
-		ModTime    time.Time   `json:"mod_time"`
-	}
-
-	var filelist []string
-	if err := client.ListBackups("", &filelist); err != nil {
+	var fileData []dao.BackupFile
+	if err := client.ListBackups("", &fileData); err != nil {
 		restServerError(w, err)
 		return
 	}
-
-	hostIP, err := utils.GetIPAddress()
-	if err != nil {
-		glog.Errorf("Unable to get host IP: %v", err)
-		restServerError(w, err)
-		return
-	}
-
-	fileData := make([]JsonizableFileInfo, len(filelist))
-	for i := range filelist {
-		finfo, _ := os.Stat(filelist[i])
-		if err != nil {
-			restServerError(w, err)
-		}
-
-		fileData[i] = JsonizableFileInfo{
-			FullPath: fmt.Sprintf("%s:%s", hostIP, filelist[i]),
-			Name:     filelist[i],
-			Size:     finfo.Size(),
-			Mode:     finfo.Mode(),
-			ModTime:  finfo.ModTime(),
-		}
-	}
-
 	w.WriteJson(&fileData)
 }
 
