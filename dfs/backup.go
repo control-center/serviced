@@ -55,8 +55,8 @@ type metadata struct {
 }
 
 // ListBackups lists all the backups in a given directory
-func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]string, error) {
-	// TODO: limit this to only backup files
+func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]dao.BackupFile, error) {
+	var backups []dao.BackupFile
 
 	if dirpath = strings.TrimSpace(dirpath); dirpath == "" {
 		dirpath = utils.BackupDir(dfs.varpath)
@@ -64,16 +64,59 @@ func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]string, error) 
 		dirpath = filepath.Clean(dirpath)
 	}
 
-	filenames, err := ls(dirpath)
-	if err != nil {
-		// a directory not found error here is ok. It just means there are no backups yet.
-		return []string{}, nil
+	// Validate the path
+	if fp, err := os.Stat(dirpath); os.IsNotExist(err) {
+		// Directory not found means no backups yet
+		return backups, nil
+	} else if !fp.IsDir() {
+		return nil, fmt.Errorf("path is not a directory")
 	}
 
-	for i := range filenames {
-		filenames[i] = filepath.Join(dirpath, filenames[i])
+	// Get the list of files
+	files, err := ioutil.ReadDir(dirpath)
+	if err != nil {
+		return nil, err
 	}
-	return filenames, nil
+
+	// Get the ip address
+	hostIP, err := utils.GetIPAddress()
+	if err != nil {
+		return nil, err
+	}
+
+	// Filter backup files
+	filemap := make(map[string]dao.BackupFile)
+	for _, file := range files {
+		if file.IsDir() {
+			// If it is a directory, it could be the directory file for a
+			// backup tgz, so mark the file as InProgress
+			backup := filemap[file.Name()]
+			backup.InProgress = true
+			filemap[file.Name()] = backup
+		} else if ext := filepath.Ext(file.Name()); ext == ".tgz" {
+			// Create the backup file object
+			abspath := filepath.Join(dirpath, file.Name())
+			name := strings.TrimSuffix(file.Name(), ext)
+			backup := filemap[name]
+			backup.FullPath = fmt.Sprintf("%s:%s", hostIP, abspath)
+			backup.Name = abspath
+			backup.Size = file.Size()
+			backup.Mode = file.Mode()
+			backup.ModTime = file.ModTime()
+			filemap[name] = backup
+		}
+
+	}
+
+	// Clean up non-backups
+	for _, backup := range filemap {
+		if backup.FullPath != "" {
+			// Directories without a related backup file get filtered
+			backups = append(backups, backup)
+		}
+	}
+
+	return backups, nil
 }
 
 // Backup backs up serviced, saving the last n snapshots

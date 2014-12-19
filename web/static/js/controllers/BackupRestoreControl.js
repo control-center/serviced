@@ -6,9 +6,7 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
     $scope.breadcrumbs = [{ label: 'breadcrumb_backuprestore', itemClass: 'active' }];
 
     //load backup files
-    resourcesService.get_backup_files(function(data){
-        $scope.backupFiles = data;
-    });
+    getBackupFiles();
 
     // localization messages
     var BACKUP_RUNNING = $translate.instant("backup_running"),
@@ -98,16 +96,19 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
         });
     };
 
+    // poll for backup files
+    resourcesService.registerPoll("running", getBackupFiles, 5000);
+    $scope.$on("$destroy", function(){
+        resourcesService.unregisterAllPolls();
+    });
+
     function getBackupStatus(notification){
         resourcesService.get_backup_status(function(data){
 
             if(data.Detail === ""){
-                resourcesService.get_backup_files(function(data){
-                    $scope.backupFiles = data;
-                });
-
                 notification.updateStatus(BACKUP_COMPLETE);
                 notification.success(false);
+                getBackupFiles();
                 return;
             }
             else if (data.Detail !== "timeout"){
@@ -121,6 +122,12 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
 
         }, function(data, status){
             backupRestoreError(notification, data.Detail, status);
+        });
+    }
+
+    function getBackupFiles(){
+        resourcesService.get_backup_files(function(data){
+            $scope.backupFiles = data;
         });
     }
 
