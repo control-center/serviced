@@ -56,6 +56,15 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		ExportPath: fmt.Sprintf("%s:%s", s.host.IPAddr, s.driver.ExportPath()),
 	}
 
+	// Create the storage leader and client nodes
+	if exists, _ := conn.Exists("/storage/leader"); !exists {
+		conn.CreateDir("/storage/leader")
+	}
+
+	if exists, _ := conn.Exists("/storage/clients"); !exists {
+		conn.CreateDir("/storage/clients")
+	}
+
 	leader := conn.NewLeader("/storage/leader", node)
 	leaderW, err := leader.TakeLead()
 	if err != zookeeper.ErrDeadlock && err != nil {
