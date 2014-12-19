@@ -11,8 +11,7 @@ import (
 
 type gzipResponseWriter struct {
 	http.ResponseWriter
-	wroteHeader bool
-	gzipWriter  io.Writer
+	gzipWriter io.Writer
 }
 
 func (self gzipResponseWriter) Write(b []byte) (int, error) {
@@ -24,7 +23,7 @@ func gzipHandler(h handlerFunc) handlerFunc {
 		if strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
 			gzw := gzip.NewWriter(w)
 			defer gzw.Close()
-			grw := gzipResponseWriter{w, false, gzw}
+			grw := gzipResponseWriter{w, gzw}
 			grw.Header().Add("Vary", "Accept-Encoding")
 			grw.Header().Set("Content-Encoding", "gzip")
 			writer := rest.NewResponseWriter(grw, false)
