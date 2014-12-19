@@ -18,7 +18,7 @@
                 <div ng-if="services.current.DesiredState !== 2" style="display: inline-block;">
                     <button ng-click="clickRunningApp(services.current, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
                     <button ng-click="clickRunningApp(services.current, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
-                    <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="killRunningInstances(services.current)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+                    <button ng-class="{disabled: services.current.DesiredState === 0}" ng-click="clickRunningApp(services.current, 'restart', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
                 </div>
 
                 <div ng-if="services.current.DesiredState === 2" style="display: inline-block;">
@@ -170,9 +170,9 @@
           <td ng-if="!services.current.isvc">
             <div ng-if="!app.isvc">
               <div ng-if="app.DesiredState !== 2">
-                <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-                <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
-                <button ng-class="{disabled: app.DesiredState === 0}" ng-click="killRunningInstances(app)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+                <button ng-class="{disabled: app.DesiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
+                <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+                <button ng-class="{disabled: app.DesiredState === 0}" ng-click="clickRunning(app, 'restart', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
               </div>
               <div ng-if="app.DesiredState === 2">
                 <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>

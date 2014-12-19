@@ -98,6 +98,14 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
                 pool: 'default'
             },
             templateSelected: function(template) {
+            	// uncheck all other templates
+            	angular.forEach($scope.templates.data, function(t){
+            		if(template.Id !== t.Id){
+            			$scope.install.selected[t.Id] = false;
+            		}
+            	});
+            	
+            	// check any dependant templates
                 if (template.depends) {
                     $scope.install.selected[template.depends] = true;
                 }
