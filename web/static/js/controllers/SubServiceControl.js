@@ -5,12 +5,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
 
-    $scope.visualization = zenoss.visualization;
-    $scope.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
-    $scope.visualization.urlPath = '/metrics/static/performance/query/';
-    $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
-    $scope.visualization.debug = false;
-
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
     if (re.test(location.hostname) || location.hostname == "localhost") {
