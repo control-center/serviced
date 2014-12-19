@@ -17,6 +17,7 @@ import (
 	"sync"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
@@ -31,31 +32,33 @@ import (
 type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, string)
 
 type scheduler struct {
-	sync.Mutex                    // only one process can stop and start the scheduler at a time
-	cpDao        dao.ControlPlane // ControlPlane interface
-	poolID       string           // pool where the master resides
-	realm        string           // realm for which the scheduler will run
-	instance_id  string           // unique id for this node instance
-	shutdown     chan interface{} // Shuts down all the pools
-	started      bool             // is the loop running
-	zkleaderFunc leaderFunc       // multiple implementations of leader function possible
-	facade       *facade.Facade
-	stopped      chan interface{}
-	registry     *registry.EndpointRegistry
+	sync.Mutex                     // only one process can stop and start the scheduler at a time
+	cpDao         dao.ControlPlane // ControlPlane interface
+	poolID        string           // pool where the master resides
+	realm         string           // realm for which the scheduler will run
+	instance_id   string           // unique id for this node instance
+	shutdown      chan interface{} // Shuts down all the pools
+	started       bool             // is the loop running
+	zkleaderFunc  leaderFunc       // multiple implementations of leader function possible
+	facade        *facade.Facade
+	stopped       chan interface{}
+	registry      *registry.EndpointRegistry
+	storageServer *storage.Server
 
 	conn coordclient.Connection
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(poolID string, instance_id string, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
+func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
 	s := &scheduler{
-		cpDao:        cpDao,
-		poolID:       poolID,
-		instance_id:  instance_id,
-		shutdown:     make(chan interface{}),
-		stopped:      make(chan interface{}),
-		zkleaderFunc: Lead, // random scheduler implementation
-		facade:       facade,
+		cpDao:         cpDao,
+		poolID:        poolID,
+		instance_id:   instance_id,
+		shutdown:      make(chan interface{}),
+		stopped:       make(chan interface{}),
+		zkleaderFunc:  Lead, // random scheduler implementation
+		facade:        facade,
+		storageServer: storageServer,
 	}
 	return s, nil
 }
@@ -102,6 +105,7 @@ func (s *scheduler) Start() {
 				// restart
 			}
 		}
+
 	}()
 }
 
@@ -129,22 +133,32 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	default:
 	}
 
-	var (
-		wg        sync.WaitGroup
-		stopped   = make(chan interface{})
-		_shutdown = make(chan interface{})
-	)
-	defer func() {
-		close(_shutdown)
-		wg.Wait()
-	}()
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	_shutdown := make(chan interface{})
+	defer close(_shutdown)
+
+	stopped := make(chan struct{}, 2)
 
 	// monitor the resource pool
 	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
 
+	// start the storage server
+	wg.Add(1)
+	go func() {
+		defer glog.Infof("Stopping storage sync")
+		defer wg.Done()
+		if err := s.storageServer.Run(_shutdown, conn); err != nil {
+			glog.Errorf("Could not maintain storage lead: %s", err)
+			stopped <- struct{}{}
+		}
+	}()
+
 	// synchronize with the remote
 	wg.Add(1)
 	go func() {
+		defer glog.Infof("Stopping remote sync")
 		defer wg.Done()
 		s.remoteSync(_shutdown, conn)
 	}()
@@ -152,15 +166,17 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// synchronize locally
 	wg.Add(1)
 	go func() {
+		defer glog.Infof("Stopping local sync")
 		defer wg.Done()
 		s.localSync(_shutdown, conn)
 	}()
 
 	wg.Add(1)
 	go func() {
+		defer glog.Infof("Stopping pool listeners")
 		defer wg.Done()
-		defer close(stopped)
 		zzk.Start(_shutdown, conn, s, zkservice.NewServiceLockListener())
+		stopped <- struct{}{}
 	}()
 
 	// wait for something to happen
@@ -222,55 +238,57 @@ func (s *scheduler) Done() {
 
 // Spawn implements zzk.Listener
 func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
-	// is this pool in my realm?
-	monitor := zkservice.MonitorResourcePool(shutdown, s.conn, poolID)
 
-	// wait for my pool to join the realm (or shutdown)
-	done := false
-	for !done {
-		select {
-		case pool := <-monitor:
-			if pool != nil && pool.Realm == s.realm {
-				done = true
-			}
-		case <-shutdown:
-			return
-		}
-	}
-
-	// acquire a pool-based connection
+	// Get a pool-based connection
 	var conn coordclient.Connection
 	select {
 	case conn = <-zzk.Connect(zzk.GeneratePoolPath(poolID), zzk.GetLocalConnection):
 		if conn == nil {
 			return
 		}
-	case pool := <-monitor:
-		if pool == nil || pool.Realm != s.realm {
-			return
-		}
 	case <-shutdown:
 		return
 	}
 
-	// manage the pool
-	_shutdown := make(chan interface{})
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		s.zkleaderFunc(_shutdown, conn, s.cpDao, poolID)
-	}()
+	var cancel chan interface{}
+	var done chan struct{}
 
-	// wait for shutdown or if the pool's realm changes or the pool gets deleted
-	select {
-	case pool := <-monitor:
-		if pool == nil || pool.Realm != s.realm {
-			close(_shutdown)
+	for {
+		var node zkservice.PoolNode
+		event, err := s.conn.GetW(zzk.GeneratePoolPath(poolID), &node)
+		if err != nil {
+			glog.Errorf("Error while monitoring pool %s: %s", poolID, err)
+			return
 		}
-	case <-shutdown:
-		close(_shutdown)
-	}
 
-	wg.Wait()
+		if node.Realm == s.realm {
+			if done == nil {
+				cancel = make(chan interface{})
+				done = make(chan struct{})
+
+				go func() {
+					defer close(done)
+					s.zkleaderFunc(cancel, conn, s.cpDao, poolID)
+				}()
+			}
+		} else {
+			if done != nil {
+				close(cancel)
+				<-done
+				done = nil
+			}
+		}
+
+		select {
+		case <-event:
+		case <-done:
+			return
+		case <-shutdown:
+			if done != nil {
+				close(cancel)
+				<-done
+			}
+			return
+		}
+	}
 }

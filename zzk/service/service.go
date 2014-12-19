@@ -177,7 +177,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			glog.Infof("Re-syncing service %s (%s)", svc.Name, svc.ID)
 		case <-shutdown:
 			glog.V(2).Infof("Leader stopping watch for %s (%s)", svc.Name, svc.ID)
-			l.stop(rss)
 			return
 		}
 	}

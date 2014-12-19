@@ -113,11 +113,18 @@ func TestServer(t *testing.T) {
 	}
 
 	// TODO: this gets stuck at server.go:90 call to conn.CreateDir hangs
-	s, err := NewServer(mockNfsDriver, hostServer, zClient)
+	s, err := NewServer(mockNfsDriver, hostServer)
 	if err != nil {
 		t.Fatalf("unexpected error creating Server: %s", err)
 	}
-	defer s.Close()
+
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		t.Fatalf("unexpected error getting connection: %s", err)
+	}
+	shutdown := make(chan interface{})
+	defer close(shutdown)
+	go s.Run(shutdown, conn)
 
 	// give it some time
 	time.Sleep(time.Second * 5)
