@@ -63,6 +63,10 @@ func (c *ServicedCli) cmdScriptRun(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) != 1 {
 		fmt.Fprintln(os.Stderr, "Incorrect Usage.\n\n")
+		if !ctx.Bool("help") {
+			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		}
+		cli.ShowSubcommandHelp(ctx)
 		return
 	}
 
