@@ -16,7 +16,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-json-rest",
-			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
+			"Rev": "a533e72f5f1d6e4129feda0dadb0804bf47ed36a"
 		},
 		{
 			"ImportPath": "github.com/googollee/go-socket.io",

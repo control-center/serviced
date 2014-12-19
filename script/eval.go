@@ -71,7 +71,7 @@ func evalUSE(r *runner, n node) error {
 	}
 	glog.Infof("pulling image %s, this may take a while...", imageID)
 	if err := r.pullImage(imageID.String()); err != nil {
-		return fmt.Errorf("unable to pull image %s", imageID)
+		glog.Warningf("unable to pull image %s", imageID)
 	}
 
 	//verify image has been pulled
@@ -113,8 +113,8 @@ func evalSvcWait(r *runner, n node) error {
 
 	var svcIDs []string
 	var stateIdx = -1
-	for i, arg := range(n.args) {
-		if arg == "started"  || arg == "stopped" || arg == "paused" {
+	for i, arg := range n.args {
+		if arg == "started" || arg == "stopped" || arg == "paused" {
 			stateIdx = i
 			break
 		}
@@ -132,11 +132,11 @@ func evalSvcWait(r *runner, n node) error {
 	state := ServiceState(n.args[stateIdx])
 
 	timeout := uint32(0)
-	hasTimeout := len(n.args) == stateIdx + 2
+	hasTimeout := len(n.args) == stateIdx+2
 	if hasTimeout {
 		var timeout64 uint64
 		var err error
-		lastArg := n.args[len(n.args) - 1]
+		lastArg := n.args[len(n.args)-1]
 		if timeout64, err = strconv.ParseUint(lastArg, 10, 32); err != nil {
 			return fmt.Errorf("Unable to parse timeout value %s: %s", lastArg, err)
 		}
