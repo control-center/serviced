@@ -105,6 +105,15 @@ func (l *HostStateListener) Ready() error {
 		return err
 	}
 
+	// If the registry node is already set, verify that it is still available
+	if l.registry != "" {
+		if exists, err := l.conn.Exists(l.registry); err != nil {
+			return err
+		} else if exists {
+			return nil
+		}
+	}
+
 	// Create an ephemeral node at /registry/host
 	// What you would expect to see from epath is /registry/host/EHOSTID, but
 	// CreateEphemeral returns the full path from the root.  Since these are

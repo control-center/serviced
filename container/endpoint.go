@@ -612,6 +612,40 @@ func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, a
 	return prxy, nil
 }
 
+func (c *Controller) watchregistry() <-chan struct{} {
+	alert := make(chan struct{}, 1)
+
+	go func() {
+		paths := append(c.vhostZKPaths, c.exportedEndpointZKPaths...)
+		if len(paths) == 0 {
+			return
+		}
+
+		conn, err := zzk.GetLocalConnection("/")
+		if err != nil {
+			return
+		}
+
+		defer func() { alert <- struct{}{} }()
+		for {
+			_, event, err := conn.ChildrenW(paths[0])
+			if err != nil {
+				return
+			}
+			select {
+			case e := <-event:
+				switch e.Type {
+				case coordclient.EventSession, coordclient.EventNotWatching, coordclient.EventNodeDeleted:
+					glog.Warningf("Receieved an event %s", e.Type)
+					return
+				}
+			}
+		}
+	}()
+
+	return alert
+}
+
 // registerExportedEndpoints registers exported ApplicationEndpoints with zookeeper
 func (c *Controller) registerExportedEndpoints() error {
 	// TODO: accumulate the errors so that some endpoints get registered
@@ -632,6 +666,9 @@ func (c *Controller) registerExportedEndpoints() error {
 		glog.Errorf("Could not get vhost registy. Endpoints not registered: %v", err)
 		return err
 	}
+
+	c.vhostZKPaths = []string{}
+	c.exportedEndpointZKPaths = []string{}
 
 	// register exported endpoints
 	for key, exportList := range c.exportedEndpoints {
