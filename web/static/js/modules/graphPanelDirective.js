@@ -7,8 +7,8 @@
     'use strict';
 
     angular.module('graphPanel', [])
-    .directive("graphPanel", ["$interval",
-    function($interval){
+    .directive("graphPanel", ["$interval", "$location",
+    function($interval, $location){
         return {
             restrict: "E",
             scope: {
@@ -18,6 +18,12 @@
             templateUrl: "/static/partials/graphpanel.html",
             link: function($scope, element){
             
+                // configure viz library
+                zenoss.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
+                zenoss.visualization.urlPath = '/metrics/static/performance/query/';
+                zenoss.visualization.urlPerformance = '/metrics/api/performance/query/';
+                zenoss.visualization.debug = false;
+
                 $scope.graphs = {};
                 $scope.showStartEnd = false;
                 $scope.showGraphControls = false;
