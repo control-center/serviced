@@ -56,7 +56,7 @@ type metadata struct {
 
 // ListBackups lists all the backups in a given directory
 func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]dao.BackupFile, error) {
-	var backups []dao.BackupFile
+	backups := make([]dao.BackupFile, 0)
 
 	if dirpath = strings.TrimSpace(dirpath); dirpath == "" {
 		dirpath = utils.BackupDir(dfs.varpath)
@@ -68,6 +68,9 @@ func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]dao.BackupFile,
 	if fp, err := os.Stat(dirpath); os.IsNotExist(err) {
 		// Directory not found means no backups yet
 		return backups, nil
+	} else if err != nil {
+		glog.Errorf("Error looking up path %s: %s", dirpath, err)
+		return nil, err
 	} else if !fp.IsDir() {
 		return nil, fmt.Errorf("path is not a directory")
 	}
