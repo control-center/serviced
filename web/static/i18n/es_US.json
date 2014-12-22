@@ -23,7 +23,7 @@
     "backup_restore": "Restaurar respaldo",
     "backup_running": "Ejecutando restauracion",
     "restore_running": "Restauraci\u00f3n a partir de un respaldo",
-    "restore_complete": "Restauraci\u00f3n completo",
+    "restore_complete": "Restauraci\u00f3n completa",
 
     "failing_health_checks": "Instancias estan fallando",
     "missing_health_checks": "Instancias en proceso de ejecutar",
