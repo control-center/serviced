@@ -20,7 +20,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/utils"
 )
 
 type NullRequest struct{}
@@ -116,26 +115,6 @@ var (
 type ServiceStatus struct {
 	State  servicestate.ServiceState
 	Status Status
-}
-
-// An instantiation of a Snapshot request
-type SnapshotRequest struct {
-	ID            string
-	ServiceID     string
-	SnapshotLabel string
-	SnapshotError string
-}
-
-// A new snapshot request instance (SnapshotRequest)
-func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
-	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.ID, err = utils.NewUUID36()
-	if err == nil {
-		snapshotRequest.ServiceID = serviceId
-		snapshotRequest.SnapshotLabel = snapshotLabel
-		snapshotRequest.SnapshotError = ""
-	}
-	return snapshotRequest, err
 }
 
 // BackupFile is the structure for backup file data
