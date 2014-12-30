@@ -74,7 +74,7 @@ type API interface {
 	// Snapshots
 	GetSnapshots() ([]string, error)
 	GetSnapshotsByServiceID(string) ([]string, error)
-	AddSnapshot(string) (string, error)
+	AddSnapshot(string, string) (string, error)
 	RemoveSnapshot(string) error
 	Commit(string) (string, error)
 	Rollback(string, bool) error

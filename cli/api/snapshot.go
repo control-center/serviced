@@ -60,14 +60,14 @@ func (a *api) GetSnapshotsByServiceID(serviceID string) ([]string, error) {
 }
 
 // Snapshots a service
-func (a *api) AddSnapshot(serviceID string) (string, error) {
+func (a *api) AddSnapshot(serviceID string, description string) (string, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return "", err
 	}
 
 	var snapshotID string
-	if err := client.Snapshot(serviceID, &snapshotID); err != nil {
+	if err := client.Snapshot(dao.SnapshotRequest{serviceID, description}, &snapshotID); err != nil {
 		return "", err
 	}
 

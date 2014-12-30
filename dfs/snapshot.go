@@ -28,11 +28,18 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const timeFormat = "20060102-150405"
+const (
+	snapshotMeta = "snapshot.json"
+	timeFormat = "20060102-150405"
+)
+
+type SnapshotMetadata struct {
+	Description string
+}
 
 // Snapshot takes a snapshot of the dfs as well as the docker images for the
 // given service ID
-func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
+func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) (string, error) {
 	// Get the tenant (parent) service
 	tenant, err := dfs.facade.GetService(datastore.Get(), tenantID)
 	if err != nil {
@@ -83,6 +90,12 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	// dump the service definitions
 	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), svcs); err != nil {
 		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.Path(), err)
+		return "", err
+	}
+
+	// dump metadata for this snapshot
+	if err := exportJSON(filepath.Join(snapshotVolume.Path(), snapshotMeta), SnapshotMetadata{description}); err != nil {
+		glog.Errorf("Could not export %s: %s", snapshotMeta, err)
 		return "", err
 	}
 
@@ -205,6 +218,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 
 // ListSnapshots lists all the snapshots for a particular tenant
 func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]string, error) {
+
 	// Get the tenant (parent) service
 	tenant, err := dfs.facade.GetService(datastore.Get(), tenantID)
 	if err != nil {

@@ -212,8 +212,8 @@ func (s *ControlClient) Rollback(request dao.RollbackRequest, unused *int) error
 	return s.rpcClient.Call("ControlPlane.Rollback", request, unused)
 }
 
-func (s *ControlClient) Snapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
+func (s *ControlClient) Snapshot(request dao.SnapshotRequest, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Snapshot", request, label)
 }
 
 func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {

@@ -149,7 +149,7 @@ func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	}
 
 	// snapshot the filesystem and images
-	snapshotID, err := dfs.Snapshot(tenantID)
+	snapshotID, err := dfs.Snapshot(tenantID, "")
 	if err != nil {
 		glog.Errorf("Could not create a snapshot of the new image %s: %s", tenantID, err)
 		return "", err

@@ -69,18 +69,18 @@ func (this *ControlPlaneDao) Rollback(request dao.RollbackRequest, unused *int) 
 }
 
 // Snapshot takes a snapshot of the dfs and its respective images
-func (this *ControlPlaneDao) Snapshot(serviceID string, snapshotID *string) error {
+func (this *ControlPlaneDao) Snapshot(request dao.SnapshotRequest, snapshotID *string) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
 
 	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.Errorf("Could not snapshot %s: %s", serviceID, err)
+	if err := this.GetTenantId(request.ServiceID, &tenantID); err != nil {
+		glog.Errorf("Could not snapshot %s: %s", request.ServiceID, err)
 		return err
 	}
 
 	var err error
-	*snapshotID, err = this.dfs.Snapshot(tenantID)
+	*snapshotID, err = this.dfs.Snapshot(tenantID, request.Description)
 	return err
 }
 

@@ -77,6 +77,12 @@ type FindChildRequest struct {
 	ChildName string
 }
 
+
+type SnapshotRequest struct {
+	ServiceID string
+	Description string
+}
+
 type RollbackRequest struct {
 	SnapshotID   string
 	ForceRestart bool
@@ -218,7 +224,7 @@ type ControlPlane interface {
 	Rollback(request RollbackRequest, unused *int) error
 
 	// Snapshot takes a snapshot of the filesystem and images
-	Snapshot(serviceID string, snapshotID *string) error
+	Snapshot(request SnapshotRequest, snapshotID *string) error
 
 	// AsyncSnapshot performs a snapshot asynchronously
 	AsyncSnapshot(serviceID string, snapshotID *string) error

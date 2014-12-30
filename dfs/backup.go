@@ -432,7 +432,7 @@ func (dfs *DistributedFilesystem) saveSnapshots(tenantID, directory string, last
 		return "", nil, err
 	}
 
-	label, err := dfs.Snapshot(tenantID)
+	label, err := dfs.Snapshot(tenantID, "")
 	if err != nil {
 		glog.Errorf("Could not snapshot service %s: %s", tenantID, err)
 		return "", nil, err
