@@ -115,7 +115,7 @@ func (this *ControlPlaneDao) AsyncSnapshot(serviceID string, snapshotID *string)
 }
 
 // ListSnapshots lists all the available snapshots for a particular service
-func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]string) error {
+func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) error {
 	var tenantID string
 	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
 		glog.Errorf("Could not find tenant for %s: %s", serviceID, err)

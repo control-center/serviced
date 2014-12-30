@@ -72,8 +72,8 @@ type API interface {
 	RunShell(ShellConfig) error
 
 	// Snapshots
-	GetSnapshots() ([]string, error)
-	GetSnapshotsByServiceID(string) ([]string, error)
+	GetSnapshots() ([]dao.SnapshotInfo, error)
+	GetSnapshotsByServiceID(string) ([]dao.SnapshotInfo, error)
 	AddSnapshot(string, string) (string, error)
 	RemoveSnapshot(string) error
 	Commit(string) (string, error)

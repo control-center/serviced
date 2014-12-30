@@ -217,7 +217,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 }
 
 // ListSnapshots lists all the snapshots for a particular tenant
-func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]string, error) {
+func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]dao.SnapshotInfo, error) {
 
 	// Get the tenant (parent) service
 	tenant, err := dfs.facade.GetService(datastore.Get(), tenantID)
@@ -235,7 +235,25 @@ func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]string, erro
 		return nil, err
 	}
 
-	return snapshotVolume.Snapshots()
+
+	snapshotIDs, err := snapshotVolume.Snapshots()
+	if err != nil {
+		return nil, err
+	}
+
+	snapshots := make([]dao.SnapshotInfo, len(snapshotIDs))
+	for i, snapshotID := range snapshotIDs {
+		var description string
+		var metadata *SnapshotMetadata
+		if err := importJSON(filepath.Join(snapshotVolume.SnapshotPath(snapshotID), snapshotMeta), &metadata); err != nil {
+			description = ""
+		} else {
+			description = metadata.Description
+		}
+		snapshots[i] = dao.SnapshotInfo{snapshotID, description}
+	}
+
+	return snapshots, err
 }
 
 // DeleteSnapshot deletes an existing snapshot as identified by its snapshotID

@@ -126,3 +126,16 @@ type BackupFile struct {
 	Mode       os.FileMode `json:"mode"`
 	ModTime    time.Time   `json:"mod_time"`
 }
+
+type SnapshotInfo struct {
+	SnapshotID	string
+	Description	string
+}
+
+func (s SnapshotInfo) String() string {
+	if s.Description == "" {
+		return s.SnapshotID
+	} else {
+		return s.SnapshotID + " " + s.Description
+	}
+}

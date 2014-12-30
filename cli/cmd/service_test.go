@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -90,7 +91,7 @@ type ServiceAPITest struct {
 	fail      bool
 	services  []service.Service
 	pools     []pool.ResourcePool
-	snapshots []string
+	snapshots []dao.SnapshotInfo
 }
 
 func InitServiceAPITest(args ...string) {
@@ -261,14 +262,14 @@ func (t ServiceAPITest) RunShell(config api.ShellConfig) error {
 	return nil
 }
 
-func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]string, error) {
+func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]dao.SnapshotInfo, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
 	}
 
-	var snapshots []string
+	var snapshots []dao.SnapshotInfo
 	for _, s := range t.snapshots {
-		if strings.HasPrefix(s, id) {
+		if strings.HasPrefix(s.SnapshotID, id) {
 			snapshots = append(snapshots, s)
 		}
 	}
@@ -821,8 +822,8 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1")
 
 	// Output:
-	// test-service-1-snapshot-1
-	// test-service-1-snapshot-2
+	// test-service-1-snapshot-1 description 1
+	// test-service-1-snapshot-2 description 2
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_usage() {

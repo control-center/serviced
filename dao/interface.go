@@ -230,7 +230,7 @@ type ControlPlane interface {
 	AsyncSnapshot(serviceID string, snapshotID *string) error
 
 	// ListSnapshots lists all the snapshots for a particular service
-	ListSnapshots(serviceID string, snapshots *[]string) error
+	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) error
 
 	// Commit commits a docker container to a service image
 	Commit(containerID string, snapshotID *string) error

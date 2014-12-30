@@ -18,6 +18,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/dao"
 )
 
 // initSnapshot is the initializer for serviced snapshot
@@ -70,9 +71,9 @@ func (c *ServicedCli) initSnapshot() {
 
 // Returns a list of snapshots as specified by the service ID.  If no service
 // ID is set, then returns a list of all snapshots.
-func (c *ServicedCli) snapshots(id string) []string {
+func (c *ServicedCli) snapshots(id string) []dao.SnapshotInfo {
 	var (
-		snapshots []string
+		snapshots []dao.SnapshotInfo
 		err       error
 	)
 
@@ -83,7 +84,7 @@ func (c *ServicedCli) snapshots(id string) []string {
 	}
 
 	if err != nil || snapshots == nil || len(snapshots) == 0 {
-		return []string{}
+		return []dao.SnapshotInfo{}
 	}
 
 	return snapshots
@@ -107,7 +108,7 @@ func (c *ServicedCli) printSnapshotsAll(ctx *cli.Context) {
 
 	for _, s := range c.snapshots("") {
 		for _, a := range args {
-			if s == a {
+			if s.SnapshotID == a {
 				goto next
 			}
 			fmt.Println(s)

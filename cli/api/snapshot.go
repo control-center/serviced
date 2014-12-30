@@ -24,7 +24,7 @@ const ()
 var ()
 
 // Lists all snapshots on the DFS
-func (a *api) GetSnapshots() ([]string, error) {
+func (a *api) GetSnapshots() ([]dao.SnapshotInfo, error) {
 	services, err := a.GetServices()
 	if err != nil {
 		return nil, err
@@ -32,7 +32,7 @@ func (a *api) GetSnapshots() ([]string, error) {
 
 	// Get only unique snapshots as defined by the tenant ID
 	svcmap := NewServiceMap(services)
-	var snapshots []string
+	var snapshots []dao.SnapshotInfo
 	for _, s := range svcmap.Tree()[""] {
 		ss, err := a.GetSnapshotsByServiceID(s)
 		if err != nil {
@@ -45,13 +45,13 @@ func (a *api) GetSnapshots() ([]string, error) {
 }
 
 // Lists all snapshots for a given service
-func (a *api) GetSnapshotsByServiceID(serviceID string) ([]string, error) {
+func (a *api) GetSnapshotsByServiceID(serviceID string) ([]dao.SnapshotInfo, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	var snapshots []string
+	var snapshots []dao.SnapshotInfo
 	if err := client.ListSnapshots(serviceID, &snapshots); err != nil {
 		return nil, err
 	}

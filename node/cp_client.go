@@ -220,8 +220,8 @@ func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.AsyncSnapshot", serviceId, label)
 }
 
-func (s *ControlClient) ListSnapshots(serviceId string, labels *[]string) error {
-	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceId, labels)
+func (s *ControlClient) ListSnapshots(serviceId string, snapshots *[]dao.SnapshotInfo) error {
+	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceId, snapshots)
 }
 
 func (s *ControlClient) Commit(containerId string, label *string) error {
