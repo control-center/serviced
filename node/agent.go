@@ -790,6 +790,14 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		wg.Done()
 	}()
 
+	// Increase the number of maximal tracked connections for iptables
+	maxConnections := "655360"
+	if cnxns := strings.TrimSpace(os.Getenv("SERVICED_IPTABLES_MAX_CONNECTIONS")); cnxns != "" {
+		maxConnections = cnxns
+	}
+	glog.Infof("Set sysctl maximum tracked connections for iptables to %s", maxConnections)
+	utils.SetSysctl("net.netfilter.nf_conntrack_max", maxConnections)
+
 	// Clean up any extant iptables chain, just in case
 	a.servicedChain.Remove()
 	// Add our chain for assigned IP rules

@@ -106,6 +106,9 @@
 # Max size of Logstash data to keep in gigabytes
 # SERVICED_LOGSTASH_MAX_SIZE=10
 
+# Max number tracked connections for iptables
+# SERVICED_IPTABLES_MAX_CONNECTIONS=655360
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
 
