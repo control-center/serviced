@@ -32,7 +32,7 @@ type DistributedFilesystem struct {
 	varpath    string
 	dockerHost string
 	dockerPort int
-	facade     *facade.Facade
+	facade     facade.FacadeInterface
 	timeout    time.Duration
 
 	// locking
@@ -43,7 +43,7 @@ type DistributedFilesystem struct {
 	logger *logger
 }
 
-func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade *facade.Facade, timeout time.Duration) (*DistributedFilesystem, error) {
+func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade facade.FacadeInterface, timeout time.Duration) (*DistributedFilesystem, error) {
 	host, port, err := parseRegistry(dockerRegistry)
 	if err != nil {
 		return nil, err

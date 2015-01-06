@@ -34,7 +34,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 )
 
-type reloadLogstashContainer func(ctx datastore.Context, f *Facade) error
+type reloadLogstashContainer func(ctx datastore.Context, f FacadeInterface) error
 
 var LogstashContainerReloader reloadLogstashContainer = reloadLogstashContainerImpl
 
@@ -388,7 +388,7 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 // we need to restart the logstash container so it can write out
 // its new filter set.
 // This method depends on the elasticsearch container being up and running.
-func reloadLogstashContainerImpl(ctx datastore.Context, f *Facade) error {
+func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error {
 	templates, err := f.GetServiceTemplates(ctx)
 	if err != nil {
 		glog.Fatalf("Could not write logstash configuration: %s", err)
