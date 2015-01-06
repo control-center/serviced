@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -30,12 +31,15 @@ import (
 
 type DatastoreGetter func() (datastore.Context)
 
+type VolumeMounter func(fsType, serviceID, baseDir string) (volume.Volume, error)
+
 type DistributedFilesystem struct {
 	fsType     string
 	varpath    string
 	dockerHost string
 	dockerPort int
 	datastoreGet DatastoreGetter
+	mountVolume VolumeMounter
 	facade     facade.FacadeInterface
 	timeout    time.Duration
 
@@ -67,7 +71,8 @@ func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade fac
 			facade: facade,
 			timeout: timeout,
 			lock: lock,
-			datastoreGet: datastore.Get}, nil
+			datastoreGet: datastore.Get,
+			mountVolume: volume.Mount}, nil
 }
 
 func (dfs *DistributedFilesystem) Lock() error {

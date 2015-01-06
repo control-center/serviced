@@ -753,7 +753,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
 	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
-	sv, err := dfs.GetSubvolume(a.fsType, a.varPath, tenantID)
+	sv, err := dfs.GetSubvolume(a.fsType, a.varPath, tenantID, nil)
 	if err != nil {
 		return "", fmt.Errorf("Could not create subvolume: %s", err)
 	}
