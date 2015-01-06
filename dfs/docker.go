@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/layer"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -47,7 +46,7 @@ type imagemeta struct {
 // ResetRegistry will update the host:port of the docker registry
 func (dfs *DistributedFilesystem) ResetRegistry() error {
 	// get all the services in the system
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
 	if err != nil {
 		glog.Errorf("Could not get services for updating the registry")
 		return err
@@ -75,7 +74,7 @@ func (dfs *DistributedFilesystem) ResetRegistry() error {
 
 		imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
 		svc.ImageID = imageID.String()
-		if err := dfs.facade.UpdateService(datastore.Get(), svc); err != nil {
+		if err := dfs.facade.UpdateService(dfs.datastoreGet(), svc); err != nil {
 			glog.Errorf("Could not update service %s (%s) with image %s", svc.Name, svc.ID, svc.ImageID)
 			return err
 		}
@@ -115,7 +114,7 @@ func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	}
 
 	// verify the tenantID
-	tenantID, err := dfs.facade.GetTenantID(datastore.Get(), image.ID.User)
+	tenantID, err := dfs.facade.GetTenantID(dfs.datastoreGet(), image.ID.User)
 	if err != nil {
 		glog.Errorf("Could not look up tenant %s from image %s for container %s: %s", image.ID.User, image.ID, dockerID, err)
 		return "", err
@@ -167,7 +166,7 @@ func (dfs *DistributedFilesystem) desynchronize(image *docker.Image) error {
 	}
 
 	// look up services for that tenant
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: image.ID.User})
+	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: image.ID.User})
 	if err != nil {
 		glog.Errorf("Could not get services for tenant %s from %s (%s): %s", image.ID.User, image.ID, image.UUID, err)
 		return err

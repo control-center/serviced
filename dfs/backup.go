@@ -27,7 +27,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -159,7 +158,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 	}
 
 	// retrieve services
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return "", err
@@ -167,7 +166,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 
 	// export pools (and virtual ips)
 	dfs.log("Exporting resource pools")
-	pools, err := dfs.facade.GetResourcePools(datastore.Get())
+	pools, err := dfs.facade.GetResourcePools(dfs.datastoreGet())
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %s", err)
 		return "", err
@@ -180,7 +179,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 
 	// export hosts
 	dfs.log("Exporting hosts")
-	hosts, err := dfs.facade.GetHosts(datastore.Get())
+	hosts, err := dfs.facade.GetHosts(dfs.datastoreGet())
 	if err != nil {
 		glog.Errorf("Could not get hosts: %s", err)
 		return "", err
@@ -193,7 +192,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 
 	// export all template definitions
 	dfs.log("Exporting template definitions")
-	templates, err := dfs.facade.GetServiceTemplates(datastore.Get())
+	templates, err := dfs.facade.GetServiceTemplates(dfs.datastoreGet())
 	if err != nil {
 		glog.Errorf("Could not get service templates: %s", err)
 		return "", err
@@ -247,7 +246,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 func (dfs *DistributedFilesystem) Restore(filename string) error {
 	// fail if any services are running
 	dfs.log("Checking running services")
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
@@ -272,7 +271,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	var reloadLogstashContainer bool
 	defer func() {
 		if reloadLogstashContainer {
-			go facade.LogstashContainerReloader(datastore.Get(), dfs.facade) // don't block main thread
+			go facade.LogstashContainerReloader(dfs.datastoreGet(), dfs.facade) // don't block main thread
 		}
 	}()
 
@@ -322,8 +321,8 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 
 		glog.V(1).Infof("Restoring resource pool %s", pool.ID)
 		var err error
-		if err = dfs.facade.AddResourcePool(datastore.Get(), &pool); err == facade.ErrPoolExists {
-			err = dfs.facade.UpdateResourcePool(datastore.Get(), &pool)
+		if err = dfs.facade.AddResourcePool(dfs.datastoreGet(), &pool); err == facade.ErrPoolExists {
+			err = dfs.facade.UpdateResourcePool(dfs.datastoreGet(), &pool)
 		}
 		if err != nil {
 			glog.Errorf("Could not restore resource pool %s: %s", pool.ID, err)
@@ -343,12 +342,12 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	for _, host := range hosts {
 		host.DatabaseVersion = 0
 		glog.V(1).Infof("Restoring host %s (%s)", host.ID, host.IPAddr)
-		if exists, err := dfs.facade.HasIP(datastore.Get(), host.PoolID, host.IPAddr); err != nil {
+		if exists, err := dfs.facade.HasIP(dfs.datastoreGet(), host.PoolID, host.IPAddr); err != nil {
 			glog.Errorf("Could not check IP %s for pool %s: %s", host.IPAddr, host.PoolID, err)
 			return err
 		} else if exists {
 			glog.Warningf("Could not restore host %s (%s): ip already exists", host.ID, host.IPAddr)
-		} else if err := dfs.facade.AddHost(datastore.Get(), &host); err != nil {
+		} else if err := dfs.facade.AddHost(dfs.datastoreGet(), &host); err != nil {
 			glog.Errorf("Could not add host %s: %s", host.ID, err)
 			return err
 		}
@@ -368,7 +367,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 
 		glog.V(1).Infof("Restoring service template %s", templateID)
 		template.ID = templateID
-		if err := dfs.facade.UpdateServiceTemplate(datastore.Get(), template); err != nil {
+		if err := dfs.facade.UpdateServiceTemplate(dfs.datastoreGet(), template); err != nil {
 			glog.Errorf("Could not restore template %s: %s", templateID, err)
 			return err
 		}
@@ -575,7 +574,7 @@ func (dfs *DistributedFilesystem) importSnapshots(filename string) error {
 		return err
 	}
 
-	tenant, err := dfs.facade.GetService(datastore.Get(), tenantID)
+	tenant, err := dfs.facade.GetService(dfs.datastoreGet(), tenantID)
 	if err != nil {
 		glog.Errorf("Could not find service %s for snapshot %s: %s", tenantID, snapshotID, err)
 		return err

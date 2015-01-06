@@ -21,17 +21,21 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 
+type DatastoreGetter func() (datastore.Context)
+
 type DistributedFilesystem struct {
 	fsType     string
 	varpath    string
 	dockerHost string
 	dockerPort int
+	datastoreGet DatastoreGetter
 	facade     facade.FacadeInterface
 	timeout    time.Duration
 
@@ -55,7 +59,15 @@ func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade fac
 	}
 	lock := zkservice.ServiceLock(conn)
 
-	return &DistributedFilesystem{fsType: fsType, varpath: varpath, dockerHost: host, dockerPort: port, facade: facade, timeout: timeout, lock: lock}, nil
+	return &DistributedFilesystem{
+			fsType: fsType,
+			varpath: varpath,
+			dockerHost: host,
+			dockerPort: port,
+			facade: facade,
+			timeout: timeout,
+			lock: lock,
+			datastoreGet: datastore.Get}, nil
 }
 
 func (dfs *DistributedFilesystem) Lock() error {
