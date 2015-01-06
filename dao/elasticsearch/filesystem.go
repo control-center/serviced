@@ -28,7 +28,7 @@ import (
 )
 
 // GetVolume gets the volume of a service
-func (this *ControlPlaneDao) GetVolume(serviceID string, volume *volume.Volume) error {
+func (this *ControlPlaneDao) GetVolume(serviceID string, volume volume.Volume) error {
 	var tenantID string
 	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
 		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)

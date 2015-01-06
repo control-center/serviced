@@ -77,7 +77,6 @@ type FindChildRequest struct {
 	ChildName string
 }
 
-
 type SnapshotRequest struct {
 	ServiceID string
 	Description string
@@ -209,7 +208,7 @@ type ControlPlane interface {
 	ImageLayerCount(imageUUID string, layers *int) error
 
 	// Volume returns a service's volume
-	GetVolume(serviceID string, volume *volume.Volume) error
+	GetVolume(serviceID string, volume volume.Volume) error
 
 	// SetRegistry resets the path to the docker registry
 	ResetRegistry(request EntityRequest, unused *int) error

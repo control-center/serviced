@@ -19,7 +19,7 @@ import (
 
 type TestDriver struct{}
 
-func (d TestDriver) Mount(volumeName, root string) (Conn, error) {
+func (d TestDriver) Mount(volumeName, root string) (Volume, error) {
 	return TestConn{volumeName, root}, nil
 }
 

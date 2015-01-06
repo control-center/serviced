@@ -192,7 +192,7 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
-func (s *ControlClient) GetVolume(serviceID string, volume *volume.Volume) error {
+func (s *ControlClient) GetVolume(serviceID string, volume volume.Volume) error {
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume)
 }
 
