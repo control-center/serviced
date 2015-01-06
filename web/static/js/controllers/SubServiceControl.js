@@ -427,10 +427,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 	$scope.editService = $.extend({}, service);
         $scope.editService.config = config;
         //set editor options for context editing
-		$scope.codemirrorOpts = {
-		    lineNumbers: true,
-		    mode: getModeFromFilename($scope.editService.config)
-		};
+        $scope.codemirrorOpts = {
+            lineNumbers: true,
+            mode: getModeFromFilename($scope.editService.config)
+        };
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
