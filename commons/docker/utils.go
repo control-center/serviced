@@ -23,6 +23,8 @@ import (
 // ServiceUse will tag a new image (imageName) in a given registry for a given tenant
 // to latest, making sure to push changes to the registry
 func ServiceUse(serviceID string, imageName string, registry string, noOp bool) (string, error) {
+	// If noOp is True, then replace the 'real' functions that talk to Docker with
+	// no-op functions (for dry run purposes)
 	pullImage := PullImage
 	findImage := FindImage
 	tagImage := TagImage
