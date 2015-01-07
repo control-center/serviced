@@ -66,6 +66,8 @@ func init() {
 	underscore, _ = utf8.DecodeRune([]byte("_"))
 }
 
+// Return an Image object from all the normal parts of a serviced-managed
+// image name (registry, tenant ID, image, and tag)
 func RenameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*ImageID, error) {
 	repo, _ := parsers.ParseRepositoryTag(imgID)
 	re := regexp.MustCompile("/?([^/]+)\\z")
