@@ -344,6 +344,9 @@
     "title_services": "Services",
     "title_user_details": "User Details",
     "title_resource_commitment": "Resource Commitment",
+    
+    "too_few_instances": "Number of instances is too small",
+    
     "vhost_actions": "Actions",
     "vhost_application": "Service",
     "vhost_controls": "Controls",
