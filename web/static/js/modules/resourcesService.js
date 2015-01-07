@@ -33,41 +33,6 @@
       var cached_hosts_for_pool = {};
       var cached_hosts;
       var cached_app_templates;
-      var cached_services; // top level services only
-      var cached_services_map; // map of services by by Id, with children attached
-      var cached_services_updated; // timestamp of last update of cached services
-
-      var _get_services_tree = function(callback) {
-          $http.noCacheGet('/services').
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved list of services');
-                  cached_services = [];
-                  cached_services_map = {};
-                  // Map by id
-                  data.map(function(svc) {
-                      cached_services_map[svc.ID] = svc;
-                      // Flag internal services as such.
-                      svc.isvc = svc.ID.indexOf('isvc-') != -1;
-                  });
-                  data.map(function(svc) {
-                      if (svc.ParentServiceID !== '') {
-                          var parent = cached_services_map[svc.ParentServiceID];
-                          if (!parent.children) {
-                              parent.children = [];
-                          }
-                          parent.children.push(svc);
-                      } else {
-                          cached_services.push(svc);
-                      }
-                  });
-                  callback(cached_services, cached_services_map);
-              }).
-              error(function(data, status) {
-                  // TODO error screen
-                  if(DEBUG) console.log('Unable to retrieve services');
-                  redirectIfUnauthorized(status);
-              });
-      };
 
       var _get_app_templates = function(callback) {
           $http.noCacheGet('/templates').
@@ -207,27 +172,21 @@
                   });
           },
 
-          /*
-           * Get the list of services instances currently running for a given service.
-           *
-           * @param {string} serviceId The ID of the service to retrieve running instances for.
-           * @param {function} callback Running services are passed to callback on success.
-           */
-          get_running_services_for_service: function(serviceId, callback) {
+        /*
+        * Get the list of services instances currently running for a given service.
+        *
+        * @param {string} serviceId The ID of the service to retrieve running instances for.
+        * @param {function} callback Running services are passed to callback on success.
+        */
+        get_running_services_for_service: function(serviceId){
 
-              var url = '/services/' + serviceId + '/running';
+            var url = '/services/' + serviceId + '/running';
 
-              $http.get(url, { cache: runningServicesCache }).
-                success(function(data, status) {
-                    if(DEBUG) console.log('Retrieved running services for %s', serviceId);
-                    callback(data);
-                }).
+            return $http.get(url, { cache: runningServicesCache }).
                 error(function(data, status) {
-                    // TODO error screen
-                    if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                     redirectIfUnauthorized(status);
                 });
-          },
+        },
 
 
           /*
@@ -530,68 +489,18 @@
               }
           },
 
-          /*
-           * Get all defined services. Note that 2 arguments will be passed
-           * to the callback function instead of the usual 1.
-           *
-           * The first argument to the callback is an array of all top level
-           * services, with children attached.
-           *
-           * The second argument to the callback is a Map(Id -> Object) of all
-           * services, with children attached.
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {function} callback Executed on success.
-           */
-          get_services: function(cacheOk, callback) {
-              if (cacheOk && cached_services && cached_services_map) {
-                  if(DEBUG) console.log('Using cached services');
-                  callback(cached_services, cached_services_map);
-              } else {
-                  _get_services_tree(callback);
-              }
-          },
+        get_services: function(since){
+            var url = "/services";
 
-          update_services: function(callback){
-              var since,
-                  url = "/services";
+            if(since){
+                url += "?since="+ since;
+            }
 
-              if(cached_services_updated){
-                  // calculate time in ms since last update
-                  since = new Date().getTime() - cached_services_updated;
-                  // add one second buffer to be sure we don't miss anything
-                  since += 1000;
-
-                  url += "?since=" + since;
-              }
-
-              // store the update time for comparison later
-              cached_services_updated = new Date().getTime();
-
-              // if services exist locally, update them
-              if(cached_services && cached_services_map){
-                  $http.get(url).then(function(data){
-                      data.data.forEach(function(service){
-                            var cachedService = cached_services_map[service.ID] || {};
-                            // we can't just blow away the existing service
-                            // because some controllers may be bound to it
-                            // so update the fields on that service
-                            for(var key in service){
-                                if(DEBUG && cachedService[key] !== service[key] && typeof cachedService[key] !== "object"){
-                                    console.log(key, "updated from", cachedService[key], "to", service[key]);
-                                }
-                                cachedService[key] = service[key];
-                            }
-                      });
-
-                      callback(cached_services, cached_services_map);
-                  });
-
-              // we have gotten the initial list of services, so get em
-              } else {
-                 _get_services_tree(callback);
-              }
-          },
+            return $http.get(url).
+                error(function(data, status) {
+                  redirectIfUnauthorized(status);
+                });
+        },
 
           /*
            * Retrieve some (probably not the one you want) set of logs for a

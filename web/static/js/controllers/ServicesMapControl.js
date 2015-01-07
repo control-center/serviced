@@ -1,4 +1,4 @@
-function ServicesMapControl($scope, $location, $routeParams, authService, resourcesService) {
+function ServicesMapControl($scope, $location, $routeParams, authService, resourcesService, $servicesService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -38,19 +38,19 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         for (var key in $scope.services.mapped) {
             var service = $scope.services.mapped[key];
             states[states.length] = {
-                id: service.ID,
-                value: { label: service.Name}
+                id: service.id,
+                value: { label: service.name}
             };
 
-            if(!nodeClasses[service.ID]){
-                nodeClasses[service.ID] = 'service notrunning';
+            if(!nodeClasses[service.id]){
+                nodeClasses[service.id] = 'service notrunning';
             }
 
-            if (service.ParentServiceID !== '') {
-                var parent = $scope.services.mapped[service.ParentServiceID];
-                nodeClasses[service.ParentServiceID] = 'service meta';
+            if (service.service.ParentServiceID !== '') {
+                var parent = $scope.services.mapped[service.service.ParentServiceID];
+                nodeClasses[service.service.ParentServiceID] = 'service meta';
                 edges[edges.length] = {
-                    u: service.ParentServiceID,
+                    u: service.service.ParentServiceID,
                     v: key
                 };
             }
@@ -98,25 +98,22 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
         }));
     };
 
-    /*
-     * Each successful resourceServices call will execute draw(),
-     * but draw() will do an early return unless all required
-     * data is available.
-     */
-
-    resourcesService.get_running_services(function(data) {
-        data_received.running = true;
-        runningServices = data;
-        draw();
-    });
-
+    // TODO - replace the data_received stuff with promise
+    // aggregation
     refreshHosts($scope, resourcesService, true, function() {
         data_received.hosts = true;
         draw();
     });
-
-    refreshServices($scope, resourcesService, true, function() {
+    $servicesService.update().then(function() {
         data_received.services = true;
+        $scope.services = {
+            mapped: $servicesService.serviceMap
+        };
+        draw();
+    });
+    resourcesService.get_running_services(function(data) {
+        data_received.running = true;
+        runningServices = data;
         draw();
     });
 }

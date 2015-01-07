@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies, $servicesService){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -15,10 +15,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
             //if we have fewer results than last poll, we need to refresh our table
             if(lastPollResults > $scope.services.deploying.length){
-                // Get a list of deployed apps
-                refreshServices($scope, resourcesService, false, function(){
-                    $serviceHealth.update();
-                });
+                $servicesService.update();
             }
             lastPollResults = $scope.services.deploying.length;
         });
@@ -28,7 +25,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     });
     $scope.name = "apps";
     $scope.params = $routeParams;
-    $scope.servicesService = resourcesService;
+    $scope.resourcesService = resourcesService;
 
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
@@ -188,7 +185,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    $scope.clickRunning = function(app, status, servicesService) {
+    $scope.clickRunning = function(app, status, resourcesService) {
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
@@ -202,7 +199,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     role: "ok",
                     label: displayStatus +" Services",
                     action: function(){
-                        toggleRunning(app, status, servicesService);
+                        // TODO - verify status is valid
+                        app[status]();
                         this.close();
                     }
                 }
@@ -254,17 +252,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    if ($scope.dev) {
-        setupNewService();
-        $scope.add_service = function() {
-            resourcesService.add_service($scope.newService, function() {
-                refreshServices($scope, resourcesService, false);
-                setupNewService();
-            });
-        };
-        $scope.secondarynav.push({ label: 'btn_add_service', modal: '#addService' });
-    }
-
     function capitalizeFirst(str){
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
@@ -285,8 +272,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     refreshTemplates();
 
     // Get a list of deployed apps
-    refreshServices($scope, resourcesService, false, function(){
-        $serviceHealth.update();
+    $servicesService.update().then(function update(){
+        $scope.services.data = $servicesService.serviceTree;
 
         // if only isvcs are deployed, and this is the first time
         // running deploy wizard, show the deploy apps modal
@@ -297,5 +284,4 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
     //register polls
     resourcesService.registerPoll("deployingApps", pollDeploying, 3000);
-    resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
 }

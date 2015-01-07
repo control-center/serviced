@@ -350,7 +350,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
 
             var checkStatus = true;
             resourcesService.deploy_app_template(deploymentDefinition, function(result) {
-                refreshServices($scope, resourcesService, false, function(){
+                servicesService.update().then(function(){
                     checkStatus = false;
                     closeModal();
                 });

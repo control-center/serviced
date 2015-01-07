@@ -9,7 +9,6 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         { label: 'breadcrumb_hosts', itemClass: 'active' }
     ];
 
-    $scope.itemClass = itemClass;
     $scope.indent = indentClass;
     $scope.newHost = {};
 

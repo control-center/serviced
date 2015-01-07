@@ -58,7 +58,38 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         });
     };
 
-    $scope.toggleRunning = toggleRunning;
+    $scope.toggleRunning = function(app, status, resourcesService, skipChildren) {
+        var serviceId,
+            newState;
+
+        // if app is an instance, use ServiceId
+        if("InstanceID" in app){
+            serviceId = app.ServiceID;
+
+        // else, app is a service, so use ID
+        } else {
+            serviceId = app.ID;
+        }
+
+        switch(status) {
+            case 'start':
+                newState = 1;
+                resourcesService.start_service(serviceId, function(){}, skipChildren);
+                break;
+
+            case 'stop':
+                newState = 0;
+                resourcesService.stop_service(serviceId, function(){}, skipChildren);
+                break;
+
+            case 'restart':
+                newState = -1;
+                resourcesService.restart_service(serviceId, function(){}, skipChildren);
+                break;
+        }
+
+        app.DesiredState = newState;
+    };
 
     $scope.click_app = function(instance) {
         $location.path('/services/' + instance.ServiceID);

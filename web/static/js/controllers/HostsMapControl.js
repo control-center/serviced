@@ -4,7 +4,6 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
 
     $scope.name = "hostsmap";
     $scope.params = $routeParams;
-    $scope.itemClass = itemClass;
     $scope.indent = indentClass;
     $scope.breadcrumbs = [
         { label: 'breadcrumb_hosts', url: '#/hosts' },
