@@ -5,13 +5,8 @@
 package script
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"os/exec"
-	"regexp"
-
-	"github.com/docker/docker/pkg/parsers"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
@@ -34,6 +29,9 @@ type ServiceIDFromPath func(tenantID string, path string) (string, error)
 
 // ServiceControl is a func used to control the state of a service
 type ServiceControl func(serviceID string, recursive bool) error
+
+// ServiceUse is a func used to control the state of a service
+type ServiceUse func(serviceID string, imageID string, registry string, noOp bool) (string, error)
 
 type ServiceState string
 
@@ -59,18 +57,6 @@ func defaultExec(name string, args ...string) error {
 
 func defaultTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
 	return image.Tag(newTag)
-}
-
-func renameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*commons.ImageID, error) {
-	repo, _ := parsers.ParseRepositoryTag(imgID)
-	re := regexp.MustCompile("/?([^/]+)\\z")
-	matches := re.FindStringSubmatch(repo)
-	if matches == nil {
-		return nil, errors.New("malformed imageid")
-	}
-	name := matches[1]
-	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, name, tag)
-	return commons.ParseImageID(newImageID)
 }
 
 func noOpExec(name string, args ...string) error {

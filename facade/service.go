@@ -26,6 +26,8 @@ import (
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+
+	"github.com/control-center/serviced/commons/docker"
 )
 
 // AddService adds a service; return error if service already exists
@@ -629,6 +631,14 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 
 	// traverse all the services
 	return f.walkServices(ctx, request.ServiceID, true, visitor)
+}
+
+func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registry string, noOp bool) (string, error) {
+	result, err := docker.ServiceUse(serviceID, imageName, registry, noOp)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
 }
 
 func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, ports ...uint16) (ipinfo, error) {

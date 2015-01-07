@@ -15,12 +15,16 @@ package commons
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/docker/docker/pkg/parsers"
 )
 
 // states that the parser can be in as it scans
@@ -60,6 +64,18 @@ func init() {
 	period, _ = utf8.DecodeRune([]byte("."))
 	slash, _ = utf8.DecodeRune([]byte("/"))
 	underscore, _ = utf8.DecodeRune([]byte("_"))
+}
+
+func RenameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*ImageID, error) {
+	repo, _ := parsers.ParseRepositoryTag(imgID)
+	re := regexp.MustCompile("/?([^/]+)\\z")
+	matches := re.FindStringSubmatch(repo)
+	if matches == nil {
+		return nil, errors.New("malformed imageid")
+	}
+	name := matches[1]
+	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, name, tag)
+	return ParseImageID(newImageID)
 }
 
 // ParseImageID parses the string representation of a Docker image ID into an ImageID structure.

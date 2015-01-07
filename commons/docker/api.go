@@ -571,6 +571,10 @@ func (img *Image) Tag(tag string) (*Image, error) {
 	return &Image{args.uuid, *iid}, nil
 }
 
+func TagImage(img *Image, tag string) (*Image, error) {
+	return img.Tag(tag)
+}
+
 func InspectImage(uuid string) (*dockerclient.Image, error) {
 	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
