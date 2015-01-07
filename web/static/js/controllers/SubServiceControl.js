@@ -774,7 +774,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
             ],
             validate: function(){
             	if($scope.editableService.InstanceLimits.Min > $scope.editableService.Instances || $scope.editableService.Instances === undefined){
-            		return false;
+            		// too few instances
+                    this.createNotification("", $translate.instant("too_few_instances")).error();
+                    return false;
             	}
             	
             	return true;
