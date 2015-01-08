@@ -50,6 +50,7 @@ type Config struct {
 	SvcStop        ServiceControl    // function to stop a service
 	SvcRestart     ServiceControl    // function to restart a service
 	SvcWait        ServiceWait       // function to wait for a service to be in a desired state
+	SvcUse         ServiceUse
 }
 
 type Runner interface {
@@ -71,10 +72,8 @@ type runner struct {
 	svcStop         ServiceControl    // function to stop a service
 	svcRestart      ServiceControl    // function to restart a service
 	svcWait         ServiceWait
-	findImage       findImage
-	pullImage       pullImage
 	execCommand     execCmd
-	tagImage        tagImage
+	svcUse          ServiceUse
 }
 
 func NewRunnerFromFile(fileName string, config *Config) (Runner, error) {
@@ -119,24 +118,20 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		svcStop:         config.SvcStop,
 		svcWait:         config.SvcWait,
 		svcRestart:      config.SvcRestart,
-		findImage:       docker.FindImage,
-		pullImage:       docker.PullImage,
 		execCommand:     defaultExec,
-		tagImage:        defaultTagImage,
+		svcUse:          config.SvcUse,
 	}
 	if config.NoOp {
 		glog.Infof("creatng no op runner")
 		r.execCommand = noOpExec
-		r.tagImage = noOpTagImage
 		r.restore = noOpRestore
 		r.snapshot = noOpSnapshot
 		r.commitContainer = noOpCommit
-		r.pullImage = noOpPull
-		r.findImage = noOpFindImage
 		r.svcStart = noOpServiceStart
 		r.svcStop = noOpServiceStop
 		r.svcRestart = noOpServiceRestart
 		r.svcWait = noOpServiceWait
+		r.svcUse = docker.ServiceUse
 	}
 
 	return r
