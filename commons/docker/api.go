@@ -100,7 +100,9 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	if useRegistry {
 		if err := PullImage(iid.String()); err != nil {
 			glog.V(2).Infof("Unable to pull image %s: %v", iid.String(), err)
-			return nil, err
+			if _, err2 := lookupImage(iid.String()); err2 != nil {
+				return nil, err2
+			}
 		}
 	}
 

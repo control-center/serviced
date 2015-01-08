@@ -22,8 +22,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 const (
