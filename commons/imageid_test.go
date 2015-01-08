@@ -344,3 +344,69 @@ func TestEquals(t *testing.T) {
 	}
 	DoImageEqualsTest(t, tests)
 }
+
+type RenameTest struct {
+	registry string
+	tenant   string
+	imgID    string
+	tag      string
+	ImageID  *ImageID
+	anErr    bool
+}
+
+func (rt1 RenameTest) Copy() RenameTest {
+	rt2 := &RenameTest{}
+	rt2.registry = rt1.registry
+	rt2.tenant = rt1.tenant
+	rt2.imgID = rt1.imgID
+	rt2.tag = rt1.tag
+	rt2.ImageID = rt1.ImageID.Copy()
+	rt2.anErr = rt1.anErr
+	return *rt2
+}
+
+var renameTest = RenameTest{
+	"localhost:5000",
+	"the_tenant",
+	"zenoss/core-unstable:5.0.0",
+	"latest",
+	&ImageID{
+		Host: "localhost",
+		Port: 5000,
+		User: "the_tenant",
+		Repo: "core-unstable",
+		Tag:  "latest",
+	},
+	false,
+}
+
+var renameTests = []RenameTest{
+	renameTest.Copy(),
+	func() RenameTest {
+		rt := renameTest.Copy()
+		rt.imgID = ""
+		rt.anErr = true
+		return rt
+	}(),
+}
+
+func DoRenameImageIdTest(t *testing.T, tests []RenameTest) {
+	for index, test := range tests {
+		image, err := RenameImageID(test.registry, test.tenant, test.imgID, test.tag)
+		if test.anErr && err == nil {
+			t.Fatalf("expected err on %v but got none, dying", index)
+		} else if !test.anErr && err != nil {
+			t.Fatalf("unexpected err on %v: %s", index, err.Error())
+		}
+		if test.anErr && err != nil {
+			continue
+		}
+		if !image.Equals(*test.ImageID) {
+			t.Fatal("got %s expected %s on %v", image.String(), test.ImageID.String(), index)
+		}
+	}
+}
+
+func TestRenameImageID(t *testing.T) {
+	DoRenameImageIdTest(t, renameTests)
+}

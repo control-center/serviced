@@ -66,10 +66,26 @@ func init() {
 	underscore, _ = utf8.DecodeRune([]byte("_"))
 }
 
-// Return an Image object from all the normal parts of a serviced-managed
-// image name (registry, tenant ID, image, and tag)
+// Return an ImageID object from several different parts
+//    dockerRegistry - The registry to use in the image name, eg. "localhost:5000"
+//    tenantID       - The ID of the tenant that the image will pertain to
+//    imgID          - The 'uncustomized' image name, eg. "zenoss/core-unstable:5.0.0".
+//                     Only the part after the last slash, but before the last colon will
+//                     actually be used from this
+//    tag            - The new tag you'd like to create
+//
+//    An input of ("localhost:5000", "myLittleTenant", "zenoss/core-unstable:5.0.0", "latest")
+//    would return an ImageID whose parts would be:
+//      Host: localhost
+//      Port: 5000
+//      User: myLittleTenant
+//      Repo: core-unstable
+//      Tag:  latest
 func RenameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*ImageID, error) {
+	// Sanitize the imgID of any tag it may contain, eg. "zenoss/core-unstable:theTAG"
 	repo, _ := parsers.ParseRepositoryTag(imgID)
+	// Get just the image name "resmgr-unstable" out of a long image string
+	// like "zenoss/resmgr-unstable"
 	re := regexp.MustCompile("/?([^/]+)\\z")
 	matches := re.FindStringSubmatch(repo)
 	if matches == nil {
@@ -331,4 +347,14 @@ func (iid *ImageID) Validate() bool {
 	}
 
 	return reflect.DeepEqual(piid, iid)
+}
+
+func (iid *ImageID) Copy() *ImageID {
+	newImage := &ImageID{}
+	newImage.Host = iid.Host
+	newImage.Port = iid.Port
+	newImage.User = iid.User
+	newImage.Repo = iid.Repo
+	newImage.Tag = iid.Tag
+	return newImage
 }

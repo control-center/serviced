@@ -34,6 +34,7 @@ func ServiceUse(serviceID string, imageName string, registry string, noOp bool) 
 		tagImage = noOpTagImage
 	}
 
+	// imageName is the new image to pull, eg. "zenoss/resmgr-unstable:1.2.3.4"
 	glog.V(0).Infof("preparing to use image: %s", imageName)
 	imageID, err := commons.ParseImageID(imageName)
 	if err != nil {
