@@ -1,4 +1,4 @@
-function HostsControl($scope, $routeParams, $location, $filter, resourcesService, authService, $modalService, $interval, $translate, $notification){
+function HostsControl($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -52,10 +52,10 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     };
     
     $scope.add_host = function() {
-        return resourcesService.add_host($scope.newHost)
+        return resourcesFactory.add_host($scope.newHost)
         .success(function(data) {
             // After adding, refresh our list
-            refreshHosts($scope, resourcesService, false, hostCallback);
+            refreshHosts($scope, resourcesFactory, false, hostCallback);
             
             // Reset for another add
             $scope.newHost = {
@@ -78,11 +78,11 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
                     classes: "btn-danger",
                     action: function(){
 
-                        resourcesService.remove_host(hostId)
+                        resourcesFactory.remove_host(hostId)
                             .success(function(data, status) {
                                 $notification.create("Removed host", hostId).success();
                                 // After removing, refresh our list
-                                refreshHosts($scope, resourcesService, false, hostCallback);
+                                refreshHosts($scope, resourcesFactory, false, hostCallback);
                                 this.close();
                             }.bind(this))
                             .error(function(data, status){
@@ -130,7 +130,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
     ]);
 
     $scope.$on("$destroy", function(){
-        resourcesService.unregisterAllPolls();
+        resourcesFactory.unregisterAllPolls();
     });
 
     var hostCallback = function() {
@@ -140,7 +140,7 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
 
     function updateActiveHosts() {
         if ($scope.hosts) {
-            resourcesService.get_running_hosts(function(data){
+            resourcesFactory.get_running_hosts(function(data){
                 for (var i in $scope.hosts.filtered) {
                     var host = $scope.hosts.filtered[i];
                     host.active = 'no';
@@ -154,12 +154,12 @@ function HostsControl($scope, $routeParams, $location, $filter, resourcesService
         }
     }
 
-    resourcesService.registerPoll("activeHosts", updateActiveHosts, 3000);
+    resourcesFactory.registerPoll("activeHosts", updateActiveHosts, 3000);
 
     // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, false);
+    refreshPools($scope, resourcesFactory, false);
 
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, false, hostCallback);
+    refreshHosts($scope, resourcesFactory, false, hostCallback);
 }
 

@@ -1,4 +1,4 @@
-function PoolDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate, $notification){
+function PoolDetailsControl($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -37,8 +37,8 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
                     label: "remove_virtual_ip",
                     classes: "btn-danger",
                     action: function(){
-                        resourcesService.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
-                            refreshPools($scope, resourcesService, false);
+                        resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
+                            refreshPools($scope, resourcesFactory, false);
                         });
                         this.close();
                     }
@@ -53,11 +53,11 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     $scope.addVirtualIp = function(pool) {
         var ip = $scope.pools.add_virtual_ip;
 
-        return resourcesService.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
+        return resourcesFactory.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
             .success(function(data, status){
                 $scope.pools.add_virtual_ip = {};
                 $notification.create("Added new pool virtual ip", ip).success();
-                refreshPools($scope, resourcesService, false);
+                refreshPools($scope, resourcesFactory, false);
             });
     };
 
@@ -104,13 +104,13 @@ function PoolDetailsControl($scope, $routeParams, $location, resourcesService, a
     };
 
     // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, true, function() {
+    refreshPools($scope, resourcesFactory, true, function() {
         if ($scope.pools.current) {
             $scope.breadcrumbs.push({label: $scope.pools.current.ID, itemClass: 'active'});
             
             // TODO - use promises to clean up these async requests
             // Also ensure we have a list of hosts
-            refreshHosts($scope, resourcesService, false, function(){
+            refreshHosts($scope, resourcesFactory, false, function(){
                 // reduce the list to hosts associated with this pool
                 $scope.hosts.filtered = $scope.hosts.all.filter(function(host){
                     return host.PoolID === $scope.pools.current.ID;

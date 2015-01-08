@@ -1,7 +1,7 @@
 (function(){
 
   controlplane.
-  factory("resourcesService", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval",
+  factory("resourcesFactory", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval",
   function($http, $location, $notification, DSCacheFactory, $q, $interval) {
       // add function to $http service to allow for noCacheGet requests
       $http.noCacheGet = function(location){

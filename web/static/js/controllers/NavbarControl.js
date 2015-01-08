@@ -1,4 +1,4 @@
-function NavbarControl($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesService, $modalService) {
+function NavbarControl($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesFactory, $modalService) {
     $scope.name = 'navbar';
     $scope.brand = { url: '#/apps', label: 'brand_cp' };
 
@@ -54,7 +54,7 @@ function NavbarControl($scope, $rootScope, $cookies, $location, $route, $transla
     };
 
     $scope.modalAbout = function() {
-        resourcesService.get_version(function(data){
+        resourcesFactory.get_version(function(data){
             $scope['version'] = data;
         });
 

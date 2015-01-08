@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky', 'graphPanel', 'servicesService']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky', 'graphPanel', 'servicesFactory']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
@@ -59,10 +59,6 @@ controlplane.
             when('/backuprestore', {
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: BackupRestoreControl
-            }).
-            when('/isvcs', {
-                templateUrl: '/static/partials/view-isvcs.html',
-                controller: IsvcsControl
             }).
             otherwise({redirectTo: '/apps'});
     }]).
@@ -302,13 +298,13 @@ var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
 var POOL_ICON_OPEN = 'glyphicon glyphicon-play rotate-down btn-link';
 var POOL_CHILDREN_CLOSED = 'hidden';
 var POOL_CHILDREN_OPEN = 'nav-tree';
-function refreshPools($scope, resourcesService, cachePools, extraCallback) {
+function refreshPools($scope, resourcesFactory, cachePools, extraCallback) {
     // defend against empty scope
     if ($scope.pools === undefined) {
         $scope.pools = {};
     }
     if(DEBUG) console.log('Refreshing pools');
-    resourcesService.get_pools(cachePools, function(allPools) {
+    resourcesFactory.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
         $scope.pools.tree = [];
@@ -384,13 +380,13 @@ function flattenTree(depth, current, sortFunction) {
  * Manage hosts
  * TODO - move host management into a separate service
  */
-function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
+function refreshHosts($scope, resourcesFactory, cacheHosts, extraCallback) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
     }
 
-    resourcesService.get_hosts(cacheHosts, function(allHosts) {
+    resourcesFactory.get_hosts(cacheHosts, function(allHosts) {
         // This is a Map(Id -> Host)
         $scope.hosts.mapped = allHosts;
 
@@ -421,12 +417,12 @@ function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
         }
     });
 }
-function refreshRunningForHost($scope, resourcesService, hostId) {
+function refreshRunningForHost($scope, resourcesFactory, hostId) {
     if ($scope.running === undefined) {
         $scope.running = {};
     }
 
-    resourcesService.get_running_services_for_host(hostId, function(runningServices) {
+    resourcesFactory.get_running_services_for_host(hostId, function(runningServices) {
         $scope.running.data = runningServices;
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running

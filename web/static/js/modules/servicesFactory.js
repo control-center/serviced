@@ -1,6 +1,7 @@
-// serviceService
-// maintains a list of services and fills out children,
-// hosts, ips, etc
+// servicesFactory
+// - maintains a list of services and keeps it in sync with the backend.
+// - links services with their parents and children
+// - aggregates and caches service information (such as descendents)
 (function() {
     'use strict';
 
@@ -9,19 +10,20 @@
     // service dictionary keyed by id
         serviceMap = {},
         // make angular share with everybody!
-        resourcesService, $q;
+        resourcesFactory, $q;
 
     var UPDATE_FREQUENCY = 3000;
 
-    angular.module('servicesService', []).
-    factory("$servicesService", ["$rootScope", "$q", "resourcesService", "$interval", "$serviceHealth",
-    function($rootScope, q, $resourcesService, $interval, serviceHealth){
+    angular.module('servicesFactory', []).
+    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth",
+    function($rootScope, q, _resourcesFactory, $interval, serviceHealth){
 
-        // share resourcesService throughout
-        resourcesService = $resourcesService;
+        // share resourcesFactory throughout
+        resourcesFactory = _resourcesFactory;
         $q = q;
         init();
 
+        // public interface for servicesFactory
         return {
             // returns a service by id
             getService: function(id){
@@ -56,7 +58,7 @@
             var deferred = $q.defer();
 
             initPromise.then(function(){
-                resourcesService.get_services(UPDATE_FREQUENCY + 1000)
+                resourcesFactory.get_services(UPDATE_FREQUENCY + 1000)
                     .success(function(data, status){
                         // TODO - change backend to send
                         // updated, created, and deleted
@@ -92,7 +94,7 @@
             // if init hasnt been called, create a new promise
             // and make the initial request for services
             if(!initPromise){
-                initPromise = resourcesService.get_services()
+                initPromise = resourcesFactory.get_services()
                     .success(function(data, status) {
 
                         var service, parent;
@@ -158,7 +160,6 @@
     // takes a service object (backend service object)
     // and wraps it with extra functionality and info
     function Service(service, parent){
-        console.log("Creating service", service.Name);
         this.parent = parent;
         this.children = [];
         this.instances = [];
@@ -214,8 +215,6 @@
             if(this.parent){
                 this.parent.update();
             }
-
-            console.log("Updating service", this.service.Name);
         },
 
         updateServiceDef: function(service){
@@ -233,7 +232,6 @@
         // when descendents update
         markDirty: function(){
             this.cache.markAllDirty();
-            console.log("Invalidating all caches", this.service.Name);
         },
 
         evaluateServiceType: function(){
@@ -251,8 +249,6 @@
             if(this.children.length && !this.service.Startup){
                 this.type.push(META);
             }
-
-            console.log(this.name, "is of type", this.type);
         },
 
         addChild: function(service){
@@ -280,15 +276,15 @@
 
         // start, stop, or restart this service
         start: function(skipChildren){
-            resourcesService.start_service(this.id, function(){}, skipChildren);
+            resourcesFactory.start_service(this.id, function(){}, skipChildren);
             this.desiredState = START;
         },
         stop: function(skipChildren){
-            resourcesService.stop_service(this.id, function(){}, skipChildren);
+            resourcesFactory.stop_service(this.id, function(){}, skipChildren);
             this.desiredState = STOP;
         },
         restart: function(skipChildren){
-            resourcesService.restart_service(this.id, function(){}, skipChildren);
+            resourcesFactory.restart_service(this.id, function(){}, skipChildren);
             this.desiredState = RESTART;
         },
 
@@ -300,11 +296,9 @@
 
             // if valid cache, early return it
             if(hosts){
-                console.log("Using cached vhosts for ", this.name);
                 return hosts;
             }
 
-            console.log("Calculating vhosts for ", this.name);
             // otherwise, get some data
             var services = this.aggregateDescendents().slice();
 
@@ -353,11 +347,9 @@
 
             // if valid cache, early return it
             if(addresses){
-                console.log("Using cached addresses for ", this.name);
                 return addresses;
             }
 
-            console.log("Calculating addresses for ", this.name);
             // otherwise, get some new data
             var services = this.aggregateDescendents().slice();
 
@@ -403,10 +395,8 @@
             var descendents = this.cache.getIfClean("descendents");
 
             if(descendents){
-                console.log("Using cached descendents for", this.name);
                 return descendents;
             } else {
-                console.log("Calculating descendents for", this.name);
                 descendents = this.children.reduce(function(acc, child){
                     acc.push(child);
                     return acc.concat(child.aggregateDescendents());
@@ -422,7 +412,7 @@
         getInstances: function(){
             var deferred = $q.defer();
 
-            resourcesService.get_running_services_for_service(this.id)
+            resourcesFactory.get_running_services_for_service(this.id)
                 .success(function(newInstances, status) {
                     // TODO - generate Instance objects?
 
@@ -449,6 +439,10 @@
         // is dirty
         isDirty: function(){
             return this.cache.anyDirty();
+        },
+
+        hasInstances: function(){
+            return !!this.instances.length;
         }
     };
 

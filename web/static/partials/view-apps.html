@@ -60,8 +60,8 @@
           <td ng-if="app.isIsvc" class="ntsh">N/A</td>
               <td ng-if="!app.isIsvc()">
             <div>
-              <button ng-class="{disabled: app.service.DesiredState === 1}" ng-click="clickRunning(app, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-              <button ng-class="{disabled: app.service.DesiredState === 0}" ng-click="clickRunning(app, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+              <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+              <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
               <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
             </div>
           </td>

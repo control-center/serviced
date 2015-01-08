@@ -1,4 +1,4 @@
-function BackupRestoreControl($scope, $routeParams, $notification, $translate, resourcesService, authService, $modalService) {
+function BackupRestoreControl($scope, $routeParams, $notification, $translate, resourcesFactory, authService, $modalService) {
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "backuprestore";
@@ -31,10 +31,10 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
 
                         // TODO - when the server switches to broadcast instead of
                         // channel. this can be greatly simplified
-                        resourcesService.create_backup(function checkFirstStatus(){
+                        resourcesFactory.create_backup(function checkFirstStatus(){
                             // recursively check if a valid status has been pushed into
                             // the pipe. if not, shake yourself off and try again. try again.
-                            resourcesService.get_backup_status(function(data){
+                            resourcesFactory.get_backup_status(function(data){
                                 if(data.Detail === ""){
                                    checkFirstStatus();
                                 } else {
@@ -72,10 +72,10 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
 
                         // TODO - when the server switches to broadcast instead of
                         // channel. this can be greatly simplified
-                        resourcesService.restore_backup(filename, function checkFirstStatus(){
+                        resourcesFactory.restore_backup(filename, function checkFirstStatus(){
                             // recursively check if a valid status has been pushed into
                             // the pipe. if not, shake yourself off and try again. try again.
-                            resourcesService.get_restore_status(function(data){
+                            resourcesFactory.get_restore_status(function(data){
                                 if(data.Detail === ""){
                                    checkFirstStatus();
                                 } else {
@@ -97,13 +97,13 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
     };
 
     // poll for backup files
-    resourcesService.registerPoll("running", getBackupFiles, 5000);
+    resourcesFactory.registerPoll("running", getBackupFiles, 5000);
     $scope.$on("$destroy", function(){
-        resourcesService.unregisterAllPolls();
+        resourcesFactory.unregisterAllPolls();
     });
 
     function getBackupStatus(notification){
-        resourcesService.get_backup_status(function(data){
+        resourcesFactory.get_backup_status(function(data){
 
             if(data.Detail === ""){
                 notification.updateStatus(BACKUP_COMPLETE);
@@ -126,13 +126,13 @@ function BackupRestoreControl($scope, $routeParams, $notification, $translate, r
     }
 
     function getBackupFiles(){
-        resourcesService.get_backup_files(function(data){
+        resourcesFactory.get_backup_files(function(data){
             $scope.backupFiles = data;
         });
     }
 
     function getRestoreStatus(notification){
-        resourcesService.get_restore_status(function(data){
+        resourcesFactory.get_restore_status(function(data){
 
             // all done!
             if(data.Detail === ""){

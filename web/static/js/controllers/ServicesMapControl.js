@@ -1,4 +1,4 @@
-function ServicesMapControl($scope, $location, $routeParams, authService, resourcesService, $servicesService) {
+function ServicesMapControl($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -100,18 +100,18 @@ function ServicesMapControl($scope, $location, $routeParams, authService, resour
 
     // TODO - replace the data_received stuff with promise
     // aggregation
-    refreshHosts($scope, resourcesService, true, function() {
+    refreshHosts($scope, resourcesFactory, true, function() {
         data_received.hosts = true;
         draw();
     });
-    $servicesService.update().then(function() {
+    servicesFactory.update().then(function() {
         data_received.services = true;
         $scope.services = {
-            mapped: $servicesService.serviceMap
+            mapped: servicesFactory.serviceMap
         };
         draw();
     });
-    resourcesService.get_running_services(function(data) {
+    resourcesFactory.get_running_services(function(data) {
         data_received.running = true;
         runningServices = data;
         draw();

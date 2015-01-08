@@ -12,7 +12,7 @@
 
             <div class="serviceActions" ng-hide="services.current.isIsvc()">
                 <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> Edit Service</button>
-                <button ng-click="clickEditContext(services.current.service, servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
+                <button ng-click="clickEditContext(services.current.service, servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
 
                 <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
                 <div ng-if="services.current.desiredState !== 2" style="display: inline-block;">
@@ -170,9 +170,9 @@
           <td ng-if="!services.current.isIsvc()">
             <div ng-if="!app.isIsvc()">
               <div ng-if="app.desiredState !== 2">
-                <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
-                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
-                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'restart', servicesService)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+                <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start', servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
+                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop', servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
+                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'restart', servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
               </div>
               <div ng-if="app.desiredState === 2">
                 <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
@@ -184,8 +184,8 @@
     </table>
 
   <!-- This table has running instances -->
-  <h3 ng-show="services.current && services.current.instances.length > 0">{{'running_tbl_instances'|translate}}</h3>
-  <table class="table" ng-show="services.current && services.current.instances.length">
+  <h3 ng-show="hasCurrentInstances()">{{'running_tbl_instances'|translate}}</h3>
+  <table class="table" ng-show="hasCurrentInstances()">
     <thead>
       <tr>
         <th>{{'running_tbl_instance_id'|translate}}</th>
@@ -197,10 +197,10 @@
       </tr>
     </thead>
     <tbody>
-      <tr ng-hide="services.current && services.current.instances.length !== undefined">
+      <tr ng-hide="hasCurrentInstances()">
         <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
       </tr>
-      <tr ng-hide="services.current && services.current.instances.length">
+      <tr ng-hide="hasCurrentInstances()">
           <td colspan="100%"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
       </tr>
       <tr ng-repeat="app in services.current.instances" data-id="{{app.ID}}.{{app.InstanceID}}">

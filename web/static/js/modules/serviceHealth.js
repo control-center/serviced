@@ -4,8 +4,8 @@
     'use strict';
 
     angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", "$q", "resourcesService", "$interval", "$translate",
-    function($rootScope, $q, resourcesService, $interval, $translate){
+    factory("$serviceHealth", ["$rootScope", "$q", "resourcesFactory", "$interval", "$translate",
+    function($rootScope, $q, resourcesFactory, $interval, $translate){
 
         var statuses = {};
 
@@ -36,7 +36,7 @@
             // TODO - deal with serviceList in a better way
             servicesDeferred.resolve(serviceList);
 
-            resourcesService.get_service_health(function(healthChecks){
+            resourcesFactory.get_service_health(function(healthChecks){
                 healthCheckDeferred.resolve(healthChecks);
             });
 
