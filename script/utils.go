@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 
-	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 )
 
@@ -39,12 +38,6 @@ type ServiceState string
 type ServiceWait func(serviceID []string, serviceState ServiceState, timeout uint32) error
 
 type execCmd func(string, ...string) error
-
-type findImage func(string, bool) (*docker.Image, error)
-
-type pullImage func(string) error
-
-type tagImage func(*docker.Image, string) (*docker.Image, error)
 
 type findTenant func(string) (string, error)
 
@@ -79,10 +72,6 @@ func noOpServiceWait(serviceID []string, serviceState ServiceState, timeout uint
 	return nil
 }
 
-func noOpTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
-	return image, nil
-}
-
 func noOpRestore(snapshotID string, forceRestart bool) error {
 	return nil
 }
@@ -93,16 +82,4 @@ func noOpSnapshot(serviceID string) (string, error) {
 
 func noOpCommit(containerID string) (string, error) {
 	return "no_op_commit", nil
-}
-
-func noOpPull(image string) error {
-	return nil
-}
-
-func noOpFindImage(image string, pull bool) (*docker.Image, error) {
-	id, err := commons.ParseImageID(image)
-	if err != nil {
-		return nil, err
-	}
-	return &docker.Image{"123456789", *id}, nil
 }
