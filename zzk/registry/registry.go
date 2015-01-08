@@ -249,8 +249,6 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 		}
 		processChildren(conn, path, nodeIDs...)
 		select {
-		// timeout in case we missed a zookeeper event
-		case <-time.After(time.Second * 60):
 		case ev := <-event:
 			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:
