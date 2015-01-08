@@ -1,0 +1,117 @@
+// Copyright 2015 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package dfs
+
+import (
+
+	"github.com/control-center/serviced/commons/docker"
+
+	dockerclient "github.com/zenoss/go-dockerclient"
+	"github.com/stretchr/testify/mock"
+)
+
+// assert the interface
+var _ docker.ClientInterface = &mockDockerClient{}
+
+type mockDockerClient struct {
+	mock.Mock
+}
+
+func (mdc *mockDockerClient) CommitContainer(opts dockerclient.CommitContainerOptions) (*dockerclient.Image, error) {
+	args := mdc.Mock.Called(opts)
+	return args.Get(0).(*dockerclient.Image), args.Error(1)
+}
+
+func (mdc *mockDockerClient) CreateContainer(opts dockerclient.CreateContainerOptions) (*dockerclient.Container, error) {
+	args := mdc.Mock.Called(opts)
+	return args.Get(0).(*dockerclient.Container), args.Error(1)
+}
+
+func (mdc *mockDockerClient) ExportContainer(opts dockerclient.ExportContainerOptions) error {
+	return mdc.Mock.Called(opts).Error(0)
+}
+
+func (mdc *mockDockerClient) KillContainer(opts dockerclient.KillContainerOptions) error {
+	return mdc.Mock.Called(opts).Error(0)
+}
+
+func (mdc *mockDockerClient) ImportImage(opts dockerclient.ImportImageOptions) error {
+	return mdc.Mock.Called(opts).Error(0)
+}
+
+func (mdc *mockDockerClient) InspectContainer(id string) (*dockerclient.Container, error) {
+	args := mdc.Mock.Called(id)
+	return args.Get(0).(*dockerclient.Container), args.Error(1)
+}
+
+func (mdc *mockDockerClient) InspectImage(name string) (*dockerclient.Image, error) {
+	args := mdc.Mock.Called(name)
+	return args.Get(0).(*dockerclient.Image), args.Error(1)
+}
+
+func (mdc *mockDockerClient) ListContainers(opts dockerclient.ListContainersOptions) ([]dockerclient.APIContainers, error) {
+	args := mdc.Mock.Called(opts)
+	return args.Get(0).([]dockerclient.APIContainers), args.Error(1)
+}
+
+func (mdc *mockDockerClient) ListImages(all bool) ([]dockerclient.APIImages, error) {
+	args := mdc.Mock.Called(all)
+	var images []dockerclient.APIImages
+	if arg0 := args.Get(0); arg0 != nil {
+		images = arg0.([]dockerclient.APIImages)
+	}
+	return images, args.Error(1)
+}
+
+func (mdc *mockDockerClient) MonitorEvents() (dockerclient.EventMonitor, error) {
+	args := mdc.Mock.Called()
+	return args.Get(0).(dockerclient.EventMonitor), args.Error(1)
+}
+
+func (mdc *mockDockerClient) PullImage(opts dockerclient.PullImageOptions, auth dockerclient.AuthConfiguration) error {
+	return mdc.Mock.Called(opts, auth).Error(0)
+}
+
+func (mdc *mockDockerClient) PushImage(opts dockerclient.PushImageOptions, auth dockerclient.AuthConfiguration) error {
+	return mdc.Mock.Called(opts, auth).Error(0)
+}
+
+func (mdc *mockDockerClient) RemoveContainer(opts dockerclient.RemoveContainerOptions) error {
+	return mdc.Mock.Called(opts).Error(0)
+}
+
+func (mdc *mockDockerClient) RemoveImage(name string) error {
+	return mdc.Mock.Called(name).Error(0)
+}
+
+func (mdc *mockDockerClient) RestartContainer(id string, timeout uint) error {
+	return mdc.Mock.Called(id, timeout).Error(0)
+}
+
+func (mdc *mockDockerClient) StartContainer(id string, hostConfig *dockerclient.HostConfig) error {
+	return mdc.Mock.Called(id, hostConfig).Error(0)
+}
+
+func (mdc *mockDockerClient) StopContainer(id string, timeout uint) error {
+	return mdc.Mock.Called(id, timeout).Error(0)
+}
+
+func (mdc *mockDockerClient) TagImage(name string, opts dockerclient.TagImageOptions) error {
+	return mdc.Mock.Called(name, opts).Error(0)
+}
+
+func (mdc *mockDockerClient) WaitContainer(id string) (int, error) {
+	args := mdc.Mock.Called(id)
+	return args.Int(0), args.Error(1)
+}
