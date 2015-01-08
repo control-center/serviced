@@ -113,7 +113,7 @@ func init() {
 		}
 	}
 
-	client, err := dockerclient.NewClient(dockerep)
+	client, err := getDockerClient()
 	if err != nil {
 		panic(fmt.Sprintf("can't create Docker client: %v", err))
 	}
@@ -132,7 +132,7 @@ func UseRegistry() bool {
 }
 
 // kernel is responsible for executing all the Docker client commands.
-func kernel(dc *dockerclient.Client, done <-chan struct{}) error {
+func kernel(dc ClientInterface, done <-chan struct{}) error {
 	routeEventsToKernel(dc)
 
 	eventactions := mkEventActionTable()
@@ -193,7 +193,7 @@ func mkEventActionTable() map[string]map[string]ContainerActionFunc {
 	return eat
 }
 
-func routeEventsToKernel(dc *dockerclient.Client) {
+func routeEventsToKernel(dc ClientInterface) {
 	em, err := dc.MonitorEvents()
 	if err != nil {
 		panic(fmt.Sprintf("can't monitor Docker events: %v", err))
