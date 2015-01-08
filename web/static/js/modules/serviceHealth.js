@@ -4,11 +4,10 @@
     'use strict';
 
     angular.module('serviceHealth', []).
-    factory("$serviceHealth", ["$rootScope", "$q", "resourcesService", "$interval", "$translate",
-    function($rootScope, $q, resourcesService, $interval, $translate){
+    factory("$serviceHealth", ["$rootScope", "$q", "resourcesFactory", "$interval", "$translate",
+    function($rootScope, $q, resourcesFactory, $interval, $translate){
 
-        var servicesService = resourcesService,
-            statuses = {};
+        var statuses = {};
 
         var STATUS_STYLES = {
             "bad": "glyphicon glyphicon-exclamation bad",
@@ -27,18 +26,17 @@
         }
 
         // updates health check data for all services
-        function update() {
+        function update(serviceList) {
 
             // TODO - these methods should return promises, but they
             // don't so use our own promises
             var servicesDeferred = $q.defer();
             var healthCheckDeferred = $q.defer();
 
-            servicesService.update_services(function(top, mapped){
-                servicesDeferred.resolve(mapped);
-            });
+            // TODO - deal with serviceList in a better way
+            servicesDeferred.resolve(serviceList);
 
-            servicesService.get_service_health(function(healthChecks){
+            resourcesFactory.get_service_health(function(healthChecks){
                 healthCheckDeferred.resolve(healthChecks);
             });
 
@@ -53,7 +51,7 @@
                 // iterate services healthchecks
                 for(var serviceId in results.services){
                     serviceHealthCheck = results.health.Statuses[serviceId];
-                    serviceStatus = new Status(serviceId, results.services[serviceId].Name, results.services[serviceId].DesiredState, results.services[serviceId].Instances);
+                    serviceStatus = new Status(serviceId, results.services[serviceId].name, results.services[serviceId].service.DesiredState, results.services[serviceId].service.Instances);
 
                     // if no healthcheck for this service mark as down
                     if(!serviceHealthCheck){
@@ -68,7 +66,7 @@
                             instanceHealthCheck = serviceHealthCheck[instanceId];
                             instanceUniqueId = serviceId +"."+ instanceId;
                             // evaluate the status of this instance
-                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].Name +" "+ instanceId, results.services[serviceId].DesiredState, results.services[serviceId].Instances);
+                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].name +" "+ instanceId, results.services[serviceId].service.DesiredState, results.services[serviceId].service.Instances);
                             instanceStatus.evaluateHealthChecks(instanceHealthCheck, results.health.Timestamp);
                             
                             // add this guy's statuses to hash map for easy lookup
@@ -85,7 +83,7 @@
                     statuses[serviceId] = serviceStatus;
                 }
 
-                updateHealthCheckUI(statuses, results.services);
+                updateHealthCheckUI(statuses);
 
             }).catch(function(err){
                 // something went awry
@@ -287,7 +285,7 @@
 
         var healthcheckTemplate = '<i class="healthIcon glyphicon"></i><div class="healthIconBadge"></div>';
 
-        function updateHealthCheckUI(statuses, services){
+        function updateHealthCheckUI(statuses){
             // select all healthchecks DOM elements and look
             // up their respective class thing
             $(".healthCheck").each(function(i, el){

@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesService, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies) {
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesFactory, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies, servicesFactory){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -6,7 +6,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.deployingServices = [];
     var lastPollResults = 0;
     var pollDeploying = function(){
-        resourcesService.get_active_templates(function(data) {
+        resourcesFactory.get_active_templates(function(data) {
             if(data === "null"){
                 $scope.services.deploying = [];
             }else{
@@ -15,20 +15,17 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
 
             //if we have fewer results than last poll, we need to refresh our table
             if(lastPollResults > $scope.services.deploying.length){
-                // Get a list of deployed apps
-                refreshServices($scope, resourcesService, false, function(){
-                    $serviceHealth.update();
-                });
+                servicesFactory.update();
             }
             lastPollResults = $scope.services.deploying.length;
         });
     };
     $scope.$on("$destroy", function(){
-        resourcesService.unregisterAllPolls();
+        resourcesFactory.unregisterAllPolls();
     });
     $scope.name = "apps";
     $scope.params = $routeParams;
-    $scope.servicesService = resourcesService;
+    $scope.resourcesFactory = resourcesFactory;
 
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
@@ -100,10 +97,10 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                             // disable ok button, and store the re-enable function
                             var enableSubmit = this.disableSubmitButton();
 
-                            resourcesService.add_app_template(data)
+                            resourcesFactory.add_app_template(data)
                                 .success(function(data, status){
                                     $notification.create("Added template", data.Detail).success();
-                                    resourcesService.get_app_templates(false, refreshTemplates);
+                                    resourcesFactory.get_app_templates(false, refreshTemplates);
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
@@ -173,7 +170,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
             return;
         }
         var id = $scope.appToRemove.ID;
-        resourcesService.remove_service(id, function() {
+        resourcesFactory.remove_service(id, function() {
             delete $scope.appToRemove;
             var i = 0, newServices = [];
 
@@ -188,7 +185,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    $scope.clickRunning = function(app, status, servicesService) {
+    $scope.clickRunning = function(app, status, resourcesFactory) {
         var displayStatus = capitalizeFirst(status);
 
         $modalService.create({
@@ -202,7 +199,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     role: "ok",
                     label: displayStatus +" Services",
                     action: function(){
-                        toggleRunning(app, status, servicesService);
+                        // TODO - verify status is valid
+                        app[status]();
                         this.close();
                     }
                 }
@@ -246,7 +244,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     label: "template_remove",
                     classes: "btn-danger",
                     action: function(){
-                        resourcesService.delete_app_template(templateID, refreshTemplates);
+                        resourcesFactory.delete_app_template(templateID, refreshTemplates);
                         this.close();
                     }
                 }
@@ -254,23 +252,12 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    if ($scope.dev) {
-        setupNewService();
-        $scope.add_service = function() {
-            resourcesService.add_service($scope.newService, function() {
-                refreshServices($scope, resourcesService, false);
-                setupNewService();
-            });
-        };
-        $scope.secondarynav.push({ label: 'btn_add_service', modal: '#addService' });
-    }
-
     function capitalizeFirst(str){
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 
     function refreshTemplates(){
-        resourcesService.get_app_templates(false, function(templatesMap) {
+        resourcesFactory.get_app_templates(false, function(templatesMap) {
             var templates = [];
             for (var key in templatesMap) {
                 var template = templatesMap[key];
@@ -285,8 +272,8 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     refreshTemplates();
 
     // Get a list of deployed apps
-    refreshServices($scope, resourcesService, false, function(){
-        $serviceHealth.update();
+    servicesFactory.update().then(function update(){
+        $scope.services.data = servicesFactory.serviceTree;
 
         // if only isvcs are deployed, and this is the first time
         // running deploy wizard, show the deploy apps modal
@@ -296,6 +283,5 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     });
 
     //register polls
-    resourcesService.registerPoll("deployingApps", pollDeploying, 3000);
-    resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
+    resourcesFactory.registerPoll("deployingApps", pollDeploying, 3000);
 }

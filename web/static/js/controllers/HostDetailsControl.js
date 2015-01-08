@@ -1,4 +1,4 @@
-function HostDetailsControl($scope, $routeParams, $location, resourcesService, authService, $modalService, $translate) {
+function HostDetailsControl($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate) {
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -9,10 +9,10 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         { label: 'breadcrumb_hosts', url: '#/hosts' }
     ];
 
-    $scope.resourcesService = resourcesService;
+    $scope.resourcesFactory = resourcesFactory;
 
     // Also ensure we have a list of hosts
-    refreshHosts($scope, resourcesService, true);
+    refreshHosts($scope, resourcesFactory, true);
 
     $scope.running = buildTable('Name', [
         { id: 'Name', name: 'label_service' },
@@ -28,7 +28,7 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.viewLog = function(running) {
         $scope.editService = $.extend({}, running);
-        resourcesService.get_service_state_logs(running.ServiceID, running.ID, function(log) {
+        resourcesFactory.get_service_state_logs(running.ServiceID, running.ID, function(log) {
             $scope.editService.log = log.Detail;
             $modalService.create({
                 templateUrl: "view-log.html",
@@ -58,7 +58,38 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
         });
     };
 
-    $scope.toggleRunning = toggleRunning;
+    $scope.toggleRunning = function(app, status, resourcesFactory, skipChildren) {
+        var serviceId,
+            newState;
+
+        // if app is an instance, use ServiceId
+        if("InstanceID" in app){
+            serviceId = app.ServiceID;
+
+        // else, app is a service, so use ID
+        } else {
+            serviceId = app.ID;
+        }
+
+        switch(status) {
+            case 'start':
+                newState = 1;
+                resourcesFactory.start_service(serviceId, function(){}, skipChildren);
+                break;
+
+            case 'stop':
+                newState = 0;
+                resourcesFactory.stop_service(serviceId, function(){}, skipChildren);
+                break;
+
+            case 'restart':
+                newState = -1;
+                resourcesFactory.restart_service(serviceId, function(){}, skipChildren);
+                break;
+        }
+
+        app.DesiredState = newState;
+    };
 
     $scope.click_app = function(instance) {
         $location.path('/services/' + instance.ServiceID);
@@ -66,22 +97,22 @@ function HostDetailsControl($scope, $routeParams, $location, resourcesService, a
 
     $scope.updateHost = function(){
         var modifiedHost = $.extend({}, $scope.hosts.current);
-        resourcesService.update_host(modifiedHost.ID, modifiedHost, function() {
-            refreshHosts($scope, resourcesService, false);
+        resourcesFactory.update_host(modifiedHost.ID, modifiedHost, function() {
+            refreshHosts($scope, resourcesFactory, false);
         });
     };
 
-    refreshRunningForHost($scope, resourcesService, $scope.params.hostId);
-    refreshHosts($scope, resourcesService, true, function() {
+    refreshRunningForHost($scope, resourcesFactory, $scope.params.hostId);
+    refreshHosts($scope, resourcesFactory, true, function() {
         if ($scope.hosts.current) {
             $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
         }
     });
 
     // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, false);
+    refreshPools($scope, resourcesFactory, false);
 
-    resourcesService.get_stats(function(status) {
+    resourcesFactory.get_stats(function(status) {
         if (status == 200) {
             $scope.collectingStats = true;
         } else {

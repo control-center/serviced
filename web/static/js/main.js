@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky', 'graphPanel']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky', 'graphPanel', 'servicesFactory']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
@@ -59,10 +59,6 @@ controlplane.
             when('/backuprestore', {
                 templateUrl: '/static/partials/view-backuprestore.html',
                 controller: BackupRestoreControl
-            }).
-            when('/isvcs', {
-                templateUrl: '/static/partials/view-isvcs.html',
-                controller: IsvcsControl
             }).
             otherwise({redirectTo: '/apps'});
     }]).
@@ -215,37 +211,9 @@ controlplane.
         };
     });
 
-/* begin constants */
-var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
-var POOL_ICON_OPEN = 'glyphicon glyphicon-play rotate-down btn-link';
-var POOL_CHILDREN_CLOSED = 'hidden';
-var POOL_CHILDREN_OPEN = 'nav-tree';
-/* end constants */
 
 // set verbosity of console.logs
 var DEBUG = false;
-
-function addChildren(allowed, parent) {
-    allowed[parent.Id] = true;
-    if (parent.children) {
-        for (var i=0; i < parent.children.length; i++) {
-            addChildren(allowed, parent.children[i]);
-        }
-    }
-}
-
-function updateLanguage($scope, $cookies, $translate) {
-    var ln = 'en_US';
-    if ($cookies.Language === undefined) {
-
-    } else {
-        ln = $cookies.Language;
-    }
-    if ($scope.user) {
-        $scope.user.language = ln;
-    }
-    $translate.use(ln);
-}
 
 function AuthService($cookies, $cookieStore, $location, $http, $notification) {
     var loggedIn = false;
@@ -321,177 +289,22 @@ function AuthService($cookies, $cookieStore, $location, $http, $notification) {
     };
 }
 
+
 /*
- * Starting at some root node, recurse through children,
- * building a flattened array where each node has a depth
- * tracking field 'zendepth'.
+ * manage pools
+ * TODO - move pools to separate service
  */
-function flattenTree(depth, current, sortFunction) {
-    // Exclude the root node
-    var retVal = (depth === 0)? [] : [current];
-    current.zendepth = depth;
-
-    if (!current.children) {
-        return retVal;
-    }
-    if (sortFunction !== undefined) {
-        current.children.sort(sortFunction);
-    }
-    for (var i=0; i < current.children.length; i++) {
-        retVal = retVal.concat(flattenTree(depth + 1, current.children[i], sortFunction));
-    }
-    return retVal;
-}
-
-// return a url to a virtual host
-function get_vhost_url( $location, vhost) {
-  return $location.$$protocol + "://" + vhost + "." + $location.$$host + ":" + $location.$$port;
-}
-
-// collect all virtual hosts for provided service
-function aggregateVhosts(service) {
-  var vhosts = [];
-  if (service.Endpoints) {
-    for (var i in service.Endpoints) {
-      var endpoint = service.Endpoints[i];
-      if (endpoint.VHosts) {
-        for ( var j in endpoint.VHosts) {
-          var name = endpoint.VHosts[j];
-          var vhost = {Name:name, Application:service.Name, ServiceEndpoint:endpoint.Application, ApplicationId:service.ID};
-          vhosts.push( vhost);
-        }
-      }
-    }
-  }
-  for (var i in service.children) {
-    var child_service = service.children[i];
-    vhosts = vhosts.concat( aggregateVhosts( child_service));
-  }
-  vhosts.sort(function(a, b){ return (a.Name < b.Name ? -1 : 1); });
-  return vhosts;
-}
-
-// collect all address assignments for a service
-function aggregateAddressAssigments(service, api) {
-  var assignments = [];
-  if (service.Endpoints) {
-    for (var i in service.Endpoints) {
-      var endpoint = service.Endpoints[i];
-      if (endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol != "") {
-        var assignment = {
-          'ID': endpoint.AddressAssignment.ID,
-          'AssignmentType': endpoint.AddressAssignment.AssignmentType,
-          'EndpointName': endpoint.AddressAssignment.EndpointName,
-          'HostID': endpoint.AddressAssignment.HostID,
-          'HostName': 'unknown',
-          'PoolID': endpoint.AddressAssignment.PoolID,
-          'IPAddr': endpoint.AddressAssignment.IPAddr,
-          'Port': endpoint.AddressConfig.Port,
-          'ServiceID': service.ID,
-          'ServiceName': service.Name
-        };
-        if (assignment.HostID !== "") {
-          api.get_host( assignment.HostID, function(data) {
-            assignment.HostName = data.Name;
-          });
-        }
-        assignments.push( assignment);
-      }
-    }
-  }
-
-  for (var i in service.children) {
-    var child_service = service.children[i];
-    assignments = assignments.concat( aggregateAddressAssigments( child_service, api));
-  }
-  return assignments;
-}
-
-// collect all virtual hosts options for provided service
-function aggregateVhostOptions(service) {
-  var options = [];
-  if (service.Endpoints) {
-    for (var i in service.Endpoints) {
-      var endpoint = service.Endpoints[i];
-      if (endpoint.Purpose == "export") {
-        var option = {
-          ServiceID:service.ID,
-          ServiceEndpoint:endpoint.Application,
-          Value:service.Name + " - " + endpoint.Application
-        };
-        options.push(option);
-      }
-    }
-  }
-
-  for (var i in service.children) {
-    var child_service = service.children[i];
-    options = options.concat(aggregateVhostOptions(child_service));
-  }
-
-  return options;
-}
-
-function refreshServices($scope, servicesService, cacheOk, extraCallback) {
-    // defend against empty scope
-    if ($scope.services === undefined) {
-        $scope.services = {};
-    }
-    if(DEBUG) console.log('refresh services called');
-    servicesService.update_services(function(topServices, mappedServices) {
-        $scope.services.data = topServices;
-        $scope.services.mapped = mappedServices;
-
-        if ($scope.params && $scope.params.serviceId) {
-            $scope.services.current = $scope.services.mapped[$scope.params.serviceId];
-            $scope.editService = $.extend({}, $scope.services.current);
-
-            // we need a flattened view of all children
-            if ($scope.services.current && $scope.services.current.children) {
-                $scope.services.subservices = flattenTree(0, $scope.services.current, function(a, b) {
-                    return a.Name.toLowerCase() < b.Name.toLowerCase() ? -1 : 1;
-                });
-            }
-
-            // aggregate virtual ip and virtual host data
-            if ($scope.services.current) {
-                $scope.vhosts.data = aggregateVhosts( $scope.services.current);
-                $scope.vhosts.options = aggregateVhostOptions( $scope.services.current);
-                if ($scope.vhosts.options.length > 0) {
-                  $scope.vhosts.add.app_ep = $scope.vhosts.options[0];
-                }
-                $scope.ips.data = aggregateAddressAssigments($scope.services.current, servicesService);
-            }
-        }
-        if (extraCallback) {
-            extraCallback();
-        }
-    });
-}
-
-function getFullPath(allPools, pool) {
-    if (!allPools || !pool.ParentId || !allPools[pool.ParentId]) {
-        return pool.ID;
-    }
-    return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.ID;
-}
-
-function getServiceLineage(mappedServices, service) {
-    if (!mappedServices || !service.ParentServiceID || !mappedServices[service.ParentServiceID]) {
-        return [ service ];
-    }
-    var lineage = getServiceLineage(mappedServices, mappedServices[service.ParentServiceID]);
-    lineage.push(service);
-    return lineage;
-}
-
-function refreshPools($scope, resourcesService, cachePools, extraCallback) {
+var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
+var POOL_ICON_OPEN = 'glyphicon glyphicon-play rotate-down btn-link';
+var POOL_CHILDREN_CLOSED = 'hidden';
+var POOL_CHILDREN_OPEN = 'nav-tree';
+function refreshPools($scope, resourcesFactory, cachePools, extraCallback) {
     // defend against empty scope
     if ($scope.pools === undefined) {
         $scope.pools = {};
     }
     if(DEBUG) console.log('Refreshing pools');
-    resourcesService.get_pools(cachePools, function(allPools) {
+    resourcesFactory.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
         $scope.pools.tree = [];
@@ -534,46 +347,46 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
     });
 }
 
-function toggleRunning(app, status, servicesService, skipChildren) {
-    var serviceId,
-        newState;
-
-    // if app is an instance, use ServiceId
-    if(isInstanceOfService(app)){
-        serviceId = app.ServiceID;
-
-    // else, app is a service, so use ID
-    } else {
-        serviceId = app.ID;
+function getFullPath(allPools, pool) {
+    if (!allPools || !pool.ParentId || !allPools[pool.ParentId]) {
+        return pool.ID;
     }
+    return getFullPath(allPools, allPools[pool.ParentId]) + " > " + pool.ID;
+}
+/*
+ * Starting at some root node, recurse through children,
+ * building a flattened array where each node has a depth
+ * tracking field 'zendepth'.
+ */
+function flattenTree(depth, current, sortFunction) {
+    // Exclude the root node
+    var retVal = (depth === 0)? [] : [current];
+    current.zendepth = depth;
 
-    switch(status) {
-        case 'start':
-            newState = 1;
-            servicesService.start_service(serviceId, function(){}, skipChildren);
-            break;
-
-        case 'stop':
-            newState = 0;
-            servicesService.stop_service(serviceId, function(){}, skipChildren);
-            break;
-
-        case 'restart':
-            newState = -1;
-            servicesService.restart_service(serviceId, function(){}, skipChildren);
-            break;
+    if (!current.children) {
+        return retVal;
     }
-
-    app.DesiredState = newState;
+    if (sortFunction !== undefined) {
+        current.children.sort(sortFunction);
+    }
+    for (var i=0; i < current.children.length; i++) {
+        retVal = retVal.concat(flattenTree(depth + 1, current.children[i], sortFunction));
+    }
+    return retVal;
 }
 
-function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
+
+/*
+ * Manage hosts
+ * TODO - move host management into a separate service
+ */
+function refreshHosts($scope, resourcesFactory, cacheHosts, extraCallback) {
     // defend against empty scope
     if ($scope.hosts === undefined) {
         $scope.hosts = {};
     }
 
-    resourcesService.get_hosts(cacheHosts, function(allHosts) {
+    resourcesFactory.get_hosts(cacheHosts, function(allHosts) {
         // This is a Map(Id -> Host)
         $scope.hosts.mapped = allHosts;
 
@@ -604,13 +417,12 @@ function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
         }
     });
 }
-
-function refreshRunningForHost($scope, resourcesService, hostId) {
+function refreshRunningForHost($scope, resourcesFactory, hostId) {
     if ($scope.running === undefined) {
         $scope.running = {};
     }
 
-    resourcesService.get_running_services_for_host(hostId, function(runningServices) {
+    resourcesFactory.get_running_services_for_host(hostId, function(runningServices) {
         $scope.running.data = runningServices;
         for (var i=0; i < runningServices.length; i++) {
             runningServices[i].DesiredState = 1; // All should be running
@@ -618,74 +430,59 @@ function refreshRunningForHost($scope, resourcesService, hostId) {
         }
     });
 }
-
-function refreshRunningForService($scope, resourcesService, serviceId, extracallback) {
-    if ($scope.running === undefined) {
-        $scope.running = {data:[]};
-    }
-
-    resourcesService.get_running_services_for_service(serviceId, function(runningServices) {
-        // merge running.data with runningServices without creating a new object
-
-        // create a list of current running.data ids to check for removals
-        var oldIds = $scope.running.data.map(function(el){return el.ID;}),
-            running = $scope.running.data;
-
-        runningServices.forEach(function(runningService){
-            var oldServiceIndex = oldIds.indexOf(runningService.ID),
-                oldService;
-
-            // if this guy is already in the running list
-            if(oldServiceIndex !== -1){
-                oldService = running[oldServiceIndex];
-
-                // merge changes in
-                for(var i in runningService){
-                    oldService[i] = runningService[i];
-                }
-
-                // remove this id from the oldIds list
-                oldIds[oldServiceIndex] = null;
-
-            // else this is a new running service, so add it
-            } else {
-                running.push(runningService);
-            }
-        });
-
-        // any ids left in oldIds should be removed from running
-        for(var i = running.length - 1; i >= 0; i--){
-            if(~oldIds.indexOf(running[i].ID)){
-                console.log("removing old id", running[i].ID, "at index", i);
-                running.splice(i, 1);
-            }
-        }
-
-        $scope.running.sort = 'InstanceID';
-        for (var i=0; i < runningServices.length; i++) {
-            runningServices[i].DesiredState = 1; // All should be running
-            runningServices[i].Deployment = 'successful'; // TODO: Replace
-        }
-
-        if (extracallback) {
-            extracallback();
-        }
-    });
-}
-
+// add pool path to host
 function fix_pool_paths($scope) {
     if ($scope.pools && $scope.pools.mapped && $scope.hosts && $scope.hosts.all) {
         for(var i=0; i < $scope.hosts.all.length; i++) {
             var host = $scope.hosts.all[i];
             host.fullPath = $scope.pools.mapped[host.PoolID].fullPath;
         }
-    } else {
-        console.error('Unable to update host pool paths');
     }
 }
 
+
 /*
- * Helper function transforms Map(K -> V) into Array(V)
+ * Functions for setting up grid views
+ * TODO - create angular controller for grids
+ */
+function buildTable(sort, headers) {
+    var sort_icons = {};
+    for(var i=0; i < headers.length; i++) {
+        sort_icons[headers[i].id] = (sort === headers[i].id?
+            'glyphicon-chevron-up' : 'glyphicon-chevron-down');
+    }
+
+    return {
+        sort: sort,
+        headers: headers,
+        sort_icons: sort_icons,
+        set_order: set_order,
+        get_order_class: get_order_class,
+    };
+}
+function set_order(order, table) {
+    // Reset the icon for the last order
+    if(DEBUG) console.log('Resetting ' + table.sort + ' to down.');
+    table.sort_icons[table.sort] = 'glyphicon-chevron-down';
+
+    if (table.sort === order) {
+        table.sort = "-" + order;
+        table.sort_icons[table.sort] = 'glyphicon-chevron-down';
+        if(DEBUG) console.log('Sorting by -' + order);
+    } else {
+        table.sort = order;
+        table.sort_icons[table.sort] = 'glyphicon-chevron-up';
+        if(DEBUG) console.log('Sorting ' + table +' by ' + order);
+    }
+}
+function get_order_class(order, table) {
+    return 'glyphicon btn-link sort pull-right ' + table.sort_icons[order] +
+        ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
+}
+
+
+/*
+ * Helper and utility functions
  */
 function map_to_array(data) {
     var arr = [];
@@ -702,105 +499,8 @@ function unauthorized($location) {
     window.location.reload();
 }
 
-/*
- * Helper function acquires next URL from data that looks like this:
- *
-   {
-     ...,
-     Links: [ { Name: 'Next', Url: '/some/url' }, ... ]
-   }
- *
- */
-function next_url(data) {
-    return data.Links.filter(function(e) {
-        return e.Name == 'Next';
-    })[0].Url;
-}
-
-function set_order(order, table) {
-    // Reset the icon for the last order
-    if(DEBUG) console.log('Resetting ' + table.sort + ' to down.');
-    table.sort_icons[table.sort] = 'glyphicon-chevron-down';
-
-    if (table.sort === order) {
-        table.sort = "-" + order;
-        table.sort_icons[table.sort] = 'glyphicon-chevron-down';
-        if(DEBUG) console.log('Sorting by -' + order);
-    } else {
-        table.sort = order;
-        table.sort_icons[table.sort] = 'glyphicon-chevron-up';
-        if(DEBUG) console.log('Sorting ' + table +' by ' + order);
-    }
-}
-
-function get_order_class(order, table) {
-    return 'glyphicon btn-link sort pull-right ' + table.sort_icons[order] +
-        ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
-}
-
-function buildTable(sort, headers) {
-    var sort_icons = {};
-    for(var i=0; i < headers.length; i++) {
-        sort_icons[headers[i].id] = (sort === headers[i].id?
-            'glyphicon-chevron-up' : 'glyphicon-chevron-down');
-    }
-
-    return {
-        sort: sort,
-        headers: headers,
-        sort_icons: sort_icons,
-        set_order: set_order,
-        get_order_class: get_order_class,
-    };
-}
-
 function indentClass(depth) {
     return 'indent' + (depth -1);
-}
-
-function toggleCollapse(child, collapsed) {
-    child.parentCollapsed = collapsed;
-    // We're done if this node does not have any children OR if this node is
-    // already collapsed
-    if (!child.children || child.collapsed) {
-        return;
-    }
-    // Mark all children as having a collapsed parent
-    for(var i=0; i < child.children.length; i++) {
-        toggleCollapse(child.children[i], collapsed);
-    }
-}
-
-function itemClass(item) {
-    var cls = item.current? 'current' : '';
-    if (item.parentCollapsed) {
-        cls += ' hidden';
-    }
-    return cls;
-}
-
-// determines if an object is an instance of a service
-function isInstanceOfService(service){
-    return "InstanceID" in service;
-}
-
-// accepts a preferred  and decorates it with success 
-// and error functions to simulate $http promise
-function httpifyDeferred(defer){
-    // TODO - move this to a utils function where we 
-    // can access $q and make our own defer
-
-    // simulate an angular $http promise
-    defer.promise.success = function(callback){
-        defer.promise.then(callback);
-        return defer.promise;
-    };
-    defer.promise.error = function(callback){
-        defer.promise.then(null, callback);
-        return defer.promise;
-    };
-
-    return defer;
 }
 
 function downloadFile(url){
@@ -833,4 +533,17 @@ function getModeFromFilename(filename){
     }
 
     return mode;
+}
+
+function updateLanguage($scope, $cookies, $translate) {
+    var ln = 'en_US';
+    if ($cookies.Language === undefined) {
+
+    } else {
+        ln = $cookies.Language;
+    }
+    if ($scope.user) {
+        $scope.user.language = ln;
+    }
+    $translate.use(ln);
 }

@@ -1,9 +1,9 @@
-function SubServiceControl($scope, $q, $routeParams, $location, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification, $timeout){
+function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory, authService, $serviceHealth, $modalService, $translate, $notification, $timeout, servicesFactory){
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
     $scope.params = $routeParams;
-    $scope.servicesService = resourcesService;
+    $scope.resourcesFactory = resourcesFactory;
 
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
@@ -16,12 +16,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.breadcrumbs = [
         { label: 'breadcrumb_deployed', url: '#/apps' }
     ];
-
-    $scope.services = buildTable('Name', [
-        { id: 'Name', name: 'deployed_tbl_name'},
-        { id: 'DesiredState', name: 'deployed_tbl_state' },
-        { id: 'Startup', name: 'label_service_startup' }
-    ]);
 
     $scope.vhosts = buildTable('Name', [
         { id: 'Name', name: 'vhost_name'},
@@ -40,9 +34,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     //add vhost data (includes name, app & service endpoint)
     $scope.vhosts.add = {};
-
-    //app & service endpoint option for adding a new virtual host
-    $scope.vhosts.options = [];
 
     $scope.click_app = function(id) {
         $location.path('/services/' + id);
@@ -98,7 +89,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                 }
 
                 // if no services to bind to
-                if(!$scope.vhosts.options.length){
+                if(!$scope.vhosts.data.length){
                     this.createNotification("Unable to add Virtual Host", "No available application and service").error();
                     return false;
                 }
@@ -131,27 +122,27 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     $scope.addVHost = function() {
         var name = $scope.vhosts.add.name;
-        var serviceId = $scope.vhosts.add.app_ep.ServiceID;
+        var serviceId = $scope.vhosts.add.app_ep.ApplicationId;
         var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
-        return resourcesService.add_vhost( serviceId, serviceEndpoint, name)
+        return resourcesFactory.add_vhost( serviceId, serviceEndpoint, name)
             .success(function(data, status){
                 $notification.create("Added virtual host", data.Detail).success();
                 $scope.vhosts.add = {};
-                refreshServices($scope, resourcesService, false);
             });
     };
 
     // modalAssignIP opens a modal view to assign an ip address to a service
     $scope.modalAssignIP = function(ip, poolID) {
       $scope.ips.assign = {'ip':ip, 'value':null};
-      resourcesService.get_pool_ips(poolID, function(data) {
+      resourcesFactory.get_pool_ips(poolID, function(data) {
         var options= [{'Value':'Automatic', 'IPAddr':null}];
 
+        var i, IPAddr, value;
         //host ips
-        if ( data && data.HostIPs) {
-          for(var i = 0; i < data.HostIPs.length; ++i) {
-            var IPAddr = data.HostIPs[i].IPAddress;
-            var value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
+        if (data && data.HostIPs) {
+          for(i = 0; i < data.HostIPs.length; ++i) {
+            IPAddr = data.HostIPs[i].IPAddress;
+            value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
             options.push({'Value': value, 'IPAddr':IPAddr});
             // set the default value to the currently assigned value
             if ($scope.ips.assign.ip.IPAddr == IPAddr) {
@@ -161,10 +152,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         }
 
         //host ips
-        if ( data && data.VirtualIPs) {
-          for(var i = 0; i < data.VirtualIPs.length; ++i) {
-            var IPAddr = data.VirtualIPs[i].IP;
-            var value =  "Virtual IP: " + IPAddr;
+        if (data && data.VirtualIPs) {
+          for(i = 0; i < data.VirtualIPs.length; ++i) {
+            IPAddr = data.VirtualIPs[i].IP;
+            value =  "Virtual IP: " + IPAddr;
             options.push({'Value': value, 'IPAddr':IPAddr});
             // set the default value to the currently assigned value
             if ($scope.ips.assign.ip.IPAddr == IPAddr) {
@@ -218,8 +209,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     return true;
                 }
             }
-            for (var i in service.children) {
-                if ($scope.anyServicesExported(service.children[i])) {
+            for (var j in service.children) {
+                if ($scope.anyServicesExported(service.children[j])) {
                     return true;
                 }
             }
@@ -231,9 +222,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.assignIP = function() {
         var serviceID = $scope.ips.assign.ip.ServiceID;
         var IP = $scope.ips.assign.value.IPAddr;
-        return resourcesService.assign_ip(serviceID, IP)
+        return resourcesFactory.assign_ip(serviceID, IP)
             .success(function(data, status){
-                refreshServices($scope, resourcesService, false);
+                servicesFactory.update();
                 $notification.create("Added IP", data.Detail).success();
             });
     };
@@ -241,27 +232,27 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
         var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
-        return location.protocol + "//" + host + port
+        return location.protocol + "//" + host + port;
     };
 
     $scope.indent = function(depth){
         return {'padding-left': (20*depth) + "px"};
     };
 
-    $scope.clickRunning = function(app, status, servicesService){
-        toggleRunning(app, status, servicesService);
-        $serviceHealth.update(app.ID);
+    $scope.clickRunning = function(app, status){
+        app[status]();
+        $serviceHealth.update(servicesFactory.serviceMap);
     };
 
     function capitalizeFirst(str){
         return str.slice(0,1).toUpperCase() + str.slice(1);
     }
 
-    $scope.clickRunningApp = function(app, status, servicesService) {
+    $scope.clickRunningApp = function(app, status) {
 
         // if this service has children and startup command, ask the user
         // if we should start service + children, or just service
-        if(app.children && app.children.length && app.Startup){
+        if(app.children && app.children.length && app.service.Startup){
             var displayStatus = capitalizeFirst(status),
                 children = app.children || [],
                 childCount = 0;
@@ -289,8 +280,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
             $modalService.create({
                 template: ["<h4>"+ $translate.instant("choose_services_"+ status) +"</h4><ul>",
-                    "<li>"+ $translate.instant(status +"_service_name", {name: "<strong>"+app.Name+"</strong>"}) +"</li>",
-                    "<li>"+ $translate.instant(status +"_service_name_and_children", {name: "<strong>"+app.Name+"</strong>", count: "<strong>"+childCount+"</strong>"}) +"</li></ul>"
+                    "<li>"+ $translate.instant(status +"_service_name", {name: "<strong>"+app.name+"</strong>"}) +"</li>",
+                    "<li>"+ $translate.instant(status +"_service_name_and_children", {name: "<strong>"+app.name+"</strong>", count: "<strong>"+childCount+"</strong>"}) +"</li></ul>"
                 ].join(""),
                 model: $scope,
                 title: $translate.instant(status +"_service"),
@@ -302,16 +293,16 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                         classes: " ",
                         label: $translate.instant(status +"_service"),
                         action: function(){
-                            // the 4th arg here explicitly prevents child services
+                            // the arg here explicitly prevents child services
                             // from being started
-                            toggleRunning(app, status, servicesService, true);
+                            app[status](true);
                             this.close();
                         }
                     },{
                         role: "ok",
                         label: $translate.instant(status +"_service_and_children", {count: childCount}),
                         action: function(){
-                            toggleRunning(app, status, servicesService);
+                            app[status]();
                             this.close();
                         }
                     }
@@ -321,19 +312,19 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         // this service has no children or no startup command,
         // so start it the usual way
         } else {
-            $scope.clickRunning(app, status, servicesService);
+            $scope.clickRunning(app, status);
         }
 
     };
 
-    $scope.clickEditContext = function(app, servicesService) {
-	//set editor options for context editing
-	$scope.codemirrorOpts = {
-	    lineNumbers: true,
-	    mode: "properties"
-	}
-	
-        $scope.editableContext = makeEditableContext($scope.services.current.Context);
+    $scope.clickEditContext = function(app, resourcesFactory) {
+        //set editor options for context editing
+        $scope.codemirrorOpts = {
+            lineNumbers: true,
+            mode: "properties"
+        };
+
+        $scope.editableContext = makeEditableContext($scope.services.current.service.Context);
 
         $modalService.create({
             templateUrl: "edit-context.html",
@@ -349,7 +340,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                         // disable ok button, and store the re-enable function
                         var enableSubmit = this.disableSubmitButton();
 
-                        saveContext(app, servicesService)
+                        saveContext(app, resourcesFactory)
                             .success(function(data, status){
                                 this.close(); 
                             }.bind(this))
@@ -360,12 +351,12 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     }
                 }
             ],
-	    onShow: function(){
-		$scope.codemirrorRefresh = true;	
-	    },
-	    onHide: function(){
-                $scope.codemirrorRefresh = false;
-	    }
+        onShow: function(){
+            $scope.codemirrorRefresh = true;
+        },
+        onHide: function(){
+            $scope.codemirrorRefresh = false;
+        }
         });
     };
 
@@ -374,7 +365,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         for(var key in context){
             editableContext += key + " " + context[key] + "\n";
         }
-	if(!editableContext){ editableContext = ""; }
+        if(!editableContext){ editableContext = ""; }
         return editableContext;
     }
 
@@ -396,7 +387,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
             }
         }
 
-        $scope.services.current.Context = context;
+        $scope.services.current.service.Context = context;
         return $scope.updateService();
     }
 
@@ -413,8 +404,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                     label: "remove_virtual_host",
                     classes: "btn-danger",
                     action: function(){
-                        resourcesService.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
-                            refreshServices($scope, resourcesService, false);
+                        resourcesFactory.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
+                            servicesFactory.update();
                         });
                         this.close();
                     }
@@ -475,7 +466,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.viewLog = function(serviceState) {
         $scope.editService = $.extend({}, serviceState);
 
-	    resourcesService.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
+	    resourcesFactory.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
             $scope.editService.log = log.Detail;
             $modalService.create({
                 templateUrl: "view-log.html",
@@ -504,7 +495,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.snapshotService = function(service) {
-        resourcesService.snapshot_service(service.ID, function(label) {
+        resourcesFactory.snapshot_service(service.ID, function(label) {
             console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
             // TODO: add the snapshot label to some partial view in the UI
         });
@@ -513,7 +504,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     $scope.validateService = function() {
       // TODO: Validate name and startup command
-      var svc = $scope.services.current,
+      var svc = $scope.services.current.service,
           max = svc.InstanceLimits.Max,
           min = svc.InstanceLimits.Min,
           num = svc.Instances;
@@ -522,7 +513,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         if (min > 0) {
           msg += $translate.instant("minimum") + " " + min;
           if (max > 0) {
-            msg += ", "
+            msg += ", ";
           }
         }
         if (max > 0) {
@@ -536,12 +527,12 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     $scope.updateService = function() {
         if ($scope.validateService()) {
-            var serviceId = $scope.services.current.ID;
+            var serviceId = $scope.services.current.service.ID;
 
-            return resourcesService.update_service($scope.services.current.ID, $scope.services.current)
+            return resourcesFactory.update_service($scope.services.current.service.ID, $scope.services.current.service)
                 .success(function(data, status){
                     $notification.create("Updated service", serviceId).success();
-                    refreshServices($scope, resourcesService, false);
+                    servicesFactory.update();
                 })
                 .error(function(data, status){
                     $notification.create("Update service failed", data.Detail).error();
@@ -549,69 +540,60 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         }
     };
 
-    // Update the running instances so it is reflected when we save the changes
-    function updateRunning() {
-        if ($scope.params.serviceId) {
-            refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
-                wait.running = true;
-                mashHostsToInstances();
-            });
-        }
-    }
+    $scope.update = function(){
+        if($scope.services.current){
+            $scope.services.subservices = servicesFactory.getService($scope.params.serviceId).aggregateDescendents();
+            $scope.vhosts.data = servicesFactory.getService($scope.params.serviceId).aggregateVHosts();
+            $scope.ips.data = servicesFactory.getService($scope.params.serviceId).aggregateAddressAssignments();
+            
+            // update instances
+            $scope.services.current.getInstances();
 
-    // Get a list of deployed apps
-    refreshServices($scope, resourcesService, true, function() {
-        if ($scope.services.current) {
-            var lineage = getServiceLineage($scope.services.mapped, $scope.services.current);
-            for (var i=0; i < lineage.length; i++) {
-                var crumb = {
-                    label: lineage[i].Name
-                };
-                if (i == lineage.length - 1) {
-                    crumb.itemClass = 'active';
-                } else {
-                    crumb.url = '#/services/' + lineage[i].ID;
-                }
-                $scope.breadcrumbs.push(crumb);
-            }
+            // setup breadcrumbs
+            $scope.breadcrumbs = makeCrumbs($scope.services.current);
         }
 
-        loadSubServiceHosts();
-        $serviceHealth.update();
-    });
+        $serviceHealth.update(servicesFactory.serviceMap);
 
-    var wait = { hosts: false, running: false };
-    var mashHostsToInstances = function() {
-        if (!wait.hosts || !wait.running) return;
-
-        for (var i=0; i < $scope.running.data.length; i++) {
-            var instance = $scope.running.data[i];
-            instance.hostName = $scope.hosts.mapped[instance.HostID].Name;
-        }
     };
 
-    refreshHosts($scope, resourcesService, true, function() {
-        wait.hosts = true;
-        mashHostsToInstances();
+    // kick off service stuff and magic and everything
+    // NOTE THIS IS THE ENTRY POINT FOR THIS SERVICE!
+    servicesFactory.init().then(function(){
+        // setup initial state
+        $scope.services = {
+            data: servicesFactory.serviceTree,
+            mapped: servicesFactory.serviceMap,
+            current: servicesFactory.getService($scope.params.serviceId)
+        };
+
+        // kick off first update
+        $scope.update();
+
+        // if the current service changes, update
+        // various service controller thingies
+        $scope.$watch(function(){
+            return servicesFactory.getService($scope.params.serviceId).isDirty();
+        }, $scope.update);
     });
 
-    refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
-        wait.running = true;
-        mashHostsToInstances();
-    });
+    refreshHosts($scope, resourcesFactory, true, function(){});
+
+    // keep running instances updated
+    resourcesFactory.registerPoll("runningForCurrent", function(){
+        if($scope.services.current){
+            $scope.services.current.getInstances();
+        }
+    }, 3000);
+
 
     $scope.killRunning = function(app) {
-        resourcesService.kill_running(app.HostID, app.ID, function() {
-            refreshRunningForService($scope, resourcesService, $scope.params.serviceId, function() {
-                wait.running = true;
-                mashHostsToInstances();
-            });
-        });
+        resourcesFactory.kill_running(app.HostID, app.ID, function(){});
     };
 
     // restart all running instances for this service
     $scope.killRunningInstances = function(app){
-        resourcesService.restart_service(app.ID, angular.noop);
+        resourcesFactory.restart_service(app.ID, angular.noop);
     };
 
     $scope.startTerminal = function(app) {
@@ -630,51 +612,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         };
     };
 
-    if ($scope.dev) {
-        setupNewService();
-        $scope.add_service = function() {
-            resourcesService.add_service($scope.newService, function() {
-                refreshServices($scope, resourcesService, false);
-                setupNewService();
-            });
-        };
-        $scope.showAddService = function() {
-            $modalService.create({
-                templateUrl: "add-service.html",
-                model: $scope,
-                title: "add_service",
-                actions: [
-                    {
-                        role: "cancel"
-                    },{
-                        role: "ok",
-                        label: "add_service",
-                        action: function(){
-                            if(this.validate()){
-                                $scope.add_service();
-                                // NOTE: should wait for success before closing
-                                this.close();
-                            }
-                        }
-                    }
-                ]
-            });
-        };
-        $scope.deleteService = function() {
-            var parent = $scope.services.current.ParentServiceID;
-            console.log('Parent: %s, Length: %d', parent, parent.length);
-            resourcesService.remove_service($scope.params.serviceId, function() {
-                refreshServices($scope, resourcesService, false, function() {
-                    if (parent && parent.length > 0) {
-                        $location.path('/services/' + parent);
-                    } else {
-                        $location.path('/apps');
-                    }
-                });
-            });
-        };
-    }
-
     $scope.canChangeInstanceCount = function(min, max){
         // if min and max are both undefined,
         // this field should not be disabled
@@ -690,40 +627,18 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
 
     $scope.$on("$destroy", function(){
-        resourcesService.unregisterAllPolls();
+        resourcesFactory.unregisterAllPolls();
     });
 
-    function loadSubServiceHosts(){
-        // to pull host data for running services, we need to make seperate "running" requests for each subservice
-        // and add the host data to the subservice. We do this synchronously using promises here.
-
-        var runningServiceDeferred = $q.defer();
-        var runningServicePromise = runningServiceDeferred.promise;
-        var ctr = 0;
-        for(idx in $scope.services.subservices){
-            (function(ctr){
-                runningServicePromise.then(function(){
-                    var deferred = $q.defer();
-                    resourcesService.get_running_services_for_service($scope.services.subservices[ctr].ID, function(runningServices) {
-                        $scope.services.subservices[ctr].runningHosts = [];
-
-                        for (var i in runningServices) {
-                            var instance = runningServices[i];
-                            $scope.services.subservices[ctr].runningHosts.push({"ID": instance.HostID, "HostName": $scope.hosts.mapped[instance.HostID].Name});
-                        }
-
-                        deferred.resolve();
-                    });
-                });
-            }(idx));
+    $scope.getHostName = function(id){
+        if($scope.hosts.mapped && $scope.hosts.mapped[id]){
+            return $scope.hosts.mapped[id].Name;
+        } else {
+            // TODO - if unknown host, dont make linkable
+            // and use custom css to show unknown
+            return "unknown";
         }
-
-        runningServiceDeferred.resolve();
-
-
-        resourcesService.registerPoll("serviceHealth", $serviceHealth.update, 3000);
-        resourcesService.registerPoll("running", updateRunning, 3000);
-    }
+    };
 
     $scope.toggleChildren = function($event, app){
         var $e = $($event.target);
@@ -735,10 +650,18 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         return angular.equals({}, obj);
     };
 
+    $scope.isIsvc = function(service){
+        return service.type === "isvc";
+    };
+
+    $scope.hasCurrentInstances = function(){
+        return $scope.services && $scope.services.current && $scope.services.current.hasInstances();
+    };
+
     $scope.editCurrentService = function(){
 
         // clone service for editing
-        $scope.editableService = $.extend({}, $scope.services.current);
+        $scope.editableService = $.extend({}, $scope.services.current.service);
         
         $modalService.create({
             templateUrl: "edit-service.html",
@@ -757,10 +680,10 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                             var enableSubmit = this.disableSubmitButton();
 
                             // update service with recently edited service
-                            resourcesService.update_service($scope.editableService.ID, $scope.editableService)
+                            resourcesFactory.update_service($scope.editableService.ID, $scope.editableService)
                                 .success(function(data, status){
                                     $notification.create("Updated service", $scope.editableService.ID).success();
-                                    refreshServices($scope, resourcesService, false);
+                                    servicesFactory.update();
                                     this.editableService = {};
                                     this.close();
                                 }.bind(this))
@@ -782,40 +705,66 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         });
     };
 
-    function hideChildren(app){
-        if(app.children){
-            for(var i=0; i<app.children.length; ++i){
-                var child = app.children[i];
-                $("tr[data-id='" + child.ID + "'] td").hide();
-                if(child.children !== undefined){
-                    hideChildren(child);
-                }
-            }
+    // TODO - clean up magic numbers
+    $scope.calculateIndent = function(service){
+        var indent = service.depth,
+            offset = 1;
+
+        if($scope.services.current && $scope.services.current.parent){
+            offset = $scope.services.current.parent.depth + 2;
         }
 
+        return $scope.indent(indent - offset);
+    };
+
+    function hideChildren(app){
+        app.children.forEach(function(child){
+            $("tr[data-id='" + child.id + "'] td").hide();
+            hideChildren(child);
+        });
+
         //update icons
-        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon-chevron-down");
+        $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-down");
         $e.removeClass("glyphicon-chevron-down");
         $e.addClass("glyphicon-chevron-right");
     }
 
     function showChildren(app){
-        if(app.children){
-            for(var i=0; i<app.children.length; ++i){
-                var child = app.children[i];
-                $("tr[data-id='" + child.ID + "'] td").show();
-                if(child.children !== undefined){
-                    showChildren(child);
-                }
-            }
-        }
+        app.children.forEach(function(child){
+            $("tr[data-id='" + child.id + "'] td").show();
+            showChildren(child);
+        });
 
         //update icons
-        $e = $("tr[data-id='"+app.ID+"'] td .glyphicon-chevron-right");
+        $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-right");
         $e.removeClass("glyphicon-chevron-right");
         $e.addClass("glyphicon-chevron-down");
     }
-    
+
     // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, false);
+    refreshPools($scope, resourcesFactory, false);
+
+    function makeCrumbs(current){
+        var crumbs = [{
+            label: current.name,
+            itemClass: "active"
+        }];
+
+        (function recurse(service){
+            if(service){
+                crumbs.unshift({
+                    label: service.name,
+                    url: "#/services/"+ service.id
+                });
+                recurse(service.parent);
+            }
+        })(current.parent);
+
+        crumbs.unshift({
+            label: "Applications",
+            url: "#/apps"
+        });
+
+        return crumbs;
+    }
 }

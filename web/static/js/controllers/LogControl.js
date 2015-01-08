@@ -1,4 +1,4 @@
-function LogControl($scope, authService, resourcesService) {
+function LogControl($scope, authService) {
     authService.checkLogin($scope);
     $scope.breadcrumbs = [
         { label: 'breadcrumb_logs', itemClass: 'active' }
