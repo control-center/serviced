@@ -525,6 +525,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	err := client.GetTenantId(svc.ID, &tenantID)
 	if err != nil {
 		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
+		return nil, nil, err
 	}
 
 	// get the system user
@@ -533,6 +534,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	err = client.GetSystemUser(unused, &systemUser)
 	if err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
+		return nil, nil, err
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
