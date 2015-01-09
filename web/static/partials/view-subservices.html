@@ -5,7 +5,7 @@
         <div class="serviceControls" sticky sticky-class="stickied">
 
             <h2 class="serviceTitle">
-                <div ng-if="services.current.children === undefined || services.current.service.Startup" class="healthCheck" data-id="{{services.current.service.ID}}" style="display: inline-block; font-size: .6em;"></div>
+                <health-icon ng-if="services.current.children.length || services.current.service.Startup" data-status="services.current.status" style="display: inline-block; font-size: 0.6em;"></health-icon>
                 {{services.current.service.Name}}
                 <span class="version" ng-show="services.current.service.Version"> (v{{services.current.service.Version}})</span>
             </h2>
@@ -161,7 +161,7 @@
           </td>
           <td style="text-align:center;">
             <div ng-if="!app.children.length">
-              <div class="healthCheck" data-id="{{app.service.ID}}"></div>
+                <health-icon data-status="app.status"></health-icon>
             </div>
           </td>
           <td>
@@ -207,7 +207,7 @@
         <td>{{app.InstanceID}}</td>
         <td>{{app.Name}}</td>
         <td style="text-align:center;">
-          <div class="healthCheck" data-id="{{app.ServiceID}}.{{app.InstanceID}}"></div>
+          <health-icon data-status="app.status" data-status="app.status"></health-icon>
         </td>
         <td ng-click="click_host(app.HostID)" class="link">{{getHostName(app.HostID)}}</td>
         <td>{{app.DockerID}}</td>

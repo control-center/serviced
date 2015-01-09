@@ -47,18 +47,21 @@
           <td ng-click="click_app(app.id)" class="link">{{app.name}}<span class="version" ng-show="app.service.Version"> (v{{app.service.Version}})</span></td>
           <td>{{app.service.Description}}</td>
           <td style="text-align:center;">
-              <div class="healthCheck" data-id="{{app.id}}"></div>
+              <health-icon data-status="app.status"></health-icon>
           </td>
           <td>{{app.service.DeploymentID}}</td>
+
           <td ng-click="click_pool(app.service.PoolID)" ng-if="!app.isIsvc()" class="link">{{app.service.PoolID|cut:true:30}}</td>
           <td ng-if="app.isIsvc()" class="ntsh">N/A</td>
+
           <td ng-if="!app.isIsvc()">
               <span ng-repeat="vhost in collect_vhosts(app) track by $index">
                   <a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a>
               </span>
           </td>
-          <td ng-if="app.isIsvc" class="ntsh">N/A</td>
-              <td ng-if="!app.isIsvc()">
+          <td ng-if="app.isIsvc()" class="ntsh">N/A</td>
+
+          <td ng-if="!app.isIsvc()">
             <div>
               <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
               <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>

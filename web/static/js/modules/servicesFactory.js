@@ -10,20 +10,22 @@
     // service dictionary keyed by id
         serviceMap = {},
         // make angular share with everybody!
-        resourcesFactory, $q;
+        resourcesFactory, $q, serviceHealth;
 
     var UPDATE_FREQUENCY = 3000;
 
     angular.module('servicesFactory', []).
     factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth",
-    function($rootScope, q, _resourcesFactory, $interval, serviceHealth){
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
+        serviceHealth = _serviceHealth;
         $q = q;
         init();
 
         // public interface for servicesFactory
+        // TODO - evaluate what should be exposed
         return {
             // returns a service by id
             getService: function(id){
@@ -38,6 +40,7 @@
             serviceTree: serviceTree,
             serviceMap: serviceMap,
             init: init,
+            updateHealth: updateHealth,
             // get by name
             get: function(name){
                 for(var id in serviceMap){
@@ -75,12 +78,15 @@
                             }
 
                             // TODO - deleted serviced
+
                         });
+
+                        // HACK - services should update themselves?
+                        updateHealth();
 
                         deferred.resolve();
                     });
-                // HACK - services should update themselves
-                serviceHealth.update(serviceMap);
+                
             });
 
             return deferred.promise;
@@ -110,6 +116,8 @@
                             service = serviceMap[serviceId];
                             addServiceToTree(service);
                         }
+
+                        updateHealth();
                   });
                 setInterval(update, UPDATE_FREQUENCY);
             }
@@ -147,6 +155,33 @@
                     service.depth = service.parent.depth + 1;
                     service.children.forEach(recurse);
                 });
+            });
+        }
+
+        // HACK - individual services should update
+        // their own health
+        // TODO - debounce this guy
+        function updateHealth(){
+            serviceHealth.update(serviceMap).then(function(statuses){
+                var ids, instance;
+
+                for(var id in statuses){
+                    // attach status to associated service
+                    if(serviceMap[id]){
+                        serviceMap[id].status = statuses[id]; 
+
+                    // this may be a service instance
+                    } else if(~id.indexOf(".")){
+                        ids = id.split(".");
+                        if(serviceMap[ids[0]]){
+                            instance = serviceMap[ids[0]].instances.filter(function(instance){
+                                // ids[1] will be a string, and InstanceID is a number
+                                return instance.InstanceID === +ids[1]; 
+                            });
+                            if(instance.length) instance[0].status = statuses[id];
+                        }
+                    }
+                }
             });
         }
 
@@ -205,7 +240,11 @@
                 this.updateServiceDef(service);
             }
 
-            // TODO - update service health
+            // update service health
+            // TODO - should service update itself, its controller
+            // update the service, or serviceHealth update all services?
+            this.status = serviceHealth.get(this.id);
+
             this.evaluateServiceType();
 
             // invalidate caches

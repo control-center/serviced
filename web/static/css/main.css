@@ -1233,7 +1233,8 @@ rect {
 }
 
 
-.healthCheck {
+health-icon {
+    display: block;
     position: relative;
     margin-left: 4px;
     width: 24px;
@@ -1241,10 +1242,10 @@ rect {
     overflow: hidden;
     cursor: default;
 }
-.healthCheck.wide {
+health-icon.wide {
     width: 75px;
 }
-.healthCheck.zoom {
+health-icon.zoom {
     animation: zoom .3s;
     -webkit-animation: zoom .3s;
     -moz-animation: zoom .3s;
@@ -1266,7 +1267,7 @@ rect {
     100% { transform: scale(1, 1);  }
 }
 
-.healthCheck {
+health-icon {
     transition: width .35s;
 }
 
@@ -1306,7 +1307,7 @@ rect {
 }
 
 
-h3 .healthCheck {
+h3 health-icon {
     top: 2px;
     width: 24px !important;
 }
