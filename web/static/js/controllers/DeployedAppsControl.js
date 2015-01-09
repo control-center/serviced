@@ -1,4 +1,4 @@
-function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesFactory, $serviceHealth, authService, $modalService, $translate, $timeout, $cookies, servicesFactory){
+function DeployedAppsControl($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -118,9 +118,9 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.collect_vhosts = function(app) {
         var vhosts = [];
 
-        if (app.Endpoints) {
-            for (var i in app.Endpoints) {
-                var endpoint = app.Endpoints[i];
+        if (app.service.Endpoints) {
+            for (var i in app.service.Endpoints) {
+                var endpoint = app.service.Endpoints[i];
                 if (endpoint.VHosts) {
                     for ( var j in endpoint.VHosts) {
                         vhosts.push( endpoint.VHosts[j] );
@@ -137,11 +137,10 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
     $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
         var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
-        return location.protocol + "//" + host + port
+        return location.protocol + "//" + host + port;
     };
 
     $scope.clickRemoveService = function(app) {
-        $scope.appToRemove = app;
         $modalService.create({
             template: $translate.instant("warning_remove_service"),
             model: $scope,
@@ -155,7 +154,7 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                     classes: "btn-danger",
                     action: function(){
                         if(this.validate()){
-                            $scope.remove_service();
+                            $scope.remove_service(app);
                             this.close();
                         }
                     }
@@ -164,24 +163,19 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
         });
     };
 
-    $scope.remove_service = function() {
-        if (!$scope.appToRemove) {
-            console.log('No selected service to remove');
-            return;
-        }
-        var id = $scope.appToRemove.ID;
-        resourcesFactory.remove_service(id, function() {
-            delete $scope.appToRemove;
-            var i = 0, newServices = [];
-
-            // build up a new services array containing all the services
-            // except the one we just deleted
-            for (i=0;i<$scope.services.data.length;i++) {
-                if ($scope.services.data[i].ID != id) {
-                    newServices.push($scope.services.data[i]);
+    $scope.remove_service = function(service) {
+        resourcesFactory.remove_service(service.id, function(){
+            // TODO - once the backend updates deleted
+            // services, this should be removed
+            // HACK - should not modify servicesFactory's
+            // objects!
+            for(var i = 0; i < $scope.services.data.length; i++){
+                // find the removed service and remove it
+                if($scope.services.data[i].id === service.id){
+                    $scope.services.data.splice(i, 1);
+                    return;
                 }
             }
-            $scope.services.data = newServices;
         });
     };
 
@@ -206,29 +200,6 @@ function DeployedAppsControl($scope, $routeParams, $location, $notification, res
                 }
             ]
         });
-    };
-
-    var setupNewService = function() {
-        $scope.newService = {
-            poolID: 'default',
-            ParentServiceID: '',
-            DesiredState: 1,
-            Launch: 'auto',
-            Instances: 1,
-            Description: '',
-            ImageID: ''
-        };
-    };
-    $scope.click_secondary = function(navlink) {
-        if (navlink.path) {
-            $location.path(navlink.path);
-        }
-        else if (navlink.modal) {
-            $(navlink.modal).modal('show');
-        }
-        else {
-            console.log('Unexpected navlink: %s', JSON.stringify(navlink));
-        }
     };
 
     $scope.deleteTemplate = function(templateID){

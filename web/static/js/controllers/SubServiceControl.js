@@ -1,4 +1,4 @@
-function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory, authService, $serviceHealth, $modalService, $translate, $notification, $timeout, servicesFactory){
+function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory){
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
@@ -241,7 +241,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory
 
     $scope.clickRunning = function(app, status){
         app[status]();
-        $serviceHealth.update(servicesFactory.serviceMap);
+        servicesFactory.updateHealth();
     };
 
     function capitalizeFirst(str){
@@ -553,8 +553,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory
             $scope.breadcrumbs = makeCrumbs($scope.services.current);
         }
 
-        $serviceHealth.update(servicesFactory.serviceMap);
-
+        servicesFactory.updateHealth();
     };
 
     // kick off service stuff and magic and everything
