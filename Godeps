@@ -132,6 +132,10 @@
 		{
 			"ImportPath": "gopkg.in/check.v1",
 			"Rev": "871360013c92e1c715c2de6d06b54899468a8a2d"
+		},
+		{
+			"ImportPath": "github.com/stretchr/testify",
+			"Rev": "2eaa4b48b8954bf871229043b8064ca156a542a5"
 		}
 	]
 }
