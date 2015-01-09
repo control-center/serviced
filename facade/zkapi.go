@@ -90,10 +90,14 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 		return err
 	}
 
+	// Ensure that the service's pool is locked for the duration
+	finish := make(chan interface{})
+	defer close(finish)
+	if err := zkservice.EnsureServiceLock(nil, finish, conn); err != nil {
+		return err
+	}
+
 	// FIXME: this may be a long-running operation, should we institute a timeout?
-	mutex := zkservice.ServiceLock(conn)
-	mutex.Lock()
-	defer mutex.Unlock()
 	return zkservice.RemoveService(conn, service.ID)
 }
 
@@ -177,17 +181,18 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 		return err
 	}
 
-	// FIXME: this may be a long-running operation, should we institute a timeout?
-	mutex := zkservice.ServiceLock(conn)
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	cancel := make(chan interface{})
 	go func() {
 		defer close(cancel)
 		<-time.After(2 * time.Minute)
 	}()
 
+	// Ensure that the service's pool is locked for the duration
+	finish := make(chan interface{})
+	defer close(finish)
+	if err := zkservice.EnsureServiceLock(cancel, finish, conn); err != nil {
+		return err
+	}
 	return zkhost.RemoveHost(cancel, conn, host.ID)
 }
 

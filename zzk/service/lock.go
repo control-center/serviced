@@ -101,3 +101,44 @@ func IsServiceLocked(conn client.Connection) (bool, error) {
 	}
 	return len(locks) > 0, err
 }
+
+// WatchServiceLock waits for a service lock to be enabled/disabled
+func WaitServiceLock(shutdown <-chan interface{}, conn client.Connection, enabled bool) error {
+	for {
+		// make sure the parent exists
+		if err := zzk.Ready(shutdown, conn, zkServiceLock); err != nil {
+			return err
+		}
+
+		// check if the lock is enabled
+		nodes, event, err := conn.ChildrenW(zkServiceLock)
+		if err != nil {
+			return err
+		}
+
+		// check that the states match
+		if locked := len(nodes) > 0; locked == enabled {
+			return nil
+		}
+
+		// wait to reach the desired state or shutdown
+		select {
+		case <-event:
+			// pass
+		case <-shutdown:
+			return zzk.ErrTimeout
+		}
+	}
+}
+
+// Attempt to acquire a service lock, ensuring that it is held until the finish channel is closed.
+// Function blocks until the lock is held by someone (not necessarily by us).
+func EnsureServiceLock(cancel, finish <-chan interface{}, conn client.Connection) error {
+	go func() {
+		lock := ServiceLock(conn)
+		lock.Lock()
+		<-finish
+		lock.Unlock()
+	}()
+	return WaitServiceLock(cancel, conn, true)
+}
