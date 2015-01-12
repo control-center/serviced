@@ -79,7 +79,7 @@
     "minimum": "minimo",
     "maximum": "maximo",
 
-    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco. No podrá arrancar o desplegar ningún servicio durante la restauración.",
+    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco. No podrá arrancar o desplegar ningún servicio durante el proceso de copia de seguridad.",
     "confirm_start_restore": "El proceso de restauraci\u00f3n no se puede revertir.",
     "confirm_start_app": "Esto iniciar\u00e1 todos los servicios hijos.",
     "confirm_stop_app": "Esto detendr\u00e1 todos los servicios hijos.",
