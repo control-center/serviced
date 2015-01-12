@@ -66,15 +66,28 @@
                         // TODO - change backend to send
                         // updated, created, and deleted
                         // separately from each other
-                        data.forEach(function(service){
+                        data.forEach(function(serviceDef){
+                            var currentParent, service;
+
                             // update
-                            if(serviceMap[service.ID]){
-                                serviceMap[service.ID].update(service);
-                            
+                            if(serviceMap[serviceDef.ID]){
+                                service = serviceMap[serviceDef.ID];
+                                currentParent = service.parent;
+
+                                // if the service parent has changed,
+                                // update its tree stuff (parent, depth, etc)
+                                if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
+                                    serviceMap[serviceDef.ID].update(serviceDef);
+                                    addServiceToTree(service);
+                                // otherwise, just update the service
+                                } else {
+                                    serviceMap[serviceDef.ID].update(serviceDef);
+                                }
+
                             // new
                             } else {
-                                serviceMap[service.ID] = new Service(service);
-                                addServiceToTree(serviceMap[service.ID]);
+                                serviceMap[serviceDef.ID] = new Service(serviceDef);
+                                addServiceToTree(serviceMap[serviceDef.ID]);
                             }
 
                             // TODO - deleted serviced
@@ -291,17 +304,23 @@
         },
 
         addChild: function(service){
-            // TODO - check for duplicates?
-            this.children.push(service);
+            // if this service is not already in the list
+            if(this.children.indexOf(service) === -1){
+                this.children.push(service);
 
-            // alpha sort children
-            this.children.sort(sortServicesByName);
+                // alpha sort children
+                this.children.sort(sortServicesByName);
 
-            this.update();
+                this.update();
+            }
         },
 
         removeChild: function(service){
-            // TODO - remove child
+            var childIndex = this.children.indexOf(service);
+
+            if(childIndex !== -1){
+                this.children.splice(childIndex, 1);
+            }
             this.update();
         },
 
@@ -325,125 +344,6 @@
         restart: function(skipChildren){
             resourcesFactory.restart_service(this.id, function(){}, skipChildren);
             this.desiredState = RESTART;
-        },
-
-        // returns a list of VHosts for
-        // service and all children, and
-        // caches the list
-        aggregateVHosts: function(){
-            var hosts = this.cache.getIfClean("vhosts");
-
-            // if valid cache, early return it
-            if(hosts){
-                return hosts;
-            }
-
-            // otherwise, get some data
-            var services = this.aggregateDescendents().slice();
-
-            // we also want to see the Endpoints for this
-            // service, so add it to the list
-            services.push(this);
-
-            // iterate services
-            hosts = services.reduce(function(acc, service){
-
-                var result = [];
-
-                // if Endpoints, iterate Endpoints
-                if(service.service.Endpoints){
-                    result = service.service.Endpoints.reduce(function(acc, endpoint){
-                        // if VHosts, iterate VHosts
-                        if(endpoint.VHosts){
-                            endpoint.VHosts.forEach(function(VHost){
-                                acc.push({
-                                    Name: VHost,
-                                    Application: service.name,
-                                    ServiceEndpoint: endpoint.Application,
-                                    ApplicationId: service.id,
-                                    Value: service.name +" - "+ endpoint.Application
-                                });
-                            });
-                        }
-
-                        return acc;
-                    }, []);
-                }
-
-                return acc.concat(result);
-            }, []);
-
-            this.cache.cache("vhosts", hosts);
-            return hosts;
-        },
-
-        // returns a list of address assignments
-        // for service and all children, and
-        // caches the list
-        aggregateAddressAssignments: function(){
-
-            var addresses = this.cache.getIfClean("addresses");
-
-            // if valid cache, early return it
-            if(addresses){
-                return addresses;
-            }
-
-            // otherwise, get some new data
-            var services = this.aggregateDescendents().slice();
-
-            // we also want to see the Endpoints for this
-            // service, so add it to the list
-            services.push(this);
-
-            // iterate services
-            addresses = services.reduce(function(acc, service){
-
-                var result = [];
-
-                // if Endpoints, iterate Endpoints
-                if(service.service.Endpoints){
-                    result = service.service.Endpoints.reduce(function(acc, endpoint){
-                        if (endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol) {
-                            acc.push({
-                                ID: endpoint.AddressAssignment.ID,
-                                AssignmentType: endpoint.AddressAssignment.AssignmentType,
-                                EndpointName: endpoint.AddressAssignment.EndpointName,
-                                HostID: endpoint.AddressAssignment.HostID,
-                                PoolID: endpoint.AddressAssignment.PoolID,
-                                IPAddr: endpoint.AddressAssignment.IPAddr,
-                                Port: endpoint.AddressConfig.Port,
-                                ServiceID: service.id,
-                                ServiceName: service.name
-                            });
-                        }
-                        return acc;
-                    }, []);
-                }
-
-                return acc.concat(result);
-            }, []);
-
-            this.cache.cache("addresses", addresses);
-            return addresses;
-        },
-
-        // returns a flat map of all descendents
-        // of this service
-        aggregateDescendents: function(){
-            var descendents = this.cache.getIfClean("descendents");
-
-            if(descendents){
-                return descendents;
-            } else {
-                descendents = this.children.reduce(function(acc, child){
-                    acc.push(child);
-                    return acc.concat(child.aggregateDescendents());
-                }, []);
-
-                this.cache.cache("descendents", descendents);
-                return descendents;
-            }
         },
 
         // returns a promise good for a list
@@ -484,6 +384,125 @@
             return !!this.instances.length;
         }
     };
+
+    Object.defineProperty(Service.prototype, "descendents", {
+        get: function(){
+            var descendents = this.cache.getIfClean("descendents");
+
+            if(descendents){
+                return descendents;
+            }
+
+            descendents = this.children.reduce(function(acc, child){
+                acc.push(child);
+                return acc.concat(child.descendents);
+            }, []);
+
+            Object.freeze(descendents);
+            this.cache.cache("descendents", descendents);
+            return descendents;
+        }
+    });
+
+    Object.defineProperty(Service.prototype, "addresses", {
+        get: function(){
+            var addresses = this.cache.getIfClean("addresses");
+
+            // if valid cache, early return it
+            if(addresses){
+                return addresses;
+            }
+
+            // otherwise, get some new data
+            var services = this.descendents.slice();
+
+            // we also want to see the Endpoints for this
+            // service, so add it to the list
+            services.push(this);
+
+            // iterate services
+            addresses = services.reduce(function(acc, service){
+
+                var result = [];
+
+                // if Endpoints, iterate Endpoints
+                if(service.service.Endpoints){
+                    result = service.service.Endpoints.reduce(function(acc, endpoint){
+                        if (endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol) {
+                            acc.push({
+                                ID: endpoint.AddressAssignment.ID,
+                                AssignmentType: endpoint.AddressAssignment.AssignmentType,
+                                EndpointName: endpoint.AddressAssignment.EndpointName,
+                                HostID: endpoint.AddressAssignment.HostID,
+                                PoolID: endpoint.AddressAssignment.PoolID,
+                                IPAddr: endpoint.AddressAssignment.IPAddr,
+                                Port: endpoint.AddressConfig.Port,
+                                ServiceID: service.id,
+                                ServiceName: service.name
+                            });
+                        }
+                        return acc;
+                    }, []);
+                }
+
+                return acc.concat(result);
+            }, []);
+
+            Object.freeze(addresses);
+            this.cache.cache("addresses", addresses);
+            return addresses;
+        }
+    });
+
+    Object.defineProperty(Service.prototype, "hosts", {
+        get: function(){
+            var hosts = this.cache.getIfClean("vhosts");
+
+            // if valid cache, early return it
+            if(hosts){
+                return hosts;
+            }
+
+            // otherwise, get some data
+            var services = this.descendents.slice();
+
+            // we also want to see the Endpoints for this
+            // service, so add it to the list
+            services.push(this);
+
+            // iterate services
+            hosts = services.reduce(function(acc, service){
+
+                var result = [];
+
+                // if Endpoints, iterate Endpoints
+                if(service.service.Endpoints){
+                    result = service.service.Endpoints.reduce(function(acc, endpoint){
+                        // if VHosts, iterate VHosts
+                        if(endpoint.VHosts){
+                            endpoint.VHosts.forEach(function(VHost){
+                                acc.push({
+                                    Name: VHost,
+                                    Application: service.name,
+                                    ServiceEndpoint: endpoint.Application,
+                                    ApplicationId: service.id,
+                                    Value: service.name +" - "+ endpoint.Application
+                                });
+                            });
+                        }
+
+                        return acc;
+                    }, []);
+                }
+
+                return acc.concat(result);
+            }, []);
+
+            Object.freeze(hosts);
+            this.cache.cache("vhosts", hosts);
+            return hosts;
+        }
+    });
 
 
     // merge arrays of objects. Merges array b into array
