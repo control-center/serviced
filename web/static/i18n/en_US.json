@@ -97,7 +97,7 @@
     "minimum": "minimum",
     "maximum": "maximum",
 
-    "confirm_start_backup": "The backup process may take a while.",
+    "confirm_start_backup": "The backup process may take a while. You will <b>not</b> be able to start or deploy new services during backup.",
     "confirm_start_restore": "The restore process cannot be reversed.",
     "confirm_start_app": "This will start all child services.",
     "confirm_stop_app": "This will stop all child services.",
