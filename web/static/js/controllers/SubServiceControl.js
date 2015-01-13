@@ -542,9 +542,9 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory
 
     $scope.update = function(){
         if($scope.services.current){
-            $scope.services.subservices = servicesFactory.getService($scope.params.serviceId).aggregateDescendents();
-            $scope.vhosts.data = servicesFactory.getService($scope.params.serviceId).aggregateVHosts();
-            $scope.ips.data = servicesFactory.getService($scope.params.serviceId).aggregateAddressAssignments();
+            $scope.services.subservices = $scope.services.current.descendents;
+            $scope.vhosts.data = $scope.services.current.hosts;
+            $scope.ips.data = $scope.services.current.addresses;
             
             // update instances
             $scope.services.current.getInstances();
@@ -572,7 +572,13 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory
         // if the current service changes, update
         // various service controller thingies
         $scope.$watch(function(){
-            return servicesFactory.getService($scope.params.serviceId).isDirty();
+            if($scope.services && $scope.services.current){
+                return $scope.services.current.isDirty();
+            } else {
+                // there is no current service
+                console.warn("current service not yet available");
+                return undefined;
+            }
         }, $scope.update);
     });
 
@@ -597,31 +603,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesFactory
 
     $scope.startTerminal = function(app) {
         window.open("http://" + window.location.hostname + ":50000");
-    };
-
-    var setupNewService = function() {
-        $scope.newService = {
-            poolID: 'default',
-            ParentServiceID: $scope.params.serviceId,
-            DesiredState: 1,
-            Launch: 'auto',
-            Instances: 1,
-            Description: '',
-            ImageID: ''
-        };
-    };
-
-    $scope.canChangeInstanceCount = function(min, max){
-        // if min and max are both undefined,
-        // this field should not be disabled
-        if(min === undefined && max === undefined){
-            return false;
-
-        // if min and max are equal, this field
-        // should be disabled
-        } else {
-            return min === max;
-        }
     };
 
 
