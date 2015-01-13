@@ -3,7 +3,8 @@
 (function() {
     'use strict';
 
-    angular.module('ui.datetimepicker', []).directive('datetimepicker', function () {
+    angular.module('ui.datetimepicker', []).directive('datetimepicker', [
+    function () {
         return {
             restrict: 'A',
             require: 'ngModel',
@@ -24,7 +25,7 @@
                 }, 0);
             }
         };
-    });
+    }]);
 
 
 })();
