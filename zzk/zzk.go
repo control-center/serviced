@@ -133,15 +133,19 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 	for {
 		if err := Ready(shutdown, conn, path.Dir(p)); err != nil {
 			return err
-		} else if exists, err := PathExists(conn, p); err != nil {
-			return err
-		} else if exists {
-			return nil
 		}
+
 		_, event, err := conn.ChildrenW(path.Dir(p))
 		if err != nil {
 			return err
 		}
+
+		if exists, err := PathExists(conn, p); err != nil {
+			return err
+		} else if exists {
+			return nil
+		}
+
 		select {
 		case <-event:
 			// pass
