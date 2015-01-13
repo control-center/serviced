@@ -26,7 +26,7 @@ import (
 func TestLeader(t *testing.T) {
 
 	/* start the cluster */
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}
@@ -45,7 +45,7 @@ func TestLeader(t *testing.T) {
 	dsn := string(dsnBytes)
 
 	// create a connection
-	conn, err := drv.GetConnection(dsn, "/bossPath")
+	conn, err := drv.GetConnection(dsn, "/basePath")
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
 	}

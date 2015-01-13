@@ -70,6 +70,14 @@ func (c *Connection) NewLeader(path string, node client.Node) client.Leader {
 	}
 }
 
+// NewQueue returns a locking queue bound to the current connection.
+func (c *Connection) NewQueue(path string) client.Queue {
+	return &Queue{
+		c:    c,
+		path: join(c.basePath, path),
+	}
+}
+
 // Close the zk connection. Calling close() twice will result in a panic.
 func (c *Connection) Close() {
 	if c.conn != nil {
