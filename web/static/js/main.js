@@ -1,3 +1,6 @@
+/* global $: true, angular: true, moment: true */
+/* jshint unused: false */
+
 // Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -14,51 +17,44 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror', 'sticky', 'graphPanel', 'servicesFactory', 'healthIcon']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror', 'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'authService']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
         $routeProvider.
             when('/login', {
                 templateUrl: '/static/partials/login.html',
-                controller: LoginControl}).
+                controller: "LoginController"}).
             when('/logs', {
                 templateUrl: '/static/partials/logs.html',
-                controller: LogControl}).
+                controller: "LogController"}).
             when('/services/:serviceId', {
                 templateUrl: '/static/partials/view-subservices.html',
-                controller: SubServiceControl}).
+                controller: "ServiceDetailsController"}).
             when('/apps', {
                 templateUrl: '/static/partials/view-apps.html',
-                controller: DeployedAppsControl}).
+                controller: "AppsController"}).
             when('/hosts', {
                 templateUrl: '/static/partials/view-hosts.html',
-                controller: HostsControl}).
+                controller: "HostsController"}).
             when('/hostsmap', {
                 templateUrl: '/static/partials/view-host-map.html',
-                controller: HostsMapControl}).
+                controller: "HostsMapController"}).
             when('/servicesmap', {
                 templateUrl: '/static/partials/view-service-map.html',
-                controller: ServicesMapControl}).
+                controller: "ServicesMapController"}).
             when('/hosts/:hostId', {
                 templateUrl: '/static/partials/view-host-details.html',
-                controller: HostDetailsControl}).
-            when('/jobs', {
-                templateUrl: '/static/partials/celery-log.html',
-                controller: CeleryLogControl}).
+                controller: "HostDetailsController"}).
             when('/pools', {
                 templateUrl: '/static/partials/view-pools.html',
-                controller: PoolsControl}).
+                controller: "PoolsController"}).
             when('/pools/:poolID', {
                 templateUrl: '/static/partials/view-pool-details.html',
-                controller: PoolDetailsControl}).
-            when('/devmode', {
-                templateUrl: '/static/partials/view-devmode.html',
-                controller: DevControl
-            }).
+                controller: "PoolDetailsController"}).
             when('/backuprestore', {
                 templateUrl: '/static/partials/view-backuprestore.html',
-                controller: BackupRestoreControl
+                controller: "BackupRestoreController"
             }).
             otherwise({redirectTo: '/apps'});
     }]).
@@ -95,77 +91,6 @@ controlplane.
         $httpProvider.defaults.headers.get['Pragma'] = 'no-cache';
         $httpProvider.defaults.headers.get['If-Modified-Since'] = 'Mon, 26 Jul 1997 05:00:00 GMT';
     }]).
-    /**
-     * This is a fix for https://jira.zenoss.com/browse/ZEN-10263
-     * It makes sure that inputs that are filled in by autofill (like when the browser remembers the password)
-     * are updated in the $scope. See the partials/login.html for an example
-     **/
-    directive('formAutofillFix', function() {
-        return function(scope, elem, attrs) {
-            // Fixes Chrome bug: https://groups.google.com/forum/#!topic/angular/6NlucSskQjY
-            elem.prop('method', 'POST');
-
-            // Fix autofill issues where Angular doesn't know about autofilled inputs
-            if(attrs.ngSubmit) {
-                window.setTimeout(function() {
-                    elem.unbind('submit').submit(function(e) {
-                        e.preventDefault();
-                        elem.find('input, textarea, select').trigger('input').trigger('change').trigger('keydown');
-                        scope.$apply(attrs.ngSubmit);
-                    });
-                }, 0);
-            }
-        };
-    }).
-    directive('popover', function(){
-        return function(scope, elem, attrs){
-            $(elem).popover({
-                title: attrs.popoverTitle,
-                trigger: "hover",
-                html: true,
-                content: attrs.popover
-            });
-        };
-    }).
-    directive('scroll', function($rootScope, $window, $timeout) {
-        return {
-            link: function(scope, elem, attr) {
-                $window = angular.element($window);
-                var handler = function() {
-                    var winEdge, elEdge, dataHidden, scroll;
-                    winEdge = $window.height() + $window.scrollTop();
-                    elEdge = elem.offset().top + elem.height();
-                    dataHidden = elEdge - winEdge;
-                    if (dataHidden < parseInt(attr.scrollSize, 10)) {
-                        if ($rootScope.$$phase) {
-                            if (scope.$eval(attr.scroll)) {
-                                $timeout(handler, 100);
-                            }
-                        } else {
-                            if (scope.$apply(attr.scroll)) {
-                                $timeout(handler, 100);
-                            }
-                        }
-                    }
-                };
-                if (attr.scrollHandlerObj && attr.scrollHandlerField) {
-                    var obj = scope[attr.scrollHandlerObj];
-                    obj[attr.scrollHandlerField] = handler;
-                }
-                $window.on('scroll', handler);
-                $window.on('resize', handler);
-                scope.$on('$destroy', function() {
-                    $window.off('scroll', handler);
-                    $window.off('resize', handler);
-                    return true;
-                });
-                return $timeout((function() {
-                    return handler();
-                }), 100);
-            }
-        };
-    }).
-    factory('authService', AuthService).
     filter('treeFilter', function() {
         /*
          * @param items The array from ng-repeat
@@ -188,19 +113,25 @@ controlplane.
     }).
     filter('cut', function(){
         return function (value, wordwise, max, tail) {
-            if (!value) return '';
+            if (!value){
+                return '';
+            }
 
             max = parseInt(max, 10);
-            if (!max) return value;
-            if (value.length <= max) return value;
+            if (!max){
+                return value;
+            }
+            if (value.length <= max){
+                return value;
+            }
 
             value = value.substr(0, max);
             if (wordwise) {
-                            var lastspace = value.lastIndexOf(' ');
-                            if (lastspace != -1) {
-                                                value = value.substr(0, lastspace);
-                                            }
-                        }
+                var lastspace = value.lastIndexOf(' ');
+                if (lastspace !== -1) {
+                    value = value.substr(0, lastspace);
+                }
+            }
 
             return value + (tail || ' …');
         };
@@ -215,95 +146,19 @@ controlplane.
 // set verbosity of console.logs
 var DEBUG = false;
 
-function AuthService($cookies, $cookieStore, $location, $http, $notification) {
-    var loggedIn = false;
-    var userName = null;
-
-    var setLoggedIn = function(truth, username) {
-        loggedIn = truth;
-        userName = username;
-    };
-    return {
-
-        /*
-         * Called when we have positively determined that a user is or is not
-         * logged in.
-         *
-         * @param {boolean} truth Whether the user is logged in.
-         */
-        setLoggedIn: setLoggedIn,
-
-        login: function(creds, successCallback, failCallback){
-            $http.post('/login', creds).
-                success(function(data, status) {
-                    // Ensure that the auth service knows that we are logged in
-                    setLoggedIn(true, creds.Username);
-
-                    successCallback();
-                }).
-                error(function(data, status) {
-                    // Ensure that the auth service knows that the login failed
-                    setLoggedIn(false);
-
-                    failCallback();
-                });
-        },
-
-        logout: function(){
-            $http.delete('/login').
-                success(function(data, status) {
-                    // On successful logout, redirect to /login
-                    $location.path('/login');
-                }).
-                error(function(data, status) {
-                    // On failure to logout, note the error
-                    // TODO error screen
-                    console.error('Unable to log out. Were you logged in to begin with?');
-                });
-        },
-
-        /*
-         * Check whether the user appears to be logged in. Update path if not.
-         *
-         * @param {object} scope The 'loggedIn' property will be set if true
-         */
-        checkLogin: function($scope) {
-            $scope.dev = $cookieStore.get('ZDevMode');
-            if (loggedIn) {
-                $scope.loggedIn = true;
-                $scope.user = {
-                    username: $cookies.ZUsername
-                };
-                return;
-            }
-            if ($cookies.ZCPToken) {
-                loggedIn = true;
-                $scope.loggedIn = true;
-                $scope.user = {
-                    username: $cookies.ZUsername
-                };
-            } else {
-                unauthorized($location);
-            }
-        }
-    };
-}
-
-
 /*
  * manage pools
  * TODO - move pools to separate service
  */
-var POOL_ICON_CLOSED = 'glyphicon glyphicon-play btn-link';
 var POOL_ICON_OPEN = 'glyphicon glyphicon-play rotate-down btn-link';
-var POOL_CHILDREN_CLOSED = 'hidden';
-var POOL_CHILDREN_OPEN = 'nav-tree';
 function refreshPools($scope, resourcesFactory, cachePools, extraCallback) {
     // defend against empty scope
     if ($scope.pools === undefined) {
         $scope.pools = {};
     }
-    if(DEBUG) console.log('Refreshing pools');
+    if(DEBUG){
+        console.log('Refreshing pools');
+    }
     resourcesFactory.get_pools(cachePools, function(allPools) {
         $scope.pools.mapped = allPools;
         $scope.pools.data = map_to_array(allPools);
@@ -462,17 +317,23 @@ function buildTable(sort, headers) {
 }
 function set_order(order, table) {
     // Reset the icon for the last order
-    if(DEBUG) console.log('Resetting ' + table.sort + ' to down.');
+    if(DEBUG){
+        console.log('Resetting ' + table.sort + ' to down.');
+    }
     table.sort_icons[table.sort] = 'glyphicon-chevron-down';
 
     if (table.sort === order) {
         table.sort = "-" + order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-down';
-        if(DEBUG) console.log('Sorting by -' + order);
+        if(DEBUG){
+            console.log('Sorting by -' + order);
+        }
     } else {
         table.sort = order;
         table.sort_icons[table.sort] = 'glyphicon-chevron-up';
-        if(DEBUG) console.log('Sorting ' + table +' by ' + order);
+        if(DEBUG){
+            console.log('Sorting ' + table +' by ' + order);
+        }
     }
 }
 function get_order_class(order, table) {
