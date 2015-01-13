@@ -266,6 +266,10 @@ func (conn *TestConnection) NewLeader(path string, data Node) Leader {
 	return nil
 }
 
+func (conn *TestConnection) NewQueue(path string) Queue {
+	return nil
+}
+
 // CreateEphemeral implements Connection.CreateEphemeral
 func (conn *TestConnection) CreateEphemeral(path string, node Node) (string, error) {
 	if err := conn.Create(path, node); err != nil {

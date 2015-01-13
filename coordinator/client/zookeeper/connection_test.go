@@ -47,7 +47,7 @@ func (n *testNodeT) Version() interface{} { return n.version }
 
 func TestZkDriver(t *testing.T) {
 	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}
@@ -133,7 +133,7 @@ func TestZkDriver(t *testing.T) {
 
 func TestZkDriver_Ephemeral(t *testing.T) {
 	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}
@@ -212,7 +212,7 @@ func TestZkDriver_Ephemeral(t *testing.T) {
 
 func TestZkDriver_Watch(t *testing.T) {
 	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}

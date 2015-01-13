@@ -19,17 +19,30 @@ type Driver interface {
 	GetConnection(dsn, basePath string) (Connection, error)
 }
 
-// Lock is the interface that a lock implemenation must implement
+// Lock is an interface that allows the coordination.Client to establish
+// a distributed lock for a particular node
 type Lock interface {
 	Lock() error
 	Unlock() error
 }
 
-// Leader is the interface that a Leaer implementation must implement
+// Leader is an interface that allows the coordination.Client to establish
+// a distributed lock that contains pertinant information about the leader
 type Leader interface {
 	TakeLead() (<-chan Event, error)
 	ReleaseLead() error
 	Current(node Node) error
+}
+
+// Queue is the interface that allows the coordination.Client to establish
+// a distributed locking queue
+type Queue interface {
+	Put(Node) (string, error)
+	Get(Node) error
+	Consume() error
+	HasLock() bool
+	Current(Node) error
+	Next(Node) error
 }
 
 // Node is the interface that a serializable object must implement to
@@ -58,4 +71,5 @@ type Connection interface {
 
 	NewLock(path string) Lock
 	NewLeader(path string, data Node) Leader
+	NewQueue(path string) Queue
 }
