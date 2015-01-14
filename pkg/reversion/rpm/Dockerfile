@@ -1,5 +1,5 @@
 #
-# This container is used to run the script which promotes an RPM image for serviced
+# This container is used to run the script which changes the version an RPM package for serviced
 #
 FROM centos:centos7
 MAINTAINER Zenoss <dev@zenoss.com>

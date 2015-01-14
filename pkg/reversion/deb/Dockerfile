@@ -1,5 +1,5 @@
 #
-# This container is used to run the script which promotes a debian image for serviced
+# This container is used to run the script which changes the version number of a debian package for serviced
 #
 FROM ubuntu:14.04
 MAINTAINER Zenoss <dev@zenoss.com>
