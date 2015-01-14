@@ -69,14 +69,14 @@ func purgeOldsessionTs() {
 	for {
 		time.Sleep(time.Second * 60)
 		sessionsLock.Lock()
-		if len(sessions) == 0 { // HERE 2
+		if len(sessions) == 0 {
 			continue
 		}
 		glog.V(1).Info("Searching for expired sessions")
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
 		toDel := []string{}
 		for key, value := range sessions {
-			if value.access.UTC().Unix() < cutoff { // HERE 1
+			if value.access.UTC().Unix() < cutoff {
 				toDel = append(toDel, key)
 			}
 		}
@@ -103,7 +103,7 @@ func loginOK(r *rest.Request) bool {
 		return false
 	}
 	sessionsLock.Lock()
-	session.access = time.Now() // HERE 1
+	session.access = time.Now()
 	sessionsLock.Unlock()
 	glog.V(2).Infof("sessionT %s used", session.ID)
 	return true
@@ -158,7 +158,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 			return
 		}
 		sessionsLock.Lock()
-		sessions[session.ID] = session // HERE 2
+		sessions[session.ID] = session
 		sessionsLock.Unlock()
 		glog.V(1).Info("Created authenticated session: ", session.ID)
 		http.SetCookie(
