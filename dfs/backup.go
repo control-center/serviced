@@ -532,8 +532,11 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 		glog.Errorf("Could not load services from %s: %s", label, err)
 		return err
 	}
+
 	// Restore the service data
-	if err := dfs.restoreServices(svcs); err != nil {
+	// This is necessary to restore services for tenants which do not exist - in that
+	//   case dfs.Rollback will fail if we don't restore first.
+	if err := dfs.restoreServices(tenantID, svcs); err != nil {
 		glog.Errorf("Could not restore services from %s: %s", label, err)
 		return err
 	}
@@ -544,68 +547,6 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 	}
 
 	//TODO: garbage collect (http://jimhoskins.com/2013/07/27/remove-untagged-docker-images.html)
-	return nil
-}
-
-func (dfs *DistributedFilesystem) importSnapshots(filename string) error {
-	dirpath, name := filepath.Split(filename)
-	snapshotID := strings.TrimSuffix(name, ".tgz")
-	tenantID, _, err := parseLabel(snapshotID)
-	if err != nil {
-		glog.Errorf("Cannot restore snapshot %s: %s", filename, err)
-		return err
-	}
-
-	glog.V(1).Infof("Importing %s", tenantID)
-	if err := importTGZ(filepath.Join(dirpath, snapshotID), filename); err != nil {
-		glog.Errorf("Could not extract %s: %s", filename, err)
-		return err
-	}
-
-	// Load the services
-	var svcs []*service.Service
-	if err := importJSON(filepath.Join(dirpath, snapshotID, serviceJSON), &svcs); err != nil {
-		glog.Errorf("Could not acquire services from %s: %s", snapshotID, err)
-		return err
-	}
-
-	// Restore the service data
-	if err := dfs.restoreServices(svcs); err != nil {
-		glog.Errorf("Could not restore services from %s: %s", filename, err)
-		return err
-	}
-
-	tenant, err := dfs.facade.GetService(datastore.Get(), tenantID)
-	if err != nil {
-		glog.Errorf("Could not find service %s for snapshot %s: %s", tenantID, snapshotID, err)
-		return err
-	} else if tenant == nil {
-		err = fmt.Errorf("service not found")
-		glog.Errorf("Service %s not found", tenantID)
-		return err
-	}
-
-	snapshotVolume, err := dfs.GetVolume(tenant.ID)
-	if err != nil {
-		glog.Errorf("Could not acquire the volume for %s (%s): %s", tenant.Name, tenant.ID, err)
-		return err
-	}
-	if err := os.Rename(filepath.Join(dirpath, snapshotID), snapshotVolume.SnapshotPath(snapshotID)); err != nil {
-		glog.Errorf("Could not move snapshot volume: %s", err)
-		return err
-	}
-
-	defer func() {
-		if err := dfs.DeleteSnapshot(snapshotID); err != nil {
-			glog.Warningf("Could not delete snapshot while restoring %s (%s): %s", snapshotID, tenant.Name, tenant.ID, err)
-		}
-	}()
-
-	if err := dfs.Rollback(snapshotID, false); err != nil {
-		glog.Errorf("Could not rollback to snapshot %s: %s", snapshotID, err)
-		return err
-	}
-
 	return nil
 }
 

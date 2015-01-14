@@ -162,7 +162,7 @@ rpm: stage_rpm
 		-d net-tools \
 		-d util-linux \
 		-d bash-completion \
-		-d 'docker >= 1.3.2' \
+		-d 'zenoss-docker = 1.3.3' \
 		-d logrotate \
 		-t rpm \
 		-a x86_64 \

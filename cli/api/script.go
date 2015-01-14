@@ -51,6 +51,21 @@ func initConfig(config *script.Config, a *api) {
 	config.SvcRestart = cliServiceControl(a.RestartService)
 	config.SvcWait = cliServiceWait(a)
 	config.Commit = a.Commit
+	config.SvcUse = cliServiceUse(a)
+}
+
+func cliServiceUse(a *api) script.ServiceUse {
+	return func(serviceID string, imageID string, registry string, noOp bool) (string, error) {
+		client, err := a.connectMaster()
+		if err != nil {
+			return "", err
+		}
+		image, err := client.ServiceUse(serviceID, imageID, registry, noOp)
+		if err != nil {
+			return "", err
+		}
+		return image, nil
+	}
 }
 
 func cliServiceControl(svcControlMethod ServiceStateController) script.ServiceControl {

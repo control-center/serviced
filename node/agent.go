@@ -525,6 +525,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	err := client.GetTenantId(svc.ID, &tenantID)
 	if err != nil {
 		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
+		return nil, nil, err
 	}
 
 	// get the system user
@@ -533,6 +534,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	err = client.GetSystemUser(unused, &systemUser)
 	if err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
+		return nil, nil, err
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
@@ -789,6 +791,14 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		glog.Info("reapOldContainersLoop Done")
 		wg.Done()
 	}()
+
+	// Increase the number of maximal tracked connections for iptables
+	maxConnections := "655360"
+	if cnxns := strings.TrimSpace(os.Getenv("SERVICED_IPTABLES_MAX_CONNECTIONS")); cnxns != "" {
+		maxConnections = cnxns
+	}
+	glog.Infof("Set sysctl maximum tracked connections for iptables to %s", maxConnections)
+	utils.SetSysctl("net.netfilter.nf_conntrack_max", maxConnections)
 
 	// Clean up any extant iptables chain, just in case
 	a.servicedChain.Remove()

@@ -23,6 +23,7 @@
     "backup_restore": "Restaurar respaldo",
     "backup_running": "Ejecutando restauracion",
     "restore_running": "Restauraci\u00f3n a partir de un respaldo",
+    "restore_complete": "Restauraci\u00f3n completa",
 
     "failing_health_checks": "Instancias estan fallando",
     "missing_health_checks": "Instancias en proceso de ejecutar",
@@ -324,6 +325,9 @@
     "title_services": "Servicios",
     "title_user_details": "Informaci\u00f3n de Usuario",
     "title_resource_commitment": "Resource Commitment",
+    
+    "too_few_instances": "Número de las instancias es demasiado baja",
+    
     "vhost_actions": "Acciones",
     "vhost_application": "Servicio",
     "vhost_controls": "Controles",
