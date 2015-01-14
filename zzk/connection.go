@@ -32,7 +32,7 @@ const (
 var (
 	ErrNotInitialized = errors.New("client not initialized")
 	manager           = make(map[string]*zclient)
-	managerLock       = &sync.Mutex{}
+	managerLock       = &sync.RWMutex{}
 )
 
 // GetConnection describes a generic function for acquiring a connection object
@@ -65,9 +65,9 @@ func InitializeLocalClient(client *client.Client) {
 
 // GetLocalConnection acquires a connection from the local zookeeper client
 func GetLocalConnection(path string) (client.Connection, error) {
-	managerLock.Lock()
+	managerLock.RLock()
 	localclient, ok := manager[local]
-	managerLock.Unlock()
+	managerLock.RUnlock()
 	if !ok || localclient.Client == nil {
 		glog.Fatalf("zClient has not been initialized!")
 	}
@@ -83,9 +83,9 @@ func InitializeRemoteClient(client *client.Client) {
 
 // GetRemoteConnection acquires a connection from the remote zookeeper client
 func GetRemoteConnection(path string) (client.Connection, error) {
-	managerLock.Lock()
+	managerLock.RLock()
 	client, ok := manager[remote]
-	managerLock.Unlock()
+	managerLock.RUnlock()
 	if !ok || client.Client == nil {
 		return nil, ErrNotInitialized
 	}
