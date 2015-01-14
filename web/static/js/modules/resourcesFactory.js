@@ -1,8 +1,8 @@
+/* globals controlplane: true */
 (function(){
 
-  controlplane.
-  factory("resourcesFactory", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval",
-  function($http, $location, $notification, DSCacheFactory, $q, $interval) {
+  controlplane.factory("resourcesFactory", ["$http", "$location", "$notification", "DSCacheFactory", "$q", "$interval", "miscUtils",
+  function($http, $location, $notification, DSCacheFactory, $q, $interval, utils) {
       // add function to $http service to allow for noCacheGet requests
       $http.noCacheGet = function(location){
           return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
@@ -15,14 +15,14 @@
         // expire every 5 seconds
         maxAge: 5000
       });
-      
+
       var runningServicesCache = DSCacheFactory.createCache("runningServicesCache", {
         // store only 10 top level services (still has many children)
         capacity: 10,
         // expire every 5 seconds
         maxAge: 5000
       });
-      
+
       var templatesCache = DSCacheFactory.createCache("templatesCache", {
         capacity: 25,
         maxAge: 15000
@@ -36,14 +36,12 @@
 
       var _get_app_templates = function(callback) {
           $http.noCacheGet('/templates').
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved list of application templates');
+              success(function(data) {
                   cached_app_templates = data;
                   callback(data);
               }).
-              error(function(data, status) {
+              error(function() {
                   // TODO error screen
-                  if(DEBUG) console.log('Unable to retrieve application templates');
                   redirectIfUnauthorized(status);
               });
       };
@@ -51,49 +49,43 @@
       // Real implementation for acquiring list of resource pools
       var _get_pools = function(callback) {
           $http.noCacheGet('/pools').
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved list of pools');
+              success(function(data) {
                   cached_pools = data;
                   callback(data);
               }).
               error(function(data, status) {
                   // TODO error screen
-                  if(DEBUG) console.log('Unable to retrieve list of pools');
                   redirectIfUnauthorized(status);
               });
       };
 
       var _get_hosts_for_pool = function(poolID, callback) {
           $http.noCacheGet('/pools/' + poolID + '/hosts').
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved hosts for pool %s', poolID);
+              success(function(data) {
                   cached_hosts_for_pool[poolID] = data;
                   callback(data);
               }).
-              error(function(data, status) {
+              error(function() {
                   // TODO error screen
-                  if(DEBUG) console.log('Unable to retrieve hosts for pool ' + poolID);
                   redirectIfUnauthorized(status);
               });
       };
 
       var _get_hosts = function(callback) {
           $http.noCacheGet('/hosts').
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved host details');
+              success(function(data) {
                   cached_hosts = data;
                   callback(data);
               }).
               error(function(data, status) {
                   // TODO error screen
-                  if(DEBUG) console.log('Unable to retrieve host details');
                   redirectIfUnauthorized(status);
               });
       };
 
       var redirectIfUnauthorized = function(status){
           if (status === 401) {
-              unauthorized($location);
+              utils.unauthorized($location);
           }
       };
 
@@ -128,7 +120,6 @@
            */
           get_pools: function(cacheOk, callback) {
               if (cacheOk && cached_pools) {
-                  if(DEBUG) console.log('Using cached pools');
                   callback(cached_pools);
               } else {
                   _get_pools(callback);
@@ -142,13 +133,11 @@
            */
           get_pool: function(poolID, callback) {
               $http.noCacheGet('/pools/' + poolID).
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to acquire pool", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -161,13 +150,11 @@
            */
           get_pool_ips: function(poolID, callback) {
               $http.noCacheGet('/pools/' + poolID + "/ips").
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved %s for %s', data, poolID);
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to acquire pool", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -196,13 +183,11 @@
            */
           get_vhosts: function(callback) {
               $http.noCacheGet('/vhosts').
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved list of virtual hosts');
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to acquire virtual hosts", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -227,7 +212,7 @@
           delete_vhost: function(serviceId, application, virtualhost, callback) {
               var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
               $http.delete(ep).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Removed virtual host", ep + data.Detail).success();
                       callback(data);
                   }).
@@ -246,13 +231,11 @@
            */
           get_running_services_for_host: function(hostId, callback) {
               $http.noCacheGet('/hosts/' + hostId + '/running').
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved running services for %s', hostId);
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -265,12 +248,11 @@
            */
           get_running_services: function(callback) {
               $http.noCacheGet('/running').
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to acquire running services", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -282,8 +264,6 @@
            * @param {function} callback Add result passed to callback on success.
            */
           add_pool: function(pool) {
-              if(DEBUG) console.log('Adding detail: %s', JSON.stringify(pool));
-
               return $http.post('/pools/add', pool).
                   error(function(data, status) {
                       redirectIfUnauthorized(status);
@@ -299,7 +279,7 @@
            */
           update_pool: function(poolID, editedPool, callback) {
               $http.put('/pools/' + poolID, editedPool).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Updated pool", poolID).success();
                       callback(data);
                   }).
@@ -318,7 +298,7 @@
            */
           remove_pool: function(poolID, callback) {
               $http.delete('/pools/' + poolID).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Removed pool", poolID).success();
                       callback(data);
                   }).
@@ -337,7 +317,6 @@
            */
           add_pool_virtual_ip: function(pool, ip, netmask, _interface) {
               var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
-              if(DEBUG) console.log('Adding pool virtual ip: %s', payload);
 
               return $http.put('/pools/' + pool + '/virtualip', payload)
                   .error(function(data, status) {
@@ -352,9 +331,8 @@
            * @param {function} callback Add result passed to callback on success.
            */
           remove_pool_virtual_ip: function(pool, ip, callback) {
-              if(DEBUG) console.log('Removing pool virtual ip: poolID:%s ip:%s', pool, ip);
               $http.delete('/pools/' + pool + '/virtualip/' + ip).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Removed pool virtual ip", ip).success();
                       callback(data);
                   }).
@@ -373,8 +351,7 @@
            */
           kill_running: function(hostId, serviceStateId, callback) {
               $http.delete('/hosts/' + hostId + '/' + serviceStateId).
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Terminated %s', serviceStateId);
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -394,7 +371,6 @@
            */
           get_hosts: function(cacheOk, callback) {
               if (cacheOk && cached_hosts) {
-                  if(DEBUG) console.log('Using cached hosts');
                   callback(cached_hosts);
               } else {
                   _get_hosts(callback);
@@ -408,8 +384,7 @@
            */
           get_host: function(hostID, callback) {
               $http.noCacheGet('/hosts/' + hostID).
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved %s for %s', data, hostID);
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -425,7 +400,7 @@
            * @param {object} host New host details to be added.
            * @param {function} callback Add result passed to callback on success.
            */
-          add_host: function(host, callback, errorCallback) {
+          add_host: function(host) {
               return $http.post('/hosts/add', host)
                   .error(function(data, status){
                      redirectIfUnauthorized(status);
@@ -441,7 +416,7 @@
            */
           update_host: function(hostId, editedHost, callback) {
               $http.put('/hosts/' + hostId, editedHost).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Updated host", hostId).success();
                       callback(data);
                   }).
@@ -458,7 +433,7 @@
            * @param {string} hostId Unique identifier for host to be removed.
            * @param {function} callback Delete result passed to callback on success.
            */
-          remove_host: function(hostId, callback) {
+          remove_host: function(hostId) {
               return $http.delete('/hosts/' + hostId)
                   .error(function(data, status){
                      redirectIfUnauthorized(status);
@@ -466,10 +441,9 @@
           },
 
           get_running_hosts: function(callback){
-                $http.get("/hosts/running").success(function(data, status){
+                $http.get("/hosts/running").success(function(data){
                     callback(data);
                 }).error(function(data, status){
-                  if(DEBUG) console.log('Unable to retrieve running hosts');
                   redirectIfUnauthorized(status);
                 });
           },
@@ -512,12 +486,11 @@
            */
           get_service_logs: function(serviceId, callback) {
               $http.noCacheGet('/services/' + serviceId + '/logs').
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to retrieve service logs", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -530,12 +503,11 @@
            */
           get_service_state_logs: function(serviceId, serviceStateId, callback) {
               $http.noCacheGet('/services/' + serviceId + '/' + serviceStateId + '/logs').
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
                       // TODO error screen
-                      if(DEBUG) console.log("Unable to retrieve service logs", data.Detail);
                       redirectIfUnauthorized(status);
                   });
           },
@@ -547,10 +519,10 @@
 
           docker_is_logged_in: function(callback) {
             $http.noCacheGet('/dockerIsLoggedIn').
-            success(function(data, status){
+            success(function(data){
               callback(data.dockerLoggedIn);
             }).
-            error(function(data, status) {
+            error(function() {
               $notification.create("", "Unable to retrieve Docker Hub login status.").warning();
             });
           },
@@ -563,14 +535,13 @@
            */
           get_app_templates: function(cacheOk, callback) {
               if (cacheOk && cached_app_templates) {
-                  if(DEBUG) console.log('Using cached application templates');
                   callback(cached_app_templates);
               } else {
                   _get_app_templates(callback);
               }
           },
 
-          add_app_template: function(fileData, callback){
+          add_app_template: function(fileData){
               return $http({
                   url: "/templates/add",
                   method: "POST",
@@ -589,11 +560,11 @@
 
           delete_app_template: function(templateID, callback){
               $http.delete('/templates/' + templateID).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Removed template", data.Detail).success();
                       callback(data);
                   }).
-                  error(function(data, status){
+                  error(function(data){
                       $notification.create("Removing template failed", data.Detail).error();
                   });
           },
@@ -605,9 +576,8 @@
            * @param {function} callback Response passed to callback on success.
            */
           add_service: function(service, callback) {
-              if(DEBUG) console.log('Adding detail: %s', JSON.stringify(service));
               $http.post('/services/add', service).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("", "Added new service").success();
                       callback(data);
                   }).
@@ -639,7 +609,7 @@
            */
           deploy_app_template: function(deployDef, callback, failCallback) {
               $http.post('/templates/deploy', deployDef).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("", "Deployed application template").success();
                       callback(data);
                   }).
@@ -659,7 +629,7 @@
            */
           snapshot_service: function(serviceId, callback) {
               $http.noCacheGet('/services/' + serviceId + '/snapshot').
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -677,7 +647,7 @@
            */
           remove_service: function(serviceId, callback) {
               $http.delete('/services/' + serviceId).
-                  success(function(data, status) {
+                  success(function(data) {
                       $notification.create("Removed service", serviceId).success();
                       callback(data);
                   }).
@@ -705,7 +675,7 @@
               }
 
               $http.put(url).
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -730,7 +700,7 @@
               }
 
               $http.put(url).
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -755,7 +725,7 @@
               }
 
               $http.put(url).
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -769,7 +739,7 @@
            */
           get_version: function(callback){
               $http.noCacheGet('/version').
-                  success(function(data, status) {
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -786,7 +756,7 @@
               fail = fail || function(){};
 
               $http.noCacheGet('/backup/create').
-                  success(function(data, status) {
+                  success(function(data) {
                       success(data);
                   }).
                   error(function(data, status) {
@@ -802,7 +772,7 @@
               fail = fail || function(){};
 
               $http.get('/backup/restore?filename=' + filename).
-                  success(function(data, status) {
+                  success(function(data) {
                       success(data);
                   }).
                   error(function(data, status) {
@@ -813,8 +783,7 @@
 
           get_backup_files: function(callback){
               $http.noCacheGet('/backup/list').
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved list of backup files.');
+                  success(function(data) {
                       callback(data);
                   }).
                   error(function(data, status) {
@@ -828,8 +797,7 @@
               failCallback = failCallback || angular.noop;
 
               $http.noCacheGet('/backup/status').
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved status of backup.');
+                  success(function(data) {
                       successCallback(data);
                   }).
                   error(function(data, status) {
@@ -842,8 +810,7 @@
               failCallback = failCallback || angular.noop;
 
               $http.noCacheGet('/backup/restore/status').
-                  success(function(data, status) {
-                      if(DEBUG) console.log('Retrieved status of restore.');
+                  success(function(data) {
                       successCallback(data);
                   }).
                   error(function(data, status) {
@@ -857,12 +824,10 @@
             var url = "/servicehealth";
 
             $http.get(url, { cache: healthcheckCache }).
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved health checks.');
+              success(function(data) {
                   callback(data);
               }).
               error(function(data, status) {
-                  if(DEBUG) console.log('Failed retrieving health checks.');
                   redirectIfUnauthorized(status);
               });
 
@@ -871,16 +836,14 @@
 
           get_deployed_templates: function(deploymentDefinition, callback){
             $http.post('/templates/deploy/status', deploymentDefinition).
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved deployed template status.');
+              success(function(data) {
                   callback(data);
               });
           },
 
           get_active_templates: function(callback){
             $http.get('/templates/deploy/active', {cache: templatesCache}).
-              success(function(data, status) {
-                  if(DEBUG) console.log('Retrieved deployed template status.');
+              success(function(data) {
                   callback(data);
               });
           },
@@ -888,7 +851,6 @@
           get_stats: function(callback){
             $http.get("/stats").
               success(function(data, status) {
-                  if(DEBUG) console.log('serviced is collecting stats.');
                   callback(status);
               }).
               error(function(data, status) {

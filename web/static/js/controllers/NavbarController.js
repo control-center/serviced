@@ -1,11 +1,12 @@
+/* globals controlplane: true */
 /* NavbarController.js
  * Controls the navbar. what else were you thinking it would do?
  */
 (function(){
     "use strict";
 
-    controlplane.controller("NavbarController", ["$scope", "$rootScope", "$cookies", "$location", "$route", "$translate", "$notification", "authService", "resourcesFactory", "$modalService",
-    function($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesFactory, $modalService) {
+    controlplane.controller("NavbarController", ["$scope", "$rootScope", "$cookies", "$location", "$route", "$translate", "$notification", "authService", "resourcesFactory", "$modalService", "miscUtils",
+    function($scope, $rootScope, $cookies, $location, $route, $translate, $notification, authService, resourcesFactory, $modalService, utils){
         $scope.name = 'navbar';
         $scope.brand = { url: '#/apps', label: 'brand_cp' };
 
@@ -72,7 +73,7 @@
             });
         };
 
-        updateLanguage($scope, $cookies, $translate);
+        utils.updateLanguage($scope, $cookies, $translate);
 
         var helpMap = {
             '/static/partials/login.html': 'login.html',

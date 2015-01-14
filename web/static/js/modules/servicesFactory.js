@@ -116,7 +116,7 @@
                 initPromise = resourcesFactory.get_services()
                     .success(function(data, status) {
 
-                        var service, parent;
+                        var service;
 
                         // store services as a flat map
                         data.forEach(function(service){
@@ -142,6 +142,7 @@
         // in the appropriate place
         function addServiceToTree(service){
 
+            var parent;
             // if this is not a top level service
             if(service.service.ParentServiceID){
                 // TODO - check for parent
@@ -184,14 +185,16 @@
                         serviceMap[id].status = statuses[id]; 
 
                     // this may be a service instance
-                    } else if(~id.indexOf(".")){
+                    } else if(id.indexOf(".") !== -1){
                         ids = id.split(".");
                         if(serviceMap[ids[0]]){
                             instance = serviceMap[ids[0]].instances.filter(function(instance){
                                 // ids[1] will be a string, and InstanceID is a number
                                 return instance.InstanceID === +ids[1]; 
                             });
-                            if(instance.length) instance[0].status = statuses[id];
+                            if(instance.length){
+                                instance[0].status = statuses[id];
+                            }
                         }
                     }
                 }
@@ -290,7 +293,7 @@
             // infer service type
             // TODO - check for more types
             this.type = [];
-            if(this.service.ID.indexOf("isvc-") != -1){
+            if(this.service.ID.indexOf("isvc-") !== -1){
                 this.type.push(ISVC);
             }
 

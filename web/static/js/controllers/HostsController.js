@@ -4,8 +4,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification",
-    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification){
+    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils",
+    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -16,7 +16,7 @@
             { label: 'breadcrumb_hosts', itemClass: 'active' }
         ];
 
-        $scope.indent = indentClass;
+        $scope.indent = utils.indentClass;
         $scope.newHost = {};
 
         $scope.modalAddHost = function() {
@@ -62,7 +62,7 @@
             return resourcesFactory.add_host($scope.newHost)
             .success(function(data) {
                 // After adding, refresh our list
-                refreshHosts($scope, resourcesFactory, false, hostCallback);
+                utils.refreshHosts($scope, resourcesFactory, false, hostCallback);
                 
                 // Reset for another add
                 $scope.newHost = {
@@ -89,7 +89,7 @@
                                 .success(function(data, status) {
                                     $notification.create("Removed host", hostId).success();
                                     // After removing, refresh our list
-                                    refreshHosts($scope, resourcesFactory, false, hostCallback);
+                                    utils.refreshHosts($scope, resourcesFactory, false, hostCallback);
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
@@ -131,7 +131,7 @@
         };
 
         // Build metadata for displaying a list of hosts
-        $scope.hosts = buildTable('Name', [
+        $scope.hosts = utils.buildTable('Name', [
             { id: 'Name', name: 'Name'},
             { id: 'fullPath', name: 'Assigned Resource Pool'},
         ]);
@@ -152,7 +152,7 @@
                         var host = $scope.hosts.filtered[i];
                         host.active = 'no';
                         for (var j in data) {
-                            if (data[j] == host.ID) {
+                            if (data[j] === host.ID) {
                                 host.active = 'yes';
                             }
                         }
@@ -164,9 +164,9 @@
         resourcesFactory.registerPoll("activeHosts", updateActiveHosts, 3000);
 
         // Ensure we have a list of pools
-        refreshPools($scope, resourcesFactory, false);
+        utils.refreshPools($scope, resourcesFactory, false);
 
         // Also ensure we have a list of hosts
-        refreshHosts($scope, resourcesFactory, false, hostCallback);
+        utils.refreshHosts($scope, resourcesFactory, false, hostCallback);
     }]);
 })();

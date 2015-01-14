@@ -1,4 +1,3 @@
-/* global angular, console, $ */
 /* jshint multistr: true */
 (function() {
     'use strict';
@@ -8,15 +7,6 @@
     function($rootScope, $q, resourcesFactory, $translate){
 
         var statuses = {};
-
-        // simple array search util
-        function findInArray(key, arr, val){
-            for(var i = 0; i < arr.length; i++){
-                if(arr[i][key] === val){
-                    return arr[i];
-                }
-            }
-        }
 
         // updates health check data for all services
         function update(serviceList) {

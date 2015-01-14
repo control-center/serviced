@@ -1,11 +1,13 @@
+/* globals controlplane: true */
+
 /* HostDetailsController
  * Displays list of hosts
  */
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate) {
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -19,15 +21,15 @@
         $scope.resourcesFactory = resourcesFactory;
 
         // Also ensure we have a list of hosts
-        refreshHosts($scope, resourcesFactory, true);
+        utils.refreshHosts($scope, resourcesFactory, true);
 
-        $scope.running = buildTable('Name', [
+        $scope.running = utils.buildTable('Name', [
             { id: 'Name', name: 'label_service' },
             { id: 'StartedAt', name: 'running_tbl_start' },
             { id: 'View', name: 'running_tbl_actions' }
         ]);
 
-        $scope.ip_addresses = buildTable('Interface', [
+        $scope.ip_addresses = utils.buildTable('Interface', [
             { id: 'Interface', name: 'ip_addresses_interface' },
             { id: 'Ip', name: 'ip_addresses_ip' },
             { id: 'MAC Address', name: 'ip_addresses_mac' }
@@ -47,7 +49,7 @@
                             classes: "btn-default",
                             label: "download",
                             action: function(){
-                                downloadFile('/services/' + running.ServiceID + '/' + running.ID + '/logs/download');
+                                utils.downloadFile('/services/' + running.ServiceID + '/' + running.ID + '/logs/download');
                             },
                             icon: "glyphicon-download"
                         },
@@ -105,22 +107,22 @@
         $scope.updateHost = function(){
             var modifiedHost = $.extend({}, $scope.hosts.current);
             resourcesFactory.update_host(modifiedHost.ID, modifiedHost, function() {
-                refreshHosts($scope, resourcesFactory, false);
+                utils.refreshHosts($scope, resourcesFactory, false);
             });
         };
 
-        refreshRunningForHost($scope, resourcesFactory, $scope.params.hostId);
-        refreshHosts($scope, resourcesFactory, true, function() {
+        utils.refreshRunningForHost($scope, resourcesFactory, $scope.params.hostId);
+        utils.refreshHosts($scope, resourcesFactory, true, function() {
             if ($scope.hosts.current) {
                 $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
             }
         });
 
         // Ensure we have a list of pools
-        refreshPools($scope, resourcesFactory, false);
+        utils.refreshPools($scope, resourcesFactory, false);
 
         resourcesFactory.get_stats(function(status) {
-            if (status == 200) {
+            if (status === 200) {
                 $scope.collectingStats = true;
             } else {
                 $scope.collectingStats = false;
