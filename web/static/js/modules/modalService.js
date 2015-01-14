@@ -1,4 +1,3 @@
-/* global angular, console, $ */
 /* jshint multistr: true */
 (function() {
     'use strict';
