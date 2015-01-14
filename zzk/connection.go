@@ -16,6 +16,7 @@ package zzk
 import (
 	"errors"
 	"path"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -30,10 +31,8 @@ const (
 
 var (
 	ErrNotInitialized = errors.New("client not initialized")
-)
-
-var (
-	manager = make(map[string]*zclient)
+	manager           = make(map[string]*zclient)
+	managerLock       = &sync.Mutex{}
 )
 
 // GetConnection describes a generic function for acquiring a connection object
@@ -59,12 +58,16 @@ func GeneratePoolPath(poolID string) string {
 
 // InitializeLocalClient initializes the local zookeeper client
 func InitializeLocalClient(client *client.Client) {
+	managerLock.Lock()
+	defer managerLock.Unlock()
 	manager[local] = &zclient{client, make(map[string]*zconn)}
 }
 
 // GetLocalConnection acquires a connection from the local zookeeper client
 func GetLocalConnection(path string) (client.Connection, error) {
+	managerLock.Lock()
 	localclient, ok := manager[local]
+	managerLock.Unlock()
 	if !ok || localclient.Client == nil {
 		glog.Fatalf("zClient has not been initialized!")
 	}
@@ -73,12 +76,16 @@ func GetLocalConnection(path string) (client.Connection, error) {
 
 // InitializeRemoteClient initializes the remote zookeeper client
 func InitializeRemoteClient(client *client.Client) {
+	managerLock.Lock()
+	defer managerLock.Unlock()
 	manager[remote] = &zclient{client, make(map[string]*zconn)}
 }
 
 // GetRemoteConnection acquires a connection from the remote zookeeper client
 func GetRemoteConnection(path string) (client.Connection, error) {
+	managerLock.Lock()
 	client, ok := manager[remote]
+	managerLock.Unlock()
 	if !ok || client.Client == nil {
 		return nil, ErrNotInitialized
 	}
@@ -103,6 +110,8 @@ func Connect(path string, getConnection GetConnection) <-chan client.Connection 
 
 // ShutdownConnections closes all local and remote zookeeper connections
 func ShutdownConnections() {
+	managerLock.Lock()
+	defer managerLock.Unlock()
 	for _, client := range manager {
 		client.Shutdown()
 	}
