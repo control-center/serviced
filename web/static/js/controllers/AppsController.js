@@ -1,11 +1,13 @@
+/* globals controlplane: true */
+
 /* AppsController
  * Displays top level apps
  */
 (function() {
     'use strict';
 
-    controlplane.controller("AppsController", ["$scope", "$routeParams", "$location", "$notification", "resourcesFactory", "authService", "$modalService", "$translate", "$timeout", "$cookies", "servicesFactory",
-    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory){
+    controlplane.controller("AppsController", ["$scope", "$routeParams", "$location", "$notification", "resourcesFactory", "authService", "$modalService", "$translate", "$timeout", "$cookies", "servicesFactory", "miscUtils",
+    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory, utils){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -36,7 +38,7 @@
 
         $scope.defaultHostAlias = location.hostname;
         var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
-        if (re.test(location.hostname) || location.hostname == "localhost") {
+        if (re.test(location.hostname) || location.hostname === "localhost") {
             $.getJSON("/hosts/defaultHostAlias", "", function(data) {
                 $scope.defaultHostAlias = data.hostalias;
             });
@@ -46,7 +48,7 @@
             { label: 'breadcrumb_deployed', itemClass: 'active' }
         ];
 
-        $scope.services = buildTable('PoolID', [
+        $scope.services = utils.buildTable('PoolID', [
             { id: 'Name', name: 'deployed_tbl_name'},
             { id: 'Description', name: 'deployed_tbl_description'},
             { id: 'Health', name: 'health_check', hideSort: true},
@@ -55,7 +57,7 @@
             { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
         ]);
 
-        $scope.templates = buildTable('Name', [
+        $scope.templates = utils.buildTable('Name', [
             { id: 'Name', name: 'template_name'},
             { id: 'ID', name: 'template_id'},
             { id: 'Description', name: 'template_description'}
@@ -96,7 +98,7 @@
                         action: function(){
                             if(this.validate()){
                                 var data = new FormData();
-     
+
                                 $.each($("#new_template_filename")[0].files, function(key, value){
                                     data.append("tpl", value);
                                 });
@@ -105,12 +107,12 @@
                                 var enableSubmit = this.disableSubmitButton();
 
                                 resourcesFactory.add_app_template(data)
-                                    .success(function(data, status){
+                                    .success(function(data){
                                         $notification.create("Added template", data.Detail).success();
                                         resourcesFactory.get_app_templates(false, refreshTemplates);
                                         this.close();
                                     }.bind(this))
-                                    .error(function(data, status){
+                                    .error(function(data){
                                         this.createNotification("Adding template failed", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
@@ -186,7 +188,7 @@
             });
         };
 
-        $scope.clickRunning = function(app, status, resourcesFactory) {
+        $scope.clickRunning = function(app, status) {
             var displayStatus = capitalizeFirst(status);
 
             $modalService.create({

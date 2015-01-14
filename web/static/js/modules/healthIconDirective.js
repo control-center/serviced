@@ -25,7 +25,6 @@
 
                 // cache some DOM elements
                 var $el = $(element),
-                    $healthIcon = $el.find(".healthIcon"),
                     $badge = $el.find(".healthIconBadge"),
                     lastStatus;
 

@@ -1,3 +1,5 @@
+/* globals require: true */
+
 var gulp = require("gulp"),
     concat = require("gulp-concat"),
     uglify = require("gulp-uglify"),
@@ -16,6 +18,7 @@ var paths = {
 // controlplane.js
 var controlplaneFiles = [
     paths.src + "main.js",
+    paths.modules + "miscUtils.js",
 
     // modules
     // TODO - organize by feature, not type!
@@ -48,7 +51,7 @@ var controlplaneFiles = [
     paths.controllers + "LoginController.js",
 
     paths.controllers + "PoolsController.js",
-    paths.controllers + "PoolDetailController.js",
+    paths.controllers + "PoolDetailsController.js",
 
     paths.controllers + "AppsController.js",
     paths.controllers + "DeployWizard.js",
