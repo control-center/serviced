@@ -1,11 +1,13 @@
+/* globals controlplane: true */
+
 /* ServiceDetailsController
  * Displays details of a specific service
  */
 (function() {
     'use strict';
 
-    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory",
-    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory){
+    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils",
+    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils){
         // Ensure logged in
         authService.checkLogin($scope);
         $scope.name = "servicedetails";
@@ -14,7 +16,7 @@
 
         $scope.defaultHostAlias = location.hostname;
         var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
-        if (re.test(location.hostname) || location.hostname == "localhost") {
+        if (re.test(location.hostname) || location.hostname === "localhost") {
             $.getJSON("/hosts/defaultHostAlias", "", function(data) {
                 $scope.defaultHostAlias = data.hostalias;
             });
@@ -24,14 +26,14 @@
             { label: 'breadcrumb_deployed', url: '#/apps' }
         ];
 
-        $scope.vhosts = buildTable('Name', [
+        $scope.vhosts = utils.buildTable('Name', [
             { id: 'Name', name: 'vhost_name'},
             { id: 'Application', name: 'vhost_application'},
             { id: 'ServiceEndpoint', name: 'vhost_service_endpoint'},
             { id: 'Name', name: 'vhost_url'}
         ]);
 
-        $scope.ips = buildTable('ServiceName', [
+        $scope.ips = utils.buildTable('ServiceName', [
             { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
             { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
             { id: 'HostName', name: 'tbl_virtual_ip_host'},
@@ -103,7 +105,7 @@
                     
                     // if name already exists
                     for (var i in $scope.vhosts.data) {
-                        if (name == $scope.vhosts.data[i].Name) {
+                        if (name === $scope.vhosts.data[i].Name) {
                             this.createNotification("Unabled to add Virtual Host", "Name already exists: "+ $scope.vhosts.add.name).error();
                             return false;
                         }
@@ -152,7 +154,7 @@
                 value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
                 options.push({'Value': value, 'IPAddr':IPAddr});
                 // set the default value to the currently assigned value
-                if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+                if ($scope.ips.assign.ip.IPAddr === IPAddr) {
                   $scope.ips.assign.value = options[ options.length-1];
                 }
               }
@@ -165,7 +167,7 @@
                 value =  "Virtual IP: " + IPAddr;
                 options.push({'Value': value, 'IPAddr':IPAddr});
                 // set the default value to the currently assigned value
-                if ($scope.ips.assign.ip.IPAddr == IPAddr) {
+                if ($scope.ips.assign.ip.IPAddr === IPAddr) {
                   $scope.ips.assign.value = options[ options.length-1];
                 }
               }
@@ -212,7 +214,7 @@
         $scope.anyServicesExported = function(service) {
             if(service){
                 for (var i in service.Endpoints) {
-                    if (service.Endpoints[i].Purpose == "export") {
+                    if (service.Endpoints[i].Purpose === "export") {
                         return true;
                     }
                 }
@@ -251,17 +253,12 @@
             servicesFactory.updateHealth();
         };
 
-        function capitalizeFirst(str){
-            return str.slice(0,1).toUpperCase() + str.slice(1);
-        }
-
         $scope.clickRunningApp = function(app, status) {
 
             // if this service has children and startup command, ask the user
             // if we should start service + children, or just service
             if(app.children && app.children.length && app.service.Startup){
-                var displayStatus = capitalizeFirst(status),
-                    children = app.children || [],
+                var children = app.children || [],
                     childCount = 0;
 
                 // count number of descendent services that will start
@@ -427,7 +424,7 @@
             //set editor options for context editing
             $scope.codemirrorOpts = {
                 lineNumbers: true,
-                mode: getModeFromFilename($scope.editService.config)
+                mode: utils.getModeFromFilename($scope.editService.config)
             };
             $modalService.create({
                 templateUrl: "edit-config.html",
@@ -488,7 +485,7 @@
                             classes: "btn-primary",
                             label: "download",
                             action: function(){
-                                downloadFile('/services/' + serviceState.ServiceID + '/' + serviceState.ID + '/logs/download');
+                                utils.downloadFile('/services/' + serviceState.ServiceID + '/' + serviceState.ID + '/logs/download');
                             },
                             icon: "glyphicon-download"
                         }
@@ -515,7 +512,7 @@
               max = svc.InstanceLimits.Max,
               min = svc.InstanceLimits.Min,
               num = svc.Instances;
-          if (typeof num == 'undefined' || (max > 0 && num > max) || (min > 0 && num < min)) {
+          if (typeof num === 'undefined' || (max > 0 && num > max) || (min > 0 && num < min)) {
             var msg = $translate.instant("instances_invalid") + " ";
             if (min > 0) {
               msg += $translate.instant("minimum") + " " + min;
@@ -589,7 +586,7 @@
             }, $scope.update);
         });
 
-        refreshHosts($scope, resourcesFactory, true, function(){});
+        utils.refreshHosts($scope, resourcesFactory, true, function(){});
 
         // keep running instances updated
         resourcesFactory.registerPoll("runningForCurrent", function(){
@@ -629,7 +626,11 @@
 
         $scope.toggleChildren = function($event, app){
             var $e = $($event.target);
-            $e.is(".glyphicon-chevron-down") ? hideChildren(app) : showChildren(app);
+            if($e.is(".glyphicon-chevron-down")){
+                hideChildren(app);
+            } else {
+                showChildren(app);
+            }
         };
 
         //we need to bring this function into scope so we can use ng-hide if an object is empty
@@ -713,7 +714,7 @@
             });
 
             //update icons
-            $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-down");
+            var $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-down");
             $e.removeClass("glyphicon-chevron-down");
             $e.addClass("glyphicon-chevron-right");
         }
@@ -725,13 +726,13 @@
             });
 
             //update icons
-            $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-right");
+            var $e = $("tr[data-id='"+app.id+"'] td .glyphicon-chevron-right");
             $e.removeClass("glyphicon-chevron-right");
             $e.addClass("glyphicon-chevron-down");
         }
 
         // Ensure we have a list of pools
-        refreshPools($scope, resourcesFactory, false);
+        utils.refreshPools($scope, resourcesFactory, false);
 
         function makeCrumbs(current){
             var crumbs = [{

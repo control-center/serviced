@@ -1,11 +1,13 @@
+/* globals controlplane: true, dagreD3: true */
+
 /* ServicesMapController
  * Displays dagre graph of services to hosts
  */
 (function(){
     "use strict";
 
-    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory",
-    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory) {
+    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils",
+    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -54,7 +56,6 @@
                 }
 
                 if (service.service.ParentServiceID !== '') {
-                    var parent = $scope.services.mapped[service.service.ParentServiceID];
                     nodeClasses[service.service.ParentServiceID] = 'service meta';
                     edges[edges.length] = {
                         u: service.service.ParentServiceID,
@@ -107,7 +108,7 @@
 
         // TODO - replace the data_received stuff with promise
         // aggregation
-        refreshHosts($scope, resourcesFactory, true, function() {
+        utils.refreshHosts($scope, resourcesFactory, true, function() {
             data_received.hosts = true;
             draw();
         });

@@ -19,8 +19,11 @@
                     element.datetimepicker(options);
                     element.bind('blur keyup change', function(){
                         var model = attrs.ngModel;
-                        if (model.indexOf(".") > -1) scope[model.replace(/\.[^.]*/, "")][model.replace(/[^.]*\./, "")] = element.val();
-                        else scope[model] = element.val();
+                        if (model.indexOf(".") > -1){
+                            scope[model.replace(/\.[^.]*/, "")][model.replace(/[^.]*\./, "")] = element.val();
+                        } else {
+                            scope[model] = element.val();
+                        }
                     });
                 }, 0);
             }

@@ -1,3 +1,5 @@
+/* globals jstz: true */
+
 /* graphpanel
  * creates graphs from graph configs, and provides
  * controls for displayed range and update frequency

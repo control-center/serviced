@@ -1,4 +1,3 @@
-
 /* miscDirectives.js
  * a place for miscellaneous directives
  */
@@ -46,7 +45,7 @@
             link: function(scope, elem, attr) {
                 $window = angular.element($window);
                 var handler = function() {
-                    var winEdge, elEdge, dataHidden, scroll;
+                    var winEdge, elEdge, dataHidden;
                     winEdge = $window.height() + $window.scrollTop();
                     elEdge = elem.offset().top + elem.height();
                     dataHidden = elEdge - winEdge;
@@ -73,9 +72,9 @@
                     $window.off('resize', handler);
                     return true;
                 });
-                return $timeout((function() {
+                return $timeout(function() {
                     return handler();
-                }), 100);
+                }, 100);
             }
         };
     }]);

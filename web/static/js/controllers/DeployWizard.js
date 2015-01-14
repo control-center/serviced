@@ -1,11 +1,13 @@
+/* globals controlplane: true */
+
 /* DeployWizard.js
  * Guides user through deployment of an app
  */
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory",
-    function DeployWizard($scope, $notification, $translate, resourcesFactory, servicesFactory){
+    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory", "miscUtils",
+    function($scope, $notification, $translate, resourcesFactory, servicesFactory, utils){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -48,11 +50,11 @@
                 showError($translate.instant("template_error"));
                 return false;
             }else{
-                var data = new FormData();
+                var formData = new FormData();
                 $.each(uploadedFiles, function(key, value){
-                    data.append("tpl", value);
+                    formData.append("tpl", value);
                 });
-                resourcesFactory.add_app_template(data, function(data){
+                resourcesFactory.add_app_template(formData, function(){
                     resourcesFactory.get_app_templates(false, function(templatesMap) {
                         var templates = [];
                         for (var key in templatesMap) {
@@ -111,7 +113,7 @@
                             $scope.install.selected[t.Id] = false;
                         }
                     });
-                    
+
                     // check any dependant templates
                     if (template.depends) {
                         $scope.install.selected[template.depends] = true;
@@ -214,8 +216,8 @@
                 };
                 var engNotationRE = /([0-9]*)([kKmMgGtT]?)/;
                 // Convert an engineeringNotation string to a number
-                function toBytes(RAMCommitment){
-                    if (RAMCommitment == "") {
+                var toBytes = function(RAMCommitment){
+                    if (RAMCommitment === "") {
                         return 0;
                     }
                     var match = RAMCommitment.match(engNotationRE);
@@ -236,7 +238,9 @@
                         ret.RAMCommitment += toBytes(service.RAMCommitment);
 
                         // recurse!
-                        if(service.Services) calcCommitment(service.Services);
+                        if(service.Services){
+                            calcCommitment(service.Services);
+                        }
                     });
                 })(template.Services);
             }
@@ -356,7 +360,7 @@
                 };
 
                 var checkStatus = true;
-                resourcesFactory.deploy_app_template(deploymentDefinition, function(result) {
+                resourcesFactory.deploy_app_template(deploymentDefinition, function() {
                     servicesFactory.update().then(function(){
                         checkStatus = false;
                         closeModal();
@@ -402,9 +406,9 @@
                 templates.push(template);
             }
             $scope.templates.data = templates;
-            refreshHosts($scope, resourcesFactory, true, resetStepPage);
+            utils.refreshHosts($scope, resourcesFactory, true, resetStepPage);
         });
 
-        refreshPools($scope, resourcesFactory, true);
+        utils.refreshPools($scope, resourcesFactory, true);
     }]);
 })();

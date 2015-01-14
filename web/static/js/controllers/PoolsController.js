@@ -1,11 +1,13 @@
+/* global controlplane: true */
+
 /* PoolsControl
  * Displays list of pools
  */
 (function() {
     'use strict';
 
-    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter", "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
-    function($scope, $routeParams, $location, $filter, $timeout, resourcesFactory, authService, $modalService, $translate, $notification){
+    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter", "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils",
+    function($scope, $routeParams, $location, $filter, $timeout, resourcesFactory, authService, $modalService, $translate, $notification, utils){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -18,7 +20,7 @@
         ];
 
         // Build metadata for displaying a list of pools
-        $scope.pools = buildTable('ID', [
+        $scope.pools = utils.buildTable('ID', [
             { id: 'ID', name: 'pools_tbl_id'},
             { id: 'CoreCapacity', name: 'core_capacity'},
             { id: 'MemoryCapacity', name: 'memory_usage'},
@@ -46,7 +48,7 @@
                         classes: "btn-danger",
                         action: function(){
                             resourcesFactory.remove_pool(poolID, function(data) {
-                                refreshPools($scope, resourcesFactory, false);
+                                utils.refreshPools($scope, resourcesFactory, false);
                             });
                             this.close();
                         }
@@ -97,13 +99,13 @@
         $scope.add_pool = function() {
             return resourcesFactory.add_pool($scope.newPool)
                 .success(function(data){
-                    refreshPools($scope, resourcesFactory, false);
+                    utils.refreshPools($scope, resourcesFactory, false);
                     // Reset for another add
                     $scope.newPool = {};
                 });
         };
 
         // Ensure we have a list of pools
-        refreshPools($scope, resourcesFactory, false);
+        utils.refreshPools($scope, resourcesFactory, false);
     }]);
 })();

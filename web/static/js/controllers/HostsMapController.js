@@ -4,14 +4,14 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService",
-    function($scope, $routeParams, $location, resourcesFactory, authService) {
+    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils",
+    function($scope, $routeParams, $location, resourcesFactory, authService, utils) {
         // Ensure logged in
         authService.checkLogin($scope);
 
         $scope.name = "hostsmap";
         $scope.params = $routeParams;
-        $scope.indent = indentClass;
+        $scope.indent = utils.indentClass;
         $scope.breadcrumbs = [
             { label: 'breadcrumb_hosts', url: '#/hosts' },
             { label: 'breadcrumb_hosts_map', itemClass: 'active' }
@@ -121,11 +121,11 @@
         };
         $scope.treemapSelection = 'memory';
         // Also ensure we have a list of hosts
-        refreshPools($scope, resourcesFactory, false, function() {
+        utils.refreshPools($scope, resourcesFactory, false, function() {
             wait.pools = true;
             addHostsToPools();
         });
-        refreshHosts($scope, resourcesFactory, false, function() {
+        utils.refreshHosts($scope, resourcesFactory, false, function() {
             wait.hosts = true;
             addHostsToPools();
         });

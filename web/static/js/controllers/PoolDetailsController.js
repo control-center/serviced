@@ -1,11 +1,13 @@
+/* global controlplane: true */
+
 /* PoolDetailsController
  * Displays details of a specific pool
  */
 (function() {
     'use strict';
 
-    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification){
+    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, utils){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -17,7 +19,7 @@
         ];
 
         // Build metadata for displaying a pool's virtual ips
-        $scope.virtual_ip_addresses = buildTable('IP', [
+        $scope.virtual_ip_addresses = utils.buildTable('IP', [
             { id: 'IP', name: 'pool_tbl_virtual_ip_address_ip'},
             { id: 'Netmask', name: 'pool_tbl_virtual_ip_address_netmask'},
             { id: 'BindInterface', name: 'pool_tbl_virtual_ip_address_bind_interface'},
@@ -45,7 +47,7 @@
                         classes: "btn-danger",
                         action: function(){
                             resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
-                                refreshPools($scope, resourcesFactory, false);
+                                utils.refreshPools($scope, resourcesFactory, false);
                             });
                             this.close();
                         }
@@ -64,7 +66,7 @@
                 .success(function(data, status){
                     $scope.pools.add_virtual_ip = {};
                     $notification.create("Added new pool virtual ip", ip).success();
-                    refreshPools($scope, resourcesFactory, false);
+                    utils.refreshPools($scope, resourcesFactory, false);
                 });
         };
 
@@ -111,13 +113,13 @@
         };
 
         // Ensure we have a list of pools
-        refreshPools($scope, resourcesFactory, true, function() {
+        utils.refreshPools($scope, resourcesFactory, true, function() {
             if ($scope.pools.current) {
                 $scope.breadcrumbs.push({label: $scope.pools.current.ID, itemClass: 'active'});
                 
                 // TODO - use promises to clean up these async requests
                 // Also ensure we have a list of hosts
-                refreshHosts($scope, resourcesFactory, false, function(){
+                utils.refreshHosts($scope, resourcesFactory, false, function(){
                     // reduce the list to hosts associated with this pool
                     $scope.hosts.filtered = $scope.hosts.all.filter(function(host){
                         return host.PoolID === $scope.pools.current.ID;

@@ -5,8 +5,8 @@
     "use strict";
 
     angular.module("authService", [])
-    .factory("authService", ["$cookies", "$cookieStore", "$location", "$http", "$notification",
-    function($cookies, $cookieStore, $location, $http, $notification) {
+    .factory("authService", ["$cookies", "$cookieStore", "$location", "$http", "$notification", "miscUtils",
+    function($cookies, $cookieStore, $location, $http, $notification, utils) {
         var loggedIn = false;
         var userName = null;
 
@@ -74,7 +74,7 @@
                         username: $cookies.ZUsername
                     };
                 } else {
-                    unauthorized($location);
+                    utils.unauthorized($location);
                 }
             }
         };
