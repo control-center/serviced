@@ -45,7 +45,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 	// Need to do btrfs driver initializations
-	_ "github.com/control-center/serviced/volume/btrfs"
+	"github.com/control-center/serviced/volume/btrfs"
 	// Need to do rsync driver initializations
 	_ "github.com/control-center/serviced/volume/rsync"
 	"github.com/control-center/serviced/web"
@@ -338,6 +338,10 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 
 func (d *daemon) startMaster() error {
 	var err error
+	if err = d.initDFS(); err != nil {
+		return err
+	}
+
 	if d.dsDriver, err = d.initDriver(); err != nil {
 		return err
 	}
@@ -677,6 +681,7 @@ func (d *daemon) registerMasterRPC() error {
 	}
 	return nil
 }
+
 func (d *daemon) initDriver() (datastore.Driver, error) {
 
 	eDriver := elastic.New("localhost", 9200, "controlplane")
@@ -738,6 +743,16 @@ func (d *daemon) initWeb() {
 	go cpserver.ServeUI()
 	go cpserver.Serve(d.shutdown)
 }
+
+func (d *daemon) initDFS() error {
+	if options.FSType == "btrfs" {
+		if err := btrfs.IsBtrfsFilesystem(options.VarPath); err != nil {
+			return fmt.Errorf("varpath at %s is not a btrfs filesystem\n%s", options.VarPath, err)
+		}
+	}
+	return nil
+}
+
 func (d *daemon) startScheduler() {
 	go d.runScheduler()
 }

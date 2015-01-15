@@ -286,6 +286,12 @@ func (c *BtrfsConn) snapshotExists(label string) (exists bool, err error) {
 	return false, nil
 }
 
+// IsBtrfsFilesystem determines whether the path is a btrfs filesystem
+func IsBtrfsFilesystem(thePath string) error {
+	_, err := runcmd(false, "filesystem", "df", thePath)
+	return err
+}
+
 // runcmd runs the btrfs command
 func runcmd(sudoer bool, args ...string) ([]byte, error) {
 	cmd := append([]string{"btrfs"}, args...)
