@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -137,12 +138,15 @@ func (et *ElasticTest) stop() error {
 type testCluster struct {
 	tmpDir     string
 	cmd        *exec.Cmd
+	cmdLock    sync.RWMutex
 	clientPort int
 	shutdown   bool
 }
 
 func (tc *testCluster) Stop() error {
 	tc.shutdown = true
+	tc.cmdLock.RLock()
+	defer tc.cmdLock.RUnlock()
 	if tc.cmd != nil && tc.cmd.Process != nil {
 		log.Print("Stop called, killing elastic search")
 		return tc.cmd.Process.Kill()
@@ -154,6 +158,7 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 
 	tc := &testCluster{}
 	tc.shutdown = false
+	tc.cmdLock = sync.RWMutex{}
 
 	command := []string{
 		elasticDir + "/bin/elasticsearch",
@@ -171,6 +176,8 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 	tc.cmd = cmd
 	go func() {
 		log.Printf("Starting elastic on port %v....: %v\n", port, command)
+		tc.cmdLock.Lock()
+		defer tc.cmdLock.Unlock()
 		out, err := cmd.CombinedOutput()
 		if err != nil && !tc.shutdown {
 			log.Printf("%s :%s\n", out, err) // do stuff
