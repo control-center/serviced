@@ -347,7 +347,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	}
 
 	// map service id to service
-	current, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID:tenantID})
+	current, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID:tenantID})
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return err
@@ -398,7 +398,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 			}
 
 			// restore the address assignments
-			if err := dfs.facade.RestoreIPs(datastore.Get(), svc); err != nil {
+			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 
@@ -415,7 +415,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	}
 
 	for serviceID := range currentServices {
-		if err := dfs.facade.RemoveService(datastore.Get(), serviceID); err != nil {
+		if err := dfs.facade.RemoveService(dfs.datastoreGet(), serviceID); err != nil {
 			glog.Errorf("Could not remove service %s: %s", serviceID, err)
 			return err
 		}
