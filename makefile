@@ -424,10 +424,10 @@ test: build docker_ok
 	cd web && go test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
 	cd node && go test $(GOTEST_FLAGS)
-	cd datastore && make test $(GOTEST_FLAGS)
-	cd domain && make test $(GOTEST_FLAGS)
+	cd datastore && make test
+	cd domain && make test
 	cd facade && go test $(GOTEST_FLAGS)
-	cd rpc && make test $(GOTEST_FLAGS)
+	cd rpc && make test
 	cd cli/api && go test $(GOTEST_FLAGS)
 	cd cli/cmd && go test $(GOTEST_FLAGS)
 	cd scheduler && go test $(GOTEST_FLAGS)
