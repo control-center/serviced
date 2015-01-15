@@ -20,7 +20,7 @@ build:
 	cd nfs && go build
 
 test: build
-	go test -run Test[AC-Z] $(GOTEST_FLAGS)
+	go test $(GOTEST_FLAGS)
 	cd nfs && go test $(GOTEST_FLAGS)
 
 clean:
