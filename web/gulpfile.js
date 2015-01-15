@@ -4,7 +4,8 @@ var gulp = require("gulp"),
     concat = require("gulp-concat"),
     uglify = require("gulp-uglify"),
     rename = require("gulp-rename"),
-    jshint = require("gulp-jshint");
+    jshint = require("gulp-jshint"),
+    sequence = require("run-sequence");
 
 var paths = {
     // TODO - organize by feature, not type
@@ -60,18 +61,20 @@ var controlplaneFiles = [
 ];
 
 gulp.task("default", ["concat"]);
-gulp.task("release", ["lint", "concat", "uglify"]);
+gulp.task("release", function(){
+    // last arg is a callback function in case
+    // of an error.
+    sequence("lint", "concat", "uglify", function(){});
+});
 
 gulp.task("concat", function(){
-    gulp.src(controlplaneFiles)
+    return gulp.src(controlplaneFiles)
         .pipe(concat("controlplane.js"))
         .pipe(gulp.dest(paths.build));
-
 });
 
 gulp.task("uglify", function(){
-    // TODO - ensure controlplane.js exists
-    gulp.src(paths.build + "controlplane.js")
+    return gulp.src(paths.build + "controlplane.js")
         .pipe(uglify())
         .pipe(rename(paths.build + "controlplane.min.js"))
         .pipe(gulp.dest("./"));
@@ -89,7 +92,7 @@ gulp.task("test", function(){
 });
 
 gulp.task("lint", function(){
-    gulp.src(controlplaneFiles)
+    return gulp.src(controlplaneFiles)
         .pipe(jshint())
         .pipe(jshint.reporter("jshint-stylish"))
         .pipe(jshint.reporter("fail"));
