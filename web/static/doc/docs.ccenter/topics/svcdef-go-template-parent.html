@@ -1,0 +1,179 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>parent function</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <link rel="schema.DC" href="http://purl.org/dc/terms/">
+      <meta name="DC.Type" content="reference">
+      
+      <meta name="DC.Title" content="parent function">
+      
+      <meta name="abstract" content="Use the context of the parent service.">
+      
+      <meta name="description" content="Use the context of the parent service.">
+      
+      <meta name="prodname" content="Control Center">
+      
+      <meta name="prodname" content="Control Center">
+      
+      <meta name="version" content="0">
+      
+      <meta name="version" content="0">
+      
+      <meta name="release" content="8">
+      
+      <meta name="release" content="8">
+      
+      <meta name="modification" content="0">
+      
+      <meta name="modification" content="0">
+      
+      <meta name="DC.Publisher" content="Zenoss, Inc.">
+      
+      <meta name="DC.Format" content="XHTML">
+      
+      <meta name="DC.Identifier" content="referenceid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.ccenter\/topics\/svcdef-go-template-percentScale.html","previousTopicHref":"docs.ccenter\/topics\/svcdef-go-template-each.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-bootstrap/css/style.css">
+      
+      <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+      <script rel="stylesheet" type="text/css" media="screen, projection, print" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="../../themes/html5-bootstrap/js/script.js"></script>
+      </head>
+   <body class="en-us html5-bootstrap centered navigation-default">
+      <ul id="page-links" class="hidden sr-only">
+         <li><a id="skip-to-content" href="#d4h5-main-content">Skip to content</a></li>
+         <li><a id="skip-to-localnav" href="#local-navigation">Skip to navigation</a></li>
+         <li><a id="skip-to-footer" href="#footer">Skip to footer</a></li>
+      </ul>
+      <header id="site-head" class="header header--fixed">
+         <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
+            <div class="container">
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Control Center Guide  </a></div>
+               <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
+                  <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
+               </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
+            </div>
+         </nav>
+         <div id="msg-version"></div>
+      </header>
+      <div class="container">
+         <div class="row">
+            <div class="col-xs-12 col-md-21">
+               <ol class="breadcrumb">
+                  <li><a class="breadcrumb" href="../../docs.ccenter/topics/svcdef.html" title="Defining services">Defining services</a></li>
+                  
+                  <li><a class="breadcrumb" href="../../docs.ccenter/topics/svcdef-go-template.html" title="Go templates in JSON values">Go templates in JSON values</a></li>
+                  
+                  <li>parent function</li>
+               </ol>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-xs-6 col-md-4 hidden-xs">
+               <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
+                  <ul class="nav bs-docs-sidenav">
+                     <li class=" no-child "><a href="../../docs.ccenter/topics/preface.html">Preface</a></li>
+                     <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../docs.ccenter/topics/admin-aws.html">Reducing high load averages on AWS hosts</a></li>
+                           <li class=" no-child "><a href="../../docs.ccenter/topics/admin-convert.html">Converting a single-host deployment to multi-host</a></li>
+                           <li class=" no-child "><a href="../../docs.ccenter/topics/admin-multiple.html">Deploying multiple instances of a service</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/mirror-docker.html">Mirroring the Zenoss Docker Hub repository</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/mirror-docker-prepare.html">Preparing a transfer host</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/mirror-docker-sync.html">Mirroring with synchronous internet and master host access</a></li>
+                              </ul>
+                           </li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  active"><a href="../../docs.ccenter/topics/svcdef.html"><span class="enumeration enumeration0">Chapter 2. </span>Defining services</a><ul class="nav">
+                           <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-template.html">Service template</a></li>
+                           <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-object.html">ServiceDefinition object</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-configFile.html">ConfigFile object</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-endpoint.html">Endpoint object</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-task.html">Task object</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-volume.html">Volume object</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-logconfig.html">LogConfig object</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-health.html">HealthCheck object</a></li>
+                                 <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-metricConfig.html">MetricConfig object</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-metric.html">Metric object</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-graphConfig.html">GraphConfig object</a><ul class="nav">
+                                       <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-datapoint.html">DataPoint object</a></li>
+                                    </ul>
+                                 </li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-thresholdConfig.html">ThresholdConfig object</a></li>
+                              </ul>
+                           </li>
+                           <li class=" collapsible  active"><a href="../../docs.ccenter/topics/svcdef-go-template.html">Go templates in JSON values</a><ul class="nav">
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-bytesToMB.html">bytesToMB function</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-child.html">child function</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-each.html">each function</a></li>
+                                 <li class=" no-child  active"><a class="selected" href="../../docs.ccenter/topics/svcdef-go-template-parent.html">parent function</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-percentScale.html">percentScale function</a></li>
+                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-plus.html">plus function</a></li>
+                              </ul>
+                           </li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/cli.html"><span class="enumeration enumeration0">Chapter 3. </span>Using the Control Center command-line interface</a><ul class="nav">
+                           <li class=" no-child "><a href="../../docs.ccenter/topics/cli-serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.ccenter/topics/cli-env-vars.html">Configuring Control Center</a></li>
+                        </ul>
+                     </li>
+                  </ul>
+               </nav>
+            </div>
+            <div class="col-xs-12 col-md-8">
+               <div id="page" class="starter-template">
+                  <article>
+                     <div class="page reference  - topic-topic       reference-reference " id="referenceid">
+                        
+                        <h1 class="title topictitle1"><span class="keyword">parent</span> function
+                        </h1>
+                        <div class="body refbody">
+                           <p class="shortdesc">Use the context of the parent service.</p>
+                           
+                           
+                           <div class="section"><a name="referenceid-d12063e40" id="referenceid-d12063e40" class="anchor"></a>
+                              
+                              <p class="p">Syntax: <span class="ph synph"><span class="ph delim">(</span><span class="keyword kwd">parent</span> <span class="ph var">Context</span><span class="ph delim">)</span></span></p>
+                              
+                              
+                              <p class="p">Example: <samp class="ph codeph">{{(parent .).Name}}</samp></p>
+                              
+                              
+                           </div>
+                           
+                           
+                        </div>
+                        
+                     </div>
+                     
+                     <div class="row">
+                        <footer id="topicsNPLinks">
+                           <div id="footer_previous"><a href="../../docs.ccenter/topics/svcdef-go-template-each.html" class="previous" rel="internal" title="each function"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">each function</span></a></div>
+                           <div id="footer_next"><a href="../../docs.ccenter/topics/svcdef-go-template-percentScale.html" class="next" rel="internal" title="percentScale function"><span class="sr-only">percentScale function</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                        </footer>
+                     </div>
+                  </article>
+                  <div class="clear"></div>
+                  
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>
