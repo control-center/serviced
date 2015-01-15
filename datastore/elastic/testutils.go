@@ -145,8 +145,8 @@ type testCluster struct {
 
 func (tc *testCluster) Stop() error {
 	tc.shutdown = true
-	tc.cmdLock.RLock()
-	defer tc.cmdLock.RUnlock()
+	tc.cmdLock.Lock()
+	defer tc.cmdLock.Unlock()
 	if tc.cmd != nil && tc.cmd.Process != nil {
 		log.Print("Stop called, killing elastic search")
 		return tc.cmd.Process.Kill()
