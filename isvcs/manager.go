@@ -273,32 +273,31 @@ func (m *Manager) loop() {
 				}
 
 				// track the number of services that haven't started
-				started := make(chan int)
-				var count int
-				go func() {
-					for s := range started {
-						count += s
-					}
-				}()
+				var noStart = make([]int, len(m.services))
 
 				// start services in parallel
 				var wg sync.WaitGroup
+				index := 0
 				for name, svc := range m.services {
 					if !svc.IsRunning() {
 						wg.Add(1)
-						go func(svc *IService) {
+						go func(svc *IService, i int) {
 							defer wg.Done()
-							started <- 1
 							if err := svc.Start(); err != nil {
 								glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
+								noStart[i] = 1
 								return
 							}
-							started <- -1
-						}(m.services[name])
+						}(m.services[name], index)
 					}
+					index++
 				}
 				wg.Wait()
-				close(started)
+
+				count := 0
+				for _, i := range noStart {
+					count += i
+				}
 				if count > 0 {
 					request.response <- StartError(count)
 				} else {
