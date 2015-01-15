@@ -69,6 +69,10 @@ func (mf *mockFacade) GetTenantID(ctx datastore.Context, serviceID string) (stri
 	return args.String(0), args.Error(1)
 }
 
+func (mf *mockFacade) RemoveService(ctx datastore.Context, id string) error {
+	return mf.Mock.Called(ctx, id).Error(0)
+}
+
 func (mf *mockFacade) RestoreIPs(ctx datastore.Context, svc service.Service) error {
 	return mf.Mock.Called(ctx, svc).Error(0)
 }
