@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dfs
+package test
 
 import (
 	"github.com/control-center/serviced/volume"
@@ -20,29 +20,29 @@ import (
 )
 
 // assert the interface
-var _ volume.Volume = &mockVolume{}
+var _ volume.Volume = &MockVolume{}
 
-type mockVolume struct {
+type MockVolume struct {
 	mock.Mock
 }
 
-func (mv *mockVolume) Name() string {
+func (mv *MockVolume) Name() string {
 	return mv.Mock.Called().String(0)
 }
 
-func (mv *mockVolume) Path() string {
+func (mv *MockVolume) Path() string {
 	return mv.Mock.Called().String(0)
 }
 
-func (mv *mockVolume) SnapshotPath(label string) string {
+func (mv *MockVolume) SnapshotPath(label string) string {
 	return mv.Mock.Called(label).String(0)
 }
 
-func (mv *mockVolume) Snapshot(label string) error {
+func (mv *MockVolume) Snapshot(label string) error {
 	return mv.Mock.Called(label).Error(0)
 }
 
-func (mv *mockVolume) Snapshots() ([]string, error) {
+func (mv *MockVolume) Snapshots() ([]string, error) {
 	args := mv.Mock.Called()
 
 	var snapshots []string
@@ -52,22 +52,22 @@ func (mv *mockVolume) Snapshots() ([]string, error) {
 	return snapshots, args.Error(1)
 }
 
-func (mv *mockVolume) RemoveSnapshot(label string) error {
+func (mv *MockVolume) RemoveSnapshot(label string) error {
 	return mv.Mock.Called(label).Error(0)
 }
 
-func (mv *mockVolume) Rollback(label string) error {
+func (mv *MockVolume) Rollback(label string) error {
 	return mv.Mock.Called(label).Error(0)
 }
 
-func (mv *mockVolume) Unmount() error {
+func (mv *MockVolume) Unmount() error {
 	return mv.Mock.Called().Error(0)
 }
 
-func (mv *mockVolume) Export(label, parent, filename string) error {
+func (mv *MockVolume) Export(label, parent, filename string) error {
 	return mv.Mock.Called(label, parent, filename).Error(0)
 }
 
-func (mv *mockVolume) Import(label, filename string) error {
+func (mv *MockVolume) Import(label, filename string) error {
 	return mv.Mock.Called(label, filename).Error(0)
 }

@@ -25,10 +25,13 @@ import (
 	"testing"
 
 	"github.com/control-center/serviced/commons/docker"
+	dockertest "github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	facadetest "github.com/control-center/serviced/facade/test"
 	"github.com/control-center/serviced/volume"
+	volumetest "github.com/control-center/serviced/volume/test"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
@@ -43,7 +46,7 @@ type snapshotTest struct {
 	dfs *DistributedFilesystem
 
 	//  A mock implementatino of FacadeInterface
-	mockFacade *mockFacade
+	mockFacade *facadetest.MockFacade
 
 	// Used to mock the response from dfs.mountVolume()
 	mountVolumeResponse mockMountVolumeResponse
@@ -60,7 +63,7 @@ const (
 )
 
 func (st *snapshotTest) SetupTest() {
-	st.mockFacade = &mockFacade{}
+	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem {
 		fsType: "rsync",
@@ -168,7 +171,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_WaitForPauseFails() {
 func (st *snapshotTest) TestSnapshot_Snapshot_VolumeNotFound() {
 	st.setupWaitForServicesToBePaused(nil)
 	errorStub := errors.New("errorStub: GetVolume() failed")
-	st.mountVolumeResponse.volume = &mockVolume{}
+	st.mountVolumeResponse.volume = &volumetest.MockVolume{}
 	st.mountVolumeResponse.err = errorStub
 
 	snapshotLabel, err := st.dfs.Snapshot(testTenantID, "description")
@@ -265,7 +268,7 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_ServiceNotFound() {
 func (st *snapshotTest) TestSnapshot_ListSnapshots_VolumeNotFound() {
 	st.setupSimpleGetService()
 	errorStub := errors.New("errorStub: GetVolume() failed")
-	st.mountVolumeResponse.volume = &mockVolume{}
+	st.mountVolumeResponse.volume = &volumetest.MockVolume{}
 	st.mountVolumeResponse.err = errorStub
 
 	snapshots, err := st.dfs.ListSnapshots(testTenantID)
@@ -277,7 +280,7 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_VolumeNotFound() {
 func (st *snapshotTest) TestSnapshot_ListSnapshots_GetVolumeSnapshotsFail() {
 	st.setupSimpleGetService()
 	errorStub := errors.New("errorStub: Snapshots() failed")
-	mockVol := &mockVolume{}
+	mockVol := &volumetest.MockVolume{}
 	mockVol.On("Snapshots").Return(nil, errorStub)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
@@ -290,7 +293,7 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_GetVolumeSnapshotsFail() {
 
 func (st *snapshotTest) TestSnapshot_ListSnapshots_EmptyResult() {
 	st.setupSimpleGetService()
-	mockVol := &mockVolume{}
+	mockVol := &volumetest.MockVolume{}
 	mockVol.On("Snapshots").Return(nil, nil)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
@@ -359,7 +362,7 @@ func(st *snapshotTest) mock_mountVolume(fsType, serviceID, baseDir string) (volu
 
 // A set of values used to mock the response from dfs.mountVolume()
 type mockMountVolumeResponse struct {
-	volume *mockVolume
+	volume *volumetest.MockVolume
 	err error
 }
 
@@ -386,18 +389,18 @@ func (st *snapshotTest) setupWaitForServicesToBePaused(errorStub error) []servic
 	return stubServices
 }
 
-func (st *snapshotTest) setupMockSnapshotVolume(serviceID string) *mockVolume {
+func (st *snapshotTest) setupMockSnapshotVolume(serviceID string) *volumetest.MockVolume {
 	snapshotDir := st.makeSnapshotDir(serviceID)
 
-	mockVol := &mockVolume{}
+	mockVol := &volumetest.MockVolume{}
 	mockVol.On("Path").Return(snapshotDir)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
 	return mockVol
 }
 
-func (st *snapshotTest) setupMockDockerClient() *mockDockerClient {
-	mockClient := &mockDockerClient{}
+func (st *snapshotTest) setupMockDockerClient() *dockertest.MockDockerClient {
+	mockClient := &dockertest.MockDockerClient{}
 	st.dockerClientGetter = func() (docker.ClientInterface, error) {
 		return mockClient, nil
 	}
@@ -464,7 +467,7 @@ func (st *snapshotTest) assertSnapshotMetadata(description, metadataFile string)
 func (st *snapshotTest) setupListSnapshots(snapshotIDs, descriptions []string) {
 	st.setupSimpleGetService()
 
-	mockVol := &mockVolume{}
+	mockVol := &volumetest.MockVolume{}
 	mockVol.On("Snapshots").Return(snapshotIDs, nil)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
