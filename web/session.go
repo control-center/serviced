@@ -26,6 +26,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ type sessionT struct {
 }
 
 var sessions map[string]*sessionT
+var sessionsLock = &sync.RWMutex{}
 
 var allowRootLogin bool = true
 
@@ -50,7 +52,7 @@ func init() {
 	if v := strings.ToLower(os.Getenv("SERVICED_ALLOW_ROOT_LOGIN")); v != "" {
 		for _, t := range falses {
 			if v == t {
-				allowRootLogin  = false
+				allowRootLogin = false
 			}
 		}
 	}
@@ -63,10 +65,10 @@ func init() {
 	go purgeOldsessionTs()
 }
 
-
 func purgeOldsessionTs() {
 	for {
 		time.Sleep(time.Second * 60)
+		sessionsLock.Lock()
 		if len(sessions) == 0 {
 			continue
 		}
@@ -82,6 +84,7 @@ func purgeOldsessionTs() {
 			glog.V(0).Infof("Deleting session %s (exceeded max age)", key)
 			delete(sessions, key)
 		}
+		sessionsLock.Unlock()
 	}
 }
 
@@ -99,7 +102,9 @@ func loginOK(r *rest.Request) bool {
 		glog.V(1).Info("Unable to find session ", cookie.Value)
 		return false
 	}
+	sessionsLock.Lock()
 	session.access = time.Now()
+	sessionsLock.Unlock()
 	glog.V(2).Infof("sessionT %s used", session.ID)
 	return true
 }
@@ -140,7 +145,7 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 		return
 	}
 
-	if creds.Username == "root" && ! allowRootLogin {
+	if creds.Username == "root" && !allowRootLogin {
 		glog.V(1).Info("root login disabled")
 		writeJSON(w, &simpleResponse{"Root login disabled", loginLink()}, http.StatusUnauthorized)
 		return
@@ -152,7 +157,9 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 			writeJSON(w, &simpleResponse{"sessionT could not be created", loginLink()}, http.StatusInternalServerError)
 			return
 		}
+		sessionsLock.Lock()
 		sessions[session.ID] = session
+		sessionsLock.Unlock()
 		glog.V(1).Info("Created authenticated session: ", session.ID)
 		http.SetCookie(
 			w.ResponseWriter,

@@ -157,7 +157,7 @@ $(GOSRC)/$(godep_SRC):
 
 .PHONY: go
 go:
-	go build ${LDFLAGS}
+	go build $(GOBUILD_FLAGS) ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -176,14 +176,14 @@ FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build ${LDFLAGS}
-	go install ${LDFLAGS}
+	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	go install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go build ${LDFLAGS}
-	go install ${LDFLAGS}
+	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	go install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
@@ -424,10 +424,10 @@ test: build docker_ok
 	cd web && go test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
 	cd node && go test $(GOTEST_FLAGS)
-	cd datastore && make test $(GOTEST_FLAGS)
-	cd domain && make test $(GOTEST_FLAGS)
+	cd datastore && make test
+	cd domain && make test
 	cd facade && go test $(GOTEST_FLAGS)
-	cd rpc && make test $(GOTEST_FLAGS)
+	cd rpc && make test
 	cd cli/api && go test $(GOTEST_FLAGS)
 	cd cli/cmd && go test $(GOTEST_FLAGS)
 	cd scheduler && go test $(GOTEST_FLAGS)

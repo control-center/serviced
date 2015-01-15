@@ -53,8 +53,8 @@
 # Set the TLS certfile
 # SERVICED_CERT_FILE=/etc/....
 
-# Set the driver type for the underlying file system (rsync/btrfs)
-# SERVICED_FS_TYPE=rsync
+# Set the driver type on the master for the distributed file system (rsync/btrfs)
+SERVICED_FS_TYPE=btrfs
 
 # Set the aliases for this host (use in vhost muxing)
 # SERVICED_VHOST_ALIASES=foobar.com,example.com
@@ -105,6 +105,9 @@
 
 # Max size of Logstash data to keep in gigabytes
 # SERVICED_LOGSTASH_MAX_SIZE=10
+
+# Max number tracked connections for iptables
+# SERVICED_IPTABLES_MAX_CONNECTIONS=655360
 
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=

@@ -1,10 +1,9 @@
-function HostsMapControl($scope, $routeParams, $location, resourcesService, authService) {
+function HostsMapControl($scope, $routeParams, $location, resourcesFactory, authService) {
     // Ensure logged in
     authService.checkLogin($scope);
 
     $scope.name = "hostsmap";
     $scope.params = $routeParams;
-    $scope.itemClass = itemClass;
     $scope.indent = indentClass;
     $scope.breadcrumbs = [
         { label: 'breadcrumb_hosts', url: '#/hosts' },
@@ -115,11 +114,11 @@ function HostsMapControl($scope, $routeParams, $location, resourcesService, auth
     };
     $scope.treemapSelection = 'memory';
     // Also ensure we have a list of hosts
-    refreshPools($scope, resourcesService, false, function() {
+    refreshPools($scope, resourcesFactory, false, function() {
         wait.pools = true;
         addHostsToPools();
     });
-    refreshHosts($scope, resourcesService, false, function() {
+    refreshHosts($scope, resourcesFactory, false, function() {
         wait.hosts = true;
         addHostsToPools();
     });

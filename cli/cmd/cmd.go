@@ -95,7 +95,7 @@ func getLocalAgentIP() string {
 	ip := configEnv("OUTBOUND_IP", "")
 	if ip != "" {
 		ip = ip + ":4979"
-	}else{
+	} else {
 		ip = api.GetAgentIP()
 	}
 	return ip

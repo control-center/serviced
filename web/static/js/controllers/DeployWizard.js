@@ -1,11 +1,11 @@
-function DeployWizard($scope, $notification, $translate, resourcesService) {
+function DeployWizard($scope, $notification, $translate, resourcesFactory, servicesFactory){
     var step = 0;
     var nextClicked = false;
     $scope.name='wizard';
 
     $scope.dockerLoggedIn = true;
 
-    resourcesService.docker_is_logged_in(function(loggedIn) {
+    resourcesFactory.docker_is_logged_in(function(loggedIn) {
         $scope.dockerLoggedIn = loggedIn;
     });
 
@@ -45,8 +45,8 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             $.each(uploadedFiles, function(key, value){
                 data.append("tpl", value);
             });
-            resourcesService.add_app_template(data, function(data){
-                resourcesService.get_app_templates(false, function(templatesMap) {
+            resourcesFactory.add_app_template(data, function(data){
+                resourcesFactory.get_app_templates(false, function(templatesMap) {
                     var templates = [];
                     for (var key in templatesMap) {
                         var template = templatesMap[key];
@@ -67,7 +67,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             return false;
         }
 
-        resourcesService.add_host($scope.newHost)
+        resourcesFactory.add_host($scope.newHost)
             .success(function(){
                 step += 1;
                 resetError();
@@ -349,8 +349,8 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             };
 
             var checkStatus = true;
-            resourcesService.deploy_app_template(deploymentDefinition, function(result) {
-                refreshServices($scope, resourcesService, false, function(){
+            resourcesFactory.deploy_app_template(deploymentDefinition, function(result) {
+                servicesFactory.update().then(function(){
                     checkStatus = false;
                     closeModal();
                 });
@@ -363,7 +363,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    resourcesService.get_deployed_templates(deploymentDefinition, function(data){
+                    resourcesFactory.get_deployed_templates(deploymentDefinition, function(data){
                         if(data.Detail === "timeout"){
                             $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
                         }else{
@@ -387,7 +387,7 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
         nextClicked = false;
     };
 
-    resourcesService.get_app_templates(false, function(templatesMap) {
+    resourcesFactory.get_app_templates(false, function(templatesMap) {
         var templates = [];
         for (var key in templatesMap) {
             var template = templatesMap[key];
@@ -395,8 +395,8 @@ function DeployWizard($scope, $notification, $translate, resourcesService) {
             templates.push(template);
         }
         $scope.templates.data = templates;
-        refreshHosts($scope, resourcesService, true, resetStepPage);
+        refreshHosts($scope, resourcesFactory, true, resetStepPage);
     });
 
-    refreshPools($scope, resourcesService, true);
+    refreshPools($scope, resourcesFactory, true);
 }

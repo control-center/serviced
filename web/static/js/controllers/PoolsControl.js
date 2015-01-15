@@ -1,4 +1,4 @@
-function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesService, authService, $modalService, $translate, $notification){
+function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resourcesFactory, authService, $modalService, $translate, $notification){
     // Ensure logged in
     authService.checkLogin($scope);
 
@@ -38,8 +38,8 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
                     label: "remove_pool",
                     classes: "btn-danger",
                     action: function(){
-                        resourcesService.remove_pool(poolID, function(data) {
-                            refreshPools($scope, resourcesService, false);
+                        resourcesFactory.remove_pool(poolID, function(data) {
+                            refreshPools($scope, resourcesFactory, false);
                         });
                         this.close();
                     }
@@ -88,14 +88,14 @@ function PoolsControl($scope, $routeParams, $location, $filter, $timeout, resour
 
     // Function for adding new pools - through modal
     $scope.add_pool = function() {
-        return resourcesService.add_pool($scope.newPool)
+        return resourcesFactory.add_pool($scope.newPool)
             .success(function(data){
-                refreshPools($scope, resourcesService, false);
+                refreshPools($scope, resourcesFactory, false);
                 // Reset for another add
                 $scope.newPool = {};
             });
     };
 
     // Ensure we have a list of pools
-    refreshPools($scope, resourcesService, false);
+    refreshPools($scope, resourcesFactory, false);
 }

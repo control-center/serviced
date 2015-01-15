@@ -11,7 +11,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/control-center/serviced/commons"
 	"github.com/zenoss/glog"
 )
 
@@ -55,44 +54,18 @@ func evalSnapshot(r *runner, n node) error {
 }
 
 func evalUSE(r *runner, n node) error {
+
 	imageName := n.args[0]
 	glog.V(0).Infof("preparing to use image: %s", imageName)
 	svcID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", USE)
 	}
-
-	imageID, err := commons.ParseImageID(imageName)
+	image, err := r.svcUse(svcID, imageName, r.config.DockerRegistry, r.config.NoOp)
 	if err != nil {
 		return err
 	}
-	if imageID.Tag == "" {
-		imageID.Tag = "latest"
-	}
-	glog.Infof("pulling image %s, this may take a while...", imageID)
-	if err := r.pullImage(imageID.String()); err != nil {
-		glog.Warningf("unable to pull image %s", imageID)
-	}
-
-	//verify image has been pulled
-	img, err := r.findImage(imageID.String(), false)
-	if err != nil {
-		err = fmt.Errorf("could not look up image %s: %s. Check your docker login and retry service deployment.", imageID, err)
-		return err
-	}
-
-	//Tag images to latest all images
-	var newTag *commons.ImageID
-
-	newTag, err = renameImageID(r.config.DockerRegistry, svcID, imageID.String(), "latest")
-	if err != nil {
-		return err
-	}
-	glog.Infof("tagging image %s to %s ", imageName, newTag)
-	if _, err = r.tagImage(img, newTag.String()); err != nil {
-		glog.Errorf("could not tag image: %s (%v)", imageName, err)
-		return err
-	}
+	glog.Infof("Successfully tagged new image %s", image)
 	return nil
 }
 

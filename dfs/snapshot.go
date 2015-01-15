@@ -206,7 +206,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		return err
 	}
 
-	if err := dfs.restoreServices(restore); err != nil {
+	if err := dfs.restoreServices(tenantID, restore); err != nil {
 		glog.Errorf("Could not restore services from %s: %s", snapshotID, err)
 		return err
 	}
@@ -329,7 +329,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	return nil
 }
 
-func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error {
+func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*service.Service) error {
 	// get the resource pools
 	pools, err := dfs.facade.GetResourcePools(dfs.datastoreGet())
 	if err != nil {
@@ -340,14 +340,14 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 		poolMap[pool.ID] = struct{}{}
 	}
 
-	// map services to parent
+	// map parentServiceID to service
 	serviceTree := make(map[string][]service.Service)
 	for _, svc := range svcs {
 		serviceTree[svc.ParentServiceID] = append(serviceTree[svc.ParentServiceID], *svc)
 	}
 
 	// map service id to service
-	current, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
+	current, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID:tenantID})
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return err
@@ -395,28 +395,11 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 					glog.Errorf("Could not add service %s: %s", serviceID, err)
 					return err
 				}
+			}
 
-				/*
-					// TODO: enable this to generate a new service ID, instead of recycling
-					// the old one
-					svc.ID = ""
-					svc.ID, err = dfs.facade.AddService(svc)
-					if err != nil {
-						glog.Errorf("Could not add service %s: %s", serviceID, err)
-						return err
-					}
-
-					// Update the service
-					serviceTree[svc.ID] = serviceTree[serviceID]
-					delete(serviceTree, serviceID)
-					serviceID = svc.ID
-				*/
-
-				// restore the address assignments
-				if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), svc); err != nil {
-					glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
-				}
-
+			// restore the address assignments
+			if err := dfs.facade.RestoreIPs(datastore.Get(), svc); err != nil {
+				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 
 			if err := traverse(serviceID); err != nil {
@@ -431,15 +414,12 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 		return err
 	}
 
-	/*
-		// TODO: enable this if we want to delete any non-matching services
-		for serviceID := range currentServices {
-			if err := dfs.facade.RemoveService(serviceID); err != nil {
-				glog.Errorf("Could not remove service %s: %s", serviceID, err)
-				return err
-			}
+	for serviceID := range currentServices {
+		if err := dfs.facade.RemoveService(datastore.Get(), serviceID); err != nil {
+			glog.Errorf("Could not remove service %s: %s", serviceID, err)
+			return err
 		}
-	*/
+	}
 
 	return nil
 }
