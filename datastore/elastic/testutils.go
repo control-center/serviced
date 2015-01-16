@@ -182,7 +182,9 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 		log.Printf("########################### newTestCluster LOCK")
 		tc.cmdLock.Lock()
 		defer tc.cmdLock.Unlock()
+		log.Printf("########################### COMBINED OUTPUT ENTER")
 		out, err := cmd.CombinedOutput()
+		log.Printf("########################### COMBINED OUTPUT EXIT")
 		if err != nil && !tc.shutdown {
 			log.Printf("%s :%s\n", out, err) // do stuff
 		}
