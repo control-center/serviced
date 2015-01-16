@@ -145,12 +145,15 @@ type testCluster struct {
 
 func (tc *testCluster) Stop() error {
 	tc.shutdown = true
+	log.Printf("########################### Stop LOCK")
 	tc.cmdLock.Lock()
 	defer tc.cmdLock.Unlock()
 	if tc.cmd != nil && tc.cmd.Process != nil {
 		log.Print("Stop called, killing elastic search")
+		log.Printf("########################### Stop UNLOCK")
 		return tc.cmd.Process.Kill()
 	}
+	log.Printf("########################### Stop UNLOCK")
 	return nil
 }
 
@@ -176,12 +179,14 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 	tc.cmd = cmd
 	go func() {
 		log.Printf("Starting elastic on port %v....: %v\n", port, command)
+		log.Printf("########################### newTestCluster LOCK")
 		tc.cmdLock.Lock()
 		defer tc.cmdLock.Unlock()
 		out, err := cmd.CombinedOutput()
 		if err != nil && !tc.shutdown {
 			log.Printf("%s :%s\n", out, err) // do stuff
 		}
+		log.Printf("########################### newTestCluster UNLOCK")
 	}()
 	return tc, nil
 }
