@@ -37,7 +37,7 @@ var (
 )
 
 // GetAgentIP returns the agent ip address
-func GetAgentIP() string {
+func GetAgentIP(defaultRPCPort int) string {
 	if options.Endpoint != "" {
 		return options.Endpoint
 	}
@@ -45,7 +45,7 @@ func GetAgentIP() string {
 	if err != nil {
 		panic(err)
 	}
-	return agentIP + ":4979"
+	return agentIP + fmt.Sprintf(":%d", defaultRPCPort)
 }
 
 // GetDockerDNS returns the docker dns address
