@@ -12,6 +12,9 @@
 # limitations under the License.
 
 GO = $(shell which go)
+UID = $(shell id -u)
+GID = $(shell id -g)
+PWD = $(shell pwd)
 
 javascript_TARGETS       = $(controlplane_JS) $(controlplane_MINIFIED_JS)
 controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
@@ -32,9 +35,8 @@ test: build
 
 .PHONY: build_js build-js
 build_js build-js:
-	#make sure deps are installed
-	docker run --rm -tv `pwd`/:/mnt/ --entrypoint="npm" zenoss/gulp install && \
-	docker run --rm -tv `pwd`/:/mnt/ zenoss/gulp release
+	docker run --rm -v $(PWD)/:/mnt/ -e UID=$(UID) -e GID=$(GID) zenoss/gulp npm install
+	docker run --rm -v $(PWD)/:/mnt/ -e UID=$(UID) -e GID=$(GID) zenoss/gulp gulp release
 
 .PHONY: clean
 clean:
