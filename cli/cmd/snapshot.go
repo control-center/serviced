@@ -153,11 +153,7 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 		return
 	}
 
-	description := ""
-	if nArgs <= 3 {
-		description = ctx.String("description")
-	}
-
+	description := ctx.String("description")
 	if snapshot, err := c.driver.AddSnapshot(ctx.Args().First(), description); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshot == "" {
