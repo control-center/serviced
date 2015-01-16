@@ -435,6 +435,7 @@ test: build docker_ok
 	cd dfs && make test
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
+	cd script && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
 	cd zzk && go test $(GOTEST_FLAGS)
 	cd zzk/snapshot && go test $(GOTEST_FLAGS)
