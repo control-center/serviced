@@ -32,7 +32,9 @@ test: build
 
 .PHONY: build_js build-js
 build_js build-js:
-	docker run -tv `pwd`/:/mnt/ zenoss/gulp release
+	#make sure deps are installed
+	docker run --rm -tv `pwd`/:/mnt/ --entrypoint="npm" zenoss/gulp install && \
+	docker run --rm -tv `pwd`/:/mnt/ zenoss/gulp release
 
 .PHONY: clean
 clean:
