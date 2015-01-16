@@ -23,7 +23,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -138,22 +137,16 @@ func (et *ElasticTest) stop() error {
 type testCluster struct {
 	tmpDir     string
 	cmd        *exec.Cmd
-	cmdLock    sync.RWMutex
 	clientPort int
 	shutdown   bool
 }
 
 func (tc *testCluster) Stop() error {
 	tc.shutdown = true
-	log.Printf("########################### Stop LOCK")
-	tc.cmdLock.Lock()
-	defer tc.cmdLock.Unlock()
 	if tc.cmd != nil && tc.cmd.Process != nil {
 		log.Print("Stop called, killing elastic search")
-		log.Printf("########################### Stop UNLOCK")
 		return tc.cmd.Process.Kill()
 	}
-	log.Printf("########################### Stop UNLOCK")
 	return nil
 }
 
@@ -161,7 +154,6 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 
 	tc := &testCluster{}
 	tc.shutdown = false
-	tc.cmdLock = sync.RWMutex{}
 
 	command := []string{
 		elasticDir + "/bin/elasticsearch",
@@ -179,16 +171,27 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 	tc.cmd = cmd
 	go func() {
 		log.Printf("Starting elastic on port %v....: %v\n", port, command)
-		log.Printf("########################### newTestCluster LOCK")
-		tc.cmdLock.Lock()
-		defer tc.cmdLock.Unlock()
-		log.Printf("########################### COMBINED OUTPUT ENTER")
-		out, err := cmd.CombinedOutput()
-		log.Printf("########################### COMBINED OUTPUT EXIT")
-		if err != nil && !tc.shutdown {
-			log.Printf("%s :%s\n", out, err) // do stuff
+		stdout, err := cmd.StdoutPipe()
+		if err != nil {
+			return
 		}
-		log.Printf("########################### newTestCluster UNLOCK")
+		stderr, err := cmd.StderrPipe()
+		if err != nil {
+			return
+		}
+		if err := cmd.Start(); err != nil {
+			return
+		}
+		err = cmd.Wait()
+		if err != nil && !tc.shutdown {
+			log.Printf("Error running elastic: %s\n", err)
+			if data, err := ioutil.ReadAll(stdout); err == nil {
+				log.Printf("Stdout: %s\n", string(data))
+			}
+			if data, err := ioutil.ReadAll(stderr); err == nil {
+				log.Printf("Stderr: %s\n", string(data))
+			}
+		}
 	}()
 	return tc, nil
 }
