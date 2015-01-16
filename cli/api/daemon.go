@@ -599,6 +599,7 @@ func (d *daemon) startAgent() error {
 			PoolID:               thisHost.PoolID,
 			Master:               options.Endpoint,
 			UIPort:               options.UIPort,
+			RPCPort:              options.RPCPort,
 			DockerDNS:            options.DockerDNS,
 			VarPath:              options.VarPath,
 			Mount:                options.Mount,

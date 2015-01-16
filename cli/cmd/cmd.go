@@ -89,21 +89,20 @@ func configBool(key string, defaultVal bool) bool {
 
 const defaultRPCPort = 4979
 
-// New instantiates a new command-line client
-
-func getLocalAgentIP() string {
+func getLocalAgentEndpoint(port int) string {
 	ip := configEnv("OUTBOUND_IP", "")
 	if ip != "" {
-		ip = ip + ":4979"
+		return fmt.Sprintf("%s:%d", ip, port)
 	} else {
-		ip = api.GetAgentIP()
+		return api.GetAgentIP(port)
 	}
-	return ip
 }
 
+// New instantiates a new command-line client
 func New(driver api.API) *ServicedCli {
 	var (
-		agentIP          = getLocalAgentIP()
+		rpcPort          = configInt("RPC_PORT", defaultRPCPort)
+		agentEndpoint    = getLocalAgentEndpoint(rpcPort)
 		varPath          = api.GetVarPath()
 		esStartupTimeout = api.GetESStartupTimeout()
 		dockerDNS        = cli.StringSlice(api.GetDockerDNS())
@@ -166,10 +165,10 @@ func New(driver api.API) *ServicedCli {
 	c.app.Flags = []cli.Flag{
 		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
 		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
-		cli.StringFlag{"endpoint", configEnv("ENDPOINT", agentIP), "endpoint for remote serviced (example.com:8080)"},
+		cli.StringFlag{"endpoint", configEnv("ENDPOINT", agentEndpoint), fmt.Sprintf("endpoint for remote serviced (example.com:%d)", defaultRPCPort)},
 		cli.StringFlag{"outbound", configEnv("OUTBOUND_IP", ""), "outbound ip address"},
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
-		cli.StringFlag{"listen", configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort)), "port for local serviced (example.com:8080)"},
+		cli.IntFlag{"listen", rpcPort, fmt.Sprintf("rpc port for serviced (%d)", defaultRPCPort)},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
@@ -246,7 +245,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Endpoint:             ctx.GlobalString("endpoint"),
 		StaticIPs:            ctx.GlobalStringSlice("static-ip"),
 		UIPort:               ctx.GlobalString("uiport"),
-		Listen:               ctx.GlobalString("listen"),
+		RPCPort:              fmt.Sprintf("%d", ctx.GlobalInt("listen")),
+		Listen:               fmt.Sprintf(":%d", ctx.GlobalInt("listen")),
 		DockerDNS:            ctx.GlobalStringSlice("docker-dns"),
 		Master:               ctx.GlobalBool("master"),
 		Agent:                ctx.GlobalBool("agent"),
