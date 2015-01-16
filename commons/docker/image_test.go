@@ -123,7 +123,7 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 		panic(fmt.Errorf("can't create /tmp/regexp.tar: %v", err))
 	}
 
-	go io.Copy(f, stdout)
+	io.Copy(f, stdout)
 
 	if err = exportcmd.Wait(); err != nil {
 		panic(fmt.Errorf("waiting for docker export to finish failed: %v", err))
