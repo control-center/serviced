@@ -72,6 +72,10 @@ func purgeOldsessionTs() {
 		if len(sessions) == 0 {
 			return
 		}
+		sessionsLock.Lock()
+		defer sessionsLock.Unlock()
+
+
 		glog.V(1).Info("Searching for expired sessions")
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
 		toDel := []string{}
@@ -89,9 +93,7 @@ func purgeOldsessionTs() {
 	for {
 		time.Sleep(time.Second * 60)
 
-		sessionsLock.Lock()
 		doPurge()
-		sessionsLock.Unlock()
 	}
 }
 
@@ -125,9 +127,7 @@ func restLogout(w *rest.ResponseWriter, r *rest.Request) {
 	if err != nil {
 		glog.V(1).Info("Unable to read session cookie")
 	} else {
-		sessionsLock.Lock()
-		delete(sessions, cookie.Value)
-		sessionsLock.Unlock()
+		deleteSessionT(cookie.Value)
 		glog.V(1).Infof("Deleted session %s for explicit logout", cookie.Value)
 	}
 
@@ -252,4 +252,11 @@ func randomStr() (string, error) {
 	}
 
 	return base64.StdEncoding.EncodeToString(sid), nil
+}
+
+func deleteSessionT(sid string) {
+	sessionsLock.Lock()
+	defer sessionsLock.Unlock()
+
+	delete(sessions, sid)
 }
