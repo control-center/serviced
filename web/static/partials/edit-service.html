@@ -8,11 +8,14 @@
   <textarea class="form-control" id="new_service_description" placeholder="{{'placeholder_service_description'|translate}}" rows="3" ng-model="editableService.Description"></textarea>
 </div>
 
-
-
 <div class="form-group">
   <label for="edit_instances">{{'label_service_instances'|translate}}:</label>
   <input class="form-control" id="edit_instances" type="number" min="{{editableService.InstanceLimits.Min ? editableService.InstanceLimits.Min : 0}}" max="{{editableService.InstanceLimits.Max ? editableService.InstanceLimits.Max : undefined}}" style="width: 75px;" ng-model="editableService.Instances">
+</div>
+
+<div class="form-group">
+  <label for="new_service_ram_commitment">{{'ram_commitment'|translate}} (eg 256M): <span class="warningMessage">*</span></label>
+  <input class="form-control" id="new_service_ram_commitment" type="text" placeholder="256M" ng-model="editableService.RAMCommitment">
 </div>
 
 <div class="form-group">
