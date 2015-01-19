@@ -19,45 +19,8 @@ var paths = {
 // controlplane.js
 var controlplaneFiles = [
     paths.src + "main.js",
-    paths.modules + "miscUtils.js",
-
-    // modules
-    // TODO - organize by feature, not type!
-    paths.modules + "graphPanelDirective.js",
-    paths.modules + "healthIconDirective.js",
-    paths.modules + "modalService.js",
-    paths.modules + "resourcesFactory.js",
-    paths.modules + "serviceHealth.js",
-    paths.modules + "servicesFactory.js",
-    paths.modules + "uiDateTimePicker.js",
-    paths.modules + "zenNotify.js",
-    paths.modules + "authService.js",
-    paths.modules + "miscDirectives.js",
-
-    // general controllers
-    // TODO - Language shouldn't be a controller... it
-    // should probably be a provider
-    paths.controllers + "LanguageController.js",
-    paths.controllers + "NavbarController.js",
-
-    // specific route controllers
-    paths.controllers + "BackupRestoreController.js",
-
-    paths.controllers + "HostsController.js",
-    paths.controllers + "HostDetailsController.js",
-    paths.controllers + "HostsMapController.js",
-
-    paths.controllers + "LogController.js",
-
-    paths.controllers + "LoginController.js",
-
-    paths.controllers + "PoolsController.js",
-    paths.controllers + "PoolDetailsController.js",
-
-    paths.controllers + "AppsController.js",
-    paths.controllers + "DeployWizard.js",
-    paths.controllers + "ServicesMapController.js",
-    paths.controllers + "ServiceDetailsController.js"
+    paths.modules + "*.js",
+    paths.controllers + "*.js"
 ];
 
 gulp.task("default", ["concat"]);
