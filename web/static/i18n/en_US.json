@@ -55,6 +55,7 @@
     "memory_usage": "Memory Usage",
     "cores_required": "CPU Cores Required",
     "memory_required": "Memory Required",
+    "ram_commitment": "RAM Requested",
 
     "file_name": "File Name",
     "modified": "Modified",
