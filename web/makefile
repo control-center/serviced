@@ -35,6 +35,7 @@ test: build
 
 .PHONY: build_js build-js
 build_js build-js:
+	docker pull zenoss/gulp
 	docker run --rm -v $(PWD)/:/mnt/ -e UID=$(UID) -e GID=$(GID) zenoss/gulp npm install
 	docker run --rm -v $(PWD)/:/mnt/ -e UID=$(UID) -e GID=$(GID) zenoss/gulp gulp release
 
