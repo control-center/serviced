@@ -19,6 +19,7 @@ import (
 	"path"
 	"sort"
 	"strings"
+	"sync"
 )
 
 // TestConnection is a test connection type
@@ -27,6 +28,7 @@ type TestConnection struct {
 	nodes   map[string][]byte
 	watches map[string][]chan<- Event
 	Err     error // Connection Error set by the user
+	lock    sync.RWMutex
 }
 
 // NewTestConnection initializes a new test connection
@@ -39,6 +41,7 @@ func (conn *TestConnection) init() *TestConnection {
 		nodes:   make(map[string][]byte),
 		watches: make(map[string][]chan<- Event),
 	}
+	conn.lock = sync.RWMutex{}
 	conn.nodes["/"] = nil
 	return conn
 }
@@ -49,6 +52,8 @@ func (conn *TestConnection) checkpath(p *string) error {
 }
 
 func (conn *TestConnection) updatewatch(p string, eventtype EventType) {
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
 	if watches := conn.watches[p]; watches != nil && len(watches) > 0 {
 		delete(conn.watches, p)
 		for _, watch := range watches {
@@ -122,7 +127,9 @@ func (conn *TestConnection) Create(p string, node Node) error {
 	if err != nil {
 		return err
 	}
+	conn.lock.Lock()
 	conn.nodes[p] = data
+	conn.lock.Unlock()
 	return nil
 }
 
@@ -137,13 +144,17 @@ func (conn *TestConnection) CreateDir(p string) error {
 	} else if err := conn.CreateDir(path.Dir(p)); err != nil {
 		return err
 	}
+	conn.lock.Lock()
 	conn.nodes[p] = nil
+	conn.lock.Unlock()
 	conn.updatewatch(p, EventNodeCreated)
 	return nil
 }
 
 // Exists implements Connection.Exists
 func (conn *TestConnection) Exists(p string) (bool, error) {
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
 	if err := conn.checkpath(&p); err != nil {
 		return false, err
 	}
@@ -185,6 +196,8 @@ func (conn *TestConnection) ChildrenW(p string) ([]string, <-chan Event, error) 
 		return nil, nil, err
 	}
 
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
 	return children, conn.addwatch(p), nil
 }
 
@@ -195,6 +208,8 @@ func (conn *TestConnection) Children(p string) (children []string, err error) {
 	}
 
 	pattern := path.Join(p, "*")
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
 	for nodepath, _ := range conn.nodes {
 		if match, _ := path.Match(pattern, nodepath); match {
 			children = append(children, strings.TrimPrefix(nodepath, p+"/"))
@@ -214,6 +229,8 @@ func (conn *TestConnection) GetW(p string, node Node) (<-chan Event, error) {
 		return nil, err
 	}
 
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
 	return conn.addwatch(p), nil
 }
 
@@ -223,6 +240,8 @@ func (conn *TestConnection) Get(p string, node Node) error {
 		return err
 	}
 
+	conn.lock.RLock()
+	defer conn.lock.RUnlock()
 	if data, ok := conn.nodes[p]; !ok {
 		return ErrNoNode
 	} else if data == nil {
@@ -250,7 +269,9 @@ func (conn *TestConnection) Set(p string, node Node) error {
 
 	// only update if something actually changed
 	if bytes.Compare(conn.nodes[p], data) != 0 {
+		conn.lock.Lock()
 		conn.nodes[p] = data
+		conn.lock.Unlock()
 		conn.updatewatch(p, EventNodeDataChanged)
 	}
 	return nil
