@@ -66,11 +66,11 @@ func init() {
 }
 
 func purgeOldsessionTs() {
-	for {
-		time.Sleep(time.Second * 60)
-		sessionsLock.Lock()
+
+	// use a closure to facilitate safe locking regardless of when the purge function returns
+	doPurge := func() {
 		if len(sessions) == 0 {
-			continue
+			return
 		}
 		glog.V(1).Info("Searching for expired sessions")
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
@@ -84,6 +84,13 @@ func purgeOldsessionTs() {
 			glog.V(0).Infof("Deleting session %s (exceeded max age)", key)
 			delete(sessions, key)
 		}
+	}
+
+	for {
+		time.Sleep(time.Second * 60)
+
+		sessionsLock.Lock()
+		doPurge()
 		sessionsLock.Unlock()
 	}
 }
@@ -97,14 +104,15 @@ func loginOK(r *rest.Request) bool {
 		glog.V(1).Info("Error getting cookie ", err)
 		return false
 	}
+
+	sessionsLock.Lock()
+	defer sessionsLock.Unlock()
 	session, err := findsessionT(cookie.Value)
 	if err != nil {
 		glog.V(1).Info("Unable to find session ", cookie.Value)
 		return false
 	}
-	sessionsLock.Lock()
 	session.access = time.Now()
-	sessionsLock.Unlock()
 	glog.V(2).Infof("sessionT %s used", session.ID)
 	return true
 }
@@ -117,7 +125,9 @@ func restLogout(w *rest.ResponseWriter, r *rest.Request) {
 	if err != nil {
 		glog.V(1).Info("Unable to read session cookie")
 	} else {
+		sessionsLock.Lock()
 		delete(sessions, cookie.Value)
+		sessionsLock.Unlock()
 		glog.V(1).Infof("Deleted session %s for explicit logout", cookie.Value)
 	}
 
@@ -152,14 +162,16 @@ func restLogin(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClie
 	}
 
 	if pamValidateLogin(&creds, adminGroup) || cpValidateLogin(&creds, client) {
+		sessionsLock.Lock()
+		defer sessionsLock.Unlock()
+
 		session, err := createsessionT(creds.Username)
 		if err != nil {
 			writeJSON(w, &simpleResponse{"sessionT could not be created", loginLink()}, http.StatusInternalServerError)
 			return
 		}
-		sessionsLock.Lock()
 		sessions[session.ID] = session
-		sessionsLock.Unlock()
+
 		glog.V(1).Info("Created authenticated session: ", session.ID)
 		http.SetCookie(
 			w.ResponseWriter,
