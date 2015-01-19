@@ -384,7 +384,7 @@ function aggregateAddressAssigments(service, api) {
           'EndpointName': endpoint.AddressAssignment.EndpointName,
           'HostID': endpoint.AddressAssignment.HostID,
           'HostName': 'unknown',
-          'PoolID': endpoint.AddressAssignment.PoolID,
+          'PoolID': service.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
           'Port': endpoint.AddressConfig.Port,
           'ServiceID': service.ID,
