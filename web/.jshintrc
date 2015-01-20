@@ -83,11 +83,12 @@
     "yui"           : false,    // Yahoo User Interface
 
     // Custom Globals
-    "globals"       : {
+    "globals" : {
+        "CodeMirror": true,
+        "d3": true,
         "$": true,
         "moment": true,
         "angular": true,
-        "d3": true,
         "controlplane": true,
         "zenoss": true
     }
