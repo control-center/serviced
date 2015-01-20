@@ -41,6 +41,17 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	} else if err == nil {
 		return fmt.Errorf("error adding service; %v already exists", svc.ID)
 	}
+
+	// verify the service with parent ID does not exist with the given name
+	if s, err := store.FindChildService(ctx, svc.ParentServiceID, svc.Name); err != nil {
+		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
+		return err
+	} else if s != nil {
+		err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
+		glog.Errorf("Cannot create service %s: %s", svc.Name, err)
+		return err
+	}
+
 	// Strip the database version; we already know this is a create
 	svc.DatabaseVersion = 0
 
@@ -97,6 +108,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 			}
 		}
 	}
+
 	return f.updateService(ctx, &svc)
 }
 
@@ -1054,6 +1066,18 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	f.fillServiceAddr(ctx, svc)
 
 	svcStore := f.serviceStore
+
+	// verify the service with name and parent does not collide with another existing service
+	if s, err := svcStore.FindChildService(ctx, svc.ParentServiceID, svc.Name); err != nil {
+		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
+		return err
+	} else if s != nil {
+		if s.ID != svc.ID {
+			err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
+			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
+			return err
+		}
+	}
 
 	oldSvc, err := svcStore.Get(ctx, svc.ID)
 	if err != nil {
