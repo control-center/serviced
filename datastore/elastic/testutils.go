@@ -63,7 +63,7 @@ func (et *ElasticTest) setDefaults(c *gocheck.C) {
 
 //SetUpSuite Run once when the suite starts running.
 func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
-	log.Printf("ElasticTest SetUpSuite called: %#v\n", et)
+	log.Printf("ElasticTest SetUpSuite called.\n")
 	et.setDefaults(c)
 	driver := newDriver("localhost", et.Port, et.Index)
 	et.driver = driver
