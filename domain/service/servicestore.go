@@ -138,9 +138,7 @@ func (s *Store) FindChildService(ctx datastore.Context, parentID, serviceName st
 	parentID = strings.TrimSpace(parentID)
 	serviceName = strings.TrimSpace(serviceName)
 
-	if parentID == "" {
-		return nil, errors.New("empty parent service ID not allowed")
-	} else if serviceName == "" {
+	if serviceName == "" {
 		return nil, errors.New("empty service name not allowed")
 	}
 
