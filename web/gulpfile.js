@@ -56,7 +56,7 @@ gulp.task("test", function(){
 
 gulp.task("lint", function(){
     return gulp.src(controlplaneFiles)
-        .pipe(jshint())
+        .pipe(jshint(".jshintrc"))
         .pipe(jshint.reporter("jshint-stylish"))
         .pipe(jshint.reporter("fail"));
 });

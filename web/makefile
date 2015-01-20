@@ -23,7 +23,7 @@ controlplane_MINIFIED_JS = $(javascript_BLDDIR)/controlplane.min.js
 .PHONY: default
 default: build
 
-.PHONY: build 
+.PHONY: build
 build: build_js
 	./godep restore
 	go build
