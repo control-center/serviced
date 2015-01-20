@@ -73,6 +73,10 @@ func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[
 func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) error {
 	var err error
 	*serviceID, err = this.facade.DeployService(datastore.Get(), request.ParentID, request.Service)
+	if err != nil {
+		glog.Errorf("Could not deploy service %s to %s: %s", request.Service.Name, request.ParentID, err)
+		return err
+	}
 
 	// Create the tenant volume
 	if tenantID, err := this.facade.GetTenantID(datastore.Get(), *serviceID); err != nil {
@@ -80,5 +84,5 @@ func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest,
 	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
 		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
 	}
-	return err
+	return nil
 }
