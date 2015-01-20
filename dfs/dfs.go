@@ -31,7 +31,7 @@ import (
 
 type DatastoreGetter func() (datastore.Context)
 
-type VolumeMounter func(fsType, serviceID, baseDir string) (volume.Volume, error)
+type ServiceVolumeGetter func(fsType, varpath, serviceID string) (volume.Volume, error)
 
 type DistributedFilesystem struct {
 	fsType     string
@@ -39,7 +39,7 @@ type DistributedFilesystem struct {
 	dockerHost string
 	dockerPort int
 	datastoreGet DatastoreGetter
-	mountVolume VolumeMounter
+	getServiceVolume ServiceVolumeGetter
 	facade     facade.FacadeInterface
 	timeout    time.Duration
 
@@ -72,7 +72,7 @@ func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade fac
 			timeout: timeout,
 			lock: lock,
 			datastoreGet: datastore.Get,
-			mountVolume: volume.Mount}, nil
+			getServiceVolume: serviceVolumeGet}, nil
 }
 
 func (dfs *DistributedFilesystem) Lock() error {

@@ -74,7 +74,7 @@ func (st *snapshotTest) SetupTest() {
 		timeout: time.Minute*5,
 		lock: nil,
 		datastoreGet: st.mock_datastoreGet,
-		mountVolume: st.mock_mountVolume,
+		getServiceVolume: st.mock_getServiceVolume,
 	}
 }
 
@@ -356,7 +356,7 @@ func (st *snapshotTest) mock_datastoreGet() (datastore.Context) {
 }
 
 // Mock for volume.Mount()
-func(st *snapshotTest) mock_mountVolume(fsType, serviceID, baseDir string) (volume.Volume, error) {
+func(st *snapshotTest) mock_getServiceVolume(fsType, serviceID, baseDir string) (volume.Volume, error) {
 	return st.mountVolumeResponse.volume, st.mountVolumeResponse.err
 }
 
