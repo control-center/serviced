@@ -72,8 +72,10 @@ func (conn *TestConnection) updatewatch(p string, eventtype EventType) {
 
 func (conn *TestConnection) addwatch(p string) <-chan Event {
 	eventC := make(chan Event, 1)
+	conn.lock.Lock()
 	watches := conn.watches[p]
 	conn.watches[p] = append(watches, eventC)
+	conn.lock.Unlock()
 	return eventC
 }
 
@@ -153,12 +155,12 @@ func (conn *TestConnection) CreateDir(p string) error {
 
 // Exists implements Connection.Exists
 func (conn *TestConnection) Exists(p string) (bool, error) {
-	conn.lock.Lock()
-	defer conn.lock.Unlock()
 	if err := conn.checkpath(&p); err != nil {
 		return false, err
 	}
 
+	conn.lock.RLock()
+	defer conn.lock.RUnlock()
 	if _, exists := conn.nodes[p]; !exists {
 		return false, ErrNoNode
 	}
@@ -196,8 +198,6 @@ func (conn *TestConnection) ChildrenW(p string) ([]string, <-chan Event, error) 
 		return nil, nil, err
 	}
 
-	conn.lock.Lock()
-	defer conn.lock.Unlock()
 	return children, conn.addwatch(p), nil
 }
 
@@ -229,8 +229,6 @@ func (conn *TestConnection) GetW(p string, node Node) (<-chan Event, error) {
 		return nil, err
 	}
 
-	conn.lock.Lock()
-	defer conn.lock.Unlock()
 	return conn.addwatch(p), nil
 }
 
