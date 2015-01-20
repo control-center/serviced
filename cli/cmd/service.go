@@ -389,7 +389,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		default:
 			if keyword == "" {
 				services = append(services, svc)
-			} else if strings.HasSuffix(pathmap[svc.ID], keyword) {
+			} else if strings.HasSuffix(pathmap[svc.ID], strings.ToLower(keyword)) {
 				services = append(services, svc)
 			}
 		}
@@ -1124,7 +1124,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		default:
 			if keyword == "" {
 				states = append(states, rs)
-			} else if strings.HasSuffix(pathmap[rs.ID], keyword) {
+			} else if strings.HasSuffix(pathmap[rs.ID], strings.ToLower(keyword)) {
 				states = append(states, rs)
 			}
 		}
