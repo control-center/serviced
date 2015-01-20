@@ -48,6 +48,7 @@
     "memory_usage": "Consumo de memoria",
     "cores_required": "N\u00facleos de CPU requeridos",
     "memory_required": "Memoria requerida",
+    "ram_commitment": "RAM solicitada",
 
     "file_name": "Nombre del archivo",
     "modified": "Modificado",
