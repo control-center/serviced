@@ -77,6 +77,11 @@ type FindChildRequest struct {
 	ChildName string
 }
 
+type SnapshotRequest struct {
+	ServiceID string
+	Description string
+}
+
 type RollbackRequest struct {
 	SnapshotID   string
 	ForceRestart bool
@@ -203,7 +208,7 @@ type ControlPlane interface {
 	ImageLayerCount(imageUUID string, layers *int) error
 
 	// Volume returns a service's volume
-	GetVolume(serviceID string, volume *volume.Volume) error
+	GetVolume(serviceID string, volume volume.Volume) error
 
 	// SetRegistry resets the path to the docker registry
 	ResetRegistry(request EntityRequest, unused *int) error
@@ -218,13 +223,13 @@ type ControlPlane interface {
 	Rollback(request RollbackRequest, unused *int) error
 
 	// Snapshot takes a snapshot of the filesystem and images
-	Snapshot(serviceID string, snapshotID *string) error
+	Snapshot(request SnapshotRequest, snapshotID *string) error
 
 	// AsyncSnapshot performs a snapshot asynchronously
 	AsyncSnapshot(serviceID string, snapshotID *string) error
 
 	// ListSnapshots lists all the snapshots for a particular service
-	ListSnapshots(serviceID string, snapshots *[]string) error
+	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) error
 
 	// Commit commits a docker container to a service image
 	Commit(containerID string, snapshotID *string) error

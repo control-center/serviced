@@ -219,6 +219,9 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service snapshot SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceSnapshot,
+				Flags: []cli.Flag{
+					cli.StringFlag{"description, d", "", "a description of the snapshot"},
+				},
 			},
 		},
 	})
@@ -1315,10 +1318,16 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 
 // serviced service snapshot SERVICEID
 func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
-	if len(ctx.Args()) < 1 {
+	nArgs := len(ctx.Args())
+	if nArgs < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "snapshot")
 		return
+	}
+
+	description := ""
+	if nArgs <= 3 {
+		description = ctx.String("description")
 	}
 
 	svc, err := c.searchForService(ctx.Args().First())
@@ -1327,7 +1336,7 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		return
 	}
 
-	if snapshot, err := c.driver.AddSnapshot(svc.ID); err != nil {
+	if snapshot, err := c.driver.AddSnapshot(svc.ID, description); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")

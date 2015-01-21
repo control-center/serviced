@@ -192,7 +192,7 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused)
 }
 
-func (s *ControlClient) GetVolume(serviceID string, volume *volume.Volume) error {
+func (s *ControlClient) GetVolume(serviceID string, volume volume.Volume) error {
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume)
 }
 
@@ -212,16 +212,16 @@ func (s *ControlClient) Rollback(request dao.RollbackRequest, unused *int) error
 	return s.rpcClient.Call("ControlPlane.Rollback", request, unused)
 }
 
-func (s *ControlClient) Snapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.Snapshot", serviceId, label)
+func (s *ControlClient) Snapshot(request dao.SnapshotRequest, label *string) error {
+	return s.rpcClient.Call("ControlPlane.Snapshot", request, label)
 }
 
 func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {
 	return s.rpcClient.Call("ControlPlane.AsyncSnapshot", serviceId, label)
 }
 
-func (s *ControlClient) ListSnapshots(serviceId string, labels *[]string) error {
-	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceId, labels)
+func (s *ControlClient) ListSnapshots(serviceId string, snapshots *[]dao.SnapshotInfo) error {
+	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceId, snapshots)
 }
 
 func (s *ControlClient) Commit(containerId string, label *string) error {

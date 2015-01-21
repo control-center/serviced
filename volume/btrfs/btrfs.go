@@ -73,7 +73,7 @@ func New() (*BtrfsDriver, error) {
 }
 
 // Mount creates a new subvolume at given root dir
-func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Conn, error) {
+func (d *BtrfsDriver) Mount(volumeName, rootDir string) (volume.Volume, error) {
 	d.Lock()
 	defer d.Unlock()
 	if _, err := runcmd(d.sudoer, "subvolume", "list", rootDir); err != nil {

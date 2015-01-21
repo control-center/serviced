@@ -63,7 +63,7 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, dao dao.Cont
 
 func (l *leader) TakeSnapshot(serviceID string) (string, error) {
 	var label string
-	err := l.dao.Snapshot(serviceID, &label)
+	err := l.dao.Snapshot(dao.SnapshotRequest{serviceID, ""}, &label)
 	return label, err
 }
 

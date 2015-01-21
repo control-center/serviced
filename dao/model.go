@@ -20,7 +20,6 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
-	"github.com/control-center/serviced/utils"
 )
 
 type NullRequest struct{}
@@ -118,26 +117,6 @@ type ServiceStatus struct {
 	Status Status
 }
 
-// An instantiation of a Snapshot request
-type SnapshotRequest struct {
-	ID            string
-	ServiceID     string
-	SnapshotLabel string
-	SnapshotError string
-}
-
-// A new snapshot request instance (SnapshotRequest)
-func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest *SnapshotRequest, err error) {
-	snapshotRequest = &SnapshotRequest{}
-	snapshotRequest.ID, err = utils.NewUUID36()
-	if err == nil {
-		snapshotRequest.ServiceID = serviceId
-		snapshotRequest.SnapshotLabel = snapshotLabel
-		snapshotRequest.SnapshotError = ""
-	}
-	return snapshotRequest, err
-}
-
 // BackupFile is the structure for backup file data
 type BackupFile struct {
 	InProgress bool        `json:"in_progress"`
@@ -146,4 +125,17 @@ type BackupFile struct {
 	Size       int64       `json:"size"`
 	Mode       os.FileMode `json:"mode"`
 	ModTime    time.Time   `json:"mod_time"`
+}
+
+type SnapshotInfo struct {
+	SnapshotID	string
+	Description	string
+}
+
+func (s SnapshotInfo) String() string {
+	if s.Description == "" {
+		return s.SnapshotID
+	} else {
+		return s.SnapshotID + " " + s.Description
+	}
 }

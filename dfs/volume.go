@@ -22,8 +22,23 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func (dfs *DistributedFilesystem) GetVolume(serviceID string) (*volume.Volume, error) {
-	v, err := GetSubvolume(dfs.fsType, dfs.varpath, serviceID)
+
+func (dfs *DistributedFilesystem) GetVolume(serviceID string) (volume.Volume, error) {
+	return dfs.getServiceVolume(dfs.fsType, dfs.varpath, serviceID)
+}
+
+// GetSubvolume gets the path of the *local* volume on the host
+func GetSubvolume(fsType, varpath, serviceID string) (volume.Volume, error) {
+	baseDir, err := filepath.Abs(path.Join(varpath, "volumes"))
+	if err != nil {
+		return nil, err
+	}
+	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, baseDir)
+	return volume.Mount(fsType, serviceID, baseDir)
+}
+
+func serviceVolumeGet(fsType, varpath, serviceID string) (volume.Volume, error) {
+	v, err := GetSubvolume(fsType, varpath, serviceID)
 	if err != nil {
 		glog.Errorf("Could not acquire subvolume for service %s: %s", serviceID, err)
 		return nil, err
@@ -32,16 +47,5 @@ func (dfs *DistributedFilesystem) GetVolume(serviceID string) (*volume.Volume, e
 		glog.Errorf("Could not get volume for service %s: %s", serviceID, err)
 		return nil, err
 	}
-
 	return v, nil
-}
-
-// GetSubvolume gets the path of the *local* volume on the host
-func GetSubvolume(fsType, varpath, serviceID string) (*volume.Volume, error) {
-	baseDir, err := filepath.Abs(path.Join(varpath, "volumes"))
-	if err != nil {
-		return nil, err
-	}
-	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, baseDir)
-	return volume.Mount(fsType, serviceID, baseDir)
 }

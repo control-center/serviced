@@ -18,6 +18,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/dao"
 )
 
 // initSnapshot is the initializer for serviced snapshot
@@ -39,6 +40,9 @@ func (c *ServicedCli) initSnapshot() {
 				Description:  "serviced snapshot add SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdSnapshotAdd,
+				Flags: []cli.Flag{
+					cli.StringFlag{"description, d", "", "a description of the snapshot"},
+				},
 			}, {
 				Name:         "remove",
 				ShortName:    "rm",
@@ -67,9 +71,9 @@ func (c *ServicedCli) initSnapshot() {
 
 // Returns a list of snapshots as specified by the service ID.  If no service
 // ID is set, then returns a list of all snapshots.
-func (c *ServicedCli) snapshots(id string) []string {
+func (c *ServicedCli) snapshots(id string) []dao.SnapshotInfo {
 	var (
-		snapshots []string
+		snapshots []dao.SnapshotInfo
 		err       error
 	)
 
@@ -80,7 +84,7 @@ func (c *ServicedCli) snapshots(id string) []string {
 	}
 
 	if err != nil || snapshots == nil || len(snapshots) == 0 {
-		return []string{}
+		return []dao.SnapshotInfo{}
 	}
 
 	return snapshots
@@ -104,7 +108,7 @@ func (c *ServicedCli) printSnapshotsAll(ctx *cli.Context) {
 
 	for _, s := range c.snapshots("") {
 		for _, a := range args {
-			if s == a {
+			if s.SnapshotID == a {
 				goto next
 			}
 			fmt.Println(s)
@@ -142,14 +146,15 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 
 // serviced snapshot add SERVICEID
 func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
-	args := ctx.Args()
-	if len(args) < 1 {
+	nArgs := len(ctx.Args())
+	if nArgs < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "add")
 		return
 	}
 
-	if snapshot, err := c.driver.AddSnapshot(args[0]); err != nil {
+	description := ctx.String("description")
+	if snapshot, err := c.driver.AddSnapshot(ctx.Args().First(), description); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")

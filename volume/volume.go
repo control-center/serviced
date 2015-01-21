@@ -42,11 +42,11 @@ func (p FileInfoSlice) Labels() []string {
 }
 
 type Driver interface {
-	Mount(volumeName, root string) (Conn, error)
+	Mount(volumeName, root string) (Volume, error)
 	List(root string) []string
 }
 
-type Conn interface {
+type Volume interface {
 	Name() string
 	Path() string
 	SnapshotPath(label string) string
@@ -57,10 +57,6 @@ type Conn interface {
 	Unmount() error
 	Export(label, parent, filename string) error
 	Import(label, filename string) error
-}
-
-type Volume struct {
-	Conn
 }
 
 func Register(name string, driver Driver) {
@@ -80,17 +76,17 @@ func Registered(name string) (Driver, bool) {
 	return driver, registered
 }
 
-func Mount(driverName, volumeName, rootDir string) (*Volume, error) {
+func Mount(driverName, volumeName, rootDir string) (Volume, error) {
 	driver, ok := Registered(driverName)
 	if ok == false {
 		return nil, fmt.Errorf("No such driver: %s", driverName)
 	}
 
-	conn, err := driver.Mount(volumeName, rootDir)
+	volume, err := driver.Mount(volumeName, rootDir)
 	if err != nil {
 		glog.Errorf("Error mounting :%s", err)
 		return nil, err
 	}
 
-	return &Volume{conn}, nil
+	return volume, nil
 }

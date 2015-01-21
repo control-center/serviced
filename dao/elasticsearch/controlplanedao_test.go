@@ -734,7 +734,7 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
-	err = dt.Dao.Snapshot(service.ID, &id)
+	err = dt.Dao.Snapshot(dao.SnapshotRequest{service.ID, ""}, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}
@@ -743,7 +743,7 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	}
 	glog.V(0).Infof("successfully created 1st snapshot with label:%s", id)
 
-	err = dt.Dao.Snapshot(service.ID, &id)
+	err = dt.Dao.Snapshot(dao.SnapshotRequest{service.ID, ""}, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}

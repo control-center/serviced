@@ -705,8 +705,9 @@ func restSnapshotService(w *rest.ResponseWriter, r *rest.Request, client *node.C
 		restBadRequest(w, err)
 		return
 	}
+
 	var label string
-	err = client.Snapshot(serviceID, &label)
+	err = client.Snapshot(dao.SnapshotRequest{serviceID, ""}, &label)
 	if err != nil {
 		glog.Errorf("Unexpected error snapshotting service: %v", err)
 		restServerError(w, err)

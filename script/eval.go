@@ -33,7 +33,7 @@ func evalSnapshot(r *runner, n node) error {
 		return fmt.Errorf("no service tenant id specified for %s", SNAPSHOT)
 	}
 
-	mySnapshotID, err := r.snapshot(tID)
+	mySnapshotID, err := r.snapshot(tID, "")
 	if err != nil {
 		return err
 	}
