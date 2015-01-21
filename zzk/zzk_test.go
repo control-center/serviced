@@ -99,4 +99,22 @@ func (t *ZZKTest) TestReady(c *C) {
 	case <-time.After(ZKTestTimeout):
 		c.Errorf("timeout waiting for signal")
 	}
+
+	// Test connection to a non-existing path
+	conn, err = GetLocalConnection("/notexists")
+	if err != nil {
+		c.Fatalf("Could not connect: %s", err)
+	}
+
+	path = "/test/some/path"
+	go func() {
+		errC <- Ready(nil, conn, path)
+	}()
+	select {
+	case err := <-errC:
+		c.Assert(err, NotNil)
+	case <-time.After(time.Second):
+		c.Errorf("timeout waiting for signal")
+	}
+
 }
