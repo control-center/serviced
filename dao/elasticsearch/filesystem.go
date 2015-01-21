@@ -28,7 +28,7 @@ import (
 )
 
 // GetVolume gets the volume of a service
-func (this *ControlPlaneDao) GetVolume(serviceID string, volume *volume.Volume) error {
+func (this *ControlPlaneDao) GetVolume(serviceID string, volume volume.Volume) error {
 	var tenantID string
 	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
 		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
@@ -69,18 +69,18 @@ func (this *ControlPlaneDao) Rollback(request dao.RollbackRequest, unused *int) 
 }
 
 // Snapshot takes a snapshot of the dfs and its respective images
-func (this *ControlPlaneDao) Snapshot(serviceID string, snapshotID *string) error {
+func (this *ControlPlaneDao) Snapshot(request dao.SnapshotRequest, snapshotID *string) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
 
 	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.Errorf("Could not snapshot %s: %s", serviceID, err)
+	if err := this.GetTenantId(request.ServiceID, &tenantID); err != nil {
+		glog.Errorf("Could not snapshot %s: %s", request.ServiceID, err)
 		return err
 	}
 
 	var err error
-	*snapshotID, err = this.dfs.Snapshot(tenantID)
+	*snapshotID, err = this.dfs.Snapshot(tenantID, request.Description)
 	return err
 }
 
@@ -115,7 +115,7 @@ func (this *ControlPlaneDao) AsyncSnapshot(serviceID string, snapshotID *string)
 }
 
 // ListSnapshots lists all the available snapshots for a particular service
-func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]string) error {
+func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) error {
 	var tenantID string
 	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
 		glog.Errorf("Could not find tenant for %s: %s", serviceID, err)

@@ -82,7 +82,7 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	}{&cd.CreateContainerOptions, &cd.HostConfig, start, oncreate, onstart}
 
 	timeoutc := time.After(timeout)
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -201,7 +201,7 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 
 // FindContainer looks up a container using its id or name.
 func FindContainer(id string) (*Container, error) {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -234,7 +234,7 @@ func Logs(dockerID string, args []string) error {
 
 // Containers retrieves a list of all the Docker containers.
 func Containers() ([]*Container, error) {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +260,7 @@ func (c *Container) CancelOnEvent(event string) error {
 
 // Commit creates a new Image from the containers changes.
 func (c *Container) Commit(iidstr string) (*Image, error) {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -289,7 +289,7 @@ func (c *Container) Commit(iidstr string) (*Image, error) {
 
 // Delete removes the container.
 func (c *Container) Delete(volumes bool) error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -298,7 +298,7 @@ func (c *Container) Delete(volumes bool) error {
 
 // Export writes the contents of the container's filesystem as a tar archive to outfile.
 func (c *Container) Export(outfile *os.File) error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func (c *Container) Export(outfile *os.File) error {
 // Kill sends a SIGKILL signal to the container. If the container is not started
 // no action is taken.
 func (c *Container) Kill() error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -317,7 +317,7 @@ func (c *Container) Kill() error {
 
 // Inspect returns information about the container specified by id.
 func (c *Container) Inspect() (*dockerclient.Container, error) {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -341,7 +341,7 @@ func (c *Container) OnEvent(event string, action ContainerActionFunc) error {
 
 // Restart stops and then restarts a container.
 func (c *Container) Restart(timeout time.Duration) error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -357,7 +357,7 @@ func (c *Container) Start(timeout time.Duration) error {
 		return nil
 	}
 
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func (c *Container) Start(timeout time.Duration) error {
 // Stop stops the container specified by the id. If the container can't be stopped before the timeout
 // expires an error is returned.
 func (c *Container) Stop(timeout time.Duration) error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -409,7 +409,7 @@ func (c *Container) Stop(timeout time.Duration) error {
 // Wait blocks until the container stops or the timeout expires and then returns its exit code.
 func (c *Container) Wait(timeout time.Duration) (int, error) {
 
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return -127, err
 	}
@@ -452,7 +452,7 @@ type Image struct {
 
 // Images returns a list of all the named images in the local repository
 func Images() ([]*Image, error) {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -482,7 +482,7 @@ func Images() ([]*Image, error) {
 
 // ImportImage creates a new image in the local repository from a file system archive.
 func ImportImage(repotag, filename string) error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -527,7 +527,7 @@ func FindImage(repotag string, pull bool) (*Image, error) {
 
 // Delete remove the image from the local repository
 func (img *Image) Delete() error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -542,7 +542,7 @@ func (img *Image) Tag(tag string) (*Image, error) {
 		return nil, err
 	}
 
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -578,7 +578,7 @@ func TagImage(img *Image, tag string) (*Image, error) {
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
 	}
@@ -695,7 +695,7 @@ func PullImage(repotag string) error {
 
 func pullImage(repo, registry, tag string) error {
 
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}
@@ -727,7 +727,7 @@ func PushImage(repotag string) error {
 }
 
 func pushImage(repo, registry, tag string) error {
-	dc, err := dockerclient.NewClient(dockerep)
+	dc, err := getDockerClient()
 	if err != nil {
 		return err
 	}

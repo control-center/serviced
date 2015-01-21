@@ -15,6 +15,7 @@ package zzk
 
 import (
 	"errors"
+	"fmt"
 	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -128,6 +129,8 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 		return err
 	} else if exists {
 		return nil
+	} else if p == "/" || p == "." {
+		return fmt.Errorf("base path not found")
 	}
 
 	for {

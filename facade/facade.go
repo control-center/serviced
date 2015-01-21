@@ -20,6 +20,9 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
 
+// assert interface
+var _ FacadeInterface = &Facade{}
+
 // New creates an initialized Facade instance
 func New(dockerRegistry string) *Facade {
 	return &Facade{

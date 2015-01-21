@@ -78,19 +78,19 @@ IN_DOCKER = 0
 #------------------------------------------------------------------------------#
 # Build Repeatability with Godeps
 #------------------------------------------------------------------------------#
-# We manage go dependencies by 'godep restoring' from a checked-in list of go 
+# We manage go dependencies by 'godep restoring' from a checked-in list of go
 # packages at desired versions in:
 #
 #    ./Godeps
 #
-# This file is manually updated and thus requires some dev-vigilence if our 
+# This file is manually updated and thus requires some dev-vigilence if our
 # go imports change in name or version.
 #
 # Alternatively, one may run:
 #
 #    godep save -copy=false
 #
-# to generate the Godeps file based upon the src currently populated in 
+# to generate the Godeps file based upon the src currently populated in
 # $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
 # against the generated Godeps.
 #------------------------------------------------------------------------------#
@@ -118,7 +118,7 @@ endif
 .PHONY: default build all
 default build all: $(build_TARGETS)
 
-# The presence of this file indicates that godep restore 
+# The presence of this file indicates that godep restore
 # has been run.  It will refresh when ./Godeps itself is updated.
 Godeps_restored = .Godeps_restored
 
@@ -126,9 +126,9 @@ Godeps_restored = .Godeps_restored
 #     may not 'go restore' properly, leaving an incompletely populated $GOPATH/src.
 #     Fundamental issue is we employ separate $GOPATHS for docker and non-dockerized
 #     build targets (which is good), but we share the same serviced source and
-#     use it as a build tree (which is ungood). Until we separate out the build trees 
-#     and keep the source pristine, the potential exists for build-state from a 
-#     non-dockerized build targets to affect build behavior in the dockerized 
+#     use it as a build tree (which is ungood). Until we separate out the build trees
+#     and keep the source pristine, the potential exists for build-state from a
+#     non-dockerized build targets to affect build behavior in the dockerized
 #     build targets and vice-versa.
 
 $(Godeps_restored): $(GODEP) $(Godeps)
@@ -156,7 +156,7 @@ $(GOSRC)/$(godep_SRC):
 	go get $(godep_SRC)
 
 .PHONY: go
-go: 
+go:
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
@@ -169,7 +169,7 @@ docker_SRC = github.com/docker/docker
 
 # https://www.gnu.org/software/make/manual/html_node/Force-Targets.html
 #
-# Force our go recipies to always fire since make doesn't 
+# Force our go recipies to always fire since make doesn't
 # understand all of the target's *.go dependencies.  In this case let
 # 'go build' determine if the target needs to be rebuilt.
 FORCE:
@@ -187,7 +187,7 @@ $(serviced): FORCE
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
-docker_build: docker_ok 
+docker_build: docker_ok
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
@@ -285,7 +285,7 @@ endif
 # TODO: Revisit where to tuck these templates relative to FHS.
 
 # NB: If either INSTALL_TEMPLATES or INSTALL_TEMPLATES_ONLY is asserted
-#     then jump into the body of the ifneq and augment install_DIRS and 
+#     then jump into the body of the ifneq and augment install_DIRS and
 #     targets accordingly.
 
 ifneq (,$(filter 1,$(INSTALL_TEMPLATES) $(INSTALL_TEMPLATES_ONLY)))
@@ -298,13 +298,13 @@ ifneq (,$(filter 1,$(INSTALL_TEMPLATES) $(INSTALL_TEMPLATES_ONLY)))
         install_DIRS += $(_DESTDIR)$(prefix)/templates
     endif
 
-    # At the moment, the pkg/templates directory is actually 
+    # At the moment, the pkg/templates directory is actually
     # populated by our top-level makefile.  This seems a bit disjoint.
     # Will fix once I figure out some cleaner.
 
     $(_DESTDIR)$(prefix)/templates_TARGETS = pkg/templates/:.
     $(_DESTDIR)$(prefix)/templates_INSTCMD = rsync
-    $(_DESTDIR)$(prefix)/templates_INSTOPT = -a --exclude=README.txt 
+    $(_DESTDIR)$(prefix)/templates_INSTOPT = -a --exclude=README.txt
 endif
 
 # Iterate across all the install dirs, populating
@@ -390,8 +390,15 @@ PKGS = deb rpm tgz
 pkgs:
 	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) $(PKGS)
 
+# Both BUILD_NUMBER and RELEASE_PHASE cannot be empty.
+# If not providing a BUILD_NUMBER, then it is assumed that this is not a nightly build,
+# and a RELEASE_PHASE must be provided (ALPHA1, BETA1, RC1, etc)
+
 .PHONY: docker_buildandpackage
 docker_buildandpackage: docker_ok
+	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then \
+        exit 1 ;\
+    fi
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/control-center/serviced \
@@ -432,9 +439,10 @@ test: build docker_ok
 	cd cli/cmd && go test $(GOTEST_FLAGS)
 	cd scheduler && go test $(GOTEST_FLAGS)
 	cd container && go test $(GOTEST_FLAGS)
-	cd dfs/nfs && go test $(GOTEST_FLAGS)
+	cd dfs && make test
 	cd coordinator/client && go test $(GOTEST_FLAGS)
 	cd coordinator/storage && go test $(GOTEST_FLAGS)
+	cd script && go test $(GOTEST_FLAGS)
 	cd validation && go test $(GOTEST_FLAGS)
 	cd zzk && go test $(GOTEST_FLAGS)
 	cd zzk/snapshot && go test $(GOTEST_FLAGS)
@@ -509,7 +517,7 @@ mrclean: docker_clean clean
 dockerbuild dockerbuild_binary dockerbuildx dockerbuild_binaryx:
 	$(error The $@ target has been deprecated. Yo, fix your makefile. Use docker_build or possibly docker_buildandpackage.)
 
-.PHONY: build_binary 
+.PHONY: build_binary
 build_binary: $(build_TARGETS)
 	$(error The $@ target has been deprecated.  Just use 'make build' or 'make' instead.)
 #==============================================================================#

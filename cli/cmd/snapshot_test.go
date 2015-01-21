@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/dao"
 )
 
 const (
@@ -27,10 +28,10 @@ const (
 
 var DefaultSnapshotAPITest = SnapshotAPITest{snapshots: DefaultTestSnapshots}
 
-var DefaultTestSnapshots = []string{
-	"test-service-1-snapshot-1",
-	"test-service-1-snapshot-2",
-	"test-service-2-snapshot-1",
+var DefaultTestSnapshots = []dao.SnapshotInfo{
+	dao.SnapshotInfo{"test-service-1-snapshot-1", "description 1"},
+	dao.SnapshotInfo{"test-service-1-snapshot-2", "description 2"},
+	dao.SnapshotInfo{"test-service-2-snapshot-1", ""},
 }
 
 var (
@@ -41,7 +42,7 @@ var (
 type SnapshotAPITest struct {
 	api.API
 	fail      bool
-	snapshots []string
+	snapshots []dao.SnapshotInfo
 }
 
 func InitSnapshotAPITest(args ...string) {
@@ -53,40 +54,40 @@ func (t SnapshotAPITest) hasSnapshot(id string) (bool, error) {
 		return false, ErrInvalidSnapshot
 	}
 	for _, s := range t.snapshots {
-		if s == id {
+		if s.SnapshotID == id {
 			return true, nil
 		}
 	}
 	return false, nil
 }
 
-func (t SnapshotAPITest) GetSnapshots() ([]string, error) {
+func (t SnapshotAPITest) GetSnapshots() ([]dao.SnapshotInfo, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
 	}
 	return t.snapshots, nil
 }
 
-func (t SnapshotAPITest) GetSnapshotsByServiceID(serviceID string) ([]string, error) {
+func (t SnapshotAPITest) GetSnapshotsByServiceID(serviceID string) ([]dao.SnapshotInfo, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
 	}
-	var snapshots []string
+	var snapshots []dao.SnapshotInfo
 	for _, s := range t.snapshots {
-		if strings.HasPrefix(s, serviceID) {
+		if strings.HasPrefix(s.SnapshotID, serviceID) {
 			snapshots = append(snapshots, s)
 		}
 	}
 	return snapshots, nil
 }
 
-func (t SnapshotAPITest) AddSnapshot(id string) (string, error) {
+func (t SnapshotAPITest) AddSnapshot(id string, description string) (string, error) {
 	if t.fail {
 		return "", ErrInvalidSnapshot
 	} else if id == NilSnapshot {
 		return "", nil
 	}
-	return fmt.Sprintf("%s-snapshot", id), nil
+	return fmt.Sprintf("%s-snapshot description=%q", id, description), nil
 }
 
 func (t SnapshotAPITest) RemoveSnapshot(id string) error {
@@ -99,7 +100,12 @@ func (t SnapshotAPITest) RemoveSnapshot(id string) error {
 }
 
 func (t SnapshotAPITest) Commit(dockerID string) (string, error) {
-	return t.AddSnapshot(dockerID)
+	if t.fail {
+		return "", ErrInvalidSnapshot
+	} else if dockerID == NilSnapshot {
+		return "", nil
+	}
+	return fmt.Sprintf("%s-snapshot", dockerID), nil
 }
 
 func (t SnapshotAPITest) Rollback(id string, f bool) error {
@@ -110,8 +116,8 @@ func ExampleServicedCLI_CmdSnapshotList() {
 	InitSnapshotAPITest("serviced", "snapshot", "list")
 
 	// Output:
-	// test-service-1-snapshot-1
-	// test-service-1-snapshot-2
+	// test-service-1-snapshot-1 description 1
+	// test-service-1-snapshot-2 description 2
 	// test-service-2-snapshot-1
 }
 
@@ -119,8 +125,8 @@ func ExampleServicedCLI_CmdSnapshotList_byServiceID() {
 	InitSnapshotAPITest("serviced", "snapshot", "list", "test-service-1")
 
 	// Output:
-	// test-service-1-snapshot-1
-	// test-service-1-snapshot-2
+	// test-service-1-snapshot-1 description 1
+	// test-service-1-snapshot-2 description 2
 }
 
 func ExampleServicedCLI_CmdSnapshotList_fail() {
@@ -153,7 +159,14 @@ func ExampleServicedCLI_CmdSnapshotAdd() {
 	InitSnapshotAPITest("serviced", "snapshot", "add", "test-service-99")
 
 	// Output:
-	// test-service-99-snapshot
+	// test-service-99-snapshot description=""
+}
+
+func ExampleServicedCLI_CmdSnapshotAdd_withDescription() {
+	InitSnapshotAPITest("serviced", "snapshot", "add", "test-service-99", "-d", "some description")
+
+	// Output:
+	// test-service-99-snapshot description="some description"
 }
 
 func ExampleServicedCLI_CmdSnapshotAdd_usage() {
@@ -172,6 +185,7 @@ func ExampleServicedCLI_CmdSnapshotAdd_usage() {
 	//    serviced snapshot add SERVICEID
 	//
 	// OPTIONS:
+	//    --description, -d 	a description of the snapshot
 }
 
 func ExampleServicedCLI_CmdSnapshotAdd_fail() {

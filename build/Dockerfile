@@ -10,8 +10,13 @@
 # # Mount your source in an interactive container for quick testing:
 # docker run -v `pwd`:/go/src/github.com/zenoss/serviced -privileged -lxc-conf=lxc.aa_profile=unconfined -i -t serviced bash
 #
-#
+
+# Please be careful when changing the 'FROM' line below - the packaging code
+# uses the output of 'lsb_release' to determine the version string of the
+# .deb pacakge, and if the base image changes here, then that string will
+# change accordingly.
 FROM ubuntu:trusty
+
 MAINTAINER Zenoss, Inc <dev@zenoss.com>	
 
 RUN	apt-get update -qq
