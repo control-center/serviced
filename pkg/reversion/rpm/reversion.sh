@@ -2,7 +2,7 @@
 
 if [ "$#" -ne 5 ]
 then
-	echo "USAGE: $0 sourceRepoClass sourceVersion targetVersion"
+	echo "USAGE: $0 sourceRepoClass sourceVersion sourceRevision targetVersion targetRevision"
 	echo ""
 	echo "Example - reversion zenoss-unstable 1.0.0-0.0.2113.unstable to 1.0.0-0.1.CR1:"
 	echo "$0 zenoss-unstable 1.0.0 0.0.2113.unstable 1.0.0 0.1.CR1"
