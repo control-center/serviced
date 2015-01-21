@@ -69,12 +69,12 @@ func purgeOldsessionTs() {
 
 	// use a closure to facilitate safe locking regardless of when the purge function returns
 	doPurge := func() {
-		if len(sessions) == 0 {
-			return
-		}
 		sessionsLock.Lock()
 		defer sessionsLock.Unlock()
 
+		if len(sessions) == 0 {
+			return
+		}
 
 		glog.V(1).Info("Searching for expired sessions")
 		cutoff := time.Now().UTC().Unix() - int64((30 * time.Minute).Seconds())
