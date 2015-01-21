@@ -11,6 +11,7 @@
     "gulp-rename": "~1.2.0",
     "jshint-stylish": "~1.0.0",
     "run-sequence": "~1.0.2",
-    "gulp-jshint": "~1.9.0"
+    "gulp-jshint": "~1.9.0",
+    "gulp-6to5": "~2.0.2"
   }
 }

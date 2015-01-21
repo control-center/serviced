@@ -5,7 +5,8 @@ var gulp = require("gulp"),
     uglify = require("gulp-uglify"),
     rename = require("gulp-rename"),
     jshint = require("gulp-jshint"),
-    sequence = require("run-sequence");
+    sequence = require("run-sequence"),
+    to5 = require("gulp-6to5");
 
 var paths = {
     // TODO - organize by feature, not type
@@ -13,6 +14,19 @@ var paths = {
     controllers: "static/js/controllers/",
     modules: "static/js/modules/",
     build: "static/js/"
+};
+
+var to5Config = {
+    format: {
+        parentheses: true,
+        comments: true,
+        compact: false,
+        indent: {
+            adjustMultilineComment: false,
+            style: "    ",
+            base: 0
+        }
+    }
 };
 
 // files to be concatted/minified to make
@@ -32,6 +46,7 @@ gulp.task("release", function(){
 
 gulp.task("concat", function(){
     return gulp.src(controlplaneFiles)
+        .pipe(to5(to5Config))
         .pipe(concat("controlplane.js"))
         .pipe(gulp.dest(paths.build));
 });
