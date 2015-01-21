@@ -45,7 +45,7 @@ var healthStatuses = make(map[string]map[string]map[string]*healthStatus)
 var cpDao dao.ControlPlane
 var runningServices []dao.RunningService
 var exitChannel = make(chan bool)
-var lock = &sync.Mutex{}
+var lock = &sync.RWMutex{}
 
 func init() {
 	foreverHealthy := &healthStatus{
@@ -132,6 +132,8 @@ func SetDao(d dao.ControlPlane) {
 
 // RestGetHealthStatus writes a JSON response with the health status of all services that have health checks.
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	lock.RLock()
+	defer lock.RUnlock()
 	packet := messagePacket{time.Now().UTC().Unix(), healthStatuses}
 	w.WriteJson(&packet)
 }
