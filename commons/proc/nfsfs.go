@@ -29,23 +29,23 @@ var ErrMountPointNotFound = errors.New("mount point not found")
 
 var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
-var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN %s"
+var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN,SOURCE,TARGET,OPTIONS %s"
 
 // NFSVolumeInfo is merged from mountinfo and volumes
 type NFSMountInfo struct {
+	DeviceID string // device id: 0:137
+
+	// from findmnt
 	RemotePath string // path to the server: 10.87.209.168:/serviced_var
 	LocalPath  string // path on the client: /tmp/serviced/var
+	ServerIP   string // server ip address: 10.87.209.168
 
 	// from /proc/fs/nfsfs/volumes
 	Version  string // nfsversion: v4, v3, ...
 	ServerID string // id of server: 0a57d1a8
 	Port     string // port on server: 801
-	DeviceID string // device id: 0:137
 	FSID     string // filesystem id: 45a148e989326106
 	FSCache  string // whether fscache is used (yes/no)
-
-	// from findmnt
-	ServerIP string // server ip address: 10.87.209.168
 }
 
 // ProcNFSFSServer is a parsed representation of /proc/fs/nfsfs/servers information.
@@ -139,7 +139,7 @@ func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
 		case 0:
 			continue
 		default:
-			return nil, fmt.Errorf("expected 5 fields, got %d: %s", len(fields), line)
+			return nil, fmt.Errorf("expected 6 fields, got %d: %s", len(fields), line)
 		}
 		svr := ProcNFSFSVolume{
 			Version:  fields[0],
@@ -172,8 +172,16 @@ func GetProcNFSFSVolume(deviceid string) (*ProcNFSFSVolume, error) {
 	return nil, fmt.Errorf("unable to find volume for deviceid %s", deviceid)
 }
 
-// GetDeviceIDOfMountPoint gets the device major/minor of the mountpoint
-func GetDeviceIDOfMountPoint(mountpoint string) (string, error) {
+// MountInfo is retrieved from mountinfo
+type MountInfo struct {
+	DeviceID   string // device id: 0:137
+	RemotePath string // path to the server: 10.87.209.168:/serviced_var
+	LocalPath  string // path on the client: /tmp/serviced/var
+	ServerIP   string // server ip address: 10.87.209.168
+}
+
+// GetMountInfo gets the mount info of the mountpoint
+func GetMountInfo(mountpoint string) (*MountInfo, error) {
 	command := strings.Fields(fmt.Sprintf(procFindmntCommand, mountpoint))
 	if strings.HasPrefix(procFindmntCommand, "BASH:") {
 		command = []string{"bash", "-c", fmt.Sprintf(strings.TrimPrefix(procFindmntCommand, "BASH:"), mountpoint)}
@@ -183,26 +191,53 @@ func GetDeviceIDOfMountPoint(mountpoint string) (string, error) {
 	glog.V(1).Infof("command: %+v", command)
 	output, err := thecmd.CombinedOutput()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return strings.TrimSpace(string(output)), nil
+	// [root@jrivera-tb1 ~]# /bin/findmnt --noheading -o MAJ:MIN,SOURCE,TARGET,OPTIONS /tmp/serviced/var
+	//   0:137 10.87.209.168:/serviced_var /tmp/serviced/var rw,relatime,vers=4.0,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,port=0,timeo=600,retrans=2,sec=sys,clientaddr=10.87.209.168,local_lock=none,addr=10.87.209.168
+	line := strings.TrimSpace(string(output))
+
+	glog.V(4).Infof("line: %s", line)
+
+	fields := strings.Fields(line)
+	switch len(fields) {
+	case 4:
+		break
+	case 0:
+		return nil, ErrMountPointNotFound
+	default:
+		glog.Infof("command: %+v", command)
+		return nil, fmt.Errorf("expected 4 fields, got %d: %s", len(fields), line)
+	}
+	info := MountInfo{
+		DeviceID:   fields[0],
+		RemotePath: fields[1],
+		LocalPath:  fields[2],
+		ServerIP:   fields[3],
+	}
+	glog.V(4).Infof("mount info: %+v", info)
+	return &info, nil
 }
 
 // GetNFSVolumeInfo gets the NFSMountInfo of the mountpoint
 func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
-	deviceid, err := GetDeviceIDOfMountPoint(mountpoint)
+	minfo, err := GetMountInfo(mountpoint)
 	if err != nil {
 		return nil, err
 	}
 
-	volume, err := GetProcNFSFSVolume(deviceid)
+	volume, err := GetProcNFSFSVolume(minfo.DeviceID)
 	if err != nil {
 		return nil, err
 	}
 
 	info := NFSMountInfo{
-		DeviceID: deviceid,
+		DeviceID:   minfo.DeviceID,
+		RemotePath: minfo.RemotePath,
+		LocalPath:  minfo.LocalPath,
+		ServerIP:   minfo.ServerIP,
+
 		Version:  volume.Version,
 		ServerID: volume.ServerID,
 		Port:     volume.Port,

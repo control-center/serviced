@@ -85,29 +85,7 @@ func TestGetProcNFSFSVolumes(t *testing.T) {
 	}
 }
 
-/*
-FIXME
-func TestGetProcNFSFSFSID(t *testing.T) {
-
-	// mock up our proc dir
-	defer func(s string) {
-		procDir = s
-	}(procDir)
-	procDir = ""
-
-	actual, err := GetProcNFSFSFSID("0:137")
-	if err != nil {
-		t.Fatalf("could not get nfs fsid: %s", err)
-	}
-
-	expected := "45a148e989326106"
-	if expected != actual {
-		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
-	}
-}
-*/
-
-func TestGetDeviceIDOfMountPoint(t *testing.T) {
+func TestGetMountInfo(t *testing.T) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -119,22 +97,25 @@ func TestGetDeviceIDOfMountPoint(t *testing.T) {
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "BASH: grep %s self/mountinfo | cut -f3 -d' '"
+	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $10, $5, fields[n]}'"
 
-	actual, err := GetDeviceIDOfMountPoint("/tmp/serviced/var")
+	actual, err := GetMountInfo("/tmp/serviced/var")
 	if err != nil {
-		t.Fatalf("could not get deviceid (major:minor): %s", err)
+		t.Fatalf("could not get mount info: %s", err)
 	}
 
-	expected := "0:137"
-	if expected != actual {
+	expected := MountInfo{
+		DeviceID:   "0:137",
+		RemotePath: "10.87.209.168:/serviced_var",
+		LocalPath:  "/tmp/serviced/var",
+		ServerIP:   "10.87.209.168",
+	}
+	if expected != *actual {
 		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
 	}
 }
 
-/*
-FIXME
-func TestGetFSIDFromMount(t *testing.T) {
+func TestGetNFSVolumeInfo(t *testing.T) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -146,16 +127,26 @@ func TestGetFSIDFromMount(t *testing.T) {
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "BASH: grep %s self/mountinfo | cut -f3 -d' '"
+	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $10, $5, fields[n]}'"
 
-	actual, err := GetFSIDFromMount("/tmp/serviced/var")
+	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
 	if err != nil {
-		t.Fatalf("could not get nfs fsid: %s", err)
+		t.Fatalf("could not get mount info: %s", err)
 	}
 
-	expected := "45a148e989326106"
-	if expected != actual {
+	expected := NFSMountInfo{
+		DeviceID:   "0:137",
+		RemotePath: "10.87.209.168:/serviced_var",
+		LocalPath:  "/tmp/serviced/var",
+		ServerIP:   "10.87.209.168",
+
+		Version:  "v4",
+		ServerID: "0a57d1a8",
+		Port:     "801",
+		FSID:     "45a148e989326106",
+		FSCache:  "no",
+	}
+	if expected != *actual {
 		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
 	}
 }
-*/
