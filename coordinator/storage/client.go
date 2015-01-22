@@ -56,10 +56,11 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 // Wait will block until the client is Closed() or it has mounted the remote filesystem
 func (c *Client) Wait() string {
 	waitC := make(chan string, 1)
+	var ch chan<- string = waitC
 
 	select {
 	case <-c.closing:
-	case c.mounted <- waitC:
+	case c.mounted <- ch:
 	}
 
 	select {
