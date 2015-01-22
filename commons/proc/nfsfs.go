@@ -14,6 +14,8 @@
 package proc
 
 import (
+	"errors"
+
 	"github.com/zenoss/glog"
 
 	"bufio"
@@ -22,6 +24,8 @@ import (
 	"os/exec"
 	"strings"
 )
+
+var ErrMountPointNotFound = errors.New("mount point not found")
 
 var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
