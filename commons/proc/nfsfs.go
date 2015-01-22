@@ -29,7 +29,7 @@ var ErrMountPointNotFound = errors.New("mount point not found")
 
 var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
-var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS %s"
+var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS %s | awk '{n=split($NF,fields,\"=\"); print $1, $2, $3, $4, fields[n]}'"
 
 // NFSVolumeInfo is merged from mountinfo and volumes
 type NFSMountInfo struct {
@@ -184,10 +184,7 @@ type MountInfo struct {
 
 // GetMountInfo gets the mount info of the mountpoint
 func GetMountInfo(mountpoint string) (*MountInfo, error) {
-	command := strings.Fields(fmt.Sprintf(procFindmntCommand, mountpoint))
-	if strings.HasPrefix(procFindmntCommand, "BASH:") {
-		command = []string{"bash", "-c", fmt.Sprintf(strings.TrimPrefix(procFindmntCommand, "BASH:"), mountpoint)}
-	}
+	command := []string{"bash", "-c", fmt.Sprintf(procFindmntCommand, mountpoint)}
 
 	thecmd := exec.Command(command[0], command[1:]...)
 	glog.V(1).Infof("command: %+v", command)
