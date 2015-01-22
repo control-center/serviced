@@ -18,7 +18,7 @@ import (
 	"testing"
 )
 
-func TestGet(t *testing.T) {
+func TestGetProcNFSFSServers(t *testing.T) {
 
 	// mock up our proc dir
 	defer func(s string) {
@@ -41,5 +41,46 @@ func TestGet(t *testing.T) {
 	actualServer := servers[key]
 	if *expectedServer != actualServer {
 		t.Fatalf("expected: %+v != actual: %+v", expectedServer, &actualServer)
+	}
+}
+
+func TestGetProcNFSFSVolumes(t *testing.T) {
+
+	// mock up our proc dir
+	defer func(s string) {
+		procDir = s
+	}(procDir)
+	procDir = ""
+
+	volumes, err := GetProcNFSFSVolumes()
+	if err != nil {
+		t.Fatalf("could not get nfsfs/volumes: %s", err)
+	}
+
+	expected := []ProcNFSFSVolume{
+		{
+			Version:  "v4",
+			ServerID: "0a57d1a8",
+			Port:     "801",
+			DeviceID: "0:137",
+			FSID:     "45a148e989326106",
+			FSCache:  "no",
+		},
+		{
+			Version:  "v3",
+			ServerID: "0a57d1a8",
+			Port:     "801",
+			DeviceID: "0:138",
+			FSID:     "45a148e989326106",
+			FSCache:  "no",
+		},
+	}
+	for idx := range expected {
+		if expected[idx] != volumes[idx] {
+			t.Fatalf("expected[%d]: %+v != actual[%d]: %+v", idx, expected[idx], idx, volumes[idx])
+		}
+	}
+	if len(expected) != len(volumes) {
+		t.Fatalf("len(expected): %+v != len(actual): %+v", len(expected), len(volumes))
 	}
 }

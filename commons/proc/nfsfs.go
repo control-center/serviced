@@ -23,16 +23,25 @@ import (
 )
 
 var procNFSFSServersFile = "servers"
+var procNFSFSVolumesFile = "volumes"
 
 // ProcNFSFSServer is a parsed representation of /proc/fs/nfsfs/servers information.
 type ProcNFSFSServer struct {
 	Version  string // nfsversion: v4, v3, ...
 	ServerID string // id of server: 0a57d1a8
-	Port     string // port on server:
-	Hostname string // hostname of server
+	Port     string // port on server: 801
+	Hostname string // hostname of server: 10.87.209.168
 }
 
-var MalformedNFSFSServerErr = fmt.Errorf("malformed nfsfs server file")
+// ProcNFSFSVolume is a parsed representation of /proc/fs/nfsfs/volumes information.
+type ProcNFSFSVolume struct {
+	Version  string // nfsversion: v4, v3, ...
+	ServerID string // id of server: 0a57d1a8
+	Port     string // port on server: 801
+	DeviceID string // device id: 0:137
+	FSID     string // filesystem id: 45a148e989326106
+	FSCache  string // whether fscache is used (yes/no)
+}
 
 // GetProcNFSFSServers gets a map to the /proc/fs/nfsfs/servers
 func GetProcNFSFSServers() (map[string]ProcNFSFSServer, error) {
@@ -76,4 +85,49 @@ func GetProcNFSFSServers() (map[string]ProcNFSFSServer, error) {
 	}
 	glog.V(4).Infof("nfsfs servers: %+v", servers)
 	return servers, nil
+}
+
+// GetProcNFSFSVolumes gets a map to the /proc/fs/nfsfs/volumes
+func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
+	// read in the file
+	data, err := ioutil.ReadFile(fmt.Sprintf(procDir+"fs/nfsfs/%s", procNFSFSVolumesFile))
+	if err != nil {
+		return nil, err
+	}
+
+	var volumes []ProcNFSFSVolume
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	linenum := 0
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		linenum++
+		glog.V(4).Infof("%d: %s", linenum, line)
+		if linenum < 2 {
+			continue
+		} else if strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		switch len(fields) {
+		case 6:
+			break
+		case 0:
+			continue
+		default:
+			return nil, fmt.Errorf("expected 5 fields, got %d: %s", len(fields), line)
+		}
+		svr := ProcNFSFSVolume{
+			Version:  fields[0],
+			ServerID: fields[1],
+			Port:     fields[2],
+			DeviceID: fields[3],
+			FSID:     fields[4],
+			FSCache:  fields[5],
+		}
+		volumes = append(volumes, svr)
+	}
+	glog.V(4).Infof("nfsfs volumes: %+v", volumes)
+	return volumes, nil
 }
