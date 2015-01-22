@@ -37,6 +37,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -109,6 +110,7 @@ type Controller struct {
 	zkConn                  coordclient.Connection
 	exportedEndpoints       map[string][]export
 	importedEndpoints       map[string]importedEndpoint
+	importedEndpointsLock   sync.RWMutex
 	PIDFile                 string
 	exportedEndpointZKPaths []string
 	vhostZKPaths            []string
@@ -260,7 +262,9 @@ func setupLogstashFiles(service *service.Service, instanceID string, resourcePat
 // NewController creates a new Controller for the given options
 func NewController(options ControllerOptions) (*Controller, error) {
 	c := &Controller{
-		options: options,
+		options:               options,
+		importedEndpoints:     make(map[string]importedEndpoint),
+		importedEndpointsLock: sync.RWMutex{},
 	}
 	c.closing = make(chan chan error)
 
@@ -886,7 +890,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 
 		// add/replace entries in importedEndpoints
 		instanceIDStr := fmt.Sprintf("%d", endpointList[0].InstanceID)
-		setImportedEndpoint(&c.importedEndpoints, c.tenantID,
+		setImportedEndpoint(c,
 			endpointList[0].Application, instanceIDStr,
 			endpointList[0].VirtualAddress, cc_endpoint_purpose,
 			endpointList[0].ContainerPort)
