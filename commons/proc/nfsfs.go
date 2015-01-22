@@ -222,6 +222,10 @@ func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 		return nil, err
 	}
 
+	if !strings.HasPrefix(minfo.FSType, "nfs") {
+		return nil, fmt.Errorf("%s is not nfs; uses %s", minfo.LocalPath, minfo.FSType)
+	}
+
 	volume, err := GetProcNFSFSVolume(minfo.DeviceID)
 	if err != nil {
 		return nil, err

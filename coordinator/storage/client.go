@@ -35,7 +35,7 @@ type Client struct {
 	host      *host.Host
 	localPath string
 	closing   chan struct{}
-	mounted   chan string
+	mounted   chan chan<- string
 }
 
 // NewClient returns a Client that manages remote mounts
@@ -46,7 +46,7 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 	c := &Client{
 		host:      host,
 		localPath: localPath,
-		mounted:   make(chan string, 1),
+		mounted:   make(chan chan<- string),
 		closing:   make(chan struct{}),
 	}
 	go c.loop()
@@ -55,11 +55,19 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 
 // Wait will block until the client is Closed() or it has mounted the remote filesystem
 func (c *Client) Wait() string {
+	waitC := make(chan string, 1)
+
 	select {
 	case <-c.closing:
-	case s := <-c.mounted:
+	case c.mounted <- waitC:
+	}
+
+	select {
+	case <-c.closing:
+	case s := <-waitC:
 		return s
 	}
+
 	return ""
 }
 
@@ -79,10 +87,20 @@ func (c *Client) loop() {
 		Host:    host.Host{},
 		version: nil,
 	}
+
+	var doneC chan<- string
 	var leader client.Leader
 	var conn client.Connection
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
 	for {
+		if doneC == nil {
+			select {
+			case doneC = <-c.mounted:
+			case <-c.closing:
+				return
+			}
+		}
+
 		// keep from churning if we get errors
 		if err != nil {
 			select {
@@ -144,8 +162,9 @@ func (c *Client) loop() {
 		}
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
-		case c.mounted <- leaderNode.ExportPath:
+		case doneC <- leaderNode.ExportPath:
 			// notifying someone who cares
+			doneC = nil
 		case <-c.closing:
 			return
 		case evt := <-e:

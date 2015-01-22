@@ -18,9 +18,13 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/control-center/serviced/commons/proc"
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 )
 
@@ -70,42 +74,71 @@ func Mount(nfsPath, localPath string) error {
 		return ErrMalformedNFSMountpoint
 	}
 
-	if mountInstance, err := getMount(localPath); err == nil {
-		if mountInstance.Type == "nfs4" {
-			glog.Infof("%s is already mounted", localPath)
-			return nil
+	// Is the localpath already mounted?
+	mountInfo, mountError := proc.GetNFSVolumeInfo(localPath)
+	if mountError == proc.ErrMountPointNotFound {
+		// the mountpoint is not found so try to mount
+		// try mounting via in interuptable mount
+		glog.Infof("%s not mounted; mounting...", localPath)
+		cmd := commandFactory("mount.nfs4", "-o", "intr", nfsPath, localPath)
+		errC := make(chan error, 1)
+		go func() {
+			output, err := cmd.CombinedOutput()
+			glog.V(1).Infof("Mount %s to %s: %s (%s)", nfsPath, localPath, string(output), err)
+
+			exitCode, ok := utils.GetExitStatus(err)
+			if exitCode == 32 || !ok {
+				err := fmt.Errorf("%s (%s)", string(output), err)
+				glog.Errorf("Could not mount %s to %s: %s", nfsPath, localPath, err)
+				errC <- err
+			} else {
+				errC <- nil
+			}
+		}()
+
+		select {
+		case <-time.After(time.Second * 30):
+			if execCmd, ok := cmd.(*exec.Cmd); ok {
+				execCmd.Process.Kill()
+			}
+			glog.Errorf("timed out waiting for nfs mount")
+			return fmt.Errorf("timeout waiting for nfs mount")
+		case err := <-errC:
+			if err != nil {
+				return err
+			}
 		}
-		return fmt.Errorf("%s not mounted nfs4, %s instead", localPath, mountInstance.Type)
+
+		// get the mount point
+		mountInfo, mountError = proc.GetNFSVolumeInfo(localPath)
 	}
 
-	// try mounting via in interuptable mount
-	cmd := commandFactory("mount.nfs4", "-o", "intr", nfsPath, localPath)
-	ret := make(chan error)
-	go func() {
-		output, err := cmd.CombinedOutput()
-		s := string(output)
-		switch {
-		case err != nil && !strings.Contains(err.Error(), "status 32"):
-			ret <- fmt.Errorf(strings.TrimSpace(s))
-		case strings.Contains(s, "already mounted") || len(strings.TrimSpace(s)) == 0:
-			ret <- nil
-		default:
-			ret <- nil
-		}
-		close(ret)
-	}()
-	select {
-	case <-time.After(time.Second * 30):
-		if execCmd, ok := cmd.(*exec.Cmd); ok {
-			execCmd.Process.Kill()
-		}
-		glog.Errorf("timed out waiting for nfs mount")
-		return fmt.Errorf("timeout waiting for nfs mount")
-	case err, ok := <-ret:
-		if ok {
-			return err
-		}
+	if mountError != nil {
+		// we should have a mountpoint by now or bust
+		glog.Errorf("Could not get volume info for %s (%s): %s", localPath, nfsPath, mountError)
+		return mountError
 	}
+
+	// Validate mount info
+	glog.Infof("Mount Info: %+v", mountInfo)
+	verr := validation.NewValidationError()
+	verr.Add(validation.StringsEqual(nfsPath, mountInfo.RemotePath, ""))
+	verr.Add(validation.StringsEqual("v4", mountInfo.Version, fmt.Sprintf("%s not mounted nfs4, %s instead", localPath, mountInfo.Version)))
+	verr.Add(func(fsid string) error {
+		if fsiduint, err := strconv.ParseUint(fsid, 16, 64); err != nil || fsiduint == 0 {
+			return fmt.Errorf("invalid fsid: %s", fsid)
+		}
+		return nil
+	}(mountInfo.FSID))
+
+	if verr.HasError() {
+		// the mountpoint is stale or wrong, so unmount
+		glog.Warningf("Stale mount point; unmounting...")
+		cmd := commandFactory("umount", "-f", localPath)
+		output, err := cmd.CombinedOutput()
+		glog.Infof("Unmount %s: %s (%s)", localPath, string(output), err)
+		return verr
+	}
+
 	return nil
 }
-
