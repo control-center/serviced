@@ -24,7 +24,7 @@ func TestGetProcNFSFSServers(t *testing.T) {
 	defer func(s string) {
 		procDir = s
 	}(procDir)
-	procDir = ""
+	procDir = "tstproc/"
 
 	servers, err := GetProcNFSFSServers()
 	if err != nil {
@@ -50,7 +50,7 @@ func TestGetProcNFSFSVolumes(t *testing.T) {
 	defer func(s string) {
 		procDir = s
 	}(procDir)
-	procDir = ""
+	procDir = "tstproc/"
 
 	volumes, err := GetProcNFSFSVolumes()
 	if err != nil {
@@ -91,13 +91,13 @@ func TestGetMountInfo(t *testing.T) {
 	defer func(s string) {
 		procDir = s
 	}(procDir)
-	procDir = ""
+	procDir = "tstproc/"
 
 	// mock up our findmnt command
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
+	procFindmntCommand = "BASH: grep %s tstproc/self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
 
 	actual, err := GetMountInfo("/tmp/serviced/var")
 	if err != nil {
@@ -122,13 +122,13 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	defer func(s string) {
 		procDir = s
 	}(procDir)
-	procDir = ""
+	procDir = "tstproc/"
 
 	// mock up our findmnt command
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
+	procFindmntCommand = "BASH: grep %s tstproc/self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
 
 	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
 	if err != nil {
