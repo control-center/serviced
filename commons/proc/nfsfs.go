@@ -186,7 +186,7 @@ func GetDeviceIDOfMountPoint(mountpoint string) (string, error) {
 }
 
 // GetNFSVolumeInfo gets the NFSMountInfo of the mountpoint
-func GetFSIDFromMount(mountpoint string) (*NFSMountInfo, error) {
+func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 	deviceid, err := GetDeviceIDOfMountPoint(mountpoint)
 	if err != nil {
 		return nil, err
