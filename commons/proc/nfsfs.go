@@ -27,6 +27,23 @@ var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
 var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN %s"
 
+// NFSVolumeInfo is merged from mountinfo and volumes
+type NFSMountInfo struct {
+	RemotePath string // path to the server: 10.87.209.168:/serviced_var
+	LocalPath  string // path on the client: /tmp/serviced/var
+
+	// from /proc/fs/nfsfs/volumes
+	Version  string // nfsversion: v4, v3, ...
+	ServerID string // id of server: 0a57d1a8
+	Port     string // port on server: 801
+	DeviceID string // device id: 0:137
+	FSID     string // filesystem id: 45a148e989326106
+	FSCache  string // whether fscache is used (yes/no)
+
+	// from findmnt
+	ServerIP string // server ip address: 10.87.209.168
+}
+
 // ProcNFSFSServer is a parsed representation of /proc/fs/nfsfs/servers information.
 type ProcNFSFSServer struct {
 	Version  string // nfsversion: v4, v3, ...
@@ -134,21 +151,21 @@ func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
 	return volumes, nil
 }
 
-// GetProcNFSFSFSID gets the FSID for a deviceid from /proc/fs/nfsfs/volumes
-func GetProcNFSFSFSID(deviceid string) (string, error) {
+// GetProcNFSFSVolume gets the ProcNFSFSVolume of a deviceid from /proc/fs/nfsfs/volumes
+func GetProcNFSFSVolume(deviceid string) (*ProcNFSFSVolume, error) {
 	volumes, err := GetProcNFSFSVolumes()
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	for idx := range volumes {
 		glog.V(4).Infof("volume: %+v", volumes[idx])
 		if deviceid == volumes[idx].DeviceID {
-			return volumes[idx].FSID, nil
+			return &volumes[idx], nil
 		}
 	}
 
-	return "", fmt.Errorf("unable to find fsid of deviceid %s", deviceid)
+	return nil, fmt.Errorf("unable to find volume for deviceid %s", deviceid)
 }
 
 // GetDeviceIDOfMountPoint gets the device major/minor of the mountpoint
@@ -168,12 +185,26 @@ func GetDeviceIDOfMountPoint(mountpoint string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-// GetFSIDFromMount gets the FSID of the mountpoint
-func GetFSIDFromMount(mountpoint string) (string, error) {
+// GetNFSVolumeInfo gets the NFSMountInfo of the mountpoint
+func GetFSIDFromMount(mountpoint string) (*NFSMountInfo, error) {
 	deviceid, err := GetDeviceIDOfMountPoint(mountpoint)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return GetProcNFSFSFSID(deviceid)
+	volume, err := GetProcNFSFSVolume(deviceid)
+	if err != nil {
+		return nil, err
+	}
+
+	info := NFSMountInfo{
+		DeviceID: deviceid,
+		Version:  volume.Version,
+		ServerID: volume.ServerID,
+		Port:     volume.Port,
+		FSID:     volume.FSID,
+		FSCache:  volume.FSCache,
+	}
+
+	return &info, nil
 }
