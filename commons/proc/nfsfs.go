@@ -36,6 +36,7 @@ type NFSMountInfo struct {
 	DeviceID string // device id: 0:137
 
 	// from findmnt
+	FSType     string // filesystem type: btrfs, nfs4, ext4
 	RemotePath string // path to the server: 10.87.209.168:/serviced_var
 	LocalPath  string // path on the client: /tmp/serviced/var
 	ServerIP   string // server ip address: 10.87.209.168
@@ -175,6 +176,7 @@ func GetProcNFSFSVolume(deviceid string) (*ProcNFSFSVolume, error) {
 // MountInfo is retrieved from mountinfo
 type MountInfo struct {
 	DeviceID   string // device id: 0:137
+	FSType     string // filesystem type: btrfs, nfs4, ext4
 	RemotePath string // path to the server: 10.87.209.168:/serviced_var
 	LocalPath  string // path on the client: /tmp/serviced/var
 	ServerIP   string // server ip address: 10.87.209.168
@@ -202,19 +204,20 @@ func GetMountInfo(mountpoint string) (*MountInfo, error) {
 
 	fields := strings.Fields(line)
 	switch len(fields) {
-	case 4:
+	case 5:
 		break
 	case 0:
 		return nil, ErrMountPointNotFound
 	default:
 		glog.Infof("command: %+v", command)
-		return nil, fmt.Errorf("expected 4 fields, got %d: %s", len(fields), line)
+		return nil, fmt.Errorf("expected 5 fields, got %d: %s", len(fields), line)
 	}
 	info := MountInfo{
 		DeviceID:   fields[0],
-		RemotePath: fields[1],
-		LocalPath:  fields[2],
-		ServerIP:   fields[3],
+		FSType:     fields[1],
+		RemotePath: fields[2],
+		LocalPath:  fields[3],
+		ServerIP:   fields[4],
 	}
 	glog.V(4).Infof("mount info: %+v", info)
 	return &info, nil
@@ -234,6 +237,7 @@ func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 
 	info := NFSMountInfo{
 		DeviceID:   minfo.DeviceID,
+		FSType:     minfo.FSType,
 		RemotePath: minfo.RemotePath,
 		LocalPath:  minfo.LocalPath,
 		ServerIP:   minfo.ServerIP,

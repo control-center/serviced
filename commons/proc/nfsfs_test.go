@@ -97,7 +97,7 @@ func TestGetMountInfo(t *testing.T) {
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $10, $5, fields[n]}'"
+	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
 
 	actual, err := GetMountInfo("/tmp/serviced/var")
 	if err != nil {
@@ -106,6 +106,7 @@ func TestGetMountInfo(t *testing.T) {
 
 	expected := MountInfo{
 		DeviceID:   "0:137",
+		FSType:     "nfs4",
 		RemotePath: "10.87.209.168:/serviced_var",
 		LocalPath:  "/tmp/serviced/var",
 		ServerIP:   "10.87.209.168",
@@ -127,7 +128,7 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $10, $5, fields[n]}'"
+	procFindmntCommand = "BASH: grep %s self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
 
 	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
 	if err != nil {
@@ -136,6 +137,7 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 
 	expected := NFSMountInfo{
 		DeviceID:   "0:137",
+		FSType:     "nfs4",
 		RemotePath: "10.87.209.168:/serviced_var",
 		LocalPath:  "/tmp/serviced/var",
 		ServerIP:   "10.87.209.168",
