@@ -163,7 +163,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 			return fmt.Errorf("Unable to create temporary service state")
 		}
 		// initialize importedEndpoints
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
+		err = buildImportedEndpoints(c, conn, sstate)
 		if err != nil {
 			glog.Errorf("Invalid ImportedEndpoints")
 			return ErrInvalidImportedEndpoints
@@ -185,7 +185,7 @@ func (c *Controller) getEndpoints(service *service.Service) error {
 		}
 
 		// initialize importedEndpoints
-		c.importedEndpoints, err = buildImportedEndpoints(conn, c.tenantID, sstate)
+		err = buildImportedEndpoints(c, conn, sstate)
 		if err != nil {
 			glog.Errorf("Invalid ImportedEndpoints")
 			return ErrInvalidImportedEndpoints
@@ -228,23 +228,21 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 }
 
 // buildImportedEndpoints builds the map to imported endpoints
-func buildImportedEndpoints(conn coordclient.Connection, tenantID string, state *servicestate.ServiceState) (map[string]importedEndpoint, error) {
+func buildImportedEndpoints(c *Controller, conn coordclient.Connection, state *servicestate.ServiceState) error {
 	glog.V(2).Infof("buildImportedEndpoints state: %+v", state)
-	result := make(map[string]importedEndpoint)
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "import" || defep.Purpose == "import_all" {
 			endpoint, err := buildApplicationEndpoint(state, &defep)
 			if err != nil {
-				return result, err
+				return err
 			}
 			instanceIDStr := fmt.Sprintf("%d", endpoint.InstanceID)
-			setImportedEndpoint(&result, tenantID, endpoint.Application,
+			setImportedEndpoint(c, endpoint.Application,
 				instanceIDStr, endpoint.VirtualAddress, defep.Purpose, endpoint.ContainerPort)
 		}
 	}
-
-	return result, nil
+	return nil
 }
 
 // buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
@@ -294,19 +292,23 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 }
 
 // setImportedEndpoint sets an imported endpoint
-func setImportedEndpoint(importedEndpoints *map[string]importedEndpoint, tenantID, endpointID, instanceID, virtualAddress, purpose string, port uint16) {
+func setImportedEndpoint(c *Controller, endpointID, instanceID, virtualAddress, purpose string, port uint16) {
 	ie := importedEndpoint{}
 	ie.endpointID = endpointID
 	ie.virtualAddress = virtualAddress
 	ie.purpose = purpose
 	ie.instanceID = instanceID
 	ie.port = port
-	key := registry.TenantEndpointKey(tenantID, endpointID)
-	(*importedEndpoints)[key] = ie
+	key := registry.TenantEndpointKey(c.tenantID, endpointID)
+	c.importedEndpointsLock.Lock()
+	c.importedEndpoints[key] = ie
+	c.importedEndpointsLock.Unlock()
 	glog.Infof("  cached imported endpoint[%s]: %+v", key, ie)
 }
 
 func (c *Controller) getMatchingEndpoint(id string) *importedEndpoint {
+	c.importedEndpointsLock.RLock()
+	defer c.importedEndpointsLock.RUnlock()
 	for _, ie := range c.importedEndpoints {
 		endpointPattern := fmt.Sprintf("^%s$", registry.TenantEndpointKey(c.tenantID, ie.endpointID))
 		glog.V(2).Infof("  checking tenantEndpointID %s against pattern %s", id, endpointPattern)
