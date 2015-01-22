@@ -29,7 +29,7 @@ var ErrMountPointNotFound = errors.New("mount point not found")
 
 var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
-var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS %s | awk '{n=split($NF,fields,\"=\"); print $1, $2, $3, $4, fields[n]}'"
+var procFindmntCommand = "/bin/findmnt --raw --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS %s | awk '{n=split($NF,fields,\"=\"); print $1, $2, $3, $4, fields[n]}'"
 
 // NFSVolumeInfo is merged from mountinfo and volumes
 type NFSMountInfo struct {
