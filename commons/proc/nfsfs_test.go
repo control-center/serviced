@@ -135,12 +135,16 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 		t.Fatalf("could not get mount info: %s", err)
 	}
 
-	expected := NFSMountInfo{
+	minfo := MountInfo{
 		DeviceID:   "0:137",
 		FSType:     "nfs4",
 		RemotePath: "10.87.209.168:/serviced_var",
 		LocalPath:  "/tmp/serviced/var",
 		ServerIP:   "10.87.209.168",
+	}
+
+	expected := NFSMountInfo{
+		MountInfo: minfo,
 
 		Version:  "v4",
 		ServerID: "0a57d1a8",

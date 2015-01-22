@@ -33,13 +33,8 @@ var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARG
 
 // NFSVolumeInfo is merged from mountinfo and volumes
 type NFSMountInfo struct {
-	DeviceID string // device id: 0:137
-
 	// from findmnt
-	FSType     string // filesystem type: btrfs, nfs4, ext4
-	RemotePath string // path to the server: 10.87.209.168:/serviced_var
-	LocalPath  string // path on the client: /tmp/serviced/var
-	ServerIP   string // server ip address: 10.87.209.168
+	MountInfo
 
 	// from /proc/fs/nfsfs/volumes
 	Version  string // nfsversion: v4, v3, ...
@@ -47,6 +42,15 @@ type NFSMountInfo struct {
 	Port     string // port on server: 801
 	FSID     string // filesystem id: 45a148e989326106
 	FSCache  string // whether fscache is used (yes/no)
+}
+
+// MountInfo is retrieved from mountinfo
+type MountInfo struct {
+	DeviceID   string // device id: 0:137
+	FSType     string // filesystem type: btrfs, nfs4, ext4
+	RemotePath string // path to the server: 10.87.209.168:/serviced_var
+	LocalPath  string // path on the client: /tmp/serviced/var
+	ServerIP   string // server ip address: 10.87.209.168
 }
 
 // ProcNFSFSServer is a parsed representation of /proc/fs/nfsfs/servers information.
@@ -173,15 +177,6 @@ func GetProcNFSFSVolume(deviceid string) (*ProcNFSFSVolume, error) {
 	return nil, fmt.Errorf("unable to find volume for deviceid %s", deviceid)
 }
 
-// MountInfo is retrieved from mountinfo
-type MountInfo struct {
-	DeviceID   string // device id: 0:137
-	FSType     string // filesystem type: btrfs, nfs4, ext4
-	RemotePath string // path to the server: 10.87.209.168:/serviced_var
-	LocalPath  string // path on the client: /tmp/serviced/var
-	ServerIP   string // server ip address: 10.87.209.168
-}
-
 // GetMountInfo gets the mount info of the mountpoint
 func GetMountInfo(mountpoint string) (*MountInfo, error) {
 	command := []string{"bash", "-c", fmt.Sprintf(procFindmntCommand, mountpoint)}
@@ -233,11 +228,7 @@ func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 	}
 
 	info := NFSMountInfo{
-		DeviceID:   minfo.DeviceID,
-		FSType:     minfo.FSType,
-		RemotePath: minfo.RemotePath,
-		LocalPath:  minfo.LocalPath,
-		ServerIP:   minfo.ServerIP,
+		MountInfo: *minfo,
 
 		Version:  volume.Version,
 		ServerID: volume.ServerID,
