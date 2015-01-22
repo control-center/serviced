@@ -84,3 +84,72 @@ func TestGetProcNFSFSVolumes(t *testing.T) {
 		t.Fatalf("len(expected): %+v != len(actual): %+v", len(expected), len(volumes))
 	}
 }
+
+func TestGetProcNFSFSFSID(t *testing.T) {
+
+	// mock up our proc dir
+	defer func(s string) {
+		procDir = s
+	}(procDir)
+	procDir = ""
+
+	actual, err := GetProcNFSFSFSID("0:137")
+	if err != nil {
+		t.Fatalf("could not get nfs fsid: %s", err)
+	}
+
+	expected := "45a148e989326106"
+	if expected != actual {
+		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
+	}
+}
+
+func TestGetDeviceIDOfMountPoint(t *testing.T) {
+
+	// mock up our proc dir
+	defer func(s string) {
+		procDir = s
+	}(procDir)
+	procDir = ""
+
+	// mock up our findmnt command
+	defer func(s string) {
+		procFindmntCommand = s
+	}(procFindmntCommand)
+	procFindmntCommand = "BASH: grep %s self/mountinfo | cut -f3 -d' '"
+
+	actual, err := GetDeviceIDOfMountPoint("/tmp/serviced/var")
+	if err != nil {
+		t.Fatalf("could not get deviceid (major:minor): %s", err)
+	}
+
+	expected := "0:137"
+	if expected != actual {
+		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
+	}
+}
+
+func TestGetFSIDFromMount(t *testing.T) {
+
+	// mock up our proc dir
+	defer func(s string) {
+		procDir = s
+	}(procDir)
+	procDir = ""
+
+	// mock up our findmnt command
+	defer func(s string) {
+		procFindmntCommand = s
+	}(procFindmntCommand)
+	procFindmntCommand = "BASH: grep %s self/mountinfo | cut -f3 -d' '"
+
+	actual, err := GetFSIDFromMount("/tmp/serviced/var")
+	if err != nil {
+		t.Fatalf("could not get nfs fsid: %s", err)
+	}
+
+	expected := "45a148e989326106"
+	if expected != actual {
+		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
+	}
+}

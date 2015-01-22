@@ -1,0 +1,2 @@
+107 37 0:35 / /exports/serviced_var rw,noatime shared:28 - btrfs /dev/sda4 rw,nodatasum,nodatacow,space_cache
+145 37 0:137 / /tmp/serviced/var rw,relatime shared:65 - nfs4 10.87.209.168:/serviced_var rw,vers=4.0,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,port=0,timeo=600,retrans=2,sec=sys,clientaddr=10.87.209.168,local_lock=none,addr=10.87.209.168

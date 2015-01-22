@@ -19,11 +19,13 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
+	"os/exec"
 	"strings"
 )
 
 var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
+var procFindmntCommand = "/bin/findmnt --noheading -o MAJ:MIN %s"
 
 // ProcNFSFSServer is a parsed representation of /proc/fs/nfsfs/servers information.
 type ProcNFSFSServer struct {
@@ -130,4 +132,48 @@ func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
 	}
 	glog.V(4).Infof("nfsfs volumes: %+v", volumes)
 	return volumes, nil
+}
+
+// GetProcNFSFSFSID gets the FSID for a deviceid from /proc/fs/nfsfs/volumes
+func GetProcNFSFSFSID(deviceid string) (string, error) {
+	volumes, err := GetProcNFSFSVolumes()
+	if err != nil {
+		return "", err
+	}
+
+	for idx := range volumes {
+		glog.V(4).Infof("volume: %+v", volumes[idx])
+		if deviceid == volumes[idx].DeviceID {
+			return volumes[idx].FSID, nil
+		}
+	}
+
+	return "", fmt.Errorf("unable to find fsid of deviceid %s", deviceid)
+}
+
+// GetDeviceIDOfMountPoint gets the device major/minor of the mountpoint
+func GetDeviceIDOfMountPoint(mountpoint string) (string, error) {
+	command := strings.Fields(fmt.Sprintf(procFindmntCommand, mountpoint))
+	if strings.HasPrefix(procFindmntCommand, "BASH:") {
+		command = []string{"bash", "-c", fmt.Sprintf(strings.TrimPrefix(procFindmntCommand, "BASH:"), mountpoint)}
+	}
+
+	thecmd := exec.Command(command[0], command[1:]...)
+	glog.V(1).Infof("command: %+v", command)
+	output, err := thecmd.CombinedOutput()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.TrimSpace(string(output)), nil
+}
+
+// GetFSIDFromMount gets the FSID of the mountpoint
+func GetFSIDFromMount(mountpoint string) (string, error) {
+	deviceid, err := GetDeviceIDOfMountPoint(mountpoint)
+	if err != nil {
+		return "", err
+	}
+
+	return GetProcNFSFSFSID(deviceid)
 }
