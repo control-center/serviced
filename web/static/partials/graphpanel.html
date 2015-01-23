@@ -47,7 +47,7 @@
   <div ng-repeat="graph in graphConfigs track by $index">
     <div class="zenchartContainer">
       <h4>{{graph.name}}</h4>
-      <div class="graphDescrip" ng-if="graph.yAxisLabel"><span ng-if"graph.type === 'area'">Total</span> {{graph.yAxisLabel}} over the past Hour</div>
+      <div class="graphDescrip" ng-if="graph.yAxisLabel"><span ng-if"graph.type === 'area'">Total</span> {{graph.yAxisLabel}} </div>
       <div id="{{serviceId+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
     </div>
   </div>
