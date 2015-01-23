@@ -18,13 +18,10 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/docker/docker/pkg/parsers"
 )
 
 // states that the parser can be in as it scans
@@ -82,17 +79,18 @@ func init() {
 //      Repo: core-unstable
 //      Tag:  latest
 func RenameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*ImageID, error) {
-	// Sanitize the imgID of any tag it may contain, eg. "zenoss/core-unstable:theTAG"
-	repo, _ := parsers.ParseRepositoryTag(imgID)
-	// Get just the image name "resmgr-unstable" out of a long image string
-	// like "zenoss/resmgr-unstable"
-	re := regexp.MustCompile("/?([^/]+)\\z")
-	matches := re.FindStringSubmatch(repo)
-	if matches == nil {
-		return nil, errors.New("malformed imageid")
+	// Parse just to get the repo name out of imgID
+	if imgID == "" {
+		return nil, errors.New("Unable to parse empty image string")
 	}
-	name := matches[1]
-	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, name, tag)
+	throwawayImageIDString := fmt.Sprintf("%s/%s", dockerRegistry, imgID)
+	throwawayImageID, err := ParseImageID(throwawayImageIDString)
+	if err != nil {
+		return nil, err
+	}
+
+	// Now make a real string to parse
+	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, throwawayImageID.Repo, tag)
 	return ParseImageID(newImageID)
 }
 
