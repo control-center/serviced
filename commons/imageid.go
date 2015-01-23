@@ -103,7 +103,7 @@ func RenameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*
 // port     = {digit}+
 // reponame = [user'/']repo
 // user     = {alpha|digit|'-'|'_'}+
-// repo     = {alpha|digit|'-'|'_'}+
+// repo     = {alpha|digit|'-'|'_'|'.'}+
 // tag      = {alpha|digit|'-'|'_'|'.'}+
 // The grammar is ambiguous so the parser is a little messy in places.
 func ParseImageID(iid string) (*ImageID, error) {
@@ -159,6 +159,11 @@ func ParseImageID(iid string) (*ImageID, error) {
 			switch {
 			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
 				tokbuf = append(tokbuf, byte(rune))
+			case rune == period:
+				result.User = scanned[0]
+				scanned = []string{}
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningRepo
 			case rune == colon:
 				result.User = scanned[0]
 				scanned = []string{}
@@ -201,12 +206,16 @@ func ParseImageID(iid string) (*ImageID, error) {
 				result.Repo = string(tokbuf)
 				tokbuf = []byte{}
 				state = scanningTag
+			case rune == period:
+				result.User = ""
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningRepo
 			default:
 				return nil, fmt.Errorf("invalid ImageID %s: bad repo name", iid)
 			}
 		case scanningRepo:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore, rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 			case rune == colon:
 				result.Repo = string(tokbuf)

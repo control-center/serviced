@@ -234,6 +234,49 @@ var imgidtests = []ImageIDTest{
 		},
 		"",
 	},
+	// Unstable format - user, repo (with period), tag
+	{
+		"zenoss/resmgr_5.0:5.0.0_1234_unstable",
+		&ImageID{
+			User: "zenoss",
+			Repo: "resmgr_5.0",
+			Tag:  "5.0.0_1234_unstable",
+		},
+		"",
+	},
+	// Repo (with period), tag
+	{
+		"resmgr_5.0:5.0.0_1234_unstable",
+		&ImageID{
+			Repo: "resmgr_5.0",
+			Tag:  "5.0.0_1234_unstable",
+		},
+		"",
+	},
+	// host, port, user, repo (with period), tag
+	{
+		"localhost:5000/16k18ljj5lwkfoe7tgegzfic8/resmgr_5.0:latest",
+		&ImageID{
+			Host: "localhost",
+			Port: 5000,
+			User: "16k18ljj5lwkfoe7tgegzfic8",
+			Repo: "resmgr_5.0",
+			Tag:  "latest",
+		},
+		"",
+	},
+
+	// host, user, repo (with period), tag
+	{
+		"localhost/16k18ljj5lwkfoe7tgegzfic8/resmgr_5.0:latest",
+		&ImageID{
+			Host: "localhost",
+			User: "16k18ljj5lwkfoe7tgegzfic8",
+			Repo: "resmgr_5.0",
+			Tag:  "latest",
+		},
+		"",
+	},
 }
 
 func DoTest(t *testing.T, parse func(string) (*ImageID, error), name string, tests []ImageIDTest) {
