@@ -26,6 +26,7 @@ var usrBinService = determineServiceCommand()
 
 var start = startImpl
 var reload = reloadImpl
+var restart = restartImpl
 
 func determineServiceCommand() string {
 	if utils.Platform == utils.Rhel {
@@ -67,6 +68,22 @@ func startImpl() error {
 		cmd = exec.Command(usrBinService, "reload-or-restart", nfsServiceName)
 	} else {
 		cmd = exec.Command(usrBinService, nfsServiceName, "start")
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err, string(output))
+	}
+	glog.Infof("started nfs server: %s", string(output))
+	return nil
+}
+
+func restartImpl() error {
+	// FIXME: this does not return the proper exit code to see if nfs is running
+	var cmd *exec.Cmd
+	if utils.Platform == utils.Rhel {
+		cmd = exec.Command(usrBinService, "restart", nfsServiceName)
+	} else {
+		cmd = exec.Command(usrBinService, nfsServiceName, "restart")
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {

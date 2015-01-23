@@ -15,7 +15,13 @@ package storage
 
 import (
 	"fmt"
+	"os"
+	"path"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
@@ -34,6 +40,7 @@ type StorageDriver interface {
 	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
+	Restart() error
 }
 
 // NewServer returns a Server object to manage the exported file system
@@ -72,6 +79,22 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		return err
 	}
 
+	processExportedVolumeChangeFunc := func(mountpoint string, isExported bool) {
+		if !isExported {
+			glog.Warningf("DFS NFS volume %s is not exported - take further action i.e: restart nfs", mountpoint)
+			/*
+				// TODO: restart nfs when active num remotes > 0
+				// race condition with restarting nfs on master and mounting on
+				// remote is seen if nfs is prematurely started before any remotes
+				// check in
+				if err := s.driver.Restart(); err != nil {
+					glog.Errorf("Error restarting driver: %s", err)
+				}
+			*/
+		}
+	}
+	go proc.MonitorExportedVolume(path.Join("/exports", s.driver.ExportPath()), getDefaultNFSMonitorInterval(), shutdown, processExportedVolumeChangeFunc)
+
 	defer leader.ReleaseLead()
 
 	for {
@@ -97,4 +120,17 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 			return nil
 		}
 	}
+}
+
+func getDefaultNFSMonitorInterval() time.Duration {
+	var monitorInterval int32 = 60 // default is 60 seconds
+	monitorIntervalString := os.Getenv("SERVICED_NFS_MONITOR_INTERVAL")
+	if len(strings.TrimSpace(monitorIntervalString)) == 0 {
+	} else if intVal, intErr := strconv.ParseInt(monitorIntervalString, 0, 32); intErr != nil {
+		glog.Warningf("ignoring invalid SERVICED_NFS_MONITOR_INTERVAL of '%s': %s", monitorIntervalString, intErr)
+	} else {
+		monitorInterval = int32(intVal)
+	}
+
+	return time.Duration(monitorInterval) * time.Second
 }
