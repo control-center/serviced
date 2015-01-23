@@ -15,6 +15,10 @@ package nfs
 
 import (
 	"testing"
+	"time"
+
+	"github.com/control-center/serviced/commons/proc"
+	"github.com/control-center/serviced/validation"
 )
 
 type mockCommand struct {
@@ -40,27 +44,104 @@ var mountTestCases = []mountTestCaseT{
 	mountTestCaseT{"127.0.0.1:tmp", "/test", ErrMalformedNFSMountpoint},
 }
 
-func TestMount(t *testing.T) {
+type mockDriver struct {
+	MountInfo   *proc.NFSMountInfo
+	isInstalled bool
+	isMounted   bool
+}
 
-	// save current command factory to stack for later restoration
-	defer func(c func(string, ...string) command, look func(string) (string, error)) {
-		commandFactory = c
-		lookPath = look
-	}(commandFactory, lookPath)
-
-	commandFactory = func(name string, args ...string) command {
-		return &mockCommand{
-			name: name,
-			args: args,
-		}
-	}
-	lookPath = func(name string) (string, error) {
-		return "/sbin/mount.nfs4", nil
+func (d *mockDriver) Installed() error {
+	if !d.isInstalled {
+		return ErrNfsMountingUnsupported
 	}
 
-	for _, testcase := range mountTestCases {
-		if err := Mount(testcase.remote, testcase.local); err != testcase.expected {
-			t.Fatalf("failed on testcase: %+v, got %s", testcase, err)
+	return nil
+}
+
+func (d *mockDriver) Info(_ string, info *proc.NFSMountInfo) error {
+	if !d.isMounted {
+		return proc.ErrMountPointNotFound
+	}
+
+	*info = *d.MountInfo
+	return nil
+}
+
+func (d *mockDriver) Mount(_, _ string, _ time.Duration) error {
+	d.isMounted = true
+	return nil
+}
+
+func (d *mockDriver) Unmount(_ string) error {
+	d.isMounted = false
+	return nil
+}
+
+func TestMount_NotInstalled(t *testing.T) {
+	d := mockDriver{isInstalled: false}
+	if err := Mount(&d, "remote", "local"); err != ErrNfsMountingUnsupported {
+		t.Errorf("expected %s; got %s", ErrNfsMountingUnsupported, err)
+	}
+}
+
+func TestMount_BadRemotePath(t *testing.T) {
+	d := mockDriver{isInstalled: true}
+	if err := Mount(&d, "remote", "local"); err != ErrMalformedNFSMountpoint {
+		t.Errorf("expected %s; got %s", ErrMalformedNFSMountpoint, err)
+	}
+
+	if err := Mount(&d, "127.0.0.1", "local"); err != ErrMalformedNFSMountpoint {
+		t.Errorf("expected %s; got %s", ErrMalformedNFSMountpoint, err)
+	}
+
+	if err := Mount(&d, "127.0.0.1:/", "local"); err != ErrMalformedNFSMountpoint {
+		t.Errorf("expected %s; got %s", ErrMalformedNFSMountpoint, err)
+	}
+}
+
+func TestMount_BadValidation(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: true}
+
+	// incompatible fs type
+	info1 := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs3"},
+		FSID:      "123455",
+	}
+	d.MountInfo = &info1
+
+	if err := Mount(&d, info1.RemotePath, info1.LocalPath); err != nil {
+		if _, ok := err.(*validation.ValidationError); !ok {
+			t.Errorf("expected validation error, got %s", err)
 		}
+	} else {
+		t.Errorf("expected validation, got nil")
+	}
+
+	// incompatible fsid
+	info2 := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
+		FSID:      "0:0",
+	}
+	if err := Mount(&d, info2.RemotePath, info2.LocalPath); err != nil {
+		if _, ok := err.(*validation.ValidationError); !ok {
+			t.Errorf("expected validation error, got %s", err)
+		}
+	} else {
+		t.Errorf("expected validation, got nil")
+	}
+}
+
+func TestMount_Success(t *testing.T) {
+	d := mockDriver{isInstalled: true, isMounted: false}
+
+	// incompatible fs type
+	info := proc.NFSMountInfo{
+		MountInfo: proc.MountInfo{RemotePath: "127.0.0.1:/tmp/path", LocalPath: "/tmp/path", FSType: "nfs4"},
+		FSID:      "123455abced",
+	}
+	d.MountInfo = &info
+
+	if err := Mount(&d, info.RemotePath, info.LocalPath); err != nil {
+		t.Errorf("got error %s", err)
 	}
 }

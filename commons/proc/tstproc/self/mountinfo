@@ -1,0 +1,11 @@
+17 37 0:3 / /proc rw,nosuid,nodev,noexec,relatime shared:5 - proc proc rw
+18 37 0:16 / /sys rw,nosuid,nodev,noexec,relatime shared:6 - sysfs sysfs rw
+19 37 0:5 / /dev rw,nosuid shared:2 - devtmpfs devtmpfs rw,size=16383872k,nr_inodes=4095968,mode=755
+21 19 0:17 / /dev/shm rw,nosuid,nodev shared:3 - tmpfs tmpfs rw
+22 19 0:11 / /dev/pts rw,nosuid,noexec,relatime shared:4 - devpts devpts rw,gid=5,mode=620,ptmxmode=000
+23 37 0:18 / /run rw,nosuid,nodev shared:21 - tmpfs tmpfs rw,mode=755
+37 1 8:1 / / rw,relatime shared:1 - ext4 /dev/sda1 rw,data=ordered
+44 37 0:36 / /var/lib/docker rw,noatime shared:29 - btrfs /dev/sda3 rw,nodatasum,nodatacow,space_cache
+45 44 0:36 /btrfs /var/lib/docker/btrfs rw,noatime - btrfs /dev/sda3 rw,nodatasum,nodatacow,space_cache
+107 37 0:35 / /exports/serviced_var rw,noatime shared:28 - btrfs /dev/sda4 rw,nodatasum,nodatacow,space_cache
+145 37 0:137 / /tmp/serviced/var rw,relatime shared:65 - nfs4 10.87.209.168:/serviced_var rw,vers=4.0,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,port=0,timeo=600,retrans=2,sec=sys,clientaddr=10.87.209.168,local_lock=none,addr=10.87.209.168

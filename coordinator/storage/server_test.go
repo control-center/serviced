@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/dfs/nfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
@@ -77,12 +78,12 @@ func TestServer(t *testing.T) {
 	}
 	zzk.InitializeLocalClient(zClient)
 
-	defer func(orig func(string, string) error) {
+	defer func(orig func(nfs.Driver, string, string) error) {
 		nfsMount = orig
 	}(nfsMount)
 
 	var local, remote string
-	nfsMount = func(a, b string) error {
+	nfsMount = func(driver nfs.Driver, a, b string) error {
 		glog.Infof("client is mounting %s to %s", a, b)
 		remote = a
 		local = b
