@@ -15,7 +15,10 @@ package storage
 
 import (
 	"fmt"
+	"path"
+	"time"
 
+	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
@@ -71,6 +74,14 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		glog.Errorf("Could not take storage lead: %s", err)
 		return err
 	}
+
+	processExportedVolumeChangeFunc := func(mountpoint string, isExported bool) {
+		if !isExported {
+			glog.Warningf("DFS NFS volume %s is not exported", mountpoint)
+			// TODO: possibly take action based on isExported
+		}
+	}
+	go proc.MonitorExportedVolume(path.Join("/exports", s.driver.ExportPath()), time.Duration(30*time.Second), shutdown, processExportedVolumeChangeFunc)
 
 	defer leader.ReleaseLead()
 

@@ -149,7 +149,7 @@ func TestMonitorExportedVolume(t *testing.T) {
 	// monitor
 	expectedIsExported := true
 	processExportedVolumeChangeFunc := func(mountpoint string, actualIsExported bool) {
-		glog.Infof("==== received exported volume info changed message - isExported:%s", actualIsExported)
+		glog.Infof("==== received exported volume info changed message - isExported:%+v", actualIsExported)
 		if expectedIsExported != actualIsExported {
 			t.Fatalf("expectedIsExported: %+v != actualIsExported: %+v", expectedIsExported, actualIsExported)
 		}
