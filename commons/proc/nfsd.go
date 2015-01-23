@@ -148,13 +148,13 @@ func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shu
 
 	var modtime time.Time
 	for {
-		glog.V(0).Infof("determining export status for DFS NFS volume %s", mountpoint)
+		glog.V(4).Infof("determining export status for DFS NFS volume %s", mountpoint)
 
 		changed, err := hasFileChanged(GetProcNFSDExportsFilePath(), &modtime)
 		if err != nil {
 			glog.Warningf("unable to determine whether mountpoint %s is exported: %s", mountpoint, err)
 		} else if changed {
-			glog.V(0).Infof("exported info has changed for mountpoint %s", mountpoint)
+			glog.Infof("exported info has changed for mountpoint %s", mountpoint)
 			mountinfo, err := GetProcNFSDExport(mountpoint)
 			if err != nil {
 				if err == ErrMountPointNotExported {
@@ -165,7 +165,7 @@ func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shu
 					glog.Warningf("unable to retrieve volume export info for %s: %s", mountpoint, err)
 				}
 			} else {
-				glog.V(0).Infof("DFS NFS volume %s (uuid:%+v) is exported", mountpoint, mountinfo.ClientOptions["*"]["uuid"])
+				glog.Infof("DFS NFS volume %s (uuid:%+v) is exported", mountpoint, mountinfo.ClientOptions["*"]["uuid"])
 			}
 		}
 
@@ -173,7 +173,7 @@ func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shu
 		case <-time.After(monitorInterval):
 
 		case <-shutdown:
-			glog.V(0).Infof("no longer monitoring export status for DFS NFS volume %s", mountpoint)
+			glog.Infof("no longer monitoring export status for DFS NFS volume %s", mountpoint)
 			return
 		}
 	}
