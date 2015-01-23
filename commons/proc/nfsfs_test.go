@@ -97,7 +97,7 @@ func TestGetMountInfo(t *testing.T) {
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
+	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{print $3, $9, $10, $5, $NF}'"
 
 	actual, err := GetMountInfo("/tmp/serviced/var")
 	if err != nil {
@@ -128,7 +128,7 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	defer func(s string) {
 		procFindmntCommand = s
 	}(procFindmntCommand)
-	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{n=split($NF,fields,\"=\"); print $3, $9, $10, $5, fields[n]}'"
+	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{print $3, $9, $10, $5, $NF}'"
 
 	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
 	if err != nil {
