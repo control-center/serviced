@@ -185,7 +185,8 @@ func GetMountInfo(mountpoint string) (*MountInfo, error) {
 	glog.V(1).Infof("command: %+v", command)
 	output, err := thecmd.CombinedOutput()
 	if err != nil {
-		return nil, err
+		glog.Warningf("could not find mountpoint:%s with command:%+v  output:%s (%s)", mountpoint, command, string(output), err)
+		return nil, ErrMountPointNotFound
 	}
 
 	// [root@jrivera-tb1 ~]# /bin/findmnt --raw --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS /tmp/serviced/var
