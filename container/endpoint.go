@@ -616,6 +616,7 @@ func (c *Controller) watchregistry() <-chan struct{} {
 	alert := make(chan struct{}, 1)
 
 	go func() {
+
 		paths := append(c.vhostZKPaths, c.exportedEndpointZKPaths...)
 		if len(paths) == 0 {
 			return
@@ -626,18 +627,23 @@ func (c *Controller) watchregistry() <-chan struct{} {
 			return
 		}
 
+		endpointRegistry, err := registry.CreateEndpointRegistry(conn)
+		if err != nil {
+			glog.Errorf("Could not get EndpointRegistry. Endpoints not checked: %v", err)
+			return
+		}
+
+		interval := time.Tick(60 * time.Second)
+
 		defer func() { alert <- struct{}{} }()
 		for {
-			_, event, err := conn.ChildrenW(paths[0])
-			if err != nil {
-				return
-			}
 			select {
-			case e := <-event:
-				switch e.Type {
-				case coordclient.EventSession, coordclient.EventNotWatching, coordclient.EventNodeDeleted:
-					glog.Warningf("Receieved an event %s", e.Type)
-					return
+			case <-interval:
+				for _, path := range paths {
+					if _, err := endpointRegistry.GetItem(conn, path); err != nil {
+						glog.Errorf("Could not get endpoint. %v", err)
+						return
+					}
 				}
 			}
 		}
@@ -747,7 +753,6 @@ func (c *Controller) unregisterVhosts() {
 		glog.V(1).Infof("controller shutdown deleting vhost %v", path)
 		conn.Delete(path)
 	}
-
 }
 
 func (c *Controller) unregisterEndpoints() {
