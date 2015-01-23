@@ -14,15 +14,23 @@
 package proc
 
 import (
+	"io/ioutil"
+	"os"
+	"path"
 	"testing"
+	"time"
+
+	"github.com/zenoss/glog"
 )
+
+func setProcDir(dir string) {
+	procDir = dir
+}
 
 func TestGetProcNFSDExport(t *testing.T) {
 
 	// mock up our proc dir
-	defer func(s string) {
-		procDir = s
-	}(procDir)
+	defer setProcDir(procDir)
 	procDir = "tstproc/"
 
 	expected := &ProcNFSDExports{
@@ -57,7 +65,7 @@ func TestGetProcNFSDExport(t *testing.T) {
 		t.Fatalf("expectedUUID: %+v != actualUUID: %+v", expectedUUID, actualUUID)
 	}
 
-	if _, err := GetProcNFSDExport("/doesnotexist"); err != ErrMountPointNotFound {
+	if _, err := GetProcNFSDExport("/doesnotexist"); err != ErrMountPointNotExported {
 		t.Fatalf("expected could not get nfsd export: %s", err)
 	}
 }
@@ -65,9 +73,7 @@ func TestGetProcNFSDExport(t *testing.T) {
 func TestGetProcNFSDExports(t *testing.T) {
 
 	// mock up our proc dir
-	defer func(s string) {
-		procDir = s
-	}(procDir)
+	defer setProcDir(procDir)
 	procDir = "tstproc/"
 
 	mounts, err := GetProcNFSDExports()
@@ -101,4 +107,78 @@ func TestGetProcNFSDExports(t *testing.T) {
 	if expectedUUID != actualUUID {
 		t.Fatalf("expectedUUID: %+v != actualUUID: %+v", expectedUUID, actualUUID)
 	}
+}
+
+func TestMonitorExportedVolume(t *testing.T) {
+	// create temporary proc dir
+	tmpVar, err := ioutil.TempDir("", "tstproc")
+	if err != nil {
+		t.Fatalf("could not create tempdir %+v: %s", tmpVar, err)
+	}
+	defer os.RemoveAll(tmpVar)
+
+	// mock up our proc dir
+	defer setProcDir(procDir)
+	procDir = tmpVar + "/"
+
+	nfsdDir := path.Join(procDir, path.Dir(procNFSDExportsFile))
+	if err := os.MkdirAll(nfsdDir, 0755); err != nil {
+		t.Fatalf("unable to mkdir %+v: %s", nfsdDir, err)
+	}
+
+	// populate the mocked up export file
+	exportsLine := "#\n/exports/serviced_var   *(rw,insecure,no_root_squash,async,wdelay,nohide,no_subtree_check,uuid=45a148e9:89326106:00000000:00000000,sec=1)\n"
+	exportsFile := path.Join(nfsdDir, path.Base(procNFSDExportsFile))
+	glog.Infof("==== writing to exports %s: %s", exportsFile, exportsLine)
+	if err := ioutil.WriteFile(exportsFile, []byte(exportsLine), 0600); err != nil {
+		t.Fatalf("unable to write file %+v: %s", exportsFile, err)
+	}
+
+	expectedMountPoint := "/exports/serviced_var"
+	actual, err := GetProcNFSDExport(expectedMountPoint)
+	if err != nil {
+		t.Fatalf("could not find expected mountpoint %s from file %s: %s", expectedMountPoint, exportsFile, err)
+	}
+
+	actualUUID := actual.ClientOptions["*"]["uuid"]
+	expectedUUID := "45a148e9:89326106:00000000:00000000"
+	if expectedUUID != actualUUID {
+		t.Fatalf("expectedUUID: %+v != actualUUID: %+v", expectedUUID, actualUUID)
+	}
+
+	// monitor
+	shutdown := make(chan interface{})
+	defer close(shutdown)
+	go MonitorExportedVolume(expectedMountPoint, time.Duration(2*time.Second), shutdown)
+
+	// wait some time
+	waitTime := time.Second * 6
+	time.Sleep(waitTime)
+
+	// update the file
+	glog.Infof("==== writing to exports %s: %s", exportsFile, exportsLine)
+	if err := ioutil.WriteFile(exportsFile, []byte(exportsLine), 0600); err != nil {
+		t.Fatalf("unable to write file %+v: %s", exportsFile, err)
+	}
+
+	// wait some time
+	time.Sleep(waitTime)
+
+	// remove the export
+	noEntries := "#\n"
+	glog.Infof("==== clearing exports %s: %s", exportsFile, noEntries)
+	if err := ioutil.WriteFile(exportsFile, []byte(noEntries), 0600); err != nil {
+		t.Fatalf("unable to write file %+v: %s", exportsFile, err)
+	}
+
+	actual, err = GetProcNFSDExport(expectedMountPoint)
+	if err != ErrMountPointNotExported {
+		t.Fatalf("should not have found mountpoint %s from cleared file %s: %s", expectedMountPoint, exportsFile, err)
+	}
+
+	// wait some time
+	time.Sleep(waitTime)
+
+	// TODO: ensure that the monitor saw change
+
 }
