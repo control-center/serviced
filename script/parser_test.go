@@ -25,7 +25,7 @@ DEPENDENCY 1.1
 SNAPSHOT
 
 #comment 2
-SVC_USE  zenoss/resmgr-stable:5.0.1
+SVC_USE  zenoss/resmgr_5.0:5.0.1
 SVC_USE  zenoss/hbase:v5
 SVC_RUN   /zope upgrade
 SVC_RUN   /hbase/regionserver upgrade arg1 arg2
@@ -35,9 +35,9 @@ func (vs *ScriptSuite) Test_parseFile(t *C) {
 	ctx, err := parseFile("descriptor_test.txt")
 	t.Assert(err, IsNil)
 
-	ctx.line = "SVC_USE  zenoss/resmgr-stable:5.0.1"
+	ctx.line = "SVC_USE  zenoss/resmgr_5.0:5.0.1"
 	ctx.lineNum = 10
-	use1, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
+	use1, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.0:5.0.1"})
 
 	ctx.line = "SVC_USE  zenoss/hbase:v5"
 	ctx.lineNum = 11
@@ -76,9 +76,9 @@ func (vs *ScriptSuite) Test_parseDescriptor(t *C) {
 	ctx, err := parseDescriptor(r)
 	t.Assert(err, IsNil)
 
-	ctx.line = "SVC_USE  zenoss/resmgr-stable:5.0.1"
+	ctx.line = "SVC_USE  zenoss/resmgr_5.0:5.0.1"
 	ctx.lineNum = 9
-	use1, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr-stable:5.0.1"})
+	use1, _ := nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.0:5.0.1"})
 
 	ctx.line = "SVC_USE  zenoss/hbase:v5"
 	ctx.lineNum = 10
