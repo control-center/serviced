@@ -147,9 +147,17 @@ func TestMonitorExportedVolume(t *testing.T) {
 	}
 
 	// monitor
+	expectedIsExported := true
+	processExportedVolumeChangeFunc := func(mountpoint string, actualIsExported bool) {
+		glog.Infof("==== received exported volume info changed message - isExported:%s", actualIsExported)
+		if expectedIsExported != actualIsExported {
+			t.Fatalf("expectedIsExported: %+v != actualIsExported: %+v", expectedIsExported, actualIsExported)
+		}
+	}
+
 	shutdown := make(chan interface{})
 	defer close(shutdown)
-	go MonitorExportedVolume(expectedMountPoint, time.Duration(2*time.Second), shutdown)
+	go MonitorExportedVolume(expectedMountPoint, time.Duration(2*time.Second), shutdown, processExportedVolumeChangeFunc)
 
 	// wait some time
 	waitTime := time.Second * 6
@@ -165,6 +173,7 @@ func TestMonitorExportedVolume(t *testing.T) {
 	time.Sleep(waitTime)
 
 	// remove the export
+	expectedIsExported = false
 	noEntries := "#\n"
 	glog.Infof("==== clearing exports %s: %s", exportsFile, noEntries)
 	if err := ioutil.WriteFile(exportsFile, []byte(noEntries), 0600); err != nil {
@@ -178,7 +187,4 @@ func TestMonitorExportedVolume(t *testing.T) {
 
 	// wait some time
 	time.Sleep(waitTime)
-
-	// TODO: ensure that the monitor saw change
-
 }

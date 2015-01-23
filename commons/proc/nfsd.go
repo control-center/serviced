@@ -142,8 +142,11 @@ func parseOptions(line string) map[string]string {
 	return options
 }
 
+// ProcessExportedVolumeChangeFunc is called by MonitorExportedVolume when exported volume info state changes are detected
+type ProcessExportedVolumeChangeFunc func(mountpoint string, isExported bool)
+
 // MonitorExportedVolume monitors the exported volume and logs on failure
-func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shutdown <-chan interface{}) {
+func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shutdown <-chan interface{}, changedFunc ProcessExportedVolumeChangeFunc) {
 	glog.Infof("monitoring exported volume %s at polling interval: %s", mountpoint, monitorInterval)
 
 	var modtime time.Time
@@ -159,12 +162,15 @@ func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shu
 			if err != nil {
 				if err == ErrMountPointNotExported {
 					glog.Warningf("volume %s is not exported - further action may be required", mountpoint)
+					changedFunc(mountpoint, false)
 
 					// TODO: take action: possibly reload nfs, restart nfs
 				} else {
+					changedFunc(mountpoint, false)
 					glog.Warningf("unable to retrieve volume export info for %s: %s", mountpoint, err)
 				}
 			} else {
+				changedFunc(mountpoint, true)
 				glog.Infof("DFS NFS volume %s (uuid:%+v) is exported", mountpoint, mountinfo.ClientOptions["*"]["uuid"])
 			}
 		}
