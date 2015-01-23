@@ -25,7 +25,7 @@ import (
 	"time"
 )
 
-var procNFSDExportsFile = "fs/nfsd/exports"
+var procNFSDExportsFile = "fs/nfs/exports"
 
 func GetProcNFSDExportsFilePath() string {
 	return fmt.Sprintf("%s%s", procDir, procNFSDExportsFile)
@@ -33,7 +33,7 @@ func GetProcNFSDExportsFilePath() string {
 
 var ErrMountPointNotExported = fmt.Errorf("mount point not exported")
 
-// ProcNFSDExports is a parsed representation of /proc/fs/nfsd/exports information.
+// ProcNFSDExports is a parsed representation of /proc/fs/nfs/exports information.
 type ProcNFSDExports struct {
 	MountPoint    string                       // exported path on the server: /exports/serviced_var
 	ClientOptions map[string]NFSDExportOptions // keys are clients: 'Machine Name Formats' of exports manpage
@@ -53,8 +53,10 @@ func (a *ProcNFSDExports) Equals(b *ProcNFSDExports) bool {
 // NFSDExportOptions are options specified in 'General Options' of exports manpage
 type NFSDExportOptions map[string]string
 
-// GetProcNFSDExport gets the export info to the mountpoint entry in /proc/fs/nfsd/exports
+// GetProcNFSDExport gets the export info to the mountpoint entry in /proc/fs/nfs/exports
 func GetProcNFSDExport(mountpoint string) (*ProcNFSDExports, error) {
+	// an example for mountpoint is /exports/serviced_var
+
 	exports, err := GetProcNFSDExports()
 	if err != nil {
 		return nil, err
@@ -68,7 +70,7 @@ func GetProcNFSDExport(mountpoint string) (*ProcNFSDExports, error) {
 	return &export, nil
 }
 
-// GetProcNFSDExports gets a map to the /proc/fs/nfsd/exports
+// GetProcNFSDExports gets a map to the /proc/fs/nfs/exports
 func GetProcNFSDExports() (map[string]ProcNFSDExports, error) {
 	// read in the file
 	data, err := ioutil.ReadFile(GetProcNFSDExportsFilePath())
@@ -163,8 +165,6 @@ func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shu
 				if err == ErrMountPointNotExported {
 					glog.Warningf("volume %s is not exported - further action may be required", mountpoint)
 					changedFunc(mountpoint, false)
-
-					// TODO: take action: possibly reload nfs, restart nfs
 				} else {
 					changedFunc(mountpoint, false)
 					glog.Warningf("unable to retrieve volume export info for %s: %s", mountpoint, err)
