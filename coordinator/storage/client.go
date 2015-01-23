@@ -150,7 +150,7 @@ func (c *Client) loop() {
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			err = nfsMount(leaderNode.ExportPath, c.localPath)
+			err = nfsMount(&nfs.NFSDriver{}, leaderNode.ExportPath, c.localPath)
 			if err != nil {
 				if err == nfs.ErrNfsMountingUnsupported {
 					glog.Errorf("install the nfs-common package: %s", err)

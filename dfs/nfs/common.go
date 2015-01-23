@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -56,74 +57,121 @@ type command interface {
 	CombinedOutput() ([]byte, error)
 }
 
-// Mount attempts to mount the nfsPath to the localPath
-func Mount(nfsPath, localPath string) error {
+type Driver interface {
+	// Installed determines if the driver is installed on the system
+	Installed() error
+	// Info provides information about the mounted drive
+	// TODO: make output more universal
+	Info(localPath string, info *proc.NFSMountInfo) error
+	// Mount mounts the remote path to local
+	Mount(remotePath, localPath string, timeout time.Duration) error
+	// Unmount force unmounts a volume
+	Unmount(localPath string) error
+}
 
+type NFSDriver struct{}
+
+func (d *NFSDriver) Installed() error {
 	if _, err := lookPath(mountNfs4); err != nil {
 		return ErrNfsMountingUnsupported
 	}
-	parts := strings.Split(nfsPath, ":")
-	if len(parts) != 2 {
-		return ErrMalformedNFSMountpoint
+	return nil
+}
+
+func (d *NFSDriver) Info(localPath string, info *proc.NFSMountInfo) error {
+	minfo, err := proc.GetNFSVolumeInfo(localPath)
+	if minfo != nil {
+		*info = *minfo
 	}
-	ip := net.ParseIP(parts[0])
-	if ip == nil {
-		return ErrMalformedNFSMountpoint
+	return err
+}
+
+func (d *NFSDriver) Mount(remotePath, localPath string, timeout time.Duration) error {
+	glog.Infof("Mounting %s -> %s", remotePath, localPath)
+	cmd := commandFactory("mount.nfs4", "-o", "intr", remotePath, localPath)
+	errC := make(chan error, 1)
+	go func() {
+		output, err := cmd.CombinedOutput()
+		glog.V(1).Infof("Mounting %s -> %s: %s (%s)", remotePath, localPath, string(output), err)
+		if exitCode, ok := utils.GetExitStatus(err); exitCode == 32 || !ok {
+			errC <- fmt.Errorf("%s (%s)", string(output), err)
+		} else {
+			errC <- nil
+		}
+	}()
+
+	select {
+	case <-time.After(timeout):
+		err := fmt.Errorf("timeout waiting for nfs mount")
+		if execCmd, ok := cmd.(*exec.Cmd); ok {
+			execCmd.Process.Kill()
+		}
+		return err
+	case err := <-errC:
+		return err
 	}
-	if len(parts[1]) < 2 || !strings.HasPrefix(parts[1], "/") {
+}
+
+func (d *NFSDriver) Unmount(localPath string) error {
+	glog.Infof("Unmounting %s", localPath)
+	cmd := commandFactory("umount", "-f", localPath)
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s (%s)", string(output), err)
+	}
+	return nil
+}
+
+// Mount attempts to mount the nfsPath to the localPath
+func Mount(driver Driver, remotePath, localPath string) error {
+	// check if the driver is installed
+	if err := driver.Installed(); err != nil {
+		return err
+	}
+
+	// validate that the remote path
+	if ok := func(remotePath string) bool {
+		parts := strings.Split(remotePath, ":")
+		if len(parts) != 2 {
+			return false
+		}
+
+		ip := net.ParseIP(parts[0])
+		if ip == nil {
+			return false
+		}
+
+		dest := filepath.Clean(parts[1])
+		return dest != "/" && filepath.IsAbs(dest)
+	}(remotePath); !ok {
 		return ErrMalformedNFSMountpoint
 	}
 
-	// Is the localpath already mounted?
-	mountInfo, mountError := proc.GetNFSVolumeInfo(localPath)
+	var mountInfo proc.NFSMountInfo
+	mountError := driver.Info(localPath, &mountInfo)
 	if mountError == proc.ErrMountPointNotFound {
 		// the mountpoint is not found so try to mount
-		// try mounting via in interuptable mount
-		glog.Infof("%s not mounted; mounting...", localPath)
-		cmd := commandFactory("mount.nfs4", "-o", "intr", nfsPath, localPath)
-		errC := make(chan error, 1)
-		go func() {
-			output, err := cmd.CombinedOutput()
-			glog.V(1).Infof("Mount %s to %s: %s (%s)", nfsPath, localPath, string(output), err)
-
-			exitCode, ok := utils.GetExitStatus(err)
-			if exitCode == 32 || !ok {
-				err := fmt.Errorf("%s (%s)", string(output), err)
-				glog.Errorf("Could not mount %s to %s: %s", nfsPath, localPath, err)
-				errC <- err
-			} else {
-				errC <- nil
-			}
-		}()
-
-		select {
-		case <-time.After(time.Second * 30):
-			if execCmd, ok := cmd.(*exec.Cmd); ok {
-				execCmd.Process.Kill()
-			}
-			glog.Errorf("timed out waiting for nfs mount")
-			return fmt.Errorf("timeout waiting for nfs mount")
-		case err := <-errC:
-			if err != nil {
-				return err
-			}
+		glog.Infof("Creating new mount for %s -> %s", remotePath, localPath)
+		if err := driver.Mount(remotePath, localPath, time.Second*30); err != nil {
+			glog.Errorf("Error while creating mount point for %s -> %s: %s", remotePath, localPath, err)
+			return err
 		}
 
 		// get the mount point
-		mountInfo, mountError = proc.GetNFSVolumeInfo(localPath)
+		mountError = driver.Info(localPath, &mountInfo)
 	}
 
 	if mountError != nil {
-		// we should have a mountpoint by now or bust
-		glog.Errorf("Could not get volume info for %s (%s): %s", localPath, nfsPath, mountError)
+		// we should have a mount point by now or bust
+		glog.Errorf("Could not get volume info for %s (mounting from %s): %s", localPath, remotePath, mountError)
 		return mountError
 	}
 
-	// Validate mount info
+	// validate mount info
 	glog.Infof("Mount Info: %+v", mountInfo)
 	verr := validation.NewValidationError()
-	verr.Add(validation.StringsEqual(nfsPath, mountInfo.RemotePath, ""))
-	verr.Add(validation.StringsEqual("v4", mountInfo.Version, fmt.Sprintf("%s not mounted nfs4, %s instead", localPath, mountInfo.Version)))
+	verr.Add(validation.StringsEqual(remotePath, mountInfo.RemotePath, ""))
+	verr.Add(validation.StringsEqual("nfs4", mountInfo.FSType, fmt.Sprintf("%s not mounted nfs4, %s instead", mountInfo.LocalPath, mountInfo.FSType)))
 	verr.Add(func(fsid string) error {
 		if fsiduint, err := strconv.ParseUint(fsid, 16, 64); err != nil || fsiduint == 0 {
 			return fmt.Errorf("invalid fsid: %s", fsid)
@@ -133,10 +181,10 @@ func Mount(nfsPath, localPath string) error {
 
 	if verr.HasError() {
 		// the mountpoint is stale or wrong, so unmount
-		glog.Warningf("Stale mount point; unmounting...")
-		cmd := commandFactory("umount", "-f", localPath)
-		output, err := cmd.CombinedOutput()
-		glog.Infof("Unmount %s: %s (%s)", localPath, string(output), err)
+		glog.Warningf("Stale mount point at %s (mounting %s)", localPath, remotePath)
+		if err := driver.Unmount(localPath); err != nil {
+			glog.Errorf("Could not unmount %s: %s", localPath, err)
+		}
 		return verr
 	}
 
