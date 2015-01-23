@@ -29,7 +29,7 @@ var ErrMountPointNotFound = errors.New("mount point not found")
 
 var procNFSFSServersFile = "servers"
 var procNFSFSVolumesFile = "volumes"
-var procFindmntCommand = "/bin/findmnt --raw --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS %s | awk '{n=split($NF,fields,\"=\"); print $1, $2, $3, $4, fields[n]}'"
+var procFindmntCommand = "/bin/findmnt --raw --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS %s"
 
 // NFSVolumeInfo is merged from mountinfo and volumes
 type NFSMountInfo struct {
@@ -188,8 +188,8 @@ func GetMountInfo(mountpoint string) (*MountInfo, error) {
 		return nil, err
 	}
 
-	// [root@jrivera-tb1 ~]# /bin/findmnt --noheading -o MAJ:MIN,SOURCE,TARGET,OPTIONS /tmp/serviced/var
-	//   0:137 10.87.209.168:/serviced_var /tmp/serviced/var rw,relatime,vers=4.0,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,port=0,timeo=600,retrans=2,sec=sys,clientaddr=10.87.209.168,local_lock=none,addr=10.87.209.168
+	// [root@jrivera-tb1 ~]# /bin/findmnt --raw --noheading -o MAJ:MIN,FSTYPE,SOURCE,TARGET,OPTIONS /tmp/serviced/var
+	// 0:329 nfs4 10.87.209.168:/serviced_var /tmp/serviced/var rw,relatime,vers=4.0,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,port=0,timeo=600,retrans=2,sec=sys,clientaddr=10.87.209.168,local_lock=none,addr=10.87.209.168
 	line := strings.TrimSpace(string(output))
 
 	glog.V(4).Infof("line: %s", line)
@@ -204,12 +204,25 @@ func GetMountInfo(mountpoint string) (*MountInfo, error) {
 		glog.Infof("command: %+v", command)
 		return nil, fmt.Errorf("expected 5 fields, got %d: %s", len(fields), line)
 	}
+
+	// parse options
+	options := map[string]string{}
+	optionParts := strings.Split(fields[4], ",")
+	for _, option := range optionParts {
+		pairs := strings.Split(option, "=")
+		if len(pairs) == 2 {
+			glog.V(4).Infof("option: %s  k:%s  v:%s", option, pairs[0], pairs[1])
+			options[pairs[0]] = pairs[1]
+		}
+	}
+
+	// return mount info
 	info := MountInfo{
 		DeviceID:   fields[0],
 		FSType:     fields[1],
 		RemotePath: fields[2],
 		LocalPath:  fields[3],
-		ServerIP:   fields[4],
+		ServerIP:   options["addr"],
 	}
 	glog.V(4).Infof("mount info: %+v", info)
 	return &info, nil

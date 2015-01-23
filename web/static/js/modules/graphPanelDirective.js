@@ -29,7 +29,7 @@
                 $scope.graphs = {};
                 $scope.showStartEnd = false;
                 $scope.showGraphControls = false;
-                $scope.refreshInterval = 5000;
+                $scope.refreshInterval = 300000;
 
                 var momentFormat = "MM/DD/YYYY  HH:mm:ss";
 
@@ -182,6 +182,11 @@
                 $scope.setupAutoRefresh();
 
                 $scope.refreshGraphs = function(){
+                    // don't refresh graph if tab is not visible
+                    if(document.hidden){
+                        return;
+                    }
+
                     var graph;
 
                     // iterate and update all graphs
@@ -207,8 +212,16 @@
                 angular.element("body").on("click", hideGraphControls);
 
                 $scope.$on("$destroy", function(){
+                    var chart;
                     $interval.cancel($scope.refreshPromise);
                     angular.element("body").off("click", hideGraphControls);
+
+                    // remove graph from cache
+                    for(var id in $scope.graphs){
+                        // TODO - expose removeChart() and use it
+                        chart = zenoss.visualization.chart.getChart(id);
+                        chart.onDestroyed();
+                    }
                 });
 
                 function updateGraphRequest(graph){
