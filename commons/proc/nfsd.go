@@ -19,10 +19,8 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"strings"
-	"time"
 )
 
 var procNFSDExportsFile = "fs/nfs/exports"
@@ -142,69 +140,4 @@ func parseOptions(line string) map[string]string {
 	}
 
 	return options
-}
-
-// ProcessExportedVolumeChangeFunc is called by MonitorExportedVolume when exported volume info state changes are detected
-type ProcessExportedVolumeChangeFunc func(mountpoint string, isExported bool)
-
-// MonitorExportedVolume monitors the exported volume and logs on failure
-func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shutdown <-chan interface{}, changedFunc ProcessExportedVolumeChangeFunc) {
-	glog.Infof("monitoring exported volume %s at polling interval: %s", mountpoint, monitorInterval)
-
-	var modtime time.Time
-	for {
-		glog.V(4).Infof("determining export status for DFS NFS volume %s", mountpoint)
-
-		changed, err := hasFileChanged(GetProcNFSDExportsFilePath(), &modtime)
-		if err != nil {
-			glog.Warningf("unable to determine whether mountpoint %s is exported: %s", mountpoint, err)
-		} else if changed {
-			glog.Infof("exported info has changed for mountpoint %s", mountpoint)
-			mountinfo, err := GetProcNFSDExport(mountpoint)
-			if err != nil {
-				if err == ErrMountPointNotExported {
-					glog.Warningf("volume %s is not exported - further action may be required", mountpoint)
-					changedFunc(mountpoint, false)
-				} else {
-					changedFunc(mountpoint, false)
-					glog.Warningf("unable to retrieve volume export info for %s: %s", mountpoint, err)
-				}
-			} else {
-				changedFunc(mountpoint, true)
-				glog.Infof("DFS NFS volume %s (uuid:%+v) is exported", mountpoint, mountinfo.ClientOptions["*"]["uuid"])
-			}
-		}
-
-		select {
-		case <-time.After(monitorInterval):
-
-		case <-shutdown:
-			glog.Infof("no longer monitoring export status for DFS NFS volume %s", mountpoint)
-			return
-		}
-	}
-}
-
-// hasFileChanged determines whether file has been modified and updates modtime
-func hasFileChanged(filename string, modtime *time.Time) (bool, error) {
-	fileinfo, err := os.Stat(filename)
-	if err != nil {
-		glog.V(4).Infof("unable to stat file: %s %s", filename, err)
-		return false, err
-	}
-
-	prevtime := *modtime
-	*modtime = fileinfo.ModTime()
-	if fileinfo.ModTime().After(prevtime) {
-		duration := fileinfo.ModTime().Sub(prevtime)
-		if prevtime.IsZero() {
-			glog.V(4).Infof("first time file %s is checked", filename)
-			return true, nil
-		}
-		glog.V(4).Infof("file %s has been modified since %s", filename, duration)
-		return true, nil
-	}
-
-	glog.V(4).Infof("file %s has not been modified", filename)
-	return false, nil
 }
