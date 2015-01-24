@@ -149,6 +149,9 @@ type ProcessExportedVolumeChangeFunc func(mountpoint string, isExported bool)
 
 // MonitorExportedVolume monitors the exported volume and logs on failure
 func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shutdown <-chan interface{}, changedFunc ProcessExportedVolumeChangeFunc) {
+	glog.Warningf("not monitoring export status for DFS NFS volume %s", mountpoint)
+	return
+
 	glog.Infof("monitoring NFS export info in %s for DFS NFS volume %s at polling interval: %s", GetProcNFSDExportsFilePath(), mountpoint, monitorInterval)
 
 	var modtime time.Time
