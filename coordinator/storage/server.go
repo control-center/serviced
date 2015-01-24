@@ -81,7 +81,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 
 	processExportedVolumeChangeFunc := func(mountpoint string, isExported bool) {
 		if !isExported {
-			glog.Warningf("DFS NFS volume %s is not exported - take further action i.e: restart nfs", mountpoint)
+			glog.Warningf("DFS NFS volume %s may be unexported - further action may be needed i.e: restart nfs", mountpoint)
 			/*
 				// TODO: restart nfs when active num remotes > 0
 				// race condition with restarting nfs on master and mounting on
@@ -123,11 +123,15 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 }
 
 func getDefaultNFSMonitorInterval() time.Duration {
-	var monitorInterval int32 = 60 // default is 60 seconds
+	var minMonitorInterval int32 = 60 // in seconds
+	var monitorInterval int32 = minMonitorInterval
 	monitorIntervalString := os.Getenv("SERVICED_NFS_MONITOR_INTERVAL")
 	if len(strings.TrimSpace(monitorIntervalString)) == 0 {
+		// ignore unset SERVICED_NFS_MONITOR_INTERVAL
 	} else if intVal, intErr := strconv.ParseInt(monitorIntervalString, 0, 32); intErr != nil {
 		glog.Warningf("ignoring invalid SERVICED_NFS_MONITOR_INTERVAL of '%s': %s", monitorIntervalString, intErr)
+	} else if int32(intVal) < minMonitorInterval {
+		glog.Warningf("ignoring invalid SERVICED_NFS_MONITOR_INTERVAL of '%s' < minMonitorInterval:%v seconds", monitorIntervalString, minMonitorInterval)
 	} else {
 		monitorInterval = int32(intVal)
 	}
