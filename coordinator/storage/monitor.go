@@ -161,10 +161,11 @@ func (m *Monitor) MonitorDFSVolume(mountpoint string, shutdown <-chan interface{
 
 		activeRemotes := remoteIPs
 		if m.conn != nil && len(m.storageClientsPath) != 0 {
+			// TODO: remoteIPs = getAllRemoteHostsFromZookeeper() when deletion of zookeeper nodes are implemented in server.go
 			activeRemotes = getActiveRemoteHosts(m.conn, m.storageClientsPath, m.monitorInterval, remoteIPs...)
-			glog.V(0).Infof("==== active remotes: %s checked from list of remotes: %s", activeRemotes, remoteIPs) // V(2)
+			glog.V(2).Infof("==== active remotes: %s checked from list of remotes: %s", activeRemotes, remoteIPs)
 		}
-		// TODO: remoteIPs = getAllRemoteHostsFromZookeeper()
+
 		for _, remoteIP := range activeRemotes {
 			remoteFile := path.Join(monitorPath, remoteIP)
 			sinceModified, err := fileSinceModified(remoteFile)
@@ -265,7 +266,7 @@ func getActiveRemoteHosts(conn client.Connection, zpath string, monitorInterval 
 	now := time.Now()
 	for _, clnt := range clients {
 		cp := path.Join(zpath, clnt)
-		glog.V(0).Infof("retrieving info for DFS for remoteIP %s at zookeeper node %s", clnt, cp) // V2
+		glog.V(2).Infof("retrieving info for DFS for remoteIP %s at zookeeper node %s", clnt, cp)
 
 		hnode := StorageClientHostNode{}
 		err := conn.Get(cp, &hnode)
@@ -279,7 +280,7 @@ func getActiveRemoteHosts(conn client.Connection, zpath string, monitorInterval 
 		}
 
 		elapsed := now.Sub(hnode.Host.UpdatedAt)
-		glog.V(0).Infof("retrieved info for DFS for remoteIP %s  UpdatedAt:%s  elapsed:%s  monitorInterval:%s", clnt, hnode.Host.UpdatedAt, elapsed, monitorInterval) // V2
+		glog.V(2).Infof("retrieved info for DFS for remoteIP %s  UpdatedAt:%s  elapsed:%s  monitorInterval:%s", clnt, hnode.Host.UpdatedAt, elapsed, monitorInterval)
 		if elapsed > monitorInterval {
 			glog.Infof("DFS not monitoring non-active host %+v:  HostID:%v  UpdatedAt:%+v  lastseen:%s ago", clnt, hnode.ID, hnode.UpdatedAt, elapsed)
 			continue
@@ -288,6 +289,6 @@ func getActiveRemoteHosts(conn client.Connection, zpath string, monitorInterval 
 		activeClientIPs = append(activeClientIPs, clnt)
 	}
 
-	glog.V(0).Infof("DFS remote active IPs: %+v", activeClientIPs) // V2
+	glog.V(2).Infof("DFS remote active IPs: %+v", activeClientIPs)
 	return activeClientIPs
 }
