@@ -79,14 +79,19 @@ func UpdateRemoteMonitorFile(localPath string, writeInterval time.Duration, ipAd
 }
 
 // SetMonitorStorageClients sets the monitored remote IPs that are active
-func (m *Monitor) SetMonitorStorageClients(conn client.Connection, storageClientsPath string, clients ...string) {
+func (m *Monitor) SetMonitorStorageClients(conn client.Connection, storageClientsPath string) {
 	m.conn = conn
 	m.storageClientsPath = storageClientsPath
-	m.SetMonitorRemoteHosts(getActiveRemoteHosts(conn, storageClientsPath, m.monitorInterval, clients...)...)
+	m.SetMonitorRemoteHosts(getActiveRemoteHosts(conn, storageClientsPath, m.monitorInterval)...)
 }
 
 // SetMonitorRemoteHosts sets the remote hosts to monitor
 func (m *Monitor) SetMonitorRemoteHosts(ipAddrs ...string) {
+	if len(ipAddrs) == 0 {
+		glog.Warningf("disabled DFS volume monitoring - no remote IPs to monitor")
+	} else {
+		glog.V(0).Infof("enabled DFS volume monitoring for remote IPs: %+v", ipAddrs)
+	}
 	m.monitoredHostsLock.Lock()
 	defer m.monitoredHostsLock.Unlock()
 	for _, ipAddr := range ipAddrs {
@@ -161,9 +166,9 @@ func (m *Monitor) MonitorDFSVolume(mountpoint string, shutdown <-chan interface{
 
 		activeRemotes := remoteIPs
 		if m.conn != nil && len(m.storageClientsPath) != 0 {
-			// TODO: remoteIPs = getAllRemoteHostsFromZookeeper() when deletion of zookeeper nodes are implemented in server.go
-			activeRemotes = getActiveRemoteHosts(m.conn, m.storageClientsPath, m.monitorInterval, remoteIPs...)
-			glog.V(2).Infof("==== active remotes: %s checked from list of remotes: %s", activeRemotes, remoteIPs)
+			activeRemotes = getActiveRemoteHosts(m.conn, m.storageClientsPath, m.monitorInterval)
+			glog.V(2).Infof("DFS active remotes: %s", activeRemotes)
+			m.SetMonitorRemoteHosts(activeRemotes...)
 		}
 
 		for _, remoteIP := range activeRemotes {
@@ -261,17 +266,26 @@ func (v *StorageClientHostNode) Version() interface{} { return v.version }
 func (v *StorageClientHostNode) SetVersion(version interface{}) { v.version = version }
 
 // getActiveRemoteHosts returns a slice of activeClientIPs
-func getActiveRemoteHosts(conn client.Connection, zpath string, monitorInterval time.Duration, clients ...string) []string {
+func getActiveRemoteHosts(conn client.Connection, storageClientsPath string, monitorInterval time.Duration) []string {
+	// clients is not full list of remotes when called from server.go - retrieve our own list from zookeeper
+	var err error
+	remoteIPs, err := getAllRemoteHostsFromZookeeper(conn, storageClientsPath)
+	if err != nil {
+		return []string{}
+	}
+	glog.V(2).Infof("DFS remote IPs: %+v", remoteIPs)
+
+	// determine active hosts
 	var activeClientIPs []string
 	now := time.Now()
-	for _, clnt := range clients {
-		cp := path.Join(zpath, clnt)
+	for _, clnt := range remoteIPs {
+		cp := path.Join(storageClientsPath, clnt)
 		glog.V(2).Infof("retrieving info for DFS for remoteIP %s at zookeeper node %s", clnt, cp)
 
 		hnode := StorageClientHostNode{}
 		err := conn.Get(cp, &hnode)
 		if err != nil && err != client.ErrEmptyNode {
-			glog.Errorf("DFS could not get zookeeper hostnode %s: %s", cp, err)
+			glog.Errorf("DFS could not get remote host zookeeper node %s: %s", cp, err)
 			continue
 		}
 		if hnode.Host.UpdatedAt.IsZero() {
@@ -291,4 +305,16 @@ func getActiveRemoteHosts(conn client.Connection, zpath string, monitorInterval 
 
 	glog.V(2).Infof("DFS remote active IPs: %+v", activeClientIPs)
 	return activeClientIPs
+}
+
+// getAllRemoteHostsFromZookeeper retrieves a list of remote storage clients from zookeeper
+func getAllRemoteHostsFromZookeeper(conn client.Connection, storageClientsPath string) ([]string, error) {
+	clients, err := conn.Children(storageClientsPath)
+	if err != nil {
+		glog.Errorf("unable to retrieve list of DFS remote hosts: %s", err)
+		return []string{}, err
+	}
+
+	glog.V(4).Infof("DFS remote IPs: %+v", clients)
+	return clients, nil
 }

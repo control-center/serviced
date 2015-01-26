@@ -96,7 +96,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 			return err
 		}
 
-		s.monitor.SetMonitorStorageClients(conn, storageClientsPath, clients...)
+		s.monitor.SetMonitorStorageClients(conn, storageClientsPath)
 		s.driver.SetClients(clients...)
 		if err := s.driver.Sync(); err != nil {
 			glog.Errorf("Error syncing driver: %s", err)
@@ -114,4 +114,3 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		}
 	}
 }
-

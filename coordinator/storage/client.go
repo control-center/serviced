@@ -210,7 +210,7 @@ func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error
 }
 
 func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Connection, nodePath string, node *Node) error {
-	glog.Infof("updating UpdatedAt for node %s at interval %s", nodePath, updaterInterval)
+	glog.Infof("updating DFS remote client UpdatedAt for node %s at interval %s", nodePath, updaterInterval)
 	for {
 		if node.version == nil {
 			// prevents that this go routine from starting before the initial c.setNode in client.loop()
