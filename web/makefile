@@ -19,7 +19,6 @@ PWD = $(shell pwd)
 javascript_BLDDIR        = $(PWD)/static/js
 controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
 controlplane_MINIFIED_JS = $(javascript_BLDDIR)/controlplane.min.js
-javascript_3rdparty_BLDDIR = $(PWD)/static/thirdparty
 javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS)
 
 NODEJS = $(shell which node)
