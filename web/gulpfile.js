@@ -57,12 +57,10 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular/angular-cookies.js",
     paths.thirdpartySrc + "angular-dragdrop/angular-dragdrop.js",
     paths.thirdpartySrc + "angular-translate/angular-translate.js",
-    paths.thirdpartySrc + "angular-translate/angular-translate-loader-static-files/angular-translate-loader-static-files.js",
-    paths.thirdpartySrc + "angular-translate/angular-translate-loader-url/angular-translate-loader-url.js",
+    paths.thirdpartySrc + "angular-translate/service/loader-static-files.js",
+    paths.thirdpartySrc + "angular-translate/service/loader-url.js",
     paths.thirdpartySrc + "angular-cache/angular-cache.js",
-    // FIXME: Can't fnid a matching version of angular-moment.min.js.
-    //      WHAT VERSION DO WE REALLY HAVE?
-    paths.thirdpartySrc + "angular-moment/angular-moment.min.js",
+    paths.thirdpartySrc + "angular-moment/angular-moment.js",
     paths.thirdpartySrc + "angular-sticky/sticky.js",
 
     paths.thirdpartySrc + "d3/d3.js",
