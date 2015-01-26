@@ -19,13 +19,21 @@ PWD = $(shell pwd)
 javascript_BLDDIR        = $(PWD)/static/js
 controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
 controlplane_MINIFIED_JS = $(javascript_BLDDIR)/controlplane.min.js
+
 javascript_3rdparty_BLDDIR = $(PWD)/static/thirdparty
 thirdparty_JS              = $(javascript_3rdparty_BLDDIR)/thirdparty.js
 thirdparty_MINIFIED_JS     = $(javascript_3rdparty_BLDDIR)/thirdparty.min.js
-javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS) $(thirdparty_JS) $(thirdparty_MINIFIED_JS)
 
-NODEJS = $(shell which node)
+javascript_tests_BLDDIR = $(PWD)/static/test/results
+
+javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS) \
+	$(thirdparty_JS) $(thirdparty_MINIFIED_JS) \
+	$(javascript_tests_BLDDIR)
+
+##NODEJS = $(shell which node)
+NODEJS = ""
 docker_working_DIR = "/mnt"
+
 
 .PHONY: default
 default: build
@@ -36,9 +44,24 @@ build: build_js
 	go build
 
 .PHONY: test
-test: build
+test: build test_js
 	go test -i ;\
 	go test $(GOTEST_FLAGS)
+
+.PHONY: test_js
+test_js:
+	if [ -x "$(NODEJS)" ]; then \
+		npm install; \
+		gulp test; \
+	else \
+		docker build -t zenoss/serviced-build ../build; \
+		docker run --rm \
+		-v $(PWD):$(docker_working_DIR) \
+		-e UID_X=$(shell id -u) \
+		-e GID_X=$(shell id -g) \
+		zenoss/serviced-build \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
+	fi
 
 .PHONY: build_js build-js
 build_js build-js:
@@ -62,7 +85,9 @@ clean:
 	fi
 	for target in $(javascript_TARGETS) ;\
 	do \
-		if [ -f "$${target}" ];then \
+		if [ -d "$${target}" ];then \
+			rm -rf $${target} ;\
+		elif [ -f "$${target}" ];then \
 			rm -f $${target} ;\
 		fi ;\
 	done

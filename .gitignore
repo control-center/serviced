@@ -57,5 +57,6 @@ web/static/js/controlplane.js
 web/static/js/controlplane.min.js
 web/static/thirdparty/thirdparty.js
 web/static/thirdparty/thirdparty.min.js
+web/static/test/results
 
 *.Godeps_restored

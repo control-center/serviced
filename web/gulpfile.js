@@ -1,12 +1,14 @@
 /* globals require: true */
 
 var gulp = require("gulp"),
+    gutil = require('gulp-util'),
     concat = require("gulp-concat"),
     uglify = require("gulp-uglify"),
     rename = require("gulp-rename"),
     jshint = require("gulp-jshint"),
     sequence = require("run-sequence"),
     to5 = require("gulp-6to5");
+    karma = require('karma').server;
 
 var paths = {
     // TODO - organize by feature, not type
@@ -119,10 +121,28 @@ gulp.task("watch", function(){
     gulp.watch(paths.src + "/main.js", ["concat"]);
 });
 
-gulp.task("test", function(){
-    // TODO - unit tests
-    // TODO - functional tests
+//
+// The equivalent manual execution of karma is:
+//  ./node_modules/karma/bin/karma start karma.conf.js --single-run \
+//      --log-level debug \\
+//      --browsers PhantomJS \\
+//      --reporters progress,junit,coverage
+gulp.task('test', function (done) {
+  karma.start({
+    configFile: __dirname + '/karma.conf.js',
+    singleRun: true,
+    logLevel: "debug",
+    browsers: ["PhantomJS"],
+    reporters: ["progress","junit","coverage","threshold"],
+  }, function(exitStatus) {
+    // Workaround for 'formatError' based on suggestions from
+    //   http://stackoverflow.com/questions/26614738/issue-running-karma-task-from-gulp
+    // but tweaked to use (apparently new) PluginError
+    var err = exitStatus ? new gutil.PluginError('test', 'There are failing unit tests') : undefined;
+    done(err);
+  });
 });
+
 
 gulp.task("lint", function(){
     return gulp.src(controlplaneFiles)
