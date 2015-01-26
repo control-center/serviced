@@ -19,15 +19,11 @@ PWD = $(shell pwd)
 javascript_BLDDIR        = $(PWD)/static/js
 controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
 controlplane_MINIFIED_JS = $(javascript_BLDDIR)/controlplane.min.js
-
-javascript_3rdparty_BLDDIR = $(PWD)/static/thirdparty
-thirdparty_JS              = $(javascript_3rdparty_BLDDIR)/thirdparty.js
-thirdparty_MINIFIED_JS     = $(javascript_3rdparty_BLDDIR)/thirdparty.min.js
+javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS)
 
 javascript_tests_BLDDIR = $(PWD)/static/test/results
 
 javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS) \
-	$(thirdparty_JS) $(thirdparty_MINIFIED_JS) \
 	$(javascript_tests_BLDDIR)
 
 ##NODEJS = $(shell which node)

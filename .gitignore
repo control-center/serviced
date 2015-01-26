@@ -55,8 +55,12 @@ isvcs/build/*.tar.gz
 web/node_modules/
 web/static/js/controlplane.js
 web/static/js/controlplane.min.js
+<<<<<<< HEAD
 web/static/thirdparty/thirdparty.js
 web/static/thirdparty/thirdparty.min.js
 web/static/test/results
+=======
+web/static/js/controlplane.js.map
+>>>>>>> develop
 
 *.Godeps_restored

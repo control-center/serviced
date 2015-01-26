@@ -339,6 +339,7 @@
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
     "vhost_name_invalid": "Nombre de servidor virtual no valido:",
+    "view_licenses": "Ver licencias",
     "warning": "Aviso",
     "warning_remove_service": "Esto eliminar\u00e1 la aplicación en ejecuci\u00f3n, esta accion no podra ser revertida."
 }
