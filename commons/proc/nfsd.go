@@ -19,10 +19,8 @@ import (
 	"bufio"
 	"fmt"
 	"io/ioutil"
-	"os"
 	"reflect"
 	"strings"
-	"time"
 )
 
 var procNFSDExportsFile = "fs/nfs/exports"
@@ -144,70 +142,3 @@ func parseOptions(line string) map[string]string {
 	return options
 }
 
-// ProcessExportedVolumeChangeFunc is called by MonitorExportedVolume when exported volume info state changes are detected
-type ProcessExportedVolumeChangeFunc func(mountpoint string, isExported bool)
-
-// MonitorExportedVolume monitors the exported volume and logs on failure
-func MonitorExportedVolume(mountpoint string, monitorInterval time.Duration, shutdown <-chan interface{}, changedFunc ProcessExportedVolumeChangeFunc) {
-	glog.Warningf("not monitoring export status for DFS NFS volume %s", mountpoint)
-	return
-
-	glog.Infof("monitoring NFS export info in %s for DFS NFS volume %s at polling interval: %s", GetProcNFSDExportsFilePath(), mountpoint, monitorInterval)
-
-	var modtime time.Time
-	for {
-		glog.V(4).Infof("determining export status for DFS NFS volume %s", mountpoint)
-
-		changed, err := hasFileChanged(GetProcNFSDExportsFilePath(), &modtime)
-		if err != nil {
-			glog.Warningf("unable to determine whether DFS NFS volume %s is exported: %s", mountpoint, err)
-		} else if changed {
-			glog.Infof("exported info has changed in %s for DFS NFS volume %s", GetProcNFSDExportsFilePath(), mountpoint)
-			mountinfo, err := GetProcNFSDExport(mountpoint)
-			if err != nil {
-				if err == ErrMountPointNotExported {
-					glog.Warningf("DFS NFS volume %s may be unexported - further action may be required", mountpoint)
-					changedFunc(mountpoint, false)
-				} else {
-					glog.Warningf("DFS NFS volume %s may be unexported - unable to get export info: %s", mountpoint, err)
-					changedFunc(mountpoint, false)
-				}
-			} else {
-				glog.Infof("DFS NFS volume %s (uuid:%+v) is exported", mountpoint, mountinfo.ClientOptions["*"]["uuid"])
-				changedFunc(mountpoint, true)
-			}
-		}
-
-		select {
-		case <-time.After(monitorInterval):
-
-		case <-shutdown:
-			glog.Infof("no longer monitoring export status for DFS NFS volume %s", mountpoint)
-			return
-		}
-	}
-}
-
-// hasFileChanged determines whether file has been modified and updates modtime
-func hasFileChanged(filename string, modtime *time.Time) (bool, error) {
-	fileinfo, err := os.Stat(filename)
-	if err != nil {
-		glog.V(4).Infof("unable to stat file: %s %s", filename, err)
-		return false, err
-	}
-
-	prevtime := *modtime
-	*modtime = fileinfo.ModTime()
-	if fileinfo.ModTime().After(prevtime) {
-		duration := fileinfo.ModTime().Sub(prevtime)
-		if prevtime.IsZero() {
-			glog.V(4).Infof("first time file %s is checked", filename)
-			return true, nil
-		}
-		glog.V(4).Infof("file %s has been modified since %s", filename, duration)
-		return true, nil
-	}
-
-	glog.V(4).Infof("file %s has not been modified", filename)
-	return false, nil
-}

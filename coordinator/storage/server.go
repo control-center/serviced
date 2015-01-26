@@ -15,13 +15,8 @@ package storage
 
 import (
 	"fmt"
-	"os"
 	"path"
-	"strconv"
-	"strings"
-	"time"
 
-	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
@@ -30,8 +25,9 @@ import (
 
 // Server manages the exporting of a file system to clients.
 type Server struct {
-	host   *host.Host
-	driver StorageDriver
+	host    *host.Host
+	driver  StorageDriver
+	monitor *Monitor
 }
 
 // StorageDriver is an interface that storage subsystem must implement to be used
@@ -49,9 +45,15 @@ func NewServer(driver StorageDriver, host *host.Host) (*Server, error) {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
+	monitor, err := NewMonitor(driver, getDefaultNFSMonitorMasterInterval())
+	if err != nil {
+		return nil, fmt.Errorf("unable to create new monitor %s", err)
+	}
+
 	s := &Server{
-		host:   host,
-		driver: driver,
+		host:    host,
+		driver:  driver,
+		monitor: monitor,
 	}
 
 	return s, nil
@@ -68,8 +70,10 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		conn.CreateDir("/storage/leader")
 	}
 
-	if exists, _ := conn.Exists("/storage/clients"); !exists {
-		conn.CreateDir("/storage/clients")
+	storageClientsPath := "/storage/clients"
+
+	if exists, _ := conn.Exists(storageClientsPath); !exists {
+		conn.CreateDir(storageClientsPath)
 	}
 
 	leader := conn.NewLeader("/storage/leader", node)
@@ -79,31 +83,20 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		return err
 	}
 
-	processExportedVolumeChangeFunc := func(mountpoint string, isExported bool) {
-		if !isExported {
-			glog.Warningf("DFS NFS volume %s may be unexported - further action may be needed i.e: restart nfs", mountpoint)
-			/*
-				// TODO: restart nfs when active num remotes > 0
-				// race condition with restarting nfs on master and mounting on
-				// remote is seen if nfs is prematurely started before any remotes
-				// check in
-				if err := s.driver.Restart(); err != nil {
-					glog.Errorf("Error restarting driver: %s", err)
-				}
-			*/
-		}
-	}
-	go proc.MonitorExportedVolume(path.Join("/exports", s.driver.ExportPath()), getDefaultNFSMonitorInterval(), shutdown, processExportedVolumeChangeFunc)
+	// monitor dfs; log warnings each cycle; restart dfs if needed
+	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
 
+	// loop until shutdown event
 	defer leader.ReleaseLead()
 
 	for {
-		clients, clientW, err := conn.ChildrenW("/storage/clients")
+		clients, clientW, err := conn.ChildrenW(storageClientsPath)
 		if err != nil {
 			glog.Errorf("Could not set up watch for storage clients: %s", err)
 			return err
 		}
 
+		s.monitor.SetMonitorStorageClients(conn, storageClientsPath)
 		s.driver.SetClients(clients...)
 		if err := s.driver.Sync(); err != nil {
 			glog.Errorf("Error syncing driver: %s", err)
@@ -120,21 +113,4 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 			return nil
 		}
 	}
-}
-
-func getDefaultNFSMonitorInterval() time.Duration {
-	var minMonitorInterval int32 = 60 // in seconds
-	var monitorInterval int32 = minMonitorInterval
-	monitorIntervalString := os.Getenv("SERVICED_NFS_MONITOR_INTERVAL")
-	if len(strings.TrimSpace(monitorIntervalString)) == 0 {
-		// ignore unset SERVICED_NFS_MONITOR_INTERVAL
-	} else if intVal, intErr := strconv.ParseInt(monitorIntervalString, 0, 32); intErr != nil {
-		glog.Warningf("ignoring invalid SERVICED_NFS_MONITOR_INTERVAL of '%s': %s", monitorIntervalString, intErr)
-	} else if int32(intVal) < minMonitorInterval {
-		glog.Warningf("ignoring invalid SERVICED_NFS_MONITOR_INTERVAL of '%s' < minMonitorInterval:%v seconds", monitorIntervalString, minMonitorInterval)
-	} else {
-		monitorInterval = int32(intVal)
-	}
-
-	return time.Duration(monitorInterval) * time.Second
 }
