@@ -17,6 +17,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -167,7 +169,11 @@ func (m *Monitor) MonitorDFSVolume(mountpoint string, shutdown <-chan interface{
 		activeRemotes := remoteIPs
 		if m.conn != nil && len(m.storageClientsPath) != 0 {
 			activeRemotes = getActiveRemoteHosts(m.conn, m.storageClientsPath, m.monitorInterval)
-			glog.V(2).Infof("DFS active remotes: %s", activeRemotes)
+			sort.Sort(sort.StringSlice(activeRemotes))
+			sort.Sort(sort.StringSlice(remoteIPs))
+			if !reflect.DeepEqual(activeRemotes, remoteIPs) {
+				glog.Infof("DFS active remotes to be monitored has changed to: %+v", activeRemotes)
+			}
 			m.SetMonitorRemoteHosts(activeRemotes...)
 		}
 
