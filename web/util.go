@@ -138,7 +138,19 @@ func favIcon(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot()+"/ico/zenoss-o.png")
+			staticRoot()+"/ico/zenoss-o.png")
+}
+
+/*
+ * Provides content for /licenses.html
+ */
+func licenses(w *rest.ResponseWriter, r *rest.Request) {
+	_, filename, _, _ := runtime.Caller(1)
+	licenses := path.Join(path.Dir(filename), "..", "doc", "licenses.html")
+	http.ServeFile(
+		w.ResponseWriter,
+		r.Request,
+		licenses)
 }
 
 /*

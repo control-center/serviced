@@ -109,6 +109,7 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		// Generic static data
 		rest.Route{"GET", "/favicon.ico", gz(favIcon)},
 		rest.Route{"GET", "/static/*resource", gz(staticData)},
+		rest.Route{"GET", "/licenses.html", gz(licenses)},
 	}
 
 	// Hardcoding these target URLs for now.
