@@ -114,3 +114,4 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		}
 	}
 }
+
