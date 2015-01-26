@@ -60,10 +60,22 @@ func NewMonitor(driver StorageDriver, monitorInterval time.Duration) (*Monitor, 
 
 // UpdateRemoteMonitorFile is used by remote clients to write a tiny file to the DFS volume at the given cycle
 func UpdateRemoteMonitorFile(localPath string, writeInterval time.Duration, ipAddr string, shutdown <-chan interface{}) {
+	monitorPath := path.Join(localPath, monitorSubDir)
 	remoteFile := path.Join(localPath, monitorSubDir, ipAddr)
 	glog.Infof("updating DFS volume monitor file %s at write interval: %s", remoteFile, writeInterval)
 
 	for {
+		glog.V(2).Infof("checking DFS monitor path %s", monitorPath)
+		_, err := os.Stat(monitorPath)
+		if err != nil {
+			glog.V(2).Infof("unable to stat DFS monitor path: %s %s", monitorPath, err)
+			if err := os.MkdirAll(monitorPath, 0755); err != nil {
+				glog.Warningf("unable to create DFS volume monitor path %s: %s", monitorPath, err)
+			} else {
+				glog.Infof("created DFS volume monitor path %s", monitorPath)
+			}
+		}
+
 		glog.V(2).Infof("writing DFS file %s", remoteFile)
 		if err := ioutil.WriteFile(remoteFile, []byte(ipAddr), 0600); err != nil {
 			glog.Warningf("unable to write DFS file %s: %s", remoteFile, err)
