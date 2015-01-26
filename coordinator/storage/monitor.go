@@ -90,7 +90,7 @@ func (m *Monitor) SetMonitorRemoteHosts(ipAddrs ...string) {
 	if len(ipAddrs) == 0 {
 		glog.Warningf("disabled DFS volume monitoring - no remote IPs to monitor")
 	} else {
-		glog.V(0).Infof("enabled DFS volume monitoring for remote IPs: %+v", ipAddrs)
+		glog.V(2).Infof("enabled DFS volume monitoring for remote IPs: %+v", ipAddrs)
 	}
 	m.monitoredHostsLock.Lock()
 	defer m.monitoredHostsLock.Unlock()
