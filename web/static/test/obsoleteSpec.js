@@ -1,49 +1,59 @@
-/* tests */
+/*
+ * Tests created prior to karma/jasmine integration with CI build
+ *
+ * This file exists only to serve as a reference point for porting
+ * these older tests to the new test structure.
+ *
+ * Test that are commented out have been ported to one of the new
+ * static/test/*\/*Spec.js files
+ */
 
-describe('LoginControl', function() {
-    var $scope = null;
-    var $httpBackend = null;
-    var $location = null;
-    var ctrl = null;
+// Migrated to static/test/controllers/LoginControllerSpec.js
+//
+// describe('LoginControl', function() {
+//     var $scope = null;
+//     var $httpBackend = null;
+//     var $location = null;
+//     var ctrl = null;
 
-    beforeEach(module('controlplane'));
+//     beforeEach(module('controlplane'));
 
-    beforeEach(inject(function($injector) {
-        $scope = $injector.get('$rootScope').$new();
-        var $controller = $injector.get('$controller');
-        $location = $injector.get('$location');
-        $httpBackend = $injector.get('$httpBackend');
-        ctrl = $controller('LoginControl', { $scope: $scope });
-        $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
-    }));
+//     beforeEach(inject(function($injector) {
+//         $scope = $injector.get('$rootScope').$new();
+//         var $controller = $injector.get('$controller');
+//         $location = $injector.get('$location');
+//         $httpBackend = $injector.get('$httpBackend');
+//         ctrl = $controller('LoginControl', { $scope: $scope });
+//         $httpBackend.when('GET', '/static/i18n/en_US.json').respond({});
+//     }));
 
-    afterEach(function() {
-        $httpBackend.verifyNoOutstandingExpectation();
-        $httpBackend.verifyNoOutstandingRequest();
-    });
+//     afterEach(function() {
+//         $httpBackend.verifyNoOutstandingExpectation();
+//         $httpBackend.verifyNoOutstandingRequest();
+//     });
 
-    it('Sets some labels', function() {
-        expect($scope.brand_label).not.toBeUndefined();
-        expect($scope.login_button_text).not.toBeUndefined();
-        $httpBackend.flush();
-    });
+//     it('Sets some labels', function() {
+//         expect($scope.brand_label).not.toBeUndefined();
+//         expect($scope.login_button_text).not.toBeUndefined();
+//         $httpBackend.flush();
+//     });
 
-    it('Sets path on successful login', function() {
-        $httpBackend.when('POST', '/login').respond({Detail: 'SuccessfulPost'});
-        $scope.login();
-        $httpBackend.flush();
-        expect($location.path()).toBe('/apps');
-    });
+//     it('Sets path on successful login', function() {
+//         $httpBackend.when('POST', '/login').respond({Detail: 'SuccessfulPost'});
+//         $scope.login();
+//         $httpBackend.flush();
+//         expect($location.path()).toBe('/apps');
+//     });
 
-    it('Does not change path on failed login', function() {
-        $location.path('/login');
-        $httpBackend.when('POST', '/login').respond(401, {Detail: 'Bad Login'});
-        $scope.login();
-        $httpBackend.flush();
-        expect($location.path()).toBe('/login');
-    });
+//     it('Does not change path on failed login', function() {
+//         $location.path('/login');
+//         $httpBackend.when('POST', '/login').respond(401, {Detail: 'Bad Login'});
+//         $scope.login();
+//         $httpBackend.flush();
+//         expect($location.path()).toBe('/login');
+//     });
 
-});
+// });
 
 describe('DeployedAppsControl', function() {
     var $scope = null;
@@ -694,79 +704,87 @@ describe('refreshServices', function() {
     });
 });
 
-describe('refreshPools', function() {
-    it('Transforms mapped pools into array in scope', function() {
-        var dummy_data = fake_pools();
-        var scope = {};
-        refreshPools(scope, fake_resources_service(), false);
-        // refreshPools now adds data above and beyond just transforming into an array
-        for (var i=0; i < scope.pools.data.length; i++) {
-            // Expect the basic fields to be consistent
-            var dummyPool = dummy_data[scope.pools.data[i].Id];
-            expect(dummyPool.Name).toEqual(scope.pools.data[i].Name);
-            expect(dummyPool.ParentId).toEqual(scope.pools.data[i].ParentId);
-            expect(dummyPool.CoreLimit).toEqual(scope.pools.data[i].CoreLimit);
-            expect(dummyPool.MemoryLimit).toEqual(scope.pools.data[i].MemoryLimit);
-            expect(dummyPool.Priority).toEqual(scope.pools.data[i].Priority);
-        }
-    });
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('refreshPools', function() {
+//     it('Transforms mapped pools into array in scope', function() {
+//         var dummy_data = fake_pools();
+//         var scope = {};
+//         refreshPools(scope, fake_resources_service(), false);
+//         // refreshPools now adds data above and beyond just transforming into an array
+//         for (var i=0; i < scope.pools.data.length; i++) {
+//             // Expect the basic fields to be consistent
+//             var dummyPool = dummy_data[scope.pools.data[i].Id];
+//             expect(dummyPool.Name).toEqual(scope.pools.data[i].Name);
+//             expect(dummyPool.ParentId).toEqual(scope.pools.data[i].ParentId);
+//             expect(dummyPool.CoreLimit).toEqual(scope.pools.data[i].CoreLimit);
+//             expect(dummyPool.MemoryLimit).toEqual(scope.pools.data[i].MemoryLimit);
+//             expect(dummyPool.Priority).toEqual(scope.pools.data[i].Priority);
+//         }
+//     });
 
-    it('Puts pool data in scope', function() {
-        var dummy_data = fake_pools();
-        var scope = {};
-        refreshPools(scope, fake_resources_service(), false);
-        for (key in dummy_data) {
-            var scopedPool = scope.pools.mapped[key];
-            var dummyPool = dummy_data[key];
-            expect(dummyPool.Name).toEqual(scopedPool.Name);
-            expect(dummyPool.ParentId).toEqual(scopedPool.ParentId);
-            expect(dummyPool.CoreLimit).toEqual(scopedPool.CoreLimit);
-            expect(dummyPool.MemoryLimit).toEqual(scopedPool.MemoryLimit);
-            expect(dummyPool.Priority).toEqual(scopedPool.Priority);
-        }
-    });
+//     it('Puts pool data in scope', function() {
+//         var dummy_data = fake_pools();
+//         var scope = {};
+//         refreshPools(scope, fake_resources_service(), false);
+//         for (key in dummy_data) {
+//             var scopedPool = scope.pools.mapped[key];
+//             var dummyPool = dummy_data[key];
+//             expect(dummyPool.Name).toEqual(scopedPool.Name);
+//             expect(dummyPool.ParentId).toEqual(scopedPool.ParentId);
+//             expect(dummyPool.CoreLimit).toEqual(scopedPool.CoreLimit);
+//             expect(dummyPool.MemoryLimit).toEqual(scopedPool.MemoryLimit);
+//             expect(dummyPool.Priority).toEqual(scopedPool.Priority);
+//         }
+//     });
 
-    it('Sets the current pool based on scope.params', function() {
-        var dummy_data = fake_pools();
-        var dummy_data_array = map_to_array(dummy_data);
-        var scope = { params: { poolId: dummy_data_array[0].Id }};
-        refreshPools(scope, fake_resources_service(), false);
-        expect(scope.pools.current).not.toBeUndefined();
-        expect(scope.pools.current.Name).toBe(dummy_data_array[0].Name);
-    });
-});
+//     it('Sets the current pool based on scope.params', function() {
+//         var dummy_data = fake_pools();
+//         var dummy_data_array = map_to_array(dummy_data);
+//         var scope = { params: { poolId: dummy_data_array[0].Id }};
+//         refreshPools(scope, fake_resources_service(), false);
+//         expect(scope.pools.current).not.toBeUndefined();
+//         expect(scope.pools.current.Name).toBe(dummy_data_array[0].Name);
+//     });
+// });
 
-describe('refreshHosts', function() {
-    it('Sets the current host based on scope.params', function() {
-        var scope = { params: { hostId: "def" }, $watch: function() {}};
-        refreshHosts(scope, fake_resources_service(), false, false);
-        expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
-    });
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('refreshHosts', function() {
+//     it('Sets the current host based on scope.params', function() {
+//         var scope = { params: { hostId: "def" }, $watch: function() {}};
+//         refreshHosts(scope, fake_resources_service(), false, false);
+//         expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
+//     });
 
-    it('Puts host data into scope', function() {
-        var scope = {$watch: function() {}};
-        refreshHosts(scope, fake_resources_service(), false, false);
-        expect(scope.hosts.mapped).toEqual(fake_hosts());
-    });
-});
+//     it('Puts host data into scope', function() {
+//         var scope = {$watch: function() {}};
+//         refreshHosts(scope, fake_resources_service(), false, false);
+//         expect(scope.hosts.mapped).toEqual(fake_hosts());
+//     });
+// });
 
-describe('map_to_array', function() {
-    it('Transforms map to a new array', function() {
-        var dummy_data = { test1: 'abc', test2: { foo: 'bar' }};
-        var dummy_data_array = map_to_array(dummy_data);
-        expect(dummy_data_array).toEqual(['abc', {foo: 'bar'}]);
-    });
-});
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('map_to_array', function() {
+//     it('Transforms map to a new array', function() {
+//         var dummy_data = { test1: 'abc', test2: { foo: 'bar' }};
+//         var dummy_data_array = map_to_array(dummy_data);
+//         expect(dummy_data_array).toEqual(['abc', {foo: 'bar'}]);
+//     });
+// });
 
-describe('unauthorized', function() {
-    it('Sets the path to /login', function() {
-        var loc = { path: function(){} };
-        spyOn(loc, 'path');
-        unauthorized(loc);
-        expect(loc.path).toHaveBeenCalled();
-        expect(loc.path.mostRecentCall.args[0]).toBe('/login');
-    });
-});
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('unauthorized', function() {
+//     it('Sets the path to /login', function() {
+//         var loc = { path: function(){} };
+//         spyOn(loc, 'path');
+//         unauthorized(loc);
+//         expect(loc.path).toHaveBeenCalled();
+//         expect(loc.path.mostRecentCall.args[0]).toBe('/login');
+//     });
+// });
 
 describe('next_url', function() {
     it('Finds a link with name \'Next\'', function() {
@@ -779,54 +797,60 @@ describe('next_url', function() {
     });
 });
 
-describe('set_order', function() {
-    it('Updates table.sort', function() {
-        var table = {
-            sort: 'foo',
-            sort_icons: { foo: 'bar', baz: 'wibble' }
-        };
-        set_order('foo', table);
-        expect(table.sort).toBe('-foo');
-        set_order('foo', table);
-        expect(table.sort).toBe('foo');
-        set_order('bar', table);
-        expect(table.sort).toBe('bar');
-    });
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('set_order', function() {
+//     it('Updates table.sort', function() {
+//         var table = {
+//             sort: 'foo',
+//             sort_icons: { foo: 'bar', baz: 'wibble' }
+//         };
+//         set_order('foo', table);
+//         expect(table.sort).toBe('-foo');
+//         set_order('foo', table);
+//         expect(table.sort).toBe('foo');
+//         set_order('bar', table);
+//         expect(table.sort).toBe('bar');
+//     });
 
-    it('Updates table.sort_icons', function() {
-        var table = {
-            sort: 'foo',
-            sort_icons: { foo: 'bar', baz: 'wibble' }
-        };
-        set_order('bar', table);
-        expect(table.sort_icons['foo']).toBe('glyphicon-chevron-down');
-        expect(table.sort_icons['bar']).toBe('glyphicon-chevron-up');
-    });
-});
+//     it('Updates table.sort_icons', function() {
+//         var table = {
+//             sort: 'foo',
+//             sort_icons: { foo: 'bar', baz: 'wibble' }
+//         };
+//         set_order('bar', table);
+//         expect(table.sort_icons['foo']).toBe('glyphicon-chevron-down');
+//         expect(table.sort_icons['bar']).toBe('glyphicon-chevron-up');
+//     });
+// });
 
-describe('get_order_class', function() {
-    it('Includes \'active\' for value or -value of table.sort', function() {
-        var table = {
-            sort: 'foo',
-            sort_icons: { foo: 'bar', baz: 'wibble' }
-        };
-        expect(get_order_class('foo', table)).toMatch(/ active$/);
-        table.sort = '-foo';
-        expect(get_order_class('foo', table)).toMatch(/ active$/);
-        expect(get_order_class('baz', table)).toMatch(/ wibble$/);
-    });
-});
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('get_order_class', function() {
+//     it('Includes \'active\' for value or -value of table.sort', function() {
+//         var table = {
+//             sort: 'foo',
+//             sort_icons: { foo: 'bar', baz: 'wibble' }
+//         };
+//         expect(get_order_class('foo', table)).toMatch(/ active$/);
+//         table.sort = '-foo';
+//         expect(get_order_class('foo', table)).toMatch(/ active$/);
+//         expect(get_order_class('baz', table)).toMatch(/ wibble$/);
+//     });
+// });
 
-describe('buildTable', function() {
-    it('Returns object with sort_icons', function() {
-        var headers = [ {id: 'foo'}, {id: 'bar'}, {id: 'baz'}];
-        var table = buildTable('foo', headers);
-        expect(table.sort).toBe('foo');
-        expect(table.sort_icons).not.toBeUndefined();
-        expect(table.set_order).not.toBeUndefined();
-        expect(table.get_order_class).not.toBeUndefined();
-    });
-});
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('buildTable', function() {
+//     it('Returns object with sort_icons', function() {
+//         var headers = [ {id: 'foo'}, {id: 'bar'}, {id: 'baz'}];
+//         var table = buildTable('foo', headers);
+//         expect(table.sort).toBe('foo');
+//         expect(table.sort_icons).not.toBeUndefined();
+//         expect(table.set_order).not.toBeUndefined();
+//         expect(table.get_order_class).not.toBeUndefined();
+//     });
+// });
 
 describe('updateRunning', function() {
     it('Sets text on service when state is 1', function() {
@@ -879,28 +903,30 @@ describe('toggleRunning', function() {
     });
 });
 
-describe('getFullPath', function() {
-    it('Returns pool.Id when there is no parent', function() {
-        var pool = { Id: 'Test' };
-        expect(getFullPath({}, pool)).toBe(pool.Id);
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('getFullPath', function() {
+//     it('Returns pool.Id when there is no parent', function() {
+//         var pool = { Id: 'Test' };
+//         expect(getFullPath({}, pool)).toBe(pool.Id);
 
-        pool = { Id: 'Test', ParentId: 'Nonexistent' };
-        expect(getFullPath({}, pool)).toBe(pool.Id);
+//         pool = { Id: 'Test', ParentId: 'Nonexistent' };
+//         expect(getFullPath({}, pool)).toBe(pool.Id);
 
-        // Should handle null
-        expect(getFullPath(null, pool)).toBe(pool.Id);
-    });
+//         // Should handle null
+//         expect(getFullPath(null, pool)).toBe(pool.Id);
+//     });
 
-    it('Returns hierarchical path', function() {
-        var allPools = {
-            'Test3': { Id: 'Test3', ParentId: 'Test2' },
-            'Test2': { Id: 'Test2', ParentId: 'Test1' },
-            'Test1': { Id: 'Test1', ParentId: '' }
-        }
-        var pool = allPools['Test3'];
-        expect(getFullPath(allPools, pool)).toBe('Test1 > Test2 > Test3');
-    });
-});
+//     it('Returns hierarchical path', function() {
+//         var allPools = {
+//             'Test3': { Id: 'Test3', ParentId: 'Test2' },
+//             'Test2': { Id: 'Test2', ParentId: 'Test1' },
+//             'Test1': { Id: 'Test1', ParentId: '' }
+//         }
+//         var pool = allPools['Test3'];
+//         expect(getFullPath(allPools, pool)).toBe('Test1 > Test2 > Test3');
+//     });
+// });
 
 describe('flattenSubservices', function() {
     it('turns a tree structure into a flat array', function() {
@@ -937,36 +963,38 @@ describe('flattenSubservices', function() {
     });
 });
 
-describe('fix_pool_paths', function() {
-    it('Defends against empty scope', function() {
-        // just make sure you can call with an empty object
-        fix_pool_paths({});
-        expect(true).toBe(true);
-    });
+// Migrated to static/test/modules/miscUtilSpec.js
+//
+// describe('fix_pool_paths', function() {
+//     it('Defends against empty scope', function() {
+//         // just make sure you can call with an empty object
+//         fix_pool_paths({});
+//         expect(true).toBe(true);
+//     });
 
-    it('Sets fullPath on hosts', function() {
-        var scope = {
-            pools: {
-                mapped: {
-                    a1: { fullPath: 'a1' },
-                    a2: { fullPath: 'a1 > a2' },
-                    a3: { fullPath: 'a1 > a2 > a3' }
-                }
-            },
-            hosts: {
-                all: [
-                    { PoolID: 'a3' },
-                    { PoolID: 'a1' },
-                    { PoolID: 'a2' }
-                ]
-            }
-        };
-        fix_pool_paths(scope);
-        scope.hosts.all.map(function(host) {
-            expect(host.fullPath).toBe(scope.pools.mapped[host.PoolID].fullPath);
-        });
-    });
-});
+//     it('Sets fullPath on hosts', function() {
+//         var scope = {
+//             pools: {
+//                 mapped: {
+//                     a1: { fullPath: 'a1' },
+//                     a2: { fullPath: 'a1 > a2' },
+//                     a3: { fullPath: 'a1 > a2 > a3' }
+//                 }
+//             },
+//             hosts: {
+//                 all: [
+//                     { PoolID: 'a3' },
+//                     { PoolID: 'a1' },
+//                     { PoolID: 'a2' }
+//                 ]
+//             }
+//         };
+//         fix_pool_paths(scope);
+//         scope.hosts.all.map(function(host) {
+//             expect(host.fullPath).toBe(scope.pools.mapped[host.PoolID].fullPath);
+//         });
+//     });
+// });
 
 function fake_hosts_for_pool(poolId) {
     var mappedHosts = {
