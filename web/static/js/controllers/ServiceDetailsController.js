@@ -321,14 +321,15 @@
 
         };
 
-        $scope.clickEditContext = function(app, resourcesFactory) {
+        $scope.clickEditContext = function() {
             //set editor options for context editing
             $scope.codemirrorOpts = {
                 lineNumbers: true,
                 mode: "properties"
             };
 
-            $scope.editableContext = makeEditableContext($scope.services.current.service.Context);
+            $scope.editableService = angular.copy($scope.services.current.service);
+            $scope.editableContext = makeEditableContext($scope.editableService.Context);
 
             $modalService.create({
                 templateUrl: "edit-context.html",
@@ -344,12 +345,17 @@
                             // disable ok button, and store the re-enable function
                             var enableSubmit = this.disableSubmitButton();
 
-                            saveContext(app, resourcesFactory)
+                            $scope.editableService.Context = makeStorableContext($scope.editableContext);
+
+                            $scope.updateService($scope.editableService)
                                 .success(function(data, status){
-                                    this.close(); 
+                                    $notification.create("Updated service", $scope.editableService.ID).success();
+                                    servicesFactory.update();
+                                    this.editableService = {};
+                                    this.close();
                                 }.bind(this))
                                 .error(function(data, status){
-                                    this.createNotification("Updating service failed", data.Detail).error();
+                                    this.createNotification("Update service failed", data.Detail).error();
                                     enableSubmit();
                                 }.bind(this));
                         }
@@ -372,27 +378,27 @@
             if(!editableContext){ editableContext = ""; }
             return editableContext;
         }
-
-        function saveContext(){
+        function makeStorableContext(context){
             //turn editableContext into a JSON object
-            var lines = $scope.editableContext.split("\n");
-            var context = {};
-            for (var i=0; i<lines.length; ++i){
-                var line = lines[i];
+            var lines = context.split("\n"),
+                storable = {};
+
+            lines.forEach(function(line){
+                var delimitIndex, key, val;
+
                 if(line !== ""){
-                    var breakIndex = line.indexOf(' ');
-                    if(breakIndex !== -1){
-                        var key = line.substr(0, breakIndex);
-                        var value = line.substr(breakIndex+1);
-                        context[key] = value;
-                    }else{
+                    delimitIndex = line.indexOf(" ");
+                    if(delimitIndex !== -1){
+                        key = line.substr(0, delimitIndex);
+                        val = line.substr(delimitIndex + 1);
+                        storable[key] = val;
+                    } else {
                         context[line] = "";
                     }
                 }
-            }
+            });
 
-            $scope.services.current.service.Context = context;
-            return $scope.updateService();
+            return storable;
         }
 
         $scope.clickRemoveVirtualHost = function(vhost) {
@@ -418,18 +424,20 @@
             });
         };
 
-        $scope.editConfig = function(service, config) {
-        $scope.editService = $.extend({}, service);
-            $scope.editService.config = config;
+        $scope.editConfig = function(config) {
+            $scope.editableService = angular.copy($scope.services.current.service);
+            $scope.selectedConfig = config;
+
             //set editor options for context editing
             $scope.codemirrorOpts = {
                 lineNumbers: true,
-                mode: utils.getModeFromFilename($scope.editService.config)
+                mode: utils.getModeFromFilename($scope.selectedConfig)
             };
+
             $modalService.create({
                 templateUrl: "edit-config.html",
                 model: $scope,
-                title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
+                title: $translate.instant("title_edit_config") +" - "+ $scope.selectedConfig,
                 bigModal: true,
                 actions: [
                     {
@@ -442,12 +450,15 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                $scope.updateService()
+                                $scope.updateService($scope.editableService)
                                     .success(function(data, status){
-                                        this.close(); 
+                                        $notification.create("Updated service", $scope.editableService.ID).success();
+                                        servicesFactory.update();
+                                        this.editableService = {};
+                                        this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        this.createNotification("Updating service failed", data.Detail).error();
+                                        this.createNotification("Update service failed", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
                             }
@@ -458,12 +469,12 @@
                     // TODO - actually validate
                     return true;
                 },
-            onShow: function(){
+                onShow: function(){
                     $scope.codemirrorRefresh = true;
-            },
-            onHide: function(){
-                $scope.codemirrorRefresh = false;
-            }
+                },
+                onHide: function(){
+                    $scope.codemirrorRefresh = false;
+                }
             });
         };
 
@@ -529,18 +540,9 @@
           return true;
         };
 
-        $scope.updateService = function() {
+        $scope.updateService = function(newService) {
             if ($scope.validateService()) {
-                var serviceId = $scope.services.current.service.ID;
-
-                return resourcesFactory.update_service($scope.services.current.service.ID, $scope.services.current.service)
-                    .success(function(data, status){
-                        $notification.create("Updated service", serviceId).success();
-                        servicesFactory.update();
-                    })
-                    .error(function(data, status){
-                        $notification.create("Update service failed", data.Detail).error();
-                    });
+                return resourcesFactory.update_service($scope.services.current.service.ID, newService);
             }
         };
 
@@ -649,7 +651,7 @@
         $scope.editCurrentService = function(){
 
             // clone service for editing
-            $scope.editableService = $.extend({}, $scope.services.current.service);
+            $scope.editableService = angular.copy($scope.services.current.service);
             
             $modalService.create({
                 templateUrl: "edit-service.html",
@@ -668,7 +670,7 @@
                                 var enableSubmit = this.disableSubmitButton();
 
                                 // update service with recently edited service
-                                resourcesFactory.update_service($scope.editableService.ID, $scope.editableService)
+                                $scope.updateService($scope.editableService)
                                     .success(function(data, status){
                                         $notification.create("Updated service", $scope.editableService.ID).success();
                                         servicesFactory.update();

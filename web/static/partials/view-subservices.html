@@ -12,7 +12,7 @@
 
             <div class="serviceActions" ng-hide="services.current.isIsvc()">
                 <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> Edit Service</button>
-                <button ng-click="clickEditContext(services.current.service, servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
+                <button ng-click="clickEditContext()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
 
                 <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
                 <div ng-if="services.current.desiredState !== 2" style="display: inline-block;">
@@ -124,7 +124,7 @@
           <tr ng-repeat="configFile in services.current.service.ConfigFiles">
             <td>{{ configFile.Filename }}</td>
             <td>
-              <button ng-click="editConfig(services.current.service, configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
+              <button ng-click="editConfig(configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
             </td>
           </tr>
         </tbody>
