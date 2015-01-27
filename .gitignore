@@ -55,8 +55,6 @@ isvcs/build/*.tar.gz
 web/node_modules/
 web/static/js/controlplane.js
 web/static/js/controlplane.js.map
-web/static/thirdparty/thirdparty.js
-web/static/thirdparty/thirdparty.js.map
 web/static/test/results
 
 *.Godeps_restored
