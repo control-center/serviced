@@ -50,8 +50,9 @@ If you want to install them locally, refer to the commands in [`serviced/build/D
 
 Once the pre-requisite build tools are installed, all other components of the JS tool chain are downloaded by NPM based on the definitions in [`serviced/web/package.json`](./package.json).  If you build with make, this download happens automatically. If you are not building with make, you will need to run the command `npm install` once to download the rest of the tool chain.
 
-**NOTE:** NPM will cache everything it downloads in `serviced/web/node_modules`.  In the unlikely event, you encoutner a problem with
-incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).
+**NOTE:** NPM will cache everything it downloads in `serviced/web/node_modules`.  When building with the `serviced-build` docker image, the make process will create a soft-link from `serviced/web/node_modules` to a location on the image where the packages are pre-cached. However, when building with a local copy of node, npm, etc, the build system expects `serviced/web/node_modules` to be a local directory
+  * If you switch from building with the docker build image to building locally, you must first delete `serviced/web/node_modules`
+  * In the unlikely event, you encounter a problem with incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).  If you
 
 ### Updating dev tool versions
 To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5), you must edit [`serviced/build/Dockerfile`](../build/Dockerfile) to include the necessary changes.  Be sure to test with a clean build, removing `serviced/web/node_modules` just to be safe.

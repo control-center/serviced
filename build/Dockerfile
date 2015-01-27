@@ -51,4 +51,10 @@ RUN	apt-get install -y -q rpm
 RUN	apt-get install -y -q mercurial bzr
 RUN apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
+# Cache the NPM packages within the docker image
+RUN mkdir -p /npm-cache/serviced/node_modules
+ADD package.json /npm-cache/serviced/package.json
+WORKDIR /npm-cache/serviced
+RUN npm install
+
 WORKDIR	/go/src/github.com/control-center/serviced
