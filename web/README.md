@@ -21,7 +21,7 @@ The following is a partial illustration of the subdirectory structure for `servi
 ## Build Setup
 Nothing special is required to build the code in `serviced/web`. The toplevel
 makefile for serviced calls the `serviced/web/makefile`  By default, the makefile uses
-the Docker container `zenoss/serviced-build` defined in `serviced/build/Dockefile` to launch
+the Docker container `zenoss/serviced-build` defined in `serviced/build/Dockerfile` to launch
 the UI portion of the build. This image contains all of the tools required to build the UI.
 
 The first time the build is executed a number of additional third-party UI build tools will be automatically

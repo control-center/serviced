@@ -223,9 +223,8 @@
                 return arr;
             },
 
-            // TODO - use angular $location object
+            // TODO - use angular $location object to make this testable
             unauthorized: function() {
-                // FIXME: Need to injecct window.location to make this testable
                 console.error('You don\'t appear to be logged in.');
                 // show the login page and then refresh so we lose any incorrect state. CC-279
                 window.location.href = "/#/login";
