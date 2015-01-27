@@ -26,8 +26,7 @@ javascript_tests_BLDDIR = $(PWD)/static/test/results
 javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS) \
 	$(javascript_tests_BLDDIR)
 
-##NODEJS = $(shell which node)
-NODEJS = ""
+NODEJS = $(shell which node)
 docker_working_DIR = "/mnt"
 
 
