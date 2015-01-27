@@ -1,7 +1,7 @@
 /* globals DEBUG: true */
 
 /* miscUtils.js
- * miscellaneous utils and stuff that 
+ * miscellaneous utils and stuff that
  * doesn't quite fit in elsewhere
  */
 (function(){
@@ -207,7 +207,7 @@
             },
 
             get_order_class: function(order, table) {
-                return 'glyphicon btn-link sort pull-right ' + table.sort_icons[order] +
+                return'glyphicon btn-link sort pull-right ' + table.sort_icons[order] +
                     ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
             },
 
@@ -223,7 +223,7 @@
                 return arr;
             },
 
-            // TODO - use angular $location object
+            // TODO - use angular $location object to make this testable
             unauthorized: function() {
                 console.error('You don\'t appear to be logged in.');
                 // show the login page and then refresh so we lose any incorrect state. CC-279

@@ -17,7 +17,7 @@
 # change accordingly.
 FROM ubuntu:trusty
 
-MAINTAINER Zenoss, Inc <dev@zenoss.com>	
+MAINTAINER Zenoss, Inc <dev@zenoss.com>
 
 RUN	apt-get update -qq
 RUN	apt-get install -qqy iptables ca-certificates aufs-tools
@@ -34,6 +34,9 @@ ENV	PATH $PATH:/go/bin:/usr/local/go/bin
 
 # Install nodejs, npm, gulp, etc
 RUN apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
+# karma has dependencies that need to run native builds, so we need build-essential
+RUN apt-get install build-essential=11.6ubuntu6
+
 # create link from nodejs to node
 RUN ln /usr/bin/nodejs /usr/bin/node
 RUN npm install -g gulp@3.8.10 jshint@2.5.11 6to5@2.13.3

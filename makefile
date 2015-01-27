@@ -428,7 +428,7 @@ test: build docker_ok
 	go test ./commons/... $(GOTEST_FLAGS)
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
-	cd web && go test $(GOTEST_FLAGS)
+	cd web && make test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
 	cd node && go test $(GOTEST_FLAGS)
 	cd datastore && make test
