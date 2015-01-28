@@ -15,6 +15,7 @@ package storage
 
 import (
 	"fmt"
+	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
@@ -24,8 +25,9 @@ import (
 
 // Server manages the exporting of a file system to clients.
 type Server struct {
-	host   *host.Host
-	driver StorageDriver
+	host    *host.Host
+	driver  StorageDriver
+	monitor *Monitor
 }
 
 // StorageDriver is an interface that storage subsystem must implement to be used
@@ -34,6 +36,7 @@ type StorageDriver interface {
 	ExportPath() string
 	SetClients(clients ...string)
 	Sync() error
+	Restart() error
 }
 
 // NewServer returns a Server object to manage the exported file system
@@ -42,9 +45,15 @@ func NewServer(driver StorageDriver, host *host.Host) (*Server, error) {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
+	monitor, err := NewMonitor(driver, getDefaultNFSMonitorMasterInterval())
+	if err != nil {
+		return nil, fmt.Errorf("unable to create new monitor %s", err)
+	}
+
 	s := &Server{
-		host:   host,
-		driver: driver,
+		host:    host,
+		driver:  driver,
+		monitor: monitor,
 	}
 
 	return s, nil
@@ -61,8 +70,10 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		conn.CreateDir("/storage/leader")
 	}
 
-	if exists, _ := conn.Exists("/storage/clients"); !exists {
-		conn.CreateDir("/storage/clients")
+	storageClientsPath := "/storage/clients"
+
+	if exists, _ := conn.Exists(storageClientsPath); !exists {
+		conn.CreateDir(storageClientsPath)
 	}
 
 	leader := conn.NewLeader("/storage/leader", node)
@@ -72,15 +83,20 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		return err
 	}
 
+	// monitor dfs; log warnings each cycle; restart dfs if needed
+	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
+
+	// loop until shutdown event
 	defer leader.ReleaseLead()
 
 	for {
-		clients, clientW, err := conn.ChildrenW("/storage/clients")
+		clients, clientW, err := conn.ChildrenW(storageClientsPath)
 		if err != nil {
 			glog.Errorf("Could not set up watch for storage clients: %s", err)
 			return err
 		}
 
+		s.monitor.SetMonitorStorageClients(conn, storageClientsPath)
 		s.driver.SetClients(clients...)
 		if err := s.driver.Sync(); err != nil {
 			glog.Errorf("Error syncing driver: %s", err)
