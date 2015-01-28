@@ -44,14 +44,17 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 	return err
 }
 
-func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantID *string) error {
+func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
 	var err error
-	*tenantID, err = this.facade.DeployTemplate(datastore.Get(), request.PoolID, request.TemplateID, request.DeploymentID)
+	*tenantIDs, err = this.facade.DeployTemplate(datastore.Get(), request.PoolID, request.TemplateID, request.DeploymentID)
 
 	// Create the tenant volume
-	if _, err := this.dfs.GetVolume(*tenantID); err != nil {
-		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	for _, tenantID := range *tenantIDs {
+		if _, err := this.dfs.GetVolume(tenantID); err != nil {
+			glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+		}
 	}
+
 	return err
 }
 
@@ -72,7 +75,7 @@ func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[
 
 func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) error {
 	var err error
-	*serviceID, err = this.facade.DeployService(datastore.Get(), request.ParentID, request.Service)
+	*serviceID, err = this.facade.DeployService(datastore.Get(), request.PoolID, request.ParentID, request.Overwrite, request.Service)
 	if err != nil {
 		glog.Errorf("Could not deploy service %s to %s: %s", request.Service.Name, request.ParentID, err)
 		return err

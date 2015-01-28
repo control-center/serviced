@@ -78,7 +78,7 @@ type FindChildRequest struct {
 }
 
 type SnapshotRequest struct {
-	ServiceID string
+	ServiceID   string
 	Description string
 }
 
@@ -178,7 +178,7 @@ type ControlPlane interface {
 	// ServiceTemplate CRUD
 
 	// Deploy an application template in to production
-	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantId *string) error
+	DeployTemplate(request ServiceTemplateDeploymentRequest, tenantIDs *[]string) error
 
 	// Add a new service Template
 	AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateId *string) error

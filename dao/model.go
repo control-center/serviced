@@ -67,8 +67,10 @@ type ServiceTemplateDeploymentRequest struct {
 // A request to deploy a service from a service definition
 //  Pool and deployment ids are derived from the parent
 type ServiceDeploymentRequest struct {
-	ParentID string // ID of parent service
-	Service  servicedefinition.ServiceDefinition
+	PoolID    string // PoolID to deploy the service to
+	ParentID  string // ID of parent service
+	Overwrite bool   // Overwrites any existing service
+	Service   servicedefinition.ServiceDefinition
 }
 
 // This is created by selecting from service_state and joining to service
@@ -128,8 +130,8 @@ type BackupFile struct {
 }
 
 type SnapshotInfo struct {
-	SnapshotID	string
-	Description	string
+	SnapshotID  string
+	Description string
 }
 
 func (s SnapshotInfo) String() string {

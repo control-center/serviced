@@ -109,6 +109,36 @@ func (s *S) Test_FindChildService(t *C) {
 	t.Assert(svcOut, IsNil)
 }
 
+func (s *S) Test_FindTenantByDeploymentID(t *C) {
+	svcIn := &Service{ID: "svc_test_id1", PoolID: "testPool", Name: "svc_name", Launch: "auto", ParentServiceID: "parent_svc_id", DeploymentID: "deployment"}
+	err := s.store.Put(s.ctx, svcIn)
+	t.Assert(err, IsNil)
+
+	// Case 1: no service exists with deployment ID
+	svcOut, err := s.store.FindTenantByDeploymentID(s.ctx, "dummy_deployment", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+
+	// Case 2: service exists with deployment ID, but is not tenant
+	svcOut, err = s.store.FindTenantByDeploymentID(s.ctx, "deployment", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+
+	svcIn = &Service{ID: "svc_test_id2", PoolID: "testPool", Name: "svc_name", Launch: "auto", ParentServiceID: "", DeploymentID: "deployment2"}
+	err = s.store.Put(s.ctx, svcIn)
+	t.Assert(err, IsNil)
+
+	// Case 3: service is tenant, but does not have deployment ID
+	svcOut, err = s.store.FindTenantByDeploymentID(s.ctx, "deployment", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+
+	// Case 4: success
+	svcOut, err = s.store.FindTenantByDeploymentID(s.ctx, "deployment2", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut.ID, Equals, svcIn.ID)
+}
+
 func (s *S) Test_GetServices(t *C) {
 	svcs, err := s.store.GetServices(s.ctx)
 	t.Assert(err, IsNil)

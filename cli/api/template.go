@@ -141,7 +141,7 @@ func (a *api) CompileServiceTemplate(config CompileTemplateConfig) (*template.Se
 }
 
 // DeployTemplate deploys a template given its template ID
-func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Service, error) {
+func (a *api) DeployServiceTemplate(config DeployTemplateConfig) ([]service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -153,21 +153,23 @@ func (a *api) DeployServiceTemplate(config DeployTemplateConfig) (*service.Servi
 		DeploymentID: config.DeploymentID,
 	}
 
-	var id string
-	if err := client.DeployTemplate(req, &id); err != nil {
+	var ids []string
+	if err := client.DeployTemplate(req, &ids); err != nil {
 		return nil, err
 	}
 
-	s, err := a.GetService(id)
-	if err != nil {
-		return nil, err
-	}
-
-	if !config.ManualAssignIPs {
-		if err := a.AssignIP(IPConfig{id, ""}); err != nil {
-			return s, err
+	svcs := make([]service.Service, len(ids))
+	for i, id := range ids {
+		s, err := a.GetService(id)
+		if err != nil {
+			return nil, err
 		}
+
+		if !config.ManualAssignIPs {
+			a.AssignIP(IPConfig{id, ""})
+		}
+		svcs[i] = *s
 	}
 
-	return s, nil
+	return svcs, nil
 }

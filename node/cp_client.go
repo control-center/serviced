@@ -164,8 +164,8 @@ func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string
 	return s.rpcClient.Call("ControlPlane.GetServiceStatus", serviceID, statusmap)
 }
 
-func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantId *string) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantId)
+func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
+	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantIDs)
 }
 
 func (s *ControlClient) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, status *string) error {

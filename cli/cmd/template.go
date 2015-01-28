@@ -236,12 +236,14 @@ func (c *ServicedCli) cmdTemplateDeploy(ctx *cli.Context) {
 	}
 
 	fmt.Fprintln(os.Stderr, "Deploying template - please wait...")
-	if service, err := c.driver.DeployServiceTemplate(cfg); err != nil {
+	if svcs, err := c.driver.DeployServiceTemplate(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-	} else if service == nil {
+	} else if svcs == nil {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
-		fmt.Println(service.ID)
+		for _, svc := range svcs {
+			fmt.Println(svc.ID)
+		}
 	}
 }
 
