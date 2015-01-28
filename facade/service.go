@@ -321,19 +321,19 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 
 // FindChildService walks services below the service specified by serviceId, checking to see
 // if childName matches the service's name. If so, it returns it.
-func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
+func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string, childName string) (*service.Service, error) {
 	glog.V(3).Infof("Facade.FindChildService")
 	store := f.serviceStore
-	parentService, err := store.Get(ctx, serviceId)
+	parentService, err := store.Get(ctx, parentServiceID)
 	if err != nil {
-		glog.Errorf("Could not look up service %s: %s", serviceId, err)
+		glog.Errorf("Could not look up service %s: %s", parentServiceID, err)
 		return nil, err
 	} else if parentService == nil {
 		err := fmt.Errorf("parent does not exist")
 		return nil, err
 	}
 
-	return store.FindChildService(ctx, parentService.DeploymentID, serviceId, childName)
+	return store.FindChildService(ctx, parentService.DeploymentID, parentService.ID, childName)
 }
 
 // ScheduleService changes a service's desired state and returns the number of affected services
