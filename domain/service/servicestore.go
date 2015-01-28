@@ -163,6 +163,37 @@ func (s *Store) FindChildService(ctx datastore.Context, parentID, serviceName st
 	}
 }
 
+// FindTenantByDeployment returns the tenant service for a given deployment id
+// and service name
+func (s *Store) FindTenantByDeploymentID(ctx datastore.Context, deploymentID, name string) (*Service, error) {
+	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
+		return nil, errors.New("empty deployment ID not allowed")
+	} else if name = strings.TrimSpace(name); name == "" {
+		return nil, errors.New("empty service name not allowed")
+	}
+
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("DeploymentID", deploymentID),
+		search.Filter().Terms("Name", name),
+		search.Filter().Terms("ParentServiceID", ""),
+	)
+
+	q := datastore.NewQuery(ctx)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+
+	if results.Len() == 0 {
+		return nil, nil
+	} else if svcs, err := convert(results); err != nil {
+		return nil, err
+	} else {
+		return &svcs[0], nil
+	}
+}
+
 func query(ctx datastore.Context, query string) ([]Service, error) {
 	q := datastore.NewQuery(ctx)
 	elasticQuery := search.Query().Search(query)

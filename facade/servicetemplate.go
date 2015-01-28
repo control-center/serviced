@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/pkg/parsers"
@@ -178,7 +177,7 @@ func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error
 }
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
-func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) (string, error) {
+func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
 	// add an entry for reporting status
 	deployments[deploymentID] = map[string]string{
 		"TemplateID":   templateID,
@@ -193,19 +192,15 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	template, err := f.templateStore.Get(ctx, templateID)
 	if err != nil {
 		glog.Errorf("unable to load template: %s", templateID)
-		return "", err
+		return nil, err
 	}
 
 	//check that deployment id does not already exist
-	svcs, err := f.serviceStore.GetServicesByDeployment(ctx, deploymentID)
-	if err != nil {
+	if svcs, err := f.serviceStore.GetServicesByDeployment(ctx, deploymentID); err != nil {
 		glog.Errorf("unable to validate deploymentID %v while deploying %v", deploymentID, templateID)
-		return "", err
-	}
-	for _, svc := range svcs {
-		if svc.DeploymentID == deploymentID {
-			return "", fmt.Errorf("deployment ID %v is already in use", deploymentID)
-		}
+		return nil, err
+	} else if len(svcs) > 0 {
+		return nil, fmt.Errorf("deployment ID %s is already in use", deploymentID)
 	}
 
 	//now that we know the template name, set it in the status
@@ -215,153 +210,193 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	pool, err := f.GetResourcePool(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Unable to load resource pool: %s", poolID)
-		return "", err
+		return nil, err
 	}
 	if pool == nil {
-		return "", fmt.Errorf("poolid %s not found", poolID)
+		return nil, fmt.Errorf("poolid %s not found", poolID)
 	}
 
 	UpdateDeployTemplateStatus(deploymentID, "deploy_pulling_images")
 	if err := pullTemplateImages(template); err != nil {
 		glog.Errorf("Unable to pull one or more images")
-		return "", err
+		return nil, err
 	}
 
-	volumes := make(map[string]string)
-	var tenantID string
-	err = f.deployServiceDefinitions(ctx, template.Services, poolID, "", volumes, deploymentID, &tenantID)
+	tenantIDs := make([]string, len(template.Services))
+	for i, sd := range template.Services {
+		glog.Infof("Deploying application %s to %s", sd.Name, deploymentID)
+		var err error
+		if tenantIDs[i], err = f.deployService(ctx, "", "", deploymentID, poolID, false, sd); err != nil {
+			glog.Errorf("Could not deploy application %s to %s: %s", sd.Name, deploymentID, err)
+			return nil, err
+		}
+	}
 
-	return tenantID, err
+	return tenantIDs, nil
 }
 
-func (f *Facade) DeployService(ctx datastore.Context, parentID string, sd servicedefinition.ServiceDefinition) (string, error) {
-	parent, err := service.NewStore().Get(ctx, parentID)
+// DeployService converts a service definition to a service and deploys it under
+// a specific service.  If the overwrite option is enabled, existing services
+// with the same name will be overwritten, otherwise services may only be added.
+func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+	store := f.serviceStore
+
+	// get the parent service
+	svc, err := store.Get(ctx, parentID)
 	if err != nil {
-		return "", fmt.Errorf("could not get parent '%s': %s", parentID, err)
-	}
-
-	tenantId, err := f.GetTenantID(ctx, parentID)
-	if err != nil {
-		return "", fmt.Errorf("getting tenant id: %s", err)
-	}
-
-	volumes := make(map[string]string)
-	return f.deployServiceDefinition(ctx, sd, parent.PoolID, parentID, volumes, parent.DeploymentID, &tenantId)
-}
-
-func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) (string, error) {
-	// Always deploy in stopped state, starting is a separate step
-	ds := int(service.SVCStop)
-
-	exportedVolumes := make(map[string]string)
-	for k, v := range volumes {
-		exportedVolumes[k] = v
-	}
-	svc, err := service.BuildService(sd, parentServiceID, pool, ds, deploymentId)
-	if err != nil {
+		glog.Errorf("Could not get parent service %s: %s", parentID, err)
 		return "", err
 	}
 
-	UpdateDeployTemplateStatus(deploymentId, "deploy_loading_service|"+svc.Name)
-	getSvc := func(svcID string) (service.Service, error) {
-		svc, err := f.GetService(ctx, svcID)
-		return *svc, err
-	}
-	findChild := func(svcID, childName string) (service.Service, error) {
-		svc, err := f.FindChildService(ctx, svcID, childName)
-		return *svc, err
-	}
-
-	//for each endpoint, evaluate its Application
-	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
-		return "", err
-	}
-
-	//for each endpoint, evaluate its Application
-	if err = svc.EvaluateEndpointTemplates(getSvc, findChild); err != nil {
-		return "", err
-	}
-
-	if parentServiceID == "" {
-		*tenantId = svc.ID
-	}
-
-	// Using the tenant id, tag the base image with the tenantID
-	if svc.ImageID != "" {
-		UpdateDeployTemplateStatus(deploymentId, "deploy_renaming_image|"+svc.Name)
-		name, err := renameImageID(f.dockerRegistry, svc.ImageID, *tenantId)
-		if err != nil {
-			glog.Errorf("malformed imageId: %s", svc.ImageID)
+	// Do some pool validation
+	if poolID != "" {
+		// check the pool ID
+		if pool, err := f.GetResourcePool(ctx, poolID); err != nil {
+			glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
+			return "", err
+		} else if pool == nil {
+			err := fmt.Errorf("pool not found")
+			glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
 			return "", err
 		}
-
-		_, err = docker.FindImage(name, false)
-		if err != nil {
-			if err != docker.ErrNoSuchImage && !strings.HasPrefix(err.Error(), "No such id:") {
-				glog.Error(err)
-				return "", err
-			}
-			UpdateDeployTemplateStatus(deploymentId, "deploy_loading_image|"+name)
-			image, err := docker.FindImage(svc.ImageID, false)
-			if err != nil {
-				msg := fmt.Errorf("could not look up image %s: %s. Check your docker login and retry application deployment.", svc.ImageID, err)
-				glog.Error(err.Error())
-				return "", msg
-			}
-			UpdateDeployTemplateStatus(deploymentId, "deploy_tagging_image|"+name)
-			if _, err := image.Tag(name); err != nil {
-				glog.Errorf("could not tag image: %s (%v)", image.ID, err)
-				return "", err
-			}
-		}
-		svc.ImageID = name
+	} else {
+		// If the poolID is not specified, default to use the parent service's poolID
+		poolID = svc.PoolID // I am going to assume that the pool on the parent service is correct
 	}
 
-	err = f.AddService(ctx, *svc)
-	if err != nil {
+	// get the tenant id
+	tenantID := svc.ID
+	if svc.ParentServiceID != "" {
+		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil { // make this call a little cheaper
+			glog.Errorf("Could not get tenant for %s (%s): %s", svc.Name, svc.ID, err)
+			return "", err
+		}
+	}
+
+	// check the images
+	if err := checkImages(make(map[string]struct{}), svcDef); err != nil {
+		glog.Errorf("Error while validating image IDs: %s", err)
 		return "", err
 	}
 
-	return svc.ID, f.deployServiceDefinitions(ctx, sd.Services, pool, svc.ID, exportedVolumes, deploymentId, tenantId)
+	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef)
 }
 
-func (f *Facade) deployServiceDefinitions(ctx datastore.Context, sds []servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) error {
-	// ensure that all images in the templates exist
-	imageIds := make(map[string]struct{})
-	for _, svc := range sds {
-		getSubServiceImageIDs(imageIds, svc)
+func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+	// create the new service object
+	newsvc, err := service.BuildService(svcDef, parentServiceID, poolID, int(service.SVCStop), deploymentID)
+	if err != nil {
+		glog.Errorf("Could not create service: %s", err)
+		return "", err
 	}
 
-	for imageId, _ := range imageIds {
-		_, err := docker.FindImage(imageId, false)
-		if err != nil {
-			msg := fmt.Errorf("could not look up image %s: %s. Check your docker login and retry service deployment.", imageId, err)
-			glog.Error(err.Error())
-			return msg
+	UpdateDeployTemplateStatus(deploymentID, "deploy_loading_service|"+newsvc.Name)
+	//for each endpoint, evaluate its Application
+	getService := func(serviceID string) (service.Service, error) {
+		s, err := f.GetService(ctx, serviceID)
+		return *s, err
+	}
+	findChildService := func(parentID, serviceName string) (service.Service, error) {
+		s, err := f.FindChildService(ctx, parentID, serviceName)
+		return *s, err
+	}
+	if err = newsvc.EvaluateEndpointTemplates(getService, findChildService); err != nil {
+		glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
+		return "", err
+	}
+
+	// set the imageID
+	if tenantID == "" {
+		tenantID = newsvc.ID
+	}
+	if err := setImageID(f.dockerRegistry, tenantID, newsvc); err != nil {
+		glog.Errorf("Could not set image id for service %s at parent %s: %s", newsvc.Name, newsvc.ParentServiceID)
+		return "", err
+	}
+
+	// find the service
+	store := f.serviceStore
+	if svc, err := store.FindChildService(ctx, newsvc.ParentServiceID, newsvc.Name); err != nil {
+		glog.Errorf("Could not look up child service for %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
+		return "", err
+	} else if svc != nil {
+		if overwrite {
+			newsvc.ID = svc.ID
+			newsvc.CreatedAt = svc.CreatedAt
+			if err := f.UpdateService(ctx, *newsvc); err != nil {
+				glog.Errorf("Could not overwrite service %s (%s): %s", newsvc.Name, newsvc.ID, err)
+				return "", err
+			}
+		} else {
+			err := fmt.Errorf("service exists")
+			glog.Errorf("Service %s found at %s", newsvc.Name, newsvc.ID)
+			return "", err
+		}
+	} else {
+		if err := f.AddService(ctx, *newsvc); err != nil {
+			glog.Errorf("Could not add service %s (%s) at %s: %s", newsvc.Name, newsvc.ID, parentServiceID, err)
+			return "", err
 		}
 	}
 
-	for _, sd := range sds {
-		if _, err := f.deployServiceDefinition(ctx, sd, pool, parentServiceID, volumes, deploymentId, tenantId); err != nil {
+	// walk child services
+	for _, sd := range svcDef.Services {
+		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd); err != nil {
+			glog.Errorf("Error while trying to deploy %s at %s (%s): %s", sd.Name, newsvc.Name, newsvc.ID, err)
+			return newsvc.ID, err
+		}
+	}
+	return newsvc.ID, nil
+}
+
+func checkImages(imap map[string]struct{}, svcdef servicedefinition.ServiceDefinition) error {
+	if _, ok := imap[svcdef.ImageID]; !ok {
+		if _, err := docker.FindImage(svcdef.ImageID, false); err != nil {
+			glog.Errorf("Could not get image %s: %s", svcdef.ImageID, err)
+			return err
+		}
+		imap[svcdef.ImageID] = struct{}{}
+	}
+	for _, childDef := range svcdef.Services {
+		if err := checkImages(imap, childDef); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func getSubServiceImageIDs(ids map[string]struct{}, svc servicedefinition.ServiceDefinition) {
-	found := struct{}{}
+func setImageID(registry, tenantID string, svc *service.Service) error {
+	if svc.ImageID == "" {
+		return nil
+	}
 
-	if len(svc.ImageID) != 0 {
-		ids[svc.ImageID] = found
+	UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_renaming_image|"+svc.Name)
+	imageID, err := renameImageID(registry, svc.ImageID, tenantID)
+	if err != nil {
+		glog.Errorf("malformed imageID %s: %s", svc.ImageID, err)
+		return err
 	}
-	for _, s := range svc.Services {
-		getSubServiceImageIDs(ids, s)
+
+	if _, err := docker.FindImage(imageID, false); err == docker.ErrNoSuchImage {
+		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_loading_image|"+svc.Name)
+		// tagged image not found, so look for the base image
+		image, err := docker.FindImage(svc.ImageID, false)
+		if err != nil {
+			glog.Errorf("Could not search for image %s: %s", svc.ImageID, err)
+			return err
+		}
+		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_tagging_image|"+svc.Name)
+		// now tag the image
+		if _, err := image.Tag(imageID); err != nil {
+			glog.Errorf("Could not add tag %s to image %s: %s", imageID, svc.ImageID, err)
+			return err
+		}
 	}
+	svc.ImageID = imageID
+	return nil
 }
 
 func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
-
 	repo, _ := parsers.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
 	matches := re.FindStringSubmatch(repo)

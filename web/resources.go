@@ -105,8 +105,8 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 		restBadRequest(w, err)
 		return
 	}
-	var tenantID string
-	err = client.DeployTemplate(payload, &tenantID)
+	var tenantIDs []string
+	err = client.DeployTemplate(payload, &tenantIDs)
 	if err != nil {
 		glog.Error("Could not deploy template: ", err)
 		restServerError(w, err)
@@ -114,16 +114,16 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 	glog.V(0).Info("Deployed template ", payload)
 
-	assignmentRequest := dao.AssignmentRequest{tenantID, "", true}
-	if err := client.AssignIPs(assignmentRequest, nil); err != nil {
-		glog.Error("Could not automatically assign IPs: %v", err)
-		return
+	for _, tenantID := range tenantIDs {
+		assignmentRequest := dao.AssignmentRequest{tenantID, "", true}
+		if err := client.AssignIPs(assignmentRequest, nil); err != nil {
+			glog.Error("Could not automatically assign IPs: %v", err)
+			continue
+		}
+		glog.Infof("Automatically assigned IP addresses to service: %v", tenantID)
+		// end of automatic IP assignment
+		w.WriteJson(&simpleResponse{tenantID, servicesLinks()})
 	}
-
-	glog.Infof("Automatically assigned IP addresses to service: %v", tenantID)
-	// end of automatic IP assignment
-
-	w.WriteJson(&simpleResponse{tenantID, servicesLinks()})
 }
 
 func restDeployAppTemplateStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

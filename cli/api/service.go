@@ -167,7 +167,7 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	}
 
 	var serviceID string
-	if err := client.DeployService(dao.ServiceDeploymentRequest{config.ParentServiceID, *sd}, &serviceID); err != nil {
+	if err := client.DeployService(dao.ServiceDeploymentRequest{ParentID: config.ParentServiceID, Service: *sd}, &serviceID); err != nil {
 		return nil, err
 	}
 
