@@ -75,6 +75,11 @@ func (vs *ScriptSuite) Test_use(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(cmd, DeepEquals, node{cmd: USE, line: line, args: []string{"zenoss/resmgr-stable:5.0.1"}})
 
+	ctx.line = "USE zenoss/resmgr_5.0:5.0.4"
+	cmd, err = nodeFactories[USE](ctx, USE, []string{"zenoss/resmgr_5.0:5.0.4"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: USE, line: ctx.line, args: []string{"zenoss/resmgr_5.0:5.0.4"}})
+
 	ctx.line = "USE zenoss/resmgr-stable:5.0.1 blam"
 	cmd, err = nodeFactories[USE](ctx, USE, []string{"USE zenoss/resmgr-stable:5.0.1", "blam"})
 	t.Assert(err, NotNil)
