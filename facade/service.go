@@ -43,7 +43,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 
 	// verify the service with parent ID does not exist with the given name
-	if s, err := store.FindChildService(ctx, svc.ParentServiceID, svc.Name); err != nil {
+	if s, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
 		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
 		return err
 	} else if s != nil {
@@ -324,7 +324,16 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
 	glog.V(3).Infof("Facade.FindChildService")
 	store := f.serviceStore
-	return store.FindChildService(ctx, serviceId, childName)
+	parentService, err := store.Get(ctx, serviceId)
+	if err != nil {
+		glog.Errorf("Could not look up service %s: %s", serviceId, err)
+		return nil, err
+	} else if parentService == nil {
+		err := fmt.Errorf("parent does not exist")
+		return nil, err
+	}
+
+	return store.FindChildService(ctx, parentService.DeploymentID, serviceId, childName)
 }
 
 // ScheduleService changes a service's desired state and returns the number of affected services
@@ -1068,7 +1077,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	svcStore := f.serviceStore
 
 	// verify the service with name and parent does not collide with another existing service
-	if s, err := svcStore.FindChildService(ctx, svc.ParentServiceID, svc.Name); err != nil {
+	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
 		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
 		return err
 	} else if s != nil {

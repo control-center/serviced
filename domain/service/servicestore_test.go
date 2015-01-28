@@ -88,23 +88,27 @@ func (s *S) Test_ServiceCRUD(t *C) {
 }
 
 func (s *S) Test_FindChildService(t *C) {
-	svcIn := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto", ParentServiceID: "parent_svc_id"}
+	svcIn := &Service{ID: "svc_test_id", PoolID: "testPool", Name: "svc_name", Launch: "auto", ParentServiceID: "parent_svc_id", DeploymentID: "deployment_id"}
 	err := s.store.Put(s.ctx, svcIn)
 	t.Assert(err, IsNil)
 
-	svcOut, err := s.store.FindChildService(s.ctx, "parent_svc_id", "svc_name")
+	svcOut, err := s.store.FindChildService(s.ctx, "deployment_id", "parent_svc_id", "svc_name")
 	t.Assert(err, IsNil)
 	t.Assert(svcOut, NotNil)
 
-	svcOut, err = s.store.FindChildService(s.ctx, "parent_svc_id", "not_svc")
+	svcOut, err = s.store.FindChildService(s.ctx, "not_deployment", "parent_svc_id", "svc_name")
 	t.Assert(err, IsNil)
 	t.Assert(svcOut, IsNil)
 
-	svcOut, err = s.store.FindChildService(s.ctx, "not_parent", "svc_name")
+	svcOut, err = s.store.FindChildService(s.ctx, "deployment_id", "parent_svc_id", "not_svc")
 	t.Assert(err, IsNil)
 	t.Assert(svcOut, IsNil)
 
-	svcOut, err = s.store.FindChildService(s.ctx, "not_parent", "not_svc")
+	svcOut, err = s.store.FindChildService(s.ctx, "deployment_id", "not_parent", "svc_name")
+	t.Assert(err, IsNil)
+	t.Assert(svcOut, IsNil)
+
+	svcOut, err = s.store.FindChildService(s.ctx, "deployment_id", "not_parent", "not_svc")
 	t.Assert(err, IsNil)
 	t.Assert(svcOut, IsNil)
 }
