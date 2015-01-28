@@ -44,7 +44,7 @@ test: build test_js
 	go test $(GOTEST_FLAGS)
 
 .PHONY: test_js
-test_js:
+test_js: build_js
 	if [ -x "$(NODEJS)" ]; then \
 		npm install; \
 		gulp test; \
@@ -58,8 +58,7 @@ test_js:
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
 	fi
 
-.PHONY: build_js build-js
-build_js build-js:
+$(controlplane_JS): static/js/*.js static/js/**/*.js
 	if [ -x "$(NODEJS)" ]; then \
 		npm install; \
 		gulp release; \
@@ -72,6 +71,9 @@ build_js build-js:
 		zenoss/serviced-build \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
 	fi
+
+.PHONY: build_js build-js
+build_js build-js: $(controlplane_JS)
 
 .PHONY: clean
 clean:
