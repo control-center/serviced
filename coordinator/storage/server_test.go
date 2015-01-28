@@ -52,6 +52,10 @@ func (m *mockNfsDriverT) Sync() error {
 	return nil
 }
 
+func (m *mockNfsDriverT) Restart() error {
+	return nil
+}
+
 func TestServer(t *testing.T) {
 	t.Skip() // the zookeeper part doesnt work in this test, but does work in real life
 	zookeeper.EnsureZkFatjar()

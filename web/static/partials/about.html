@@ -3,10 +3,11 @@
 	<h3 style="margin-top: -10px;">Version {{version.Version}}</h3>
 	<br>
 	<table class="table" style="margin: auto; min-width: inherit;">
-		<tr ng-repeat="(key, value) in version">
-		    <td style="text-align: right; padding-right: 10px;"><strong>{{key}}:</strong></td>
-		    <td  style="text-align: left;">{{value}}</td>
+	    <tr ng-repeat="(key, value) in version">
+	        <td style="text-align: right; padding-right: 10px;"><strong>{{key}}:</strong></td>
+	        <td  style="text-align: left;">{{value}}</td>
 	    <tr>
+
 	</table>
-    <div><a href="/static/licenses.html" target="_blank">{{"view_licenses" | translate}}</a></div>
+    <div><a href="/licenses.html" target="_blank">{{"view_licenses"|translate}}</a></div>
 </div>

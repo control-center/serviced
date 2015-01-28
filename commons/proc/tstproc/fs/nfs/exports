@@ -1,0 +1,3 @@
+# Version 1.1
+# Path Client(Flags) # IPs
+/exports/serviced_var   *(rw,insecure,no_root_squash,async,wdelay,nohide,no_subtree_check,uuid=45a148e9:89326106:00000000:00000000,sec=1)
