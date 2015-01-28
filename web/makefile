@@ -43,34 +43,48 @@ test: build test_js
 	go test -i ;\
 	go test $(GOTEST_FLAGS)
 
-.PHONY: test_js
-test_js:
+# This task installs the necessary NPM packages.
+#	If the user has node installed locally, then run npm install locally.
+# 	Otherwise, rebuild the the serviced-build container which will execute 'npm install'
+#	 as part of the image, thereby caching the npm packages inside the docker image.
+npmInstall: ../build/package.json ../build/npmLink.sh
 	if [ -x "$(NODEJS)" ]; then \
+		./npmLink.sh; \
 		npm install; \
-		gulp test; \
 	else \
 		docker build -t zenoss/serviced-build ../build; \
+	fi
+
+../build/package.json: package.json
+	cp package.json ../build
+
+../build/npmLink.sh: npmLink.sh
+	cp npmLink.sh ../build
+
+.PHONY: test_js
+test_js: npmInstall
+	if [ -x "$(NODEJS)" ]; then \
+		gulp test; \
+	else \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
 		zenoss/serviced-build \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
 
 .PHONY: build_js build-js
-build_js build-js:
+build_js build-js: npmInstall
 	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
 		gulp release; \
 	else \
-		docker build -t zenoss/serviced-build ../build; \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
 		zenoss/serviced-build \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
 	fi
 
 .PHONY: clean

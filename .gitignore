@@ -52,6 +52,9 @@ isvcs/build/*.tar.gz
 *.iml
 *.test
 
+build/package.json
+build/npmLink.sh
+
 web/node_modules/
 web/static/js/controlplane.js
 web/static/js/controlplane.js.map
