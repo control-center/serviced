@@ -77,10 +77,20 @@ func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) 
 		return nil, err
 	}
 
+	dsts := map[string]string{}
+	for _, mnt := range defaultMounts {
+		parts := strings.Split(mnt, ",")
+		if len(parts) > 1 {
+			dsts[parts[1]] = parts[0] // dsts[dst] = src
+		}
+	}
+
 	mounts := defaultMounts
 	for hostPath, containerPath := range bindmounts {
-		bind := hostPath + "," + containerPath
-		mounts = append(mounts, bind)
+		if _, ok := dsts[containerPath]; !ok {
+			bind := hostPath + "," + containerPath
+			mounts = append(mounts, bind)
+		}
 	}
 
 	return mounts, nil
