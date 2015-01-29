@@ -121,17 +121,6 @@ func mainPage(w *rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
- * Provides content for /test
- */
-func testPage(w *rest.ResponseWriter, r *rest.Request) {
-	noCache(w)
-	http.ServeFile(
-		w.ResponseWriter,
-		r.Request,
-		staticRoot()+"/test/index.html")
-}
-
-/*
  * Provides content for /favicon.ico
  */
 func favIcon(w *rest.ResponseWriter, r *rest.Request) {
