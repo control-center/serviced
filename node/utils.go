@@ -347,7 +347,7 @@ elif [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /mnt/dfs/
 fi
 touch /mnt/dfs/%s
-sleep 5s
+sync
 `, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec, dotfile),
 	}
 
