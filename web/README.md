@@ -58,11 +58,10 @@ To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5
 
 To change a version of one of the other tools, edit [`serviced/web/package.json`](./package.json).
 
-**NOTE:** The npm ecosystem implements semantic versioning, but the npm packages tend to be very lenient on what they include, often using versioning specification that allows for newer versions.
-To have reproducible builds, we can NOT allow the tool chain to automatically rev some component from one build to the next.
-For that reason, all of the prerequisites versions in Dockerfile use explicit versions. To fix the tool versions for the other dependencies, we use the npm 'shrinkwrap' feature.
+**NOTE:** The npm ecosystem implements semantic versioning, but the npm packages tend to be very lenient on what they include, often using "latest" versions of their own dependencies.
+To have reproducible builds, we must ensure that dependency (and sub-dependency, etc) version numbers are locked down. Npm packages installed via Dockerfile and `package.json` use explicit versions, however to ensure that sub-dependencies don't ever default to "latest", we use the npm 'shrinkwrap' feature.
 
-Use the following procedure to `serviced/web/package.json`:
+**If a change is made to `serviced/web/package.json`, `npm-shrinkwrap.json` *must* be updated as well.** Use the following procedure to ensure newly installed dependencies are locked down:
 
 ```
 $ rm npm-shrinkwrap.json
@@ -75,7 +74,8 @@ $ npm install
 << build/test with the new changes>>
 
 $ npm shrinkwrap --dev
-$ git add package.json npm-shrinkwrap.json
+
+<< commit changes to package.json and npm-shrinkwrap.json >>
 ```
 
 ## Rebuilding thirdparty.js
