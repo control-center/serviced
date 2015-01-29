@@ -101,6 +101,9 @@ $ gulp release3rdparty
 << commit the changes to servcied/web/ui/static/thirdparty/* >>
 ```
 
+## Adding static files to the build image
+The JS build stages all necessary runtime files in `serviced/web/ui/build`. Make targets in [`serviced/makefile`](../../makefile) are responsible for copying the entire contents of `serviced/web/ui/build` into the RPM and Debian packages.  If you want to add/change/remove the files delivered in the runtime packages, you must modify the JS build to only stage the files you want. The gulp target `copyStatic` performs the actual copy operation. See the list of files in the variable `staticFiles` defined in [`gulpfile.js`](gulpfile.js).
+
 ## Unit-testing
 Control Center uses [Jasmine](http://jasmine.github.io/) as the unit-test framework and [Karma](http://karma-runner.github.io/) as the test runner. The Javascript unit-tests are run automatically as part of the CI build (i.e. they are run by `make test`).
 To run the tests manually for debugging, use the following steps (all of which assume that the pwd is `serviced/web/ui`)
