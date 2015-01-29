@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -310,13 +311,22 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	createVolumeDirMutex.Lock()
 	defer createVolumeDirMutex.Unlock()
 
+	dotfile := ".serviced.initialized"
+	dotfileHostPath := path.Join(hostPath, dotfile)
+	_, err := os.Stat(dotfileHostPath)
+	if err == nil {
+		glog.V(2).Infof("volume initialized earlier for src:%s dst:%s image:%s user:%s perm:%s", hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
+		return nil
+	}
+
+	starttime := time.Now()
+
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
 	// the file globbing checks that /mnt/dfs is empty before the copy - should initially be empty
 	//    we don't want the copy to occur multiple times if restarting services.
 
-	var err error
 	var output []byte
 	command := [...]string{
 		"docker", "run",
@@ -336,14 +346,17 @@ if [ ! -d "%s" ]; then
 elif [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /mnt/dfs/
 fi
-sleep 5s
-`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec),
+touch /mnt/dfs/%s
+sync
+`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec, dotfile),
 	}
 
 	for i := 0; i < 1; i++ {
 		docker := exec.Command(command[0], command[1:]...)
 		output, err = docker.CombinedOutput()
 		if err == nil {
+			duration := time.Now().Sub(starttime)
+			glog.V(2).Infof("volume init took %s for src:%s dst:%s image:%s user:%s perm:%s", duration, hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
 			return nil
 		}
 		time.Sleep(time.Second)
