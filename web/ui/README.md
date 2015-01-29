@@ -48,9 +48,9 @@ If you want to install them locally, refer to the commands in [`serviced/build/D
   * [gulp](http://gulpjs.com/) - a Javascript build tool
   * [6to5](https://6to5.org/) - a Javascript 6 to 5 cross compiler
 
-Once the pre-requisite build tools are installed, all other components of the JS tool chain are downloaded by NPM based on the definitions in [`serviced/web/package.json`](./package.json).  If you build with make, this download happens automatically. If you are not building with make, you will need to run the command `npm install` once to download the rest of the tool chain.
+Once the pre-requisite build tools are installed, all other components of the JS tool chain are downloaded by npm based on the definitions in [`serviced/web/package.json`](./package.json).  If you build with make, this download happens automatically. If you are not building with make, you will need to run the command `npm install` once to download the rest of the tool chain.
 
-**NOTE:** NPM will cache everything it downloads in `serviced/web/node_modules`.  In the unlikely event, you encoutner a problem with
+**NOTE:** npm will cache everything it downloads in `serviced/web/node_modules`.  In the unlikely event, you encoutner a problem with
 incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).
 
 ### Updating dev tool versions
@@ -58,9 +58,25 @@ To change a version of one of the prerequisite tools (node.js, npm, gulp or 6to5
 
 To change a version of one of the other tools, edit [`serviced/web/package.json`](./package.json).
 
-**NOTE:** The npm ecosystem implements semantic versioning, but the npm packages tend to be very lenient on what they include, often using versioning specification that allows for newer versions.
-To have reproducible builds, we can allow the tool chain to automatically rev some component from one build to the next.
-For that reason, all of the prerequisites versions in Dockerfile use explicit versions. To fix the tool change for the other dependencies, we use the NPM package __TBD__.
+**NOTE:** The npm ecosystem implements semantic versioning, but the npm packages tend to be very lenient on what they include, often using "latest" versions of their own dependencies.
+To have reproducible builds, we must ensure that dependency (and sub-dependency, etc) version numbers are locked down. Npm packages installed via Dockerfile and `package.json` use explicit versions, however to ensure that sub-dependencies don't ever default to "latest", we use the npm 'shrinkwrap' feature.
+
+**If a change is made to `serviced/web/package.json`, `npm-shrinkwrap.json` *must* be updated as well.** Use the following procedure to ensure newly installed dependencies are locked down:
+
+```
+$ rm npm-shrinkwrap.json
+$ rm -rf node_modules
+
+<< make your changes to package.json >>
+
+$ npm install
+
+<< build/test with the new changes>>
+
+$ npm shrinkwrap --dev
+
+<< commit changes to package.json and npm-shrinkwrap.json >>
+```
 
 ## Rebuilding thirdparty.js
 All of the thirdparty JS libraries used by Control Center are concatenated and minififed into a single file, `serviced/web/static/lib/thirdparty.js`.  Since the concatenation/minification process takes ~10 seconds and the set of third-party libraries does not change very often, the thirdparty.js file is NOT rebuilt as part of the regular build process.
