@@ -149,7 +149,7 @@ build_isvcs: $(Godeps_restored)
 
 .PHONY: build_js
 build_js:
-	cd web && make build_js
+	cd web/ui && make build
 
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
@@ -466,7 +466,7 @@ docker_ok:
 
 .PHONY: clean_js
 clean_js:
-	cd web && make clean
+	cd web/ui && make clean
 
 .PHONY: clean_serviced
 clean_serviced:
