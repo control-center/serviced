@@ -54,7 +54,7 @@ If you want to install them locally, refer to the commands in [`serviced/build/D
 
 Once the pre-requisite build tools are installed, all other components of the JS tool chain are downloaded by npm based on the definitions in [`serviced/web/ui/package.json`](./package.json).  If you build with make, this download happens automatically. If you are not building with make, you will need to run the command `npm install` once to download the rest of the tool chain.
 
-**NOTE:** npm will cache everything it downloads in `serviced/web/ui/node_modules`.  In the unlikely event, you encoutner a problem with
+**NOTE:** npm will cache everything it downloads in `serviced/web/ui/node_modules`.  In the unlikely event, you encounter a problem with
 incompatible tool versions, you may have to delete this directory and download a fresh set of dependencies by rerunning the make (or running `npm install` if you have installed npm on your local).
 
 ### Updating dev tool versions
@@ -68,8 +68,6 @@ To have reproducible builds, we must ensure that dependency (and sub-dependency,
 **If a change is made to `serviced/web/ui/package.json`, `npm-shrinkwrap.json` *must* be updated as well.** Use the following procedure to ensure newly installed dependencies are locked down:
 
 ```
-$ zendev use europa
-$ zendev cd serviced
 $ cd web/ui
 $ rm npm-shrinkwrap.json
 $ rm -rf node_modules
@@ -92,8 +90,6 @@ This file must be constructed manually anytime a third-party JS library is added
 ```
 << update the library/libraries in serviced/web/ui/static/thirdparty as necessary >>
 
-$ zendev use europa
-$ zendev cd serviced
 $ cd web/ui
 $ gulp release3rdparty
 
@@ -112,8 +108,6 @@ To run the tests manually for debugging, use the following steps (all of which a
 The default gulp target will lint, compile and concatenate the code in `serviced/web/ui/src`. The default target will NOT minify the results (`gulp release` includes minification for production builds).
 
   ```
-  $ zendev use europa
-  $ zendev cd serviced
   $ cd web/ui
   $ gulp
   ```
