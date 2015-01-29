@@ -310,6 +310,8 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	createVolumeDirMutex.Lock()
 	defer createVolumeDirMutex.Unlock()
 
+	starttime := time.Now()
+
 	// FIXME: this relies on the underlying container to have /bin/sh that supports
 	// some advanced shell options. This should be rewriten so that serviced injects itself in the
 	// container and performs the operations using only go!
@@ -336,7 +338,7 @@ if [ ! -d "%s" ]; then
 elif [ ${#files[@]} -eq 0 ]; then
 	cp -rp %s/* /mnt/dfs/
 fi
-sleep 5s
+sync
 `, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec),
 	}
 
@@ -344,6 +346,8 @@ sleep 5s
 		docker := exec.Command(command[0], command[1:]...)
 		output, err = docker.CombinedOutput()
 		if err == nil {
+			duration := time.Now().Sub(starttime)
+			glog.V(2).Infof("volume init took %s for src:%s dst:%s image:%s user:%s perm:%s", duration, hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
 			return nil
 		}
 		time.Sleep(time.Second)
