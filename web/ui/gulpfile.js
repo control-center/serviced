@@ -12,10 +12,10 @@ var gulp = require("gulp"),
 
 var paths = {
     // TODO - organize by feature, not type
-    src: "static/js/",
-    controllers: "static/js/controllers/",
-    modules: "static/js/modules/",
-    build: "static/js/",
+    src: "src/",
+    controllers: "src/controllers/",
+    modules: "src/modules/",
+    build: "build/js/",
     thirdpartySrc: "static/thirdparty/",
     thirdpartyBuild: "static/thirdparty/"
 };
