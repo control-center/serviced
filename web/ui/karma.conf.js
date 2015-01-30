@@ -17,11 +17,11 @@ module.exports = function(config) {
     files: [
       'static/lib/thirdparty.js',
       'static/lib/angular/angular-mocks.js',
-      'static/test/mainTest.js',
-      'static/test/*/*Mock.js',
-      'static/test/*/*Spec.js',
-      'static/js/controllers/*.js',
-      'static/js/modules/*.js'
+      'test/mainTest.js',
+      'test/*/*Mock.js',
+      'test/*/*Spec.js',
+      'src/controllers/*.js',
+      'src/modules/*.js'
     ],
 
 
@@ -33,8 +33,8 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-        'static/js/controllers/*.js': 'coverage',
-        'static/js/modules/*.js': 'coverage'
+        'src/controllers/*.js': 'coverage',
+        'src/modules/*.js': 'coverage'
     },
 
 
@@ -74,7 +74,7 @@ module.exports = function(config) {
     // Junit-style reports that can be displayed in Jenkins
     // For more info, see https://www.npmjs.com/package/karma-junit-reporter
     junitReporter: {
-      outputFile: 'static/test/results/results.xml',
+      outputFile: 'test/results/results.xml',
       suite: ''
     },
 
@@ -83,7 +83,7 @@ module.exports = function(config) {
     // For more info, see http://karma-runner.github.io/0.8/config/coverage.html
     coverageReporter: {
       // specify a common output directory
-      dir: 'static/test/results/coverage',
+      dir: 'test/results/coverage',
       reporters: [
         { type: 'html', subdir: 'html' },   // use for local dev review
         { type: 'cobertura', subdir: 'cobertura' }  // for integration with Jenkins

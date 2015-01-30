@@ -121,17 +121,6 @@ func mainPage(w *rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
- * Provides content for /test
- */
-func testPage(w *rest.ResponseWriter, r *rest.Request) {
-	noCache(w)
-	http.ServeFile(
-		w.ResponseWriter,
-		r.Request,
-		staticRoot()+"/test/index.html")
-}
-
-/*
  * Provides content for /favicon.ico
  */
 func favIcon(w *rest.ResponseWriter, r *rest.Request) {
@@ -281,8 +270,9 @@ func noCache(w *rest.ResponseWriter) {
  */
 func staticRoot() string {
 	if len(webroot) == 0 {
-		_, filename, _, _ := runtime.Caller(1)
-		return path.Join(path.Dir(filename), "static")
+		// this should only be the case when running locally for dev out of the serviced directory
+		_, thisFilename, _, _ := runtime.Caller(0)
+		return path.Join(path.Dir(thisFilename), "ui/build")
 	}
 	return webroot
 }

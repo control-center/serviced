@@ -149,7 +149,7 @@ build_isvcs: $(Godeps_restored)
 
 .PHONY: build_js
 build_js:
-	cd web && make build_js
+	cd web/ui && make build
 
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
@@ -245,7 +245,7 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
 $(_DESTDIR)$(prefix)/doc_TARGETS                  += doc/licenses.html:.
-$(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
+$(_DESTDIR)$(prefix)/share/web_TARGETS             = web/ui/build:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
 $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
 $(_DESTDIR)$(prefix)/share/shell_INSTOPT           = -R
@@ -466,7 +466,7 @@ docker_ok:
 
 .PHONY: clean_js
 clean_js:
-	cd web && make clean
+	cd web/ui && make clean
 
 .PHONY: clean_serviced
 clean_serviced:

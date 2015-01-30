@@ -12,79 +12,24 @@
 # limitations under the License.
 
 GO = $(shell which go)
-UID = $(shell id -u)
-GID = $(shell id -g)
-PWD = $(shell pwd)
-
-javascript_BLDDIR        = $(PWD)/static/js
-controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
-controlplane_MINIFIED_JS = $(javascript_BLDDIR)/controlplane.min.js
-javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS)
-
-javascript_tests_BLDDIR = $(PWD)/static/test/results
-
-javascript_TARGETS = $(controlplane_JS) $(controlplane_MINIFIED_JS) \
-	$(javascript_tests_BLDDIR)
-
-NODEJS = $(shell which node)
-docker_working_DIR = "/mnt"
-
 
 .PHONY: default
 default: build
 
 .PHONY: build
-build: build_js
+build:
+	cd ui && make build
 	./godep restore
 	go build
 
 .PHONY: test
-test: build test_js
+test: build
+	cd ui && make test
 	go test -i ;\
-	go test $(GOTEST_FLAGS)
-
-.PHONY: test_js
-test_js: build_js
-	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
-		gulp test; \
-	else \
-		docker build -t zenoss/serviced-build ../build; \
-		docker run --rm \
-		-v $(PWD):$(docker_working_DIR) \
-		-e UID_X=$(shell id -u) \
-		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
-	fi
-
-$(controlplane_JS): static/js/*.js static/js/**/*.js
-	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
-		gulp release; \
-	else \
-		docker build -t zenoss/serviced-build ../build; \
-		docker run --rm \
-		-v $(PWD):$(docker_working_DIR) \
-		-e UID_X=$(shell id -u) \
-		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
-	fi
-
-.PHONY: build_js build-js
-build_js build-js: $(controlplane_JS)
 
 .PHONY: clean
 clean:
+	cd ui && make clean
 	if [ ! -z "$(GO)" ];then \
 		$(GO) clean ;\
 	fi
-	for target in $(javascript_TARGETS) ;\
-	do \
-		if [ -d "$${target}" ];then \
-			rm -rf $${target} ;\
-		elif [ -f "$${target}" ];then \
-			rm -f $${target} ;\
-		fi ;\
-	done

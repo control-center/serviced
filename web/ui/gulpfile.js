@@ -12,10 +12,12 @@ var gulp = require("gulp"),
 
 var paths = {
     // TODO - organize by feature, not type
-    src: "static/js/",
-    controllers: "static/js/controllers/",
-    modules: "static/js/modules/",
-    build: "static/js/",
+    src: "src/",
+    srcBuild: "build/js/",
+    controllers: "src/controllers/",
+    modules: "src/modules/",
+    staticSrc: "static/",
+    staticBuild: "build/",
     thirdpartySrc: "static/thirdparty/",
     thirdpartyBuild: "static/thirdparty/"
 };
@@ -78,11 +80,32 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular-ui-codemirror/ui-codemirror.js",
 ];
 
+// Enumerate the static assets (including thirdparty.js) so that the RPM/DEB
+//      packages only install what we really need
+var staticFiles = [
+    paths.staticSrc + '*.*',
+    paths.staticSrc + 'css/**/*.*',
+    paths.staticSrc + 'doc/**/*.*',
+    paths.staticSrc + 'fonts/**/*.*',
+    paths.staticSrc + 'help/**/*.*',
+    paths.staticSrc + 'i18n/**/*.*',
+    paths.staticSrc + 'ico/**/*.*',
+    paths.staticSrc + 'img/**/*.*',
+    paths.staticSrc + 'lib/bootstrap/dist/**/*.*',
+    paths.staticSrc + 'lib/codemirror/lib/*.css',
+    paths.staticSrc + 'lib/jquery-ui/themes/base/*.*',
+    paths.staticSrc + 'lib/jquery-datetimepicker/*.css',
+    paths.staticSrc + 'lib/thirdparty.*',
+    paths.staticSrc + 'logview/**/*.*',
+    paths.staticSrc + 'partials/**/*.*',
+    paths.staticSrc + 'scripts/**/*.*',
+];
+
 gulp.task("default", ["concat"]);
 gulp.task("release", function(){
     // last arg is a callback function in case
     // of an error.
-    sequence("lint", "concat", "uglify", function(){});
+    sequence("lint", "concat", "uglify", "copyStatic", function(){});
 });
 
 // this needs to run 3rd party code is
@@ -97,7 +120,7 @@ gulp.task("concat", function(){
             .pipe(to5(to5Config))
             .pipe(concat("controlplane.js"))
         .pipe(sourcemaps.write("./", { sourceRoot: "src" }))
-        .pipe(gulp.dest(paths.build));
+        .pipe(gulp.dest(paths.srcBuild));
 });
 
 gulp.task("uglify", function(){
@@ -105,7 +128,7 @@ gulp.task("uglify", function(){
         .pipe(sourcemaps.init({loadMaps: true}))
             .pipe(uglify())
         .pipe(sourcemaps.write("./"))
-        .pipe(gulp.dest(paths.build));
+        .pipe(gulp.dest(paths.srcBuild));
 });
 
 gulp.task("concat3rdparty", function(){
@@ -122,6 +145,11 @@ gulp.task("uglify3rdparty", function(){
             .pipe(uglify())
         .pipe(sourcemaps.write("./"))
         .pipe(gulp.dest(paths.thirdpartyBuild));
+});
+
+gulp.task("copyStatic", function() {
+    return gulp.src(staticFiles, {base: paths.staticSrc})
+        .pipe(gulp.dest(paths.staticBuild));
 });
 
 gulp.task("watch", function(){

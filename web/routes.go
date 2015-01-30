@@ -25,7 +25,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 	routes := []rest.Route{
 		rest.Route{"GET", "/", gz(mainPage)},
-		rest.Route{"GET", "/test", gz(testPage)},
 		rest.Route{"GET", "/stats", gz(sc.isCollectingStats())},
 		rest.Route{"GET", "/version", gz(sc.authorizedClient(restGetServicedVersion))},
 		rest.Route{"GET", "/backup/create", gz(sc.authorizedClient(RestBackupCreate))},
