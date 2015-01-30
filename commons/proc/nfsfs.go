@@ -130,7 +130,7 @@ func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
 		line := scanner.Text()
 
 		linenum++
-		glog.V(4).Infof("%d: %s", linenum, line)
+		glog.V(2).Infof("%d: %s", linenum, line)
 		if linenum < 2 {
 			continue
 		} else if strings.HasPrefix(line, "#") {
@@ -146,17 +146,19 @@ func GetProcNFSFSVolumes() ([]ProcNFSFSVolume, error) {
 		default:
 			return nil, fmt.Errorf("expected 6 fields, got %d: %s", len(fields), line)
 		}
+
+		parts := strings.Split(fields[4], ":")
 		svr := ProcNFSFSVolume{
 			Version:  fields[0],
 			ServerID: fields[1],
 			Port:     fields[2],
 			DeviceID: fields[3],
-			FSID:     fields[4],
+			FSID:     parts[0],
 			FSCache:  fields[5],
 		}
 		volumes = append(volumes, svr)
 	}
-	glog.V(4).Infof("nfsfs volumes: %+v", volumes)
+	glog.V(2).Infof("nfsfs volumes: %+v", volumes)
 	return volumes, nil
 }
 
@@ -168,7 +170,7 @@ func GetProcNFSFSVolume(deviceid string) (*ProcNFSFSVolume, error) {
 	}
 
 	for idx := range volumes {
-		glog.V(4).Infof("volume: %+v", volumes[idx])
+		glog.V(2).Infof("volume: %+v", volumes[idx])
 		if deviceid == volumes[idx].DeviceID {
 			return &volumes[idx], nil
 		}
