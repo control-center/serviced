@@ -15,6 +15,7 @@ UID = $(shell id -u)
 GID = $(shell id -g)
 PWD = $(shell pwd)
 
+serviced_build_DOCKERFILE = ../../build
 javascript_BLDDIR   = $(PWD)/build/js
 controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
@@ -33,7 +34,7 @@ $(controlplane_JS): src/*.js src/**/*.js
 		npm install; \
 		gulp release; \
 	else \
-		docker build -t zenoss/serviced-build ../build; \
+		docker build -t zenoss/serviced-build $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
@@ -48,7 +49,7 @@ test: build
 		npm install; \
 		gulp test; \
 	else \
-		docker build -t zenoss/serviced-build ../build; \
+		docker build -t zenoss/serviced-build $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
