@@ -317,15 +317,15 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	}
 
 	// map service id to service
-	current, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID:tenantID})
+	current, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return err
 	}
 
 	currentServices := make(map[string]*service.Service)
-	for _, svc := range current {
-		currentServices[svc.ID] = &svc
+	for i, svc := range current {
+		currentServices[svc.ID] = &current[i]
 	}
 
 	// updates all of the services
@@ -355,12 +355,14 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 			}
 
 			if _, ok := currentServices[serviceID]; ok {
+				glog.Infof("Updating service %s (%s)", svc.Name, svc.ID)
 				if err := dfs.facade.UpdateService(datastore.Get(), svc); err != nil {
 					glog.Errorf("Could not update service %s: %s", svc.ID, err)
 					return err
 				}
 				delete(currentServices, serviceID)
 			} else {
+				glog.Infof("Adding service %s (%s)", svc.Name, svc.ID)
 				if err := dfs.facade.AddService(datastore.Get(), svc); err != nil {
 					glog.Errorf("Could not add service %s: %s", serviceID, err)
 					return err
@@ -384,9 +386,36 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 		return err
 	}
 
-	for serviceID := range currentServices {
-		if err := dfs.facade.RemoveService(datastore.Get(), serviceID); err != nil {
-			glog.Errorf("Could not remove service %s: %s", serviceID, err)
+	// delete remaining services hierarchically
+	deleted := make(map[string]struct{}) // list of services that have been deleted
+
+	// if the parent is to be deleted, then delete that first because that
+	// will recursively delete the children and limit the number of calls to
+	// the facade
+	var rmsvc func(*service.Service) error
+	rmsvc = func(s *service.Service) error {
+		if _, ok := deleted[s.ID]; ok {
+			// service has already been deleted
+			return nil
+		} else if p, ok := currentServices[s.ParentServiceID]; ok {
+			// if the parent needs to be deleted, delete the parent first
+			if err := rmsvc(p); err != nil {
+				return err
+			}
+		} else {
+			// otherwise just delete the node
+			glog.Infof("Removing service %s (%s)", s.Name, s.ID)
+			if err := dfs.facade.RemoveService(datastore.Get(), s.ID); err != nil {
+				glog.Errorf("Could not remove service %s (%s): %s", s.Name, s.ID, err)
+				return err
+			}
+		}
+		// update the list of deleted services
+		deleted[s.ID] = struct{}{}
+		return nil
+	}
+	for _, svc := range currentServices {
+		if err := rmsvc(svc); err != nil {
 			return err
 		}
 	}

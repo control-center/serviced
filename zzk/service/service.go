@@ -158,7 +158,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		select {
 		case <-lockEvent:
 			// passthrough
-			glog.Infof("Receieved a lock event, resyncing")
+			glog.V(3).Infof("Receieved a lock event, resyncing")
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
