@@ -25,7 +25,7 @@ build:
 .PHONY: test
 test: build
 	cd ui && make test
-	go test -i ;\
+	go test $(GOTEST_FLAGS)
 
 .PHONY: clean
 clean:
