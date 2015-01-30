@@ -343,7 +343,7 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	if desiredState.String() == "unknown" {
 		return 0, fmt.Errorf("desired state unknown")
 	} else if desiredState != service.SVCStop {
-		if err := f.validateService(ctx, serviceID); err != nil {
+		if err := f.validateService(ctx, serviceID, autoLaunch); err != nil {
 			glog.Errorf("Facade.ScheduleService validate service result: %s", err)
 			return 0, err
 		}
@@ -946,7 +946,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 }
 
 // validate the provided service
-func (f *Facade) validateService(ctx datastore.Context, serviceId string) error {
+func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLaunch bool) error {
 	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
 	visitor := func(svc *service.Service) error {
 		// validate the service is ready to start
@@ -967,7 +967,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 	}
 
 	// traverse all the services
-	if err := f.walkServices(ctx, serviceId, true, visitor); err != nil {
+	if err := f.walkServices(ctx, serviceId, autoLaunch, visitor); err != nil {
 		glog.Errorf("unable to walk services for service %s", serviceId)
 		return err
 	}
