@@ -3,17 +3,17 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Control Center Guide</title>
+      <title>Zenoss Control Center Guide</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
       <meta name="DC.Type" content="bookmap">
       
-      <meta name="DC.Title" content="Control Center Guide">
+      <meta name="DC.Title" content="Zenoss Control Center Guide">
       
       <meta name="DC.Format" content="XHTML">
-      <script type="text/javascript">var d4p = {"relativePath":null,"dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.ccenter\/topics\/preface.html","previousTopicHref":null,"root":true,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":null,"dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.zcc\/admin\/admin.html","previousTopicHref":null,"root":true,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="themes/html5-bootstrap/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -29,7 +29,7 @@
       <header id="site-head" class="header header--fixed">
          <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
             <div class="container">
-               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Control Center Guide  </a></div>
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Zenoss Control Center Guide  </a></div>
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
@@ -49,7 +49,7 @@
          <div class="row">
             <div class="col-xs-12 col-md-21">
                <ol class="breadcrumb">
-                  <li>  Control Center Guide  </li>
+                  <li>  Zenoss Control Center Guide  </li>
                </ol>
             </div>
          </div>
@@ -63,52 +63,15 @@
                         <h1>Table of Contents</h1>
                         <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
                            <ul class="nav bs-docs-sidenav">
-                              <li><a href="docs.ccenter/topics/preface.html">Preface</a></li>
-                              <li><a href="docs.ccenter/topics/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
-                                    <li><a href="docs.ccenter/topics/admin-aws.html">Reducing high load averages on AWS hosts</a></li>
-                                    <li><a href="docs.ccenter/topics/admin-convert.html">Converting a single-host deployment to multi-host</a></li>
-                                    <li><a href="docs.ccenter/topics/admin-multiple.html">Deploying multiple instances of a service</a></li>
-                                    <li><a href="docs.ccenter/topics/mirror-docker.html">Mirroring the Zenoss Docker Hub repository</a><ul class="nav">
-                                          <li><a href="docs.ccenter/topics/mirror-docker-prepare.html">Preparing a transfer host</a></li>
-                                          <li><a href="docs.ccenter/topics/mirror-docker-sync.html">Mirroring with synchronous internet and master host access</a></li>
-                                       </ul>
-                                    </li>
+                              <li><a href="docs.zcc/admin/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                                    <li><a href="docs.zcc/admin/aws.html">Reducing high load averages on AWS hosts</a></li>
+                                    <li><a href="docs.zcc/admin/convert.html">Converting a single-host deployment to multi-host</a></li>
+                                    <li><a href="docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
                                  </ul>
                               </li>
-                              <li><a href="docs.ccenter/topics/svcdef.html"><span class="enumeration enumeration0">Chapter 2. </span>Defining services</a><ul class="nav">
-                                    <li><a href="docs.ccenter/topics/svcdef-template.html">Service template</a></li>
-                                    <li><a href="docs.ccenter/topics/svcdef-object.html">ServiceDefinition object</a><ul class="nav">
-                                          <li><a href="docs.ccenter/topics/svcdef-configFile.html">ConfigFile object</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-endpoint.html">Endpoint object</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-task.html">Task object</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-volume.html">Volume object</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-logconfig.html">LogConfig object</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-health.html">HealthCheck object</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-metricConfig.html">MetricConfig object</a><ul class="nav">
-                                                <li><a href="docs.ccenter/topics/svcdef-metric.html">Metric object</a></li>
-                                             </ul>
-                                          </li>
-                                          <li><a href="docs.ccenter/topics/svcdef-graphConfig.html">GraphConfig object</a><ul class="nav">
-                                                <li><a href="docs.ccenter/topics/svcdef-datapoint.html">DataPoint object</a></li>
-                                             </ul>
-                                          </li>
-                                          <li><a href="docs.ccenter/topics/svcdef-thresholdConfig.html">ThresholdConfig object</a></li>
-                                       </ul>
-                                    </li>
-                                    <li><a href="docs.ccenter/topics/svcdef-go-template.html">Go templates in JSON values</a><ul class="nav">
-                                          <li><a href="docs.ccenter/topics/svcdef-go-template-bytesToMB.html">bytesToMB function</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-go-template-child.html">child function</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-go-template-each.html">each function</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-go-template-parent.html">parent function</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-go-template-percentScale.html">percentScale function</a></li>
-                                          <li><a href="docs.ccenter/topics/svcdef-go-template-plus.html">plus function</a></li>
-                                       </ul>
-                                    </li>
-                                 </ul>
-                              </li>
-                              <li><a href="docs.ccenter/topics/cli.html"><span class="enumeration enumeration0">Chapter 3. </span>Using the Control Center command-line interface</a><ul class="nav">
-                                    <li><a href="docs.ccenter/topics/cli-serviced.html">serviced</a></li>
-                                    <li><a href="docs.ccenter/topics/cli-env-vars.html">Configuring Control Center</a></li>
+                              <li><a href="docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                                    <li><a href="docs.zcc/cli/serviced.html">serviced</a></li>
+                                    <li><a href="docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
                                  </ul>
                               </li>
                            </ul>

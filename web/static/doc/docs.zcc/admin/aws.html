@@ -12,17 +12,17 @@
       
       <meta name="DC.Title" content="Reducing high load averages on AWS hosts">
       
-      <meta name="prodname" content="Control Center">
+      <meta name="prodname" content="Zenoss Control Center">
       
-      <meta name="prodname" content="Control Center">
+      <meta name="prodname" content="Zenoss Control Center">
       
-      <meta name="version" content="0">
+      <meta name="version" content="1">
       
-      <meta name="version" content="0">
+      <meta name="version" content="1">
       
-      <meta name="release" content="8">
+      <meta name="release" content="0">
       
-      <meta name="release" content="8">
+      <meta name="release" content="0">
       
       <meta name="modification" content="0">
       
@@ -33,7 +33,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="taskid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.ccenter\/topics\/admin-convert.html","previousTopicHref":"docs.ccenter\/topics\/admin.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.zcc\/admin\/convert.html","previousTopicHref":"docs.zcc\/admin\/admin.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-bootstrap/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -49,7 +49,7 @@
       <header id="site-head" class="header header--fixed">
          <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
             <div class="container">
-               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Control Center Guide  </a></div>
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Zenoss Control Center Guide  </a></div>
                <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
                   <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
                </form>
@@ -69,7 +69,7 @@
          <div class="row">
             <div class="col-xs-12 col-md-21">
                <ol class="breadcrumb">
-                  <li><a class="breadcrumb" href="../../docs.ccenter/topics/admin.html" title="Administration reference">Administration reference</a></li>
+                  <li><a class="breadcrumb" href="../../docs.zcc/admin/admin.html" title="Administration reference">Administration reference</a></li>
                   
                   <li>Reducing high load averages on AWS hosts</li>
                </ol>
@@ -79,52 +79,15 @@
             <div class="col-xs-6 col-md-4 hidden-xs">
                <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
                   <ul class="nav bs-docs-sidenav">
-                     <li class=" no-child "><a href="../../docs.ccenter/topics/preface.html">Preface</a></li>
-                     <li class=" collapsible  active"><a href="../../docs.ccenter/topics/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
-                           <li class=" no-child  active"><a class="selected" href="../../docs.ccenter/topics/admin-aws.html">Reducing high load averages on AWS hosts</a></li>
-                           <li class=" no-child "><a href="../../docs.ccenter/topics/admin-convert.html">Converting a single-host deployment to multi-host</a></li>
-                           <li class=" no-child "><a href="../../docs.ccenter/topics/admin-multiple.html">Deploying multiple instances of a service</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/mirror-docker.html">Mirroring the Zenoss Docker Hub repository</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/mirror-docker-prepare.html">Preparing a transfer host</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/mirror-docker-sync.html">Mirroring with synchronous internet and master host access</a></li>
-                              </ul>
-                           </li>
+                     <li class=" collapsible  active"><a href="../../docs.zcc/admin/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child  active"><a class="selected" href="../../docs.zcc/admin/aws.html">Reducing high load averages on AWS hosts</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/admin/convert.html">Converting a single-host deployment to multi-host</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
                         </ul>
                      </li>
-                     <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef.html"><span class="enumeration enumeration0">Chapter 2. </span>Defining services</a><ul class="nav">
-                           <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-template.html">Service template</a></li>
-                           <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-object.html">ServiceDefinition object</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-configFile.html">ConfigFile object</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-endpoint.html">Endpoint object</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-task.html">Task object</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-volume.html">Volume object</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-logconfig.html">LogConfig object</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-health.html">HealthCheck object</a></li>
-                                 <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-metricConfig.html">MetricConfig object</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-metric.html">Metric object</a></li>
-                                    </ul>
-                                 </li>
-                                 <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-graphConfig.html">GraphConfig object</a><ul class="nav">
-                                       <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-datapoint.html">DataPoint object</a></li>
-                                    </ul>
-                                 </li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-thresholdConfig.html">ThresholdConfig object</a></li>
-                              </ul>
-                           </li>
-                           <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/svcdef-go-template.html">Go templates in JSON values</a><ul class="nav">
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-bytesToMB.html">bytesToMB function</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-child.html">child function</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-each.html">each function</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-parent.html">parent function</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-percentScale.html">percentScale function</a></li>
-                                 <li class=" no-child "><a href="../../docs.ccenter/topics/svcdef-go-template-plus.html">plus function</a></li>
-                              </ul>
-                           </li>
-                        </ul>
-                     </li>
-                     <li class=" collapsible  collapsed"><a href="../../docs.ccenter/topics/cli.html"><span class="enumeration enumeration0">Chapter 3. </span>Using the Control Center command-line interface</a><ul class="nav">
-                           <li class=" no-child "><a href="../../docs.ccenter/topics/cli-serviced.html">serviced</a></li>
-                           <li class=" no-child "><a href="../../docs.ccenter/topics/cli-env-vars.html">Configuring Control Center</a></li>
+                     <li class=" collapsible  collapsed"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                           <li class=" no-child "><a href="../../docs.zcc/cli/serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -138,9 +101,9 @@
                         <h1 class="title topictitle1">Reducing high load averages on AWS hosts</h1>
                         <div class="body taskbody">
                            
-                           <div class="section context"><a name="taskid-d892e35" id="taskid-d892e35" class="anchor"></a>
+                           <div class="section context"><a name="taskid-d357e35" id="taskid-d357e35" class="anchor"></a>
                               
-                              <p class="p">When Docker is using the <samp class="ph codeph">devicemapper</samp> storage driver, a <span class="ph">Control Center</span> instance on an Amazon Web Services host may experience persistent,
+                              <p class="p">When Docker is using the <samp class="ph codeph">devicemapper</samp> storage driver, a <span class="ph">Zenoss Control Center</span> instance on an Amazon Web Services host may experience persistent,
                                  high averages for CPU load.
                               </p>
                               
@@ -188,9 +151,9 @@
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Stop the <span class="keyword cmdname">serviced</span> and <span class="keyword cmdname">docker</span> daemons, in order.</span>
+                                 <span class="ph cmd">Stop the <span class="keyword cmdname">serviced</span> and <span class="keyword cmdname">docker</span> daemons.</span>
                                  
-                                 <div class="itemgroup stepxmp"><pre class="pre codeblock">sudo stop serviced; sudo stop docker</pre>
+                                 <div class="itemgroup stepxmp"><pre class="pre codeblock">sudo stop serviced &amp;&amp; sudo stop docker</pre>
                                     </div>
                                  
                               </li>
@@ -229,11 +192,11 @@
                                           options.
                                        </p>
                                        
-                                       <pre class="pre codeblock">newopt='--storage-opt dm.blkdiscard=false' 
+                                       <pre class="pre codeblock">reqopt='--storage-opt dm.blkdiscard=false' 
 opt=$(grep '^[^#]*DOCKER_OPTS' $DEFAULTS)
 opt=${opt#*=}; optqc=${opt:0:1}; optlen=${#opt}
 opt=${opt:1:($optlen-2)}
-MYOPT="${optqc}${opt} ${newopt}${optqc}"
+MYOPT="${optqc}${opt} ${reqopt}${optqc}"
 sudo sed -i -e \
   's|^[^#]*DOCKER_OPTS=.*$|DOCKER_OPTS='"${MYOPT}"'|' $DEFAULTS</pre>
                                        
@@ -246,8 +209,8 @@ sudo sed -i -e \
                                           with the required option.
                                        </p>
                                        
-                                       <pre class="pre codeblock">MYOPT='\nDOCKER_OPTS="--storage-opt dm.blkdiscard=false"'
-sudo sed -i -e '/^#DOCKER_OPTS=/ s|$|'"${MYOPT}"'|' $DEFAULTS</pre>
+                                       <pre class="pre codeblock">REQOPT='\nDOCKER_OPTS="--storage-opt dm.blkdiscard=false"'
+sudo sed -i -e '/^#DOCKER_OPTS=/ s|$|'"${REQOPT}"'|' $DEFAULTS</pre>
                                        
                                        </li>
                                     
@@ -258,9 +221,9 @@ sudo sed -i -e '/^#DOCKER_OPTS=/ s|$|'"${MYOPT}"'|' $DEFAULTS</pre>
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Start the <span class="keyword cmdname">docker</span> and <span class="keyword cmdname">serviced</span> daemons, in order.</span>
+                                 <span class="ph cmd">Start the <span class="keyword cmdname">docker</span> and <span class="keyword cmdname">serviced</span> daemons.</span>
                                  
-                                 <div class="itemgroup stepxmp"><pre class="pre codeblock">sudo start docker; sudo start serviced</pre>
+                                 <div class="itemgroup stepxmp"><pre class="pre codeblock">sudo start docker &amp;&amp;  sudo start serviced</pre>
                                     </div>
                                  
                               </li>
@@ -274,8 +237,8 @@ sudo sed -i -e '/^#DOCKER_OPTS=/ s|$|'"${MYOPT}"'|' $DEFAULTS</pre>
                      
                      <div class="row">
                         <footer id="topicsNPLinks">
-                           <div id="footer_previous"><a href="../../docs.ccenter/topics/admin.html" class="previous" rel="internal" title="Administration reference"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Administration reference</span></a></div>
-                           <div id="footer_next"><a href="../../docs.ccenter/topics/admin-convert.html" class="next" rel="internal" title="Converting a single-host deployment to multi-host"><span class="sr-only">Converting a single-host deployment to multi-host</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_previous"><a href="../../docs.zcc/admin/admin.html" class="previous" rel="internal" title="Administration reference"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Administration reference</span></a></div>
+                           <div id="footer_next"><a href="../../docs.zcc/admin/convert.html" class="next" rel="internal" title="Converting a single-host deployment to multi-host"><span class="sr-only">Converting a single-host deployment to multi-host</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>
