@@ -43,7 +43,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 
 	// verify the service with parent ID does not exist with the given name
-	if s, err := store.FindChildService(ctx, svc.ParentServiceID, svc.Name); err != nil {
+	if s, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
 		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
 		return err
 	} else if s != nil {
@@ -321,10 +321,19 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (m
 
 // FindChildService walks services below the service specified by serviceId, checking to see
 // if childName matches the service's name. If so, it returns it.
-func (f *Facade) FindChildService(ctx datastore.Context, serviceId string, childName string) (*service.Service, error) {
+func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string, childName string) (*service.Service, error) {
 	glog.V(3).Infof("Facade.FindChildService")
 	store := f.serviceStore
-	return store.FindChildService(ctx, serviceId, childName)
+	parentService, err := store.Get(ctx, parentServiceID)
+	if err != nil {
+		glog.Errorf("Could not look up service %s: %s", parentServiceID, err)
+		return nil, err
+	} else if parentService == nil {
+		err := fmt.Errorf("parent does not exist")
+		return nil, err
+	}
+
+	return store.FindChildService(ctx, parentService.DeploymentID, parentService.ID, childName)
 }
 
 // ScheduleService changes a service's desired state and returns the number of affected services
@@ -334,7 +343,7 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 	if desiredState.String() == "unknown" {
 		return 0, fmt.Errorf("desired state unknown")
 	} else if desiredState != service.SVCStop {
-		if err := f.validateService(ctx, serviceID); err != nil {
+		if err := f.validateService(ctx, serviceID, autoLaunch); err != nil {
 			glog.Errorf("Facade.ScheduleService validate service result: %s", err)
 			return 0, err
 		}
@@ -937,7 +946,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 }
 
 // validate the provided service
-func (f *Facade) validateService(ctx datastore.Context, serviceId string) error {
+func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLaunch bool) error {
 	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
 	visitor := func(svc *service.Service) error {
 		// validate the service is ready to start
@@ -958,7 +967,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string) error 
 	}
 
 	// traverse all the services
-	if err := f.walkServices(ctx, serviceId, true, visitor); err != nil {
+	if err := f.walkServices(ctx, serviceId, autoLaunch, visitor); err != nil {
 		glog.Errorf("unable to walk services for service %s", serviceId)
 		return err
 	}
@@ -1068,7 +1077,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	svcStore := f.serviceStore
 
 	// verify the service with name and parent does not collide with another existing service
-	if s, err := svcStore.FindChildService(ctx, svc.ParentServiceID, svc.Name); err != nil {
+	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
 		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
 		return err
 	} else if s != nil {

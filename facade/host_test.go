@@ -140,6 +140,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	s1, _ := service.NewService()
 	s1.Name = "name"
 	s1.PoolID = "poolid"
+	s1.DeploymentID = "deployment_id"
 	s1.Launch = "manual"
 	s1.Endpoints = []service.ServiceEndpoint{
 		service.ServiceEndpoint{},

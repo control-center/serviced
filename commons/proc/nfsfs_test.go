@@ -74,6 +74,14 @@ func TestGetProcNFSFSVolumes(t *testing.T) {
 			FSID:     "45a148e989326106",
 			FSCache:  "no",
 		},
+		{
+			Version:  "v4",
+			ServerID: "0a57cf54",
+			Port:     "801",
+			DeviceID: "0:36",
+			FSID:     "686440440a852c4",
+			FSCache:  "no",
+		},
 	}
 	for idx := range expected {
 		if expected[idx] != volumes[idx] {

@@ -2,363 +2,338 @@
 <project name="graphics-copy" default="copy-graphics">
    <target name="check-image-list-item-1">
       <condition property="is-image-list-item-1">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-svc-question.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-add-host.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-1" unless="is-image-list-item-1">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-svc-question.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-add-host.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-1"
            depends="check-image-list-item-1, report-image-list-item-1"
            if="is-image-list-item-1">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-svc-question.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-svc-question.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-add-host.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-add-host.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-2">
       <condition property="is-image-list-item-2">
-         <available filepath="/home/gemil/dita/docs.ccenter/images"
-                    file="xf-app-detail-control.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-start.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-2" unless="is-image-list-item-2">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail-control.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-start.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-2"
            depends="check-image-list-item-2, report-image-list-item-2"
            if="is-image-list-item-2">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail-control.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail-control.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-start.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-start.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-3">
       <condition property="is-image-list-item-3">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-svc-details.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-add-vhost.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-3" unless="is-image-list-item-3">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-svc-details.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-add-vhost.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-3"
            depends="check-image-list-item-3, report-image-list-item-3"
            if="is-image-list-item-3">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-svc-details.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-svc-details.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-add-vhost.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-add-vhost.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-4">
       <condition property="is-image-list-item-4">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-backup-restore.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-app-internal-svcs.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-4" unless="is-image-list-item-4">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-backup-restore.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-internal-svcs.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-4"
            depends="check-image-list-item-4, report-image-list-item-4"
            if="is-image-list-item-4">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-backup-restore.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-internal-svcs.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-backup-restore.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-internal-svcs.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-5">
       <condition property="is-image-list-item-5">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-app-detail-vhosts.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-svc-details.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-5" unless="is-image-list-item-5">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail-vhosts.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-svc-details.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-5"
            depends="check-image-list-item-5, report-image-list-item-5"
            if="is-image-list-item-5">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail-vhosts.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-details.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail-vhosts.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-svc-details.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-6">
       <condition property="is-image-list-item-6">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-app-detail.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images"
+                    file="xf-app-detail-schedule.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-6" unless="is-image-list-item-6">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail-schedule.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-6"
            depends="check-image-list-item-6, report-image-list-item-6"
            if="is-image-list-item-6">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-schedule.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail-schedule.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-7">
       <condition property="is-image-list-item-7">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-assign-ip.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-app-detail-config.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-7" unless="is-image-list-item-7">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-assign-ip.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail-config.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-7"
            depends="check-image-list-item-7, report-image-list-item-7"
            if="is-image-list-item-7">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-assign-ip.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-config.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-assign-ip.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail-config.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-8">
       <condition property="is-image-list-item-8">
-         <available filepath="/home/gemil/dita/docs.ccenter/images"
-                    file="xf-app-detail-schedule.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images"
+                    file="xf-app-detail-services.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-8" unless="is-image-list-item-8">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail-schedule.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail-services.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-8"
            depends="check-image-list-item-8, report-image-list-item-8"
            if="is-image-list-item-8">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail-schedule.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-services.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail-schedule.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail-services.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-9">
       <condition property="is-image-list-item-9">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-app-edit-config.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-assign-ip.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-9" unless="is-image-list-item-9">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-edit-config.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-assign-ip.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-9"
            depends="check-image-list-item-9, report-image-list-item-9"
            if="is-image-list-item-9">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-edit-config.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-edit-config.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-assign-ip.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-assign-ip.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-10">
       <condition property="is-image-list-item-10">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-svc-bang.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-app-edit-config.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-10" unless="is-image-list-item-10">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-svc-bang.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-edit-config.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-10"
            depends="check-image-list-item-10, report-image-list-item-10"
            if="is-image-list-item-10">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-svc-bang.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-edit-config.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-svc-bang.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-edit-config.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-11">
       <condition property="is-image-list-item-11">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-app.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images"
+                    file="xf-app-detail-control.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-11" unless="is-image-list-item-11">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail-control.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-11"
            depends="check-image-list-item-11, report-image-list-item-11"
            if="is-image-list-item-11">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app.png" overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-control.png"
+            overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail-control.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-12">
       <condition property="is-image-list-item-12">
-         <available filepath="/home/gemil/dita/docs.ccenter/images"
-                    file="xf-app-detail-ip-assign.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-app-detail-vhosts.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-12" unless="is-image-list-item-12">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail-ip-assign.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail-vhosts.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-12"
            depends="check-image-list-item-12, report-image-list-item-12"
            if="is-image-list-item-12">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail-ip-assign.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-vhosts.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail-ip-assign.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail-vhosts.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-13">
       <condition property="is-image-list-item-13">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-start.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-app-detail.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-13" unless="is-image-list-item-13">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-start.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-13"
            depends="check-image-list-item-13, report-image-list-item-13"
            if="is-image-list-item-13">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-start.png" overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-start.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-14">
       <condition property="is-image-list-item-14">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-add-host.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-add-pool.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-14" unless="is-image-list-item-14">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-add-host.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-add-pool.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-14"
            depends="check-image-list-item-14, report-image-list-item-14"
            if="is-image-list-item-14">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-add-host.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-add-host.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-add-pool.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-add-pool.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-15">
       <condition property="is-image-list-item-15">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-add-vhost.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-svc-bang.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-15" unless="is-image-list-item-15">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-add-vhost.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-svc-bang.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-15"
            depends="check-image-list-item-15, report-image-list-item-15"
            if="is-image-list-item-15">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-add-vhost.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-add-vhost.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-bang.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-svc-bang.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-16">
       <condition property="is-image-list-item-16">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-app-internal-svcs.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-svc-question.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-16" unless="is-image-list-item-16">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-internal-svcs.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-svc-question.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-16"
            depends="check-image-list-item-16, report-image-list-item-16"
            if="is-image-list-item-16">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-internal-svcs.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-question.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-internal-svcs.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-svc-question.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-17">
       <condition property="is-image-list-item-17">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-app-detail-config.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images"
+                    file="xf-app-detail-ip-assign.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-17" unless="is-image-list-item-17">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail-config.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app-detail-ip-assign.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-17"
            depends="check-image-list-item-17, report-image-list-item-17"
            if="is-image-list-item-17">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail-config.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-ip-assign.png"
             overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail-config.png"/>
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app-detail-ip-assign.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-18">
       <condition property="is-image-list-item-18">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-svc-check.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-svc-check.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-18" unless="is-image-list-item-18">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-svc-check.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-svc-check.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-18"
            depends="check-image-list-item-18, report-image-list-item-18"
            if="is-image-list-item-18">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-svc-check.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-check.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-svc-check.png"/>
          </fileset>
       </copy>
    </target>
    <target name="check-image-list-item-19">
       <condition property="is-image-list-item-19">
-         <available filepath="/home/gemil/dita/docs.ccenter/images" file="xf-add-pool.png"/>
+         <available filepath="/home/gemil/dita/docs.zcc/gui/images" file="xf-app.png"/>
       </condition>
    </target>
    <target name="report-image-list-item-19" unless="is-image-list-item-19">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-add-pool.png cannot be found. Will not be copied.</echo>
+      <echo>[WARN] File /home/gemil/dita/docs.zcc/gui/images/xf-app.png cannot be found. Will not be copied.</echo>
    </target>
    <target name="copy-image-list-item-19"
            depends="check-image-list-item-19, report-image-list-item-19"
            if="is-image-list-item-19">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-add-pool.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-add-pool.png"/>
-         </fileset>
-      </copy>
-   </target>
-   <target name="check-image-list-item-20">
-      <condition property="is-image-list-item-20">
-         <available filepath="/home/gemil/dita/docs.ccenter/images"
-                    file="xf-app-detail-services.png"/>
-      </condition>
-   </target>
-   <target name="report-image-list-item-20" unless="is-image-list-item-20">
-      <echo>[WARN] File /home/gemil/dita/docs.ccenter/images/xf-app-detail-services.png cannot be found. Will not be copied.</echo>
-   </target>
-   <target name="copy-image-list-item-20"
-           depends="check-image-list-item-20, report-image-list-item-20"
-           if="is-image-list-item-20">
-      <copy toFile="/home/gemil/dita/docs.ccenter/out/images/xf-app-detail-services.png"
-            overwrite="yes">
-         <fileset dir="/home/gemil/dita/docs.ccenter/images">
-            <include name="xf-app-detail-services.png"/>
+      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app.png" overwrite="yes">
+         <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
+            <include name="xf-app.png"/>
          </fileset>
       </copy>
    </target>
@@ -383,7 +358,6 @@
       <antcall target="copy-image-list-item-17"/>
       <antcall target="copy-image-list-item-18"/>
       <antcall target="copy-image-list-item-19"/>
-      <antcall target="copy-image-list-item-20"/>
       <echo message="Copy graphics done."/>
    </target>
 </project>

@@ -1,0 +1,201 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>Deploying multiple instances of a service</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <link rel="schema.DC" href="http://purl.org/dc/terms/">
+      <meta name="DC.Type" content="task">
+      
+      <meta name="DC.Title" content="Deploying multiple instances of a service">
+      
+      <meta name="prodname" content="Zenoss Control Center">
+      
+      <meta name="prodname" content="Zenoss Control Center">
+      
+      <meta name="version" content="1">
+      
+      <meta name="version" content="1">
+      
+      <meta name="release" content="0">
+      
+      <meta name="release" content="0">
+      
+      <meta name="modification" content="0">
+      
+      <meta name="modification" content="0">
+      
+      <meta name="DC.Publisher" content="Zenoss, Inc.">
+      
+      <meta name="DC.Format" content="XHTML">
+      
+      <meta name="DC.Identifier" content="taskid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.zcc\/cli\/cli.html","previousTopicHref":"docs.zcc\/admin\/convert.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-bootstrap/css/style.css">
+      
+      <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+      <script rel="stylesheet" type="text/css" media="screen, projection, print" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="../../themes/html5-bootstrap/js/script.js"></script>
+      </head>
+   <body class="en-us html5-bootstrap centered navigation-default">
+      <ul id="page-links" class="hidden sr-only">
+         <li><a id="skip-to-content" href="#d4h5-main-content">Skip to content</a></li>
+         <li><a id="skip-to-localnav" href="#local-navigation">Skip to navigation</a></li>
+         <li><a id="skip-to-footer" href="#footer">Skip to footer</a></li>
+      </ul>
+      <header id="site-head" class="header header--fixed">
+         <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
+            <div class="container">
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Zenoss Control Center Guide  </a></div>
+               <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
+                  <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
+               </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
+            </div>
+         </nav>
+         <div id="msg-version"></div>
+      </header>
+      <div class="container">
+         <div class="row">
+            <div class="col-xs-12 col-md-21">
+               <ol class="breadcrumb">
+                  <li><a class="breadcrumb" href="../../docs.zcc/admin/admin.html" title="Administration reference">Administration reference</a></li>
+                  
+                  <li>Deploying multiple instances of a service</li>
+               </ol>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-xs-6 col-md-4 hidden-xs">
+               <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
+                  <ul class="nav bs-docs-sidenav">
+                     <li class=" collapsible  active"><a href="../../docs.zcc/admin/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../docs.zcc/admin/aws.html">Reducing high load averages on AWS hosts</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/admin/convert.html">Converting a single-host deployment to multi-host</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  collapsed"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                           <li class=" no-child "><a href="../../docs.zcc/cli/serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
+                        </ul>
+                     </li>
+                  </ul>
+               </nav>
+            </div>
+            <div class="col-xs-12 col-md-8">
+               <div id="page" class="starter-template">
+                  <article>
+                     <div class="page task  - topic-topic task-task " id="taskid">
+                        
+                        <h1 class="title topictitle1">Deploying multiple instances of a service</h1>
+                        <div class="body taskbody">
+                           
+                           <div class="section context"><a name="taskid-d1061e35" id="taskid-d1061e35" class="anchor"></a><span class="ph">Zenoss Control Center</span> can not deploy more than one instance of an application that
+                              includes virtual host names, unless the virtual host
+                              names are unique. Follow this procedure to modify a application service template and deploy multiple
+                              instances of an application.
+                           </div>
+                           
+                           
+                           <ol class="ol steps">
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Log in to the <span class="ph">Zenoss Control Center</span> master host as a user with
+                                    read and write privileges in <span class="ph filepath">/opt/serviced/templates</span>.</span>
+                                 
+                                 <ul class="ul choices">
+                                    
+                                    <li class="li choice">For Ubuntu hosts, log in as a user with <samp class="ph codeph">sudo</samp> privileges.
+                                    </li>
+                                    
+                                    
+                                    <li class="li choice">For RHEL or CentOS hosts, log in as <samp class="ph codeph">root</samp>.
+                                    </li>
+                                    
+                                    
+                                 </ul>
+                                 
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Change directory to the <span class="ph">Zenoss Control Center</span> templates directory,
+                                    and copy the template file to modify.</span>
+                                 
+                                 <div class="itemgroup stepxmp"><pre class="pre codeblock">cd /opt/serviced/templates
+sudo cp <var class="keyword varname">App-Template</var>.json <var class="keyword varname">App-Template-Copy</var>.json</pre>
+                                    </div>
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Use a text editor to make the following changes to the new service template file:</span>
+                                 
+                                 <ol type="a" class="ol substeps">
+                                    
+                                    <li class="li substep substepexpand"><strong>Optional: </strong>
+                                       <span class="ph cmd">Change the value of the <samp class="ph codeph">Name</samp> field on line 3.</span>
+                                       
+                                       <div class="itemgroup info">This change differentiates application service templates.</div>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Change the values of the defined <samp class="ph codeph">VHosts</samp> fields in all
+                                          subservice <samp class="ph codeph">Endpoints</samp> objects.</span>
+                                       
+                                    </li>
+                                    
+                                    
+                                 </ol>
+                                 
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Use <span class="keyword cmdname">serviced</span> to add the modified template.</span>
+                                 
+                                 <div class="itemgroup stepxmp"><pre class="pre codeblock">sudo serviced template add <var class="keyword varname">App-Template-Copy</var>.json</pre>
+                                    </div>
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Log in to the <span class="ph">Zenoss Control Center</span> web interface, and deploy the new
+                                    application.</span>
+                                 
+                              </li>
+                              
+                           </ol>
+                           
+                           
+                        </div>
+                        
+                     </div>
+                     
+                     <div class="row">
+                        <footer id="topicsNPLinks">
+                           <div id="footer_previous"><a href="../../docs.zcc/admin/convert.html" class="previous" rel="internal" title="Converting a single-host deployment to multi-host"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Converting a single-host deployment to multi-host</span></a></div>
+                           <div id="footer_next"><a href="../../docs.zcc/cli/cli.html" class="next" rel="internal" title="Using the Zenoss Control Center command-line interface"><span class="sr-only">Using the Zenoss Control Center command-line interface</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                        </footer>
+                     </div>
+                  </article>
+                  <div class="clear"></div>
+                  
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>
