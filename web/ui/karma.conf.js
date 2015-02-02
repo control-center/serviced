@@ -1,3 +1,4 @@
+/* global module: true */
 // Karma configuration
 // Generated on Thu Jan 22 2015 09:23:45 GMT-0600 (CST)
 
@@ -17,24 +18,23 @@ module.exports = function(config) {
     files: [
       'static/lib/thirdparty.js',
       'static/lib/angular/angular-mocks.js',
-      'test/mainTest.js',
-      'test/*/*Mock.js',
-      'test/*/*Spec.js',
-      'src/controllers/*.js',
-      'src/modules/*.js'
+      'test/appTest.js',
+      'test/**/*Mock.js',
+      'test/**/*Spec.js',
+      'src/**/*.js'
     ],
 
 
     // list of files to exclude
     exclude: [
+        'test/obsoleteSpec.js'
     ],
 
 
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-        'src/controllers/*.js': 'coverage',
-        'src/modules/*.js': 'coverage'
+        'src/**/*.js': 'coverage'
     },
 
 
