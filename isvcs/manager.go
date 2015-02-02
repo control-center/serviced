@@ -50,8 +50,6 @@ const (
 var (
 	ErrManagerUnknownOp  = errors.New("manager: unknown operation")
 	ErrManagerUnknownArg = errors.New("manager: unknown arg type")
-	ErrManagerNotRunning = errors.New("manager: not running")
-	ErrManagerRunning    = errors.New("manager: already running")
 	ErrImageNotExists    = errors.New("manager: image does not exist")
 	ErrNotifyFailed      = errors.New("manager: notification failure")
 )

@@ -429,6 +429,7 @@ test: build docker_ok
 	go test $(GOTEST_FLAGS)
 	cd dao && make test
 	cd web && make test
+	cd isvcs && go test $(GOTEST_FLAGS)
 	cd utils && go test $(GOTEST_FLAGS)
 	cd node && go test $(GOTEST_FLAGS)
 	cd datastore && make test

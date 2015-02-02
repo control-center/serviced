@@ -27,7 +27,7 @@ const registryPort = 5000
 
 func init() {
 	var err error
-	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`
+	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced exec docker-registry`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
 			Name:        "docker-registry",

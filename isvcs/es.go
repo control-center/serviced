@@ -60,7 +60,7 @@ func init() {
 		if clusterName, ok := elasticsearch_serviced.Configuration["cluster"]; ok {
 			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
 		}
-		return fmt.Sprintf(`/opt/elasticsearch-0.90.9/bin/elasticsearch -f -Des.node.name=%s %s`, elasticsearch_serviced.Name, clusterArg)
+		return fmt.Sprintf(`exec /opt/elasticsearch-0.90.9/bin/elasticsearch -f -Des.node.name=%s %s`, elasticsearch_serviced.Name, clusterArg)
 	}
 
 	serviceName = "elasticsearch-logstash"
@@ -85,7 +85,7 @@ func init() {
 		if clusterName, ok := elasticsearch_logstash.Configuration["cluster"]; ok {
 			clusterArg = fmt.Sprintf(" -Des.cluster.name=%s ", clusterName)
 		}
-		return fmt.Sprintf(`/opt/elasticsearch-1.3.1/bin/elasticsearch -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
+		return fmt.Sprintf(`exec /opt/elasticsearch-1.3.1/bin/elasticsearch -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
 	}
 }
 

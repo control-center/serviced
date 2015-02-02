@@ -179,7 +179,7 @@ func (svc *IService) create() (*docker.Container, error) {
 	}
 
 	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)
-	config.Cmd = []string{"/bin/sh", "-c", svc.Command()}
+	config.Cmd = []string{"/bin/sh", "-c", "trap exit 15; " + svc.Command()}
 
 	// set the host network (if enabled)
 	if svc.HostNetwork {

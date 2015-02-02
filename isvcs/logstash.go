@@ -26,7 +26,7 @@ var logstash *IService
 
 func init() {
 	var err error
-	command := "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
+	command := "exec /opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	logstash, err = NewIService(
 		IServiceDefinition{
 			Name:        "logstash",

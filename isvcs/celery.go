@@ -21,7 +21,7 @@ var celery *IService
 
 func init() {
 	var err error
-	command := "supervisord -n -c /opt/celery/etc/supervisor.conf"
+	command := "exec supervisord -n -c /opt/celery/etc/supervisor.conf"
 	celery, err = NewIService(
 		IServiceDefinition{
 			Name:    "celery",

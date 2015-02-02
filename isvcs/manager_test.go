@@ -26,44 +26,34 @@ import (
 )
 
 func TestManager(t *testing.T) {
-	testManager := NewManager("unix:///var/run/docker.sock", utils.LocalDir("images"), "/tmp")
-
-	if err := testManager.Stop(); err != ErrManagerNotRunning {
-		t.Logf("expected an error got %s", err)
-		t.Fail()
-	}
+	testManager := NewManager(utils.LocalDir("images"), "/tmp")
 
 	if err := testManager.Start(); err != nil {
 		t.Logf("expected no error got %s", err)
 		t.Fail()
 	}
 
-	cd1 := ContainerDescription{
+	cd1 := IServiceDefinition{
 		Name:    "test1",
 		Repo:    "ubuntu",
 		Tag:     "latest",
-		Command: func() string { return `/bin/sh -c "while true; do echo hello world; sleep 1; done"` },
+		Command: func() string { return `while true; do echo hello world; sleep 1; done` },
 	}
-	container, err := NewContainer(cd1)
+	container, err := NewIService(cd1)
 	if err != nil {
 		t.Logf("could not create container: %s", err)
 		t.Fail()
 	}
 
-	cd2 := ContainerDescription{
+	cd2 := IServiceDefinition{
 		Name:    "test2",
 		Repo:    "ubuntu",
 		Tag:     "latest",
-		Command: func() string { return `/bin/sh -c "while true; do echo hello world; sleep 1; done"` },
+		Command: func() string { return `while true; do echo hello world; sleep 1; done` },
 	}
-	container2, err := NewContainer(cd2)
+	container2, err := NewIService(cd2)
 	if err != nil {
 		t.Logf("could not create container: %s", err)
-		t.Fail()
-	}
-
-	if err := testManager.Stop(); err != nil {
-		t.Logf("expected no error got %s", err)
 		t.Fail()
 	}
 
