@@ -26,6 +26,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strings"
 	"syscall"
 
@@ -143,7 +144,7 @@ func TestCreateVolumeDir(t *testing.T) {
 		"--rm",
 		"-v", expectedPath + ":" + containerMount,
 		v.image,
-		"bash", "-c", fmt.Sprintf("shopt -s nullglob && shopt -s dotglob && cp -pr %s/* %s/ && touch %s/.serviced.initialized\n", v.containerPath, containerMount, containerMount),
+		"bash", "-c", fmt.Sprintf("shopt -s nullglob && shopt -s dotglob && cp -pr %s/* %s/\n", v.containerPath, containerMount),
 
 		// FIXME: use rsync instead of cp to use a different command to copy
 		// "bash", "-c", fmt.Sprintf("apt-get -y install rsync; rsync -a %s/ %s/\n", v.containerPath, containerMount),
@@ -187,5 +188,11 @@ func TestCreateVolumeDir(t *testing.T) {
 		if expectedGID != fmt.Sprintf("%d", actualGID) {
 			t.Fatalf("actualGID:%+v != expectedGID:%+v", actualGID, expectedGID)
 		}
+	}
+
+	// make sure initialized dotfile exists
+	dotfileHostPath := path.Join(filepath.Dir(v.hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(v.hostPath)))
+	if _, err := os.Stat(dotfileHostPath); err != nil {
+		t.Fatalf("could not stat serviced initialized dotfile %s: %s", dotfileHostPath, err)
 	}
 }
