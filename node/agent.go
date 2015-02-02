@@ -607,7 +607,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 		resourcePath, err := a.setupVolume(tenantID, svc, volume)
 		if err != nil {
-			glog.Fatalf("%s", err)
+			return nil, nil, err
 		}
 
 		binding := fmt.Sprintf("%s:%s", resourcePath, volume.ContainerPath)
@@ -772,6 +772,7 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 
 	if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
+		return "", err
 	}
 
 	glog.V(4).Infof("resourcePath: %s  containerPath: %s", resourcePath, volume.ContainerPath)
