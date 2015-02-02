@@ -316,7 +316,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 
 	// find the service
 	store := f.serviceStore
-	if svc, err := store.FindChildService(ctx, newsvc.ParentServiceID, newsvc.Name); err != nil {
+	if svc, err := store.FindChildService(ctx, newsvc.DeploymentID, newsvc.ParentServiceID, newsvc.Name); err != nil {
 		glog.Errorf("Could not look up child service for %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	} else if svc != nil {

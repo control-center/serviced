@@ -386,7 +386,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 
 			if _, ok := currentServices[serviceID]; ok {
 				glog.Infof("Updating service %s (%s)", svc.Name, svc.ID)
-				if err := dfs.facade.UpdateService(dfs.datstoreGet(), svc); err != nil {
+				if err := dfs.facade.UpdateService(dfs.datastoreGet(), svc); err != nil {
 					glog.Errorf("Could not update service %s: %s", svc.ID, err)
 					return err
 				}
