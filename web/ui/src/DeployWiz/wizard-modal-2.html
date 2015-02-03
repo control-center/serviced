@@ -1,10 +1,10 @@
-  <p>{{'content_wizard_select_apps'|translate}}</p>
+  <p translate>content_wizard_select_apps</p>
   <div>
     <table class="table" ng-model="templates.data" style="min-width: inherit;">
         <tr>
             <th>&nbsp;</th>
-            <th>{{"label_app_name"|translate}}</th>
-            <th>{{"memory_required"|translate}}</th>
+            <th translate>label_app_name</th>
+            <th translate>memory_required</th>
         </tr>
         <tr ng-repeat="template in templates.data | orderBy: 'Name'" ng-class="install.templateClass(template)">
             <td><input type="checkbox"

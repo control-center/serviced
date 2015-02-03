@@ -1,35 +1,33 @@
 <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
-<h3 class="pull-left">
-  {{'hosts'|translate}}
-</h3>
+<h3 class="pull-left" translate>hosts</h3>
 
 <div class="control-buttons pull-right">
 
   <span class="add-control">
       <a href="/#/hostsmap" class="btn-link">
           <span class="glyphicon glyphicon-eye-open"></span>
-          {{'nav_hosts_map'|translate}}
+          <span translate>nav_hosts_map</span>
       </a>
   </span>
 
   <span class="add-control">
     <button class="btn-link" ng-click="modalAddHost()">
-      <span class="glyphicon glyphicon-plus-sign"></span>
-      {{'host'|translate}}
-    </button>
+        <span class="glyphicon glyphicon-plus-sign"></span>
+        <span translate>host</span>
+  </button>
   </span>
 
 </div>
 <table class="table side-flush" id="hosts_data">
   <thead>
     <tr>
-      <th>{{'label_host_id' | translate}}</th>
-      <th>{{'label_active' | translate}}</th>
-      <th>{{'label_pool_name'| translate}}</th>
-      <th>{{'label_host_memory' | translate}}</th>
-      <th>{{'label_host_cores' | translate}}</th>
-      <th>{{'label_host_kernel_version' | translate}}</th>
-      <th>{{'actions' | translate}}</th>
+      <th translate>label_host_id</th>
+      <th translate>label_active</th>
+      <th translate>label_pool_name</th>
+      <th translate>label_host_memory</th>
+      <th translate>label_host_cores</th>
+      <th translate>label_host_kernel_version</th>
+      <th translate>actions</th>
     </tr>
   </thead>
   <tbody>
@@ -37,7 +35,7 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="hosts.filtered.length !== 0">
-        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>

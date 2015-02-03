@@ -4,45 +4,45 @@
 
   <div class="details-form">
     <div class="vertical-info">
-      <label for="pool_data_id">{{'label_pool_id'|translate}}</label>
+      <label for="pool_data_id" translate>label_pool_id</label>
       <div id="pool_data_id">{{pools.current.ID | cut:true:50}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_core_limit">{{'core_capacity'|translate}}</label>
+      <label for="pool_data_core_limit" translate>core_capacity</label>
       <div id="pool_data_core_limit">{{pools.current.CoreCapacity}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_memory_limit">{{'memory_capacity'|translate}}</label>
+      <label for="pool_data_memory_limit" translate>memory_capacity</label>
       <div id="pool_data_memory_limit">{{pools.current.MemoryCapacity | toGB}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_created_at">{{'label_pool_created_at'|translate}}</label>
+      <label for="pool_data_created_at" translate>label_pool_created_at</label>
       <div id="pool_data_created_at">{{pools.current.CreatedAt | date : 'medium'}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="pool_data_updated_at">{{'updated_at'|translate}}</label>
+      <label for="pool_data_updated_at" translate>updated_at</label>
       <div id="pool_data_updated_at">{{pools.current.UpdatedAt | date : 'medium'}}</div>
     </div>
   </div>
 </div>
 
-<h3 class="pull-left">{{'label_virtual_ip_addresses'|translate}}</h3>
+<h3 class="pull-left" translate>label_virtual_ip_addresses</h3>
 <div class="control-buttons pull-right">
   <span class="add-control">
     <button class="btn-link" ng-click="modalAddVirtualIp(pools.current)">
       <span class="glyphicon glyphicon-plus-sign"></span>
-      {{'modal_add_virtual_ip'|translate}}
+      <span translate>modal_add_virtual_ip</span>
     </button>
   </span>
 </div>
 <table class="table side-flush">
   <thead>
     <tr>
-      <th ng-repeat="header in virtual_ip_addresses.headers">{{header.name|translate}}</th>
+      <th ng-repeat="header in virtual_ip_addresses.headers" translate>{{header.name}}</th>
     </tr>
   </thead>
   <tbody>
@@ -50,25 +50,30 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="pools.current.VirtualIPs.length !== 0">
-        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
     <tr ng-repeat="address in pools.current.VirtualIPs | orderBy:virtual_ip_addresses.sort">
       <td>{{address.IP}}</td>
       <td>{{address.Netmask}}</td>
       <td>{{address.BindInterface}}</td>
-      <td><button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button> </td>
+      <td>
+          <button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link action">
+              <i class="glyphicon glyphicon-remove-sign"></i>
+              <span translate>label_delete</span>
+          </button>
+      </td>
     </tr>
   </tbody>
 </table>
 
-<h3 class="pull-left">{{'hosts'|translate}}</h3>
+<h3 class="pull-left" translate>hosts</h3>
 <table class="table side-flush" id="hosts_data">
   <thead>
     <tr>
-      <th>{{'label_host_id' | translate}}</th>
-      <th>{{'label_host_memory' | translate}}</th>
-      <th>{{'label_host_cores' | translate}}</th>
-      <th>{{'label_host_kernel_version' | translate}}</th>
+      <th translate>label_host_id</th>
+      <th translate>label_host_memory</th>
+      <th translate>label_host_cores</th>
+      <th translate>label_host_kernel_version</th>
     </tr>
   </thead>
   <tbody>
@@ -76,7 +81,7 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="hosts.filtered.length !== 0">
-        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
     <tr ng-repeat="host in hosts.filtered">
       <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>

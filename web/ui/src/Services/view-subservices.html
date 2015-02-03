@@ -12,13 +12,25 @@
 
             <div class="serviceActions" ng-hide="services.current.isIsvc()">
                 <button ng-click="editCurrentService()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> Edit Service</button>
-                <button ng-click="clickEditContext()" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'edit_context'|translate}}</button>
+                <button ng-click="clickEditContext()" class="btn btn-link action">
+                    <i class="glyphicon glyphicon-edit"></i>
+                    <span translate>edit_context</span>
+                </button>
 
                 <div style="display: inline-block; padding-left: 10px; border-left: 1px solid #CCC; height: 1em; "></div>
                 <div ng-if="services.current.desiredState !== 2" style="display: inline-block;">
-                    <button ng-click="clickRunningApp(services.current, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
-                    <button ng-click="clickRunningApp(services.current, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
-                    <button ng-class="{disabled: services.current.desiredState === 0}" ng-click="clickRunningApp(services.current, 'restart')" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+                    <button ng-click="clickRunningApp(services.current, 'start')" class="btn btn-link action">
+                        <i class="glyphicon glyphicon-play"></i>
+                        <span translate>start</span>
+                    </button>
+                    <button ng-click="clickRunningApp(services.current, 'stop')" class="btn btn-link action">
+                        <i class="glyphicon glyphicon-stop"></i>
+                        <span translate>stop</span>
+                    </button>
+                    <button ng-class="{disabled: services.current.desiredState === 0}" ng-click="clickRunningApp(services.current, 'restart')" class="btn btn-link action">
+                        <i class="glyphicon glyphicon-refresh"></i>
+                        <span translate>action_restart</span>
+                    </button>
                 </div>
 
                 <div ng-if="services.current.desiredState === 2" style="display: inline-block;">
@@ -36,23 +48,23 @@
 
     <!-- Virtual Host Names -->
   <div ng-if="!services.current.isIsvc() && anyServicesExported(services.current.service)">
-    <h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
+    <h3 class="pull-left" translate>label_vhost_names</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddVHost()">
                 <span class="glyphicon glyphicon-plus-sign"></span>
-                {{'modal_add_vhost'|translate}}
+                <span translate>modal_add_vhost</span>
             </button>
         </span>
     </div>
     <table class="table" id="vhosts_data">
         <thead>
             <tr>
-                <th ng-repeat="header in vhosts.headers">{{header.name|translate}}
-                    <button ng-click="vhosts.set_order(header.id, vhosts)"
-                                    ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
+                <th ng-repeat="header in vhosts.headers">
+                    <span translate>{{header.name}}</span>
+                    <button ng-click="vhosts.set_order(header.id, vhosts)" ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
                 </th>
-                <th>{{'vhost_actions'|translate}}</th>
+                <th translate>vhost_actions</th>
             </tr>
         </thead>
         <tbody>
@@ -60,29 +72,37 @@
                 <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
             </tr>
             <tr ng-hide="vhosts.data.length !== 0">
-                <td colspan="100%" class="noData"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
+                <td colspan="100%" class="noData">
+                    <i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>
+                    <span translate>no_data</span>
+                </td>
             </tr>
             <tr ng-repeat="vhost in vhosts.data | orderBy:vhosts.sort">
                 <td>{{vhost.Name}}</td>
                 <td ng-click="click_app(vhost.ApplicationId)" class="link">{{vhost.Application}}</td>
                 <td>{{vhost.ServiceEndpoint}}</td>
                 <td><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
-                <td><button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1"><i class="glyphicon glyphicon-remove-sign"></i> {{'label_delete'|translate}}</button></td>
+                <td>
+                    <button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="vhosts.data.length <= 1">
+                        <i class="glyphicon glyphicon-remove-sign"></i>
+                        <span translate>label_delete</span>
+                    </button>
+                </td>
             </tr>
         </tbody>
     </table>
   </div>
     <!-- IP Assignments -->
   <div ng-if="!services.current.isIsvc()">
-    <h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
+    <h3 class="pull-left" translate>label_ip_assignments</h3>
     <table class="table" id="ips_data">
         <thead>
             <tr>
-                <th ng-repeat="header in ips.headers">{{header.name|translate}}
-                    <button ng-click="ips.set_order(header.id, ips)"
-                                    ng-class="ips.get_order_class(header.id, ips)"></button>
+                <th ng-repeat="header in ips.headers">
+                    <span translate>{{header.name}}</span>
+                    <button ng-click="ips.set_order(header.id, ips)" ng-class="ips.get_order_class(header.id, ips)"></button>
                 </th>
-                <th>{{'tbl_virtual_ip_actions'|translate}}</th>
+                <th translate>tbl_virtual_ip_actions</th>
             </tr>
         </thead>
         <tbody>
@@ -90,7 +110,10 @@
                 <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
             </tr>
             <tr ng-hide="ips.data.length !== 0">
-                <td colspan="100%" class="noData"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
+                <td colspan="100%" class="noData">
+                    <i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>
+                    <span translate>no_data</span>
+                </td>
             </tr>
             <tr ng-repeat="ip in ips.data | orderBy:ips.sort">
                 <td ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
@@ -98,7 +121,12 @@
                 <td ng-click="click_host(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
                 <td ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
                 <td>{{ip.IPAddr}}:{{ip.Port}}</td>
-                <td> <button ng-click="modalAssignIP(ip, ip.PoolID)" class="btn btn-link action"><i class="glyphicon glyphicon-link"></i> {{'label_assign'|translate}}</button> </td>
+                <td>
+                    <button ng-click="modalAssignIP(ip, ip.PoolID)" class="btn btn-link action">
+                        <i class="glyphicon glyphicon-link"></i>
+                        <span translate>label_assign</span>
+                    </button>
+                </td>
             </tr>
         </tbody>
     </table>
@@ -106,12 +134,12 @@
 
     <!-- Config Files -->
   <div ng-if="!services.current.isIsvc()">
-    <h3 class="pull-left">{{'title_config_files' | translate }}</h3>
+    <h3 class="pull-left" translate>title_config_files</h3>
     <table class="table">
         <thead>
           <tr>
-            <th>{{'path'|translate}}</th>
-            <th>{{'running_tbl_actions'|translate}}</th>
+            <th translate>path</th>
+            <th translate>running_tbl_actions</th>
           </tr>
         </thead>
         <tbody>
@@ -119,12 +147,18 @@
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
           </tr>
           <tr ng-hide="!isEmptyObject(services.current.service.ConfigFiles)">
-              <td colspan="100%" class="noData"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
+              <td colspan="100%" class="noData">
+                  <i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>
+                  <span translate>no_data</span>
+              </td>
           </tr>
           <tr ng-repeat="configFile in services.current.service.ConfigFiles">
             <td>{{ configFile.Filename }}</td>
             <td>
-              <button ng-click="editConfig(configFile.Filename)" class="btn btn-link action"><i class="glyphicon glyphicon-edit"></i> {{'label_edit'|translate}}</button>
+              <button ng-click="editConfig(configFile.Filename)" class="btn btn-link action">
+                  <i class="glyphicon glyphicon-edit"></i>
+                  <span translate>label_edit</span>
+              </button>
             </td>
           </tr>
         </tbody>
@@ -132,15 +166,14 @@
   </div>
 
   <!-- This table has sub service definitions -->
-    <h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
+    <h3 ng-show="services.subservices.length > 0" translate>title_services</h3>
     <table class="table" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
-          <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
-          <th style="white-space: nowrap; width:200px;">{{'label_service'|translate}}</th>
+          <th style="white-space: nowrap; width:200px;" translate>label_service</th>
           <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
-          <th style="width: 600px;">{{'deployed_tbl_description'|translate}}</th>
-          <th ng-if="!services.current.isIsvc()">{{'running_tbl_actions'|translate}}</th>
+          <th style="width: 600px;" translate>deployed_tbl_description</th>
+          <th ng-if="!services.current.isIsvc()" translate>running_tbl_actions</th>
         </tr>
       </thead>
       <tbody>
@@ -148,7 +181,10 @@
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-hide="services.subservices.length !== 0">
-            <td colspan="100%" class="noData"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
+            <td colspan="100%" class="noData">
+                <i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>
+                <span translate>no_data</span>
+            </td>
         </tr>
         <tr ng-repeat="app in services.subservices" data-id="{{app.service.ID}}">
           <td>
@@ -170,9 +206,18 @@
           <td ng-if="!services.current.isIsvc()">
             <div ng-if="!app.isIsvc()">
               <div ng-if="app.desiredState !== 2">
-                <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start', servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> {{'start'|translate}}</button>
-                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop', servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> {{'stop'|translate}}</button>
-                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'restart', servicesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+                <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start', servicesFactory)" class="btn btn-link action">
+                    <i class="glyphicon glyphicon-play"></i>
+                    <span translate>start</span>
+                </button>
+                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop', servicesFactory)" class="btn btn-link action">
+                    <i class="glyphicon glyphicon-stop"></i>
+                    <span translate>stop</span>
+                </button>
+                <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'restart', servicesFactory)" class="btn btn-link action">
+                    <i class="glyphicon glyphicon-refresh"></i>
+                    <span translate>action_restart</span>
+                </button>
               </div>
               <div ng-if="app.desiredState === 2">
                 <span class="btn btn-link action disabled"><i class="glyphicon glyphicon-pause"></i> Paused</span>
@@ -184,16 +229,16 @@
     </table>
 
   <!-- This table has running instances -->
-  <h3 ng-show="hasCurrentInstances()">{{'running_tbl_instances'|translate}}</h3>
+  <h3 ng-show="hasCurrentInstances()" translate>running_tbl_instances</h3>
   <table class="table" ng-show="hasCurrentInstances()">
     <thead>
       <tr>
-        <th>{{'running_tbl_instance_id'|translate}}</th>
-        <th>{{'label_service_name'|translate}}</th>
-        <th>{{'label_service_status'|translate}}</th>
-        <th>{{'host'|translate}}</th>
-        <th>{{'running_tbl_docker_id'|translate}}</th>
-        <th>{{'running_tbl_actions'|translate}}</th>
+        <th translate>running_tbl_instance_id</th>
+        <th translate>label_service_name</th>
+        <th translate>label_service_status</th>
+        <th translate>host</th>
+        <th translate>running_tbl_docker_id</th>
+        <th translate>running_tbl_actions</th>
       </tr>
     </thead>
     <tbody>
@@ -201,7 +246,10 @@
         <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
       </tr>
       <tr ng-hide="hasCurrentInstances()">
-          <td colspan="100%"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
+          <td colspan="100%">
+              <i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>
+              <span translate>no_data</span>
+          </td>
       </tr>
       <tr ng-repeat="app in services.current.instances" data-id="{{app.ID}}.{{app.InstanceID}}">
         <td>{{app.InstanceID}}</td>
@@ -212,22 +260,28 @@
         <td ng-click="click_host(app.HostID)" class="link">{{getHostName(app.HostID)}}</td>
         <td>{{app.DockerID}}</td>
         <td>
-          <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
-          <button ng-click="killRunning(app)" class="btn btn-link action"><i class="glyphicon glyphicon-refresh"></i> {{'action_restart'|translate}}</button>
+          <button ng-click="viewLog(app)" class="btn btn-link action">
+              <i class="glyphicon glyphicon-list-alt"></i>
+              <span translate>action_view_log</span>
+          </button>
+          <button ng-click="killRunning(app)" class="btn btn-link action">
+              <i class="glyphicon glyphicon-refresh"></i>
+              <span translate>action_restart</span>
+          </button>
         </td>
       </tr>
     </tbody>
   </table>
 
   <div ng-if="!services.current.isIsvc()">
-    <h3>{{'scheduled_tasks'|translate}}</h3>
+    <h3 translate>scheduled_tasks</h3>
       <table class="table">
           <thead>
               <tr>
-                <th>{{'task_schedule'|translate}}</th>
-                <th>{{'task_command' |translate}}</th>
-                <th>{{'task_last_run'|translate}}</th>
-                <th>{{'task_run_count'|translate}}</th>
+                <th translate>task_schedule</th>
+                <th translate>task_command</th>
+                <th translate>task_last_run</th>
+                <th translate>task_run_count</th>
               </tr>
           </thead>
           <tbody>
@@ -235,7 +289,10 @@
               <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
           </tr>
           <tr ng-hide="services.current.service.Tasks !== null">
-              <td colspan="100%" class="noData"><i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>{{"no_data" | translate}}</td>
+              <td colspan="100%" class="noData">
+                  <i class="glyphicon glyphicon-ban-circle" style="font-size: .9em; padding-right: 5px;"></i>
+                  <span translate>no_data</span>
+              </td>
           </tr>
           <tr ng-repeat="task in services.current.service.Tasks">
               <td style="font-family:monospace">{{ task.Schedule }}</td>

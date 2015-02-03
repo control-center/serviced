@@ -1,12 +1,12 @@
-<p>{{'content_wizard_select_pool'|translate}}</p>
+<p translate>content_wizard_select_pool</p>
 
 <table class="table" style="min-width: inherit;">
     <tr>
         <th>&nbsp;</th>
-        <th>{{"label_pool_name"|translate}}</th>
-        <th>{{"label_pool_description"|translate}}</th>
-        <th>{{"memory_capacity"|translate}}</th>
-        <th>{{"core_capacity"|translate}}</th>
+        <th translate>label_pool_name</th>
+        <th translate>label_pool_description</th>
+        <th translate>memory_capacity</th>
+        <th translate>core_capacity</th>
     </tr>
     <tr ng-repeat="pool in pools.data | orderBy:'ID'">
         <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>

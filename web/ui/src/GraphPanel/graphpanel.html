@@ -1,4 +1,7 @@
-<h3>{{services.current.Title}} {{'graphs'|translate}}</h3>
+<h3>
+    {{services.current.Title}}
+    <span translate>graphs</span>
+</h3>
 <div class="graphsControls">
   <div class="graphControl">
       <i class="glyphicon glyphicon-time"></i> {{graphConfig.start | prettyDate}} - {{graphConfig.end | prettyDate}}

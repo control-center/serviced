@@ -1,4 +1,5 @@
-<p>{{'label_username'|translate}}:&nbsp;{{cookies.ZUsername}}</p>
+<p>
+    <span translate>label_username</span>:&nbsp;{{cookies.ZUsername}}</p>
 <div class="btn-group" ng-controller="LanguageController">
   <label ng-class="getLanguageClass('en_US')">
     <input type="radio" name="user_language" ng-change="setUserLanguage()" ng-model="user.language" value="en_US">English</input>
@@ -10,10 +11,10 @@
 
 <hr>
 <div class="messagesTitle">
-    <div class="pull-left">{{'label_messages'|translate}}</div>
+    <div class="pull-left" translate>label_messages</div>
     <div class="clearLink pull-right action" ng-click="clearMessages()">
       <i class="glyphicon glyphicon-trash"></i>
-      <span>{{'label_clear'|translate}}</span>
+      <span translate>label_clear</span>
     </div>
     <br style="clear: both;"/>
 </div>

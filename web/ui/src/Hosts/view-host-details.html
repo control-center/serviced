@@ -3,37 +3,37 @@
 <div class="details">
   <div class="details-form">
     <div class="vertical-info">
-      <label for="host_data_id">{{'label_host_id'|translate}}</label>
+      <label for="host_data_id" translate>label_host_id</label>
       <div id="host_data_id">{{hosts.current.ID}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="host_data_pool">{{'label_host_pool'|translate}}</label>
+      <label for="host_data_pool" translate>label_host_pool</label>
       <div id="host_data_pool">{{hosts.current.PoolID}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="host_data_memory">{{'label_host_memory'|translate}}</label>
+      <label for="host_data_memory" translate>label_host_memory</label>
       <div id="host_data_memory">{{hosts.current.Memory | toGB}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="host_data_cpu">{{'label_host_cores'|translate}}</label>
+      <label for="host_data_cpu" translate>label_host_cores</label>
       <div id="host_data_cpu">{{hosts.current.Cores}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="host_data_kernel_version">{{'label_host_kernel_version'|translate}}</label>
+      <label for="host_data_kernel_version" translate>label_host_kernel_version</label>
       <div id="host_data_kernel_version">{{hosts.current.KernelVersion}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="host_data_kernel_revision">{{'label_host_kernel_release'|translate}}</label>
+      <label for="host_data_kernel_revision" translate>label_host_kernel_release</label>
       <div id="host_data_kernel_revision">{{hosts.current.KernelRelease}}</div>
     </div>
 
     <div class="vertical-info">
-      <label for="host_data_ip_addr">{{'label_host_ip_addr'|translate}}</label>
+      <label for="host_data_ip_addr" translate>label_host_ip_addr</label>
       <div id="host_data_ip_addr">{{hosts.current.IPAddr}}</div>
     </div>
   </div>
@@ -42,11 +42,11 @@
 <!-- Graphs -->
 <graph-panel ng-if="hosts.current.MonitoringProfile.GraphConfigs" data-service-id="hosts.current.ID" data-graph-configs="hosts.current.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
   
-<h3>{{'ip_addresses'|translate}}</h3>
+<h3 translate>ip_addresses</h3>
 <table class="table side-flush">
   <thead>
     <tr>
-      <th ng-repeat="header in ip_addresses.headers">{{header.name|translate}}</th>
+      <th ng-repeat="header in ip_addresses.headers" translate>{{header.name}}</th>
     </tr>
   </thead>
   <tbody>
@@ -54,7 +54,7 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="hosts.current.IPs.length !== 0">
-        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
     <tr ng-repeat="address in hosts.current.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
@@ -64,13 +64,13 @@
   </tbody>
 </table>
 
-<h3>{{'running_services'|translate}}</h3>
+<h3 translate>running_services</h3>
 <table class="table side-flush">
   <thead>
     <tr>
-      <th ng-repeat="header in running.headers">{{header.name|translate}}
-          <button ng-click="running.set_order(header.id, running)"
-                    ng-class="running.get_order_class(header.id, running)"></button>
+      <th ng-repeat="header in running.headers">
+          <span translate>{{header.name}}</span>
+          <button ng-click="running.set_order(header.id, running)" ng-class="running.get_order_class(header.id, running)"></button>
       </th>
     </tr>
   </thead>
@@ -79,16 +79,19 @@
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
     <tr ng-hide="running.data.length !== 0">
-        <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+        <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
     <tr ng-repeat="app in running.data | orderBy:running.sort">
       <td ng-click="click_app(app)" class="link">{{app.Name}}</td>
       <td>
           <span ng-if="app.StartedAt!=='0001-01-01T00:00:00Z'" am-time-ago="app.StartedAt" title="{{app.StartedAt}}"></span>
-          <span ng-if="app.StartedAt==='0001-01-01T00:00:00Z'">{{'starting'|translate}}</span>
+          <span ng-if="app.StartedAt==='0001-01-01T00:00:00Z'" translate>starting</span>
       </td>
       <td>
-          <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
+          <button ng-click="viewLog(app)" class="btn btn-link action">
+              <i class="glyphicon glyphicon-list-alt"></i>
+              <span translate>action_view_log</span>
+          </button>
           <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
       </td>
     </tr>

@@ -1,13 +1,13 @@
 <div class="form-group">
-  <label for="new_host_name">{{'label_host_and_port'|translate}}:</label>
+    <label for="new_host_name"><span translate>label_host_and_port</span>:</label>
   <input class="form-control" focusme name="new_host_name" id="new_host_name" type="text"
          placeholder="{{'placeholder_host_and_port'|translate}}" ng-model="newHost.IPAddr"
          ng-pattern="/^(.*)\:[0-9]+$/"/>
 </div>
 
 <div class="form-group">
-  <label for="new_host_parent">{{'label_host_parent'|translate}}:</label>
-  <select class="form-control" name="new_host_parent" id="new_host_parent" ng-model="newHost.PoolID" ng-required
-          ng-options="pool.ID as pool.ID for pool in pools.flattened">
-  </select>
+    <label for="new_host_parent"><span translate>label_host_parent</span>:</label>
+    <select class="form-control" name="new_host_parent" id="new_host_parent" 
+        ng-model="newHost.PoolID" ng-required ng-options="pool.ID as pool.ID for pool in pools.flattened">
+    </select>
 </div>
