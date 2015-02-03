@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -233,6 +234,64 @@ func TestServiceListener_Spawn(t *testing.T) {
 	wg.Wait()
 }
 
+func TestServiceListener_clean(t *testing.T) {
+	conn := client.NewTestConnection()
+	defer conn.Close()
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	svc := &service.Service{
+		ID: "test-service-1",
+	}
+	spath := servicepath(svc.ID)
+	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
+		t.Fatalf("Error while creating node %s: %s", spath, err)
+	}
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
+
+	t.Log("Starting instances")
+	svc.Instances = 2
+	listener.sync(svc, []dao.RunningService{})
+	rss, err := LoadRunningServicesByService(conn, svc.ID)
+	if err != nil {
+		t.Fatalf("Error while looking up %s: %s", svc.ID, err)
+	} else if count := len(rss); count != svc.Instances {
+		t.Fatalf("Expected %d instances; Got: %d instances", count, svc.Instances)
+	}
+
+	err = listener.clean(&rss)
+	if err != nil {
+		t.Fatalf("Error while cleaning up instances: %s", err)
+	} else if count := len(rss); count != svc.Instances {
+		t.Fatalf("Expected %d instances; Got: %d instances", count, svc.Instances)
+	}
+
+	// Delete the host record for the first node
+	id := rss[0].ID
+	err = conn.Delete(hostpath(rss[0].HostID, id))
+	if err != nil {
+		t.Fatalf("Could not delete %s: %s", id, err)
+	}
+
+	err = listener.clean(&rss)
+	if err != nil {
+		t.Fatalf("Error while cleaning up instances: %s", err)
+	} else if count := len(rss); count == 0 || count == svc.Instances {
+		t.Fatalf("Mismatch on number of instances")
+	}
+
+	for _, rs := range rss {
+		if rs.ID == id {
+			t.Errorf("Did not clean node %s: %s", rs.ID, err)
+		}
+	}
+
+	if ok, err := conn.Exists(servicepath(svc.ID, id)); err != nil && err != client.ErrNoNode {
+		t.Fatalf("Could not check node %s: %s", servicepath(svc.ID, id), err)
+	} else if ok {
+		t.Errorf("Node exists %s: %s", servicepath(svc.ID, id), err)
+	}
+}
+
 func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 	conn := client.NewTestConnection()
 	defer conn.Close()
@@ -244,7 +303,7 @@ func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 	}
 	spath := servicepath(svc.ID)
 	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
-		t.Fatalf("Error while cresting node %s: %s", spath, err)
+		t.Fatalf("Error while creating node %s: %s", spath, err)
 	}
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
