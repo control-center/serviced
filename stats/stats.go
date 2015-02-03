@@ -255,6 +255,8 @@ func (sr StatsReporter) updateStats() {
 			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
 		}
 	}
+	// Clean out old container registries
+	sr.removeStaleRegistries(&running)
 }
 
 // Fills out the metric consumer format.
