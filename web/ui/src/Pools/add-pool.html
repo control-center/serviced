@@ -1,11 +1,15 @@
 <div class="form-group">
-  <label for="new_pool_name">{{'label_pool_name'|translate}}:</label>
-  <input class="form-control" name="new_pool_name" focusme id="new_pool_name" type="text" placeholder="{{'placeholder_pool_name'|translate}}" maxlength=100 ng-model="newPool.ID">
+    <label for="new_pool_name">
+        <span translate>label_pool_name</span>:
+    </label>
+    <input class="form-control" name="new_pool_name" focusme id="new_pool_name" type="text" placeholder="{{'placeholder_pool_name'|translate}}" maxlength=100 ng-model="newPool.ID">
 </div>
 
 <div class="form-group">
-  <label for="new_pool_description">{{'label_pool_description'|translate}}:</label>
-  <input class="form-control" name="new_pool_description" id="new_pool_description" type="text" placeholder="{{'placeholder_pool_description'|translate}}" ng-model="newPool.Description">
+    <label for="new_pool_description">
+        <span translate>label_pool_description</span>:
+    </label>
+    <input class="form-control" name="new_pool_description" id="new_pool_description" type="text" placeholder="{{'placeholder_pool_description'|translate}}" ng-model="newPool.Description">
 </div>
 
 <!-- Disabled until enforced. See ZEN-11450

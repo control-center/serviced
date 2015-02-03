@@ -6,7 +6,7 @@
   <span class="add-control">
     <button class="btn-link" ng-click="modalAddPool()">
       <span class="glyphicon glyphicon-plus-sign"></span>
-      {{'pool'|translate}}
+      <span translate>pool</span>
     </button>
   </span>
 </div>
@@ -14,9 +14,9 @@
 <table class="table" id="apps_data" >
   <thead>
     <tr>
-      <th ng-repeat="header in pools.headers">{{header.name|translate}}
-        <button ng-click="pools.set_order(header.id, pools)" 
-                ng-class="pools.get_order_class(header.id, pools)"></button>
+      <th ng-repeat="header in pools.headers">
+            <span translate>{{header.name}}</span>
+            <button ng-click="pools.set_order(header.id, pools)" ng-class="pools.get_order_class(header.id, pools)"></button>
       </th>
     </tr>
   </thead>

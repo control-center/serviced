@@ -68,9 +68,9 @@
 <table class="table side-flush">
   <thead>
     <tr>
-      <th ng-repeat="header in running.headers">{{header.name|translate}}
-          <button ng-click="running.set_order(header.id, running)"
-                    ng-class="running.get_order_class(header.id, running)"></button>
+      <th ng-repeat="header in running.headers">
+          <span translate>{{header.name}}</span>
+          <button ng-click="running.set_order(header.id, running)" ng-class="running.get_order_class(header.id, running)"></button>
       </th>
     </tr>
   </thead>
@@ -88,7 +88,10 @@
           <span ng-if="app.StartedAt==='0001-01-01T00:00:00Z'" translate>starting</span>
       </td>
       <td>
-          <button ng-click="viewLog(app)" class="btn btn-link action"><i class="glyphicon glyphicon-list-alt"></i> {{'action_view_log'|translate}}</button>
+          <button ng-click="viewLog(app)" class="btn btn-link action">
+              <i class="glyphicon glyphicon-list-alt"></i>
+              <span translate>action_view_log</span>
+          </button>
           <button ng-class="{disabled: app.DesiredState === 0}" ng-click="toggleRunning(app, 'stop', resourcesFactory)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
       </td>
     </tr>

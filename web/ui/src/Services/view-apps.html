@@ -5,21 +5,22 @@
         <span class="add-control">
             <a href="/#/servicesmap" class="btn-link">
                 <span class="glyphicon glyphicon-eye-open"></span>
-                {{'nav_servicesmap'|translate}}
+                <span translate>nav_servicesmap</span>
             </a>
         </span>
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddApp()">
                 <span class="glyphicon glyphicon-plus-sign"></span>
-                {{'application'|translate}}
+                <span translate>application</span>
             </button>
         </span>
     </div>
     <table class="table" id="apps_data" >
       <thead>
         <tr>
-          <th ng-repeat="header in services.headers">{{header.name|translate}}
-            <button ng-if="!(header.hideSort === true)" ng-click="services.set_order(header.id, services)"
+          <th ng-repeat="header in services.headers">
+              <span translate>{{header.name}}</span>
+              <button ng-if="!(header.hideSort === true)" ng-click="services.set_order(header.id, services)"
                     ng-class="services.get_order_class(header.id, services)"></button>
           </th>
           <th translate>running_tbl_actions</th>
@@ -39,7 +40,9 @@
             <td>{{app.DeploymentID}}</td>
             <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID|cut:true:50}}</td>
             <td>&nbsp;</td>
-            <td><span style="color:#AAA;font-style:italic;">{{'deploying'|translate}}...</span></td>
+            <td>
+                <span style="color:#AAA;font-style:italic;" translate>deploying</span>...
+            </td>
         </tr>
         <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.id}}"  ng-model="services.data">
           <td ng-click="click_app(app.id)" class="link">{{app.name}}<span class="version" ng-show="app.service.Version"> (v{{app.service.Version}})</span></td>
@@ -75,14 +78,15 @@
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddTemplate()">
                 <span class="glyphicon glyphicon-plus-sign"></span>
-                {{'template'|translate}}
+                <span translate>template</span>
             </button>
         </span>
     </div>
     <table class="table" id="template_data"  ng-model="templates.data">
         <thead>
         <tr>
-            <th ng-repeat="header in templates.headers">{{header.name|translate}}
+            <th ng-repeat="header in templates.headers">
+                <span translate>{{header.name}}</span>
                 <button ng-click="templates.set_order(header.id, templates)"
                         ng-class="templates.get_order_class(header.id, templates)"></button>
             </th>

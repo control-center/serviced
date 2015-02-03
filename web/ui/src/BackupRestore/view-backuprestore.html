@@ -6,7 +6,7 @@
   <span class="add-control">
     <button class="btn-link createBackup" ng-click="createBackup()">
         <span class="glyphicon glyphicon-plus-sign"></span>
-        {{'backup_create'|translate}}
+        <span translate>backup_create</span>
     </button>
   </span>
 </div>
@@ -32,7 +32,7 @@
             <td>
                 <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
                     <span class="glyphicon glyphicon-refresh"></span>
-                    {{'backup_restore'|translate}}
+                    <span translate>backup_restore</span>
                 </button>
                 <span ng-show="fileInfo.in_progress" class="ntsh">In Progress...</span>
             </td>
