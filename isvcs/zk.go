@@ -19,7 +19,7 @@
 package isvcs
 
 import (
-	"github.com/samuel/go-zookeeper/zk"
+	"github.com/control-center/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 
 	"fmt"
