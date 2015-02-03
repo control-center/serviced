@@ -350,10 +350,18 @@ func removeInstance(conn client.Connection, state *servicestate.ServiceState) er
 		return nil
 	}
 
-	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
-		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
+	// Delete the service state first to minimize syncing issues, since service
+	// state is watched by the scheduler
+	if err := conn.Delete(servicepath(state.ServiceID, state.ID)); err != nil {
+		glog.Errorf("Could not delete service state %s: %s", state.HostID, state.ID)
+		return err
 	}
-	return conn.Delete(servicepath(state.ServiceID, state.ID))
+
+	// It is ok if this fails, because it will eventually resync itself on the host
+	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
+		glog.Warningf("Could not delete host state %s (%s): %s", state.ID, state.HostID, err)
+	}
+	return nil
 }
 
 // pauseInstance only updates the service instance if the instance is marked as RUN

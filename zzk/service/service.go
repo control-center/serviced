@@ -137,20 +137,27 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		rss, err := LoadRunningServicesByService(l.conn, svc.ID)
 		if err != nil {
 			glog.Errorf("Could not load states for service %s (%s): %s", svc.Name, svc.ID, err)
+			return
 		}
 
-		// Should the service be running at all?
-		switch service.DesiredState(svc.DesiredState) {
-		case service.SVCStop:
-			l.stop(rss)
-		case service.SVCRun:
-			if !l.sync(&svc, rss) {
-				retry = time.After(retryTimeout)
+		// CC-767: Clean out-of-sync data
+		if err = l.clean(&rss); err != nil {
+			glog.Warningf("Could not clean service states for %s (%s): %s", svc.Name, svc.ID, err)
+			retry = time.After(retryTimeout)
+		} else {
+			// Should the service be running at all?
+			switch service.DesiredState(svc.DesiredState) {
+			case service.SVCStop:
+				l.stop(rss)
+			case service.SVCRun:
+				if !l.sync(&svc, rss) {
+					retry = time.After(retryTimeout)
+				}
+			case service.SVCPause:
+				l.pause(rss)
+			default:
+				glog.Warningf("Unexpected desired state %d for service %s (%s)", svc.DesiredState, svc.Name, svc.ID)
 			}
-		case service.SVCPause:
-			l.pause(rss)
-		default:
-			glog.Warningf("Unexpected desired state %d for service %s (%s)", svc.DesiredState, svc.Name, svc.ID)
 		}
 
 		glog.V(2).Infof("Service %s (%s) waiting for event", svc.Name, svc.ID)
@@ -180,6 +187,28 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			return
 		}
 	}
+}
+
+// clean will clean any orphaned service instances that don't have a host ID
+func (l *ServiceListener) clean(rss *[]dao.RunningService) error {
+	var outRSS []dao.RunningService
+	for _, rs := range *rss {
+		var hs HostState
+		if err := l.conn.Get(hostpath(rs.HostID, rs.ID), &hs); err == client.ErrNoNode {
+			glog.Warningf("Service instance %s for %s (%s) not scheduled on host %s: removing", rs.ID, rs.Name, rs.ServiceID, rs.HostID)
+			if err := l.conn.Delete(servicepath(rs.ServiceID, rs.ID)); err != nil {
+				glog.Errorf("Could not delete service instance %s for %s (%s): %s", rs.ID, rs.Name, rs.ServiceID, err)
+				return err
+			}
+			continue
+		} else if err != nil {
+			glog.Errorf("Could not look up service instance %s for %s (%s) on host %s: %s", rs.ID, rs.Name, rs.ServiceID, rs.HostID, err)
+			return err
+		}
+		outRSS = append(outRSS, rs)
+	}
+	*rss = outRSS
+	return nil
 }
 
 func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) bool {
