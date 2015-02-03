@@ -518,10 +518,10 @@ func (c *Controller) Run() (err error) {
 		return err
 	}
 
-	args := []string{"-c", "exec " + strings.Join(c.options.Service.Command, " ")}
+	args := []string{"-c", "trap 'kill 0' 15; exec " + strings.Join(c.options.Service.Command, " ")}
 
 	startService := func() (*subprocess.Instance, chan error) {
-		service, serviceExited, _ := subprocess.New(time.Second*10, env, "/bin/sh", args...)
+		service, serviceExited, _ := subprocess.New(time.Second*120, env, "/bin/sh", args...)
 		return service, serviceExited
 	}
 
