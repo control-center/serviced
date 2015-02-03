@@ -1,8 +1,6 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
-    <h3 class="pull-left">
-        {{'applications'|translate}}
-    </h3>
+    <h3 class="pull-left" translate>applications</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
             <a href="/#/servicesmap" class="btn-link">
@@ -24,7 +22,7 @@
             <button ng-if="!(header.hideSort === true)" ng-click="services.set_order(header.id, services)"
                     ng-class="services.get_order_class(header.id, services)"></button>
           </th>
-          <th>{{'running_tbl_actions'|translate}}</th>
+          <th translate>running_tbl_actions</th>
         </tr>
       </thead>
       <tbody>
@@ -32,7 +30,7 @@
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-hide="services.data.length !== 0">
-            <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+            <td colspan="100%" align="center" class="noData" translate>no_data</td>
         </tr>
         <tr ng-hide="services.deploying.length == 0" ng-repeat="app in services.deploying | orderBy:services.sort" ng-model="services.deploying">
             <td>{{app.templateName}}</td>
@@ -72,9 +70,7 @@
       </tr>
       </tbody>
     </table>
-    <h3 class="pull-left">
-        {{'templates'|translate}}
-    </h3>
+    <h3 class="pull-left" translate>templates</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddTemplate()">
@@ -90,7 +86,7 @@
                 <button ng-click="templates.set_order(header.id, templates)"
                         ng-class="templates.get_order_class(header.id, templates)"></button>
             </th>
-            <th>{{'running_tbl_actions'|translate}}</th>
+            <th translate>running_tbl_actions</th>
         </tr>
         </thead>
         <tbody>
@@ -98,7 +94,7 @@
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-hide="templates.data.length !== 0">
-            <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+            <td colspan="100%" align="center" class="noData" translate>no_data</td>
         </tr>
         <tr ng-repeat="template in templates.data | orderBy:templates.sort">
             <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>

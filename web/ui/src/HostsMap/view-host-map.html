@@ -1,9 +1,7 @@
 <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
-<h3>
-  {{'nav_hosts_map'|translate}}
-</h3>
+<h3 translate>nav_hosts_map</h3>
 
-<button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()">{{'nav_by_ram'|translate}}</button>
-<button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()">{{'nav_by_cpu'|translate}}</button>
+<button ng-class="selectionButtonClass('memory')" ng-click="selectByMemory()" translate>nav_by_ram</button>
+<button ng-class="selectionButtonClass('cpu')" ng-click="selectByCores()" translate>nav_by_cpu</button>
 
 <div id="hostmap" class="treemap"></div>

@@ -8,7 +8,7 @@
   </div>
   <div class="navbar-collapse collapse">
     <ul class="nav navbar-nav">
-      <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}">{{navlink.label|translate}}</a></li>
+      <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}" translate>{{navlink.label}}</a></li>
     </ul>
     <ul class="nav navbar-nav navbar-right">
       <li>
@@ -23,17 +23,13 @@
           <a href="/static/doc/" target="_blank" title="Help"><i class="glyphicon glyphicon-question-sign"></i></a>
       </li>
       <li>
-        <button class="btn-link" ng-click="logout()">
-          {{"nav_logout" | translate}}
-        </button>
+        <button class="btn-link" ng-click="logout()" translate>nav_logout</button>
       </li>
       <li>
         <div class="vr">|</div>
       </li>
       <li>
-          <button class="btn-link" ng-click="modalAbout()">
-              {{'title_about'|translate}}
-          </button>
+          <button class="btn-link" ng-click="modalAbout()" translate>title_about</button>
       </li>
       <!--
       <li>
@@ -49,7 +45,7 @@
       <ol class="breadcrumb inline">
           <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
               <span ng-switch-when="undefined" class="crumb current">{{crumb.label|translate|cut:true:25}}</span>
-              <a ng-switch-default ng-href="{{crumb.url}}" class="crumb">{{crumb.label|translate}}</a>
+              <a ng-switch-default ng-href="{{crumb.url}}" class="crumb" translate>{{crumb.label}}</a>
           </li>
       </ol>
   </div>

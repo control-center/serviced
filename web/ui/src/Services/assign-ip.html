@@ -1,16 +1,16 @@
 <div class="form-group">
-    <label for="assign_ip">{{'label_service'|translate}}</label>
+    <label for="assign_ip" translate>label_service</label>
     <input class="form-control"  value="{{ips.assign.ip.ServiceName}}" disabled>
 </div>
 <div class="form-group">
-    <label for="assign_ip">{{'label_endpoint'|translate}}</label>
+    <label for="assign_ip" translate>label_endpoint</label>
     <input class="form-control"  value="{{ips.assign.ip.EndpointName}}" disabled>
 </div>
 <div class="form-group">
-    <label for="assign_ip">{{'label_port'|translate}}</label>
+    <label for="assign_ip" translate>label_port</label>
     <input class="form-control"  value="{{ips.assign.ip.Port}}" disabled>
 </div>
 <div class="form-group">
-    <label for="assign_ip">{{'label_ip'|translate}}</label>
+    <label for="assign_ip" translate>label_ip</label>
     <select id="assign_ip" ng-model="ips.assign.value" ng-options="opt as opt.Value for opt in ips.assign.options" class="form-control"></select>
 </div>

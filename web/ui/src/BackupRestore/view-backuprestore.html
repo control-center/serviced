@@ -1,8 +1,6 @@
 <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
-<h3 class="pull-left">
-    {{'backuprestore'|translate}}
-</h3>
+<h3 class="pull-left" translate>backuprestore</h3>
 
 <div class="control-buttons pull-right">
   <span class="add-control">
@@ -16,9 +14,9 @@
 <table class="table" id="backup_data" >
     <thead>
         <tr>
-            <th>{{'file_name'|translate}}</th>
-            <th>{{'modified'|translate}}</th>
-            <th>{{'actions'|translate}}</th>
+            <th translate>file_name</th>
+            <th translate>modified</th>
+            <th translate>actions</th>
         </tr>
     </thead>
     <tbody>
@@ -26,7 +24,7 @@
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-hide="backupFiles.length !== 0">
-            <td colspan="100%" align="center" class="noData">{{"no_backups" | translate}}</td>
+            <td colspan="100%" align="center" class="noData" translate>no_backups</td>
         </tr>
         <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
             <td>{{fileInfo.full_path}}</td>

@@ -36,7 +36,7 @@
 
     <!-- Virtual Host Names -->
   <div ng-if="!services.current.isIsvc() && anyServicesExported(services.current.service)">
-    <h3 class="pull-left">{{'label_vhost_names'|translate}}</h3>
+    <h3 class="pull-left" translate>label_vhost_names</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
             <button class="btn-link" ng-click="modalAddVHost()">
@@ -52,7 +52,7 @@
                     <button ng-click="vhosts.set_order(header.id, vhosts)"
                                     ng-class="vhosts.get_order_class(header.id, vhosts)"></button>
                 </th>
-                <th>{{'vhost_actions'|translate}}</th>
+                <th translate>vhost_actions</th>
             </tr>
         </thead>
         <tbody>
@@ -74,7 +74,7 @@
   </div>
     <!-- IP Assignments -->
   <div ng-if="!services.current.isIsvc()">
-    <h3 class="pull-left">{{'label_ip_assignments'|translate}}</h3>
+    <h3 class="pull-left" translate>label_ip_assignments</h3>
     <table class="table" id="ips_data">
         <thead>
             <tr>
@@ -82,7 +82,7 @@
                     <button ng-click="ips.set_order(header.id, ips)"
                                     ng-class="ips.get_order_class(header.id, ips)"></button>
                 </th>
-                <th>{{'tbl_virtual_ip_actions'|translate}}</th>
+                <th translate>tbl_virtual_ip_actions</th>
             </tr>
         </thead>
         <tbody>
@@ -106,12 +106,12 @@
 
     <!-- Config Files -->
   <div ng-if="!services.current.isIsvc()">
-    <h3 class="pull-left">{{'title_config_files' | translate }}</h3>
+    <h3 class="pull-left" translate>title_config_files</h3>
     <table class="table">
         <thead>
           <tr>
-            <th>{{'path'|translate}}</th>
-            <th>{{'running_tbl_actions'|translate}}</th>
+            <th translate>path</th>
+            <th translate>running_tbl_actions</th>
           </tr>
         </thead>
         <tbody>
@@ -132,15 +132,15 @@
   </div>
 
   <!-- This table has sub service definitions -->
-    <h3 ng-show="services.subservices.length > 0">{{'title_services'|translate}}</h3>
+    <h3 ng-show="services.subservices.length > 0" translate>title_services</h3>
     <table class="table" ng-show="services.subservices.length > 0">
       <thead>
         <tr>
           <!-- <th ng-repeat="header in services.headers">{{header.name|translate}}</th> -->
-          <th style="white-space: nowrap; width:200px;">{{'label_service'|translate}}</th>
+          <th style="white-space: nowrap; width:200px;" translate>label_service</th>
           <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
-          <th style="width: 600px;">{{'deployed_tbl_description'|translate}}</th>
-          <th ng-if="!services.current.isIsvc()">{{'running_tbl_actions'|translate}}</th>
+          <th style="width: 600px;" translate>deployed_tbl_description</th>
+          <th ng-if="!services.current.isIsvc()" translate>running_tbl_actions</th>
         </tr>
       </thead>
       <tbody>
@@ -184,16 +184,16 @@
     </table>
 
   <!-- This table has running instances -->
-  <h3 ng-show="hasCurrentInstances()">{{'running_tbl_instances'|translate}}</h3>
+  <h3 ng-show="hasCurrentInstances()" translate>running_tbl_instances</h3>
   <table class="table" ng-show="hasCurrentInstances()">
     <thead>
       <tr>
-        <th>{{'running_tbl_instance_id'|translate}}</th>
-        <th>{{'label_service_name'|translate}}</th>
-        <th>{{'label_service_status'|translate}}</th>
-        <th>{{'host'|translate}}</th>
-        <th>{{'running_tbl_docker_id'|translate}}</th>
-        <th>{{'running_tbl_actions'|translate}}</th>
+        <th translate>running_tbl_instance_id</th>
+        <th translate>label_service_name</th>
+        <th translate>label_service_status</th>
+        <th translate>host</th>
+        <th translate>running_tbl_docker_id</th>
+        <th translate>running_tbl_actions</th>
       </tr>
     </thead>
     <tbody>
@@ -220,14 +220,14 @@
   </table>
 
   <div ng-if="!services.current.isIsvc()">
-    <h3>{{'scheduled_tasks'|translate}}</h3>
+    <h3 translate>scheduled_tasks</h3>
       <table class="table">
           <thead>
               <tr>
-                <th>{{'task_schedule'|translate}}</th>
-                <th>{{'task_command' |translate}}</th>
-                <th>{{'task_last_run'|translate}}</th>
-                <th>{{'task_run_count'|translate}}</th>
+                <th translate>task_schedule</th>
+                <th translate>task_command</th>
+                <th translate>task_last_run</th>
+                <th translate>task_run_count</th>
               </tr>
           </thead>
           <tbody>

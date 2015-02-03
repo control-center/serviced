@@ -3,7 +3,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <button type="button" class="close glyphicon glyphicon-remove-circle" data-dismiss="modal" aria-hidden="true"></button>
-        <h4 class="modal-title">{{'title_deployment_wizard'|translate}}</h4>
+        <h4 class="modal-title" translate>title_deployment_wizard</h4>
       </div>
       <div class="modal-body">
         <div class="row">
@@ -16,7 +16,7 @@
             </ol>
           </div>
           <div class="col-md-8 content">
-            <div ng-show="dockerIsNotLoggedIn()" class="error">{{'docker_login_warning'|translate}}</div>
+            <div ng-show="dockerIsNotLoggedIn()" class="error" translate>docker_login_warning</div>
             <div ng-include="step_page" class="scroll">
             </div>
           </div>
@@ -24,11 +24,9 @@
       </div>
       <div class="modal-footer">
         <div class="navigation">
-          <button type="button" class="btn btn-link" ng-click="wizard_previous()" ng-show="hasPrevious()">{{'btn_back'|translate}}</button>
-          <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()">{{'btn_next'|translate}}</button>
-            <button id="deploy-save-button" type="button" class="btn btn-default" ng-click="wizard_finish()" ng-show="hasFinish()">
-                {{'btn_deploy'|translate}}
-            </button>
+          <button type="button" class="btn btn-link" ng-click="wizard_previous()" ng-show="hasPrevious()" translate>btn_back</button>
+          <button type="button" class="btn btn-primary" ng-click="wizard_next()" ng-show="hasNext()" translate>btn_next</button>
+            <button id="deploy-save-button" type="button" class="btn btn-default" ng-click="wizard_finish()" ng-show="hasFinish()" translate>btn_deploy</button>
         </div>
       </div>
     </div><!-- /.modal-content -->
