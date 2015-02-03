@@ -8,9 +8,9 @@ import (
 
 // Isatty returns true if f is a TTY, false otherwise.
 func Isatty(f *os.File) bool {
-	var t [2]byte
-	_, _, errno := syscall.Syscall(syscall.SYS_IOCTL,
-		f.Fd(), syscall.TIOCGPGRP,
-		uintptr(unsafe.Pointer(&t)))
+	var t syscall.Termios
+	_, _, errno := syscall.Syscall6(syscall.SYS_IOCTL,
+		f.Fd(), syscall.TCGETS,
+		uintptr(unsafe.Pointer(&t)), 0, 0, 0)
 	return errno == 0
 }
