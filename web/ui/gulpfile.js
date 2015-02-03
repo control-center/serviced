@@ -1,8 +1,9 @@
-/* globals require: true */
+/* globals require: true, __dirname: true */
 
 var gulp = require("gulp"),
     gutil = require('gulp-util'),
     concat = require("gulp-concat"),
+    rename = require("gulp-rename"),
     uglify = require("gulp-uglify"),
     jshint = require("gulp-jshint"),
     sequence = require("run-sequence"),
@@ -11,11 +12,8 @@ var gulp = require("gulp"),
     karma = require('karma').server;
 
 var paths = {
-    // TODO - organize by feature, not type
     src: "src/",
     srcBuild: "build/js/",
-    controllers: "src/controllers/",
-    modules: "src/modules/",
     staticSrc: "static/",
     staticBuild: "build/",
     thirdpartySrc: "static/thirdparty/",
@@ -38,9 +36,11 @@ var to5Config = {
 // files to be concatenated/minified to make
 // controlplane.js
 var controlplaneFiles = [
-    paths.src + "main.js",
-    paths.modules + "*.js",
-    paths.controllers + "*.js"
+    paths.src + "**/*.js"
+];
+
+var controlplanePartials = [
+    paths.src + "**/*.html"
 ];
 
 // Third-party library files to be concatenated/minified to make thirdparty.js
@@ -97,11 +97,10 @@ var staticFiles = [
     paths.staticSrc + 'lib/jquery-datetimepicker/*.css',
     paths.staticSrc + 'lib/thirdparty.*',
     paths.staticSrc + 'logview/**/*.*',
-    paths.staticSrc + 'partials/**/*.*',
-    paths.staticSrc + 'scripts/**/*.*',
+    paths.staticSrc + 'scripts/**/*.*'
 ];
 
-gulp.task("default", ["concat"]);
+gulp.task("default", ["concat", "copyStatic"]);
 gulp.task("release", function(){
     // last arg is a callback function in case
     // of an error.
@@ -148,14 +147,21 @@ gulp.task("uglify3rdparty", function(){
 });
 
 gulp.task("copyStatic", function() {
-    return gulp.src(staticFiles, {base: paths.staticSrc})
+    gulp.src(staticFiles, {base: paths.staticSrc})
         .pipe(gulp.dest(paths.staticBuild));
+
+    // gather partials from src
+    gulp.src(controlplanePartials)
+        .pipe(rename({dirname: ""}))
+        .pipe(gulp.dest(paths.staticBuild + "partials"));
 });
 
 gulp.task("watch", function(){
-    gulp.watch(paths.controllers + "/*", ["concat"]);
-    gulp.watch(paths.modules + "/*", ["concat"]);
-    gulp.watch(paths.src + "/main.js", ["concat"]);
+    // concat js
+    gulp.watch(paths.src + "/**/*.js", ["concat"]);
+    // copy html templates
+    gulp.watch(paths.src + "/**/*.html", ["copyStatic"]);
+    // TODO - preprocess CSS
 });
 
 //
