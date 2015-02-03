@@ -241,7 +241,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
         var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
-        return location.protocol + "//" + host + port
+        return location.protocol + "//" + host + port;
     };
 
     $scope.indent = function(depth){
@@ -327,12 +327,12 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.clickEditContext = function(app, servicesService) {
-	//set editor options for context editing
-	$scope.codemirrorOpts = {
-	    lineNumbers: true,
-	    mode: "properties"
-	}
-	
+        //set editor options for context editing
+        $scope.codemirrorOpts = {
+            lineNumbers: true,
+            mode: "properties"
+        };
+
         $scope.editableContext = makeEditableContext($scope.services.current.Context);
 
         $modalService.create({
@@ -424,17 +424,17 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.editConfig = function(service, config) {
-	$scope.editService = $.extend({}, service);
-        $scope.editService.config = config;
+        $scope.editService = angular.copy(service);
+        $scope.editConfigFilename = config;
         //set editor options for context editing
         $scope.codemirrorOpts = {
             lineNumbers: true,
-            mode: getModeFromFilename($scope.editService.config)
+            mode: getModeFromFilename($scope.editConfigFilename)
         };
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editConfigFilename,
             bigModal: true,
             actions: [
                 {
@@ -447,9 +447,13 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                             // disable ok button, and store the re-enable function
                             var enableSubmit = this.disableSubmitButton();
 
-                            $scope.updateService()
+                            resourcesService.update_service($scope.services.current.ID, $scope.editService)
                                 .success(function(data, status){
-                                    this.close(); 
+                                    $notification.create("Updated service", $scope.editService.ID).success();
+                                    resourcesService.update_services(angular.noop);
+                                    $scope.editService = {};
+                                    $scope.editConfigFilename = "";
+                                    this.close();
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Updating service failed", data.Detail).error();
