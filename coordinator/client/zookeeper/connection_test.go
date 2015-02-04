@@ -21,8 +21,8 @@ import (
 	"testing"
 	"time"
 
+	zklib "github.com/control-center/go-zookeeper/zk"
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	zklib "github.com/samuel/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 )
 

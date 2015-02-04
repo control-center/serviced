@@ -14,7 +14,7 @@
 package zookeeper
 
 import (
-	zklib "github.com/samuel/go-zookeeper/zk"
+	zklib "github.com/control-center/go-zookeeper/zk"
 )
 
 // Lock creates a object to facilitate create a locking pattern in zookeeper.

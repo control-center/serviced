@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	zklib "github.com/samuel/go-zookeeper/zk"
+	zklib "github.com/control-center/go-zookeeper/zk"
 )
 
 func TestLock(t *testing.T) {
