@@ -101,7 +101,7 @@
                         <h1 class="title topictitle1"><span class="ph filepath">/etc/default/serviced</span></h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="referenceid-d3396e36" id="referenceid-d3396e36" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d3504e36" id="referenceid-d3504e36" class="anchor"></a>
                               
                               <p class="p"><span class="ph">Zenoss Control Center</span> (<span class="keyword cmdname">serviced</span>) is a single binary that behaves
                                  differently based on the environment variables defined in its startup script. 
@@ -301,8 +301,9 @@
                                     master host. On
                                     RHEL/CentOS systems, replace <samp class="ph codeph">$SERVICED_MASTER_IP</samp> with the IP address of
                                     the host on which the <span class="keyword cmdname">serviced</span> instance configured as master is
-                                    installed.
+                                    installed. NOTE: For release 1.0, only port 4979 is supported.
                                  </dd>
+                                 
                                  
                                  
                                  
@@ -328,7 +329,7 @@
                                  <dd class="dd">Default: <samp class="ph codeph">4979</samp></dd>
                                   
                                  
-                                 <dd class="dd">The port on which <span class="keyword cmdname">serviced</span> listens for RPC requests.
+                                 <dd class="dd">The port on which <span class="keyword cmdname">serviced</span> listens for RPC requests. NOTE: For release 1.0, only port 4979 is supported.
                                  </dd>
                                  
                                  

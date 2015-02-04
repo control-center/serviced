@@ -102,10 +102,10 @@
                         <div class="body refbody">
                            
                            
-                           <div class="section"><a name="referenceid-d1470e36" id="referenceid-d1470e36" class="anchor"></a><h2 class="title sectiontitle">NAME</h2>
+                           <div class="section"><a name="referenceid-d1472e36" id="referenceid-d1472e36" class="anchor"></a><h2 class="title sectiontitle">NAME</h2>
                               
                               
-                              <p class="p"><span class="keyword cmdname">serviced</span> - A container-based management system
+                              <p class="p"><span class="keyword cmdname">serviced</span> - a container-based management system
                               </p>
                                   
                               
@@ -113,7 +113,7 @@
                               
                            
                            
-                           <div class="section"><a name="referenceid-d1470e47" id="referenceid-d1470e47" class="anchor"></a><h2 class="title sectiontitle">SYNTAX</h2>
+                           <div class="section"><a name="referenceid-d1472e47" id="referenceid-d1472e47" class="anchor"></a><h2 class="title sectiontitle">SYNTAX</h2>
                               
                               
                               <p class="p"><span class="ph synph"><span class="keyword kwd">serviced</span> <span class="ph delim">[</span>global options<span class="ph delim">]</span> command <span class="ph delim">[</span>command options<span class="ph delim">]</span> <span class="ph delim">[</span>arguments...<span class="ph delim">]</span></span></p>
@@ -123,7 +123,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d1470e77" id="referenceid-d1470e77" class="anchor"></a><h2 class="title sectiontitle">DESCRIPTION</h2>
+                           <div class="section"><a name="referenceid-d1472e77" id="referenceid-d1472e77" class="anchor"></a><h2 class="title sectiontitle">DESCRIPTION</h2>
                               
                               
                               <p class="p"><span class="keyword cmdname">serviced</span> is an open-source, application 
@@ -135,7 +135,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d1470e92" id="referenceid-d1470e92" class="anchor"></a><h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
+                           <div class="section"><a name="referenceid-d1472e92" id="referenceid-d1472e92" class="anchor"></a><h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
                               
                               
                               <dl class="dl">
@@ -171,7 +171,7 @@
                                  <dd class="dd">The <span class="keyword cmdname">serviced</span> RPC endpoint. The 
                                     value of <var class="keyword varname">Host</var> 
                                     is the hostname or IP address of the master host. The default value
-                                    of <var class="keyword varname">Port</var> is 4979.
+                                    of <var class="keyword varname">Port</var> is 4979. NOTE: For release 1.0, only port 4979 is supported.
                                  </dd>
                                  
                                  
@@ -200,7 +200,7 @@
                                  
                                  
                                  <dd class="dd">The <span class="keyword cmdname">serviced</span> RPC endpoint on the local host. 
-                                    The default value of <var class="keyword varname">Port</var> is 4979.
+                                    The default value of <var class="keyword varname">Port</var> is 4979. NOTE: For release 1.0, only port 4979 is supported.
                                  </dd>
                                  
                                  
@@ -632,7 +632,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d1470e970" id="referenceid-d1470e970" class="anchor"></a><h2 class="title sectiontitle">COMMANDS</h2>
+                           <div class="section"><a name="referenceid-d1472e970" id="referenceid-d1472e970" class="anchor"></a><h2 class="title sectiontitle">COMMANDS</h2>
                               
                               
                               <dl class="dl">
@@ -752,7 +752,58 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d1470e1145" id="referenceid-d1470e1145" class="anchor"></a><h2 class="title sectiontitle">ENVIRONMENT</h2>
+                           <div class="section"><a name="referenceid-d1472e1145" id="referenceid-d1472e1145" class="anchor"></a><h2 class="title sectiontitle">INVOCATION</h2>
+                              
+                              
+                              <p class="p">Service (daemon) control commands include start, stop and reload. The reload
+                                 command sends <samp class="ph codeph">SIGHUP</samp> to the daemon, which restarts all internal
+                                 services except ZooKeeper.
+                              </p>
+                              
+                              
+                              <ul class="ul">
+                                 
+                                 <li class="li">RHEL/CentOS: <samp class="ph codeph">sudo systemctl [start|stop|reload] serviced</samp></li>
+                                 
+                                 
+                                 <li class="li">Ubuntu: <samp class="ph codeph">sudo [start|stop|reload] serviced</samp></li>
+                                 
+                                 
+                              </ul>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1472e1170" id="referenceid-d1472e1170" class="anchor"></a><h2 class="title sectiontitle">MISCELLANEOUS</h2>
+                              
+                              
+                              <p class="p">Sending <samp class="ph codeph">SIGUSR1</samp> to the <span class="keyword cmdname">serviced</span>
+                                 process toggles the log level between 0 and 2.
+                              </p>
+                              
+                              
+                              <p class="p">To attach to a container running on a remote host, log in to the
+                                 container from the <span class="keyword cmdname">serviced</span> master host.
+                                 If you are running a Linux shell on an agent host, specify the 
+                                 <samp class="ph codeph">--endpoint</samp> option in the <span class="keyword cmdname">serviced</span> 
+                                 invocation.
+                              </p>
+                              
+                              
+                              <p class="p"><span class="keyword cmdname">serviced</span> relies on Docker, and some administration
+                                 procedures include <span class="keyword cmdname">docker</span> commands. However, commands
+                                 that manipulate containers directly, such as <samp class="ph codeph">docker pause</samp>,
+                                 should not be used when <span class="keyword cmdname">serviced</span> is running. 
+                              </p>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1472e1211" id="referenceid-d1472e1211" class="anchor"></a><h2 class="title sectiontitle">ENVIRONMENT</h2>
                               
                               
                               <dl class="dl">
@@ -774,7 +825,7 @@
                            
                            
                            
-                           <div class="section"><a name="referenceid-d1470e1170" id="referenceid-d1470e1170" class="anchor"></a><h2 class="title sectiontitle">FILES</h2>
+                           <div class="section"><a name="referenceid-d1472e1236" id="referenceid-d1472e1236" class="anchor"></a><h2 class="title sectiontitle">FILES</h2>
                               
                               
                               <p class="p"><span class="ph filepath">/etc/default/serviced</span></p>
