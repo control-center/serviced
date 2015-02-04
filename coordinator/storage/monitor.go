@@ -120,13 +120,6 @@ func (m *Monitor) setMonitorRemoteHost(ipAddr string, hasUpdated bool) {
 	m.monitoredHosts[ipAddr] = hasUpdated
 }
 
-// getMonitorRemoteHosts returns the statuses of the monitored remotes
-func (m *Monitor) getMonitorRemoteHosts() map[string]bool {
-	m.monitoredHostsLock.RLock()
-	defer m.monitoredHostsLock.RUnlock()
-	return m.monitoredHosts
-}
-
 // ProcessDFSVolumePollUpdateFunc is called by MonitorDFSVolume when updates are detected
 type DFSVolumeMonitorPollUpdateFunc func(mountpoint, remoteIP string, isUpdated bool)
 
@@ -134,9 +127,12 @@ type DFSVolumeMonitorPollUpdateFunc func(mountpoint, remoteIP string, isUpdated 
 func (m *Monitor) DFSVolumeMonitorPollUpdateFunc(mountpoint, remoteIP string, hasUpdatedFile bool) {
 	// monitor dfs; log warnings each cycle; restart dfs if needed
 
+	m.monitoredHostsLock.RLock()
+	defer m.monitoredHostsLock.RUnlock()
+
 	if hasUpdatedFile {
 		return
-	} else if len(m.getMonitorRemoteHosts()) == 0 {
+	} else if len(m.monitoredHosts) == 0 {
 		return
 	}
 
@@ -172,11 +168,12 @@ func (m *Monitor) MonitorDFSVolume(mountpoint string, shutdown <-chan interface{
 
 	for {
 		// check all active remotes
-		remotes := m.getMonitorRemoteHosts()
-		remoteIPs := make([]string, 0, len(remotes))
-		for k := range remotes {
+		m.monitoredHostsLock.RLock()
+		remoteIPs := make([]string, 0, len(m.monitoredHosts))
+		for k := range m.monitoredHosts {
 			remoteIPs = append(remoteIPs, k)
 		}
+		m.monitoredHostsLock.RUnlock()
 
 		activeRemotes := remoteIPs
 		if m.conn != nil && len(m.storageClientsPath) != 0 {
