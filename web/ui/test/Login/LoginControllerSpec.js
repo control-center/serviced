@@ -30,7 +30,7 @@ describe('LoginControl', function() {
     }));
 
     it('Constructor enables login button', function() {
-        expect($scope.login_button_text).not.toBeUndefined();
+        expect($scope.loginButtonText).not.toBeUndefined();
         expect($scope.loginDisabled).toBeFalsy();
     });
 
@@ -53,7 +53,7 @@ describe('LoginControl', function() {
         successCallback();
 
         expect($location.path()).toEqual('/apps');
-        expect($scope.login_button_text).toEqual("log_in");
+        expect($scope.loginButtonText).toEqual("log_in");
         expect($scope.loginDisabled).toBeFalsy();
     });
 
@@ -67,7 +67,7 @@ describe('LoginControl', function() {
         errorCallback();
 
         expect($location.path()).toEqual(loginRoute);
-        expect($scope.login_button_text).toEqual("log_in");
+        expect($scope.loginButtonText).toEqual("log_in");
         expect($scope.loginDisabled).toBeFalsy();
     });
 });

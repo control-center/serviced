@@ -30,12 +30,12 @@
         };
 
         function enableLoginButton(){
-            $scope.login_button_text = "log_in";
+            $scope.loginButtonText = "log_in";
             $scope.loginDisabled = false;
         }
 
         function disableLoginButton(){
-            $scope.login_button_text = "logging_in";
+            $scope.loginButtonText = "logging_in";
             $scope.loginDisabled = true;
         }
     }]);
