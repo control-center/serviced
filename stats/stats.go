@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -42,6 +43,7 @@ type StatsReporter struct {
 	containerRegistries map[registryKey]metrics.Registry
 	hostID              string
 	hostRegistry        metrics.Registry
+	sync.Mutex
 }
 
 // Sample is a single metric measurement
@@ -88,8 +90,43 @@ func (sr StatsReporter) getOrCreateContainerRegistry(serviceID string, instanceI
 	if registry, ok := sr.containerRegistries[key]; ok {
 		return registry
 	}
+	sr.Lock()
+	defer sr.Unlock()
 	sr.containerRegistries[key] = metrics.NewRegistry()
 	return sr.containerRegistries[key]
+}
+
+func (sr StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
+	// First build a list of what's actually running
+	keys := make(map[string][]int)
+	for _, rs := range *running {
+		if instances, ok := keys[rs.ServiceID]; !ok {
+			instances = []int{rs.InstanceID}
+			keys[rs.ServiceID] = instances
+		} else {
+			keys[rs.ServiceID] = append(keys[rs.ServiceID], rs.InstanceID)
+		}
+	}
+	// Now remove any keys that are in the registry but are no longer running
+	// on this host
+	sr.Lock()
+	defer sr.Unlock()
+	for key, _ := range sr.containerRegistries {
+		if instances, ok := keys[key.serviceID]; !ok {
+			delete(sr.containerRegistries, key)
+		} else {
+			var seen bool
+			for _, instanceid := range instances {
+				if instanceid == key.instanceID {
+					seen = true
+					break
+				}
+			}
+			if !seen {
+				delete(sr.containerRegistries, key)
+			}
+		}
+	}
 }
 
 // Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
@@ -197,6 +234,7 @@ func (sr StatsReporter) updateStats() {
 	if err != nil {
 		glog.Errorf("updateStats: zkservice.LoadRunningServicesByHost (conn: %+v hostID: %v) failed: %v", sr.conn, sr.hostID, err)
 	}
+
 	for _, rs := range running {
 		if rs.DockerID != "" {
 			containerRegistry := sr.getOrCreateContainerRegistry(rs.ServiceID, rs.InstanceID)
@@ -217,6 +255,8 @@ func (sr StatsReporter) updateStats() {
 			glog.V(4).Infof("Skipping stats update for %s (%s), no container ID exists yet", rs.Name, rs.ServiceID)
 		}
 	}
+	// Clean out old container registries
+	sr.removeStaleRegistries(&running)
 }
 
 // Fills out the metric consumer format.
