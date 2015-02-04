@@ -423,6 +423,18 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
+ifndef NORACETEST
+ifeq (,$(findstring history_size,$(GORACE)))
+GORACE := $(GORACE) history_size=7
+endif
+ifeq (,$(findstring halt_on_error,$(GORACE)))
+GORACE := $(GORACE) halt_on_error=1
+endif
+ifeq (,$(findstring -race,$(GOTEST_FLAGS)))
+GOTEST_FLAGS := $(GOTEST_FLAGS) -race
+endif
+endif
+
 .PHONY: test
 test: build docker_ok
 	go test ./commons/... $(GOTEST_FLAGS)
