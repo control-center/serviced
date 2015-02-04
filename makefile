@@ -425,13 +425,13 @@ docker_buildandpackage: docker_ok
 
 ifndef NORACETEST
 ifeq (,$(findstring history_size,$(GORACE)))
-GORACE := $(GORACE) history_size=7
+export GORACE:=$(GORACE) history_size=7
 endif
 ifeq (,$(findstring halt_on_error,$(GORACE)))
-GORACE := $(GORACE) halt_on_error=1
+export GORACE:=$(GORACE) halt_on_error=1
 endif
 ifeq (,$(findstring -race,$(GOTEST_FLAGS)))
-GOTEST_FLAGS := $(GOTEST_FLAGS) -race
+export GOTEST_FLAGS:=$(GOTEST_FLAGS) -race
 endif
 endif
 
