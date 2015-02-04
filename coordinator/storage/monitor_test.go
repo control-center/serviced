@@ -19,6 +19,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"sync"
 	"testing"
 	"time"
 )
@@ -71,10 +72,13 @@ func TestMonitorVolume(t *testing.T) {
 	}
 
 	updatedCount := 0
+	updatedCountLock := sync.RWMutex{}
 	pDFSVolumeMonitorPollUpdateFunc := func(mountpoint, remoteIP string, isUpdated bool) {
 		glog.Infof("==== received remoteIP:%v isUpdated:%+v", remoteIP, isUpdated)
 		if isUpdated {
+			updatedCountLock.Lock()
 			updatedCount++
+			updatedCountLock.Unlock()
 		}
 	}
 
@@ -97,9 +101,11 @@ func TestMonitorVolume(t *testing.T) {
 	time.Sleep(waitTime)
 
 	monitorPath := path.Join(tmpPath, monitorSubDir)
+	updatedCountLock.RLock()
 	if updatedCount < 3 {
 		t.Fatalf("have not seen any updates to dir %s", monitorPath)
 	}
+	updatedCountLock.RUnlock()
 
 	// ---- stop writing; wait some time; check count has not increased
 	glog.Infof("==== stopping writer")
@@ -107,14 +113,18 @@ func TestMonitorVolume(t *testing.T) {
 
 	// wait some time for shutdown
 	time.Sleep(2 * writeInterval)
+	updatedCountLock.Lock()
 	updatedCount = 0
+	updatedCountLock.Unlock()
 
 	// wait some time
 	time.Sleep(waitTime)
 
+	updatedCountLock.RLock()
 	if updatedCount != 0 {
 		t.Fatalf("updates (updatedCount: %d) should not have occurred to dir %s", updatedCount, monitorPath)
 	}
 
 	glog.Infof("==== current updatedCount:%+v", updatedCount)
+	updatedCountLock.RUnlock()
 }
