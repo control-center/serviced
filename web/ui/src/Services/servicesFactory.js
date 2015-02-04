@@ -108,6 +108,7 @@
         var initPromise;
 
         // makes the initial services request
+        // TODO - this can most likely be removed entirely
         function init(){
 
             // if init hasnt been called, create a new promise

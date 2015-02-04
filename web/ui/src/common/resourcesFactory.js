@@ -360,22 +360,13 @@
                       redirectIfUnauthorized(status);
                   });
           },
-
-          /*
-           * Get the most recently retrieved host data.
-           * This will also retrieve the data if it has not yet been
-           * retrieved.
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {function} callback Data passed to callback on success.
-           */
-          get_hosts: function(cacheOk, callback) {
-              if (cacheOk && cached_hosts) {
-                  callback(cached_hosts);
-              } else {
-                  _get_hosts(callback);
-              }
-          },
+          
+            get_hosts: function(){
+                return $http.get("/hosts").
+                    error(function(data, status) {
+                      redirectIfUnauthorized(status);
+                    });
+            },
 
           /*
            * Get a host
