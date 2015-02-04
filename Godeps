@@ -73,8 +73,8 @@
 			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
-			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "4a222ca51b4c7ca6f2895e0e68af2e9254acfdcc"
+			"ImportPath": "github.com/control-center/go-zookeeper/zk",
+			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
