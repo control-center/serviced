@@ -158,6 +158,7 @@
     "content_wizard_select_pool": "Select the resource pool to install to:",
     "content_wizard_some_hosts": "We found the following hosts. Select the hosts to deploy to:",
     "content_wizard_start_now": "Start Now",
+    "content_wizard_invalid_host": "Please enter a valid host name",
     "ctl_running_blank": "\u00a0",
     "ctl_running_restarting": "restarting",
     "ctl_running_started": "started",

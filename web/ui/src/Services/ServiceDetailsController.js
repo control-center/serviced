@@ -589,7 +589,7 @@
             }, $scope.update);
         });
 
-        utils.refreshHosts($scope, resourcesFactory, true, function(){});
+        hostsFactory.update();
 
         // keep running instances updated
         resourcesFactory.registerPoll("runningForCurrent", function(){
@@ -618,8 +618,8 @@
         });
 
         $scope.getHostName = function(id){
-            if($scope.hosts.mapped && $scope.hosts.mapped[id]){
-                return $scope.hosts.mapped[id].Name;
+            if(hostsFactory.hostMap[id]){
+                return hostsFactory.hostMap[id].name;
             } else {
                 // TODO - if unknown host, dont make linkable
                 // and use custom css to show unknown

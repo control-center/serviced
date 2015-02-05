@@ -4,8 +4,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils",
-    function($scope, $routeParams, $location, resourcesFactory, authService, utils) {
+    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils", "hostsFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, utils, hostsFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -21,16 +21,16 @@
         var height = 567;
 
         var cpuCores = function(h) {
-            return h.Cores;
+            return h.host.Cores;
         };
         var memoryCapacity = function(h) {
-            return h.Memory;
+            return h.host.Memory;
         };
         var poolBgColor = function(p) {
             return p.isHost? null : color(p.Id);
         };
         var hostText = function(h) {
-            return h.isHost? h.Name : null;
+            return h.isHost? h.name : null;
         };
 
         var color = d3.scale.category20c();
@@ -97,6 +97,8 @@
         var hostsAddedToPools = false;
         var wait = { pools: false, hosts: false };
         var addHostsToPools = function() {
+            let root;
+
             if (!wait.pools || !wait.hosts) {
                 return;
             }
@@ -107,16 +109,16 @@
 
             console.log('Preparing tree map');
             hostsAddedToPools = true;
-            for(var key in $scope.hosts.mapped) {
-                var host = $scope.hosts.mapped[key];
-                var pool = $scope.pools.mapped[host.PoolID];
+            hostsFactory.hostList.forEach((host) => {
+                let pool = $scope.pools.mapped[host.host.PoolID];
                 if (pool.children === undefined) {
                     pool.children = [];
                 }
                 pool.children.push(host);
                 host.isHost = true;
-            }
-            var root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+            });
+
+            root = { Id: 'All Resource Pools', children: $scope.pools.tree };
             selectNewRoot(root);
         };
         $scope.treemapSelection = 'memory';
@@ -125,7 +127,8 @@
             wait.pools = true;
             addHostsToPools();
         });
-        utils.refreshHosts($scope, resourcesFactory, false, function() {
+        hostsFactory.update()
+            .then(() => {
             wait.hosts = true;
             addHostsToPools();
         });

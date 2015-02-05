@@ -24,6 +24,7 @@
     "karma-junit-reporter": "~0.2",
     "karma-phantomjs-launcher": "^0.1.4",
     "karma-threshold-reporter": "~0.1.7",
-    "run-sequence": "~1.0.2"
+    "run-sequence": "~1.0.2",
+    "karma-6to5-preprocessor": "~3.0.0"
   }
 }

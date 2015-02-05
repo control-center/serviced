@@ -32,37 +32,6 @@ describe('miscUtils', function() {
         });
     });
 
-    describe('fix_pool_paths', function() {
-        it('Defends against empty scope', function() {
-            // just make sure you can call with an empty object
-            miscUtils.fix_pool_paths({});
-            expect(true).toBe(true);
-        });
-
-        it('Sets fullPath on hosts', function() {
-            var scope = {
-                pools: {
-                    mapped: {
-                        a1: { fullPath: 'a1' },
-                        a2: { fullPath: 'a1 > a2' },
-                        a3: { fullPath: 'a1 > a2 > a3' }
-                    }
-                },
-                hosts: {
-                    all: [
-                        { PoolID: 'a3' },
-                        { PoolID: 'a1' },
-                        { PoolID: 'a2' }
-                    ]
-                }
-            };
-            miscUtils.fix_pool_paths(scope);
-            scope.hosts.all.map(function(host) {
-                expect(host.fullPath).toBe(scope.pools.mapped[host.PoolID].fullPath);
-            });
-        });
-    });
-
     describe('getFullPath', function() {
         it('Returns pool.Id when there is no parent', function() {
             var pool = { ID: 'Test' };
@@ -170,21 +139,6 @@ describe('miscUtils', function() {
 
             expect(scope.pools.current).not.toBeUndefined();
             expect(scope.pools.current.Name).toBe(dummy_data_array[0].Name);
-        });
-    });
-
-    describe('refreshHosts', function() {
-        it('Sets the current host based on scope.params', function() {
-            var scope = { params: { hostId: "def" }, $watch: function() {}};
-
-            miscUtils.refreshHosts(scope, fake_resources_service(), false, false);
-            expect(scope.hosts.current).toEqual(fake_hosts()["def"]);
-        });
-
-        it('Puts host data into scope', function() {
-            var scope = {$watch: function() {}};
-            miscUtils.refreshHosts(scope, fake_resources_service(), false, false);
-            expect(scope.hosts.mapped).toEqual(fake_hosts());
         });
     });
 

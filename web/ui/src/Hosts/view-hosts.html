@@ -2,7 +2,6 @@
 <h3 class="pull-left" translate>hosts</h3>
 
 <div class="control-buttons pull-right">
-
   <span class="add-control">
       <a href="/#/hostsmap" class="btn-link">
           <span class="glyphicon glyphicon-eye-open"></span>
@@ -16,8 +15,9 @@
         <span translate>host</span>
   </button>
   </span>
-
 </div>
+
+<!-- Hosts -->
 <table class="table side-flush" id="hosts_data">
   <thead>
     <tr>
@@ -38,16 +38,16 @@
         <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
     <tr ng-repeat="host in hosts.filtered">
-      <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
+      <td ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
       <td style="text-align:center;">
         <div ng-if="host.active === 'yes'" class="good" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
         <div ng-if="!host.active" class="down" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
       </td>
-      <td ng-click="clickPool(host.PoolID)" class="link">{{host.fullPath|cut:true:50}}</td>
-      <td>{{host.Memory | toGB}}</td>
-      <td>{{host.Cores}}</td>
-      <td>{{host.KernelVersion}}</td>
-      <td><button ng-click="remove_host(host.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button></td>
+      <td ng-click="clickPool(host.host.PoolID)" class="link">{{host.fullPath|cut:true:50}}</td>
+      <td>{{host.host.Memory | toGB}}</td>
+      <td>{{host.host.Cores}}</td>
+      <td>{{host.host.KernelVersion}}</td>
+      <td><button ng-click="remove_host(host.id)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button></td>
     </tr>
   </tbody>
 </table>

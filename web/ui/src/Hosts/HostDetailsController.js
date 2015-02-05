@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils) {
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -17,11 +17,6 @@
         $scope.breadcrumbs = [
             { label: 'breadcrumb_hosts', url: '#/hosts' }
         ];
-
-        $scope.resourcesFactory = resourcesFactory;
-
-        // Also ensure we have a list of hosts
-        utils.refreshHosts($scope, resourcesFactory, true);
 
         $scope.running = utils.buildTable('Name', [
             { id: 'Name', name: 'label_service' },
@@ -104,22 +99,24 @@
             $location.path('/services/' + instance.ServiceID);
         };
 
-        $scope.updateHost = function(){
-            var modifiedHost = $.extend({}, $scope.hosts.current);
-            resourcesFactory.update_host(modifiedHost.ID, modifiedHost, function() {
-                utils.refreshHosts($scope, resourcesFactory, false);
-            });
-        };
-
-        utils.refreshRunningForHost($scope, resourcesFactory, $scope.params.hostId);
-        utils.refreshHosts($scope, resourcesFactory, true, function() {
-            if ($scope.hosts.current) {
-                $scope.breadcrumbs.push({ label: $scope.hosts.current.Name, itemClass: 'active' });
-            }
-        });
-
         // Ensure we have a list of pools
         utils.refreshPools($scope, resourcesFactory, false);
+        // update hosts
+        update();
+
+        function update(){
+            // kick off hostsFactory updating
+            // TODO - update loop here
+            hostsFactory.update()
+                .then(() => {
+                    $scope.currentHost = hostsFactory.hostMap[$scope.params.hostId];
+
+                    // grab a list of running services
+                    $scope.currentHost.getInstances();
+
+                    $scope.breadcrumbs.push({ label: $scope.currentHost.name, itemClass: 'active' });
+                });
+        }
 
         resourcesFactory.get_stats(function(status) {
             if (status === 200) {

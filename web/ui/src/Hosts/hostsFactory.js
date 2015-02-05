@@ -4,10 +4,12 @@
     'use strict';
 
     var hostMap = {},
+        hostList = [],
         // make angular share with everybody!
         resourcesFactory, $q;
 
-    var UPDATE_FREQUENCY = 3000;
+    var UPDATE_FREQUENCY = 3000,
+        updatePromise;
 
     angular.module('hostsFactory', []).
     factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval",
@@ -26,10 +28,18 @@
             },
 
             update: update,
+            init: init,
 
-            hostMap: hostMap
+            hostMap: hostMap,
+            hostList: hostList
         };
 
+        // TODO - this can most likely be removed entirely
+        function init(){
+            if(!updatePromise){
+                updatePromise = $interval(update, UPDATE_FREQUENCY);
+            }
+        }
 
         function update(){
             var deferred = $q.defer();
@@ -38,7 +48,9 @@
                 .success((data, status) => {
                     var included = [];
 
-                    data.forEach((host) => {
+                    for(let id in data){
+                        let host = data[id];
+
                         // update
                         if(hostMap[host.ID]){
                             hostMap[host.ID].update(host);
@@ -46,15 +58,22 @@
                         // new
                         } else {
                             hostMap[host.ID] = new Host(host);
+                            hostList.push(hostMap[host.ID]);
                         }
 
                         included.push(host.ID);
-                    });
+                    }
 
                     // delete
                     if(included.length !== Object.keys(hostMap).length){
                         // iterate hostMap and find keys
                         // not present in included list
+                        for(let id in hostMap){
+                            if(included.indexOf(id) === -1){
+                                hostList.splice(hostList.indexOf(hostMap[id], 1));
+                                delete hostMap[id];
+                            }
+                        }
                     }
 
                     deferred.resolve();
@@ -69,6 +88,7 @@
     // takes a host object (backend host object)
     // and wraps it with extra functionality and info
     function Host(host){
+        this.active = "no";
         this.update(host);
     }
 
@@ -91,22 +111,26 @@
             this.host = Object.freeze(host);
         },
 
-        getRunningForHost: function(){
+        getInstances: function(){
             var deferred = $q.defer();
 
             resourcesFactory.get_running_services_for_host(this.id)
                 .success((instances, status) => {
                     this.instances = instances;
-
-                    console.log("running instances for ", this.name);
-                    console.log(instances);
-
                     deferred.resolve(instances);
                 });
 
             return deferred.promise;
-        }
+        },
 
+        updateActive: function(){
+            resourcesFactory.get_running_hosts()
+                .success((activeHosts, status) => {
+                    if(activeHosts[this.id]){
+                        this.active = "yes";
+                    }
+                });
+        }
     };
 
 })();

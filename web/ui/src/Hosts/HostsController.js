@@ -4,8 +4,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils",
-    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils){
+    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory",
+    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -62,7 +62,7 @@
             return resourcesFactory.add_host($scope.newHost)
             .success(function(data) {
                 // After adding, refresh our list
-                utils.refreshHosts($scope, resourcesFactory, false, hostCallback);
+                update();
                 
                 // Reset for another add
                 $scope.newHost = {
@@ -73,7 +73,7 @@
         
         $scope.remove_host = function(hostId) {
             $modalService.create({
-                template: $translate.instant("confirm_remove_host") + " <strong>"+ $scope.hosts.mapped[hostId].Name +"</strong>",
+                template: $translate.instant("confirm_remove_host") + " <strong>"+ hostsFactory.hostMap[hostId].name +"</strong>",
                 model: $scope,
                 title: "remove_host",
                 actions: [
@@ -89,7 +89,7 @@
                                 .success(function(data, status) {
                                     $notification.create("Removed host", hostId).success();
                                     // After removing, refresh our list
-                                    utils.refreshHosts($scope, resourcesFactory, false, hostCallback);
+                                    update();
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
@@ -136,37 +136,20 @@
             { id: 'fullPath', name: 'Assigned Resource Pool'},
         ]);
 
-        $scope.$on("$destroy", function(){
-            resourcesFactory.unregisterAllPolls();
-        });
-
-        var hostCallback = function() {
-            $scope.filterHosts();
-            updateActiveHosts();
-        };
-
-        function updateActiveHosts() {
-            if ($scope.hosts) {
-                resourcesFactory.get_running_hosts(function(data){
-                    for (var i in $scope.hosts.filtered) {
-                        var host = $scope.hosts.filtered[i];
-                        host.active = 'no';
-                        for (var j in data) {
-                            if (data[j] === host.ID) {
-                                host.active = 'yes';
-                            }
-                        }
-                    }
-                });
-            }
-        }
-
-        resourcesFactory.registerPoll("activeHosts", updateActiveHosts, 3000);
-
         // Ensure we have a list of pools
         utils.refreshPools($scope, resourcesFactory, false);
+        // update hosts
+        update();
 
-        // Also ensure we have a list of hosts
-        utils.refreshHosts($scope, resourcesFactory, false, hostCallback);
+        function update(){
+            // kick off hostsFactory updating
+            // TODO - update loop here
+            hostsFactory.update()
+                .then(() => {
+                    $scope.hosts.all = hostsFactory.hostList;
+                    $scope.filterHosts();
+                });
+        }
+
     }]);
 })();

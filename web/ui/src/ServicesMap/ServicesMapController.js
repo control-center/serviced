@@ -6,8 +6,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils",
-    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils) {
+    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory",
+    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils, hostsFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -72,7 +72,7 @@
                     if (!addedHosts[running.HostID]) {
                         states[states.length] = {
                             id: running.HostID,
-                            value: { label: $scope.hosts.mapped[running.HostID].Name }
+                            value: { label: hostsFactory.hostMap[running.HostID].name }
                         };
                         nodeClasses[running.HostID] = 'host';
                         addedHosts[running.HostID] = true;
@@ -108,10 +108,11 @@
 
         // TODO - replace the data_received stuff with promise
         // aggregation
-        utils.refreshHosts($scope, resourcesFactory, true, function() {
-            data_received.hosts = true;
-            draw();
-        });
+        hostsFactory.update()
+            .then(() => {
+                data_received.hosts = true;
+                draw();
+            });
         servicesFactory.update().then(function() {
             data_received.services = true;
             $scope.services = {

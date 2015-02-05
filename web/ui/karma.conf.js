@@ -2,6 +2,8 @@
 // Karma configuration
 // Generated on Thu Jan 22 2015 09:23:45 GMT-0600 (CST)
 
+
+
 module.exports = function(config) {
   config.set({
 
@@ -34,7 +36,7 @@ module.exports = function(config) {
     // preprocess matching files before serving them to the browser
     // available preprocessors: https://npmjs.org/browse/keyword/karma-preprocessor
     preprocessors: {
-        'src/**/*.js': 'coverage'
+        'src/**/*.js': ['6to5', 'coverage']
     },
 
 
