@@ -111,7 +111,7 @@
             this.host = Object.freeze(host);
         },
 
-        getInstances: function(){
+        getServiceInstances: function(){
             var deferred = $q.defer();
 
             resourcesFactory.get_running_services_for_host(this.id)

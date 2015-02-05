@@ -112,7 +112,7 @@
                     $scope.currentHost = hostsFactory.hostMap[$scope.params.hostId];
 
                     // grab a list of running services
-                    $scope.currentHost.getInstances();
+                    $scope.currentHost.getServiceInstances();
 
                     $scope.breadcrumbs.push({ label: $scope.currentHost.name, itemClass: 'active' });
                 });

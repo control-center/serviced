@@ -554,7 +554,7 @@
                 $scope.ips.data = $scope.services.current.addresses;
                 
                 // update instances
-                $scope.services.current.getInstances();
+                $scope.services.current.getServiceInstances();
 
                 // setup breadcrumbs
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
@@ -594,7 +594,7 @@
         // keep running instances updated
         resourcesFactory.registerPoll("runningForCurrent", function(){
             if($scope.services.current){
-                $scope.services.current.getInstances();
+                $scope.services.current.getServiceInstances();
             }
         }, 3000);
 
