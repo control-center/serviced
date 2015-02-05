@@ -250,7 +250,7 @@ func getDefaultDFSMonitorRemoteInterval() time.Duration {
 
 func getDefaultNFSMonitorMasterInterval() time.Duration {
 	min := getDefaultDFSMonitorRemoteInterval()
-	return getEnvMinDuration("SERVICED_MONITOR_DFS_MASTER_INTERVAL", 900, int32(min.Seconds())*2)
+	return getEnvMinDuration("SERVICED_MONITOR_DFS_MASTER_INTERVAL", 180, int32(min.Seconds())*2)
 }
 
 // getEnvMinDuration returns the time.Duration env var meeting minimum and default duration

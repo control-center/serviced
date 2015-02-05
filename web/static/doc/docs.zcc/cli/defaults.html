@@ -722,7 +722,7 @@
                                   
                                  
                                  <dd class="dd">The interval at which a <span class="keyword cmdname">serviced</span> instance configured as agent
-                                    modifies its <span class="ph filepath">/opt/serviced/var/<var class="keyword varname">IP-Address</var></span>
+                                    modifies its <span class="ph filepath">/opt/serviced/var/monitor/<var class="keyword varname">IP-Address</var></span>
                                     file.
                                  </dd>
                                  
@@ -732,13 +732,13 @@
                                  <dt class="dt dlterm"><samp class="ph codeph">SERVICED_MONITOR_DFS_MASTER_INTERVAL</samp></dt>
                                  
                                  
-                                 <dd class="dd">Default: <samp class="ph codeph">900</samp> (15 minutes)
+                                 <dd class="dd">Default: <samp class="ph codeph">180</samp> (3 minutes)
                                  </dd>
                                   
                                  
                                  <dd class="dd">The interval at which a <span class="keyword cmdname">serviced</span> instance configured as master
                                     checks the modification times of the
-                                    <span class="ph filepath">/opt/serviced/var/<var class="keyword varname">IP-Address</var></span> files of active
+                                    <span class="ph filepath">/opt/serviced/var/monitor/<var class="keyword varname">IP-Address</var></span> files of active
                                     <span class="keyword cmdname">serviced</span> instances configured as agents. The value of this variable
                                     must be a minimum of twice the value of the
                                     <var class="keyword varname">SERVICED_MONITOR_DFS_REMOTE_INTERVAL</var> variable.
