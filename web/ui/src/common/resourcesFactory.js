@@ -31,7 +31,6 @@
       var pollingFunctions = {};
       var cached_pools;
       var cached_hosts_for_pool = {};
-      var cached_hosts;
       var cached_app_templates;
 
       var _get_app_templates = function(callback) {
@@ -66,18 +65,6 @@
                   callback(data);
               }).
               error(function() {
-                  // TODO error screen
-                  redirectIfUnauthorized(status);
-              });
-      };
-
-      var _get_hosts = function(callback) {
-          $http.noCacheGet('/hosts').
-              success(function(data) {
-                  cached_hosts = data;
-                  callback(data);
-              }).
-              error(function(data, status) {
                   // TODO error screen
                   redirectIfUnauthorized(status);
               });
@@ -223,22 +210,18 @@
                   });
           },
 
-          /*
-           * Get the list of services currently running on a particular host.
-           *
-           * @param {string} hostId The ID of the host to retrieve running services for.
-           * @param {function} callback Running services are passed to callback on success.
-           */
-          get_running_services_for_host: function(hostId, callback) {
-              $http.noCacheGet('/hosts/' + hostId + '/running').
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      redirectIfUnauthorized(status);
-                  });
-          },
+        /*
+        * Get the list of services currently running on a particular host.
+        *
+        * @param {string} hostId The ID of the host to retrieve running services for.
+        * @param {function} callback Running services are passed to callback on success.
+        */
+        get_running_services_for_host: function(hostId) {
+            return $http.get(`/hosts/${hostId}/running`)
+                .error(function(data, status) {
+                    redirectIfUnauthorized(status);
+                });
+        },
 
 
           /*
@@ -360,22 +343,13 @@
                       redirectIfUnauthorized(status);
                   });
           },
-
-          /*
-           * Get the most recently retrieved host data.
-           * This will also retrieve the data if it has not yet been
-           * retrieved.
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {function} callback Data passed to callback on success.
-           */
-          get_hosts: function(cacheOk, callback) {
-              if (cacheOk && cached_hosts) {
-                  callback(cached_hosts);
-              } else {
-                  _get_hosts(callback);
-              }
-          },
+          
+            get_hosts: function(){
+                return $http.get("/hosts").
+                    error(function(data, status) {
+                      redirectIfUnauthorized(status);
+                    });
+            },
 
           /*
            * Get a host
@@ -440,12 +414,11 @@
                   });
           },
 
-          get_running_hosts: function(callback){
-                $http.get("/hosts/running").success(function(data){
-                    callback(data);
-                }).error(function(data, status){
-                  redirectIfUnauthorized(status);
-                });
+          get_running_hosts: function(){
+              return $http.get('/hosts/running')
+                  .error(function(data, status){
+                     redirectIfUnauthorized(status);
+                  });
           },
 
           /*

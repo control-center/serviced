@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory", "miscUtils",
-    function($scope, $notification, $translate, resourcesFactory, servicesFactory, utils){
+    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory",
+    function($scope, $notification, $translate, resourcesFactory, servicesFactory, utils, hostsFactory){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -71,8 +71,8 @@
         };
 
         var validHost = function(){
-            if($("#new_host_name").val() === "" && $scope.hosts.all.length === 0){
-                showError($translate.instant("invalid_host_error"));
+            if($("#new_host_name").val() === ""){
+                showError($translate.instant("content_wizard_invalid_host"));
                 return false;
             }
 
@@ -135,8 +135,9 @@
                 });
             }
 
-            //make sure we have at least 1 host
-            if($scope.hosts.all && $scope.hosts.all.length === 0){
+            // if there is not at least one host, add an
+            // "add host" step to the wizard
+            if(hostsFactory.hostList.length === 0){
                 $scope.newHost = {};
                 $scope.steps.unshift({
                     content: '/static/partials/wizard-modal-add-host.html',
@@ -251,18 +252,6 @@
         $scope.addHostStart = function() {
             $scope.newHost = {};
             $scope.step_page = '/static/partials/wizard-modal-addhost.html';
-        };
-
-        $scope.addHostCancel = function() {
-            $scope.step_page = $scope.steps[step].content;
-        };
-
-        $scope.addHostFinish = function() {
-            $scope.newHost.Name = $scope.newHost.IPAddr;
-            $scope.newHost.ID = 'fakefakefake';
-            $scope.newHost.selected = true;
-            $scope.detected_hosts.push($scope.newHost);
-            $scope.step_page = $scope.steps[step].content;
         };
 
         $scope.hasPrevious = function() {
@@ -406,7 +395,7 @@
                 templates.push(template);
             }
             $scope.templates.data = templates;
-            utils.refreshHosts($scope, resourcesFactory, true, resetStepPage);
+            hostsFactory.update().then(resetStepPage);
         });
 
         utils.refreshPools($scope, resourcesFactory, true);

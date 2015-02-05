@@ -6,13 +6,14 @@
 (function() {
     'use strict';
 
-    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils",
-    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils){
+    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
+    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
         $scope.name = "servicedetails";
         $scope.params = $routeParams;
         $scope.resourcesFactory = resourcesFactory;
+        $scope.hostsFactory = hostsFactory;
 
         $scope.defaultHostAlias = location.hostname;
         var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
@@ -553,7 +554,7 @@
                 $scope.ips.data = $scope.services.current.addresses;
                 
                 // update instances
-                $scope.services.current.getInstances();
+                $scope.services.current.getServiceInstances();
 
                 // setup breadcrumbs
                 $scope.breadcrumbs = makeCrumbs($scope.services.current);
@@ -588,12 +589,12 @@
             }, $scope.update);
         });
 
-        utils.refreshHosts($scope, resourcesFactory, true, function(){});
+        hostsFactory.update();
 
         // keep running instances updated
         resourcesFactory.registerPoll("runningForCurrent", function(){
             if($scope.services.current){
-                $scope.services.current.getInstances();
+                $scope.services.current.getServiceInstances();
             }
         }, 3000);
 
@@ -617,8 +618,8 @@
         });
 
         $scope.getHostName = function(id){
-            if($scope.hosts.mapped && $scope.hosts.mapped[id]){
-                return $scope.hosts.mapped[id].Name;
+            if(hostsFactory.hostMap[id]){
+                return hostsFactory.hostMap[id].name;
             } else {
                 // TODO - if unknown host, dont make linkable
                 // and use custom css to show unknown

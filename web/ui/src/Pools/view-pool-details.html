@@ -77,17 +77,17 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-hide="hosts.filtered !== undefined">
+    <tr ng-hide="hosts!== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
-    <tr ng-hide="hosts.filtered.length !== 0">
+    <tr ng-hide="hosts.length !== 0">
         <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
-    <tr ng-repeat="host in hosts.filtered">
-      <td ng-click="clickHost(host.ID)" class="link">{{host.Name}}</td>
-      <td>{{host.Memory | toGB}}</td>
-      <td>{{host.Cores}}</td>
-      <td>{{host.KernelVersion}}</td>
+    <tr ng-repeat="host in hosts">
+      <td ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
+      <td>{{host.host.Memory | toGB}}</td>
+      <td>{{host.host.Cores}}</td>
+      <td>{{host.host.KernelVersion}}</td>
     </tr>
   </tbody>
 </table>

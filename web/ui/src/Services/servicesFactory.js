@@ -108,6 +108,7 @@
         var initPromise;
 
         // makes the initial services request
+        // TODO - this can most likely be removed entirely
         function init(){
 
             // if init hasnt been called, create a new promise
@@ -351,7 +352,7 @@
 
         // returns a promise good for a list
         // of running srvice instances
-        getInstances: function(){
+        getServiceInstances: function(){
             var deferred = $q.defer();
 
             resourcesFactory.get_running_services_for_service(this.id)

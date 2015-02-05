@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, utils){
+    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils", "hostsFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, utils, hostsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -117,16 +117,14 @@
             if ($scope.pools.current) {
                 $scope.breadcrumbs.push({label: $scope.pools.current.ID, itemClass: 'active'});
                 
-                // TODO - use promises to clean up these async requests
-                // Also ensure we have a list of hosts
-                utils.refreshHosts($scope, resourcesFactory, false, function(){
-                    // reduce the list to hosts associated with this pool
-                    $scope.hosts.filtered = $scope.hosts.all.filter(function(host){
-                        return host.PoolID === $scope.pools.current.ID;
+                hostsFactory.update()
+                    .then(() => {
+                       // reduce the list to hosts associated with this pool
+                        $scope.hosts = hostsFactory.hostList.filter(function(host){
+                            return host.host.PoolID === $scope.pools.current.ID;
+                        });
                     });
-                });
             }
         });
-        
     }]);
 })();
