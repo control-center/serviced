@@ -19,11 +19,6 @@ build:
 	cd elastic && go build
 	go build
 
-test: build
-	cd elastic && go test $(GOTEST_FLAGS)
-	cd integration_test && go test $(GOTEST_FLAGS)
-	go test $(GOTEST_FLAGS)
-
 clean:
 	cd elastic && go clean
 	go clean

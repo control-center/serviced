@@ -19,10 +19,6 @@ build:
 	cd agent && go build
 	cd master && go build
 
-test: build
-	cd agent && go test $(GOTEST_FLAGS)
-	cd master && go test $(GOTEST_FLAGS)
-
 clean:
 	cd agent && go clean
 	cd master && go clean

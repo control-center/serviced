@@ -26,7 +26,7 @@ import (
 func TestLock(t *testing.T) {
 
 	/* start the cluster */
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}
