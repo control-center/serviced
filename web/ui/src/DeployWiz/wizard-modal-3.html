@@ -8,11 +8,11 @@
         <th translate>memory_capacity</th>
         <th translate>core_capacity</th>
     </tr>
-    <tr ng-repeat="pool in pools.data | orderBy:'ID'">
+    <tr ng-repeat="pool in pools | orderBy:'ID'">
         <td><input type="radio" ng-model="install.selected.pool" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.ID"></td>
-        <td>{{pool.ID}}</td>
-        <td>{{pool.Description}}</td>
-        <td>{{pool.MemoryCapacity | toGB}}</td>
-        <td>{{pool.CoreCapacity}}</td>
+        <td>{{pool.model.ID}}</td>
+        <td>{{pool.model.Description}}</td>
+        <td>{{pool.model.MemoryCapacity | toGB}}</td>
+        <td>{{pool.model.CoreCapacity}}</td>
     </tr>
 </table>

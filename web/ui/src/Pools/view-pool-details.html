@@ -5,27 +5,27 @@
   <div class="details-form">
     <div class="vertical-info">
       <label for="pool_data_id" translate>label_pool_id</label>
-      <div id="pool_data_id">{{pools.current.ID | cut:true:50}}</div>
+      <div id="pool_data_id">{{currentPool.id | cut:true:50}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="pool_data_core_limit" translate>core_capacity</label>
-      <div id="pool_data_core_limit">{{pools.current.CoreCapacity}}</div>
+      <div id="pool_data_core_limit">{{currentPool.model.CoreCapacity}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="pool_data_memory_limit" translate>memory_capacity</label>
-      <div id="pool_data_memory_limit">{{pools.current.MemoryCapacity | toGB}}</div>
+      <div id="pool_data_memory_limit">{{currentPool.model.MemoryCapacity | toGB}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="pool_data_created_at" translate>label_pool_created_at</label>
-      <div id="pool_data_created_at">{{pools.current.CreatedAt | date : 'medium'}}</div>
+      <div id="pool_data_created_at">{{currentPool.model.CreatedAt | date : 'medium'}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="pool_data_updated_at" translate>updated_at</label>
-      <div id="pool_data_updated_at">{{pools.current.UpdatedAt | date : 'medium'}}</div>
+      <div id="pool_data_updated_at">{{currentPool.model.UpdatedAt | date : 'medium'}}</div>
     </div>
   </div>
 </div>
@@ -33,7 +33,7 @@
 <h3 class="pull-left" translate>label_virtual_ip_addresses</h3>
 <div class="control-buttons pull-right">
   <span class="add-control">
-    <button class="btn-link" ng-click="modalAddVirtualIp(pools.current)">
+    <button class="btn-link" ng-click="modalAddVirtualIp(currentPool)">
       <span class="glyphicon glyphicon-plus-sign"></span>
       <span translate>modal_add_virtual_ip</span>
     </button>
@@ -46,13 +46,13 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-hide="pools.current.VirtualIPs !== undefined">
+    <tr ng-hide="currentPool.model.VirtualIPs !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
-    <tr ng-hide="pools.current.VirtualIPs.length !== 0">
+    <tr ng-hide="currentPool.model.VirtualIPs.length !== 0">
         <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
-    <tr ng-repeat="address in pools.current.VirtualIPs | orderBy:virtual_ip_addresses.sort">
+    <tr ng-repeat="address in currentPool.model.VirtualIPs | orderBy:virtual_ip_addresses.sort">
       <td>{{address.IP}}</td>
       <td>{{address.Netmask}}</td>
       <td>{{address.BindInterface}}</td>
@@ -85,9 +85,9 @@
     </tr>
     <tr ng-repeat="host in hosts">
       <td ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
-      <td>{{host.host.Memory | toGB}}</td>
-      <td>{{host.host.Cores}}</td>
-      <td>{{host.host.KernelVersion}}</td>
+      <td>{{host.model.Memory | toGB}}</td>
+      <td>{{host.model.Cores}}</td>
+      <td>{{host.model.KernelVersion}}</td>
     </tr>
   </tbody>
 </table>

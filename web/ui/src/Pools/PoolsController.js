@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter", "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils",
-    function($scope, $routeParams, $location, $filter, $timeout, resourcesFactory, authService, $modalService, $translate, $notification, utils){
+    controlplane.controller("PoolsController", ["$scope", "$routeParams", "$location", "$filter", "$timeout", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils", "poolsFactory",
+    function($scope, $routeParams, $location, $filter, $timeout, resourcesFactory, authService, $modalService, $translate, $notification, utils, poolsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -48,7 +48,7 @@
                         classes: "btn-danger",
                         action: function(){
                             resourcesFactory.remove_pool(poolID, function(data) {
-                                utils.refreshPools($scope, resourcesFactory, false);
+                                poolsFactory.update();
                             });
                             this.close();
                         }
@@ -99,13 +99,16 @@
         $scope.add_pool = function() {
             return resourcesFactory.add_pool($scope.newPool)
                 .success(function(data){
-                    utils.refreshPools($scope, resourcesFactory, false);
+                    poolsFactory.update();
                     // Reset for another add
                     $scope.newPool = {};
                 });
         };
 
         // Ensure we have a list of pools
-        utils.refreshPools($scope, resourcesFactory, false);
+        poolsFactory.update()
+            .then(() => {
+                $scope.pools.data = poolsFactory.poolMap;
+            });
     }]);
 })();

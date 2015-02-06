@@ -119,13 +119,7 @@
             // Run ordering filter, built in
             var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
             // Run search filter, built in
-            var filtered = $filter('filter')(ordered, $scope.hosts.search);
-            // Run filter for pool and child pools, custom
-            var treeFiltered = $filter('treeFilter')(filtered, 'poolID', $scope.subPools);
-
-            if(treeFiltered){
-                $scope.hosts.filtered = treeFiltered;
-            }
+            $scope.hosts.filtered = $filter('filter')(ordered, $scope.hosts.search);
 
             return $scope.hosts.filtered;
         };
@@ -136,8 +130,6 @@
             { id: 'fullPath', name: 'Assigned Resource Pool'},
         ]);
 
-        // Ensure we have a list of pools
-        utils.refreshPools($scope, resourcesFactory, false);
         // update hosts
         update();
 

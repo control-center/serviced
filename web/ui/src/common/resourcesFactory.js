@@ -29,7 +29,6 @@
       });
 
       var pollingFunctions = {};
-      var cached_pools;
       var cached_hosts_for_pool = {};
       var cached_app_templates;
 
@@ -40,19 +39,6 @@
                   callback(data);
               }).
               error(function() {
-                  // TODO error screen
-                  redirectIfUnauthorized(status);
-              });
-      };
-
-      // Real implementation for acquiring list of resource pools
-      var _get_pools = function(callback) {
-          $http.noCacheGet('/pools').
-              success(function(data) {
-                  cached_pools = data;
-                  callback(data);
-              }).
-              error(function(data, status) {
                   // TODO error screen
                   redirectIfUnauthorized(status);
               });
@@ -97,20 +83,11 @@
                 });
           },
 
-          /*
-           * Get the most recently retrieved map of resource pools.
-           * This will also retrieve the data if it has not yet been
-           * retrieved.
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {function} callback Pool data is passed to a callback on success.
-           */
-          get_pools: function(cacheOk, callback) {
-              if (cacheOk && cached_pools) {
-                  callback(cached_pools);
-              } else {
-                  _get_pools(callback);
-              }
+          get_pools: function() {
+              return $http.get('/pools').
+                  error(function(data, status) {
+                      redirectIfUnauthorized(status);
+                  });
           },
 
           /*

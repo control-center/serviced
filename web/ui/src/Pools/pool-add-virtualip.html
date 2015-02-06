@@ -3,7 +3,7 @@
     <div class="form-group">
       <label for="new_pool_virtual_ip" translate>label_ip</label>
       <input class="form-control" focusme name="ip" id="ip" type="text"
-             ng-model="pools.add_virtual_ip.IP" ng-pattern="/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/"
+             ng-model="add_virtual_ip.IP" ng-pattern="/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/"
              placeholder='xxx.xxx.xxx.xxx'/>
     </div>
 
@@ -11,13 +11,13 @@
     <div class="form-group">
       <label for="new_pool_virtual_ip" translate>label_netmask</label>
       <input class="form-control" name="netmask" id="netmask" type="text"
-             ng-model="pools.add_virtual_ip.Netmask"  ng-pattern="/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/"
+             ng-model="add_virtual_ip.Netmask"  ng-pattern="/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/"
              placeholder='xxx.xxx.xxx.xxx'/>
     </div>
 
     <!-- Bind Interface-->
     <div class="form-group">
       <label for="new_pool_virtual_ip" translate>label_bind_interface</label>
-      <input class="form-control" name="interface" id="interface" type="text" ng-model="pools.add_virtual_ip.BindInterface" />
+      <input class="form-control" name="interface" id="interface" type="text" ng-model="add_virtual_ip.BindInterface" />
     </div>
 </form>
