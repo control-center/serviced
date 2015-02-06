@@ -43,10 +43,10 @@
         <div ng-if="host.active === 'yes'" class="good" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
         <div ng-if="!host.active" class="down" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
       </td>
-      <td ng-click="clickPool(host.host.PoolID)" class="link">{{host.fullPath|cut:true:50}}</td>
-      <td>{{host.host.Memory | toGB}}</td>
-      <td>{{host.host.Cores}}</td>
-      <td>{{host.host.KernelVersion}}</td>
+      <td ng-click="clickPool(host.model.PoolID)" class="link">{{host.fullPath|cut:true:50}}</td>
+      <td>{{host.model.Memory | toGB}}</td>
+      <td>{{host.model.Cores}}</td>
+      <td>{{host.model.KernelVersion}}</td>
       <td><button ng-click="remove_host(host.id)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button></td>
     </tr>
   </tbody>

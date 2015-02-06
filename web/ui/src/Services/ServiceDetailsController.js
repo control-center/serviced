@@ -732,9 +732,6 @@
             $e.addClass("glyphicon-chevron-down");
         }
 
-        // Ensure we have a list of pools
-        utils.refreshPools($scope, resourcesFactory, false);
-
         function makeCrumbs(current){
             var crumbs = [{
                 label: current.name,

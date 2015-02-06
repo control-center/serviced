@@ -4,8 +4,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils", "hostsFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, utils, hostsFactory) {
+    controlplane.controller("HostsMapController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "miscUtils", "hostsFactory", "poolsFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, utils, hostsFactory, poolsFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -21,10 +21,10 @@
         var height = 567;
 
         var cpuCores = function(h) {
-            return h.host.Cores;
+            return h.model.Cores;
         };
         var memoryCapacity = function(h) {
-            return h.host.Memory;
+            return h.model.Memory;
         };
         var poolBgColor = function(p) {
             return p.isHost? null : color(p.Id);
@@ -110,27 +110,29 @@
             console.log('Preparing tree map');
             hostsAddedToPools = true;
             hostsFactory.hostList.forEach((host) => {
-                let pool = $scope.pools.mapped[host.host.PoolID];
-                if (pool.children === undefined) {
+                let pool = poolsFactory.get(host.model.PoolID);
+                // TODO - don't add stuff to pool and host objects!
+                if(!pool.children){
                     pool.children = [];
                 }
                 pool.children.push(host);
                 host.isHost = true;
             });
 
-            root = { Id: 'All Resource Pools', children: $scope.pools.tree };
+            root = { Id: 'All Resource Pools', children: poolsFactory.poolList };
             selectNewRoot(root);
         };
         $scope.treemapSelection = 'memory';
         // Also ensure we have a list of hosts
-        utils.refreshPools($scope, resourcesFactory, false, function() {
-            wait.pools = true;
-            addHostsToPools();
-        });
+        poolsFactory.update()
+            .then(() => {
+                wait.pools = true;
+                addHostsToPools();
+            });
         hostsFactory.update()
             .then(() => {
-            wait.hosts = true;
-            addHostsToPools();
-        });
+                wait.hosts = true;
+                addHostsToPools();
+            });
     }]);
 })();

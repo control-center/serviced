@@ -44,7 +44,7 @@
         function update(){
             var deferred = $q.defer();
 
-            resourcesFactory.get_hosts(UPDATE_FREQUENCY + 1000)
+            resourcesFactory.get_hosts()
                 .success((data, status) => {
                     var included = [];
 
@@ -108,7 +108,7 @@
             // TODO - determine full pool path from PoolID
             this.fullPath = "";
 
-            this.host = Object.freeze(host);
+            this.model = Object.freeze(host);
         },
 
         getServiceInstances: function(){

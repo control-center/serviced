@@ -6,13 +6,15 @@
 (function() {
     'use strict';
 
-    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils", "hostsFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, utils, hostsFactory){
+    controlplane.controller("PoolDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, utils, hostsFactory, poolsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
         $scope.name = "pooldetails";
         $scope.params = $routeParams;
+
+        $scope.add_virtual_ip = {};
 
         $scope.breadcrumbs = [
             { label: 'breadcrumb_pools', url: '#/pools' }
@@ -32,8 +34,6 @@
 
         // Pool view action - delete
         $scope.clickRemoveVirtualIp = function(ip) {
-            console.log( "Removing pool's virtual ip address: ", ip);
-
             $modalService.create({
                 template: $translate.instant("confirm_remove_virtual_ip") + " <strong>"+ ip.IP +"</strong>",
                 model: $scope,
@@ -47,32 +47,30 @@
                         classes: "btn-danger",
                         action: function(){
                             resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
-                                utils.refreshPools($scope, resourcesFactory, false);
+                                poolsFactory.update();
                             });
                             this.close();
                         }
                     }
                 ]
             });
-            
-            
         };
 
         // Add Virtual Ip Modal - Add button action
         $scope.addVirtualIp = function(pool) {
-            var ip = $scope.pools.add_virtual_ip;
+            var ip = $scope.add_virtual_ip;
 
             return resourcesFactory.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
                 .success(function(data, status){
-                    $scope.pools.add_virtual_ip = {};
+                    $scope.add_virtual_ip = {};
                     $notification.create("Added new pool virtual ip", ip).success();
-                    utils.refreshPools($scope, resourcesFactory, false);
+                    poolsFactory.update();
                 });
         };
 
         // Open the virtual ip modal
         $scope.modalAddVirtualIp = function(pool) {
-            $scope.pools.add_virtual_ip = {'PoolID': pool.ID, 'IP':"", 'Netmask':"", 'BindInterface':""};
+            $scope.add_virtual_ip = {'PoolID': pool.id, 'IP':"", 'Netmask':"", 'BindInterface':""};
             $modalService.create({
                 templateUrl: "pool-add-virtualip.html",
                 model: $scope,
@@ -81,7 +79,7 @@
                     {
                         role: "cancel",
                         action: function(){
-                            $scope.pools.add_virtual_ip = {};
+                            $scope.add_virtual_ip = {};
                             this.close();
                         }
                     },{
@@ -92,12 +90,12 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                $scope.addVirtualIp(pool)
+                                $scope.addVirtualIp($scope.add_virtual_ip)
                                     .success(function(data, status){
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                       this.createNotification("Adding pool virtual ip failed", data.Detail).error(); 
+                                       this.createNotification("Adding pool virtual ip failed", data.Detail).error();
                                        enableSubmit();
                                     }.bind(this));
                             }
@@ -113,18 +111,20 @@
         };
 
         // Ensure we have a list of pools
-        utils.refreshPools($scope, resourcesFactory, true, function() {
-            if ($scope.pools.current) {
-                $scope.breadcrumbs.push({label: $scope.pools.current.ID, itemClass: 'active'});
-                
-                hostsFactory.update()
-                    .then(() => {
-                       // reduce the list to hosts associated with this pool
-                        $scope.hosts = hostsFactory.hostList.filter(function(host){
-                            return host.host.PoolID === $scope.pools.current.ID;
+        poolsFactory.update()
+            .then(() => {
+                $scope.currentPool = poolsFactory.get($scope.params.poolID);
+                if ($scope.currentPool) {
+                    $scope.breadcrumbs.push({label: $scope.currentPool.id, itemClass: 'active'});
+
+                    hostsFactory.update()
+                        .then(() => {
+                           // reduce the list to hosts associated with this pool
+                            $scope.hosts = hostsFactory.hostList.filter(function(host){
+                                return host.model.PoolID === $scope.currentPool.id;
+                            });
                         });
-                    });
-            }
-        });
+                }
+            });
     }]);
 })();

@@ -32,29 +32,6 @@ describe('miscUtils', function() {
         });
     });
 
-    describe('getFullPath', function() {
-        it('Returns pool.Id when there is no parent', function() {
-            var pool = { ID: 'Test' };
-            expect(miscUtils.getFullPath({}, pool)).toBe(pool.ID);
-
-            pool = { ID: 'Test', ParentId: 'Nonexistent' };
-            expect(miscUtils.getFullPath({}, pool)).toBe(pool.ID);
-
-            // Should handle null
-            expect(miscUtils.getFullPath(null, pool)).toBe(pool.ID);
-        });
-
-        it('Returns hierarchical path', function() {
-            var allPools = {
-                'Test3': { ID: 'Test3', ParentId: 'Test2' },
-                'Test2': { ID: 'Test2', ParentId: 'Test1' },
-                'Test1': { ID: 'Test1', ParentId: '' }
-            }
-            var pool = allPools['Test3'];
-            expect(miscUtils.getFullPath(allPools, pool)).toBe('Test1 > Test2 > Test3');
-        });
-    });
-
     describe('get_order_class', function() {
         it('Includes \'active\' for value or -value of table.sort', function() {
             var table = {
@@ -91,54 +68,6 @@ describe('miscUtils', function() {
             var dummy_data = {};
             var dummy_data_array = miscUtils.map_to_array(dummy_data);
             expect(dummy_data_array).toEqual([]);
-        });
-    });
-
-    describe('refreshPools', function() {
-        it('Transforms mapped pools into array in scope', function() {
-            var dummy_data = fake_pools();
-            var scope = {};
-
-             miscUtils.refreshPools(scope, fake_resources_service(), false);
-
-            // refreshPools now adds data above and beyond just transforming into an array
-            for (var i=0; i < scope.pools.data.length; i++) {
-                // Expect the basic fields to be consistent
-                var dummyPool = dummy_data[scope.pools.data[i].Id];
-                expect(dummyPool.Name).toEqual(scope.pools.data[i].Name);
-                expect(dummyPool.ParentId).toEqual(scope.pools.data[i].ParentId);
-                expect(dummyPool.CoreLimit).toEqual(scope.pools.data[i].CoreLimit);
-                expect(dummyPool.MemoryLimit).toEqual(scope.pools.data[i].MemoryLimit);
-                expect(dummyPool.Priority).toEqual(scope.pools.data[i].Priority);
-            }
-        });
-
-        it('Puts pool data in scope', function() {
-            var dummy_data = fake_pools();
-            var scope = {};
-
-            miscUtils.refreshPools(scope, fake_resources_service(), false);
-
-            for (key in dummy_data) {
-                var scopedPool = scope.pools.mapped[key];
-                var dummyPool = dummy_data[key];
-                expect(dummyPool.Name).toEqual(scopedPool.Name);
-                expect(dummyPool.ParentId).toEqual(scopedPool.ParentId);
-                expect(dummyPool.CoreLimit).toEqual(scopedPool.CoreLimit);
-                expect(dummyPool.MemoryLimit).toEqual(scopedPool.MemoryLimit);
-                expect(dummyPool.Priority).toEqual(scopedPool.Priority);
-            }
-        });
-
-        it('Sets the current pool based on scope.params', function() {
-            var dummy_data = fake_pools();
-            var dummy_data_array = miscUtils.map_to_array(dummy_data);
-            var scope = { params: { poolID: dummy_data_array[0].Id }};
-
-            miscUtils.refreshPools(scope, fake_resources_service(), false);
-
-            expect(scope.pools.current).not.toBeUndefined();
-            expect(scope.pools.current.Name).toBe(dummy_data_array[0].Name);
         });
     });
 

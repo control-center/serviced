@@ -9,38 +9,38 @@
 
     <div class="vertical-info">
       <label for="host_data_pool" translate>label_host_pool</label>
-      <div id="host_data_pool">{{currentHost.host.PoolID}}</div>
+      <div id="host_data_pool">{{currentHost.model.PoolID}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="host_data_memory" translate>label_host_memory</label>
-      <div id="host_data_memory">{{currentHost.host.Memory | toGB}}</div>
+      <div id="host_data_memory">{{currentHost.model.Memory | toGB}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="host_data_cpu" translate>label_host_cores</label>
-      <div id="host_data_cpu">{{currentHost.host.Cores}}</div>
+      <div id="host_data_cpu">{{currentHost.model.Cores}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="host_data_kernel_version" translate>label_host_kernel_version</label>
-      <div id="host_data_kernel_version">{{currentHost.host.KernelVersion}}</div>
+      <div id="host_data_kernel_version">{{currentHost.model.KernelVersion}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="host_data_kernel_revision" translate>label_host_kernel_release</label>
-      <div id="host_data_kernel_revision">{{currentHost.host.KernelRelease}}</div>
+      <div id="host_data_kernel_revision">{{currentHost.model.KernelRelease}}</div>
     </div>
 
     <div class="vertical-info">
       <label for="host_data_ip_addr" translate>label_host_ip_addr</label>
-      <div id="host_data_ip_addr">{{currentHost.host.IPAddr}}</div>
+      <div id="host_data_ip_addr">{{currentHost.model.IPAddr}}</div>
     </div>
   </div>
 </div>
 
 <!-- Graphs -->
-<graph-panel ng-if="currentHost.host.MonitoringProfile.GraphConfigs" data-service-id="currentHost.id" data-graph-configs="currentHost.host.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
+<graph-panel ng-if="currentHost.model.MonitoringProfile.GraphConfigs" data-service-id="currentHost.id" data-graph-configs="currentHost.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
 
 <!-- IPs -->
 <h3 translate>ip_addresses</h3>
@@ -51,13 +51,13 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-hide="currentHost.host.IPs !== undefined">
+    <tr ng-hide="currentHost.model.IPs !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
-    <tr ng-hide="currentHost.host.IPs.length !== 0">
+    <tr ng-hide="currentHost.model.IPs.length !== 0">
         <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
-    <tr ng-repeat="address in currentHost.host.IPs | orderBy:ip_addresses.sort">
+    <tr ng-repeat="address in currentHost.model.IPs | orderBy:ip_addresses.sort">
       <td>{{address.InterfaceName}}</td>
       <td>{{address.IPAddress}}</td>
       <td>{{address.MACAddress}}</td>

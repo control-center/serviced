@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory",
-    function($scope, $notification, $translate, resourcesFactory, servicesFactory, utils, hostsFactory){
+    controlplane.controller("DeployWizard", ["$scope", "$notification", "$translate", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "poolsFactory",
+    function($scope, $notification, $translate, resourcesFactory, servicesFactory, utils, hostsFactory, poolsFactory){
         var step = 0;
         var nextClicked = false;
         $scope.name='wizard';
@@ -398,6 +398,9 @@
             hostsFactory.update().then(resetStepPage);
         });
 
-        utils.refreshPools($scope, resourcesFactory, true);
+        poolsFactory.update()
+            .then(() => {
+                $scope.pools = poolsFactory.poolMap;
+            });
     }]);
 })();

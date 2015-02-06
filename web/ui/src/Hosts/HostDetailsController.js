@@ -99,8 +99,6 @@
             $location.path('/services/' + instance.ServiceID);
         };
 
-        // Ensure we have a list of pools
-        utils.refreshPools($scope, resourcesFactory, false);
         // update hosts
         update();
 
