@@ -409,7 +409,7 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if nfsDriver, err := nfs.NewServer(options.VarPath, "serviced_var", "0.0.0.0/0"); err != nil {
+	if nfsDriver, err := nfs.NewServer(path.Join(options.VarPath, "volumes"), "serviced_var_volumes", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
 		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost)
@@ -563,7 +563,7 @@ func (d *daemon) startAgent() error {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
 
-		nfsClient, err := storage.NewClient(thisHost, options.VarPath)
+		nfsClient, err := storage.NewClient(thisHost, path.Join(options.VarPath, "volumes"))
 		if err != nil {
 			glog.Fatalf("could not create an NFS client: %s", err)
 		}
