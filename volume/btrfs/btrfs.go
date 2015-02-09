@@ -23,8 +23,10 @@ import (
 	"os/user"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -199,6 +201,24 @@ func (c *BtrfsConn) Unmount() error {
 	return err
 }
 
+// getEnvMinDuration returns the time.Duration env var meeting minimum and default duration
+func getEnvMinDuration(envvar string, def, min int32) time.Duration {
+	duration := def
+	envval := os.Getenv(envvar)
+	if len(strings.TrimSpace(envval)) == 0 {
+		// ignore unset envvar
+	} else if intVal, intErr := strconv.ParseInt(envval, 0, 32); intErr != nil {
+		glog.Warningf("ignoring invalid %s of '%s': %s", envvar, envval, intErr)
+		duration = min
+	} else if int32(intVal) < min {
+		glog.Warningf("ignoring invalid %s of '%s' < minimum:%v seconds", envvar, envval, min)
+	} else {
+		duration = int32(intVal)
+	}
+
+	return time.Duration(duration) * time.Second
+}
+
 // Rollback rolls back the volume to the given snapshot
 func (c *BtrfsConn) Rollback(label string) error {
 	if exists, err := c.snapshotExists(label); err != nil || !exists {
@@ -217,13 +237,42 @@ func (c *BtrfsConn) Rollback(label string) error {
 		return err
 	}
 
+	glog.Infof("starting rollback of snapshot %s", label)
+
+	start := time.Now()
 	if dirp {
-		if _, err := runcmd(c.sudoer, "subvolume", "delete", vd); err != nil {
-			return err
+		timeout := getEnvMinDuration("SERVICED_BTRFS_ROLLBACK_TIMEOUT", 300, 120)
+		glog.Infof("rollback using env var SERVICED_BTRFS_ROLLBACK_TIMEOUT:%s", timeout)
+
+		for {
+			cmd := []string{"subvolume", "delete", vd}
+			output, deleteError := runcmd(c.sudoer, cmd...)
+			if deleteError == nil {
+				break
+			}
+
+			now := time.Now()
+			if now.Sub(start) > timeout {
+				glog.Errorf("rollback of snapshot %s failed - btrfs subvolume deletes took %s for cmd:%s", label, timeout, cmd)
+				return deleteError
+			} else if strings.Contains(string(output), "Device or resource busy") {
+				waitTime := time.Duration(5 * time.Second)
+				glog.Warningf("retrying rollback subvolume delete in %s - unable to run cmd:%s  output:%s  error:%s", waitTime, cmd, string(output), deleteError)
+				time.Sleep(waitTime)
+			} else {
+				return deleteError
+			}
 		}
 	}
 
-	_, err = runcmd(c.sudoer, "subvolume", "snapshot", c.SnapshotPath(label), vd)
+	cmd := []string{"subvolume", "snapshot", c.SnapshotPath(label), vd}
+	_, err = runcmd(c.sudoer, cmd...)
+	if err != nil {
+		glog.Errorf("rollback of snapshot %s failed for cmd:%s", label, cmd)
+	} else {
+		duration := time.Now().Sub(start)
+		glog.Infof("rollback of snapshot %s took %s", label, duration)
+	}
 	return err
 }
 
@@ -299,5 +348,11 @@ func runcmd(sudoer bool, args ...string) ([]byte, error) {
 		cmd = append([]string{"sudo", "-n"}, cmd...)
 	}
 	glog.V(4).Infof("Executing: %v", cmd)
-	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+	output, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+	if err != nil {
+		e := fmt.Errorf("unable to run cmd:%s  output:%s  error:%s", cmd, string(output), err)
+		glog.Errorf("%s", e)
+		return output, e
+	}
+	return output, err
 }

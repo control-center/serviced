@@ -119,8 +119,8 @@ SERVICED_FS_TYPE=btrfs
 # files of active serviced instances configured as agents. The value of this
 # variable must be a minimum of twice the value of the
 # SERVICED_MONITOR_DFS_REMOTE_UPDATE_INTERVAL variable.
-# Default: 900    (15 minutes)
-# SERVICED_MONITOR_DFS_MASTER_INTERVAL=900
+# Default: 180    (3 minutes)
+# SERVICED_MONITOR_DFS_MASTER_INTERVAL=180
 
 # Set to 0 in order to disable restarting nfs upon out of sync detection
 # Default: 1    (enable)
