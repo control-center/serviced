@@ -19,10 +19,6 @@ build:
 	go build
 	cd nfs && go build
 
-test: build
-	go test $(GOTEST_FLAGS)
-	cd nfs && go test $(GOTEST_FLAGS)
-
 clean:
 	go clean
 	cd nfs && go clean

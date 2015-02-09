@@ -23,6 +23,10 @@ func (d TestDriver) Mount(volumeName, root string) (Volume, error) {
 	return TestConn{volumeName, root}, nil
 }
 
+func (d TestDriver) List(root string) []string {
+	return nil
+}
+
 type TestConn struct {
 	name string
 	root string
@@ -49,6 +53,22 @@ func (c TestConn) RemoveSnapshot(label string) error {
 }
 
 func (c TestConn) Rollback(label string) error {
+	return nil
+}
+
+func (c TestConn) Export(label, parent, filename string) error {
+	return nil
+}
+
+func (c TestConn) Import(label, filename string) error {
+	return nil
+}
+
+func (c TestConn) SnapshotPath(label string) string {
+	return ""
+}
+
+func (c TestConn) Unmount() error {
 	return nil
 }
 

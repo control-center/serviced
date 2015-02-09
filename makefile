@@ -437,30 +437,8 @@ endif
 
 .PHONY: test
 test: build docker_ok
-	go test ./commons/... $(GOTEST_FLAGS)
-	go test $(GOTEST_FLAGS)
-	cd dao && make test
+	go test -p 1 ./... $(GOTEST_FLAGS)
 	cd web && make test
-	cd isvcs && go test $(GOTEST_FLAGS)
-	cd utils && go test $(GOTEST_FLAGS)
-	cd node && go test $(GOTEST_FLAGS)
-	cd datastore && make test
-	cd domain && make test
-	cd facade && go test $(GOTEST_FLAGS)
-	cd rpc && make test
-	cd cli/api && go test $(GOTEST_FLAGS)
-	cd cli/cmd && go test $(GOTEST_FLAGS)
-	cd scheduler && go test $(GOTEST_FLAGS)
-	cd container && go test $(GOTEST_FLAGS)
-	cd dfs && make test
-	cd coordinator/client && go test $(GOTEST_FLAGS)
-	cd coordinator/storage && go test $(GOTEST_FLAGS)
-	cd script && go test $(GOTEST_FLAGS)
-	cd validation && go test $(GOTEST_FLAGS)
-	cd zzk && go test $(GOTEST_FLAGS)
-	cd zzk/snapshot && go test $(GOTEST_FLAGS)
-	cd zzk/service && go test -v $(GOTEST_FLAGS)
-	cd zzk/docker && go test -v $(GOTEST_FLAGS)
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh

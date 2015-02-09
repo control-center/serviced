@@ -19,13 +19,11 @@ default: build
 .PHONY: build
 build:
 	cd ui && make build
-	./godep restore
 	go build
 
 .PHONY: test
 test: build
 	cd ui && make test
-	go test $(GOTEST_FLAGS)
 
 .PHONY: clean
 clean:
