@@ -435,9 +435,19 @@ export GOTEST_FLAGS:=$(GOTEST_FLAGS) -race
 endif
 endif
 
+ES_VER=0.90.13
+ES_URL=https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-$(ES_VER).tar.gz
+ES_TMP:=$(shell mktemp -d)
+ES_DIR=$(ES_TMP)/elasticsearch-$(ES_VER)
+
 .PHONY: test
 test: build docker_ok
-	go test -p 1 ./... $(GOTEST_FLAGS)
+	cd $(ES_TMP) && curl -s $(ES_URL) | tar -xz
+	echo "cluster.name: zero" > $(ES_DIR)/config/elasticsearch.yml
+	$(ES_DIR)/bin/elasticsearch -f -Des.http.port=9202 > $(ES_TMP)/elastic.log & echo $$!>$(ES_TMP)/elastic.pid
+	go test $(GOTEST_FLAGS) -p 1 ./...
+	kill `cat $(ES_TMP)/elastic.pid`
+	rm -rf $(ES_TMP)
 	cd web && make test
 
 smoketest: build docker_ok
