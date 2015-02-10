@@ -1,4 +1,37 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/*
+  ## Fields (DEPRECATED)
+*/
+define([
+  'angular',
+  'app',
+  'lodash'
+],
+function (angular, app, _) {
+  'use strict';
 
-define("panels/fields/module",["angular","app","underscore"],function(a,b,c){var d=a.module("kibana.panels.fields",[]);b.useModule(d),d.controller("fields",["$scope",function(a){a.panelMeta={status:"Deprecated",description:"You should not use this table, it does not work anymore. The table panel nowintegrates a field selector. This module will soon be removed."};var b={style:{},arrange:"vertical",micropanel_position:"right"};c.defaults(a.panel,b),a.init=function(){}}])});
+  var module = angular.module('kibana.panels.fields', []);
+  app.useModule(module);
+
+  module.controller('fields', function($scope) {
+
+    $scope.panelMeta = {
+      status  : "Deprecated",
+      description : "You should not use this table, it does not work anymore. The table panel now"+
+        "integrates a field selector. This module will soon be removed."
+    };
+
+
+    // Set and populate defaults
+    var _d = {
+      style   : {},
+      arrange : 'vertical',
+      micropanel_position : 'right',
+    };
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function() {
+      // Place holder until I remove this
+    };
+
+  });
+});

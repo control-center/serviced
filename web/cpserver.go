@@ -22,10 +22,16 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"strings"
+	"sync"
+	"time"
 
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/registry"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -68,6 +74,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	glog.V(1).Infof("starting vhost synching")
 	//start getting vhost endpoints
 	go sc.syncVhosts(shutdown)
+	//start watching global vhosts as they are added/deleted/updated in services
+	go sc.syncAllVhosts(shutdown)
 
 	// Reverse proxy to the web UI server.
 	uihandler := func(w http.ResponseWriter, r *http.Request) {
@@ -88,6 +96,33 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		ui.ServeHTTP(w, r)
 	}
 
+	httphandler := func(w http.ResponseWriter, r *http.Request) {
+		glog.V(2).Infof("httphandler handling request: %+v", r)
+
+		vhostExists := func(vhostname string) bool {
+			allvhostsLock.RLock()
+			defer allvhostsLock.RUnlock()
+			_, ok := allvhosts[vhostname]
+			return ok
+		}
+
+		httphost := r.Host
+		parts := strings.Split(httphost, ".")
+		subdomain := parts[0]
+		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
+
+		if vhostExists(httphost) {
+			glog.V(2).Infof("httphost: calling sc.vhosthandler")
+			sc.vhosthandler(w, r, httphost)
+		} else if vhostExists(subdomain) {
+			glog.V(2).Infof("httphost: calling sc.vhosthandler")
+			sc.vhosthandler(w, r, subdomain)
+		} else {
+			glog.V(2).Infof("httphost: calling uihandler")
+			uihandler(w, r)
+		}
+	}
+
 	r := mux.NewRouter()
 
 	if hnm, err := os.Hostname(); err == nil {
@@ -101,13 +136,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 
 	defaultHostAlias = sc.hostaliases[0]
 
-	for _, ha := range sc.hostaliases {
-		glog.V(1).Infof("Use vhosthandler for: %s", fmt.Sprintf("{subdomain}.%s", ha))
-		r.HandleFunc("/{path:.*}", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
-		r.HandleFunc("/", sc.vhosthandler).Host(fmt.Sprintf("{subdomain}.%s", ha))
-	}
-
-	r.HandleFunc("/{path:.*}", uihandler)
+	r.HandleFunc("/", httphandler)
+	r.HandleFunc("/{path:.*}", httphandler)
 
 	http.Handle("/", r)
 
@@ -307,3 +337,54 @@ type ctxhandlerFunc func(w *rest.ResponseWriter, r *rest.Request, ctx *requestCo
 type checkFunc func(w *rest.ResponseWriter, r *rest.Request) bool
 
 type getRoutes func(sc *ServiceConfig) []rest.Route
+
+var (
+	allvhostsLock sync.RWMutex
+	allvhosts     map[string]string
+)
+
+func init() {
+	allvhosts = make(map[string]string)
+}
+
+func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
+	rootConn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Fatalf("syncAllVhosts - Error getting root zk connection: %v", err)
+		return err
+	}
+
+	cancelChan := make(chan bool)
+	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
+		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
+
+		allvhostsLock.Lock()
+		defer allvhostsLock.Unlock()
+
+		allvhosts = make(map[string]string)
+		for _, sv := range childIDs {
+			parts := strings.SplitN(sv, "_", 2)
+			allvhosts[parts[1]] = parts[0]
+		}
+		glog.V(1).Infof("allvhosts: %+v", allvhosts)
+	}
+
+	for {
+		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
+		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
+		err := registry.WatchChildren(rootConn, zkServiceVhost, cancelChan, syncVhosts, vhostWatchError)
+		if err != nil {
+			glog.V(1).Infof("Will retry in 10 seconds to WatchChildren(%s) due to error: %v", zkServiceVhost, err)
+			<-time.After(time.Second * 10)
+			continue
+		}
+		select {
+		case <-shutdown:
+			close(cancelChan)
+			return nil
+		default:
+		}
+	}
+
+	return nil
+}

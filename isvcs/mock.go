@@ -20,7 +20,6 @@ import (
 	"time"
 )
 
-var oneHundred int = 100
 var zero int = 0
 
 var InternalServicesISVC Service
@@ -67,7 +66,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -76,7 +75,6 @@ func init() {
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
 					Type:       "area",
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -88,7 +86,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -99,7 +102,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -116,7 +124,6 @@ func init() {
 					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -179,7 +186,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -189,7 +196,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -201,7 +207,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -212,7 +223,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -230,7 +246,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -277,7 +292,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -287,7 +302,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-serviced"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -299,7 +313,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -310,7 +329,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -328,7 +352,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"elasticsearch-serviced"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -390,7 +413,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -400,7 +423,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -412,7 +434,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -423,7 +450,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -441,7 +473,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"zookeeper"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -503,7 +534,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -513,7 +544,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -525,7 +555,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -536,7 +571,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -554,7 +594,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"logstash"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -616,7 +655,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -626,7 +665,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -638,7 +676,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -649,7 +692,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -667,7 +715,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"opentsdb"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -729,7 +776,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -739,7 +786,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -751,7 +797,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -762,7 +813,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -780,7 +836,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"celery"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -842,7 +897,7 @@ func init() {
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
-					MaxY:   &oneHundred,
+					MaxY:   nil,
 					MinY:   &zero,
 					Range: &domain.GraphConfigRange{
 						End:   "0s-ago",
@@ -852,7 +907,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
-					DownSample: "1m-avg",
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -864,7 +918,12 @@ func init() {
 							Metric:     "CpuacctStat.system",
 							Name:       "CPU (System)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 						domain.DataPoint{
 							ID:         "system",
@@ -875,7 +934,12 @@ func init() {
 							Metric:     "CpuacctStat.user",
 							Name:       "CPU (User)",
 							Rate:       true,
-							Type:       "area",
+							RateOptions: &domain.DataPointRateOptions{
+								Counter: true,
+								// supress extreme outliers
+								ResetThreshold: 1,
+							},
+							Type: "area",
 						},
 					},
 				},
@@ -893,7 +957,6 @@ func init() {
 					ReturnSet:  "EXACT",
 					Type:       "area",
 					Tags:       map[string][]string{"isvcname": []string{"docker-registry"}},
-					DownSample: "1m-avg",
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{

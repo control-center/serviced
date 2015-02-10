@@ -1,1 +1,4 @@
-.leaflet-marker-icon{color:#333}
+/** custom additions **/
+.leaflet-marker-icon {
+  color: #333;
+}

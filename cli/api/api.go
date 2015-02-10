@@ -165,4 +165,3 @@ func (a *api) connectDAO() (dao.ControlPlane, error) {
 	}
 	return a.dao, nil
 }
-

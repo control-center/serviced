@@ -14,6 +14,7 @@
 package dao
 
 import (
+	"os"
 	"time"
 
 	"github.com/control-center/serviced/domain"
@@ -76,6 +77,7 @@ type RunningService struct {
 	ID                string
 	ServiceID         string
 	HostID            string
+	IPAddress         string // IP that this service has assigned ports
 	DockerID          string
 	StartedAt         time.Time
 	InSync            bool
@@ -134,4 +136,14 @@ func NewSnapshotRequest(serviceId string, snapshotLabel string) (snapshotRequest
 		snapshotRequest.SnapshotError = ""
 	}
 	return snapshotRequest, err
+}
+
+// BackupFile is the structure for backup file data
+type BackupFile struct {
+	InProgress bool        `json:"in_progress"`
+	FullPath   string      `json:"full_path"`
+	Name       string      `json:"name"`
+	Size       int64       `json:"size"`
+	Mode       os.FileMode `json:"mode"`
+	ModTime    time.Time   `json:"mod_time"`
 }

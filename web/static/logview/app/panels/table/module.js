@@ -1,4 +1,536 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/** @scratch /panels/5
+ *
+ * include::panels/table.asciidoc[]
+ */
 
-define("panels/table/module",["angular","app","underscore","kbn","moment"],function(a,b,c,d,e){var f=a.module("kibana.panels.table",[]);b.useModule(f),f.controller("table",["$rootScope","$scope","$modal","$q","$compile","fields","querySrv","dashboard","filterSrv",function(b,e,f,g,h,i,j,k,l){e.panelMeta={modals:[{description:"Inspect",icon:"icon-info-sign",partial:"app/partials/inspector.html",show:e.panel.spyable}],editorTabs:[{title:"Paging",src:"app/panels/table/pagination.html"},{title:"Queries",src:"app/partials/querySelect.html"}],status:"Stable",description:"A paginated table of records matching your query or queries. Click on a row to expand it and review all of the fields associated with that document. <p>"};var m={size:100,pages:5,offset:0,sort:["_score","desc"],overflow:"min-height",fields:[],highlight:[],sortable:!0,header:!0,paging:!0,field_list:!0,all_fields:!1,trimFactor:300,localTime:!1,timeField:"@timestamp",spyable:!0,queries:{mode:"all",ids:[]},style:{"font-size":"9pt"},normTimes:!0};c.defaults(e.panel,m),e.init=function(){e.columns={},c.each(e.panel.fields,function(a){e.columns[a]=!0}),e.Math=Math,e.identity=a.identity,e.$on("refresh",function(){e.get_data()}),e.fields=i,e.get_data()},e.percent=d.to_percent,e.termsModal=function(a,b){e.modalField=a,n('{"height":"300px","chart":"'+b+'","field":"'+a+'"}',"terms")},e.statsModal=function(a){e.modalField=a,n('{"field":"'+a+'"}',"statistics")};var n=function(a,b){e.facetPanel=a,e.facetType=b;var c=f({template:"./app/panels/table/modal.html",persist:!0,show:!1,scope:e,keyboard:!1});g.when(c).then(function(a){a.modal("show")})};e.toggle_micropanel=function(a,b){var f=c.map(e.data,function(a){return a.kibana._source}),g=d.top_field_values(f,a,10,b);e.micropanel={field:a,grouped:b,values:g.counts,hasArrays:g.hasArrays,related:d.get_related_fields(f,a),limit:10,count:c.countBy(f,function(b){return c.contains(c.keys(b),a)})["true"]}},e.micropanelColor=function(a){var b=["bar-success","bar-warning","bar-danger","bar-info","bar-primary"];return a>b.length?"":b[a]},e.set_sort=function(a){e.panel.sort[0]===a?e.panel.sort[1]="asc"===e.panel.sort[1]?"desc":"asc":e.panel.sort[0]=a,e.get_data()},e.toggle_field=function(a){c.indexOf(e.panel.fields,a)>-1?(e.panel.fields=c.without(e.panel.fields,a),delete e.columns[a]):(e.panel.fields.push(a),e.columns[a]=!0)},e.toggle_highlight=function(a){c.indexOf(e.panel.highlight,a)>-1?e.panel.highlight=c.without(e.panel.highlight,a):e.panel.highlight.push(a)},e.toggle_details=function(a){a.kibana.details=a.kibana.details?!1:!0,a.kibana.view=a.kibana.view||"table"},e.page=function(a){e.panel.offset=a*e.panel.size,e.get_data()},e.build_search=function(b,d,f){var g;c.isArray(d)?g="("+c.map(d,function(b){return a.toJson(b)}).join(" AND ")+")":c.isUndefined(d)?(g="*",f=!f):g=a.toJson(d),e.panel.offset=0,l.set({type:"field",field:b,query:g,mandate:f?"mustNot":"must"})},e.fieldExists=function(a,b){l.set({type:"exists",field:a,mandate:b})},e.get_data=function(a,b){var f,g,h,i,m;e.panel.error=!1,0!==k.indices.length&&(m=[e.ejs.Sort(e.panel.sort[0]).order(e.panel.sort[1])],e.panel.localTime&&m.push(e.ejs.Sort(e.panel.timeField).order(e.panel.sort[1])),e.panelMeta.loading=!0,f=c.isUndefined(a)?0:a,e.segment=f,g=e.ejs.Request().indices(k.indices[f]),e.panel.queries.ids=j.idsByMode(e.panel.queries),i=j.getQueryObjs(e.panel.queries.ids),h=e.ejs.BoolQuery(),c.each(i,function(a){h=h.should(j.toEjsObj(a))}),g=g.query(e.ejs.FilteredQuery(h,l.getBoolFilter(l.ids))).highlight(e.ejs.Highlight(e.panel.highlight).fragmentSize(2147483647).preTags("@start-highlight@").postTags("@end-highlight@")).size(e.panel.size*e.panel.pages).sort(m),e.populate_modal(g),g.doSearch().then(function(a){return e.panelMeta.loading=!1,0===f&&(e.hits=0,e.data=[],e.current_fields=[],b=e.query_id=(new Date).getTime()),c.isUndefined(a.error)?(e.query_id===b&&(e.data=e.data.concat(c.map(a.hits.hits,function(a){var b=c.clone(a),f=c.omit(a,"_source","sort","_score");return b.kibana={_source:c.extend(d.flatten_json(a._source),f),highlight:d.flatten_json(a.highlight||{})},e.current_fields=e.current_fields.concat(c.keys(b.kibana._source)),b})),e.current_fields=c.uniq(e.current_fields),e.hits+=a.hits.total,e.data=c.sortBy(e.data,function(a){return c.isUndefined(a.sort)?0:a.sort[0]}),"desc"===e.panel.sort[1]&&e.data.reverse(),e.data=e.data.slice(0,e.panel.size*e.panel.pages),(e.data.length<e.panel.size*e.panel.pages||!c.contains(l.timeField(),e.panel.sort[0])||"desc"!==e.panel.sort[1])&&f+1<k.indices.length&&e.get_data(f+1,e.query_id)),void 0):(e.panel.error=e.parse_error(a.error),void 0)}))},e.populate_modal=function(b){e.inspector=a.toJson(JSON.parse(b.toString()),!0)},e.without_kibana=function(a){var b=c.clone(a);return delete b.kibana,b},e.set_refresh=function(a){e.refresh=a},e.close_edit=function(){e.refresh&&e.get_data(),e.columns=[],c.each(e.panel.fields,function(a){e.columns[a]=!0}),e.refresh=!1},e.locate=function(a,b){b=b.split(".");for(var c=/(.+)\[(\d+)\]/,d=0;d<b.length;d++){var e=c.exec(b[d]);a=e?a[e[1]][parseInt(e[2],10)]:a[b[d]]}return a}}]),f.filter("tableHighlight",function(){return function(a){return!c.isUndefined(a)&&!c.isNull(a)&&a.toString().length>0?a.toString().replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/\r?\n/g,"<br/>").replace(/@start-highlight@/g,'<code class="highlight">').replace(/@end-highlight@/g,"</code>"):""}}),f.filter("tableTruncate",function(){return function(a,b,d){return!c.isUndefined(a)&&!c.isNull(a)&&a.toString().length>0?a.length>b/d?a.substr(0,b/d)+"...":a:""}}),f.filter("tableJson",function(){var b;return function(d,e){return!c.isUndefined(d)&&!c.isNull(d)&&d.toString().length>0?(b=a.toJson(d,e>0?!0:!1),b=b.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"),e>1&&(b=b.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,function(a){var b="number";return/^"/.test(a)?b=/:$/.test(a)?"key strong":"":/true|false/.test(a)?b="boolean":/null/.test(a)&&(b="null"),'<span class="'+b+'">'+a+"</span>"})),b):""}}),f.filter("tableLocalTime",function(){return function(a,b){return e(b.sort[1]).format("YYYY-MM-DDTHH:mm:ss.SSSZ")}})});
+/** @scratch /panels/table/0
+ *
+ * == table
+ * Status: *Stable*
+ *
+ * The table panel contains a sortable, pagable view of documents that. It can be arranged into
+ * defined columns and offers several interactions, such as performing adhoc terms aggregations.
+ *
+ */
+define([
+  'angular',
+  'app',
+  'lodash',
+  'kbn',
+  'moment',
+  'jsonpath'
+],
+function (angular, app, _, kbn, moment) {
+  'use strict';
+
+  var module = angular.module('kibana.panels.table', []);
+  app.useModule(module);
+
+  module.controller('table', function($rootScope, $scope, $modal, $q, $compile, $timeout,
+    fields, querySrv, dashboard, filterSrv) {
+    $scope.panelMeta = {
+      modals : [
+        {
+          description: "Inspect",
+          icon: "icon-info-sign",
+          partial: "app/partials/inspector.html",
+          show: $scope.panel.spyable
+        }
+      ],
+      editorTabs : [
+        {
+          title:'Paging',
+          src: 'app/panels/table/pagination.html'
+        },
+        {
+          title:'Queries',
+          src: 'app/partials/querySelect.html'
+        }
+      ],
+      status: "Stable",
+      description: "A paginated table of records matching your query or queries. Click on a row to "+
+        "expand it and review all of the fields associated with that document. <p>"
+    };
+
+    // Set and populate defaults
+    var _d = {
+      /** @scratch /panels/table/5
+       * === Parameters
+       *
+       * size:: The number of hits to show per page
+       */
+      size    : 100, // Per page
+      /** @scratch /panels/table/5
+       * pages:: The number of pages available
+       */
+      pages   : 5,   // Pages available
+      /** @scratch /panels/table/5
+       * offset:: The current page
+       */
+      offset  : 0,
+      /** @scratch /panels/table/5
+       * sort:: An array describing the sort order of the table. For example [`@timestamp',`desc']
+       */
+      sort    : ['_score','desc'],
+      /** @scratch /panels/table/5
+       * overflow:: The css overflow property. `min-height' (expand) or `auto' (scroll)
+       */
+      overflow: 'min-height',
+      /** @scratch /panels/table/5
+       * fields:: the fields used a columns of the table, in an array.
+       */
+      fields  : [],
+      /** @scratch /panels/table/5
+       * highlight:: The fields on which to highlight, in an array
+       */
+      highlight : [],
+      /** @scratch /panels/table/5
+       * sortable:: Set sortable to false to disable sorting
+       */
+      sortable: true,
+      /** @scratch /panels/table/5
+       * header:: Set to false to hide the table column names
+       */
+      header  : true,
+      /** @scratch /panels/table/5
+       * paging:: Set to false to hide the paging controls of the table
+       */
+      paging  : true,
+      /** @scratch /panels/table/5
+       * field_list:: Set to false to hide the list of fields. The user will be able to expand it,
+       * but it will be hidden by default
+       */
+      field_list: true,
+      /** @scratch /panels/table/5
+       * all_fields:: Set to true to show all fields in the mapping, not just the current fields in
+       * the table.
+       */
+      all_fields: false,
+      /** @scratch /panels/table/5
+       * trimFactor:: The trim factor is the length at which to truncate fields takinging into
+       * consideration the number of columns in the table. For example, a trimFactor of 100, with 5
+       * columns in the table, would trim each column at 20 character. The entirety of the field is
+       * still available in the expanded view of the event.
+       */
+      trimFactor: 300,
+      /** @scratch /panels/table/5
+       * localTime:: Set to true to adjust the timeField to the browser's local time
+       */
+      localTime: false,
+      /** @scratch /panels/table/5
+       * timeField:: If localTime is set to true, this field will be adjusted to the browsers local time
+       */
+      timeField: '@timestamp',
+      /** @scratch /panels/table/5
+       * spyable:: Set to false to disable the inspect icon
+       */
+      spyable : true,
+      /** @scratch /panels/table/5
+       *
+       * ==== Queries
+       * queries object:: This object describes the queries to use on this panel.
+       * queries.mode::: Of the queries available, which to use. Options: +all, pinned, unpinned, selected+
+       * queries.ids::: In +selected+ mode, which query ids are selected.
+       */
+      queries     : {
+        mode        : 'all',
+        ids         : []
+      },
+      style   : {'font-size': '9pt'},
+      normTimes : true,
+    };
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function () {
+      $scope.columns = {};
+      _.each($scope.panel.fields,function(field) {
+        $scope.columns[field] = true;
+      });
+
+      $scope.Math = Math;
+      $scope.identity = angular.identity;
+      $scope.$on('refresh',function(){$scope.get_data();});
+
+      $scope.fields = fields;
+      $scope.get_data();
+    };
+
+    // Create a percent function for the view
+    $scope.percent = kbn.to_percent;
+
+    $scope.closeFacet = function() {
+      if($scope.modalField) {
+        delete $scope.modalField;
+      }
+    };
+
+    $scope.termsModal = function(field,chart) {
+      $scope.closeFacet();
+      $timeout(function() {
+        $scope.modalField = field;
+        $scope.adhocOpts = {
+          height: "200px",
+          chart: chart,
+          field: field,
+          span: $scope.panel.span,
+          type: 'terms',
+          title: 'Top 10 terms in field ' + field
+        };
+        showModal(
+          angular.toJson($scope.adhocOpts),'terms');
+      },0);
+    };
+
+    $scope.statsModal = function(field) {
+      $scope.closeFacet();
+      $timeout(function() {
+        $scope.modalField = field;
+        $scope.adhocOpts = {
+          height: "200px",
+          field: field,
+          mode: 'mean',
+          span: $scope.panel.span,
+          type: 'stats',
+          title: 'Statistics for ' + field
+        };
+        showModal(
+          angular.toJson($scope.adhocOpts),'stats');
+      },0);
+    };
+
+    var showModal = function(panel,type) {
+      $scope.facetPanel = panel;
+      $scope.facetType = type;
+    };
+
+    $scope.toggle_micropanel = function(field,groups) {
+      var docs = _.map($scope.data,function(_d){return _d.kibana._source;});
+      var topFieldValues = kbn.top_field_values(docs,field,10,groups);
+      $scope.micropanel = {
+        field: field,
+        grouped: groups,
+        values : topFieldValues.counts,
+        hasArrays : topFieldValues.hasArrays,
+        related : kbn.get_related_fields(docs,field),
+        limit: 10,
+        count: _.countBy(docs,function(doc){return _.contains(_.keys(doc),field);})['true']
+      };
+
+
+      var nodeInfo = $scope.ejs.client.get('/' + dashboard.indices + '/_mapping/field/' + field,
+        undefined, undefined, function(data, status) {
+        console.log(status);
+        return;
+      });
+
+      return nodeInfo.then(function(p) {
+        var types = _.uniq(jsonPath(p, '*.*.*.*.mapping.*.type'));
+        if (_.isArray(types)) {
+          $scope.micropanel.type = types.join(', ');
+        }
+
+
+        if(_.intersection(types, ['long','float','integer','double']).length > 0) {
+          $scope.micropanel.hasStats =  true;
+        }
+      });
+
+    };
+
+    $scope.micropanelColor = function(index) {
+      var _c = ['bar-success','bar-warning','bar-danger','bar-info','bar-primary'];
+      return index > _c.length ? '' : _c[index];
+    };
+
+    $scope.set_sort = function(field) {
+      if($scope.panel.sort[0] === field) {
+        $scope.panel.sort[1] = $scope.panel.sort[1] === 'asc' ? 'desc' : 'asc';
+      } else {
+        $scope.panel.sort[0] = field;
+      }
+      $scope.get_data();
+    };
+
+    $scope.toggle_field = function(field) {
+      if (_.indexOf($scope.panel.fields,field) > -1) {
+        $scope.panel.fields = _.without($scope.panel.fields,field);
+        delete $scope.columns[field];
+      } else {
+        $scope.panel.fields.push(field);
+        $scope.columns[field] = true;
+      }
+    };
+
+    $scope.toggle_highlight = function(field) {
+      if (_.indexOf($scope.panel.highlight,field) > -1) {
+        $scope.panel.highlight = _.without($scope.panel.highlight,field);
+      } else {
+        $scope.panel.highlight.push(field);
+      }
+    };
+
+    $scope.toggle_details = function(row) {
+      row.kibana.details = row.kibana.details ? false : true;
+      row.kibana.view = row.kibana.view || 'table';
+      //row.kibana.details = !row.kibana.details ? $scope.without_kibana(row) : false;
+    };
+
+    $scope.page = function(page) {
+      $scope.panel.offset = page*$scope.panel.size;
+      $scope.get_data();
+    };
+
+    $scope.build_search = function(field,value,negate) {
+      var query;
+      // This needs to be abstracted somewhere
+      if(_.isArray(value)) {
+        query = "(" + _.map(value,function(v){return angular.toJson(v);}).join(" AND ") + ")";
+      } else if (_.isUndefined(value)) {
+        query = '*';
+        negate = !negate;
+      } else {
+        query = angular.toJson(value);
+      }
+      $scope.panel.offset = 0;
+      filterSrv.set({type:'field',field:field,query:query,mandate:(negate ? 'mustNot':'must')});
+    };
+
+    $scope.fieldExists = function(field,mandate) {
+      filterSrv.set({type:'exists',field:field,mandate:mandate});
+    };
+
+    $scope.get_data = function(segment,query_id) {
+      var
+        _segment,
+        request,
+        boolQuery,
+        queries,
+        sort;
+
+      $scope.panel.error =  false;
+
+      // Make sure we have everything for the request to complete
+      if(dashboard.indices.length === 0) {
+        return;
+      }
+
+      sort = [$scope.ejs.Sort($scope.panel.sort[0]).order($scope.panel.sort[1]).ignoreUnmapped(true)];
+      if($scope.panel.localTime) {
+        sort.push($scope.ejs.Sort($scope.panel.timeField).order($scope.panel.sort[1]).ignoreUnmapped(true));
+      }
+
+
+      $scope.panelMeta.loading = true;
+
+      _segment = _.isUndefined(segment) ? 0 : segment;
+      $scope.segment = _segment;
+
+      request = $scope.ejs.Request().indices(dashboard.indices[_segment]);
+
+      $scope.panel.queries.ids = querySrv.idsByMode($scope.panel.queries);
+
+      queries = querySrv.getQueryObjs($scope.panel.queries.ids);
+
+      boolQuery = $scope.ejs.BoolQuery();
+      _.each(queries,function(q) {
+        boolQuery = boolQuery.should(querySrv.toEjsObj(q));
+      });
+
+      request = request.query(
+        $scope.ejs.FilteredQuery(
+          boolQuery,
+          filterSrv.getBoolFilter(filterSrv.ids())
+        ))
+        .highlight(
+          $scope.ejs.Highlight($scope.panel.highlight)
+          .fragmentSize(2147483647) // Max size of a 32bit unsigned int
+          .preTags('@start-highlight@')
+          .postTags('@end-highlight@')
+        )
+        .size($scope.panel.size*$scope.panel.pages)
+        .sort(sort);
+
+      $scope.populate_modal(request);
+
+      // Populate scope when we have results
+      request.doSearch().then(function(results) {
+        $scope.panelMeta.loading = false;
+
+        if(_segment === 0) {
+          $scope.panel.offset = 0;
+          $scope.hits = 0;
+          $scope.data = [];
+          $scope.current_fields = [];
+          query_id = $scope.query_id = new Date().getTime();
+        }
+
+        // Check for error and abort if found
+        if(!(_.isUndefined(results.error))) {
+          $scope.panel.error = $scope.parse_error(results.error);
+          return;
+        }
+
+        // Check that we're still on the same query, if not stop
+        if($scope.query_id === query_id) {
+
+          // This is exceptionally expensive, especially on events with a large number of fields
+          $scope.data = $scope.data.concat(_.map(results.hits.hits, function(hit) {
+            var
+              _h = _.clone(hit),
+              _p = _.omit(hit,'_source','sort','_score');
+
+            // _source is kind of a lie here, never display it, only select values from it
+            _h.kibana = {
+              _source : _.extend(kbn.flatten_json(hit._source),_p),
+              highlight : kbn.flatten_json(hit.highlight||{})
+            };
+
+            // Kind of cheating with the _.map here, but this is faster than kbn.get_all_fields
+            $scope.current_fields = $scope.current_fields.concat(_.keys(_h.kibana._source));
+
+            return _h;
+          }));
+
+          $scope.current_fields = _.uniq($scope.current_fields);
+          $scope.hits += results.hits.total;
+
+          // Sort the data
+          $scope.data = _.sortBy($scope.data, function(v){
+            if(!_.isUndefined(v.sort)) {
+              return v.sort[0];
+            } else {
+              return v._score;
+            }
+          });
+
+          // Reverse if needed
+          if($scope.panel.sort[1] === 'desc') {
+            $scope.data.reverse();
+          }
+
+          // Keep only what we need for the set
+          $scope.data = $scope.data.slice(0,$scope.panel.size * $scope.panel.pages);
+
+        } else {
+          return;
+        }
+
+        // If we're not sorting in reverse chrono order, query every index for
+        // size*pages results
+        // Otherwise, only get size*pages results then stop querying
+        if (($scope.data.length < $scope.panel.size*$scope.panel.pages ||
+          !((_.contains(filterSrv.timeField(),$scope.panel.sort[0])) && $scope.panel.sort[1] === 'desc')) &&
+          _segment+1 < dashboard.indices.length) {
+          $scope.get_data(_segment+1,$scope.query_id);
+        }
+
+      });
+    };
+
+    $scope.populate_modal = function(request) {
+      $scope.inspector = angular.toJson(JSON.parse(request.toString()),true);
+    };
+
+    $scope.without_kibana = function (row) {
+      var _c = _.clone(row);
+      delete _c.kibana;
+      return _c;
+    };
+
+    $scope.set_refresh = function (state) {
+      $scope.refresh = state;
+    };
+
+    $scope.close_edit = function() {
+      if($scope.refresh) {
+        $scope.get_data();
+      }
+      $scope.columns = [];
+      _.each($scope.panel.fields,function(field) {
+        $scope.columns[field] = true;
+      });
+      $scope.refresh =  false;
+    };
+
+    $scope.locate = function(obj, path) {
+      path = path.split('.');
+      var arrayPattern = /(.+)\[(\d+)\]/;
+      for (var i = 0; i < path.length; i++) {
+        var match = arrayPattern.exec(path[i]);
+        if (match) {
+          obj = obj[match[1]][parseInt(match[2],10)];
+        } else {
+          obj = obj[path[i]];
+        }
+      }
+      return obj;
+    };
+
+
+  });
+
+  // This also escapes some xml sequences
+  module.filter('tableHighlight', function() {
+    return function(text) {
+      if (!_.isUndefined(text) && !_.isNull(text) && text.toString().length > 0) {
+        return text.toString().
+          replace(/&/g, '&amp;').
+          replace(/</g, '&lt;').
+          replace(/>/g, '&gt;').
+          replace(/\r?\n/g, '<br/>').
+          replace(/@start-highlight@/g, '<code class="highlight">').
+          replace(/@end-highlight@/g, '</code>');
+      }
+      return '';
+    };
+  });
+
+  module.filter('tableTruncate', function() {
+    return function(text,length,factor) {
+      if (!_.isUndefined(text) && !_.isNull(text) && text.toString().length > 0) {
+        return text.length > length/factor ? text.substr(0,length/factor)+'...' : text;
+      }
+      return '';
+    };
+  });
+
+
+
+  module.filter('tableJson', function() {
+    var json;
+    return function(text,prettyLevel) {
+      if (!_.isUndefined(text) && !_.isNull(text) && text.toString().length > 0) {
+        json = angular.toJson(text,prettyLevel > 0 ? true : false);
+        json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        if(prettyLevel > 1) {
+          /* jshint maxlen: false */
+          json = json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+            var cls = 'number';
+            if (/^"/.test(match)) {
+              if (/:$/.test(match)) {
+                cls = 'key strong';
+              } else {
+                cls = '';
+              }
+            } else if (/true|false/.test(match)) {
+              cls = 'boolean';
+            } else if (/null/.test(match)) {
+              cls = 'null';
+            }
+            return '<span class="' + cls + '">' + match + '</span>';
+          });
+        }
+        return json;
+      }
+      return '';
+    };
+  });
+
+  // WIP
+  module.filter('tableLocalTime', function(){
+    return function(text,event) {
+      return moment(event.sort[1]).format("YYYY-MM-DDTHH:mm:ss.SSSZ");
+    };
+  });
+
+});

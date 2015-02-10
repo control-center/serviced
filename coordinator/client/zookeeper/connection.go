@@ -22,9 +22,9 @@ import (
 	"strings"
 	"time"
 
-	zklib "github.com/samuel/go-zookeeper/zk"
-	"github.com/zenoss/glog"
+	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/zenoss/glog"
 )
 
 var join = lpath.Join
@@ -202,7 +202,8 @@ func (c *Connection) Delete(path string) error {
 }
 
 func toClientEvent(zkEvent <-chan zklib.Event) <-chan client.Event {
-	echan := make(chan client.Event)
+	//use buffered channel so go routine doesn't block in case the other end abandoned the channel
+	echan := make(chan client.Event, 1)
 	go func() {
 		e := <-zkEvent
 		echan <- client.Event{
@@ -220,7 +221,7 @@ func (c *Connection) ChildrenW(path string) (children []string, event <-chan cli
 	}
 	children, _, zkEvent, err := c.conn.ChildrenW(join(c.basePath, path))
 	if err != nil {
-		return children, nil, err
+		return children, nil, xlateError(err)
 	}
 	return children, toClientEvent(zkEvent), xlateError(err)
 }
@@ -237,7 +238,7 @@ func (c *Connection) getW(path string, node client.Node) (event <-chan client.Ev
 
 	data, stat, zkEvent, err := c.conn.GetW(path)
 	if err != nil {
-		return nil, err
+		return nil, xlateError(err)
 	}
 	if len(data) > 0 {
 		glog.V(11).Infof("got data %s", string(data))
@@ -272,7 +273,7 @@ func (c *Connection) Get(path string, node client.Node) (err error) {
 func (c *Connection) get(path string, node client.Node) (err error) {
 	data, stat, err := c.conn.Get(path)
 	if err != nil {
-		return err
+		return xlateError(err)
 	}
 	if len(data) > 0 {
 		glog.V(11).Infof("got data %s", string(data))
@@ -291,7 +292,7 @@ func (c *Connection) Set(path string, node client.Node) error {
 	}
 	data, err := json.Marshal(node)
 	if err != nil {
-		return err
+		return xlateError(err)
 	}
 
 	stat := &zklib.Stat{}

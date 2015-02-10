@@ -14,82 +14,107 @@
 package zzk
 
 import (
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
+	. "gopkg.in/check.v1"
 )
 
-func TestPathExists(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+var _ = Suite(&ZZKTest{})
+
+type ZZKTest struct {
+	ZZKTestSuite
+}
+
+func Test(t *testing.T) {
+	TestingT(t)
+}
+
+func (t *ZZKTest) TestPathExists(c *C) {
+	conn, err := GetLocalConnection("/")
+	if err != nil {
+		c.Fatalf("Could not connect: %s", err)
+	}
 
 	// Path not exists
-	t.Log("Test non-existant path")
+	c.Log("Test non-existant path")
 	exists, err := PathExists(conn, "/test")
 	if err != nil {
-		t.Errorf("Unexpected error when checking a non-existant path: %s", err)
+		c.Errorf("Unexpected error when checking a non-existant path: %s", err)
 	}
 	if exists {
-		t.Errorf("Path found!")
+		c.Errorf("Path found!")
 	}
 
 	// Path exists
-	t.Log("Test existing path")
+	c.Log("Test existing path")
 	if err := conn.CreateDir("/test"); err != nil {
-		t.Fatalf("Error creating node: %s", err)
+		c.Fatalf("Error creating node: %s", err)
 	}
 	exists, err = PathExists(conn, "/test")
 	if err != nil {
-		t.Errorf("Unexpected error when checking an existing path: %s", err)
+		c.Errorf("Unexpected error when checking an existing path: %s", err)
 	}
 	if !exists {
-		t.Errorf("Path not found!")
+		c.Errorf("Path not found!")
 	}
 }
 
-func TestReady(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestReady(c *C) {
+	conn, err := GetLocalConnection("/")
+	if err != nil {
+		c.Fatalf("Could not connect: %s", err)
+	}
 
 	path := "/test/some/path"
+	errC := make(chan error)
 
-	var (
-		wg  sync.WaitGroup
-		err error
-	)
-
-	// Test shutdown
+	c.Log("Testing shutdown")
 	shutdown := make(chan interface{})
-	wg.Add(1)
 	go func() {
-		defer wg.Done()
-		err = Ready(shutdown, conn, path)
+		errC <- Ready(shutdown, conn, path)
 	}()
 
-	<-time.After(3 * time.Second)
-	t.Log("Testing shutdown")
+	time.Sleep(time.Second)
 	close(shutdown)
-	wg.Wait()
-	if err != ErrShutdown {
-		t.Errorf("Expected: %s; Got: %s", ErrShutdown, err)
+	select {
+	case err := <-errC:
+		c.Assert(err, Equals, ErrShutdown)
+	case <-time.After(ZKTestTimeout):
+		c.Errorf("timeout waiting for shutdown")
 	}
 
-	// Test path found
-	wg.Add(1)
+	c.Log("Testing path found")
 	go func() {
-		defer wg.Done()
-		err = Ready(make(<-chan interface{}), conn, path)
+		errC <- Ready(nil, conn, path)
 	}()
 
-	<-time.After(3 * time.Second)
-	t.Log("Testing path found")
+	time.Sleep(time.Second)
 	if err := conn.CreateDir(path); err != nil {
-		t.Fatalf("Error trying to create path: %s", err)
+		c.Fatalf("could not create path %s: %s", path, err)
 	}
-	wg.Wait()
+	select {
+	case err := <-errC:
+		c.Assert(err, IsNil)
+	case <-time.After(ZKTestTimeout):
+		c.Errorf("timeout waiting for signal")
+	}
+
+	// Test connection to a non-existing path
+	conn, err = GetLocalConnection("/notexists")
 	if err != nil {
-		t.Errorf("Error checking path: %s", err)
+		c.Fatalf("Could not connect: %s", err)
 	}
+
+	path = "/test/some/path"
+	go func() {
+		errC <- Ready(nil, conn, path)
+	}()
+	select {
+	case err := <-errC:
+		c.Assert(err, NotNil)
+	case <-time.After(time.Second):
+		c.Errorf("timeout waiting for signal")
+	}
+
 }

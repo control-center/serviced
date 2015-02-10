@@ -20,6 +20,9 @@
           </button>
       </li>
       <li>
+          <a href="/static/doc/" target="_blank" title="Help"><i class="glyphicon glyphicon-question-sign"></i></a>
+      </li>
+      <li>
         <button class="btn-link" ng-click="logout()">
           {{"nav_logout" | translate}}
         </button>
@@ -45,8 +48,8 @@
   <div class="details">
       <ol class="breadcrumb inline">
           <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
-              <span ng-switch-when="undefined">{{crumb.label|translate|cut:true:25}}</span>
-              <a ng-switch-default ng-href="{{crumb.url}}">{{crumb.label|translate}}</a>
+              <span ng-switch-when="undefined" class="crumb current">{{crumb.label|translate|cut:true:25}}</span>
+              <a ng-switch-default ng-href="{{crumb.url}}" class="crumb">{{crumb.label|translate}}</a>
           </li>
       </ol>
   </div>

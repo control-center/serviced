@@ -20,7 +20,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	// "github.com/control-center/serviced/health"
-	"github.com/control-center/serviced/domain/host"
+
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
@@ -67,9 +67,8 @@ func (node *HostState) SetVersion(version interface{}) {
 
 // HostHandler is the handler for running the HostListener
 type HostStateHandler interface {
-	GetHost(string) (*host.Host, error)
-	AttachService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
-	StartService(chan<- interface{}, *service.Service, *servicestate.ServiceState) error
+	AttachService(*service.Service, *servicestate.ServiceState, func(string)) error
+	StartService(*service.Service, *servicestate.ServiceState, func(string)) error
 	PauseService(*service.Service, *servicestate.ServiceState) error
 	ResumeService(*service.Service, *servicestate.ServiceState) error
 	StopService(*servicestate.ServiceState) error
@@ -101,11 +100,18 @@ func (l *HostStateListener) GetPath(nodes ...string) string {
 
 // Ready adds an ephemeral node to the host registry
 func (l *HostStateListener) Ready() error {
-	host, err := l.handler.GetHost(l.hostID)
-	if err != nil {
+	var node HostNode
+	if err := l.conn.Get(l.GetPath(), &node); err != nil {
 		return err
-	} else if host == nil {
-		return ErrHostInvalid
+	}
+
+	// If the registry node is already set, verify that it is still available
+	if l.registry != "" {
+		if exists, err := l.conn.Exists(l.registry); err != nil {
+			return err
+		} else if exists {
+			return nil
+		}
 	}
 
 	// Create an ephemeral node at /registry/host
@@ -113,7 +119,7 @@ func (l *HostStateListener) Ready() error {
 	// CreateEphemeral returns the full path from the root.  Since these are
 	// pool-based connections, the path from the root is actually
 	// /pools/POOLID/registry/host/EHOSTID
-	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: host})
+	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: node.Host})
 	if err != nil {
 		return err
 	}
@@ -138,7 +144,7 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var (
-		processDone <-chan interface{}
+		processDone <-chan struct{}
 		state       *servicestate.ServiceState
 	)
 
@@ -185,17 +191,24 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			var err error
 			if !state.IsRunning() {
 				// process has stopped
+				glog.Infof("Starting a new instance for %s", state.ID)
 				processDone, err = l.startInstance(&svc, state)
-			} else if state.IsPaused() {
-				// process has paused
-				err = l.resumeInstance(&svc, state)
 			} else if processDone == nil {
-				// process is running superficially
+				glog.Infof("Attaching to instance %s via %s", state.ID, state.DockerID)
 				processDone, err = l.attachInstance(&svc, state)
 			}
+
 			if err != nil {
 				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.ID, err)
 				return
+			}
+
+			if state.IsPaused() {
+				glog.Infof("Resuming a paused instance for %s", state.ID)
+				if err := l.resumeInstance(&svc, state); err != nil {
+					glog.Errorf("Could not resume paused instance %s: %s", state.ID, err)
+					return
+				}
 			}
 		case service.SVCPause:
 			if state.IsPaused() {
@@ -225,55 +238,52 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	}
 }
 
-func (l *HostStateListener) updateInstance(done <-chan interface{}, state *servicestate.ServiceState) (<-chan interface{}, error) {
-	wait := make(chan interface{})
-	go func(path string) {
-		defer close(wait)
-		<-done
-		glog.V(3).Infof("Received process done signal for %s", state.ID)
-		var s servicestate.ServiceState
-		if err := l.conn.Get(path, &ServiceStateNode{ServiceState: &s}); err != nil {
-			glog.Warningf("Could not get service state %s: %s", state.ID, err)
+func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
+	done := make(chan struct{})
+	serviceID := svc.ID
+
+	if err := l.handler.StartService(svc, state, func(stateID string) {
+		defer close(done)
+		glog.V(3).Infof("Receieved process done signal for %s", stateID)
+		var node ServiceStateNode
+		if err := l.conn.Get(servicepath(serviceID, stateID), &node); err != nil {
+			glog.Warningf("Could not get service state %s: %s", stateID, err)
 			return
 		}
-
-		s.Terminated = time.Now()
-		if err := UpdateServiceState(l.conn, &s); err != nil {
-			glog.Warningf("Could not update the service instance %s with the time terminated (%s): %s", s.ID, s.Terminated.UnixNano(), err)
+		node.Terminated = time.Now()
+		if err := l.conn.Set(servicepath(serviceID, stateID), &node); err != nil {
+			glog.Warningf("Could not update the service state %s with the time terminated (%s)", stateID, node.Terminated, err)
 			return
 		}
-	}(servicepath(state.ServiceID, state.ID))
+	}); err != nil {
+		return nil, err
+	}
 
-	return wait, UpdateServiceState(l.conn, state)
+	return done, UpdateServiceState(l.conn, state)
 }
 
-func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
-	// This container may not get cleaned up if the time to start exceeds the time to stop
-	done := make(chan interface{})
-	if err := l.handler.StartService(done, svc, state); err != nil {
-		return nil, err
-	}
-	state.InSync = true
-	wait, err := l.updateInstance(done, state)
-	if err != nil {
-		return nil, err
-	}
+func (l *HostStateListener) attachInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
+	done := make(chan struct{})
+	serviceID := svc.ID
 
-	return wait, nil
-}
-
-func (l *HostStateListener) attachInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan interface{}, error) {
-	done := make(chan interface{})
-	if err := l.handler.AttachService(done, svc, state); err != nil {
-		return nil, err
-	}
-
-	wait, err := l.updateInstance(done, state)
-	if err != nil {
+	if err := l.handler.AttachService(svc, state, func(stateID string) {
+		defer close(done)
+		glog.V(3).Infof("Receieved process done signal for %s", stateID)
+		var node ServiceStateNode
+		if err := l.conn.Get(servicepath(serviceID, stateID), &node); err != nil {
+			glog.Warningf("Could not get service state %s: %s", stateID, err)
+			return
+		}
+		node.Terminated = time.Now()
+		if err := l.conn.Set(servicepath(serviceID, stateID), &node); err != nil {
+			glog.Warningf("Could not update the service state %s with the time terminated (%s)", stateID, node.Terminated, err)
+			return
+		}
+	}); err != nil {
 		return nil, err
 	}
 
-	return wait, nil
+	return done, UpdateServiceState(l.conn, state)
 }
 
 func (l *HostStateListener) pauseInstance(svc *service.Service, state *servicestate.ServiceState) error {
@@ -296,7 +306,7 @@ func (l *HostStateListener) resumeInstance(svc *service.Service, state *services
 }
 
 // stopInstance stops instance and signals done.  caller is expected to check for nil state
-func (l *HostStateListener) stopInstance(done <-chan interface{}, state *servicestate.ServiceState) error {
+func (l *HostStateListener) stopInstance(done <-chan struct{}, state *servicestate.ServiceState) error {
 	// TODO: may leave zombies hanging around if StopService fails...do we care?
 	if err := l.handler.StopService(state); err != nil {
 		glog.Errorf("Could not stop service instance %s: %s", state.ID, err)
@@ -340,10 +350,18 @@ func removeInstance(conn client.Connection, state *servicestate.ServiceState) er
 		return nil
 	}
 
-	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
-		glog.Warningf("Could not delete host state %s: %s", state.HostID, state.ID)
+	// Delete the service state first to minimize syncing issues, since service
+	// state is watched by the scheduler
+	if err := conn.Delete(servicepath(state.ServiceID, state.ID)); err != nil {
+		glog.Errorf("Could not delete service state %s: %s", state.HostID, state.ID)
+		return err
 	}
-	return conn.Delete(servicepath(state.ServiceID, state.ID))
+
+	// It is ok if this fails, because it will eventually resync itself on the host
+	if err := conn.Delete(hostpath(state.HostID, state.ID)); err != nil {
+		glog.Warningf("Could not delete host state %s (%s): %s", state.ID, state.HostID, err)
+	}
+	return nil
 }
 
 // pauseInstance only updates the service instance if the instance is marked as RUN

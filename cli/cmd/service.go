@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"syscall"
@@ -164,7 +165,7 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "run",
@@ -179,7 +180,8 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"user", "", "container username used to run command"},
 				},
 			}, {
 				Name:         "attach",
@@ -188,7 +190,7 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
 				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "action",
@@ -203,7 +205,7 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
 				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", api.GetAgentIP()), "endpoint for remote serviced (example.com:4979)"},
+					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "list-snapshots",
@@ -888,8 +890,11 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Printf("Incorrect Usage.\n\n")
-		return nil
+		if !ctx.Bool("help") {
+			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		}
+		cli.ShowSubcommandHelp(ctx)
+		return c.exit(1)
 	}
 
 	var (
@@ -901,7 +906,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return err
+		return c.exit(1)
 	}
 
 	if len(args) < 2 {
@@ -929,24 +934,36 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 
 	if err := c.driver.StartShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if exitErr, ok := err.(*exec.ExitError); ok {
+			if exitErr != nil && exitErr.ProcessState != nil && exitErr.ProcessState.Sys() != nil {
+				if status, ok := exitErr.ProcessState.Sys().(syscall.WaitStatus); ok {
+					return c.exit(status.ExitStatus())
+				}
+			}
+		}
+		return c.exit(1)
+	} else {
+		return c.exit(0)
 	}
-
-	return fmt.Errorf("serviced service shell")
 }
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
 func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Printf("Incorrect Usage.\n\n")
-		return nil
+		if !ctx.Bool("help") {
+			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		}
+		cli.ShowSubcommandHelp(ctx)
+		return c.exit(1)
 	}
 
 	if len(args) < 2 {
 		for _, s := range c.serviceRuns(args[0]) {
 			fmt.Println(s)
 		}
-		return fmt.Errorf("serviced service run")
+		fmt.Fprintf(os.Stderr, "serviced service run")
+		return c.exit(1)
 	}
 
 	var (
@@ -957,7 +974,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	svc, err := c.searchForService(args[0])
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return err
+		return c.exit(1)
 	}
 
 	command = args[1]
@@ -969,6 +986,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
+		Username:         ctx.GlobalString("user"),
 		Args:             argv,
 		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
@@ -983,9 +1001,10 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 
 	if err := c.driver.RunShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		return c.exit(1)
 	}
 
-	return fmt.Errorf("serviced service run")
+	return c.exit(0)
 }
 
 // buildRunningServicePaths returns a map where map[rs.ID] = fullpath
@@ -1106,8 +1125,10 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "attach")
+		if !ctx.Bool("help") {
+			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		}
+		cli.ShowSubcommandHelp(ctx)
 		return nil
 	}
 
@@ -1172,8 +1193,10 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "action")
+		if !ctx.Bool("help") {
+			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		}
+		cli.ShowSubcommandHelp(ctx)
 		return nil
 	}
 
@@ -1213,8 +1236,10 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	// verify args
 	args := ctx.Args()
 	if len(args) < 1 {
-		fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "logs")
+		if !ctx.Bool("help") {
+			fmt.Fprintf(os.Stderr, "Incorrect Usage.\n\n")
+		}
+		cli.ShowSubcommandHelp(ctx)
 		return nil
 	}
 

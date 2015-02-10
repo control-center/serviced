@@ -57,6 +57,9 @@ type RunningService struct {
 	State   *servicestate.ServiceState
 }
 
+// Type of method that controls the state of a service
+type ServiceStateController func(SchedulerConfig) (int, error)
+
 // Gets all of the available services
 func (a *api) GetServices() ([]service.Service, error) {
 	client, err := a.connectDAO()

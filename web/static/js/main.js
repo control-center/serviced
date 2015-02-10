@@ -14,7 +14,7 @@
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky']);
+var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'stealthInput', 'ui.codemirror', 'sticky', 'graphPanel']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {
@@ -121,11 +121,6 @@ controlplane.
             }
         };
     }).
-    directive('showIfEmpty', function(){
-        return function(scope, elem, attrs){
-            scope.showIfEmpty();
-        };
-    }).
     directive('popover', function(){
         return function(scope, elem, attrs){
             $(elem).popover({
@@ -190,21 +185,6 @@ controlplane.
             });
         };
     }).
-    filter('page', function() {
-        return function(items, hosts) {
-            if (!items) return;
-
-            var pageSize = hosts.pageSize? hosts.pageSize : 5;
-            hosts.pages = Math.max(1, Math.ceil(items.length / pageSize));
-            if (!hosts.page || hosts.page >= hosts.pages) {
-                hosts.page = 0;
-            }
-            var page = hosts.page? hosts.page : 0;
-
-            var start = page * pageSize;
-            return items.splice(start, pageSize);
-        };
-    }).
     filter('toGB', function(){
         return function(input){
             return (input/1073741824).toFixed(2) + " GB";
@@ -227,6 +207,11 @@ controlplane.
                         }
 
             return value + (tail || ' …');
+        };
+    }).
+    filter('prettyDate', function(){
+        return function(dateString){
+            return moment(dateString).format('MMM Do YYYY, hh:mm:ss');
         };
     });
 
@@ -399,7 +384,7 @@ function aggregateAddressAssigments(service, api) {
           'EndpointName': endpoint.AddressAssignment.EndpointName,
           'HostID': endpoint.AddressAssignment.HostID,
           'HostName': 'unknown',
-          'PoolID': endpoint.AddressAssignment.PoolID,
+          'PoolID': service.PoolID,
           'IPAddr': endpoint.AddressAssignment.IPAddr,
           'Port': endpoint.AddressConfig.Port,
           'ServiceID': service.ID,
@@ -550,7 +535,8 @@ function refreshPools($scope, resourcesService, cachePools, extraCallback) {
 }
 
 function toggleRunning(app, status, servicesService, skipChildren) {
-    var serviceId;
+    var serviceId,
+        newState;
 
     // if app is an instance, use ServiceId
     if(isInstanceOfService(app)){
@@ -561,24 +547,24 @@ function toggleRunning(app, status, servicesService, skipChildren) {
         serviceId = app.ID;
     }
 
-    var newState = -1;
     switch(status) {
-        case 'start': newState = 1; break;
-        case 'stop': newState = 0; break;
-        case 'restart': newState = -1; break;
+        case 'start':
+            newState = 1;
+            servicesService.start_service(serviceId, function(){}, skipChildren);
+            break;
+
+        case 'stop':
+            newState = 0;
+            servicesService.stop_service(serviceId, function(){}, skipChildren);
+            break;
+
+        case 'restart':
+            newState = -1;
+            servicesService.restart_service(serviceId, function(){}, skipChildren);
+            break;
     }
 
     app.DesiredState = newState;
-
-    // stop service
-    if ((newState === 0) || (newState === -1)) {
-        servicesService.stop_service(serviceId, function(){}, skipChildren);
-    }
-
-    // start service
-    if ((newState === 1) || (newState === -1)) {
-        servicesService.start_service(serviceId, function(){}, skipChildren);
-    }
 }
 
 function refreshHosts($scope, resourcesService, cacheHosts, extraCallback) {
@@ -765,8 +751,6 @@ function buildTable(sort, headers) {
         sort_icons: sort_icons,
         set_order: set_order,
         get_order_class: get_order_class,
-        page: 1,
-        pageSize: 5
     };
 }
 

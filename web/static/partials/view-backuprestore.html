@@ -13,7 +13,7 @@
   </span>
 </div>
 
-<table class="table table-striped" id="backup_data" >
+<table class="table" id="backup_data" >
     <thead>
         <tr>
             <th>{{'file_name'|translate}}</th>
@@ -26,16 +26,17 @@
             <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
         <tr ng-hide="backupFiles.length !== 0">
-            <td colspan="100%" align="center" class="noData">{{"no_data" | translate}}</td>
+            <td colspan="100%" align="center" class="noData">{{"no_backups" | translate}}</td>
         </tr>
         <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
             <td>{{fileInfo.full_path}}</td>
             <td>{{fileInfo.mod_time | date: 'medium'}}</td>
             <td>
-                    <button class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
-                        <span class="glyphicon glyphicon-refresh"></span>
-                        {{'backup_restore'|translate}}
-                    </button>
+                <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
+                    <span class="glyphicon glyphicon-refresh"></span>
+                    {{'backup_restore'|translate}}
+                </button>
+                <span ng-show="fileInfo.in_progress" class="ntsh">In Progress...</span>
             </td>
         </tr>
     </tbody>

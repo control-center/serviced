@@ -17,8 +17,8 @@ import (
 	"fmt"
 	"os/exec"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 var nfsServiceName = determineNfsServiceName()
@@ -26,22 +26,23 @@ var usrBinService = determineServiceCommand()
 
 var start = startImpl
 var reload = reloadImpl
+var restart = restartImpl
 
 func determineServiceCommand() string {
-    if utils.Platform == utils.Rhel {
-        return "systemctl"
-    } else {
+	if utils.Platform == utils.Rhel {
+		return "systemctl"
+	} else {
 		return "/usr/sbin/service"
-    }
+	}
 }
 
 func determineNfsServiceName() string {
-    // In RHEL-based releases, the 'nfs-server' service is used
-    if utils.Platform == utils.Rhel {
-        return "nfs-server"
-    } else {
-        return "nfs-kernel-server"
-    }
+	// In RHEL-based releases, the 'nfs-server' service is used
+	if utils.Platform == utils.Rhel {
+		return "nfs-server"
+	} else {
+		return "nfs-kernel-server"
+	}
 }
 
 // reload triggers the kernel to reread its NFS exports.
@@ -64,9 +65,25 @@ func startImpl() error {
 	// FIXME: this does not return the proper exit code to see if nfs is running
 	var cmd *exec.Cmd
 	if utils.Platform == utils.Rhel {
-		cmd = exec.Command(usrBinService, "restart", nfsServiceName)
+		cmd = exec.Command(usrBinService, "reload-or-restart", nfsServiceName)
 	} else {
 		cmd = exec.Command(usrBinService, nfsServiceName, "start")
+	}
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("%s: %s", err, string(output))
+	}
+	glog.Infof("started nfs server: %s", string(output))
+	return nil
+}
+
+func restartImpl() error {
+	// FIXME: this does not return the proper exit code to see if nfs is running
+	var cmd *exec.Cmd
+	if utils.Platform == utils.Rhel {
+		cmd = exec.Command(usrBinService, "restart", nfsServiceName)
+	} else {
+		cmd = exec.Command(usrBinService, nfsServiceName, "restart")
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {

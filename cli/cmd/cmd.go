@@ -23,6 +23,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
@@ -33,8 +34,9 @@ import (
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
-	driver api.API
-	app    *cli.App
+	driver       api.API
+	app          *cli.App
+	exitDisabled bool
 }
 
 const envPrefix = "SERVICED_"
@@ -88,9 +90,20 @@ func configBool(key string, defaultVal bool) bool {
 const defaultRPCPort = 4979
 
 // New instantiates a new command-line client
+
+func getLocalAgentIP() string {
+	ip := configEnv("OUTBOUND_IP", "")
+	if ip != "" {
+		ip = ip + ":4979"
+	} else {
+		ip = api.GetAgentIP()
+	}
+	return ip
+}
+
 func New(driver api.API) *ServicedCli {
 	var (
-		agentIP          = api.GetAgentIP()
+		agentIP          = getLocalAgentIP()
 		varPath          = api.GetVarPath()
 		esStartupTimeout = api.GetESStartupTimeout()
 		dockerDNS        = cli.StringSlice(api.GetDockerDNS())
@@ -111,7 +124,7 @@ func New(driver api.API) *ServicedCli {
 		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
 	}
 
-	defaultDockerRegistry := "localhost:5000"
+	defaultDockerRegistry := docker.DEFAULT_REGISTRY
 	if hostname, err := os.Hostname(); err == nil {
 		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
 	}
@@ -142,7 +155,7 @@ func New(driver api.API) *ServicedCli {
 
 	aliases := cli.StringSlice{}
 	if len(configEnv("VHOST_ALIASES", "")) > 0 {
-		zks = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
+		aliases = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
 	}
 
 	defaultAdminGroup := "sudo"
@@ -211,13 +224,17 @@ func New(driver api.API) *ServicedCli {
 	c.initBackup()
 	c.initMetric()
 	c.initDocker()
+	c.initScript()
 
 	return c
 }
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
-	c.app.Run(args)
+	err := c.app.Run(args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%v\n", err)
+	}
 }
 
 // cmdInit starts the server if no subcommands are called
@@ -297,6 +314,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		return fmt.Errorf("running server mode")
 	}
 
+	return nil
+}
+
+func (c *ServicedCli) exit(code int) error {
+	if c.exitDisabled {
+		return fmt.Errorf("exit code %v", code)
+	}
+	os.Exit(code)
 	return nil
 }
 

@@ -15,8 +15,8 @@ package zzk
 
 import (
 	"errors"
+	"fmt"
 	"path"
-	"sync"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
@@ -129,20 +129,26 @@ func Ready(shutdown <-chan interface{}, conn client.Connection, p string) error 
 		return err
 	} else if exists {
 		return nil
+	} else if p == "/" || p == "." {
+		return fmt.Errorf("base path not found")
 	}
 
 	for {
 		if err := Ready(shutdown, conn, path.Dir(p)); err != nil {
 			return err
-		} else if exists, err := PathExists(conn, p); err != nil {
-			return err
-		} else if exists {
-			return nil
 		}
+
 		_, event, err := conn.ChildrenW(path.Dir(p))
 		if err != nil {
 			return err
 		}
+
+		if exists, err := PathExists(conn, p); err != nil {
+			return err
+		} else if exists {
+			return nil
+		}
+
 		select {
 		case <-event:
 			// pass
@@ -216,6 +222,12 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 			if e.Type == client.EventNodeDeleted {
 				glog.V(1).Infof("Node %s has been removed; shutting down listener", l.GetPath())
 				return
+			} else if e.Type == client.EventSession || e.Type == client.EventNotWatching {
+				glog.Warningf("Node %s had a reconnect; resetting listener", l.GetPath())
+				if err := l.Ready(); err != nil {
+					glog.Errorf("Could not ready listener; shutting down")
+					return
+				}
 			}
 			glog.V(4).Infof("Node %s receieved event %v", l.GetPath(), e)
 		case node := <-done:
@@ -231,85 +243,86 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 // When the master exits, it shuts down all of the child listeners and waits
 // for all of the subprocesses to exit
 func Start(shutdown <-chan interface{}, conn client.Connection, master Listener, listeners ...Listener) {
-	var (
-		wg        sync.WaitGroup
-		_shutdown = make(chan interface{})
-		done      = make(chan interface{})
-		childDone = make(chan interface{})
-		ready     = make(chan error, 1)
-	)
+	// shutdown the parent and child listeners
+	_shutdown := make(chan interface{})
 
-	// Start up the master
-	wg.Add(1)
+	// start the master
+	masterDone := make(chan struct{})
+	defer func() { <-masterDone }()
+	masterReady := make(chan error, 1)
 	go func() {
-		defer wg.Done()
-		defer close(done)
-		Listen(_shutdown, ready, conn, master)
+		defer close(masterDone)
+		Listen(_shutdown, masterReady, conn, master)
 	}()
 
-	// Wait for the master to be ready and start the slave listeners
+	// wait for the master to be ready and then start the slaves
+	var childDone chan struct{}
 	select {
-	case err := <-ready:
+	case err := <-masterReady:
 		if err != nil {
-			break
+			glog.Errorf("master listener at %s failed to start: %s", master.GetPath(), err)
+			return
 		}
 
-		wg.Add(1)
+		childDone := make(chan struct{})
+		defer func() { <-childDone }()
+
 		go func() {
-			defer wg.Done()
 			defer close(childDone)
+			// this handles restarts; retryLimit to reduce flapping
 			for i := 0; i <= retryLimit; i++ {
-				// this handles restarts; retryLimit to reduce flapping
 				start(_shutdown, conn, listeners...)
 				select {
 				case <-_shutdown:
 					return
 				default:
+					glog.Warningf("Restarting child listeners for master at %s", master.GetPath())
 				}
 			}
+			glog.Warningf("Shutting down master listener at %s; child listeners exceeded retry limit", master.GetPath())
 		}()
-
-	case <-done:
+	case <-masterDone:
 	case <-shutdown:
 	}
 
-	// Wait for the master to shutdown or shutdown signal
+	defer close(_shutdown)
 	select {
-	case <-done:
+	case <-masterDone:
+		glog.Warningf("Master listener at %s died prematurely; shutting down", master.GetPath())
 	case <-childDone:
+		glog.Warningf("Child listeners for master %s died prematurely; shutting down", master.GetPath())
 	case <-shutdown:
+		glog.Infof("Receieved signal to shutdown for master listener %s", master.GetPath())
 	}
-
-	// Wait for everything to stop
-	close(_shutdown)
-	wg.Wait()
 }
 
 func start(shutdown <-chan interface{}, conn client.Connection, listeners ...Listener) {
-	var (
-		count     = 0
-		done      = make(chan bool)
-		_shutdown = make(chan interface{})
-	)
-
+	var count int
+	done := make(chan int)
 	defer func() {
-		close(_shutdown)
-		for count < len(listeners) {
-			<-done
-			count++
+		glog.Infof("Shutting down %d child listeners", len(listeners))
+		for count > 0 {
+			count -= <-done
 		}
 	}()
 
-	for _, listener := range listeners {
+	_shutdown := make(chan interface{})
+	defer close(_shutdown)
+
+	for i := range listeners {
+		count++
 		go func(l Listener) {
-			defer func() { done <- true }()
+			defer func() { done <- 1 }()
 			Listen(_shutdown, make(chan error, 1), conn, l)
-		}(listener)
+			glog.Infof("Listener at %s exited", l.GetPath())
+		}(listeners[i])
 	}
 
 	select {
-	case <-done:
-		count++
+	case i := <-done:
+		glog.Warningf("Listener exited prematurely, stopping all listeners")
+		count -= i
 	case <-shutdown:
+		glog.Infof("Receieved signal to shutdown")
 	}
 }

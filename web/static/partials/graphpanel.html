@@ -1,0 +1,55 @@
+<h3>{{services.current.Title}} {{'graphs'|translate}}</h3>
+<div class="graphsControls">
+  <div class="graphControl">
+      <i class="glyphicon glyphicon-time"></i> {{graphConfig.start | prettyDate}} - {{graphConfig.end | prettyDate}}
+  </div>
+  <div class="graphControl">
+    <button id="showGraphControls" ng-click="graphControlsPopover(); $event.stopPropagation();" class="btn btn-link action"><i class="glyphicon glyphicon-cog"></i> Settings</button>
+  </div>
+</div>
+
+<div id="graphConfigPopover" class="graphConfigPopover" ng-hide="!showGraphControls" ng-click="$event.stopPropagation();">
+    <div class="arrow"></div>
+    <label class="formLabel">Range</label>
+    <select
+        ng-model="graphConfig.range"
+        ng-options="range.val as range.name for range in ranges"
+        ng-change="rangeChange()"
+        class="formField">
+    </select>
+
+    <div class="startEndWrapper" ng-hide="!showStartEnd">
+        <label class="formLabel">Start</label>
+        <input type="text" class="formField" datetimepicker dateoptions="datetimePickerOptions" ng-model="graphConfig.start"><br>
+        <label class="formLabel">End</label>
+        <input type="text" class="formField" style="width: 170px;" datetimepicker dateoptions="datetimePickerOptions" ng-model="graphConfig.end" ng-disabled="graphConfig.now">
+        <input type="checkbox" ng-model="graphConfig.now" ng-change="rangeChange()" style="margin-left: 5px;">
+        <label>Now</label>
+    </div>
+
+    <label class="formLabel">Aggregator</label>
+    <select
+        ng-model="graphConfig.aggregator"
+        ng-options="agg.val as agg.name for agg in aggregators"
+        ng-change="refreshGraphs()"
+        class="formField">
+    </select>
+    <label class="formLabel">Refresh</label>
+    <select
+        ng-model="refreshInterval"
+        ng-options="interval.val as interval.name for interval in intervals"
+        ng-change="setupAutoRefresh()"
+        class="formField">
+    </select>
+</div>
+
+<div class="graphsContainer" style="margin-bottom: 20px;">
+  <div ng-repeat="graph in graphConfigs track by $index">
+    <div class="zenchartContainer">
+      <h4>{{graph.name}}</h4>
+      <div class="graphDescrip" ng-if="graph.yAxisLabel"><span ng-if"graph.type === 'area'">Total</span> {{graph.yAxisLabel}} over the past Hour</div>
+      <div id="{{serviceId+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+    </div>
+  </div>
+  <br style="clear: both;">
+</div>

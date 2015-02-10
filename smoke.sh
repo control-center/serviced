@@ -8,7 +8,7 @@
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 SERVICED=${DIR}/serviced
-IP=$(/sbin/ifconfig eth0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
+IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
 HOSTNAME=$(hostname)
 
 succeed() {
@@ -85,8 +85,15 @@ deploy_service() {
 
 start_service() {
     ${SERVICED} service start ${SERVICE_ID}
+    sleep 5
+    [[ "1" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
+    return 0
+}
+
+stop_service() {
+    ${SERVICED} service stop ${SERVICE_ID}
     sleep 10 
-    [ -z "${SERVICED} service list ${SERVICE_ID}" ] && return 1
+    [[ "0" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
 
@@ -102,12 +109,12 @@ test_vhost() {
 }
 
 test_assigned_ip() {
-    wget ${IP}:1000 -qO- &>/dev/null || return 1
+    docker run zenoss/ubuntu:wget /bin/bash -c "wget ${IP}:1000 -qO- &>/dev/null" || return 1
     return 0
 }
 
 test_config() {
-    wget --no-check-certificate -qO- ${IP}:1000/etc/my.cnf | grep "innodb_buffer_pool_size"  || return 1
+    docker run zenoss/ubuntu:wget /bin/bash -c "wget --no-check-certificate -qO- ${IP}:1000/etc/my.cnf | grep 'innodb_buffer_pool_size'"  || return 1
     return 0
 }
 
@@ -170,7 +177,7 @@ add_to_etc_hosts
 
 # Run all the tests
 start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 120 seconds."
-add_host                   && succeed "Added host successfully"                  || fail "Unable to add host"
+retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
 start_service              && succeed "Started service"                          || fail "Unable to start service"
@@ -183,7 +190,7 @@ retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected"
 
 retry 10 test_attached     && succeed "Attached to container"                    || fail "Unable to attach to container"
 retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Unable to connect to endpoint"
-
 test_snapshot              && succeed "Created snapshot"                         || fail "Unable to create snapshot"
 test_service_shell         && succeed "Service shell ran successfully"           || fail "Unable to run service shell"
+stop_service               && succeed "Stopped service"                          || fail "Unable to stop service"
 # "trap cleanup EXIT", above, will handle cleanup

@@ -103,6 +103,30 @@
 # Set to 0 in order to disable root user control center login
 # SERVICED_ALLOW_ROOT_LOGIN=1
 
+# Max size of Logstash data to keep in gigabytes
+# SERVICED_LOGSTASH_MAX_SIZE=10
+
+# Max number tracked connections for iptables
+# SERVICED_IPTABLES_MAX_CONNECTIONS=655360
+
+# The interval, in seconds, at which a serviced instance configured as agent
+# modifies its /opt/serviced/var/monitor/<IP-Address> file.
+# Default: 60     (1 minute)
+# SERVICED_MONITOR_DFS_REMOTE_UPDATE_INTERVAL=60
+
+# The interval, in seconds, at which a serviced instance configured as master
+# checks the modification times of the /opt/serviced/var/monitor/<IP-Address>
+# files of active serviced instances configured as agents. The value of this
+# variable must be a minimum of twice the value of the
+# SERVICED_MONITOR_DFS_REMOTE_UPDATE_INTERVAL variable.
+# Default: 180    (3 minutes)
+# SERVICED_MONITOR_DFS_MASTER_INTERVAL=180
+
+# Set to 0 in order to disable restarting nfs upon out of sync detection
+# Default: 1    (enable)
+# SERVICED_MONITOR_DFS_MASTER_RESTART=1
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
+
 

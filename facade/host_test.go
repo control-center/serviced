@@ -26,13 +26,13 @@ import (
 )
 
 func (s *FacadeTest) Test_HostCRUD(t *C) {
-	testid := "facadetestid"
+	testid := "deadb10f"
 	poolid := "pool-id"
 	defer s.Facade.RemoveHost(s.CTX, testid)
 
 	//fill host with required values
 	h, err := host.Build("", "65535", poolid, []string{}...)
-	h.ID = "facadetestid"
+	h.ID = testid
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
 	}
@@ -99,14 +99,14 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 
 	//add host1
 	h1 := host.Host{
-		ID:      "h1",
+		ID:      "deadb11f",
 		PoolID:  "poolid",
 		Name:    "h1",
 		IPAddr:  "192.168.0.1",
 		RPCPort: 65535,
 		IPs: []host.HostIPResource{
 			host.HostIPResource{
-				HostID:    "h1",
+				HostID:    "deadb11f",
 				IPAddress: "192.168.0.1",
 			},
 		},
@@ -118,14 +118,14 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 
 	//add host2
 	h2 := host.Host{
-		ID:      "h2",
+		ID:      "deadb12f",
 		PoolID:  "poolid",
 		Name:    "h2",
 		IPAddr:  "192.168.0.2",
 		RPCPort: 65535,
 		IPs: []host.HostIPResource{
 			host.HostIPResource{
-				HostID:    "h2",
+				HostID:    "deadb12f",
 				IPAddress: "192.168.0.2",
 			},
 		},
@@ -140,13 +140,14 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	s1, _ := service.NewService()
 	s1.Name = "name"
 	s1.PoolID = "poolid"
+	s1.DeploymentID = "deployment_id"
 	s1.Launch = "manual"
 	s1.Endpoints = []service.ServiceEndpoint{
 		service.ServiceEndpoint{},
 	}
 	s1.Endpoints[0].Name = "name"
 	s1.Endpoints[0].AddressConfig = servicedefinition.AddressResourceConfig{Port: 123, Protocol: "tcp"}
-	aa := addressassignment.AddressAssignment{ID: "id", HostID: "h1"}
+	aa := addressassignment.AddressAssignment{ID: "id", HostID: h1.ID}
 	s1.Endpoints[0].SetAssignment(aa)
 	err = s.Facade.AddService(s.CTX, *s1)
 	if err != nil {
@@ -154,7 +155,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	}
 	defer s.Facade.RemoveService(s.CTX, s1.ID)
 
-	request := dao.AssignmentRequest{ServiceID: s1.ID, IPAddress: "192.168.0.1", AutoAssignment: false}
+	request := dao.AssignmentRequest{ServiceID: s1.ID, IPAddress: h1.IPAddr, AutoAssignment: false}
 	if err = s.Facade.AssignIPs(s.CTX, request); err != nil {
 		t.Fatalf("Failed assigning ip to service: %s", err)
 	}
@@ -168,12 +169,12 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 		t.Fatalf("Expected service with one endpoint in context")
 	}
 	ep := services[0].Endpoints[0]
-	if ep.AddressAssignment.IPAddr != "192.168.0.1" && ep.AddressAssignment.HostID != "h1" {
+	if ep.AddressAssignment.IPAddr != h1.IPAddr && ep.AddressAssignment.HostID != h1.ID {
 		t.Fatalf("Incorrect IPAddress and HostID before remove host")
 	}
 
 	//remove host1
-	err = s.Facade.RemoveHost(s.CTX, "h1")
+	err = s.Facade.RemoveHost(s.CTX, h1.ID)
 	if err != nil {
 		t.Fatalf("Failed to remove host: %s", err)
 	}
@@ -188,7 +189,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	}
 
 	ep = services[0].Endpoints[0]
-	if ep.AddressAssignment.IPAddr != "192.168.0.2" && ep.AddressAssignment.HostID != "h2" {
+	if ep.AddressAssignment.IPAddr == h2.IPAddr || ep.AddressAssignment.HostID == h2.ID {
 		t.Fatalf("Incorrect IPAddress and HostID after remove host")
 	}
 }

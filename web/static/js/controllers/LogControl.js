@@ -3,11 +3,15 @@ function LogControl($scope, authService, resourcesService) {
     $scope.breadcrumbs = [
         { label: 'breadcrumb_logs', itemClass: 'active' }
     ];
+    
+    // force log iframe to fill screen
     setInterval(function() {
         var logsframe = document.getElementById("logsframe");
-        if (logsframe) {
+
+        if (logsframe && logsframe.contentWindow.document.body){
             var h = logsframe.contentWindow.document.body.clientHeight;
             logsframe.height = h + "px";
         }
+
     }, 100);
 }

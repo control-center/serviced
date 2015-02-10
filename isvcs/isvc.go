@@ -21,27 +21,17 @@ package isvcs
 import (
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
-
-	"fmt"
-	"os/user"
 )
 
 var Mgr *Manager
 
 const (
 	IMAGE_REPO = "zenoss/serviced-isvcs"
-	IMAGE_TAG  = "v21"
+	IMAGE_TAG  = "v26"
 )
 
 func Init() {
-	var volumesDir string
-	if user, err := user.Current(); err == nil {
-		volumesDir = fmt.Sprintf("/tmp/serviced-%s/var/isvcs", user.Username)
-	} else {
-		volumesDir = "/tmp/serviced/var/isvcs"
-	}
-
-	Mgr = NewManager("unix:///var/run/docker.sock", imagesDir(), volumesDir)
+	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"))
 
 	if err := Mgr.Register(elasticsearch_serviced); err != nil {
 		glog.Fatalf("%s", err)
@@ -64,8 +54,4 @@ func Init() {
 	if err := Mgr.Register(dockerRegistry); err != nil {
 		glog.Fatalf("%s", err)
 	}
-}
-
-func imagesDir() string {
-	return utils.LocalDir("images")
 }

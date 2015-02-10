@@ -138,7 +138,17 @@ func favIcon(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot()+"/ico/zenoss-o.png")
+			staticRoot()+"/ico/favicon.png")
+}
+
+/*
+ * Provides content for /licenses.html
+ */
+func licenses(w *rest.ResponseWriter, r *rest.Request) {
+	http.ServeFile(
+		w.ResponseWriter,
+		r.Request,
+		staticRoot()+"/doc/licenses.html")
 }
 
 /*

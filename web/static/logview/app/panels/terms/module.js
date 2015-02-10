@@ -1,4 +1,407 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/** @scratch /panels/5
+ *
+ * include::panels/terms.asciidoc[]
+ */
 
-define("panels/terms/module",["angular","app","underscore","jquery","kbn"],function(a,b,c,d,e){var f=a.module("kibana.panels.terms",[]);b.useModule(f),f.controller("terms",["$scope","querySrv","dashboard","filterSrv","fields",function(b,d,e,f,g){b.panelMeta={modals:[{description:"Inspect",icon:"icon-info-sign",partial:"app/partials/inspector.html",show:b.panel.spyable}],editorTabs:[{title:"Queries",src:"app/partials/querySelect.html"}],status:"Stable",description:"Displays the results of an elasticsearch facet as a pie chart, bar chart, or a table"};var h={field:"_type",exclude:[],missing:!0,other:!0,size:10,order:"count",style:{"font-size":"10pt"},donut:!1,tilt:!1,labels:!0,arrangement:"horizontal",chart:"bar",counter_pos:"above",spyable:!0,queries:{mode:"all",ids:[]},tmode:"terms",tstat:"total",valuefield:""};c.defaults(b.panel,h),b.init=function(){b.hits=0,b.$on("refresh",function(){b.get_data()}),b.get_data()},b.get_data=function(){if(0!==e.indices.length){b.panelMeta.loading=!0;var h,i,j,k;b.field=c.contains(g.list,b.panel.field+".raw")?b.panel.field+".raw":b.panel.field,h=b.ejs.Request().indices(e.indices),b.panel.queries.ids=d.idsByMode(b.panel.queries),k=d.getQueryObjs(b.panel.queries.ids),j=b.ejs.BoolQuery(),c.each(k,function(a){j=j.should(d.toEjsObj(a))}),"terms"===b.panel.tmode&&(h=h.facet(b.ejs.TermsFacet("terms").field(b.panel.field).size(b.panel.size).order(b.panel.order).exclude(b.panel.exclude).facetFilter(b.ejs.QueryFilter(b.ejs.FilteredQuery(j,f.getBoolFilter(f.ids))))).size(0)),"terms_stats"===b.panel.tmode&&(h=h.facet(b.ejs.TermStatsFacet("terms").valueField(b.panel.valuefield).keyField(b.panel.field).size(b.panel.size).order(b.panel.order).facetFilter(b.ejs.QueryFilter(b.ejs.FilteredQuery(j,f.getBoolFilter(f.ids))))).size(0)),b.inspector=a.toJson(JSON.parse(h.toString()),!0),i=h.doSearch(),i.then(function(a){b.panelMeta.loading=!1,"terms"===b.panel.tmode&&(b.hits=a.hits.total),b.results=a,b.$emit("render")})}},b.build_search=function(a,d){if(c.isUndefined(a.meta))f.set({type:"terms",field:b.field,value:a.label,mandate:d?"mustNot":"must"});else{if("missing"!==a.meta)return;f.set({type:"exists",field:b.field,mandate:d?"must":"mustNot"})}},b.set_refresh=function(a){b.refresh=a},b.close_edit=function(){b.refresh&&b.get_data(),b.refresh=!1,b.$emit("render")},b.showMeta=function(a){return c.isUndefined(a.meta)?!0:"other"!==a.meta||b.panel.other?"missing"!==a.meta||b.panel.missing?!0:!1:!1}}]),f.directive("termsChart",["querySrv",function(b){return{restrict:"A",link:function(f,g){function h(){var a=0;f.data=[],c.each(f.results.facets.terms.terms,function(b){var c;"terms"===f.panel.tmode&&(c={label:b.term,data:[[a,b.count]],actions:!0}),"terms_stats"===f.panel.tmode&&(c={label:b.term,data:[[a,b[f.panel.tstat]]],actions:!0}),f.data.push(c),a+=1}),f.data.push({label:"Missing field",data:[[a,f.results.facets.terms.missing]],meta:"missing",color:"#aaa",opacity:0}),"terms"===f.panel.tmode&&f.data.push({label:"Other values",data:[[a+1,f.results.facets.terms.other]],meta:"other",color:"#444"})}function i(){var a,e;h(),g.css({height:f.panel.height||f.row.height}),e=c.clone(f.data),e=f.panel.missing?e:c.without(e,c.findWhere(e,{meta:"missing"})),e=f.panel.other?e:c.without(e,c.findWhere(e,{meta:"other"})),require(["jquery.flot.pie"],function(){try{if("bar"===f.panel.chart&&(a=d.plot(g,e,{legend:{show:!1},series:{lines:{show:!1},bars:{show:!0,fill:1,barWidth:.8,horizontal:!1},shadowSize:1},yaxis:{show:!0,min:0,color:"#c8c8c8"},xaxis:{show:!1},grid:{borderWidth:0,borderColor:"#eee",color:"#eee",hoverable:!0,clickable:!0},colors:b.colors})),"pie"===f.panel.chart){var c=function(a,b){return"<div ng-click=\"build_search(panel.field,'"+a+'\') "style="font-size:8pt;text-align:center;padding:2px;color:white;">'+a+"<br/>"+Math.round(b.percent)+"%</div>"};a=d.plot(g,e,{legend:{show:!1},series:{pie:{innerRadius:f.panel.donut?.4:0,tilt:f.panel.tilt?.45:1,radius:1,show:!0,combine:{color:"#999",label:"The Rest"},stroke:{width:0},label:{show:f.panel.labels,radius:2/3,formatter:c,threshold:.1}}},grid:{hoverable:!0,clickable:!0},colors:b.colors})}g.is(":visible")&&setTimeout(function(){f.legend=a.getData(),f.$$phase||f.$apply()})}catch(h){g.text(h)}})}f.$on("render",function(){i()}),a.element(window).bind("resize",function(){i()}),g.bind("plotclick",function(a,b,c){c&&f.build_search(f.data[c.seriesIndex])});var j=d("<div>");g.bind("plothover",function(a,b,c){if(c){var d="bar"===f.panel.chart?c.datapoint[1]:c.datapoint[1][0][1];j.html(e.query_color_dot(c.series.color,20)+" "+c.series.label+" ("+d.toFixed(0)+")").place_tt(b.pageX,b.pageY)}else j.remove()})}}}])});
+/** @scratch /panels/terms/0
+ *
+ * == terms
+ * Status: *Stable*
+ *
+ * A table, bar chart or pie chart based on the results of an Elasticsearch terms facet.
+ *
+ */
+define([
+  'angular',
+  'app',
+  'lodash',
+  'jquery',
+  'kbn'
+],
+function (angular, app, _, $, kbn) {
+  'use strict';
+
+  var module = angular.module('kibana.panels.terms', []);
+  app.useModule(module);
+
+  module.controller('terms', function($scope, querySrv, dashboard, filterSrv, fields) {
+    $scope.panelMeta = {
+      modals : [
+        {
+          description: "Inspect",
+          icon: "icon-info-sign",
+          partial: "app/partials/inspector.html",
+          show: $scope.panel.spyable
+        }
+      ],
+      editorTabs : [
+        {title:'Queries', src:'app/partials/querySelect.html'}
+      ],
+      status  : "Stable",
+      description : "Displays the results of an elasticsearch facet as a pie chart, bar chart, or a "+
+        "table"
+    };
+
+    // Set and populate defaults
+    var _d = {
+      /** @scratch /panels/terms/5
+       * === Parameters
+       *
+       * field:: The field on which to computer the facet
+       */
+      field   : '_type',
+      /** @scratch /panels/terms/5
+       * exclude:: terms to exclude from the results
+       */
+      exclude : [],
+      /** @scratch /panels/terms/5
+       * missing:: Set to false to disable the display of a counter showing how much results are
+       * missing the field
+       */
+      missing : true,
+      /** @scratch /panels/terms/5
+       * other:: Set to false to disable the display of a counter representing the aggregate of all
+       * values outside of the scope of your +size+ property
+       */
+      other   : true,
+      /** @scratch /panels/terms/5
+       * size:: Show this many terms
+       */
+      size    : 10,
+      /** @scratch /panels/terms/5
+       * order:: In terms mode: count, term, reverse_count or reverse_term,
+       * in terms_stats mode: term, reverse_term, count, reverse_count,
+       * total, reverse_total, min, reverse_min, max, reverse_max, mean or reverse_mean
+       */
+      order   : 'count',
+      style   : { "font-size": '10pt'},
+      /** @scratch /panels/terms/5
+       * donut:: In pie chart mode, draw a hole in the middle of the pie to make a tasty donut.
+       */
+      donut   : false,
+      /** @scratch /panels/terms/5
+       * tilt:: In pie chart mode, tilt the chart back to appear as more of an oval shape
+       */
+      tilt    : false,
+      /** @scratch /panels/terms/5
+       * lables:: In pie chart mode, draw labels in the pie slices
+       */
+      labels  : true,
+      /** @scratch /panels/terms/5
+       * arrangement:: In bar or pie mode, arrangement of the legend. horizontal or vertical
+       */
+      arrangement : 'horizontal',
+      /** @scratch /panels/terms/5
+       * chart:: table, bar or pie
+       */
+      chart       : 'bar',
+      /** @scratch /panels/terms/5
+       * counter_pos:: The location of the legend in respect to the chart, above, below, or none.
+       */
+      counter_pos : 'above',
+      /** @scratch /panels/terms/5
+       * spyable:: Set spyable to false to disable the inspect button
+       */
+      spyable     : true,
+      /** @scratch /panels/terms/5
+       *
+       * ==== Queries
+       * queries object:: This object describes the queries to use on this panel.
+       * queries.mode::: Of the queries available, which to use. Options: +all, pinned, unpinned, selected+
+       * queries.ids::: In +selected+ mode, which query ids are selected.
+       */
+      queries     : {
+        mode        : 'all',
+        ids         : []
+      },
+      /** @scratch /panels/terms/5
+       * tmode:: Facet mode: terms or terms_stats
+       */
+      tmode       : 'terms',
+      /** @scratch /panels/terms/5
+       * tstat:: Terms_stats facet stats field
+       */
+      tstat       : 'total',
+      /** @scratch /panels/terms/5
+       * valuefield:: Terms_stats facet value field
+       */
+      valuefield  : ''
+    };
+
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function () {
+      $scope.hits = 0;
+
+      $scope.$on('refresh',function(){
+        $scope.get_data();
+      });
+      $scope.get_data();
+
+    };
+
+    $scope.get_data = function() {
+      // Make sure we have everything for the request to complete
+      if(dashboard.indices.length === 0) {
+        return;
+      }
+
+      $scope.panelMeta.loading = true;
+      var request,
+        results,
+        boolQuery,
+        queries;
+
+      $scope.field = _.contains(fields.list,$scope.panel.field+'.raw') ?
+        $scope.panel.field+'.raw' : $scope.panel.field;
+
+      request = $scope.ejs.Request().indices(dashboard.indices);
+
+      $scope.panel.queries.ids = querySrv.idsByMode($scope.panel.queries);
+      queries = querySrv.getQueryObjs($scope.panel.queries.ids);
+
+      // This could probably be changed to a BoolFilter
+      boolQuery = $scope.ejs.BoolQuery();
+      _.each(queries,function(q) {
+        boolQuery = boolQuery.should(querySrv.toEjsObj(q));
+      });
+
+      // Terms mode
+      if($scope.panel.tmode === 'terms') {
+        request = request
+          .facet($scope.ejs.TermsFacet('terms')
+          .field($scope.field)
+          .size($scope.panel.size)
+          .order($scope.panel.order)
+          .exclude($scope.panel.exclude)
+          .facetFilter($scope.ejs.QueryFilter(
+            $scope.ejs.FilteredQuery(
+              boolQuery,
+              filterSrv.getBoolFilter(filterSrv.ids())
+            )))).size(0);
+      }
+      if($scope.panel.tmode === 'terms_stats') {
+        request = request
+          .facet($scope.ejs.TermStatsFacet('terms')
+          .valueField($scope.panel.valuefield)
+          .keyField($scope.field)
+          .size($scope.panel.size)
+          .order($scope.panel.order)
+          .facetFilter($scope.ejs.QueryFilter(
+            $scope.ejs.FilteredQuery(
+              boolQuery,
+              filterSrv.getBoolFilter(filterSrv.ids())
+            )))).size(0);
+      }
+
+      // Populate the inspector panel
+      $scope.inspector = angular.toJson(JSON.parse(request.toString()),true);
+
+      results = request.doSearch();
+
+      // Populate scope when we have results
+      results.then(function(results) {
+        $scope.panelMeta.loading = false;
+        if($scope.panel.tmode === 'terms') {
+          $scope.hits = results.hits.total;
+        }
+
+        $scope.results = results;
+
+        $scope.$emit('render');
+      });
+    };
+
+    $scope.build_search = function(term,negate) {
+      if(_.isUndefined(term.meta)) {
+        filterSrv.set({type:'terms',field:$scope.field,value:term.label,
+          mandate:(negate ? 'mustNot':'must')});
+      } else if(term.meta === 'missing') {
+        filterSrv.set({type:'exists',field:$scope.field,
+          mandate:(negate ? 'must':'mustNot')});
+      } else {
+        return;
+      }
+    };
+
+    $scope.set_refresh = function (state) {
+      $scope.refresh = state;
+    };
+
+    $scope.close_edit = function() {
+      if($scope.refresh) {
+        $scope.get_data();
+      }
+      $scope.refresh =  false;
+      $scope.$emit('render');
+    };
+
+    $scope.showMeta = function(term) {
+      if(_.isUndefined(term.meta)) {
+        return true;
+      }
+      if(term.meta === 'other' && !$scope.panel.other) {
+        return false;
+      }
+      if(term.meta === 'missing' && !$scope.panel.missing) {
+        return false;
+      }
+      return true;
+    };
+
+  });
+
+  module.directive('termsChart', function(querySrv) {
+    return {
+      restrict: 'A',
+      link: function(scope, elem) {
+        var plot;
+
+        // Receive render events
+        scope.$on('render',function(){
+          render_panel();
+        });
+
+        function build_results() {
+          var k = 0;
+          scope.data = [];
+          _.each(scope.results.facets.terms.terms, function(v) {
+            var slice;
+            if(scope.panel.tmode === 'terms') {
+              slice = { label : v.term, data : [[k,v.count]], actions: true};
+            }
+            if(scope.panel.tmode === 'terms_stats') {
+              slice = { label : v.term, data : [[k,v[scope.panel.tstat]]], actions: true};
+            }
+            scope.data.push(slice);
+            k = k + 1;
+          });
+
+          scope.data.push({label:'Missing field',
+            data:[[k,scope.results.facets.terms.missing]],meta:"missing",color:'#aaa',opacity:0});
+
+          if(scope.panel.tmode === 'terms') {
+            scope.data.push({label:'Other values',
+              data:[[k+1,scope.results.facets.terms.other]],meta:"other",color:'#444'});
+          }
+        }
+
+        // Function for rendering panel
+        function render_panel() {
+          var chartData;
+
+          build_results();
+
+          // IE doesn't work without this
+          elem.css({height:scope.panel.height||scope.row.height});
+
+          // Make a clone we can operate on.
+          chartData = _.clone(scope.data);
+          chartData = scope.panel.missing ? chartData :
+            _.without(chartData,_.findWhere(chartData,{meta:'missing'}));
+          chartData = scope.panel.other ? chartData :
+          _.without(chartData,_.findWhere(chartData,{meta:'other'}));
+
+          // Populate element.
+          require(['jquery.flot.pie'], function(){
+            // Populate element
+            try {
+              // Add plot to scope so we can build out own legend
+              if(scope.panel.chart === 'bar') {
+                plot = $.plot(elem, chartData, {
+                  legend: { show: false },
+                  series: {
+                    lines:  { show: false, },
+                    bars:   { show: true,  fill: 1, barWidth: 0.8, horizontal: false },
+                    shadowSize: 1
+                  },
+                  yaxis: { show: true, min: 0, color: "#c8c8c8" },
+                  xaxis: { show: false },
+                  grid: {
+                    borderWidth: 0,
+                    borderColor: '#c8c8c8',
+                    color: "#c8c8c8",
+                    hoverable: true,
+                    clickable: true
+                  },
+                  colors: querySrv.colors
+                });
+              }
+              if(scope.panel.chart === 'pie') {
+                var labelFormat = function(label, series){
+                  return '<div ng-click="build_search(panel.field,\''+label+'\')'+
+                    ' "style="font-size:8pt;text-align:center;padding:2px;color:white;">'+
+                    label+'<br/>'+Math.round(series.percent)+'%</div>';
+                };
+
+                plot = $.plot(elem, chartData, {
+                  legend: { show: false },
+                  series: {
+                    pie: {
+                      innerRadius: scope.panel.donut ? 0.4 : 0,
+                      tilt: scope.panel.tilt ? 0.45 : 1,
+                      radius: 1,
+                      show: true,
+                      combine: {
+                        color: '#999',
+                        label: 'The Rest'
+                      },
+                      stroke: {
+                        width: 0
+                      },
+                      label: {
+                        show: scope.panel.labels,
+                        radius: 2/3,
+                        formatter: labelFormat,
+                        threshold: 0.1
+                      }
+                    }
+                  },
+                  //grid: { hoverable: true, clickable: true },
+                  grid:   { hoverable: true, clickable: true, color: '#c8c8c8' },
+                  colors: querySrv.colors
+                });
+              }
+
+              // Populate legend
+              if(elem.is(":visible")){
+                setTimeout(function(){
+                  scope.legend = plot.getData();
+                  if(!scope.$$phase) {
+                    scope.$apply();
+                  }
+                });
+              }
+
+            } catch(e) {
+              elem.text(e);
+            }
+          });
+        }
+
+        elem.bind("plotclick", function (event, pos, object) {
+          if(object) {
+            scope.build_search(scope.data[object.seriesIndex]);
+          }
+        });
+
+        var $tooltip = $('<div>');
+        elem.bind("plothover", function (event, pos, item) {
+          if (item) {
+            var value = scope.panel.chart === 'bar' ? item.datapoint[1] : item.datapoint[1][0][1];
+            $tooltip
+              .html(
+                kbn.query_color_dot(item.series.color, 20) + ' ' +
+                item.series.label + " (" + value.toFixed(0)+")"
+              )
+              .place_tt(pos.pageX, pos.pageY);
+          } else {
+            $tooltip.remove();
+          }
+        });
+
+      }
+    };
+  });
+
+});

@@ -134,18 +134,18 @@ func (s *Store) GetChildServices(ctx datastore.Context, parentID string) ([]Serv
 	return convert(results)
 }
 
-func (s *Store) FindChildService(ctx datastore.Context, parentID, serviceName string) (*Service, error) {
+func (s *Store) FindChildService(ctx datastore.Context, deploymentID, parentID, serviceName string) (*Service, error) {
 	parentID = strings.TrimSpace(parentID)
-	serviceName = strings.TrimSpace(serviceName)
 
-	if parentID == "" {
-		return nil, errors.New("empty parent service ID not allowed")
-	} else if serviceName == "" {
+	if deploymentID = strings.TrimSpace(deploymentID); deploymentID == "" {
+		return nil, errors.New("empty deployment ID not allowed")
+	} else if serviceName = strings.TrimSpace(serviceName); serviceName == "" {
 		return nil, errors.New("empty service name not allowed")
 	}
 
 	search := search.Search("controlplane").Type(kind).Filter(
 		"and",
+		search.Filter().Terms("DeploymentID", deploymentID),
 		search.Filter().Terms("ParentServiceID", parentID),
 		search.Filter().Terms("Name", serviceName),
 	)

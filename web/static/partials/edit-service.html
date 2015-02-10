@@ -1,0 +1,34 @@
+<div class="form-group">
+  <label for="new_service_name">{{'label_service_name'|translate}}:</label>
+  <input class="form-control" focusme id="new_service_name" type="text" placeholder="{{'placeholder_service_name'|translate}}" ng-model="editableService.Name">
+</div>
+
+<div class="form-group">
+  <label for="new_service_description">{{'label_service_description'|translate}}:</label>
+  <textarea class="form-control" id="new_service_description" placeholder="{{'placeholder_service_description'|translate}}" rows="3" ng-model="editableService.Description"></textarea>
+</div>
+
+<div class="form-group">
+  <label for="edit_instances">{{'label_service_instances'|translate}}:</label>
+  <input class="form-control" id="edit_instances" type="number" min="{{editableService.InstanceLimits.Min ? editableService.InstanceLimits.Min : 0}}" max="{{editableService.InstanceLimits.Max ? editableService.InstanceLimits.Max : undefined}}" style="width: 75px;" ng-model="editableService.Instances">
+</div>
+
+<div class="form-group">
+  <label for="new_service_ram_commitment">{{'ram_commitment'|translate}} (eg 256M): <span class="warningMessage">*</span></label>
+  <input class="form-control" id="new_service_ram_commitment" type="text" placeholder="256M" ng-model="editableService.RAMCommitment">
+</div>
+
+<div class="form-group">
+    <label for="edit_service_pool">{{'label_service_pool'|translate}}: <span class="warningMessage">*</span></label>
+  <select class="form-control" name="edit_service_pool" id="new_host_parent" ng-model="editableService.PoolID"
+          ng-options="pool.ID as pool.ID for pool in pools.flattened">
+  </select>
+</div>
+
+<div class="form-group">
+  <label for="new_service_startup">{{'label_service_startup'|translate}}: <span class="warningMessage">*</span></label>
+  <input class="form-control" id="new_service_startup" type="text" placeholder="{{'placeholder_service_startup'|translate}}" ng-model="editableService.Startup">
+</div>
+
+<br>
+<div class="warningMessage">*Requires restart of running instance to take effect</div>

@@ -34,6 +34,7 @@ type ShellConfig struct {
 	ServiceID        string
 	Command          string
 	Args             []string
+	Username         string
 	SaveAs           string
 	IsTTY            bool
 	Mounts           []string
@@ -76,10 +77,20 @@ func buildMounts(lbClientPort string, serviceID string, defaultMounts []string) 
 		return nil, err
 	}
 
+	dsts := map[string]string{}
+	for _, mnt := range defaultMounts {
+		parts := strings.Split(mnt, ",")
+		if len(parts) > 1 {
+			dsts[parts[1]] = parts[0] // dsts[dst] = src
+		}
+	}
+
 	mounts := defaultMounts
 	for hostPath, containerPath := range bindmounts {
-		bind := hostPath + "," + containerPath
-		mounts = append(mounts, bind)
+		if _, ok := dsts[containerPath]; !ok {
+			bind := hostPath + "," + containerPath
+			mounts = append(mounts, bind)
+		}
 	}
 
 	return mounts, nil
@@ -111,9 +122,7 @@ func (a *api) StartShell(config ShellConfig) error {
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
-	cmd.Run()
-
-	return nil
+	return cmd.Run()
 }
 
 // RunShell runs a predefined service shell command via the service definition
@@ -155,12 +164,17 @@ func (a *api) RunShell(config ShellConfig) error {
 	quotedArgs := utils.ShellQuoteArgs(config.Args)
 	command = strings.Join([]string{command, quotedArgs}, " ")
 
+	asUser := "su - root -c "
+	if config.Username != "" && config.Username != "root" {
+		asUser = fmt.Sprintf("su - %s -c ", config.Username)
+	}
+
 	cfg := shell.ProcessConfig{
 		ServiceID:   config.ServiceID,
 		IsTTY:       config.IsTTY,
 		SaveAs:      config.SaveAs,
 		Mount:       mounts,
-		Command:     "su - zenoss -c " + utils.ShellQuoteArg(command),
+		Command:     asUser + utils.ShellQuoteArg(command),
 		LogToStderr: config.LogToStderr,
 	}
 
@@ -222,12 +236,13 @@ func (a *api) RunShell(config ShellConfig) error {
 		}
 	default:
 		// Delete the container
-		glog.V(0).Infof("Command returned non-zero exit code %d.  Container not commited.", exitcode)
+
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
 			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 		}
+		return fmt.Errorf("Command returned non-zero exit code %d.  Container not commited.", exitcode)
 	}
 
 	return nil

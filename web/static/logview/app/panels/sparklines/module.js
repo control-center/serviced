@@ -1,4 +1,385 @@
-/*! kibana - v3.0.0pre-milestone5 - 2014-01-10
- * Copyright (c) 2014 Rashid Khan; Licensed Apache License */
+/** @scratch /panels/5
+ *
+ * include::panels/sparklines.asciidoc[]
+ */
 
-define("panels/sparklines/interval",["kbn"],function(a){function b(b){this.string=b;var c=a.describe_interval(b);this.type=c.type,this.ms=1e3*c.sec*c.count,"y"===this.type||"M"===this.type?(this.get=this.get_complex,this.date=new Date(0)):this.get=this.get_simple}return b.prototype={toString:function(){return this.string},after:function(a){return this.get(a,1)},before:function(a){return this.get(a,-1)},get_complex:function(a,b){switch(this.date.setTime(a),this.type){case"M":this.date.setUTCMonth(this.date.getUTCMonth()+b);break;case"y":this.date.setUTCFullYear(this.date.getUTCFullYear()+b)}return this.date.getTime()},get_simple:function(a,b){return a+b*this.ms}},b}),define("panels/sparklines/timeSeries",["underscore","./interval"],function(a,b){function c(a){return parseInt(a,10)}function d(a){return 1e3*Math.floor(a.getTime()/1e3)}var e={};return e.ZeroFilled=function(c){c=a.defaults(c,{interval:"10m",start_date:null,end_date:null,fill_style:"minimal"}),this.interval=new b(c.interval),this._data={},this.start_time=c.start_date&&d(c.start_date),this.end_time=c.end_date&&d(c.end_date),this.opts=c},e.ZeroFilled.prototype.addValue=function(b,e){b=b instanceof Date?d(b):c(b),isNaN(b)||(this._data[b]=a.isUndefined(e)?0:e),this._cached_times=null},e.ZeroFilled.prototype.getOrderedTimes=function(b){var d=a.map(a.keys(this._data),c);return a.isArray(b)&&(d=d.concat(b)),a.uniq(d.sort(function(a,b){return a-b}),!0)},e.ZeroFilled.prototype.getFlotPairs=function(b){var c,d,e=this.getOrderedTimes(b);return c="all"===this.opts.fill_style?this._getAllFlotPairs:"null"===this.opts.fill_style?this._getNullFlotPairs:this._getMinFlotPairs,d=a.reduce(e,c,[],this)},e.ZeroFilled.prototype._getMinFlotPairs=function(a,b,c,d){var e,f,g,h;return c>0&&(g=d[c-1],h=this.interval.before(b),h>g&&a.push([h,0])),a.push([b,this._data[b]||0]),d.length>c&&(e=d[c+1],f=this.interval.after(b),e>f&&a.push([f,0])),a},e.ZeroFilled.prototype._getAllFlotPairs=function(a,b,c,d){var e,f;for(a.push([d[c],this._data[d[c]]||0]),e=d[c+1],f=this.interval.after(b);d.length>c&&e>f;f=this.interval.after(f))a.push([f,0]);return a},e.ZeroFilled.prototype._getNullFlotPairs=function(a,b,c,d){var e,f,g,h;return c>0&&(g=d[c-1],h=this.interval.before(b),h>g&&a.push([h,null])),a.push([b,this._data[b]||null]),d.length>c&&(e=d[c+1],f=this.interval.after(b),e>f&&a.push([f,null])),a},e}),function(a){function b(a,b){return b*Math.floor(a/b)}function c(a,b,c,d){if("function"==typeof a.strftime)return a.strftime(b);var e=function(a,b){return a=""+a,b=""+(null==b?"0":b),1==a.length?b+a:a},f=[],g=!1,h=a.getHours(),i=12>h;null==c&&(c=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]),null==d&&(d=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]);var j;j=h>12?h-12:0==h?12:h;for(var k=0;k<b.length;++k){var l=b.charAt(k);if(g){switch(l){case"a":l=""+d[a.getDay()];break;case"b":l=""+c[a.getMonth()];break;case"d":l=e(a.getDate());break;case"e":l=e(a.getDate()," ");break;case"h":case"H":l=e(h);break;case"I":l=e(j);break;case"l":l=e(j," ");break;case"m":l=e(a.getMonth()+1);break;case"M":l=e(a.getMinutes());break;case"q":l=""+(Math.floor(a.getMonth()/3)+1);break;case"S":l=e(a.getSeconds());break;case"y":l=e(a.getFullYear()%100);break;case"Y":l=""+a.getFullYear();break;case"p":l=i?"am":"pm";break;case"P":l=i?"AM":"PM";break;case"w":l=""+a.getDay()}f.push(l),g=!1}else"%"==l?g=!0:f.push(l)}return f.join("")}function d(a){function b(a,b,c,d){a[b]=function(){return c[d].apply(c,arguments)}}var c={date:a};void 0!=a.strftime&&b(c,"strftime",a,"strftime"),b(c,"getTime",a,"getTime"),b(c,"setTime",a,"setTime");for(var d=["Date","Day","FullYear","Hours","Milliseconds","Minutes","Month","Seconds"],e=0;e<d.length;e++)b(c,"get"+d[e],a,"getUTC"+d[e]),b(c,"set"+d[e],a,"setUTC"+d[e]);return c}function e(a,b){if("browser"==b.timezone)return new Date(a);if(b.timezone&&"utc"!=b.timezone){if("undefined"!=typeof timezoneJS&&"undefined"!=typeof timezoneJS.Date){var c=new timezoneJS.Date;return c.setTimezone(b.timezone),c.setTime(a),c}return d(new Date(a))}return d(new Date(a))}function f(d){d.hooks.processOptions.push(function(d){a.each(d.getAxes(),function(a,d){var f=d.options;"time"==f.mode&&(d.tickGenerator=function(a){var c=[],d=e(a.min,f),g=0,i=f.tickSize&&"quarter"===f.tickSize[1]||f.minTickSize&&"quarter"===f.minTickSize[1]?k:j;null!=f.minTickSize&&(g="number"==typeof f.tickSize?f.tickSize:f.minTickSize[0]*h[f.minTickSize[1]]);for(var l=0;l<i.length-1&&!(a.delta<(i[l][0]*h[i[l][1]]+i[l+1][0]*h[i[l+1][1]])/2&&i[l][0]*h[i[l][1]]>=g);++l);var m=i[l][0],n=i[l][1];if("year"==n){if(null!=f.minTickSize&&"year"==f.minTickSize[1])m=Math.floor(f.minTickSize[0]);else{var o=Math.pow(10,Math.floor(Math.log(a.delta/h.year)/Math.LN10)),p=a.delta/h.year/o;m=1.5>p?1:3>p?2:7.5>p?5:10,m*=o}1>m&&(m=1)}a.tickSize=f.tickSize||[m,n];var q=a.tickSize[0];n=a.tickSize[1];var r=q*h[n];"second"==n?d.setSeconds(b(d.getSeconds(),q)):"minute"==n?d.setMinutes(b(d.getMinutes(),q)):"hour"==n?d.setHours(b(d.getHours(),q)):"month"==n?d.setMonth(b(d.getMonth(),q)):"quarter"==n?d.setMonth(3*b(d.getMonth()/3,q)):"year"==n&&d.setFullYear(b(d.getFullYear(),q)),d.setMilliseconds(0),r>=h.minute&&d.setSeconds(0),r>=h.hour&&d.setMinutes(0),r>=h.day&&d.setHours(0),r>=4*h.day&&d.setDate(1),r>=2*h.month&&d.setMonth(b(d.getMonth(),3)),r>=2*h.quarter&&d.setMonth(b(d.getMonth(),6)),r>=h.year&&d.setMonth(0);var s,t=0,u=Number.NaN;do if(s=u,u=d.getTime(),c.push(u),"month"==n||"quarter"==n)if(1>q){d.setDate(1);var v=d.getTime();d.setMonth(d.getMonth()+("quarter"==n?3:1));var w=d.getTime();d.setTime(u+t*h.hour+(w-v)*q),t=d.getHours(),d.setHours(0)}else d.setMonth(d.getMonth()+q*("quarter"==n?3:1));else"year"==n?d.setFullYear(d.getFullYear()+q):d.setTime(u+r);while(u<a.max&&u!=s);return c},d.tickFormatter=function(a,b){var d=e(a,b.options);if(null!=f.timeformat)return c(d,f.timeformat,f.monthNames,f.dayNames);var g,i=b.options.tickSize&&"quarter"==b.options.tickSize[1]||b.options.minTickSize&&"quarter"==b.options.minTickSize[1],j=b.tickSize[0]*h[b.tickSize[1]],k=b.max-b.min,l=f.twelveHourClock?" %p":"",m=f.twelveHourClock?"%I":"%H";g=j<h.minute?m+":%M:%S"+l:j<h.day?k<2*h.day?m+":%M"+l:"%b %d "+m+":%M"+l:j<h.month?"%b %d":i&&j<h.quarter||!i&&j<h.year?k<h.year?"%b":"%b %Y":i&&j<h.year?k<h.year?"Q%q":"Q%q %Y":"%Y";var n=c(d,g,f.monthNames,f.dayNames);return n})})})}var g={xaxis:{timezone:null,timeformat:null,twelveHourClock:!1,monthNames:null}},h={second:1e3,minute:6e4,hour:36e5,day:864e5,month:2592e6,quarter:7776e6,year:525949.2*60*1e3},i=[[1,"second"],[2,"second"],[5,"second"],[10,"second"],[30,"second"],[1,"minute"],[2,"minute"],[5,"minute"],[10,"minute"],[30,"minute"],[1,"hour"],[2,"hour"],[4,"hour"],[8,"hour"],[12,"hour"],[1,"day"],[2,"day"],[3,"day"],[.25,"month"],[.5,"month"],[1,"month"],[2,"month"]],j=i.concat([[3,"month"],[6,"month"],[1,"year"]]),k=i.concat([[1,"quarter"],[2,"quarter"],[1,"year"]]);a.plot.plugins.push({init:f,options:g,name:"time",version:"1.0"}),a.plot.formatDate=c}(jQuery),define("jquery.flot.time",function(){}),define("panels/sparklines/module",["angular","app","jquery","underscore","kbn","moment","./timeSeries","jquery.flot","jquery.flot.time"],function(a,b,c,d,e,f,g){var h=a.module("kibana.panels.sparklines",[]);b.useModule(h),h.controller("sparklines",["$scope","querySrv","dashboard","filterSrv",function(b,c,f,h){b.panelMeta={modals:[{description:"Inspect",icon:"icon-info-sign",partial:"app/partials/inspector.html",show:b.panel.spyable}],editorTabs:[{title:"Queries",src:"app/partials/querySelect.html"}],status:"Experimental",description:"Sparklines are tiny, simple, time series charts, shown seperately. Because sparklines are unclutted by grids, axis markers and colors, they are perfect for spotting change in a series"};var i={mode:"count",time_field:"@timestamp",value_field:null,interval:"5m",spyable:!0,queries:{mode:"all",ids:[]}};d.defaults(b.panel,i),b.init=function(){b.$on("refresh",function(){b.get_data()}),b.get_data()},b.interval_label=function(a){return b.panel.auto_int&&a===b.panel.interval?a+" (auto)":a},b.get_time_range=function(){var a=b.range=h.timeRange("last");return a},b.get_interval=function(){var a,c=b.panel.interval;return a=b.get_time_range(),a&&(c=e.secondsToHms(e.calculate_interval(a.from,a.to,10,0)/1e3)),b.panel.interval=c||"10m",b.panel.interval},b.get_data=function(a,e){var i,j,k,l,m;d.isUndefined(a)&&(a=0),delete b.panel.error,0!==f.indices.length&&(i=b.get_time_range(),j=b.get_interval(i),b.panelMeta.loading=!0,k=b.ejs.Request().indices(f.indices[a]),b.panel.queries.ids=c.idsByMode(b.panel.queries),l=c.getQueryObjs(b.panel.queries.ids),d.each(l,function(a){var e=b.ejs.FilteredQuery(c.toEjsObj(a),h.getBoolFilter(h.ids)),f=b.ejs.DateHistogramFacet(a.id);if("count"===b.panel.mode)f=f.field(b.panel.time_field).global(!0);else{if(d.isNull(b.panel.value_field))return b.panel.error="In "+b.panel.mode+" mode a field must be specified",void 0;f=f.keyField(b.panel.time_field).valueField(b.panel.value_field)}f=f.interval(j).facetFilter(b.ejs.QueryFilter(e)),k=k.facet(f).size(0)}),b.populate_modal(k),m=k.doSearch(),m.then(function(c){if(b.panelMeta.loading=!1,0===a&&(b.hits=0,b.data=[],e=b.query_id=(new Date).getTime()),!d.isUndefined(c.error))return b.panel.error=b.parse_error(c.error),void 0;if(b.query_id===e){var h,k,m=0;d.each(l,function(e){var f=c.facets[e.id];if(d.isUndefined(b.data[m])||0===a){var l={interval:j,start_date:i&&i.from,end_date:i&&i.to,fill_style:"minimal"};h=new g.ZeroFilled(l),k=0}else h=b.data[m].time_series,k=b.data[m].hits;d.each(f.entries,function(a){h.addValue(a.time,a[b.panel.mode]),k+=a.count,b.hits+=a.count}),b.data[m]={info:e,range:b.range,time_series:h,hits:k},m++}),a<f.indices.length-1&&b.get_data(a+1,e)}}))},b.populate_modal=function(c){b.inspector=a.toJson(JSON.parse(c.toString()),!0)},b.set_refresh=function(a){b.refresh=a},b.close_edit=function(){b.refresh&&b.get_data(),b.refresh=!1}}]),h.directive("sparklinesChart",function(){return{restrict:"A",scope:{series:"=",panel:"="},template:"<div></div>",link:function(b,e){function g(){e.css({height:"30px",width:"100px"});var a={legend:{show:!1},series:{lines:{show:!0,fill:0,lineWidth:2,steps:!1},points:{radius:2},shadowSize:1},yaxis:{show:!1},xaxis:{show:!1,mode:"time",min:d.isUndefined(b.series.range.from)?null:b.series.range.from.getTime(),max:d.isUndefined(b.series.range.to)?null:b.series.range.to.getTime()},grid:{hoverable:!1,show:!1}},f=[];f=b.series.time_series.getOrderedTimes(),f=d.uniq(f.sort(function(a,b){return a-b}),!0);var g={data:b.panel.derivative?h(b.series.time_series.getFlotPairs(f)):b.series.time_series.getFlotPairs(f),label:b.series.info.alias,color:e.css("color")};c.plot(e,[g],a)}b.$watch("series",function(){g()}),a.element(window).bind("resize",function(){g()});var h=function(a){return d.map(a,function(b,c){var d;return d=0===c||null===b[1]?[b[0],null]:null===a[c-1][1]?[b[0],null]:[b[0],b[1]-a[c-1][1]]})},i=c("<div>");e.bind("plothover",function(a,b,c){c?i.html(c.datapoint[1]+" @ "+f(c.datapoint[0]).format("YYYY-MM-DD HH:mm:ss")).place_tt(b.pageX,b.pageY):i.detach()})}}})});
+/** @scratch /panels/sparklines/0
+ *
+ * == Sparklines
+ * Status: *Experimental*
+ *
+ * The sparklines panel shows tiny time charts. The purpose of these is not to give an exact value,
+ * but rather to show the shape of the time series in a compact manner
+ *
+ */
+define([
+  'angular',
+  'app',
+  'jquery',
+  'lodash',
+  'kbn',
+  'moment',
+  './timeSeries',
+
+  'jquery.flot',
+  'jquery.flot.time'
+],
+function (angular, app, $, _, kbn, moment, timeSeries) {
+
+  'use strict';
+
+  var module = angular.module('kibana.panels.sparklines', []);
+  app.useModule(module);
+
+  module.controller('sparklines', function($scope, querySrv, dashboard, filterSrv) {
+    $scope.panelMeta = {
+      modals : [
+        {
+          description: "Inspect",
+          icon: "icon-info-sign",
+          partial: "app/partials/inspector.html",
+          show: $scope.panel.spyable
+        }
+      ],
+      editorTabs : [
+        {
+          title:'Queries',
+          src:'app/partials/querySelect.html'
+        }
+      ],
+      status  : "Experimental",
+      description : "Sparklines are tiny, simple, time series charts, shown separately. Because "+
+        "sparklines are uncluttered by grids, axis markers and colors, they are perfect for spotting"+
+        " change in a series"
+    };
+
+    // Set and populate defaults
+    var _d = {
+      /** @scratch /panels/sparklines/3
+       *
+       * === Parameters
+       * mode:: Value to use for the y-axis. For all modes other than count, +value_field+ must be
+       * defined. Possible values: count, mean, max, min, total.
+       */
+      mode          : 'count',
+      /** @scratch /panels/sparklines/3
+       * time_field:: x-axis field. This must be defined as a date type in Elasticsearch.
+       */
+      time_field    : '@timestamp',
+      /** @scratch /panels/sparklines/3
+       * value_field:: y-axis field if +mode+ is set to mean, max, min or total. Must be numeric.
+       */
+      value_field   : null,
+      /** @scratch /panels/sparklines/3
+       * interval:: Sparkline intervals are computed automatically as long as there is a time filter
+       * present. In the absence of a time filter, use this interval.
+       */
+      interval      : '5m',
+      /** @scratch /panels/sparklines/3
+       * spyable:: Show inspect icon
+       */
+      spyable       : true,
+      /** @scratch /panels/sparklines/5
+       *
+       * ==== Queries
+       * queries object:: This object describes the queries to use on this panel.
+       * queries.mode::: Of the queries available, which to use. Options: +all, pinned, unpinned, selected+
+       * queries.ids::: In +selected+ mode, which query ids are selected.
+       */
+      queries     : {
+        mode        : 'all',
+        ids         : []
+      },
+    };
+
+    _.defaults($scope.panel,_d);
+
+    $scope.init = function() {
+
+      $scope.$on('refresh',function(){
+        $scope.get_data();
+      });
+
+      $scope.get_data();
+
+    };
+
+    $scope.interval_label = function(interval) {
+      return $scope.panel.auto_int && interval === $scope.panel.interval ? interval+" (auto)" : interval;
+    };
+
+    /**
+     * The time range effecting the panel
+     * @return {[type]} [description]
+     */
+    $scope.get_time_range = function () {
+      var range = $scope.range = filterSrv.timeRange('last');
+      return range;
+    };
+
+    $scope.get_interval = function () {
+      var interval = $scope.panel.interval,
+                      range;
+      range = $scope.get_time_range();
+      if (range) {
+        interval = kbn.secondsToHms(
+          kbn.calculate_interval(range.from, range.to, 10, 0) / 1000
+        );
+      }
+      $scope.panel.interval = interval || '10m';
+      return $scope.panel.interval;
+    };
+
+    /**
+     * Fetch the data for a chunk of a queries results. Multiple segments occur when several indicies
+     * need to be consulted (like timestamped logstash indicies)
+     *
+     * The results of this function are stored on the scope's data property. This property will be an
+     * array of objects with the properties info, time_series, and hits. These objects are used in the
+     * render_panel function to create the historgram.
+     *
+     * @param {number} segment   The segment count, (0 based)
+     * @param {number} query_id  The id of the query, generated on the first run and passed back when
+     *                            this call is made recursively for more segments
+     */
+    $scope.get_data = function(segment, query_id) {
+      var
+        _range,
+        _interval,
+        request,
+        queries,
+        results;
+
+      if (_.isUndefined(segment)) {
+        segment = 0;
+      }
+      delete $scope.panel.error;
+
+      // Make sure we have everything for the request to complete
+      if(dashboard.indices.length === 0) {
+        return;
+      }
+      _range = $scope.get_time_range();
+      _interval = $scope.get_interval(_range);
+
+      $scope.panelMeta.loading = true;
+      request = $scope.ejs.Request().indices(dashboard.indices[segment]);
+
+      $scope.panel.queries.ids = querySrv.idsByMode($scope.panel.queries);
+
+      queries = querySrv.getQueryObjs($scope.panel.queries.ids);
+
+      // Build the query
+      _.each(queries, function(q) {
+        var query = $scope.ejs.FilteredQuery(
+          querySrv.toEjsObj(q),
+          filterSrv.getBoolFilter(filterSrv.ids())
+        );
+
+        var facet = $scope.ejs.DateHistogramFacet(q.id);
+
+        if($scope.panel.mode === 'count') {
+          facet = facet.field($scope.panel.time_field).global(true);
+        } else {
+          if(_.isNull($scope.panel.value_field)) {
+            $scope.panel.error = "In " + $scope.panel.mode + " mode a field must be specified";
+            return;
+          }
+          facet = facet.keyField($scope.panel.time_field).valueField($scope.panel.value_field);
+        }
+        facet = facet.interval(_interval).facetFilter($scope.ejs.QueryFilter(query));
+        request = request.facet(facet)
+          .size(0);
+      });
+
+      // Populate the inspector panel
+      $scope.populate_modal(request);
+
+      // Then run it
+      results = request.doSearch();
+
+      // Populate scope when we have results
+      results.then(function(results) {
+
+        $scope.panelMeta.loading = false;
+        if(segment === 0) {
+          $scope.hits = 0;
+          $scope.data = [];
+          query_id = $scope.query_id = new Date().getTime();
+        }
+
+        // Check for error and abort if found
+        if(!(_.isUndefined(results.error))) {
+          $scope.panel.error = $scope.parse_error(results.error);
+          return;
+        }
+
+        // Make sure we're still on the same query/queries
+        if($scope.query_id === query_id) {
+
+          var i = 0,
+            time_series,
+            hits;
+
+          _.each(queries, function(q) {
+            var query_results = results.facets[q.id];
+            // we need to initialize the data variable on the first run,
+            // and when we are working on the first segment of the data.
+            if(_.isUndefined($scope.data[i]) || segment === 0) {
+              var tsOpts = {
+                interval: _interval,
+                start_date: _range && _range.from,
+                end_date: _range && _range.to,
+                fill_style: 'minimal'
+              };
+              time_series = new timeSeries.ZeroFilled(tsOpts);
+              hits = 0;
+            } else {
+              time_series = $scope.data[i].time_series;
+              hits = $scope.data[i].hits;
+            }
+
+            // push each entry into the time series, while incrementing counters
+            _.each(query_results.entries, function(entry) {
+              time_series.addValue(entry.time, entry[$scope.panel.mode]);
+              hits += entry.count; // The series level hits counter
+              $scope.hits += entry.count; // Entire dataset level hits counter
+            });
+            $scope.data[i] = {
+              info: q,
+              range: $scope.range,
+              time_series: time_series,
+              hits: hits
+            };
+
+            i++;
+          });
+
+          // If we still have segments left, get them
+          if(segment < dashboard.indices.length-1) {
+            $scope.get_data(segment+1,query_id);
+          }
+        }
+      });
+    };
+
+    // I really don't like this function, too much dom manip. Break out into directive?
+    $scope.populate_modal = function(request) {
+      $scope.inspector = angular.toJson(JSON.parse(request.toString()),true);
+    };
+
+    $scope.set_refresh = function (state) {
+      $scope.refresh = state;
+    };
+
+    $scope.close_edit = function() {
+      if($scope.refresh) {
+        $scope.get_data();
+      }
+      $scope.refresh =  false;
+    };
+
+  });
+
+  module.directive('sparklinesChart', function() {
+    return {
+      restrict: 'A',
+      scope: {
+        series: '=',
+        panel: '='
+      },
+      template: '<div></div>',
+      link: function(scope, elem) {
+
+        // Receive render events
+        scope.$watch('series',function(){
+          render_panel();
+        });
+
+        var derivative = function(series) {
+          return _.map(series, function(p,i) {
+            var _v;
+            if(i === 0 || p[1] === null) {
+              _v = [p[0],null];
+            } else {
+              _v = series[i-1][1] === null ? [p[0],null] : [p[0],p[1]-(series[i-1][1])];
+            }
+            return _v;
+          });
+        };
+
+        // Function for rendering panel
+        function render_panel() {
+          // IE doesn't work without this
+          elem.css({height:"30px",width:"100px"});
+
+          // Populate element
+          //try {
+          var options = {
+            legend: { show: false },
+            series: {
+              lines:  {
+                show: true,
+                // Silly, but fixes bug in stacked percentages
+                fill: 0,
+                lineWidth: 2,
+                steps: false
+              },
+              points: { radius:2 },
+              shadowSize: 1
+            },
+            yaxis: {
+              show: false
+            },
+            xaxis: {
+              show: false,
+              mode: "time",
+              min: _.isUndefined(scope.series.range.from) ? null : scope.series.range.from.getTime(),
+              max: _.isUndefined(scope.series.range.to) ? null : scope.series.range.to.getTime()
+            },
+            grid: {
+              hoverable: false,
+              show: false
+            }
+          };
+          // when rendering stacked bars, we need to ensure each point that has data is zero-filled
+          // so that the stacking happens in the proper order
+          var required_times = [];
+          required_times = scope.series.time_series.getOrderedTimes();
+          required_times = _.uniq(required_times.sort(function (a, b) {
+            // decending numeric sort
+            return a-b;
+          }), true);
+
+          var _d = {
+            data  : scope.panel.derivative ?
+             derivative(scope.series.time_series.getFlotPairs(required_times)) :
+             scope.series.time_series.getFlotPairs(required_times),
+            label : scope.series.info.alias,
+            color : elem.css('color'),
+          };
+
+          $.plot(elem, [_d], options);
+
+          //} catch(e) {
+          //  console.log(e);
+          //}
+        }
+
+        var $tooltip = $('<div>');
+        elem.bind("plothover", function (event, pos, item) {
+          if (item) {
+            $tooltip
+              .html(
+                item.datapoint[1] + " @ " + moment(item.datapoint[0]).format('YYYY-MM-DD HH:mm:ss')
+              )
+              .place_tt(pos.pageX, pos.pageY);
+          } else {
+            $tooltip.detach();
+          }
+        });
+      }
+    };
+  });
+
+});

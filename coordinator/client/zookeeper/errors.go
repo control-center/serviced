@@ -14,7 +14,7 @@
 package zookeeper
 
 import (
-	zklib "github.com/samuel/go-zookeeper/zk"
+	zklib "github.com/control-center/go-zookeeper/zk"
 	"github.com/control-center/serviced/coordinator/client"
 )
 

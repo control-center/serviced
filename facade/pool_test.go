@@ -163,7 +163,7 @@ func (ft *FacadeTest) Test_GetPoolsIPs(t *C) {
 		t.Fail()
 	}
 
-	hostID := "assignIPsHost"
+	hostID := "deadb21f"
 	ipAddress1 := "192.168.100.10"
 	ipAddress2 := "10.50.9.1"
 
@@ -224,7 +224,7 @@ func (ft *FacadeTest) Test_VirtualIPs(t *C) {
 		t.Fail()
 	}
 
-	hostID := "aHost"
+	hostID := "deadb22f"
 	ipAddress1 := "192.168.100.10"
 
 	assignIPsHostIPResources := []host.HostIPResource{}
@@ -326,7 +326,7 @@ func (ft *FacadeTest) Test_InvalidVirtualIPs(t *C) {
 		t.Fail()
 	}
 
-	hostID := "aHost"
+	hostID := "deadb22f"
 	ipAddress1 := "192.168.100.10"
 
 	assignIPsHostIPResources := []host.HostIPResource{}
@@ -408,7 +408,7 @@ func (ft *FacadeTest) Test_InvalidVirtualIPs(t *C) {
 }
 
 func (ft *FacadeTest) Test_PoolCapacity(t *C) {
-	hostid := "host-id"
+	hostid := "deadb23f"
 	poolid := "pool-id"
 
 	//create pool for test

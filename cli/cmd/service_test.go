@@ -18,7 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"sort"
+	//	"sort"
 	"strings"
 	"testing"
 
@@ -94,7 +94,9 @@ type ServiceAPITest struct {
 }
 
 func InitServiceAPITest(args ...string) {
-	New(DefaultServiceAPITest).Run(args)
+	c := New(DefaultServiceAPITest)
+	c.exitDisabled = true
+	c.Run(args)
 }
 
 func (t ServiceAPITest) GetServices() ([]service.Service, error) {
@@ -740,9 +742,10 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 
 	// Output:
 	// service not found
+	// exit code 1
 }
 
-func ExampleServicedCLI_CmdServiceRun_list() {
+/*func ExampleServicedCLI_CmdServiceRun_list() {
 	output := pipe(InitServiceAPITest, "serviced", "service", "run", "test-service-1")
 	actual := strings.Split(string(output[:]), "\n")
 	sort.Strings(actual)
@@ -755,7 +758,7 @@ func ExampleServicedCLI_CmdServiceRun_list() {
 	// goodbye
 	// hello
 }
-
+*/
 func ExampleServicedCLI_CmdServiceRun_exec() {
 	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "hello", "-i")
 
@@ -792,6 +795,7 @@ func ExampleServicedCLI_CmdServiceRun_err() {
 
 	// Output:
 	// service not found
+	// exit code 1
 }
 
 func ExampleServicedCLI_CmdServiceRun_complete() {

@@ -14,11 +14,11 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 
@@ -73,7 +73,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 
 	// verify that there are no virtual IPs with the given host IP(s)
 	for _, ip := range entity.IPs {
-		if exists, err := f.hasVirtualIP(ctx, pool.ID, ip.IPAddress); err != nil {
+		if exists, err := f.HasIP(ctx, pool.ID, ip.IPAddress); err != nil {
 			return fmt.Errorf("error verifying ip %s exists: %v", ip.IPAddress, err)
 		} else if exists {
 			return fmt.Errorf("pool already has a virtual ip %s", ip.IPAddress)
@@ -144,29 +144,6 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		return fmt.Errorf("HostID %s does not exist", hostID)
 	}
 
-	//grab all services that are address assigned this HostID
-	query := []string{fmt.Sprintf("Endpoints.AddressAssignment.HostID:%s", hostID)}
-	services, err := f.GetTaggedServices(ctx, query)
-	if err != nil {
-		glog.Errorf("Failed to grab services with endpoints assigned to host %s: %s", _host.Name, err)
-		return err
-	}
-
-	//remove all service endpoint address assignments to this host
-	reassign := []string{}
-	for i := range services {
-		for j := range services[i].Endpoints {
-			aa := services[i].Endpoints[j].AddressAssignment
-			if aa.HostID == hostID && aa.AssignmentType == commons.STATIC {
-				//remove the services address assignment
-				if err = f.RemoveAddressAssignment(ctx, aa.ID); err != nil {
-					glog.Warningf("Failed to remove service %s:%s address assignment to host %s", services[i].Name, services[i].ID, hostID)
-				}
-				reassign = append(reassign, services[i].ID)
-			}
-		}
-	}
-
 	ec := newEventCtx()
 	defer f.afterEvent(afterHostDelete, ec, hostID, err)
 	if err = f.beforeEvent(beforeHostDelete, ec, hostID); err != nil {
@@ -183,16 +160,27 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 		return err
 	}
 
-	//update address assignments
-	for i := range reassign {
+	//grab all services that are address assigned the host's IPs
+	var services []service.Service
+	for _, ip := range _host.IPs {
+		query := []string{fmt.Sprintf("Endpoints.AddressAssignment.IPAddr:%s", ip.IPAddress)}
+		svcs, err := f.GetTaggedServices(ctx, query)
+		if err != nil {
+			glog.Errorf("Failed to grab services with endpoints assigned to ip %s on host %s: %s", ip.IPAddress, _host.Name, err)
+			return err
+		}
+		services = append(services, svcs...)
+	}
+
+	// update address assignments
+	for _, svc := range services {
 		request := dao.AssignmentRequest{
-			ServiceID:      reassign[i],
+			ServiceID:      svc.ID,
 			IPAddress:      "",
 			AutoAssignment: true,
 		}
 		if err = f.AssignIPs(ctx, request); err != nil {
-			glog.Warningf("Failed assigning another ip to service %s: %s", reassign[i], err)
-			f.StopService(ctx, dao.ScheduleServiceRequest{reassign[i], false})
+			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
 		}
 	}
 

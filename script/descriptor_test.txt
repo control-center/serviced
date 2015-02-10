@@ -1,0 +1,23 @@
+
+#comment
+DESCRIPTION  Zenoss RM 5.0.1 upgrade
+VERSION   resmgr-5.0.1
+DEPENDENCY 1.1
+REQUIRE_SVC
+SNAPSHOT
+
+#comment 2
+SVC_USE  zenoss/resmgr_5.0:5.0.1
+SVC_USE  zenoss/hbase:v5
+SVC_START Zenoss.core/MariaDB
+SVC_WAIT Zenoss.core/MariaDB started 30
+SVC_STOP Zenoss.core/MariaDB
+SVC_WAIT Zenoss.core/MariaDB stopped 0
+SVC_START Zenoss.core/MariaDB
+SVC_WAIT Zenoss.core/MariaDB started 30
+SVC_RESTART Zenoss.core/MariaDB
+SVC_WAIT Zenoss.core/MariaDB started 30
+SVC_RUN  Zenoss.core/Zope upgrade
+SVC_RUN  Zenoss.core/HBase/RegionServer upgrade arg1 arg2
+SVC_EXEC COMMIT Zenoss.core/Zope command1
+SVC_EXEC NO_COMMIT Zenoss.core/zenhub command2 with args

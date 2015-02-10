@@ -45,8 +45,7 @@ import (
 )
 
 const (
-	HOSTID    = "hostID"
-	HOSTIPSID = "HostIPsId"
+	HOSTID = "deadbeef"
 )
 
 var unused int
@@ -157,6 +156,7 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 	svc.Name = "default"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
 	err = dt.Dao.AddService(svc, &id)
 	if err != nil {
 		t.Errorf("Failure creating service %-v with error: %s", svc, err)
@@ -168,16 +168,24 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 		t.Errorf("Expected error creating redundant service %-v", svc)
 		t.Fail()
 	}
+
+	svc.ID = ""
+	err = dt.Dao.AddService(svc, &id)
+	if err == nil {
+		t.Errorf("Expected error creating service with same name and parent", svc)
+		t.Fail()
+	}
 }
 
 func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	dt.Dao.RemoveService("default", &unused)
 
 	svc, _ := service.NewService()
-	svc.ID = "default"
-	svc.Name = "default"
+	svc.ID = "default0"
+	svc.Name = "default0"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
 
@@ -189,7 +197,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	}
 
 	result := service.Service{}
-	dt.Dao.GetService("default", &result)
+	dt.Dao.GetService("default0", &result)
 	//XXX the time.Time types fail comparison despite being equal...
 	//	  as far as I can tell this is a limitation with Go
 	result.UpdatedAt = svc.UpdatedAt
@@ -198,13 +206,30 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
 		t.Fail()
 	}
+
+	svc, _ = service.NewService()
+	svc.ID = "default1"
+	svc.Name = "default1"
+	svc.PoolID = "default"
+	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
+	err = dt.Dao.AddService(*svc, &id)
+	t.Assert(err, IsNil)
+
+	svc.Name = "name"
+	err = dt.Dao.UpdateService(*svc, &unused)
+	if err == nil {
+		t.Errorf("Expected error updating service with same name and parent", svc)
+		t.Fail()
+	}
 }
 func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	svc, _ := service.NewService()
 	svc.ID = "default"
-	svc.Name = "default"
+	svc.Name = "default0"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
 
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
@@ -221,9 +246,10 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	//test update conf file works
 	svc, _ = service.NewService()
 	svc.ID = "default_conf"
-	svc.Name = "default"
+	svc.Name = "default1"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
 	svc.OriginalConfigs = map[string]servicedefinition.ConfigFile{"testname": confFile}
 
 	err = dt.Dao.AddService(*svc, &id)
@@ -260,6 +286,7 @@ func (dt *DaoTest) TestDao_GetService(t *C) {
 	svc.Name = "testname"
 	svc.PoolID = "default"
 	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
 	err := dt.Dao.AddService(*svc, &id)
 	t.Assert(err, IsNil)
 
@@ -280,6 +307,7 @@ func (dt *DaoTest) TestDao_GetServices(t *C) {
 	svc.ID = "default"
 	svc.Name = "name"
 	svc.PoolID = "default"
+	svc.DeploymentID = "deployment_id"
 	svc.Launch = "auto"
 	svc.Description = "description"
 	svc.Instances = 0
@@ -312,6 +340,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		InstanceLimits: domain.MinMax{1, 1, 1},
 		ImageID:        "test/pinger",
 		PoolID:         "default",
+		DeploymentID:   "deployment_id",
 		DesiredState:   int(service.SVCRun),
 		Launch:         "auto",
 		Endpoints:      []service.ServiceEndpoint{},
@@ -323,6 +352,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Name:            "childservice1",
 		Launch:          "auto",
 		PoolID:          "default",
+		DeploymentID:    "deployment_id",
 		Startup:         "/bin/sh -c \"while true; do echo hello world 10; sleep 3; done\"",
 		ParentServiceID: "ParentServiceID",
 	}
@@ -331,6 +361,7 @@ func (dt *DaoTest) TestStoppingParentStopsChildren(t *C) {
 		Name:            "childservice2",
 		Launch:          "auto",
 		PoolID:          "default",
+		DeploymentID:    "deployment_id",
 		Startup:         "/bin/sh -c \"while true; do echo date 10; sleep 3; done\"",
 		ParentServiceID: "ParentServiceID",
 	}
@@ -374,30 +405,35 @@ func (dt *DaoTest) TestDao_StartService(t *C) {
 
 	s0, _ := service.NewService()
 	s0.ID = "0"
-	s0.Name = "name"
+	s0.Name = "name0"
 	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.DesiredState = int(service.SVCStop)
+	s0.DeploymentID = "deployment_id"
 
 	s01, _ := service.NewService()
 	s01.ID = "01"
-	s01.Name = "name"
+	s01.Name = "name1"
 	s01.PoolID = "default"
 	s01.Launch = "auto"
 	s01.ParentServiceID = "0"
 	s01.DesiredState = int(service.SVCStop)
+	s01.DeploymentID = "deployment_id"
 
 	s011, _ := service.NewService()
 	s011.ID = "011"
-	s011.Name = "name"
+	s011.Name = "name2"
 	s011.PoolID = "default"
 	s011.Launch = "auto"
 	s011.ParentServiceID = "01"
 	s011.DesiredState = int(service.SVCStop)
+	s011.DeploymentID = "deployment_id"
 
 	s02, _ := service.NewService()
 	s02.ID = "02"
-	s02.Name = "name"
+	s02.Name = "name3"
+	s02.DeploymentID = "deployment_id2"
+
 	s02.PoolID = "default"
 	s02.Launch = "auto"
 	s02.ParentServiceID = "0"
@@ -453,24 +489,27 @@ func (dt *DaoTest) TestDao_GetTenantId(t *C) {
 	}
 
 	s0, _ := service.NewService()
-	s0.Name = "name"
+	s0.Name = "name0"
 	s0.PoolID = "default"
 	s0.Launch = "auto"
 	s0.ID = "0"
+	s0.DeploymentID = "deployment_id"
 
 	s01, _ := service.NewService()
 	s01.ID = "01"
 	s01.ParentServiceID = "0"
-	s01.Name = "name"
+	s01.Name = "name1"
 	s01.PoolID = "default"
 	s01.Launch = "auto"
+	s01.DeploymentID = "deployment_id"
 
 	s011, _ := service.NewService()
 	s011.ID = "011"
 	s011.ParentServiceID = "01"
-	s011.Name = "name"
+	s011.Name = "name2"
 	s011.PoolID = "default"
 	s011.Launch = "auto"
+	s011.DeploymentID = "deployment_id"
 
 	err = dt.Dao.AddService(*s0, &id)
 	t.Assert(err, IsNil)
@@ -536,10 +575,11 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	}
 
 	testService := service.Service{
-		ID:     "assignIPsServiceID",
-		Name:   "testsvc",
-		Launch: "auto",
-		PoolID: assignIPsPool.ID,
+		ID:           "assignIPsServiceID",
+		Name:         "testsvc",
+		Launch:       "auto",
+		PoolID:       assignIPsPool.ID,
+		DeploymentID: "deployment_id",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
 				EndpointDefinition: servicedefinition.EndpointDefinition{

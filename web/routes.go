@@ -21,92 +21,95 @@ import (
 //getRoutes returns all registered rest routes
 func (sc *ServiceConfig) getRoutes() []rest.Route {
 
+	gz := gzipHandler
+
 	routes := []rest.Route{
-		rest.Route{"GET", "/", mainPage},
-		rest.Route{"GET", "/test", testPage},
-		rest.Route{"GET", "/stats", sc.isCollectingStats()},
-		rest.Route{"GET", "/version", sc.authorizedClient(restGetServicedVersion)},
-		rest.Route{"GET", "/backup/create", sc.authorizedClient(RestBackupCreate)},
-		rest.Route{"GET", "/backup/restore", sc.authorizedClient(RestBackupRestore)},
-		rest.Route{"GET", "/backup/list", sc.checkAuth(RestBackupFileList)},
-		rest.Route{"GET", "/backup/status", sc.authorizedClient(RestBackupStatus)},
-		rest.Route{"GET", "/backup/restore/status", sc.authorizedClient(RestRestoreStatus)},
+		rest.Route{"GET", "/", gz(mainPage)},
+		rest.Route{"GET", "/test", gz(testPage)},
+		rest.Route{"GET", "/stats", gz(sc.isCollectingStats())},
+		rest.Route{"GET", "/version", gz(sc.authorizedClient(restGetServicedVersion))},
+		rest.Route{"GET", "/backup/create", gz(sc.authorizedClient(RestBackupCreate))},
+		rest.Route{"GET", "/backup/restore", gz(sc.authorizedClient(RestBackupRestore))},
+		rest.Route{"GET", "/backup/list", gz(sc.authorizedClient(RestBackupFileList))},
+		rest.Route{"GET", "/backup/status", gz(sc.authorizedClient(RestBackupStatus))},
+		rest.Route{"GET", "/backup/restore/status", gz(sc.authorizedClient(RestRestoreStatus))},
 		// Hosts
-		rest.Route{"GET", "/hosts", sc.checkAuth(restGetHosts)},
-		rest.Route{"GET", "/hosts/running", sc.checkAuth(restGetActiveHostIDs)},
-		rest.Route{"GET", "/hosts/defaultHostAlias", sc.checkAuth(restGetDefaultHostAlias)},
-		rest.Route{"GET", "/hosts/:hostId", sc.checkAuth(restGetHost)},
-		rest.Route{"POST", "/hosts/add", sc.checkAuth(restAddHost)},
-		rest.Route{"DELETE", "/hosts/:hostId", sc.checkAuth(restRemoveHost)},
-		rest.Route{"PUT", "/hosts/:hostId", sc.checkAuth(restUpdateHost)},
-		rest.Route{"GET", "/hosts/:hostId/running", sc.authorizedClient(restGetRunningForHost)},
-		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", sc.authorizedClient(restKillRunning)},
+		rest.Route{"GET", "/hosts", gz(sc.checkAuth(restGetHosts))},
+		rest.Route{"GET", "/hosts/running", gz(sc.checkAuth(restGetActiveHostIDs))},
+		rest.Route{"GET", "/hosts/defaultHostAlias", gz(sc.checkAuth(restGetDefaultHostAlias))},
+		rest.Route{"GET", "/hosts/:hostId", gz(sc.checkAuth(restGetHost))},
+		rest.Route{"POST", "/hosts/add", gz(sc.checkAuth(restAddHost))},
+		rest.Route{"DELETE", "/hosts/:hostId", gz(sc.checkAuth(restRemoveHost))},
+		rest.Route{"PUT", "/hosts/:hostId", gz(sc.checkAuth(restUpdateHost))},
+		rest.Route{"GET", "/hosts/:hostId/running", gz(sc.authorizedClient(restGetRunningForHost))},
+		rest.Route{"DELETE", "/hosts/:hostId/:serviceStateId", gz(sc.authorizedClient(restKillRunning))},
 
 		// Pools
-		rest.Route{"GET", "/pools/:poolId", sc.checkAuth(restGetPool)},
-		rest.Route{"DELETE", "/pools/:poolId", sc.checkAuth(restRemovePool)},
-		rest.Route{"PUT", "/pools/:poolId", sc.checkAuth(restUpdatePool)},
-		rest.Route{"POST", "/pools/add", sc.checkAuth(restAddPool)},
-		rest.Route{"GET", "/pools", sc.checkAuth(restGetPools)},
-		rest.Route{"GET", "/pools/:poolId/hosts", sc.checkAuth(restGetHostsForResourcePool)},
+		rest.Route{"GET", "/pools/:poolId", gz(sc.checkAuth(restGetPool))},
+		rest.Route{"DELETE", "/pools/:poolId", gz(sc.checkAuth(restRemovePool))},
+		rest.Route{"PUT", "/pools/:poolId", gz(sc.checkAuth(restUpdatePool))},
+		rest.Route{"POST", "/pools/add", gz(sc.checkAuth(restAddPool))},
+		rest.Route{"GET", "/pools", gz(sc.checkAuth(restGetPools))},
+		rest.Route{"GET", "/pools/:poolId/hosts", gz(sc.checkAuth(restGetHostsForResourcePool))},
 
 		// Pools (VirtualIP)
-		rest.Route{"PUT", "/pools/:poolId/virtualip", sc.checkAuth(restAddPoolVirtualIP)},
-		rest.Route{"DELETE", "/pools/:poolId/virtualip/*ip", sc.checkAuth(restRemovePoolVirtualIP)},
+		rest.Route{"PUT", "/pools/:poolId/virtualip", gz(sc.checkAuth(restAddPoolVirtualIP))},
+		rest.Route{"DELETE", "/pools/:poolId/virtualip/*ip", gz(sc.checkAuth(restRemovePoolVirtualIP))},
 
 		// Pools (IPs)
-		rest.Route{"GET", "/pools/:poolId/ips", sc.checkAuth(restGetPoolIps)},
+		rest.Route{"GET", "/pools/:poolId/ips", gz(sc.checkAuth(restGetPoolIps))},
 
 		// Services (Apps)
-		rest.Route{"GET", "/services", sc.authorizedClient(restGetAllServices)},
-		rest.Route{"GET", "/servicehealth", sc.authorizedClient(health.RestGetHealthStatus)},
-		rest.Route{"GET", "/services/:serviceId", sc.authorizedClient(restGetService)},
-		rest.Route{"GET", "/services/:serviceId/running", sc.authorizedClient(restGetRunningForService)},
-		rest.Route{"GET", "/services/:serviceId/status", sc.authorizedClient(restGetStatusForService)},
-		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", sc.authorizedClient(restGetRunningService)},
-		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", sc.authorizedClient(restGetServiceStateLogs)},
-		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs/download", sc.authorizedClient(downloadServiceStateLogs)},
-		rest.Route{"POST", "/services/add", sc.authorizedClient(restAddService)},
-		rest.Route{"POST", "/services/deploy", sc.authorizedClient(restDeployService)},
-		rest.Route{"DELETE", "/services/:serviceId", sc.authorizedClient(restRemoveService)},
-		rest.Route{"GET", "/services/:serviceId/logs", sc.authorizedClient(restGetServiceLogs)},
-		rest.Route{"PUT", "/services/:serviceId", sc.authorizedClient(restUpdateService)},
-		rest.Route{"GET", "/services/:serviceId/snapshot", sc.authorizedClient(restSnapshotService)},
-		rest.Route{"PUT", "/services/:serviceId/restartService", sc.authorizedClient(restRestartService)},
-		rest.Route{"PUT", "/services/:serviceId/startService", sc.authorizedClient(restStartService)},
-		rest.Route{"PUT", "/services/:serviceId/stopService", sc.authorizedClient(restStopService)},
+		rest.Route{"GET", "/services", gz(sc.authorizedClient(restGetAllServices))},
+		rest.Route{"GET", "/servicehealth", gz(sc.authorizedClient(health.RestGetHealthStatus))},
+		rest.Route{"GET", "/services/:serviceId", gz(sc.authorizedClient(restGetService))},
+		rest.Route{"GET", "/services/:serviceId/running", gz(sc.authorizedClient(restGetRunningForService))},
+		rest.Route{"GET", "/services/:serviceId/status", gz(sc.authorizedClient(restGetStatusForService))},
+		rest.Route{"GET", "/services/:serviceId/running/:serviceStateId", gz(sc.authorizedClient(restGetRunningService))},
+		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs", gz(sc.authorizedClient(restGetServiceStateLogs))},
+		rest.Route{"GET", "/services/:serviceId/:serviceStateId/logs/download", gz(sc.authorizedClient(downloadServiceStateLogs))},
+		rest.Route{"POST", "/services/add", gz(sc.authorizedClient(restAddService))},
+		rest.Route{"POST", "/services/deploy", gz(sc.authorizedClient(restDeployService))},
+		rest.Route{"DELETE", "/services/:serviceId", gz(sc.authorizedClient(restRemoveService))},
+		rest.Route{"GET", "/services/:serviceId/logs", gz(sc.authorizedClient(restGetServiceLogs))},
+		rest.Route{"PUT", "/services/:serviceId", gz(sc.authorizedClient(restUpdateService))},
+		rest.Route{"GET", "/services/:serviceId/snapshot", gz(sc.authorizedClient(restSnapshotService))},
+		rest.Route{"PUT", "/services/:serviceId/restartService", gz(sc.authorizedClient(restRestartService))},
+		rest.Route{"PUT", "/services/:serviceId/startService", gz(sc.authorizedClient(restStartService))},
+		rest.Route{"PUT", "/services/:serviceId/stopService", gz(sc.authorizedClient(restStopService))},
 
 		// Services (Virtual Host)
-		rest.Route{"GET", "/services/vhosts", sc.authorizedClient(restGetVirtualHosts)},
-		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.authorizedClient(restAddVirtualHost)},
-		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", sc.authorizedClient(restRemoveVirtualHost)},
+		rest.Route{"GET", "/services/vhosts", gz(sc.authorizedClient(restGetVirtualHosts))},
+		rest.Route{"PUT", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.authorizedClient(restAddVirtualHost))},
+		rest.Route{"DELETE", "/services/:serviceId/endpoint/:application/vhosts/*name", gz(sc.authorizedClient(restRemoveVirtualHost))},
 
 		// Services (IP)
-		rest.Route{"PUT", "/services/:serviceId/ip", sc.authorizedClient(restServiceAutomaticAssignIP)},
-		rest.Route{"PUT", "/services/:serviceId/ip/*ip", sc.authorizedClient(restServiceManualAssignIP)},
+		rest.Route{"PUT", "/services/:serviceId/ip", gz(sc.authorizedClient(restServiceAutomaticAssignIP))},
+		rest.Route{"PUT", "/services/:serviceId/ip/*ip", gz(sc.authorizedClient(restServiceManualAssignIP))},
 
 		// Service templates (App templates)
-		rest.Route{"GET", "/templates", sc.authorizedClient(restGetAppTemplates)},
-		rest.Route{"POST", "/templates/add", sc.authorizedClient(restAddAppTemplate)},
-		rest.Route{"DELETE", "/templates/:templateId", sc.authorizedClient(restRemoveAppTemplate)},
-		rest.Route{"POST", "/templates/deploy", sc.authorizedClient(restDeployAppTemplate)},
-		rest.Route{"POST", "/templates/deploy/status", sc.authorizedClient(restDeployAppTemplateStatus)},
-		rest.Route{"GET", "/templates/deploy/active", sc.authorizedClient(restDeployAppTemplateActive)},
+		rest.Route{"GET", "/templates", gz(sc.authorizedClient(restGetAppTemplates))},
+		rest.Route{"POST", "/templates/add", gz(sc.authorizedClient(restAddAppTemplate))},
+		rest.Route{"DELETE", "/templates/:templateId", gz(sc.authorizedClient(restRemoveAppTemplate))},
+		rest.Route{"POST", "/templates/deploy", gz(sc.authorizedClient(restDeployAppTemplate))},
+		rest.Route{"POST", "/templates/deploy/status", gz(sc.authorizedClient(restDeployAppTemplateStatus))},
+		rest.Route{"GET", "/templates/deploy/active", gz(sc.authorizedClient(restDeployAppTemplateActive))},
 
 		// Login
-		rest.Route{"POST", "/login", sc.unAuthorizedClient(restLogin)},
-		rest.Route{"DELETE", "/login", restLogout},
+		rest.Route{"POST", "/login", gz(sc.unAuthorizedClient(restLogin))},
+		rest.Route{"DELETE", "/login", gz(restLogout)},
 
 		// DockerLogin
-		rest.Route{"GET", "/dockerIsLoggedIn", sc.authorizedClient(restDockerIsLoggedIn)},
+		rest.Route{"GET", "/dockerIsLoggedIn", gz(sc.authorizedClient(restDockerIsLoggedIn))},
 
 		// "Misc" stuff
-		rest.Route{"GET", "/top/services", sc.authorizedClient(restGetTopServices)},
-		rest.Route{"GET", "/running", sc.authorizedClient(restGetAllRunning)},
+		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
+		rest.Route{"GET", "/running", gz(sc.authorizedClient(restGetAllRunning))},
 
 		// Generic static data
-		rest.Route{"GET", "/favicon.ico", favIcon},
-		rest.Route{"GET", "/static*resource", staticData},
+		rest.Route{"GET", "/favicon.ico", gz(favIcon)},
+		rest.Route{"GET", "/static/*resource", gz(staticData)},
+		rest.Route{"GET", "/licenses.html", gz(licenses)},
 	}
 
 	// Hardcoding these target URLs for now.

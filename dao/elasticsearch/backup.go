@@ -14,6 +14,7 @@
 package elasticsearch
 
 import (
+	"github.com/control-center/serviced/dao"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -23,12 +24,18 @@ import (
 
 var backupError = make(chan error)
 
+// ListBackups lists the backup files in a given directory
+func (this *ControlPlaneDao) ListBackups(dirpath string, files *[]dao.BackupFile) (err error) {
+	*files, err = this.dfs.ListBackups(dirpath)
+	return
+}
+
 // Backup saves templates, services, and snapshots into a tgz file
 func (this *ControlPlaneDao) Backup(dirpath string, filename *string) error {
 	this.dfs.Lock()
 	defer this.dfs.Unlock()
 	var err error
-	*filename, err = this.dfs.Backup(dirpath)
+	*filename, err = this.dfs.Backup(dirpath, 0)
 	return err
 }
 

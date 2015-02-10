@@ -17,7 +17,7 @@
 
 NAME          ?= serviced
 VERSION       ?= $(shell cat ../VERSION)
-RELEASE_PHASE ?=
+RELEASE_PHASE ?= # ALPHA1, BETA1, BETA2, CR1, GA
 GIT_COMMIT   ?= $(shell ./gitstatus.sh)
 SUBPRODUCT    ?=
 MAINTAINER    ="Zenoss CM <cm@zenoss.com>"
@@ -34,10 +34,31 @@ URL           = http://controlcenter.io/
 DEB_PRIORITY  = extra
 CATEGORY      = admin
 
-ifeq "$(BUILD_NUMBER)" ""
-PKG_VERSION = $(VERSION)$(RELEASE_PHASE)
+# Package versions will follow the following idiom:
+#   
+#   BUILD_NUMBER=1234
+#   RELEASE_PHASE=#ignored
+#   NIGHTLY: serviced-1.0.0-0.0.1234.unstable (where 1234 is the build number)
+#
+#   RELEASE_PHASE=ALPHA1
+#   BUILD_NUMBER=#ignored
+#   TESTING: serviced-1.0.0-0.1.ALPHA1 (where ALPHA1 is the release phase.  Could be any of
+#                                       ALPHA#, BETA#, CR#, or GA)
+#
+#   RELEASE_PHASE=GA
+#   BUILD_NUMBER=#ignored
+#   STABLE:  serviced-1.0.0-1 (this is special, and will result in a '1' REVISION)
+
+PKG_VERSION = $(VERSION)
+ifeq "$(RELEASE_PHASE)" ""
+    ITERATION = 0.0.$(BUILD_NUMBER).unstable
 else
-PKG_VERSION = $(VERSION)$(RELEASE_PHASE)-$(BUILD_NUMBER)
+    # Included a RELEASE_PHASE - assume NOT a nightly build
+    ifeq "$(RELEASE_PHASE)" "GA"
+        ITERATION = 1
+    else
+        ITERATION = 0.1.$(RELEASE_PHASE)
+    endif
 endif
 
 ifeq "$(SUBPRODUCT)" ""
@@ -130,11 +151,12 @@ deb: stage_deb
 	fpm \
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION)~$$(lsb_release -cs) \
+		--iteration $(ITERATION) \
 		-s dir \
 		-d nfs-kernel-server \
 		-d net-tools \
 		-d nfs-common \
-		-d 'lxc-docker >= 1.3.0' \
+		-d 'lxc-docker-1.3.3' \
 		-d logrotate \
 		-t deb \
 		-a x86_64 \
@@ -148,6 +170,7 @@ deb: stage_deb
 		--vendor $(VENDOR) \
 		--url $(URL) \
 		--category $(CATEGORY) \
+		--after-install deb/postinstall \
 		--config-files /etc/default/serviced \
 		.
 
@@ -156,12 +179,13 @@ rpm: stage_rpm
 	fpm \
 		-n $(FULL_NAME) \
 		-v $(PKG_VERSION) \
+		--iteration $(ITERATION) \
 		-s dir \
 		-d nfs-utils \
 		-d net-tools \
 		-d util-linux \
 		-d bash-completion \
-		-d 'docker >= 1.3.0' \
+		-d 'zenoss-docker = 1.3.3' \
 		-d logrotate \
 		-t rpm \
 		-a x86_64 \

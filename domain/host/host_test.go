@@ -66,7 +66,7 @@ func init() {
 		validateCase{"hostid", 65535, "poolid", "127.0.0.1", []string{"host ip can not be a loopback address"}},
 		validateCase{"hostid", -1, "poolid", ip, []string{"not in valid port range: -1"}},
 		validateCase{"hostid", 65536, "poolid", ip, []string{"not in valid port range: 65536"}},
-		validateCase{"hostid", 65535, "poolid", ip, []string{}},
+		validateCase{"deadb30f", 65535, "poolid", ip, []string{}},
 	}
 
 }
@@ -82,12 +82,12 @@ func Test_ValidateTable(t *testing.T) {
 		err := h.ValidEntity()
 		if len(test.expectedErrors) > 0 {
 			if verr, isVErr := err.(*validation.ValidationError); !isVErr {
-				t.Errorf("expected ValidationError, got %v", err)
+				t.Errorf("expected ValidationError for case %v, got %v", idx, err)
 			} else if !containsAll(verr, test.expectedErrors...) {
 				t.Errorf("Did not find expected errors for case %v, %v", idx, verr)
 			}
 		} else if err != nil {
-			t.Errorf("Unexpected error testig case %v: %v", test, err)
+			t.Errorf("Unexpected error testig case %v %v: %v", idx, test, err)
 		}
 
 	}

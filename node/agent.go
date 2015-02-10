@@ -38,19 +38,19 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/commons/iptables"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
-	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
@@ -86,9 +86,10 @@ type HostAgent struct {
 	useTLS               bool // Whether the mux uses TLS
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string        // the docker registry to use
-	maxContainerAge      time.Duration // maximum age for a stopped container before it is removed
-	virtualAddressSubnet string        // subnet for virtual addresses
+	dockerRegistry       string          // the docker registry to use
+	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
+	virtualAddressSubnet string          // subnet for virtual addresses
+	servicedChain        *iptables.Chain // Assigned IP rule chain
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -141,6 +142,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
+	agent.servicedChain = iptables.NewChain("SERVICED")
 
 	dsn := getZkDSN(options.Zookeepers)
 	basePath := ""
@@ -199,19 +201,19 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 }
 
 // AttachService attempts to attach to a running container
-func (a *HostAgent) AttachService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	ctr, err := docker.FindContainer(state.DockerID)
 	if err != nil {
 		return err
 	}
 
 	if !ctr.IsRunning() {
-		close(done)
+		defer exited(state.ID)
 		return nil
 	}
 
 	ctr.OnEvent(docker.Die, func(cid string) {
-		defer close(done)
+		defer exited(state.ID)
 		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
 		state.DockerID = cid
 		a.removeInstance(state.ID, ctr)
@@ -355,7 +357,7 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 }
 
 // StartService starts a new instance of the specified service and updates the control center state accordingly.
-func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, state *servicestate.ServiceState) error {
+func (a *HostAgent) StartService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
@@ -405,7 +407,7 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 	})
 
 	ctr.OnEvent(docker.Die, func(cid string) {
-		defer close(done)
+		defer exited(state.ID)
 		glog.Infof("Instance %s (%s) for %s (%s) has died", state.ID, ctr.ID, svc.Name, svc.ID)
 		state.DockerID = cid
 		a.removeInstance(state.ID, ctr)
@@ -428,18 +430,41 @@ func (a *HostAgent) StartService(done chan<- interface{}, svc *service.Service, 
 	return nil
 }
 
+func manageTransparentProxy(endpoint *service.ServiceEndpoint, addressConfig *addressassignment.AddressAssignment, ctr *docker.Container, isDelete bool) error {
+	var appendOrDeleteFlag string
+	if isDelete {
+		appendOrDeleteFlag = "-D"
+	} else {
+		appendOrDeleteFlag = "-A"
+	}
+	return exec.Command(
+		"iptables",
+		"-t", "nat",
+		appendOrDeleteFlag, "PREROUTING",
+		"-d", fmt.Sprintf("%s", addressConfig.IPAddr),
+		"-p", endpoint.Protocol,
+		"--dport", fmt.Sprintf("%d", addressConfig.Port),
+		"-j", "DNAT",
+		"--to-destination", fmt.Sprintf("%s:%d", ctr.NetworkSettings.IPAddress, endpoint.PortNumber),
+	).Run()
+}
+
 func (a *HostAgent) setProxy(svc *service.Service, ctr *docker.Container) {
 	glog.V(4).Infof("Looking for address assignment in service %s (%s)", svc.Name, svc.ID)
 	for _, endpoint := range svc.Endpoints {
 		if addressConfig := endpoint.GetAssignment(); addressConfig != nil {
 			glog.V(4).Infof("Found address assignment for %s: %s endpoint %s", svc.Name, svc.ID, endpoint.Name)
-			proxyID := fmt.Sprintf("%v:%v", svc.ID, endpoint.Name)
-			frontEnd := proxy.ProxyAddress{IP: addressConfig.IPAddr, Port: addressConfig.Port}
-			backEnd := proxy.ProxyAddress{IP: ctr.NetworkSettings.IPAddress, Port: endpoint.PortNumber}
-			if err := a.proxyRegistry.CreateProxy(proxyID, endpoint.Protocol, frontEnd, backEnd); err != nil {
-				glog.Warningf("Could not start External address proxy for %s: %s", proxyID, err)
+			frontendAddress := iptables.NewAddress(addressConfig.IPAddr, int(addressConfig.Port))
+			backendAddress := iptables.NewAddress(ctr.NetworkSettings.IPAddress, int(endpoint.PortNumber))
+
+			if err := a.servicedChain.Forward(iptables.Add, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
+				glog.Warningf("Could not start external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
 			}
-			defer a.proxyRegistry.RemoveProxy(proxyID)
+			defer func() {
+				if err := a.servicedChain.Forward(iptables.Delete, endpoint.Protocol, frontendAddress, backendAddress); err != nil {
+					glog.Warningf("Could not remove external address proxy for %s:%s: %s", svc.ID, endpoint.Name, err)
+				}
+			}()
 		}
 	}
 	ctr.Wait(time.Hour * 24 * 365)
@@ -500,6 +525,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	err := client.GetTenantId(svc.ID, &tenantID)
 	if err != nil {
 		glog.Errorf("Failed getting tenantID for service: %s, %s", svc.ID, err)
+		return nil, nil, err
 	}
 
 	// get the system user
@@ -508,6 +534,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	err = client.GetSystemUser(unused, &systemUser)
 	if err != nil {
 		glog.Errorf("Unable to get system user account for agent %s", err)
+		return nil, nil, err
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
@@ -575,7 +602,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 		resourcePath, err := a.setupVolume(tenantID, svc, volume)
 		if err != nil {
-			glog.Fatalf("%s", err)
+			return nil, nil, err
 		}
 
 		binding := fmt.Sprintf("%s:%s", resourcePath, volume.ContainerPath)
@@ -740,25 +767,11 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 
 	if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
+		return "", err
 	}
 
 	glog.V(4).Infof("resourcePath: %s  containerPath: %s", resourcePath, volume.ContainerPath)
 	return resourcePath, nil
-}
-
-func (a *HostAgent) GetHost(hostID string) (*host.Host, error) {
-	rpcMaster, err := master.NewClient(a.master)
-	if err != nil {
-		glog.Errorf("Failed to get RPC master: %v", err)
-		return nil, err
-	}
-	defer rpcMaster.Close()
-	myHost, err := rpcMaster.GetHost(hostID)
-	if err != nil {
-		glog.Errorf("Could not get host %s: %s", hostID, err)
-		return nil, err
-	}
-	return myHost, nil
 }
 
 // main loop of the HostAgent
@@ -779,6 +792,23 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		glog.Info("reapOldContainersLoop Done")
 		wg.Done()
 	}()
+
+	// Increase the number of maximal tracked connections for iptables
+	maxConnections := "655360"
+	if cnxns := strings.TrimSpace(os.Getenv("SERVICED_IPTABLES_MAX_CONNECTIONS")); cnxns != "" {
+		maxConnections = cnxns
+	}
+	glog.Infof("Set sysctl maximum tracked connections for iptables to %s", maxConnections)
+	utils.SetSysctl("net.netfilter.nf_conntrack_max", maxConnections)
+
+	// Clean up any extant iptables chain, just in case
+	a.servicedChain.Remove()
+	// Add our chain for assigned IP rules
+	if err := a.servicedChain.Inject(); err != nil {
+		glog.Errorf("Error creating SERVICED iptables chain (%v)", err)
+	}
+	// Clean up when we're done
+	defer a.servicedChain.Remove()
 
 	for {
 		// handle shutdown if we are waiting for a zk connection

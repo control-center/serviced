@@ -16,7 +16,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-json-rest",
-			"Rev": "1721ad108b7979cee909f98c7f0cb7f5b93a87f8"
+			"Rev": "a533e72f5f1d6e4129feda0dadb0804bf47ed36a"
 		},
 		{
 			"ImportPath": "github.com/googollee/go-socket.io",
@@ -37,8 +37,8 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/proxy",
-			"Comment": "v1.3.0-c78088f",
-			"Rev": "c78088fe3d1b90640c637d8c3457de3caa0c7a24"
+			"Comment": "v1.3.2-39fa2fa",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
 		},
 		{
 			"ImportPath": "github.com/syndtr/gocapability/capability",
@@ -73,8 +73,8 @@
 			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
-			"ImportPath": "github.com/samuel/go-zookeeper/zk",
-			"Rev": "897888e14f7bd6c1c9a70e2973d0f5fbdb28bde0"
+			"ImportPath": "github.com/control-center/go-zookeeper/zk",
+			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
@@ -98,32 +98,28 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/dockerversion",
-			"Comment": "v1.3.0-c78088f",
-			"Rev": "c78088fe3d1b90640c637d8c3457de3caa0c7a24"
+			"Comment": "v1.3.2-39fa2fa",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/term",
-			"Comment": "v1.3.0-c78088f",
-			"Comment": "v1.0.0-1-gd993975",
-			"Rev": "c78088fe3d1b90640c637d8c3457de3caa0c7a24"
+			"Comment": "v1.3.2-39fa2fa",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/units",
-			"Comment": "v1.3.0-c78088f",
-			"Comment": "v1.0.0-1-gd993975",
-			"Rev": "c78088fe3d1b90640c637d8c3457de3caa0c7a24"
+			"Comment": "v1.3.2-39fa2fa",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/utils",
-			"Comment": "v1.3.0-c78088f",
-			"Comment": "v1.0.0-1-gd993975",
-			"Rev": "c78088fe3d1b90640c637d8c3457de3caa0c7a24"
+			"Comment": "v1.3.2-39fa2fa",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
-			"Comment": "v1.3.0-c78088f",
-			"Comment": "v1.0.0-1-gd993975",
-			"Rev": "c78088fe3d1b90640c637d8c3457de3caa0c7a24"
+			"Comment": "v1.3.2-39fa2fa",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
 		},
 		{
 			"ImportPath": "github.com/gorilla/context",

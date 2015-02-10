@@ -129,12 +129,7 @@ table > thead.light {
     border: 0px;
 }
 
-.table-striped > tbody > tr:nth-child(even) > td,
-.table-striped > tbody > tr:nth-child(even) > th {
-    background-color: white;
-}
-.table-striped > tbody > tr:nth-child(odd) > td,
-.table-striped > tbody > tr:nth-child(odd) > th {
+.table > tbody > tr:hover > td {
     background-color: #F0F3F7;
 }
 
@@ -375,6 +370,17 @@ table .btn,
     color: #cccccc;
     content: "\00a0/"; /* reverse order of space and separator */
 }
+.breadcrumb .crumb {
+    color: #AAA;
+}
+.breadcrumb .crumb:hover {
+    color: #666;
+}
+.breadcrumb .crumb.current {
+    font-weight: bold;
+    color: #666;
+}
+
 .highlighted {
     background-color: #d0d0d0;
     font-weight: bold
@@ -445,15 +451,6 @@ table .glyphicon {
     width: 100%;
     height: 100%;
     background: url("../img/theMcKrakenBG1.png") #516685;
-}
-.fancyMcKraken {
-    position: absolute;
-    left: -80px;
-    top: 35px;
-    transform: rotate(18deg);
-    -webkit-transform: rotate(18deg);
-    -moz-transform: rotate(18deg);
-    -ms-transform: rotate(18deg);
 }
 .nav-tree {
     list-style: none;
@@ -943,13 +940,30 @@ rect {
     margin-top: 20px;
 }
 
+/* health and status popover content */
 .popover{
     max-width: none;
+    line-height: 1.5;
 }
 
 .popover table{
     white-space: nowrap;
 }
+.popover .healthTooltipDetailRow {
+    position: relative;
+    font-size: 12px;
+}
+.popover .healthTooltipDetailRow .healthTooltipDetailName {
+    display: inline-block;
+}
+.popover .healthTooltipDetailRow .healthIcon {
+    top: 1px;
+    font-size: 15px;
+}
+.popover .healthTooltipDetailRow .healthTooltipDetailName {
+    padding-left: 18px;
+}
+
 
 .chartContainer {
   position: relative;
@@ -1053,7 +1067,6 @@ rect {
     position: absolute;
     top: 50px;
     width: 100%;
-    opacity: 0.9;
     z-index: 999;
 }
 
@@ -1292,20 +1305,6 @@ rect {
     content: "\e082";
 }
 
-.healthTooltipDetailRow {
-    position: relative;
-    font-size: 12px;
-}
-.healthTooltipDetailRow .healthTooltipDetailName {
-    display: inline-block;
-}
-.healthTooltipDetailRow .healthIcon {
-    top: 1px;
-    font-size: 15px;
-}
-.healthTooltipDetailRow .healthTooltipDetailName {
-    padding-left: 18px;
-}
 
 h3 .healthCheck {
     top: 2px;
@@ -1613,4 +1612,117 @@ input[type=file] {
 
 .modal .big .CodeMirror {
     height: 500px;
+}
+
+/* sticky service controls */
+.serviceDetails {
+    margin-bottom: 20px;
+    height: 93px;
+}
+.serviceDetails .serviceControls {
+    height: 45px;
+    position: relative;
+    border-bottom: solid 1px #0084DB;
+    background-color: white;
+    z-index:100;
+    padding: 4px 0;
+}
+.serviceDetails .serviceActions {
+    position: absolute;
+    right: 0;
+    bottom: 4px;
+}
+.serviceDetails .serviceTitle {
+    position: relative;
+    margin: 0;
+}
+.serviceDetails .serviceDescription {
+    padding: 4px;
+    color: #999;
+}
+.serviceDetails .serviceBoxGradient {
+    opacity: 0;
+    height: 7px;
+    position: absolute;
+    left: 0;
+    bottom: -8px;
+    width: 100%;
+
+    background: -moz-linear-gradient(top,  rgba(0,0,0,0.3) 0%, rgba(0,0,0,0) 100%); /* FF3.6+ */
+    background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(0,0,0,0.3)), color-stop(100%,rgba(0,0,0,0))); /* Chrome,Safari4+ */
+    background: -webkit-linear-gradient(top,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* Chrome10+,Safari5.1+ */
+    background: -o-linear-gradient(top,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* Opera 11.10+ */
+    background: -ms-linear-gradient(top,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* IE10+ */
+    background: linear-gradient(to bottom,  rgba(0,0,0,0.3) 0%,rgba(0,0,0,0) 100%); /* W3C */
+    filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#a6000000', endColorstr='#00000000',GradientType=0 ); /* IE6-9 */
+
+    transition: opacity .5s;
+    -webkit-transition: opacity .5s;
+    -moz-transition: opacity .5s;
+}
+.serviceControls.stickied .serviceBoxGradient{
+    opacity: 1;
+}
+
+
+.warningMessage {
+    color: #0084DB;
+    font-size: .9em;
+}
+
+.graphConfigPopover {
+    width: 250px;
+    position: absolute;
+    right: 5px;
+    top: 30px;
+    font-size: .9em;
+    border: solid #CCC 1px;
+    border-radius: 3px;
+    padding: 10px;
+    background-color: white;
+    z-index: 1;
+
+    -webkit-box-shadow: 0 3px 5px rgba(0, 0, 0, 0.125);
+    -moz-box-shadow: 0 3px 5px rgba(0, 0, 0, 0.125);
+    box-shadow: 0 3px 5px rgba(0, 0, 0, 0.125);
+}
+.graphConfigPopover .formLabel {
+    display: block;
+    margin-bottom: 2px;
+}
+.graphConfigPopover .formField {
+    width: 100%;
+    margin-bottom: 5px;
+}
+.graphConfigPopover .startEndWrapper {
+    border: solid 1px #CCC;
+    border-width: 1px 0;
+    margin-bottom: 10px;
+    padding: 5px 0;
+}
+.graphConfigPopover:before {
+    content: "";
+    position: absolute;
+    top: -10px;
+    right: 8px;
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid #CCC;
+}
+.graphConfigPopover:after {
+    content: "";
+    position: absolute;
+    top: -9px;
+    right: 8px;
+    width: 0; 
+    height: 0; 
+    border-left: 10px solid transparent;
+    border-right: 10px solid transparent;
+    border-bottom: 10px solid white;
+}
+.graphPanel {
+    display: block;
+    position: relative;
 }

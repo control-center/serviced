@@ -152,6 +152,10 @@ func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected
 	return s.rpcClient.Call("ControlPlane.StopService", request, affected)
 }
 
+func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *struct{}) (err error) {
+	return s.rpcClient.Call("ControlPlane.WaitService", request, nil)
+}
+
 func (s *ControlClient) UpdateServiceState(state servicestate.ServiceState, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.UpdateServiceState", state, unused)
 }
@@ -204,8 +208,8 @@ func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused)
 }
 
-func (s *ControlClient) Rollback(serviceId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Rollback", serviceId, unused)
+func (s *ControlClient) Rollback(request dao.RollbackRequest, unused *int) error {
+	return s.rpcClient.Call("ControlPlane.Rollback", request, unused)
 }
 
 func (s *ControlClient) Snapshot(serviceId string, label *string) error {
@@ -226,6 +230,10 @@ func (s *ControlClient) Commit(containerId string, label *string) error {
 
 func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
 	return s.rpcClient.Call("ControlPlane.ReadyDFS", unused, unusedint)
+}
+
+func (s *ControlClient) ListBackups(backupDirectory string, backupFiles *[]dao.BackupFile) error {
+	return s.rpcClient.Call("ControlPlane.ListBackups", backupDirectory, backupFiles)
 }
 
 func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) error {

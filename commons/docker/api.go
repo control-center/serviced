@@ -27,6 +27,8 @@ import (
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
+var DEFAULT_REGISTRY = "localhost:5000"
+
 // Container represents a Docker container.
 type Container struct {
 	*dockerclient.Container
@@ -98,7 +100,9 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	if useRegistry {
 		if err := PullImage(iid.String()); err != nil {
 			glog.V(2).Infof("Unable to pull image %s: %v", iid.String(), err)
-			return nil, err
+			if _, err2 := lookupImage(iid.String()); err2 != nil {
+				return nil, err2
+			}
 		}
 	}
 
@@ -569,6 +573,10 @@ func (img *Image) Tag(tag string) (*Image, error) {
 	return &Image{args.uuid, *iid}, nil
 }
 
+func TagImage(img *Image, tag string) (*Image, error) {
+	return img.Tag(tag)
+}
+
 func InspectImage(uuid string) (*dockerclient.Image, error) {
 	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
@@ -724,7 +732,7 @@ func pushImage(repo, registry, tag string) error {
 		return err
 	}
 
-	glog.V(2).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
+	glog.V(0).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
 	opts := dockerclient.PushImageOptions{
 		Name:     repo,
 		Registry: registry,
@@ -737,5 +745,7 @@ func pushImage(repo, registry, tag string) error {
 		glog.V(2).Infof("failed to push %s: %v", repo, err)
 		return err
 	}
+
+	glog.V(0).Infof("finished pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
 	return nil
 }

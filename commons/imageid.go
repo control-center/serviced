@@ -15,12 +15,16 @@ package commons
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"reflect"
+	"regexp"
 	"strconv"
 	"strings"
 	"unicode"
 	"unicode/utf8"
+
+	"github.com/docker/docker/pkg/parsers"
 )
 
 // states that the parser can be in as it scans
@@ -62,6 +66,36 @@ func init() {
 	underscore, _ = utf8.DecodeRune([]byte("_"))
 }
 
+// Return an ImageID object from several different parts
+//    dockerRegistry - The registry to use in the image name, eg. "localhost:5000"
+//    tenantID       - The ID of the tenant that the image will pertain to
+//    imgID          - The 'uncustomized' image name, eg. "zenoss/core-unstable:5.0.0".
+//                     Only the part after the last slash, but before the last colon will
+//                     actually be used from this
+//    tag            - The new tag you'd like to create
+//
+//    An input of ("localhost:5000", "myLittleTenant", "zenoss/core-unstable:5.0.0", "latest")
+//    would return an ImageID whose parts would be:
+//      Host: localhost
+//      Port: 5000
+//      User: myLittleTenant
+//      Repo: core-unstable
+//      Tag:  latest
+func RenameImageID(dockerRegistry, tenantId string, imgID string, tag string) (*ImageID, error) {
+	// Sanitize the imgID of any tag it may contain, eg. "zenoss/core-unstable:theTAG"
+	repo, _ := parsers.ParseRepositoryTag(imgID)
+	// Get just the image name "resmgr-unstable" out of a long image string
+	// like "zenoss/resmgr-unstable"
+	re := regexp.MustCompile("/?([^/]+)\\z")
+	matches := re.FindStringSubmatch(repo)
+	if matches == nil {
+		return nil, errors.New("malformed imageid")
+	}
+	name := matches[1]
+	newImageID := fmt.Sprintf("%s/%s/%s:%s", dockerRegistry, tenantId, name, tag)
+	return ParseImageID(newImageID)
+}
+
 // ParseImageID parses the string representation of a Docker image ID into an ImageID structure.
 // The grammar used by the parser is:
 // image id = [host(':'port|'/')]reponame[':'tag]
@@ -69,7 +103,7 @@ func init() {
 // port     = {digit}+
 // reponame = [user'/']repo
 // user     = {alpha|digit|'-'|'_'}+
-// repo     = {alpha|digit|'-'|'_'}+
+// repo     = {alpha|digit|'-'|'_'|'.'}+
 // tag      = {alpha|digit|'-'|'_'|'.'}+
 // The grammar is ambiguous so the parser is a little messy in places.
 func ParseImageID(iid string) (*ImageID, error) {
@@ -125,6 +159,11 @@ func ParseImageID(iid string) (*ImageID, error) {
 			switch {
 			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
 				tokbuf = append(tokbuf, byte(rune))
+			case rune == period:
+				result.User = scanned[0]
+				scanned = []string{}
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningRepo
 			case rune == colon:
 				result.User = scanned[0]
 				scanned = []string{}
@@ -167,12 +206,16 @@ func ParseImageID(iid string) (*ImageID, error) {
 				result.Repo = string(tokbuf)
 				tokbuf = []byte{}
 				state = scanningTag
+			case rune == period:
+				result.User = ""
+				tokbuf = append(tokbuf, byte(rune))
+				state = scanningRepo
 			default:
 				return nil, fmt.Errorf("invalid ImageID %s: bad repo name", iid)
 			}
 		case scanningRepo:
 			switch {
-			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore:
+			case unicode.IsLetter(rune), unicode.IsDigit(rune), rune == dash, rune == underscore, rune == period:
 				tokbuf = append(tokbuf, byte(rune))
 			case rune == colon:
 				result.Repo = string(tokbuf)
@@ -231,6 +274,11 @@ func ParseImageID(iid string) (*ImageID, error) {
 	}
 
 	return result, nil
+}
+
+// JoinRepoTag joins an image repo with the tag
+func JoinRepoTag(repo, tag string) string {
+	return fmt.Sprintf("%s:%s", repo, tag)
 }
 
 // Equals compares to ImageID objects to verify they are the same
@@ -308,4 +356,14 @@ func (iid *ImageID) Validate() bool {
 	}
 
 	return reflect.DeepEqual(piid, iid)
+}
+
+func (iid *ImageID) Copy() *ImageID {
+	newImage := &ImageID{}
+	newImage.Host = iid.Host
+	newImage.Port = iid.Port
+	newImage.User = iid.User
+	newImage.Repo = iid.Repo
+	newImage.Tag = iid.Tag
+	return newImage
 }

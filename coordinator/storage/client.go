@@ -16,6 +16,7 @@ package storage
 import (
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -35,7 +36,9 @@ type Client struct {
 	host      *host.Host
 	localPath string
 	closing   chan struct{}
-	mounted   chan string
+	mounted   chan chan<- string
+	conn      client.Connection
+	setLock   sync.Mutex
 }
 
 // NewClient returns a Client that manages remote mounts
@@ -46,8 +49,9 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 	c := &Client{
 		host:      host,
 		localPath: localPath,
-		mounted:   make(chan string, 1),
+		mounted:   make(chan chan<- string),
 		closing:   make(chan struct{}),
+		// conn:      nil,   // commented out on purpose - no need to initialize
 	}
 	go c.loop()
 	return c, nil
@@ -55,11 +59,20 @@ func NewClient(host *host.Host, localPath string) (*Client, error) {
 
 // Wait will block until the client is Closed() or it has mounted the remote filesystem
 func (c *Client) Wait() string {
+	waitC := make(chan string, 1)
+	var ch chan<- string = waitC
+
 	select {
 	case <-c.closing:
-	case s := <-c.mounted:
+	case c.mounted <- ch:
+	}
+
+	select {
+	case <-c.closing:
+	case s := <-waitC:
 		return s
 	}
+
 	return ""
 }
 
@@ -79,10 +92,25 @@ func (c *Client) loop() {
 		Host:    host.Host{},
 		version: nil,
 	}
+
+	remoteShutdown := make(chan interface{})
+	defer close(remoteShutdown)
+
+	var doneC chan<- string
 	var leader client.Leader
-	var conn client.Connection
 	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
+	updateMonitorInterval := getDefaultDFSMonitorRemoteInterval()
+	go UpdateRemoteMonitorFile(c.localPath, updateMonitorInterval, c.host.IPAddr, remoteShutdown)
+	go c.UpdateUpdatedAt(updateMonitorInterval, c.conn, nodePath, node)
 	for {
+		if doneC == nil {
+			select {
+			case doneC = <-c.mounted:
+			case <-c.closing:
+				return
+			}
+		}
+
 		// keep from churning if we get errors
 		if err != nil {
 			select {
@@ -94,33 +122,33 @@ func (c *Client) loop() {
 		err = nil
 		if leader == nil {
 			// /storage/leader needs to be at the root
-			conn, err = zzk.GetLocalConnection("/")
+			c.conn, err = zzk.GetLocalConnection("/")
 
 			if err != nil {
 				continue
 			}
-			leader = conn.NewLeader("/storage/leader", leaderNode)
+			leader = c.conn.NewLeader("/storage/leader", leaderNode)
 		}
 
 		glog.Infof("creating %s", nodePath)
-		if err = conn.Create(nodePath, node); err != nil && err != client.ErrNodeExists {
+		if err = c.conn.Create(nodePath, node); err != nil && err != client.ErrNodeExists {
 			glog.Errorf("could not create %s: %s", nodePath, err)
 			continue
 		}
 		if err == client.ErrNodeExists {
-			err = conn.Get(nodePath, node)
+			err = c.conn.Get(nodePath, node)
 			if err != nil && err != client.ErrEmptyNode {
 				glog.Errorf("could not get %s: %s", nodePath, err)
 				continue
 			}
 		}
 		node.Host = *c.host
-		if err := conn.Set(nodePath, node); err != nil {
+		if err := c.setNode(nodePath, node, false); err != nil {
 			glog.Errorf("problem updating %s: %s", nodePath, err)
 			continue
 		}
 
-		e, err = conn.GetW(nodePath, node)
+		e, err = c.conn.GetW(nodePath, node)
 		if err != nil {
 			glog.Errorf("err getting node %s: %s", nodePath, err)
 			continue
@@ -131,26 +159,75 @@ func (c *Client) loop() {
 		}
 
 		if leaderNode.IPAddr != c.host.IPAddr {
-			err = nfsMount(leaderNode.ExportPath, c.localPath)
+			err = nfsMount(&nfs.NFSDriver{}, leaderNode.ExportPath, c.localPath)
 			if err != nil {
 				if err == nfs.ErrNfsMountingUnsupported {
 					glog.Errorf("install the nfs-common package: %s", err)
 				}
-				glog.Errorf("problem mouting %s: %s", leaderNode.ExportPath, err)
+				glog.Errorf("problem mounting %s: %s", leaderNode.ExportPath, err)
 				continue
 			}
+
 		} else {
 			glog.Info("skipping nfs mounting, server is localhost")
 		}
 		glog.Infof("At this point we know the leader is: %s", leaderNode.Host.IPAddr)
 		select {
-		case c.mounted <- leaderNode.ExportPath:
+		case doneC <- leaderNode.ExportPath:
 			// notifying someone who cares
+			doneC = nil
 		case <-c.closing:
+			remoteShutdown <- true
 			return
 		case evt := <-e:
 			glog.Errorf("got zk event: %s", evt)
 			continue
 		}
 	}
+}
+
+func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error {
+	glog.V(4).Infof("waiting on lock for node %s: %+v", nodePath, node)
+	c.setLock.Lock()
+	defer c.setLock.Unlock()
+	glog.V(4).Infof("got lock for node %s: %+v", nodePath, node)
+
+	if doGetBeforeSet {
+		err := c.conn.Get(nodePath, node)
+		if err != nil && err != client.ErrEmptyNode {
+			glog.Warningf("could not get %s: %s", nodePath, err)
+			return err
+		}
+	}
+
+	node.Host.UpdatedAt = time.Now()
+	if err := c.conn.Set(nodePath, node); err != nil {
+		return err
+	}
+
+	glog.V(4).Infof("updated node %s: %+v", nodePath, node)
+	return nil
+}
+
+func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Connection, nodePath string, node *Node) error {
+	glog.Infof("updating DFS remote client UpdatedAt for node %s at interval %s", nodePath, updaterInterval)
+	for {
+		if node.version == nil {
+			// prevents that this go routine from starting before the initial c.setNode in client.loop()
+			glog.Infof("version is nil for node %s", nodePath)
+			time.Sleep(10 * time.Second)
+			continue
+		}
+
+		glog.V(4).Infof("updating node %s: %+v", nodePath, node)
+		if err := c.setNode(nodePath, node, true); err != nil {
+			glog.Warningf("problem updating UpdatedAt for node %s: %s", nodePath, err)
+		}
+
+		select {
+		case <-time.After(updaterInterval):
+		}
+	}
+
+	return nil
 }

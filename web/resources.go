@@ -15,16 +15,14 @@ package web
 
 import (
 	"bytes"
+	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
-	"fmt"
+
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 
@@ -493,7 +491,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	svc.CreatedAt = now
 	svc.UpdatedAt = now
 
-	//for each endpoint, evaluate it's EndpointTemplates
+	//for each endpoint, evaluate its EndpointTemplates
 	getSvc := func(svcID string) (service.Service, error) {
 		svc := service.Service{}
 		err := client.GetService(svcID, &svc)
@@ -532,7 +530,7 @@ func restAddService(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	//automatically assign virtual ips to new service
 	request := dao.AssignmentRequest{ServiceID: svc.ID, IPAddress: "", AutoAssignment: true}
 	if err := client.AssignIPs(request, nil); err != nil {
-		glog.Error("Failed to automatically assign IPs: %+v -> %v", request, err)
+		glog.Errorf("Failed to automatically assign IPs: %+v -> %v", request, err)
 		restServerError(w, err)
 		return
 	}
@@ -790,7 +788,7 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *n
 	}
 
 	var filename = serviceID + time.Now().Format("2006-01-02-15-04-05") + ".log"
-	w.Header().Set("Content-Disposition", "attachment; filename=" + filename)
+	w.Header().Set("Content-Disposition", "attachment; filename="+filename)
 	w.Header().Set("Content-Type", r.Header.Get("Content-Type"))
 	w.Write([]byte(logs))
 }
@@ -800,13 +798,7 @@ func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *nod
 }
 
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-
-	dir := home + "/backup"
+	dir := ""
 	filePath := ""
 	err := client.AsyncBackup(dir, &filePath)
 	if err != nil {
@@ -818,12 +810,6 @@ func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.Cont
 }
 
 func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-
 	err := r.ParseForm()
 	filePath := r.FormValue("filename")
 
@@ -834,7 +820,7 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 
 	unused := 0
 
-	err = client.AsyncRestore(home+"/backup/"+filePath, &unused)
+	err = client.AsyncRestore(filePath, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error during restore: %v", err)
 		restServerError(w, err)
@@ -845,39 +831,12 @@ func RestBackupRestore(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 
 // RestBackupFileList implements a rest call that will return a list of the current backup files.
 // The return value is a JSON struct of type JsonizableFileInfo.
-func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	type JsonizableFileInfo struct {
-		FullPath string      `json:"full_path"`
-		Name     string      `json:"name"`
-		Size     int64       `json:"size"`
-		Mode     os.FileMode `json:"mode"`
-		ModTime  time.Time   `json:"mod_time"`
-	}
-
-	fileData := []JsonizableFileInfo{}
-	home := os.Getenv("SERVICED_HOME")
-	if home == "" {
-		glog.Infof("SERVICED_HOME not set.  Backups will save to /tmp.")
-		home = "/tmp"
-	}
-	backupDir := home + "/backup"
-	backupFiles, _ := ioutil.ReadDir(backupDir)
-
-	hostIP, err := utils.GetIPAddress()
-	if err != nil {
-		glog.Errorf("Unable to get host IP: %v", err)
+func RestBackupFileList(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var fileData []dao.BackupFile
+	if err := client.ListBackups("", &fileData); err != nil {
 		restServerError(w, err)
 		return
 	}
-
-	for _, backupFileInfo := range backupFiles {
-		if !backupFileInfo.IsDir() {
-			fullPath := hostIP + ":" + filepath.Join(backupDir, backupFileInfo.Name())
-			fileInfo := JsonizableFileInfo{fullPath, backupFileInfo.Name(), backupFileInfo.Size(), backupFileInfo.Mode(), backupFileInfo.ModTime()}
-			fileData = append(fileData, fileInfo)
-		}
-	}
-
 	w.WriteJson(&fileData)
 }
 

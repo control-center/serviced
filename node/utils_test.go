@@ -20,6 +20,17 @@ package node
 
 import (
 	"testing"
+
+	"fmt"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"path"
+	"path/filepath"
+	"strings"
+	"syscall"
+
+	"github.com/zenoss/glog"
 )
 
 // Test validOwnerSpec
@@ -90,5 +101,98 @@ Last stable version: 0.6.6
 	}
 	if !version.equals(&exampleVersion) {
 		t.Fatalf("unexpected version: %v vs %v", version, exampleVersion)
+	}
+}
+
+// Test createVolumeDir
+func TestCreateVolumeDir(t *testing.T) {
+	// create temporary proc dir
+	tmpPath, err := ioutil.TempDir("", "node_util")
+	if err != nil {
+		t.Fatalf("could not create tempdir %+v: %s", tmpPath, err)
+	}
+	defer os.RemoveAll(tmpPath)
+
+	if err := os.MkdirAll(tmpPath, 0755); err != nil {
+		t.Fatalf("unable to mkdir %+v: %s", tmpPath, err)
+	}
+
+	type volumeSpec struct {
+		hostPath      string
+		containerPath string
+		image         string
+		user          string
+		perm          string
+	}
+	v := volumeSpec{
+		hostPath:      path.Join(tmpPath, "actual_share_doc"),
+		containerPath: "/usr/share/vim", // do not use a dir with symlinks that point outside the path
+		image:         "ubuntu:latest",
+		user:          "games:games",
+		perm:          "755",
+	}
+
+	if err := createVolumeDir(v.hostPath, v.containerPath, v.image, v.user, v.perm); err != nil {
+		t.Fatalf("unable to create volume %+v: %s", tmpPath, err)
+	}
+
+	// retrieve containerPath from image
+	expectedPath := path.Join(tmpPath, "expected_share_doc")
+	containerMount := "/mnt/dfs"
+	copyCommand := [...]string{
+		"docker", "run",
+		"--rm",
+		"-v", expectedPath + ":" + containerMount,
+		v.image,
+		"bash", "-c", fmt.Sprintf("shopt -s nullglob && shopt -s dotglob && cp -pr %s/* %s/\n", v.containerPath, containerMount),
+
+		// FIXME: use rsync instead of cp to use a different command to copy
+		// "bash", "-c", fmt.Sprintf("apt-get -y install rsync; rsync -a %s/ %s/\n", v.containerPath, containerMount),
+	}
+
+	glog.V(2).Infof("copy command: %s", copyCommand)
+	docker := exec.Command(copyCommand[0], copyCommand[1:]...)
+	if output, err := docker.CombinedOutput(); err != nil {
+		t.Fatalf("could not create host volume: %+v, %s", copyCommand, string(output))
+	}
+
+	// compare rsync'ed path from image against DFS volume
+	compareCmd := [...]string{"diff", "-qr", v.hostPath, expectedPath}
+	glog.V(2).Infof("compare command: %s", compareCmd)
+	docker = exec.Command(compareCmd[0], compareCmd[1:]...)
+	if output, err := docker.CombinedOutput(); err != nil {
+		t.Fatalf("could not compare paths: %+v, %s", compareCmd, string(output))
+	}
+
+	// compare user:group perms
+	getUidGidCmd := [...]string{"docker", "run", "--rm", v.image, "getent", "passwd", "games"}
+	glog.V(2).Infof("get command: %s", getUidGidCmd)
+	docker = exec.Command(getUidGidCmd[0], getUidGidCmd[1:]...)
+	if output, err := docker.CombinedOutput(); err != nil {
+		t.Fatalf("could not get uid/gid: %+v, %s", getUidGidCmd, string(output))
+	} else {
+		parts := strings.Split(string(output), ":")
+		expectedUID := parts[2]
+		expectedGID := parts[3]
+
+		fileinfo, err := os.Stat(v.hostPath)
+		if err != nil {
+			t.Fatalf("could not stat dir: %+v, %s", v.hostPath, err)
+		}
+		actualUID := fileinfo.Sys().(*syscall.Stat_t).Uid
+		actualGID := fileinfo.Sys().(*syscall.Stat_t).Gid
+
+		if expectedUID != fmt.Sprintf("%d", actualUID) {
+			t.Fatalf("actualUID:%+v != expectedUID:%+v", actualUID, expectedUID)
+		}
+		if expectedGID != fmt.Sprintf("%d", actualGID) {
+			t.Fatalf("actualGID:%+v != expectedGID:%+v", actualGID, expectedGID)
+		}
+	}
+
+	// make sure initialized dotfile exists
+	dotfileHostPath := path.Join(filepath.Dir(v.hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(v.hostPath)))
+	if _, err := os.Stat(dotfileHostPath); err != nil {
+		t.Fatalf("could not stat serviced initialized dotfile %s: %s", dotfileHostPath, err)
 	}
 }

@@ -163,6 +163,23 @@ func (c *Server) Sync() error {
 	return nil
 }
 
+// Restart restarts the nfs subsystem
+func (c *Server) Restart() error {
+	if err := c.hostsDeny(); err != nil {
+		return err
+	}
+	if err := c.hostsAllow(); err != nil {
+		return err
+	}
+	if err := c.writeExports(); err != nil {
+		return err
+	}
+	if err := restart(); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (c *Server) hostsDeny() error {
 
 	s, err := readFileIfExists(hostDenyDefaults)

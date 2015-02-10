@@ -19,9 +19,11 @@
     "breadcrumb_backuprestore": "Respaldar / Restaurar",
     "backuprestore": "Respaldar / Restaurar",
     "backup_create": "Crear respaldo",
+    "backup_complete": "Respaldo completo",
     "backup_restore": "Restaurar respaldo",
     "backup_running": "Ejecutando restauracion",
     "restore_running": "Restauraci\u00f3n a partir de un respaldo",
+    "restore_complete": "Restauraci\u00f3n completa",
 
     "failing_health_checks": "Instancias estan fallando",
     "missing_health_checks": "Instancias en proceso de ejecutar",
@@ -46,6 +48,7 @@
     "memory_usage": "Consumo de memoria",
     "cores_required": "N\u00facleos de CPU requeridos",
     "memory_required": "Memoria requerida",
+    "ram_commitment": "RAM solicitada",
 
     "file_name": "Nombre del archivo",
     "modified": "Modificado",
@@ -78,7 +81,7 @@
     "minimum": "minimo",
     "maximum": "maximo",
 
-    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco.",
+    "confirm_start_backup": "El proceso de copia de seguridad puede tardar un poco. No podrá arrancar o desplegar ningún servicio durante el proceso de copia de seguridad.",
     "confirm_start_restore": "El proceso de restauraci\u00f3n no se puede revertir.",
     "confirm_start_app": "Esto iniciar\u00e1 todos los servicios hijos.",
     "confirm_stop_app": "Esto detendr\u00e1 todos los servicios hijos.",
@@ -240,6 +243,7 @@
     "nav_pools": "Grupo de Recursos",
     "nav_servicesmap": "Mapa de Servicios",
     "nav_backuprestore": "Respaldar / Restaurar",
+    "no_backups": "No se encontraron respaldar",
     "no_data": "No se encontraron datos",
     "placeholder_host_and_port": "ej. localhost:4979",
     "placeholder_host_parent": "ej. default",
@@ -322,6 +326,9 @@
     "title_services": "Servicios",
     "title_user_details": "Informaci\u00f3n de Usuario",
     "title_resource_commitment": "Resource Commitment",
+    
+    "too_few_instances": "Número de las instancias es demasiado baja",
+    
     "vhost_actions": "Acciones",
     "vhost_application": "Servicio",
     "vhost_controls": "Controles",
@@ -332,6 +339,7 @@
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
     "vhost_name_invalid": "Nombre de servidor virtual no valido:",
+    "view_licenses": "Ver licencias",
     "warning": "Aviso",
     "warning_remove_service": "Esto eliminar\u00e1 la aplicación en ejecuci\u00f3n, esta accion no podra ser revertida."
 }

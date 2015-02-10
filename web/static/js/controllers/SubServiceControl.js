@@ -1,15 +1,9 @@
-function SubServiceControl($scope, $q, $routeParams, $location, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification) {
+function SubServiceControl($scope, $q, $routeParams, $location, resourcesService, authService, $serviceHealth, $modalService, $translate, $notification, $timeout){
     // Ensure logged in
     authService.checkLogin($scope);
     $scope.name = "servicedetails";
     $scope.params = $routeParams;
     $scope.servicesService = resourcesService;
-
-    $scope.visualization = zenoss.visualization;
-    $scope.visualization.url = $location.protocol() + "://" + $location.host() + ':' + $location.port();
-    $scope.visualization.urlPath = '/metrics/static/performance/query/';
-    $scope.visualization.urlPerformance = '/metrics/api/performance/query/';
-    $scope.visualization.debug = false;
 
     $scope.defaultHostAlias = location.hostname;
     var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
@@ -246,7 +240,8 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
 
     $scope.vhost_url = function(vhost) {
         var port = location.port === "" ? "" : ":"+location.port;
-        return location.protocol + "//" + vhost + "." + $scope.defaultHostAlias + port;
+        var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
+        return location.protocol + "//" + host + port;
     };
 
     $scope.indent = function(depth){
@@ -332,12 +327,12 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.clickEditContext = function(app, servicesService) {
-	//set editor options for context editing
-	$scope.codemirrorOpts = {
-	    lineNumbers: true,
-	    mode: "properties"
-	}
-	
+        //set editor options for context editing
+        $scope.codemirrorOpts = {
+            lineNumbers: true,
+            mode: "properties"
+        };
+
         $scope.editableContext = makeEditableContext($scope.services.current.Context);
 
         $modalService.create({
@@ -429,17 +424,17 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     };
 
     $scope.editConfig = function(service, config) {
-	$scope.editService = $.extend({}, service);
-        $scope.editService.config = config;
+        $scope.editService = angular.copy(service);
+        $scope.editConfigFilename = config;
         //set editor options for context editing
-	$scope.codemirrorOpts = {
-	    lineNumbers: true,
-	    mode: getModeFromFilename($scope.editService.config)
-	};
+        $scope.codemirrorOpts = {
+            lineNumbers: true,
+            mode: getModeFromFilename($scope.editConfigFilename)
+        };
         $modalService.create({
             templateUrl: "edit-config.html",
             model: $scope,
-            title: $translate.instant("title_edit_config") +" - "+ $scope.editService.config,
+            title: $translate.instant("title_edit_config") +" - "+ $scope.editConfigFilename,
             bigModal: true,
             actions: [
                 {
@@ -452,9 +447,13 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
                             // disable ok button, and store the re-enable function
                             var enableSubmit = this.disableSubmitButton();
 
-                            $scope.updateService()
+                            resourcesService.update_service($scope.services.current.ID, $scope.editService)
                                 .success(function(data, status){
-                                    this.close(); 
+                                    $notification.create("Updated service", $scope.editService.ID).success();
+                                    resourcesService.update_services(angular.noop);
+                                    $scope.editService = {};
+                                    $scope.editConfigFilename = "";
+                                    this.close();
                                 }.bind(this))
                                 .error(function(data, status){
                                     this.createNotification("Updating service failed", data.Detail).error();
@@ -693,76 +692,6 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         }
     };
 
-    // XXX prevent the graphs from being drawn multiple times
-    //     by angular's processing engine
-    $scope.drawn = {};
-
-    //index: graph index for div id selection
-    //graph: the graph to display
-    $scope.viz = function(index, graph) {
-        var id = $scope.services.current.ID+'-graph-'+index;
-        if (!$scope.drawn[id]) {
-            if (window.zenoss === undefined) {
-                return "Not collecting stats, graphs unavailable";
-            } else {
-                graph.timezone = jstz.determine().name();
-                zenoss.visualization.chart.create(id, graph);
-                $scope.drawn[id] = graph;
-
-                // HACK - this is a quick fix to set a global
-                // aggregation value. Better graph controls will
-                // need more sophisticated config values
-                $scope.aggregator = graph.datapoints[0].aggregator;
-            }
-        }
-    };
-
-    $scope.options = {
-        maxTime: new Date(),
-        maxDate: new Date(),
-        mask:true
-    };
-    var now = new Date(),
-        end = moment(now),
-        start = moment().subtract(1, "hours");
-    $scope.timeRange = {
-        time_start: start.format("YYYY/MM/DD HH:mm"),
-        time_end: end.format("YYYY/MM/DD HH:mm")
-    };
-
-    $scope.updateGraphs = function(){
-        for(var i in $scope.drawn){
-            $scope.updateGraph(i, $scope.drawn[i]);
-        }
-    };
-
-    $scope.updateGraph = function(id, config){
-        config.range.start = moment($scope.timeRange.time_start)._d.getTime();
-        config.range.end = moment($scope.timeRange.time_end)._d.getTime();
-        zenoss.visualization.chart.update(id, config);
-    };
-
-    // TODO - make this more generic to handle updating any
-    // graph config propery
-    $scope.aggregators = [
-        {
-            name: "Average",
-            val: "avg"
-        },{
-            name: "Sum",
-            val: "sum"
-        }
-    ];
-    $scope.updateGraphsAggregator = function(){
-        // iterate each graphDef
-        for(var i in $scope.drawn){
-            // then iterate each graphDef's datapoints
-            $scope.drawn[i].datapoints.forEach(function(dp){
-                dp.aggregator = $scope.aggregator;
-            });
-        }
-        $scope.updateGraphs();
-    };
 
     $scope.$on("$destroy", function(){
         resourcesService.unregisterAllPolls();
@@ -803,12 +732,61 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
     $scope.toggleChildren = function($event, app){
         var $e = $($event.target);
         $e.is(".glyphicon-chevron-down") ? hideChildren(app) : showChildren(app);
-    }
+    };
 
     //we need to bring this function into scope so we can use ng-hide if an object is empty
     $scope.isEmptyObject = function(obj){
         return angular.equals({}, obj);
-    }
+    };
+
+    $scope.editCurrentService = function(){
+
+        // clone service for editing
+        $scope.editableService = $.extend({}, $scope.services.current);
+        
+        $modalService.create({
+            templateUrl: "edit-service.html",
+            model: $scope,
+            title: "title_edit_service",
+            actions: [
+                {
+                    role: "cancel"
+                },{
+                    role: "ok",
+                    label: "btn_save_changes",
+                    action: function(){
+                        if(this.validate()){
+
+                            // disable ok button, and store the re-enable function
+                            var enableSubmit = this.disableSubmitButton();
+
+                            // update service with recently edited service
+                            resourcesService.update_service($scope.editableService.ID, $scope.editableService)
+                                .success(function(data, status){
+                                    $notification.create("Updated service", $scope.editableService.ID).success();
+                                    refreshServices($scope, resourcesService, false);
+                                    this.editableService = {};
+                                    this.close();
+                                }.bind(this))
+                                .error(function(data, status){
+                                    this.createNotification("Update service failed", data.Detail).error();
+                                    enableSubmit();
+                                }.bind(this));
+                        }
+                    }
+                }
+            ],
+            validate: function(){
+            	if($scope.editableService.InstanceLimits.Min > $scope.editableService.Instances || $scope.editableService.Instances === undefined){
+            		// too few instances
+                    this.createNotification("", $translate.instant("too_few_instances")).error();
+                    return false;
+            	}
+            	
+            	return true;
+            }
+        });
+    };
 
     function hideChildren(app){
         if(app.children){
@@ -843,4 +821,7 @@ function SubServiceControl($scope, $q, $routeParams, $location, resourcesService
         $e.removeClass("glyphicon-chevron-right");
         $e.addClass("glyphicon-chevron-down");
     }
+    
+    // Ensure we have a list of pools
+    refreshPools($scope, resourcesService, false);
 }

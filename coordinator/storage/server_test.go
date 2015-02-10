@@ -14,10 +14,11 @@
 package storage
 
 import (
-	zklib "github.com/samuel/go-zookeeper/zk"
+	zklib "github.com/control-center/go-zookeeper/zk"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/dfs/nfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
@@ -51,11 +52,15 @@ func (m *mockNfsDriverT) Sync() error {
 	return nil
 }
 
+func (m *mockNfsDriverT) Restart() error {
+	return nil
+}
+
 func TestServer(t *testing.T) {
 	t.Skip() // the zookeeper part doesnt work in this test, but does work in real life
 	zookeeper.EnsureZkFatjar()
 	basePath := ""
-	tc, err := zklib.StartTestCluster(1)
+	tc, err := zklib.StartTestCluster(1, nil, nil)
 	if err != nil {
 		t.Fatalf("could not start test zk cluster: %s", err)
 	}
@@ -77,12 +82,12 @@ func TestServer(t *testing.T) {
 	}
 	zzk.InitializeLocalClient(zClient)
 
-	defer func(orig func(string, string) error) {
+	defer func(orig func(nfs.Driver, string, string) error) {
 		nfsMount = orig
 	}(nfsMount)
 
 	var local, remote string
-	nfsMount = func(a, b string) error {
+	nfsMount = func(driver nfs.Driver, a, b string) error {
 		glog.Infof("client is mounting %s to %s", a, b)
 		remote = a
 		local = b
@@ -113,11 +118,18 @@ func TestServer(t *testing.T) {
 	}
 
 	// TODO: this gets stuck at server.go:90 call to conn.CreateDir hangs
-	s, err := NewServer(mockNfsDriver, hostServer, zClient)
+	s, err := NewServer(mockNfsDriver, hostServer)
 	if err != nil {
 		t.Fatalf("unexpected error creating Server: %s", err)
 	}
-	defer s.Close()
+
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		t.Fatalf("unexpected error getting connection: %s", err)
+	}
+	shutdown := make(chan interface{})
+	defer close(shutdown)
+	go s.Run(shutdown, conn)
 
 	// give it some time
 	time.Sleep(time.Second * 5)

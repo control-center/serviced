@@ -58,7 +58,7 @@ type ServiceState struct {
 
 // IsRunning returns true when a service is currently running
 func (ss ServiceState) IsRunning() bool {
-	return ss.Started.UnixNano() > ss.Terminated.UnixNano()
+	return ss.Started.Unix() > 0 && ss.Started.After(ss.Terminated)
 }
 
 // IsPaused returns true when a service is paused or is not running

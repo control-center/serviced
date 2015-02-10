@@ -22,6 +22,7 @@ import (
 	"github.com/zenoss/glog"
 
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -29,6 +30,7 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -310,11 +312,18 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 	createVolumeDirMutex.Lock()
 	defer createVolumeDirMutex.Unlock()
 
-	// FIXME: this relies on the underlying container to have /bin/sh that supports
-	// some advanced shell options. This should be rewriten so that serviced injects itself in the
-	// container and performs the operations using only go!
-	// the file globbing checks that /mnt/dfs is empty before the copy - should initially be empty
-	//    we don't want the copy to occur multiple times if restarting services.
+	dotfileCompatibility := path.Join(hostPath, ".serviced.initialized") // for compatibility with previous versions of serviced
+	dotfileHostPath := path.Join(filepath.Dir(hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(hostPath)))
+	dotfiles := []string{dotfileCompatibility, dotfileHostPath}
+	for _, dotfileHostPath := range dotfiles {
+		_, err := os.Stat(dotfileHostPath)
+		if err == nil {
+			glog.V(2).Infof("DFS volume initialized earlier for src:%s dst:%s image:%s user:%s perm:%s", hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
+			return nil
+		}
+	}
+
+	starttime := time.Now()
 
 	var err error
 	var output []byte
@@ -325,31 +334,41 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 		imageSpec,
 		"/bin/bash", "-c",
 		fmt.Sprintf(`
-chown %s /mnt/dfs && \
-chmod %s /mnt/dfs && \
-shopt -s nullglob && \
-shopt -s dotglob && \
-files=(/mnt/dfs/*) && \
+set -e
 if [ ! -d "%s" ]; then
-	echo "ERROR: srcdir %s does not exist in container"
-	exit 2
-elif [ ${#files[@]} -eq 0 ]; then
-	cp -rp %s/* /mnt/dfs/
+	echo "WARNING: DFS mount %s does not exist in image %s"
+else
+	cp -rp %s/. /mnt/dfs/
 fi
-sleep 5s
-`, userSpec, permissionSpec, containerSpec, containerSpec, containerSpec),
+chown %s /mnt/dfs
+chmod %s /mnt/dfs
+sync
+`, containerSpec, containerSpec, imageSpec, containerSpec, userSpec, permissionSpec),
 	}
 
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 2; i++ {
 		docker := exec.Command(command[0], command[1:]...)
 		output, err = docker.CombinedOutput()
 		if err == nil {
+			duration := time.Now().Sub(starttime)
+			if strings.Contains(string(output), "WARNING:") {
+				glog.Warning(string(output))
+			} else {
+				glog.Info(string(output))
+			}
+			glog.Infof("DFS volume init #%d took %s for src:%s dst:%s image:%s user:%s perm:%s", i, duration, hostPath, containerSpec, imageSpec, userSpec, permissionSpec)
+
+			if e := ioutil.WriteFile(dotfileHostPath, []byte(""), 0664); e != nil {
+				glog.Errorf("unable to create DFS volume initialized dotfile %s: %s", dotfileHostPath, e)
+				return e
+			}
 			return nil
 		}
 		time.Sleep(time.Second)
+		glog.Warningf("retrying due to error creating DFS volume %+v: %s", hostPath, string(output))
 	}
 
-	glog.Errorf("could not create host volume: %+v, %s", command, string(output))
+	glog.Errorf("could not create DFS volume %+v: %s", hostPath, string(output))
 	return err
 }
 

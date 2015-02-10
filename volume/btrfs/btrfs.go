@@ -18,11 +18,15 @@ import (
 	"github.com/zenoss/glog"
 
 	"fmt"
+	"os"
 	"os/exec"
 	"os/user"
 	"path"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -133,29 +137,33 @@ func (c *BtrfsConn) Snapshot(label string) error {
 	return err
 }
 
-// Snapshots returns the current snapshots on the volume
+// Snapshots returns the current snapshots on the volume (sorted by date)
 func (c *BtrfsConn) Snapshots() ([]string, error) {
 	c.Lock()
 	defer c.Unlock()
-	labels := make([]string, 0)
-	glog.V(4).Info("about to execute subvolume list command")
-	if output, err := runcmd(c.sudoer, "subvolume", "list", "-s", c.root); err != nil {
-		glog.Errorf("got an error with subvolume list: %s", string(output))
-		return labels, err
-	} else {
-		glog.Info("btrfs subvolume list:, root: %s", c.root)
-		prefixedName := c.name + "_"
-		for _, line := range strings.Split(string(output), "\n") {
-			glog.Infof("btrfs subvolume list: %s", line)
-			if parts := strings.Split(line, "path"); len(parts) == 2 {
-				label := strings.TrimSpace(parts[1])
-				if strings.HasPrefix(label, prefixedName) {
-					labels = append(labels, label)
+
+	output, err := runcmd(c.sudoer, "subvolume", "list", "-s", c.root)
+	if err != nil {
+		glog.Errorf("Could not list subvolumes of %s: %s", c.root, err)
+		return nil, err
+	}
+
+	var files []os.FileInfo
+	for _, line := range strings.Split(string(output), "\n") {
+		if parts := strings.Split(line, "path"); len(parts) == 2 {
+			label := strings.TrimSpace(parts[1])
+			if strings.HasPrefix(label, c.name+"_") {
+				file, err := os.Stat(filepath.Join(c.root, label))
+				if err != nil {
+					glog.Errorf("Could not stat snapshot %s: %s", label, err)
+					return nil, err
 				}
+				files = append(files, file)
 			}
 		}
 	}
-	return labels, nil
+
+	return volume.FileInfoSlice(files).Labels(), nil
 }
 
 // RemoveSnapshot removes the snapshot with the given label
@@ -193,6 +201,24 @@ func (c *BtrfsConn) Unmount() error {
 	return err
 }
 
+// getEnvMinDuration returns the time.Duration env var meeting minimum and default duration
+func getEnvMinDuration(envvar string, def, min int32) time.Duration {
+	duration := def
+	envval := os.Getenv(envvar)
+	if len(strings.TrimSpace(envval)) == 0 {
+		// ignore unset envvar
+	} else if intVal, intErr := strconv.ParseInt(envval, 0, 32); intErr != nil {
+		glog.Warningf("ignoring invalid %s of '%s': %s", envvar, envval, intErr)
+		duration = min
+	} else if int32(intVal) < min {
+		glog.Warningf("ignoring invalid %s of '%s' < minimum:%v seconds", envvar, envval, min)
+	} else {
+		duration = int32(intVal)
+	}
+
+	return time.Duration(duration) * time.Second
+}
+
 // Rollback rolls back the volume to the given snapshot
 func (c *BtrfsConn) Rollback(label string) error {
 	if exists, err := c.snapshotExists(label); err != nil || !exists {
@@ -211,13 +237,87 @@ func (c *BtrfsConn) Rollback(label string) error {
 		return err
 	}
 
+	glog.Infof("starting rollback of snapshot %s", label)
+
+	start := time.Now()
 	if dirp {
-		if _, err := runcmd(c.sudoer, "subvolume", "delete", vd); err != nil {
-			return err
+		timeout := getEnvMinDuration("SERVICED_BTRFS_ROLLBACK_TIMEOUT", 300, 120)
+		glog.Infof("rollback using env var SERVICED_BTRFS_ROLLBACK_TIMEOUT:%s", timeout)
+
+		for {
+			cmd := []string{"subvolume", "delete", vd}
+			output, deleteError := runcmd(c.sudoer, cmd...)
+			if deleteError == nil {
+				break
+			}
+
+			now := time.Now()
+			if now.Sub(start) > timeout {
+				glog.Errorf("rollback of snapshot %s failed - btrfs subvolume deletes took %s for cmd:%s", label, timeout, cmd)
+				return deleteError
+			} else if strings.Contains(string(output), "Device or resource busy") {
+				waitTime := time.Duration(5 * time.Second)
+				glog.Warningf("retrying rollback subvolume delete in %s - unable to run cmd:%s  output:%s  error:%s", waitTime, cmd, string(output), deleteError)
+				time.Sleep(waitTime)
+			} else {
+				return deleteError
+			}
 		}
 	}
 
-	_, err = runcmd(c.sudoer, "subvolume", "snapshot", c.SnapshotPath(label), vd)
+	cmd := []string{"subvolume", "snapshot", c.SnapshotPath(label), vd}
+	_, err = runcmd(c.sudoer, cmd...)
+	if err != nil {
+		glog.Errorf("rollback of snapshot %s failed for cmd:%s", label, cmd)
+	} else {
+		duration := time.Now().Sub(start)
+		glog.Infof("rollback of snapshot %s took %s", label, duration)
+	}
+	return err
+}
+
+// Export saves a snapshot to an outfile
+func (c *BtrfsConn) Export(label, parent, outfile string) error {
+	if label == "" {
+		return fmt.Errorf("%s: label cannot be empty", DriverName)
+	} else if exists, err := c.snapshotExists(label); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("%s: snapshot %s not found", DriverName, label)
+	}
+
+	if parent == "" {
+		_, err := runcmd(c.sudoer, "send", c.SnapshotPath(label), "-f", outfile)
+		return err
+	} else if exists, err := c.snapshotExists(label); err != nil {
+		return err
+	} else if !exists {
+		return fmt.Errorf("%s: snapshot %s not found", DriverName, parent)
+	}
+
+	_, err := runcmd(c.sudoer, "send", c.SnapshotPath(label), "-p", parent, "-f", outfile)
+	return err
+}
+
+// Import loads a snapshot from an infile
+func (c *BtrfsConn) Import(label, infile string) error {
+	if exists, err := c.snapshotExists(label); err != nil {
+		return err
+	} else if exists {
+		return fmt.Errorf("%s: snapshot %s exists", DriverName, label)
+	}
+
+	// create a tmp path to load the volume
+	tmpdir := filepath.Join(c.root, "tmp")
+	runcmd(c.sudoer, "subvolume", "create", tmpdir)
+	defer runcmd(c.sudoer, "subvolume", "delete", tmpdir)
+
+	if _, err := runcmd(c.sudoer, "receive", tmpdir, "-f", infile); err != nil {
+		return err
+	}
+	defer runcmd(c.sudoer, "subvolume", "delete", filepath.Join(tmpdir, label))
+
+	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", filepath.Join(tmpdir, label), c.root)
 	return err
 }
 
@@ -242,5 +342,11 @@ func runcmd(sudoer bool, args ...string) ([]byte, error) {
 		cmd = append([]string{"sudo", "-n"}, cmd...)
 	}
 	glog.V(4).Infof("Executing: %v", cmd)
-	return exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+	output, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+	if err != nil {
+		e := fmt.Errorf("unable to run cmd:%s  output:%s  error:%s", cmd, string(output), err)
+		glog.Errorf("%s", e)
+		return output, e
+	}
+	return output, err
 }

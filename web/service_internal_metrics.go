@@ -116,6 +116,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Rate:         true,
 					RateOptions: &domain.DataPointRateOptions{
 						Counter: true,
+						// supress extreme outliers
+						ResetThreshold: 1,
 					},
 					Type: "area",
 				},
@@ -130,6 +132,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Rate:         true,
 					RateOptions: &domain.DataPointRateOptions{
 						Counter: true,
+						// supress extreme outliers
+						ResetThreshold: 1,
 					},
 					Type: "area",
 				},
@@ -269,7 +273,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Name:         "TX kbps",
 					Rate:         true,
 					RateOptions: &domain.DataPointRateOptions{
-						Counter:        true,
+						Counter: true,
+						// supress extreme outliers
 						ResetThreshold: 1,
 					},
 					Type: "area",
@@ -284,7 +289,8 @@ func addInternalGraphConfigs(svc *service.Service) {
 					Name:         "RX kbps",
 					Rate:         true,
 					RateOptions: &domain.DataPointRateOptions{
-						Counter:        true,
+						Counter: true,
+						// supress extreme outliers
 						ResetThreshold: 1,
 					},
 					Type: "area",

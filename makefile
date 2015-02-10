@@ -244,6 +244,7 @@ $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logr
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
+$(_DESTDIR)$(prefix)/doc_TARGETS                  += doc/licenses.html:.
 $(_DESTDIR)$(prefix)/share/web_TARGETS             = web/static:static
 $(_DESTDIR)$(prefix)/share/web_INSTOPT             = -R
 $(_DESTDIR)$(prefix)/share/shell_TARGETS           = shell/static:.
@@ -389,8 +390,15 @@ PKGS = deb rpm tgz
 pkgs:
 	cd pkg && $(MAKE) IN_DOCKER=$(IN_DOCKER) INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) $(PKGS)
 
+# Both BUILD_NUMBER and RELEASE_PHASE cannot be empty.
+# If not providing a BUILD_NUMBER, then it is assumed that this is not a nightly build,
+# and a RELEASE_PHASE must be provided (ALPHA1, BETA1, RC1, etc)
+
 .PHONY: docker_buildandpackage
 docker_buildandpackage: docker_ok
+	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then \
+        exit 1 ;\
+    fi
 	docker build -t zenoss/serviced-build build
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/control-center/serviced \

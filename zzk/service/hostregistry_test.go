@@ -14,10 +14,8 @@
 package service
 
 import (
-	"fmt"
 	"path"
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -25,193 +23,205 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+
+	. "gopkg.in/check.v1"
 )
 
-func TestHostRegistryListener_Listen(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestHostRegistryListener_Listen(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
 
-	if err := InitHostRegistry(conn); err != nil {
-		t.Fatalf("Could not initialize host registry: %s", err)
-	}
+	// Initialize the host registry
+	err = InitHostRegistry(conn)
+	c.Assert(err, IsNil)
+
+	shutdown := make(chan interface{})
+	defer close(shutdown)
 
 	listener := NewHostRegistryListener()
-	var (
-		shutdown = make(chan interface{})
-		wait     = make(chan interface{})
-	)
+	go zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+
+	// Add a service
+	svc := service.Service{ID: "test-service-1"}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// Add hosts
+	hosts := make(map[string]string)
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+
+		return path.Base(p)
+	}
+	hosts["test-host-1"] = register("test-host-1")
+	hosts["test-host-2"] = register("test-host-2")
+
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
+		}
+
+		return stateIDs
+	}
+	addstates("test-host-1", &svc, 2)
+	addstates("test-host-2", &svc, 2)
+
+	// unregister a host and verify the states have been removed
+	unregister := func(hostID, ehostID string) {
+		var wg sync.WaitGroup
+
+		hsids, err := conn.Children(hostpath(hostID))
+		c.Assert(err, IsNil)
+
+		// Monitor the states per service
+		for _, hsid := range hsids {
+			var hs HostState
+			err = conn.Get(hostpath(hostID, hsid), &hs)
+			c.Assert(err, IsNil)
+
+			wg.Add(1)
+			go func(hsid, serviceID string) {
+				defer wg.Done()
+				for {
+					event, err := conn.GetW(servicepath(serviceID, hsid), &HostNode{})
+					c.Assert(err, IsNil)
+					if e := <-event; e.Type == client.EventNodeDeleted {
+						return
+					}
+				}
+			}(hs.ServiceStateID, hs.ServiceID)
+		}
+
+		// Monitor the host state
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				hsids, event, err := conn.ChildrenW(hostpath(hostID))
+				c.Assert(err, IsNil)
+				if len(hsids) == 0 {
+					return
+				}
+				<-event
+			}
+		}()
+
+		c.Logf("Unregistering host %s", hostID)
+		err = conn.Delete(hostregpath(ehostID))
+		c.Assert(err, IsNil)
+		wg.Wait()
+	}
+
+	done := make(chan struct{})
 	go func() {
-		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
-		close(wait)
+		done <- struct{}{}
+		unregister("test-host-1", hosts["test-host-1"])
 	}()
 
-	// Create services
-	numServices := 5
-	var svcs []*service.Service
-	for i := 0; i < numServices; i++ {
-		svc := &service.Service{ID: fmt.Sprintf("test-service-%d", i)}
-		if err := UpdateService(conn, svc); err != nil {
-			t.Fatalf("Could not add service %s: %s", svc.ID, err)
-		}
-		svcs = append(svcs, svc)
+	select {
+	case <-done:
+	case <-time.After(1 * time.Minute):
+		c.Errorf("timeout")
 	}
-
-	// Register hosts
-	t.Log("Registering hosts")
-	numHosts := 5
-	hosts := make(map[string]*host.Host)
-	for i := 0; i < numHosts; i++ {
-		host := &host.Host{ID: fmt.Sprintf("test-host-%d", i)}
-		if err := AddHost(conn, host); err != nil {
-			t.Fatalf("Could not register host %s: %s", host.ID, err)
-		}
-		ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
-		t.Log("Ephemeral node: ", ehostpath)
-		if err != nil {
-			t.Fatalf("Could not register host %s: %s", host.ID, err)
-		}
-		hosts[ehostpath] = host
-	}
-
-	// Add service states
-	t.Log("Adding service states")
-	var states []*servicestate.ServiceState
-	for _, host := range hosts {
-		for _, svc := range svcs {
-			state, err := servicestate.BuildFromService(svc, host.ID)
-			if err != nil {
-				t.Fatalf("Could not create service state: %s", err)
-			}
-			if err := addInstance(conn, state); err != nil {
-				t.Fatalf("Could not add service state %s: %s", state.ID, err)
-			}
-			if _, err := LoadRunningService(conn, state.ServiceID, state.ID); err != nil {
-				t.Fatalf("Could not get running service: %s", state.ID)
-			}
-			states = append(states, state)
-		}
-	}
-
-	// Delete hosts
-	deleteHosts := 2
-	deletedHosts := make(map[string]interface{})
-	for ehostpath, host := range hosts {
-		<-time.After(time.Second)
-		t.Log("Removing host: ", host.ID)
-		if err := conn.Delete(ehostpath); err != nil {
-			t.Fatalf("Could not delete ephemeral node %s: %s", ehostpath, err)
-		}
-		deletedHosts[host.ID] = nil
-		deleteHosts--
-		if deleteHosts == 0 {
-			break
-		}
-	}
-
-	// Shutdown
-	<-time.After(time.Second)
-	close(shutdown)
-	<-wait
-
-	for _, state := range states {
-		if _, ok := deletedHosts[state.HostID]; ok {
-			// verify the state has been removed
-			if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
-			} else if exists {
-				t.Errorf("Failed to delete host node %s", state.ID)
-			} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
-			} else if exists {
-				t.Errorf("Failed to delete service node %s", state.ID)
-			}
-		} else {
-			// verify the state has been preserved
-			if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
-			} else if !exists {
-				t.Errorf("Deleted host node %s", state.ID)
-			} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
-			} else if !exists {
-				t.Errorf("Deleted service node %s", state.ID)
-			}
-		}
-	}
-
 }
 
-func TestHostRegistryListener_Spawn(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	// Initialize the host registry
+	err = InitHostRegistry(conn)
+	c.Assert(err, IsNil)
 
 	listener := NewHostRegistryListener()
 	listener.SetConnection(conn)
-	if err := InitHostRegistry(conn); err != nil {
-		t.Fatalf("Could not initialize host registry: %s", err)
-	}
 
-	// Register the host
-	host := &host.Host{ID: "test-host-1"}
-	if err := AddHost(conn, host); err != nil {
-		t.Fatalf("Could not register host %s: %s", host.ID, err)
-	}
+	// Add a service
+	svc := service.Service{ID: "test-service-1"}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
 
-	// Create the ephemeral host
-	ehostpath, err := conn.CreateEphemeral(hostregpath(host.ID), &HostNode{Host: host})
-	if err != nil {
-		t.Fatalf("Could not create ephemeral host")
-	}
-	ehostID := path.Base(ehostpath)
+	// Add hosts
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
 
-	var (
-		wg       sync.WaitGroup
-		shutdown = make(chan interface{})
-	)
-	listener.shutdown = shutdown
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+
+		return path.Base(p)
+	}
+	ehostID := register("test-host-1")
+
+	var wg sync.WaitGroup
 	wg.Add(1)
+	shutdown := make(chan interface{})
 	go func() {
 		defer wg.Done()
 		listener.Spawn(shutdown, ehostID)
 	}()
 
-	// add some service instances
-	t.Log("Creating some service instances")
-	svc := &service.Service{ID: "test-service-1"}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
-	}
-	var states []*servicestate.ServiceState
-	for i := 0; i < 3; i++ {
-		state, err := servicestate.BuildFromService(svc, host.ID)
-		if err != nil {
-			t.Fatalf("Could not create service state from service %s: %s", svc.ID, err)
+	// Add states
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
 		}
-		if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add service state %s: %s", state.ID, err)
-		}
-		states = append(states, state)
+
+		return stateIDs
 	}
+	stateIDs := addstates("test-host-1", &svc, 1)
 
 	// shutdown listener
-	<-time.After(time.Second)
-	t.Log("Shutting down listener")
+	c.Logf("Testing shutdown")
+	time.Sleep(time.Second)
 	close(shutdown)
 	wg.Wait()
 
-	// verify none of the service states were removed
-	for _, state := range states {
-		if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-			t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
-		} else if !exists {
-			t.Errorf("Deleted host node %s", state.ID)
-		} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-			t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
-		} else if !exists {
-			t.Errorf("Deleted service node %s", state.ID)
-		}
+	// verify none of the states were removed
+	for _, stateID := range stateIDs {
+		exists, err := conn.Exists(hostpath("test-host-1", stateID))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, true)
+
+		exists, err = conn.Exists(servicepath(svc.ID, stateID))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, true)
 	}
 
+	// start the listener again
 	shutdown = make(chan interface{})
 	listener.shutdown = shutdown
 	wg.Add(1)
@@ -220,107 +230,145 @@ func TestHostRegistryListener_Spawn(t *testing.T) {
 		listener.Spawn(shutdown, ehostID)
 	}()
 
-	// remove the ephemeral node
-	<-time.After(time.Second)
-	t.Log("Removing the ephemeral node: ", ehostpath)
-	if err := conn.Delete(ehostpath); err != nil {
-		t.Fatalf("Error trying to remove node %s: %s", ehostpath, err)
-	}
-	wg.Wait()
+	// unregister a host and verify the states have been removed
+	unregister := func(hostID, ehostID string) {
+		var wg sync.WaitGroup
 
-	// verify that all of the service states were removed
-	for _, state := range states {
-		// verify the state has been removed
-		if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-			t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
-		} else if exists {
-			t.Errorf("Failed to delete host node %s", state.ID)
-		} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-			t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
-		} else if exists {
-			t.Errorf("Failed to delete service node %s", state.ID)
+		hsids, err := conn.Children(hostpath(hostID))
+		c.Assert(err, IsNil)
+
+		// Monitor the states per service
+		for _, hsid := range hsids {
+			var hs HostState
+			err = conn.Get(hostpath(hostID, hsid), &hs)
+			c.Assert(err, IsNil)
+
+			wg.Add(1)
+			go func(hsid, serviceID string) {
+				defer wg.Done()
+				for {
+					event, err := conn.GetW(servicepath(serviceID, hsid), &HostNode{})
+					c.Assert(err, IsNil)
+					if e := <-event; e.Type == client.EventNodeDeleted {
+						return
+					}
+				}
+			}(hs.ServiceStateID, hs.ServiceID)
 		}
+
+		// Monitor the host state
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				hsids, event, err := conn.ChildrenW(hostpath(hostID))
+				c.Assert(err, IsNil)
+				if len(hsids) == 0 {
+					return
+				}
+				<-event
+			}
+		}()
+
+		c.Logf("Unregistering host %s", hostID)
+		err = conn.Delete(hostregpath(ehostID))
+		c.Assert(err, IsNil)
+		wg.Wait()
+	}
+
+	defer close(shutdown)
+	c.Logf("Removing ephemeral node %s", ehostID)
+	time.Sleep(time.Second)
+
+	done := make(chan struct{})
+	go func() {
+		done <- struct{}{}
+		unregister("test-host-1", ehostID)
+	}()
+
+	select {
+	case <-done:
+	case <-time.After(1 * time.Minute):
+		c.Errorf("timeout")
 	}
 }
 
-func TestHostRegistryListener_unregister(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestHostRegistryListener_unregister(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+
+	// Initialize the host registry
+	err = InitHostRegistry(conn)
+	c.Assert(err, IsNil)
+
 	listener := NewHostRegistryListener()
 	listener.SetConnection(conn)
-	if err := InitHostRegistry(conn); err != nil {
-		t.Fatalf("Could not initialize host registry: %s", err)
-	}
 
-	host1 := &host.Host{ID: "test-host-1"}
-	host2 := &host.Host{ID: "test-host-2"}
+	// Add a service
+	svc := service.Service{ID: "test-service-1"}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
 
-	// add some service instances
-	t.Log("Creating some service instances")
-	svc := &service.Service{ID: "test-service-1"}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not add service %s: %s", svc.ID, err)
+	// Add hosts
+	register := func(hostID string) string {
+		c.Logf("Registering host %s", hostID)
+		host := host.Host{ID: hostID}
+
+		err := AddHost(conn, &host)
+		c.Assert(err, IsNil)
+
+		p, err := conn.CreateEphemeral(hostregpath(hostID), &HostNode{Host: &host})
+		c.Assert(err, IsNil)
+
+		return path.Base(p)
 	}
-	var states []*servicestate.ServiceState
-	for i := 0; i < 3; i++ {
-		state, err := servicestate.BuildFromService(svc, host1.ID)
-		if err != nil {
-			t.Fatalf("Could not create service state from service %s: %s", svc.ID, err)
+	register("test-host-1")
+	register("test-host-2")
+
+	// Add states
+	states := make(map[string][]string)
+	addstates := func(hostID string, svc *service.Service, count int) []string {
+		c.Logf("Adding %d service states for service %s on host %s", count, svc.ID, hostID)
+		stateIDs := make([]string, count)
+
+		for i := 0; i < count; i++ {
+			state, err := servicestate.BuildFromService(svc, hostID)
+			c.Assert(err, IsNil)
+
+			err = addInstance(conn, state)
+			c.Assert(err, IsNil)
+
+			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
+			c.Assert(err, IsNil)
+			stateIDs[i] = state.ID
 		}
-		if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add service instance %s: %s", state.ID, err)
-		}
-		states = append(states, state)
+
+		return stateIDs
 	}
-	for i := 0; i < 2; i++ {
-		state, err := servicestate.BuildFromService(svc, host2.ID)
-		if err != nil {
-			t.Fatalf("Could not create service state from service %s: %s", svc.ID, err)
-		}
-		if err := addInstance(conn, state); err != nil {
-			t.Fatalf("Could not add service instance %s: %s", state.ID, err)
-		}
-		states = append(states, state)
-	}
+	states["test-host-1"] = addstates("test-host-1", &svc, 2)
+	states["test-host-2"] = addstates("test-host-2", &svc, 2)
 
 	// unregister the host instances
-	t.Log("Unregistering service instances for ", host1.ID)
-	listener.unregister(host1.ID)
-	var saved, removed int
-	for _, state := range states {
-		if state.HostID == host1.ID {
-			// verify the state has been removed
-			if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
-			} else if exists {
-				t.Errorf("Failed to delete host node %s", state.ID)
-			} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
-			} else if exists {
-				t.Errorf("Failed to delete service node %s", state.ID)
-			} else {
-				removed++
-			}
-		} else {
-			// verify the state has been preserved
-			if exists, err := zzk.PathExists(conn, hostpath(state.HostID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", hostpath(state.HostID, state.ID), err)
-			} else if !exists {
-				t.Errorf("Deleted host node %s", state.ID)
-			} else if exists, err := zzk.PathExists(conn, servicepath(state.ServiceID, state.ID)); err != nil {
-				t.Fatalf("Error checking path %s: %s", servicepath(state.ServiceID, state.ID), err)
-			} else if !exists {
-				t.Errorf("Deleted service node %s", state.ID)
-			} else {
-				saved++
-			}
-		}
+	c.Logf("Unregistering service instances for 'test-host-1'")
+	listener.unregister("test-host-1")
+
+	// verify states removed
+	for _, state := range states["test-host-1"] {
+		exists, err := conn.Exists(hostpath("test-host-1", state))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, false)
+		exists, err = conn.Exists(servicepath(svc.ID, state))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, false)
 	}
 
-	if saved != 2 {
-		t.Errorf("Some service states were not saved")
-	}
-	if removed != 3 {
-		t.Errorf("Some service states were not removed")
+	// verify states preserved
+	for _, state := range states["test-host-2"] {
+		exists, err := conn.Exists(hostpath("test-host-2", state))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, true)
+		exists, err = conn.Exists(servicepath(svc.ID, state))
+		c.Assert(err, IsNil)
+		c.Assert(exists, Equals, true)
 	}
 }

@@ -22,13 +22,9 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 
@@ -48,65 +44,32 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 		return "", err
 	}
 
-	// Pause all running services
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	// Pause all running services for that tenant
+	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
 		glog.Errorf("Could not get all services: %s", err)
 		return "", err
 	}
 
-	type status struct {
-		id  string
-		err error
-	}
-
-	processing := make(map[string]struct{})
-	cancel := make(chan interface{})
-	done := make(chan status)
-
-	for _, svc := range svcs {
-		if svc.DesiredState == int(service.SVCRun) {
-			defer dfs.facade.StartService(datastore.Get(), dao.ScheduleServiceRequest{svc.ID, false})
-			processing[svc.ID] = struct{}{}
-
-			go func(poolID, serviceID string) {
-				conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
-				if err != nil {
-					glog.Errorf("Could not acquire connection to coordinator (%s): %s", poolID, err)
-					done <- status{serviceID, err}
-					return
-				}
-
-				err = dfs.pause(cancel, conn, serviceID)
-				done <- status{serviceID, err}
-			}(svc.PoolID, svc.ID)
-		}
-	}
-
-	// wait for all services to pause
-	timeout := time.After(dfs.timeout)
-	if err := func() error {
-		defer func() {
-			close(cancel)
-			for len(processing) > 0 {
-				obj := <-done
-				delete(processing, obj.id)
-			}
-		}()
-		for len(processing) > 0 {
-			select {
-			case obj := <-done:
-				delete(processing, obj.id)
-				if obj.err != nil {
-					return err
-				}
-			case <-timeout:
-				return fmt.Errorf("request timed out")
+	serviceIDs := make([]string, len(svcs))
+	for i, svc := range svcs {
+		// Check if each service is paused (or stopped)
+		if svc.DesiredState != int(service.SVCPause) && svc.DesiredState != int(service.SVCStop) {
+			// Restore the service state when the function exits
+			defer dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.DesiredState(svc.DesiredState))
+			// Set the service to "paused"
+			glog.V(1).Infof("Scheduling service %s (%s) to %s", svc.Name, svc.ID, service.SVCPause)
+			if _, err := dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.SVCPause); err != nil {
+				glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
+				return "", err
 			}
 		}
-		return nil
-	}(); err != nil {
-		glog.Errorf("Could not pause all running services: %s", err)
+		// Add the service ID to the list of services that we need to watch
+		serviceIDs[i] = svc.ID
+	}
+
+	if err := dfs.facade.WaitService(datastore.Get(), service.SVCPause, dfs.timeout, serviceIDs...); err != nil {
+		glog.Errorf("Error while waiting for services to %s: %s", service.SVCPause, err)
 		return "", err
 	}
 
@@ -118,7 +81,7 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 	}
 
 	// dump the service definitions
-	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), getChildServices(tenantID, svcs)); err != nil {
+	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), svcs); err != nil {
 		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.Path(), err)
 		return "", err
 	}
@@ -138,37 +101,59 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string) (string, error) {
 		return "", err
 	}
 
+	glog.Infof("Snapshot succeeded for tenantID:%s with fsType:%s using snapshotID:%s", tenantID, dfs.fsType, label)
 	return label, nil
 }
 
 // Rollback rolls back the dfs and docker images to the state of a given snapshot
-func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
+func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool) error {
 	tenantID, timestamp, err := parseLabel(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not rollback snapshot %s: %s", snapshotID, err)
 		return err
 	}
 
-	// fail if any services are running
-	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	svcs, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
 	}
 
-	for _, svc := range svcs {
-		conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
-		if err != nil {
-			glog.Errorf("Could not acquire connection to coordinator (%s): %s", svc.PoolID, err)
+	if forceRestart {
+		// wait for all services to stop
+		serviceIDs := make([]string, len(svcs))
+		for i, svc := range svcs {
+			// If the service's desired state is not stopped, set the state as such
+			if svc.DesiredState != int(service.SVCStop) {
+				// restore the service's desired state when this function exits
+				defer dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.DesiredState(svc.DesiredState))
+				// set the service to "stop"
+				glog.V(1).Infof("Scheduling service %s (%s) to %s", svc.Name, svc.ID, service.SVCStop)
+				if _, err := dfs.facade.ScheduleService(datastore.Get(), svc.ID, false, service.SVCStop); err != nil {
+					glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
+					return err
+				}
+			}
+			// Add the service to the list of service IDs we need to watch
+			serviceIDs[i] = svc.ID
+		}
+
+		// Wait for all service instances to reach the desired state
+		if err := dfs.facade.WaitService(datastore.Get(), service.SVCStop, dfs.timeout, serviceIDs...); err != nil {
+			glog.Errorf("Error while waiting for services to %s: %s", service.SVCStop, err)
 			return err
 		}
-		if states, err := zkservice.GetServiceStates(conn, svc.ID); err != nil {
-			glog.Errorf("Could not look up running instances for %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		} else if running := len(states); running > 0 {
-			err := fmt.Errorf("service %s (%s) has %d running instances", svc.Name, svc.ID, running)
-			glog.Errorf("Cannot rollback to %s: %s", snapshotID, err)
-			return err
+	} else {
+		// error if services aren't stopped
+		for _, svc := range svcs {
+			if states, err := dfs.facade.GetServiceStates(datastore.Get(), svc.ID); err != nil {
+				glog.Errorf("Could not look up service states for %s (%s): %s", svc.Name, svc.ID, err)
+				return err
+			} else if running := len(states); running > 0 {
+				err := fmt.Errorf("service %s (%s) has %d running instances", svc.Name, svc.ID, running)
+				glog.Errorf("Cannot rollback to %s: %s", snapshotID, err)
+				return err
+			}
 		}
 	}
 
@@ -209,11 +194,12 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 		return err
 	}
 
-	if err := dfs.restoreServices(restore); err != nil {
+	if err := dfs.restoreServices(tenantID, restore); err != nil {
 		glog.Errorf("Could not restore services from %s: %s", snapshotID, err)
 		return err
 	}
 
+	glog.Infof("Rollback succeeded for tenantID:%s with fsType:%s using snapshotID:%s", tenant.ID, dfs.fsType, snapshotID)
 	return nil
 }
 
@@ -275,14 +261,10 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 	}
 
 	for _, image := range images {
-		imageID := image.ID
-		imageID.Tag = timestamp
-		img, err := docker.FindImage(imageID.String(), false)
-		if err != nil {
-			glog.Errorf("Could not remove tag from image %s: %s", imageID, err)
-			continue
+		glog.Infof("Removing image %s", image.ID)
+		if err := image.Delete(); err != nil {
+			glog.Warningf("Error while removing image %s: %s", image.ID, err)
 		}
-		img.Delete()
 	}
 
 	return nil
@@ -317,32 +299,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	return nil
 }
 
-func (dfs *DistributedFilesystem) pause(cancel <-chan interface{}, conn client.Connection, serviceID string) error {
-	if _, err := dfs.facade.PauseService(datastore.Get(), dao.ScheduleServiceRequest{serviceID, false}); err != nil {
-		return err
-	}
-
-	states, err := zkservice.GetServiceStates(conn, serviceID)
-	if err != nil {
-		glog.Errorf("Could not get service states for service %s: %s", serviceID, err)
-		return err
-	}
-
-	for _, state := range states {
-		if err := zkservice.WaitPause(cancel, conn, serviceID, state.ID); err != nil {
-			return fmt.Errorf("could not pause %s (%s): %s", serviceID, state.ID, err)
-		}
-		select {
-		case <-cancel:
-			return fmt.Errorf("request cancelled")
-		default:
-		}
-	}
-
-	return nil
-}
-
-func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error {
+func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*service.Service) error {
 	// get the resource pools
 	pools, err := dfs.facade.GetResourcePools(datastore.Get())
 	if err != nil {
@@ -353,22 +310,22 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 		poolMap[pool.ID] = struct{}{}
 	}
 
-	// map services to parent
+	// map parentServiceID to service
 	serviceTree := make(map[string][]service.Service)
 	for _, svc := range svcs {
 		serviceTree[svc.ParentServiceID] = append(serviceTree[svc.ParentServiceID], *svc)
 	}
 
 	// map service id to service
-	current, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{})
+	current, err := dfs.facade.GetServices(datastore.Get(), dao.ServiceRequest{TenantID: tenantID})
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return err
 	}
 
 	currentServices := make(map[string]*service.Service)
-	for _, svc := range current {
-		currentServices[svc.ID] = &svc
+	for i, svc := range current {
+		currentServices[svc.ID] = &current[i]
 	}
 
 	// updates all of the services
@@ -398,32 +355,23 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 			}
 
 			if _, ok := currentServices[serviceID]; ok {
+				glog.Infof("Updating service %s (%s)", svc.Name, svc.ID)
 				if err := dfs.facade.UpdateService(datastore.Get(), svc); err != nil {
 					glog.Errorf("Could not update service %s: %s", svc.ID, err)
 					return err
 				}
 				delete(currentServices, serviceID)
 			} else {
+				glog.Infof("Adding service %s (%s)", svc.Name, svc.ID)
 				if err := dfs.facade.AddService(datastore.Get(), svc); err != nil {
 					glog.Errorf("Could not add service %s: %s", serviceID, err)
 					return err
 				}
+			}
 
-				/*
-					// TODO: enable this to generate a new service ID, instead of recycling
-					// the old one
-					svc.ID = ""
-					newServiceID, err = dfs.facade.AddService(svc)
-					if err != nil {
-						glog.Errorf("Could not add service %s: %s", serviceID, err)
-						return err
-					}
-
-					// Update the service
-					serviceTree[newServiceID] = serviceTree[serviceID]
-					delete(serviceTree, serviceID)
-					serviceID = newServiceID
-				*/
+			// restore the address assignments
+			if err := dfs.facade.RestoreIPs(datastore.Get(), svc); err != nil {
+				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 
 			if err := traverse(serviceID); err != nil {
@@ -438,15 +386,39 @@ func (dfs *DistributedFilesystem) restoreServices(svcs []*service.Service) error
 		return err
 	}
 
-	/*
-		// TODO: enable this if we want to delete any non-matching services
-		for serviceID := range currentServices {
-			if err := dfs.facade.RemoveService(serviceID); err != nil {
-				glog.Errorf("Could not remove service %s: %s", serviceID, err)
+	// delete remaining services hierarchically
+	deleted := make(map[string]struct{}) // list of services that have been deleted
+
+	// if the parent is to be deleted, then delete that first because that
+	// will recursively delete the children and limit the number of calls to
+	// the facade
+	var rmsvc func(*service.Service) error
+	rmsvc = func(s *service.Service) error {
+		if _, ok := deleted[s.ID]; ok {
+			// service has already been deleted
+			return nil
+		} else if p, ok := currentServices[s.ParentServiceID]; ok {
+			// if the parent needs to be deleted, delete the parent first
+			if err := rmsvc(p); err != nil {
+				return err
+			}
+		} else {
+			// otherwise just delete the node
+			glog.Infof("Removing service %s (%s)", s.Name, s.ID)
+			if err := dfs.facade.RemoveService(datastore.Get(), s.ID); err != nil {
+				glog.Errorf("Could not remove service %s (%s): %s", s.Name, s.ID, err)
 				return err
 			}
 		}
-	*/
+		// update the list of deleted services
+		deleted[s.ID] = struct{}{}
+		return nil
+	}
+	for _, svc := range currentServices {
+		if err := rmsvc(svc); err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -461,30 +433,6 @@ func parseLabel(snapshotID string) (string, string, error) {
 		return "", "", fmt.Errorf("malformed label")
 	}
 	return parts[0], parts[1], nil
-}
-
-func getChildServices(tenantID string, svcs []service.Service) []service.Service {
-	var result []service.Service
-
-	svcMap := make(map[string][]service.Service)
-	for _, svc := range svcs {
-		if svc.ID == tenantID {
-			result = append(result, svc)
-		} else {
-			childSvcs := svcMap[svc.ParentServiceID]
-			svcMap[svc.ParentServiceID] = append(childSvcs, svc)
-		}
-	}
-
-	var walk func(root string)
-	walk = func(root string) {
-		for _, svc := range svcMap[root] {
-			result = append(result, svc)
-			walk(svc.ID)
-		}
-	}
-	walk(tenantID)
-	return result
 }
 
 func exportJSON(filename string, v interface{}) error {

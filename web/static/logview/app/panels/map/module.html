@@ -1,4 +1,6 @@
-<div ng-controller="map" ng-init="init()"><style>.jvectormap-label {
+<div ng-controller='map' ng-init="init()">
+  <style>
+    .jvectormap-label {
         position: absolute;
         display: none;
         visibility: hidden;
@@ -51,8 +53,11 @@
         background-color: #1f1f1f;
         border-radius: 5px;
         position: absolute;
-        right: 0px;
+        left: 0px;
         top: 15px;
         display: none;
         z-index: 99;
-    }</style><div class="jvectormap" map="" params="{{panel}}" style="height:{{panel.height || row.height}}"></div></div>
+    }
+  </style>
+  <div class="jvectormap" map params="{{panel}}" ng-style="{height:panel.height||row.height}"></div>
+</div>

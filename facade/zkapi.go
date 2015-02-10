@@ -38,6 +38,7 @@ var zkAPI func(f *Facade) zkfuncs = getZKAPI
 type zkfuncs interface {
 	UpdateService(service *service.Service) error
 	RemoveService(service *service.Service) error
+	WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error
 	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
 	StopServiceInstance(poolID, hostID, stateID string) error
 	CheckRunningVHost(vhostName, serviceID string) error
@@ -61,7 +62,17 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 	if err != nil {
 		return err
 	}
-	return zkservice.UpdateService(conn, service)
+
+	if err := zkservice.UpdateService(conn, service); err != nil {
+		return err
+	}
+
+	rootconn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+
+	return zkservice.UpdateServiceVhosts(rootconn, service)
 }
 
 func (zk *zkf) RemoveService(service *service.Service) error {
@@ -72,11 +83,31 @@ func (zk *zkf) RemoveService(service *service.Service) error {
 		return err
 	}
 
+	// remove the global list of all vhosts deployed
+	if rootconn, err := zzk.GetLocalConnection("/"); err != nil {
+		return err
+	} else if err := zkservice.RemoveServiceVhosts(rootconn, service); err != nil {
+		return err
+	}
+
+	// Ensure that the service's pool is locked for the duration
+	finish := make(chan interface{})
+	defer close(finish)
+	if err := zkservice.EnsureServiceLock(nil, finish, conn); err != nil {
+		return err
+	}
+
 	// FIXME: this may be a long-running operation, should we institute a timeout?
-	mutex := zkservice.ServiceLock(conn)
-	mutex.Lock()
-	defer mutex.Unlock()
 	return zkservice.RemoveService(conn, service.ID)
+}
+
+func (zk *zkf) WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
+	if err != nil {
+		return err
+	}
+
+	return zkservice.WaitService(cancel, conn, service.ID, state)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
@@ -150,17 +181,18 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 		return err
 	}
 
-	// FIXME: this may be a long-running operation, should we institute a timeout?
-	mutex := zkservice.ServiceLock(conn)
-	mutex.Lock()
-	defer mutex.Unlock()
-
 	cancel := make(chan interface{})
 	go func() {
 		defer close(cancel)
 		<-time.After(2 * time.Minute)
 	}()
 
+	// Ensure that the service's pool is locked for the duration
+	finish := make(chan interface{})
+	defer close(finish)
+	if err := zkservice.EnsureServiceLock(cancel, finish, conn); err != nil {
+		return err
+	}
 	return zkhost.RemoveHost(cancel, conn, host.ID)
 }
 

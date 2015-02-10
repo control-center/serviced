@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/zzk"
+	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
 )
 
@@ -160,6 +161,7 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 		glog.Errorf("Error while trying to acquire a lock for %s: %s", ip, err)
 		return
 	}
+	defer l.stopInstances(ip)
 	defer leader.ReleaseLead()
 
 	select {
@@ -221,8 +223,8 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 		case <-shutdown:
 			if err := l.unbind(ip); err != nil {
 				glog.Errorf("Could not unbind to virtual ip %s: %s", ip, err)
-				return
 			}
+			return
 		}
 	}
 }
@@ -273,6 +275,22 @@ func (l *VirtualIPListener) unbind(ip string) error {
 	}
 
 	return nil
+}
+
+func (l *VirtualIPListener) stopInstances(ip string) {
+	glog.Infof("Stopping service instances using ip %s on host %s", ip, l.hostID)
+	rss, err := zkservice.LoadRunningServicesByHost(l.conn, l.hostID)
+	if err != nil {
+		glog.Errorf("Could not load running instances on host %s: %s", l.hostID, err)
+		return
+	}
+	for _, rs := range rss {
+		if rs.IPAddress == ip {
+			if err := zkservice.StopServiceInstance(l.conn, l.hostID, rs.ID); err != nil {
+				glog.Warningf("Could not stop service instance %s on host %s: %s", rs.ID, l.hostID, err)
+			}
+		}
+	}
 }
 
 func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {

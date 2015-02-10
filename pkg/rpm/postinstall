@@ -3,3 +3,7 @@ if [ $1 -eq 1 ] ; then
         /usr/bin/systemctl preset serviced >/dev/null 2>&1 || :
         /usr/bin/systemctl enable serviced >/dev/null 2>&1 || :
 fi
+
+mkdir -p /var/log/serviced
+chmod 1777 /var/log/serviced
+
