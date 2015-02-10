@@ -495,7 +495,7 @@
                             label: "close"
                         },{
                             classes: "btn-primary",
-                            label: "Refresh",
+                            label: "refresh",
                             icon: "glyphicon-repeat",
                             action: function() {
                                 var textarea = this.$el.find("textarea");
