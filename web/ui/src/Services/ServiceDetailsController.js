@@ -495,6 +495,17 @@
                             label: "close"
                         },{
                             classes: "btn-primary",
+                            label: "refresh",
+                            icon: "glyphicon-repeat",
+                            action: function() {
+                                var textarea = this.$el.find("textarea");
+                                resourcesFactory.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
+                                    $scope.editService.log = log.Detail;
+                                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                                });
+                            }
+                        },{
+                            classes: "btn-primary",
                             label: "download",
                             action: function(){
                                 utils.downloadFile('/services/' + serviceState.ServiceID + '/' + serviceState.ID + '/logs/download');

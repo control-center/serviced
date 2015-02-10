@@ -296,6 +296,7 @@
     "pool_tbl_virtual_ip_address_netmask": "Netmask",
     "pool_tbl_virtual_ip_address_bind_interface": "Bind Interface",
     "pool_tbl_virtual_ip_address_action": "Action",
+    "refresh": "Refresh",
     "running_services": "Running Services",
     "running_tbl_actions": "Actions",
     "running_tbl_docker_id": "Docker Container ID",
