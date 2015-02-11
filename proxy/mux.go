@@ -152,7 +152,7 @@ func (mux *TCPMux) muxConnection(conn net.Conn) {
 			glog.Errorf("error writting buffered bytes: %s", err)
 		}
 		if n != len(bufferedBytes) {
-			glog.Errorf("exepected to write %d bytes but wrote %s", len(bufferedBytes), n)
+			glog.Errorf("exepected to write %d bytes but wrote %d", len(bufferedBytes), n)
 		}
 	}
 

@@ -200,7 +200,7 @@ func TestZkDriver_Ephemeral(t *testing.T) {
 		t.Fatalf("ephemeral %s not created", ename)
 	}
 	if err := conn.Delete(ename); err != nil {
-		t.Fatalf("could not delete path %s to ephemeral: %s", err)
+		t.Fatalf("could not delete path %s to ephemeral: %s", ename, err)
 	}
 
 	if ok, err := conn.Exists(ename); err != nil && err != coordclient.ErrNoNode {

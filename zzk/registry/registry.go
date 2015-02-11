@@ -191,7 +191,7 @@ func (r *registryType) ensureKey(conn client.Connection, key string) error {
 		default:
 		}
 	}
-	return fmt.Errorf("could not create key: %s", key, err)
+	return fmt.Errorf("could not create key %q: %s", key, err)
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
@@ -208,7 +208,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 		default:
 		}
 	}
-	return fmt.Errorf("could not create dir: %s", path, err)
+	return fmt.Errorf("could not create dir %q: %s", path, err)
 }
 
 // getChildren gets all child paths for the given nodeID

@@ -488,7 +488,7 @@ func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
 		}
 	}
 	if ctr.IsRunning() {
-		glog.Errorf("Instance %s (%s) is still running, killing container")
+		glog.Errorf("Instance %s (%s) is still running, killing container", stateID, ctr.ID)
 		ctr.Kill()
 	}
 	if err := ctr.Delete(true); err != nil {

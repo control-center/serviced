@@ -253,7 +253,7 @@ func importTGZ(dest, filename string) error {
 	}
 	if output, err := cmd.CombinedOutput(); err != nil {
 		err = fmt.Errorf("%s: %s", string(output), err)
-		glog.Errorf("Could not import tgz [%v]: %s", err)
+		glog.Errorf("Could not import tgz [%v]: %s", cmd, err)
 		return err
 	}
 	return nil

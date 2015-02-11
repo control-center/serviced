@@ -325,7 +325,7 @@ func getReverseProxy(hostIP string, muxPort int, privateIP string, privatePort u
 		remoteAddr = fmt.Sprintf("%s:%d", hostIP, muxPort)
 	}
 
-	key := fmt.Sprintf("%s,%d,%s,%s,%v", remoteAddr, muxPort, privateIP, privatePort, useTLS)
+	key := fmt.Sprintf("%s,%d,%s,%d,%v", remoteAddr, muxPort, privateIP, privatePort, useTLS)
 	proxy, ok := reverseProxies[key]
 	if ok {
 		return proxy

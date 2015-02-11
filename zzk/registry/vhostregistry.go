@@ -85,7 +85,7 @@ func VHostRegistry(conn client.Connection) (*VhostRegistry, error) {
 	}
 	if err != nil {
 		glog.Errorf("error with CreateDir(%s) %+v", path, err)
-		return nil, fmt.Errorf("could not create dir: %s", path, err)
+		return nil, fmt.Errorf("could not create dir %q: %s", path, err)
 	}
 	return &VhostRegistry{registryType{getPath: vhostPath, ephemeral: true}}, nil
 }

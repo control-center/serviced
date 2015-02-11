@@ -74,7 +74,7 @@ retry:
 				wait = time.After(minWait)
 				continue retry
 			} else if zkservice.SyncServices(conn, svcs); err != nil {
-				glog.Error("Could not do a local sync of services: %s", err)
+				glog.Errorf("Could not do a local sync of services: %s", err)
 				wait = time.After(minWait)
 				continue retry
 			}

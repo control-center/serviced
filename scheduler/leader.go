@@ -43,7 +43,7 @@ type leader struct {
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, dao dao.ControlPlane, poolID string) {
 	// creates a listener for the host registry
 	if err := zkservice.InitHostRegistry(conn); err != nil {
-		glog.Errorf("Could not initialize host registry for pool %s: %s", err)
+		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
 		return
 	}
 	hostRegistry := zkservice.NewHostRegistryListener()

@@ -49,6 +49,6 @@ func TestWriteFile(t *testing.T) {
 	}
 	newMode := stats.Mode()
 	if 0660 != newMode {
-		t.Fatalf("desired file mode (%s) not successfully found (%s)", 0660, newMode)
+		t.Fatalf("desired file mode (%04o) not successfully found (%04o)", 0660, newMode)
 	}
 }

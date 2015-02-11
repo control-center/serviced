@@ -180,7 +180,7 @@ func (c *Client) loop() {
 			remoteShutdown <- true
 			return
 		case evt := <-e:
-			glog.Errorf("got zk event: %s", evt)
+			glog.Errorf("got zk event: %v", evt)
 			continue
 		}
 	}

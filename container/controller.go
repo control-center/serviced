@@ -539,7 +539,7 @@ func (c *Controller) Run() (err error) {
 
 	rpcDead, err := c.rpcHealthCheck()
 	if err != nil {
-		glog.Error("Could not setup RPC ping check: %s", err)
+		glog.Errorf("Could not setup RPC ping check: %s", err)
 		return err
 	}
 

@@ -250,7 +250,7 @@ func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, clien
 	tags := map[string][]string{"controlplane_host_id": hostIDs}
 	profile, err := hostPoolProfile.ReBuild("1h-ago", tags)
 	if err != nil {
-		glog.Error("Failed to create pool profile: %s", err)
+		glog.Errorf("Failed to create pool profile: %s", err)
 		return err
 	}
 

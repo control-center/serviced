@@ -117,7 +117,7 @@ func restDeployAppTemplate(w *rest.ResponseWriter, r *rest.Request, client *node
 	for _, tenantID := range tenantIDs {
 		assignmentRequest := dao.AssignmentRequest{tenantID, "", true}
 		if err := client.AssignIPs(assignmentRequest, nil); err != nil {
-			glog.Error("Could not automatically assign IPs: %v", err)
+			glog.Errorf("Could not automatically assign IPs: %v", err)
 			continue
 		}
 		glog.Infof("Automatically assigned IP addresses to service: %v", tenantID)

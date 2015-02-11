@@ -310,7 +310,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		tenantID = newsvc.ID
 	}
 	if err := setImageID(f.dockerRegistry, tenantID, newsvc); err != nil {
-		glog.Errorf("Could not set image id for service %s at parent %s: %s", newsvc.Name, newsvc.ParentServiceID)
+		glog.Errorf("Could not set image id for service %s at parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
 

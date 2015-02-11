@@ -730,7 +730,7 @@ func (f *Facade) getManualAssignment(ctx datastore.Context, poolID, ipAddr strin
 			return ipinfo{}, err
 		} else if exists != nil {
 			err := fmt.Errorf("assignment exists for %s:%d", ipAddr, port)
-			glog.Errorf("Assignment found for endpoint on service %s: %s", exists.EndpointName, exists.ServiceID, err)
+			glog.Errorf("Assignment found for endpoint %s on service %s: %s", exists.EndpointName, exists.ServiceID, err)
 			return ipinfo{}, err
 		}
 	}

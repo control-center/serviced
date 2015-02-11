@@ -37,7 +37,7 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 	for _, aPool := range allPools {
 		poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(aPool.ID))
 		if err != nil {
-			glog.Error("runningservice.go Failed to get connection based on pool: %v", aPool.ID)
+			glog.Errorf("runningservice.go Failed to get connection based on pool: %v", aPool.ID)
 			return err
 		}
 

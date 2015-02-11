@@ -148,7 +148,7 @@ func (s *S) TestQuery(t *C) {
 		t.Errorf("Unepected error %v", err)
 	}
 	if len(msgs) != 0 {
-		t.Errorf("Expected 0 msgs, got  %V", len(msgs))
+		t.Errorf("Expected 0 msgs, got %d", len(msgs))
 	}
 
 }

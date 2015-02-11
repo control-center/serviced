@@ -58,13 +58,11 @@ func TestManager(t *testing.T) {
 	}
 
 	if err := testManager.Register(container); err != nil {
-		t.Logf("expected nil got %s", err)
-		t.Fatal()
+		t.Fatalf("expected nil got %s", err)
 	}
 
 	if err := testManager.Register(container2); err != nil {
-		t.Logf("expected nil got %s", err)
-		t.Fatal()
+		t.Fatalf("expected nil got %s", err)
 	}
 
 	if err := testManager.Start(); err != nil {

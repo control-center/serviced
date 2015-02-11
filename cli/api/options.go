@@ -102,7 +102,7 @@ func (m *PortMap) Set(value string) error {
 func (m *PortMap) String() string {
 	var mapping []string
 	for _, v := range *m {
-		mapping = append(mapping, fmt.Sprintf("%s:%s:%s", v.Protocol, v.PortNumber, v.Application))
+		mapping = append(mapping, fmt.Sprintf("%s:%d:%s", v.Protocol, v.PortNumber, v.Application))
 	}
 	return strings.Join(mapping, " ")
 }

@@ -438,7 +438,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			for parentID != "" {
 				svc, err := c.driver.GetService(parentID)
 				if err != nil || svc == nil {
-					fmt.Fprintln(os.Stderr, "unable to retrieve service for id:%s %s", parentID, err)
+					fmt.Fprintf(os.Stderr, "unable to retrieve service for id:%s %s\n", parentID, err)
 					return
 				}
 				services = append(services, *svc)

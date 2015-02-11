@@ -42,7 +42,7 @@ func init() {
 	var err error
 	zookeeper, err = NewIService(Zookeeper)
 	if err != nil {
-		glog.Fatal("Error initializing zookeeper container: %s", err)
+		glog.Fatalf("Error initializing zookeeper container: %s", err)
 	}
 }
 

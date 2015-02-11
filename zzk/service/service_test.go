@@ -433,7 +433,7 @@ func TestServiceListener_sync(t *testing.T) {
 		var hs HostState
 		hpath := hostpath(handler.Host.ID, rs.ID)
 		if err := conn.Get(hpath, &hs); err != nil {
-			t.Fatalf("Error while looking up %s", hpath, err)
+			t.Fatalf("Error while looking up %s: %s", hpath, err)
 		} else if hs.DesiredState == int(service.SVCStop) {
 			stopped = append(stopped, &hs)
 		}
@@ -448,9 +448,9 @@ func TestServiceListener_sync(t *testing.T) {
 		hs := stopped[i]
 		var state servicestate.ServiceState
 		if err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
-			t.Fatalf("Error while getting %s", hs.ServiceStateID, err)
+			t.Fatalf("Error while getting %s: %s", hs.ServiceStateID, err)
 		} else if err := removeInstance(conn, &state); err != nil {
-			t.Fatalf("Error while deleting %s", hs.ServiceStateID, err)
+			t.Fatalf("Error while deleting %s: %s", hs.ServiceStateID, err)
 		}
 	}
 

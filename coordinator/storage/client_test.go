@@ -46,7 +46,7 @@ func TestClient(t *testing.T) {
 
 	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, Timeout: time.Second * 15})
 	if err != nil {
-		t.Fatal("unexpected error creating zk DSN: %s", err)
+		t.Fatalf("unexpected error creating zk DSN: %s", err)
 	}
 	dsn := string(dsnBytes)
 	zClient, err := client.New("zookeeper", dsn, basePath, nil)

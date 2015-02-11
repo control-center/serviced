@@ -39,7 +39,7 @@ func init() {
 			HostNetwork: true,
 		})
 	if err != nil {
-		glog.Fatal("Error initializing logstash_master container: %s", err)
+		glog.Fatalf("Error initializing logstash_master container: %s", err)
 	}
 }
 

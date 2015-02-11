@@ -53,7 +53,7 @@ func init() {
 		},
 	)
 	if err != nil {
-		glog.Fatal("Error initializing elasticsearch container: %s", err)
+		glog.Fatalf("Error initializing elasticsearch container: %s", err)
 	}
 	elasticsearch_serviced.Command = func() string {
 		clusterArg := ""
@@ -77,7 +77,7 @@ func init() {
 		},
 	)
 	if err != nil {
-		glog.Fatal("Error initializing elasticsearch container: %s", err)
+		glog.Fatalf("Error initializing elasticsearch container: %s", err)
 	}
 	envPerService[serviceName]["ES_JAVA_OPTS"] = "-Xmx4g"
 	elasticsearch_logstash.Command = func() string {

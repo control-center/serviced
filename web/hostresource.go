@@ -238,7 +238,7 @@ func buildHostMonitoringProfile(host *host.Host) error {
 	tags := map[string][]string{"controlplane_host_id": []string{host.ID}}
 	profile, err := hostPoolProfile.ReBuild("1h-ago", tags)
 	if err != nil {
-		glog.Error("Failed to create host profile: %s", err)
+		glog.Errorf("Failed to create host profile: %s", err)
 		return err
 	}
 

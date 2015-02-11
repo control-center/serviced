@@ -38,7 +38,7 @@ func TestCreation(t *testing.T) {
 	getFactory := func(addr string) (Client, error) {
 		count = count + 1
 		if count > size {
-			t.Error("factory called %d times, max should be %d", count, size)
+			t.Errorf("factory called %d times, max should be %d", count, size)
 		}
 		return &testClient{addr, count}, nil
 	}
