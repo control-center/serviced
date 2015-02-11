@@ -156,8 +156,6 @@ func Build(ip string, rpcport string, poolid string, ipAddrs ...string) (*Host, 
 	host.ServiceD.Date = servicedversion.Date
 	host.ServiceD.Buildtag = servicedversion.Buildtag
 
-	*host = *host
-
 	return host, nil
 }
 
