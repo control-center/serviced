@@ -467,10 +467,10 @@ start_elastic:
 	$(ES_DIR)/bin/elasticsearch -f -Des.http.port=9202 > $(ES_TMP)/elastic.log & echo $$!>$(ES_TMP)/pid
 
 stop_elastic:
-	if [ -e $(ES_TMP)/pid ]; then \
+	-if [ -e $(ES_TMP)/pid ]; then \
 		kill `cat $(ES_TMP)/pid`; \
 	fi
-	rm -rf $(ES_TMP)
+	-rm -rf $(ES_TMP)
 
 
 #---------------------#
