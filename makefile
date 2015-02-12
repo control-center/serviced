@@ -155,6 +155,11 @@ build_js:
 $(GOSRC)/$(godep_SRC):
 	go get $(godep_SRC)
 
+#
+# FIXME: drop -composites=false to get full coverage
+govet:
+	go tool vet -composites=false $(GOVET_FLAGS) .
+
 .PHONY: go
 go:
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
@@ -178,6 +183,7 @@ serviced: $(Godeps_restored)
 serviced: FORCE
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
 	go install $(GOBUILD_FLAGS) ${LDFLAGS}
+	make govet
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
@@ -422,9 +428,6 @@ docker_buildandpackage: docker_ok
 #---------------------#
 # Test targets        #
 #---------------------#
-
-govet:
-	go tool vet -composites=false $(GOVET_FLAGS) .
 
 ifndef NORACETEST
 ifeq (,$(findstring history_size,$(GORACE)))
