@@ -74,6 +74,8 @@
     "health_check": "Status",
     "starting": "Starting",
 
+    "refresh": "Refresh",
+
     "hosts": "Hosts",
     "pools": "Resource Pools",
     "pool": "Resource Pool",
@@ -296,8 +298,7 @@
     "pool_tbl_virtual_ip_address_netmask": "Netmask",
     "pool_tbl_virtual_ip_address_bind_interface": "Bind Interface",
     "pool_tbl_virtual_ip_address_action": "Action",
-    "refresh": "Refresh",
-    "running_services": "Running Services",
+    "service_instances": "Services Instances",
     "running_tbl_actions": "Actions",
     "running_tbl_docker_id": "Docker Container ID",
     "running_tbl_instance_id": "Instance",

@@ -73,7 +73,7 @@
         
         $scope.remove_host = function(hostId) {
             $modalService.create({
-                template: $translate.instant("confirm_remove_host") + " <strong>"+ hostsFactory.hostMap[hostId].name +"</strong>",
+                template: $translate.instant("confirm_remove_host") + " <strong>"+ hostsFactory.get(hostId).name +"</strong>",
                 model: $scope,
                 title: "remove_host",
                 actions: [
@@ -113,22 +113,18 @@
         $scope.dropped = [];
 
         $scope.filterHosts = function() {
-            if (!$scope.hosts.filtered) {
-                $scope.hosts.filtered = [];
-            }
             // Run ordering filter, built in
             var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
             // Run search filter, built in
             $scope.hosts.filtered = $filter('filter')(ordered, $scope.hosts.search);
-
-            return $scope.hosts.filtered;
         };
 
         // Build metadata for displaying a list of hosts
         $scope.hosts = utils.buildTable('Name', [
-            { id: 'Name', name: 'Name'},
-            { id: 'fullPath', name: 'Assigned Resource Pool'},
+            { id: 'Name', name: 'Name'}
         ]);
+
+        $scope.hosts.filtered = [];
 
         // update hosts
         update();

@@ -6,24 +6,25 @@
     var hostMap = {},
         hostList = [],
         // make angular share with everybody!
-        resourcesFactory, $q;
+        resourcesFactory, $q, instancesFactory;
 
     var UPDATE_FREQUENCY = 3000,
         updatePromise;
 
     angular.module('hostsFactory', []).
-    factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval",
-    function($rootScope, q, _resourcesFactory, $interval){
+    factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory",
+    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
+        instancesFactory = _instancesFactory;
         $q = q;
 
         // public interface for hostsFactory
         // TODO - evaluate what should be exposed
         return {
             // returns a host by id
-            getHost: function(id){
+            get: function(id){
                 return hostMap[id];
             },
 
@@ -79,6 +80,9 @@
                     deferred.resolve();
                 });
 
+            // TODO - does this belong here?
+            instancesFactory.init();
+
             return deferred.promise;
         }
 
@@ -88,7 +92,7 @@
     // takes a host object (backend host object)
     // and wraps it with extra functionality and info
     function Host(host){
-        this.active = "no";
+        this.active = false;
         this.update(host);
     }
 
@@ -104,33 +108,23 @@
         updateHostDef: function(host){
             this.name = host.Name;
             this.id = host.ID;
-
-            // TODO - determine full pool path from PoolID
-            this.fullPath = "";
-
             this.model = Object.freeze(host);
-        },
-
-        getServiceInstances: function(){
-            var deferred = $q.defer();
-
-            resourcesFactory.get_running_services_for_host(this.id)
-                .success((instances, status) => {
-                    this.instances = instances;
-                    deferred.resolve(instances);
-                });
-
-            return deferred.promise;
         },
 
         updateActive: function(){
             resourcesFactory.get_running_hosts()
                 .success((activeHosts, status) => {
                     if(activeHosts[this.id]){
-                        this.active = "yes";
+                        this.active = true;
                     }
                 });
         }
     };
+
+    Object.defineProperty(Host.prototype, "instances", {
+        get: function(){
+            return instancesFactory.getByHostId(this.id);
+        }
+    });
 
 })();

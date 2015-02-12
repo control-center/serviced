@@ -479,10 +479,10 @@
             });
         };
 
-        $scope.viewLog = function(serviceState) {
-            $scope.editService = $.extend({}, serviceState);
+        $scope.viewLog = function(instance) {
+            $scope.editService = angular.copy(instance);
 
-            resourcesFactory.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
+            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.model.ID, function(log) {
                 $scope.editService.log = log.Detail;
                 $modalService.create({
                     templateUrl: "view-log.html",
@@ -499,7 +499,7 @@
                             icon: "glyphicon-repeat",
                             action: function() {
                                 var textarea = this.$el.find("textarea");
-                                resourcesFactory.get_service_state_logs(serviceState.ServiceID, serviceState.ID, function(log) {
+                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id, function(log) {
                                     $scope.editService.log = log.Detail;
                                     textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                                 });
@@ -508,7 +508,7 @@
                             classes: "btn-primary",
                             label: "download",
                             action: function(){
-                                utils.downloadFile('/services/' + serviceState.ServiceID + '/' + serviceState.ID + '/logs/download');
+                                utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
                             },
                             icon: "glyphicon-download"
                         }
@@ -609,11 +609,6 @@
             }
         }, 3000);
 
-
-        $scope.killRunning = function(app) {
-            resourcesFactory.kill_running(app.HostID, app.ID, function(){});
-        };
-
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
             resourcesFactory.restart_service(app.ID, angular.noop);
@@ -629,8 +624,8 @@
         });
 
         $scope.getHostName = function(id){
-            if(hostsFactory.hostMap[id]){
-                return hostsFactory.hostMap[id].name;
+            if(hostsFactory.get(id)){
+                return hostsFactory.get(id).name;
             } else {
                 // TODO - if unknown host, dont make linkable
                 // and use custom css to show unknown
