@@ -20,7 +20,12 @@ var DEBUG = false;
 /*******************************************************************************
  * Main module & controllers
  ******************************************************************************/
-var controlplane = angular.module('controlplane', ['ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker', 'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror', 'sticky', 'graphPanel', 'servicesFactory', 'healthIcon', 'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory']);
+var controlplane = angular.module('controlplane', [
+    'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate',
+    'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker',
+    'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
+    'sticky', 'graphPanel', 'servicesFactory', 'healthIcon',
+    'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory']);
 
 controlplane.
     config(['$routeProvider', function($routeProvider) {

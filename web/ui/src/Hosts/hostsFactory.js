@@ -3,88 +3,27 @@
 (function() {
     'use strict';
 
-    var hostMap = {},
-        hostList = [],
-        // make angular share with everybody!
-        resourcesFactory, $q, instancesFactory;
-
-    var UPDATE_FREQUENCY = 3000,
-        updatePromise;
+    // make angular share with everybody!
+    var resourcesFactory, $q, instancesFactory;
 
     angular.module('hostsFactory', []).
-    factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory",
-    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory){
-
+    factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory", "baseFactory",
+    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, baseFactory){
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         instancesFactory = _instancesFactory;
         $q = q;
 
-        // public interface for hostsFactory
-        // TODO - evaluate what should be exposed
+        var newFactory = baseFactory(Host, "get_hosts");
+
         return {
-            // returns a host by id
-            get: function(id){
-                return hostMap[id];
-            },
-
-            update: update,
-            init: init,
-
-            hostMap: hostMap,
-            hostList: hostList
+            get: newFactory.get,
+            update: newFactory.update,
+            hostMap: newFactory.objMap,
+            hostList: newFactory.objArr,
+            activate: newFactory.activate,
+            deactivate: newFactory.deactivate,
         };
-
-        // TODO - this can most likely be removed entirely
-        function init(){
-            if(!updatePromise){
-                updatePromise = $interval(update, UPDATE_FREQUENCY);
-            }
-        }
-
-        function update(){
-            var deferred = $q.defer();
-
-            resourcesFactory.get_hosts()
-                .success((data, status) => {
-                    var included = [];
-
-                    for(let id in data){
-                        let host = data[id];
-
-                        // update
-                        if(hostMap[host.ID]){
-                            hostMap[host.ID].update(host);
-
-                        // new
-                        } else {
-                            hostMap[host.ID] = new Host(host);
-                            hostList.push(hostMap[host.ID]);
-                        }
-
-                        included.push(host.ID);
-                    }
-
-                    // delete
-                    if(included.length !== Object.keys(hostMap).length){
-                        // iterate hostMap and find keys
-                        // not present in included list
-                        for(let id in hostMap){
-                            if(included.indexOf(id) === -1){
-                                hostList.splice(hostList.indexOf(hostMap[id], 1));
-                                delete hostMap[id];
-                            }
-                        }
-                    }
-
-                    deferred.resolve();
-                });
-
-            // TODO - does this belong here?
-            instancesFactory.init();
-
-            return deferred.promise;
-        }
 
     }]);
 

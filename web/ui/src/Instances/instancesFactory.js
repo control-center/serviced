@@ -3,36 +3,31 @@
 (function() {
     'use strict';
 
-    var instanceMap = {},
-        instanceList = [],
-        // make angular share with everybody!
-        resourcesFactory, $q, serviceHealth;
-
-    var UPDATE_FREQUENCY = 3000,
-        updatePromise;
+    var resourcesFactory, $q, serviceHealth;
 
     angular.module('instancesFactory', []).
-    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth){
+    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory",
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, baseFactory){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
         serviceHealth = _serviceHealth;
 
-        // public interface for instancesFactory
-        // TODO - evaluate what should be exposed
-        return {
-            // returns an instance by id
-            get: function(id){
-                return instanceMap[id];
-            },
+        var newFactory = baseFactory(Instance, "get_running_services");
 
+        return {
+            get: newFactory.get,
+            update: newFactory.update,
+            instanceMap: newFactory.objMap,
+            instanceList: newFactory.objArr,
+            activate: newFactory.activate,
+            deactivate: newFactory.deactivate,
             getByServiceId: (id) => {
                 let results = [];
-                for(let i in instanceMap){
-                    if(instanceMap[i].model.ServiceID === id){
-                        results.push(instanceMap[i]);
+                for(let i in newFactory.objMap){
+                    if(newFactory.objMap[i].model.ServiceID === id){
+                        results.push(newFactory.objMap[i]);
                     }
                 }
                 return results;
@@ -40,69 +35,14 @@
 
             getByHostId: (id) => {
                 let results = [];
-                for(let i in instanceMap){
-                    if(instanceMap[i].model.HostID === id){
-                        results.push(instanceMap[i]);
+                for(let i in newFactory.objMap){
+                    if(newFactory.objMap[i].model.HostID === id){
+                        results.push(newFactory.objMap[i]);
                     }
                 }
                 return results;
             },
-
-            update: update,
-            init: init,
-
-            instanceMap: instanceMap,
-            instanceList: instanceList
         };
-
-        // TODO - this can most likely be removed entirely
-        function init(){
-            if(!updatePromise){
-                updatePromise = $interval(update, UPDATE_FREQUENCY);
-            }
-        }
-
-        function update(){
-            var deferred = $q.defer();
-
-            resourcesFactory.get_running_services()
-                .success((data, status) => {
-                    var included = [];
-
-                    for(let id in data){
-                        let instance = data[id];
-
-                        // update
-                        if(instanceMap[instance.ID]){
-                            instanceMap[instance.ID].update(instance);
-
-                        // new
-                        } else {
-                            instanceMap[instance.ID] = new Instance(instance);
-                            instanceList.push(instanceMap[instance.ID]);
-                        }
-
-                        included.push(instance.ID);
-                    }
-
-                    // delete
-                    if(included.length !== Object.keys(instanceMap).length){
-                        // iterate instanceMap and find keys
-                        // not present in included list
-                        for(let id in instanceMap){
-                            if(included.indexOf(id) === -1){
-                                instanceList.splice(instanceList.indexOf(instanceMap[id], 1));
-                                delete instanceMap[id];
-                            }
-                        }
-                    }
-
-                    deferred.resolve();
-                });
-
-            return deferred.promise;
-        }
-
     }]);
 
     // Instance object constructor

@@ -3,85 +3,26 @@
 (function() {
     'use strict';
 
-    var poolMap = {},
-        poolList = [],
-        // make angular share with everybody!
-        resourcesFactory, $q;
-
-    var UPDATE_FREQUENCY = 3000,
-        updatePromise;
+    var resourcesFactory, $q;
 
     angular.module('poolsFactory', []).
-    factory("poolsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval",
-    function($rootScope, q, _resourcesFactory, $interval){
+    factory("poolsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "baseFactory",
+    function($rootScope, q, _resourcesFactory, $interval, baseFactory){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
 
-        // public interface for poolsFactory
-        // TODO - evaluate what should be exposed
+        var newFactory = baseFactory(Pool, "get_pools");
+
         return {
-            // returns a pool by id
-            get: function(id){
-                return poolMap[id];
-            },
-
-            update: update,
-            init: init,
-
-            poolMap: poolMap,
-            poolList: poolList
+            get: newFactory.get,
+            update: newFactory.update,
+            poolMap: newFactory.objMap,
+            poolList: newFactory.objArr,
+            activate: newFactory.activate,
+            deactivate: newFactory.deactivate,
         };
-
-        // TODO - this can most likely be removed entirely
-        function init(){
-            if(!updatePromise){
-                updatePromise = $interval(update, UPDATE_FREQUENCY);
-            }
-        }
-
-        function update(){
-            var deferred = $q.defer();
-
-            resourcesFactory.get_pools()
-                .success((data, status) => {
-                    // TODO - this seems like a nice reusable pattern
-                    var included = [];
-
-                    for(let id in data){
-                        let pool = data[id];
-
-                        // update
-                        if(poolMap[pool.ID]){
-                            poolMap[pool.ID].update(pool);
-
-                        // new
-                        } else {
-                            poolMap[pool.ID] = new Pool(pool);
-                            poolList.push(poolMap[pool.ID]);
-                        }
-
-                        included.push(pool.ID);
-                    }
-
-                    // delete
-                    if(included.length !== Object.keys(poolMap).length){
-                        // iterate poolMap and find keys
-                        // not present in included list
-                        for(let id in poolMap){
-                            if(included.indexOf(id) === -1){
-                                poolList.splice(poolList.indexOf(poolMap[id], 1));
-                                delete poolMap[id];
-                            }
-                        }
-                    }
-
-                    deferred.resolve();
-                });
-
-            return deferred.promise;
-        }
 
     }]);
 
