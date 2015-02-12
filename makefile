@@ -183,7 +183,9 @@ serviced: $(Godeps_restored)
 serviced: FORCE
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
 	go install $(GOBUILD_FLAGS) ${LDFLAGS}
-	make govet
+	#
+	# FIXME: This step temporarily disabled until we have a build image for GO 1.4 which includes go vet
+	# make govet
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
