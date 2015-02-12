@@ -101,16 +101,23 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 	}
 	instanceID := int(tmpID)
 
+	var serviceState *servicestate.ServiceState
+	err = fmt.Errorf("unable to retrieve service state")
+
+LookingForServiceState:
 	for {
-		serviceStates, err := getServiceStates(conn, serviceID)
-		if err != nil {
-			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, err)
-			return nil, fmt.Errorf("endpoint.go getServiceState zzk.GetServiceStates failed: %v", err)
+		serviceStates, e := getServiceStates(conn, serviceID)
+		if e != nil {
+			glog.Errorf("Unable to retrieve running service (%s) states: %v", serviceID, e)
+			err = fmt.Errorf("endpoint.go getServiceState zzk.GetServiceStates failed: %v", e)
+			break LookingForServiceState
 		}
 
 		for ii, ss := range serviceStates {
 			if ss.InstanceID == instanceID && ss.PrivateIP != "" {
-				return &serviceStates[ii], nil
+				serviceState = &serviceStates[ii]
+				err = nil
+				break LookingForServiceState
 			}
 		}
 
@@ -118,7 +125,7 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 		time.Sleep(1 * time.Second)
 	}
 
-	return nil, fmt.Errorf("unable to retrieve service state")
+	return serviceState, err
 }
 
 // getEndpoints builds exportedEndpoints and importedEndpoints

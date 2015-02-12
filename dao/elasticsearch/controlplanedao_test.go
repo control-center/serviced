@@ -715,11 +715,10 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 }
 
 func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
-	t.Skip("TODO: fix this test")
 	// this is technically not a unit test since it depends on the leader
 	// starting a watch for snapshot requests and the code here is time
 	// dependent waiting for that leader to start the watch
-	return
+	t.Skip("TODO: fix this test")
 
 	glog.V(0).Infof("TestDao_NewSnapshot started")
 	defer glog.V(0).Infof("TestDao_NewSnapshot finished")
