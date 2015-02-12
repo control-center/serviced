@@ -449,7 +449,7 @@ ES_TMP:=$(shell mktemp -d)
 ES_DIR=$(ES_TMP)/elasticsearch-$(ES_VER)
 
 .PHONY: test
-test: build docker_ok govet
+test: build docker_ok
 	cd $(ES_TMP) && curl -s $(ES_URL) | tar -xz
 	echo "cluster.name: zero" > $(ES_DIR)/config/elasticsearch.yml
 	$(ES_DIR)/bin/elasticsearch -f -Des.http.port=9202 > $(ES_TMP)/elastic.log & echo $$!>$(ES_TMP)/elastic.pid
