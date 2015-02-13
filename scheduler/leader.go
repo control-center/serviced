@@ -15,8 +15,6 @@ package scheduler
 
 import (
 	"fmt"
-	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -44,7 +42,7 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, poolID string) {
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, poolID string, snapshotTTL int) {
 
 	// creates a listener for the host registry
 	if err := zkservice.InitHostRegistry(conn); err != nil {
@@ -63,26 +61,28 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	serviceListener := zkservice.NewServiceListener(&leader)
 
 	// kicks off the snapshot cleaning goroutine
-	go cleanSnapshots(cpClient)
+	go cleanSnapshots(cpClient, snapshotTTL, shutdown)
 
 	// starts all of the listeners
 	zzk.Start(shutdown, conn, serviceListener, hostRegistry, snapshotListener)
 }
 
-func cleanSnapshots(cpClient dao.ControlPlane) {
+func cleanSnapshots(cpClient dao.ControlPlane, snapshotTTL int, shutdown <-chan interface{}) {
+
+	// If the ttl param is zero, disable cleanup
+	if snapshotTTL == 0 {
+		return
+	}
 
 	cleaningInterval := time.Tick(10 * time.Minute)
 
-	// Determine the SERVICED_SNAPSHOT_TTL environemnt variable and convert to duration.
-	TTLenv, err := strconv.ParseInt(os.Getenv("SERVICED_SNAPSHOT_TTL"), 10, 64)
-	if err != nil {
-		TTLenv = 12
-	}
-	TTL := time.Duration(TTLenv) * time.Hour
+	ttl := time.Duration(snapshotTTL) * time.Hour
 
 	// Every cleaning interval, clear out TTL'd snapshots.
 	for {
 		select {
+		case <-shutdown:
+			return
 		case <-cleaningInterval:
 
 			glog.Info("Deleting snapshots older than SERVICED_SNAPSHOT_TTL.")
@@ -124,7 +124,7 @@ func cleanSnapshots(cpClient dao.ControlPlane) {
 					glog.Errorf("Malformed snapshot timestamp: %s", timestamp)
 				}
 				since := time.Since(snaptime)
-				if since > TTL {
+				if since > ttl {
 					glog.Infof("Deleting Snapshot %s", s)
 					cpClient.DeleteSnapshot(s, nil)
 				}
