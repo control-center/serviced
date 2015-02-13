@@ -200,7 +200,7 @@ func New(driver api.API) *ServicedCli {
 		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
 		cli.IntFlag{"max-rpc-clients", configInt("MAX_RPC_CLIENTS", 3), "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", configInt("RPC_DIAL_TIMEOUT", 30), "timeout for creating rpc connections"},
-		cli.IntFlag{"snapshot-ttl", configInt("SNAPSHOT_TTL", 12), "snapshot TTL, 0 to disable"},
+		cli.IntFlag{"snapshot-ttl", configInt("SNAPSHOT_TTL", 12), "snapshot TTL in hours, 0 to disable"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
