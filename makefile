@@ -423,23 +423,10 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
-ifndef NORACETEST
-ifeq (,$(findstring history_size,$(GORACE)))
-export GORACE:=$(GORACE) history_size=7
-endif
-ifeq (,$(findstring halt_on_error,$(GORACE)))
-export GORACE:=$(GORACE) halt_on_error=1
-endif
-ifeq (,$(findstring -race,$(GOTEST_FLAGS)))
-export GOTEST_FLAGS:=$(GOTEST_FLAGS) -race
-endif
-endif
 
 .PHONY: test
 test: build docker_ok
-	make start_elastic
-	go test $(GOTEST_FLAGS) -p 1 ./...
-	make stop_elastic
+	/bin/bash run-tests.sh
 	cd web && make test
 
 smoketest: build docker_ok
@@ -452,26 +439,6 @@ docker_ok:
 		echo "Check 'docker ps' command"; \
 		exit 1;\
 	fi
-
-ES_VER=0.90.13
-ES_TMP=/tmp/serviced_elastic
-ES_DIR=$(ES_TMP)/elasticsearch-$(ES_VER)
-start_elastic:
-	make stop_elastic
-	mkdir $(ES_TMP)
-	if [ ! -e /tmp/elasticsearch-$(ES_VER).tar.gz ]; then \
-		curl https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-$(ES_VER).tar.gz > /tmp/elasticsearch-$(ES_VER).tar.gz; \
-	fi
-	tar -xvf /tmp/elasticsearch-$(ES_VER).tar.gz -C $(ES_TMP)
-	echo "cluster.name: zero" > $(ES_DIR)/config/elasticsearch.yml
-	$(ES_DIR)/bin/elasticsearch -f -Des.http.port=9202 > $(ES_TMP)/elastic.log & echo $$!>$(ES_TMP)/pid
-
-stop_elastic:
-	-if [ -e $(ES_TMP)/pid ]; then \
-		kill `cat $(ES_TMP)/pid`; \
-	fi
-	-rm -rf $(ES_TMP)
-
 
 #---------------------#
 # Clean targets       #
