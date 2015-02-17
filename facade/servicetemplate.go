@@ -265,10 +265,16 @@ func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefini
 	UpdateDeployTemplateStatus(deploymentId, "deploy_loading_service|"+svc.Name)
 	getSvc := func(svcID string) (service.Service, error) {
 		svc, err := f.GetService(ctx, svcID)
+		if err != nil {
+			return service.Service{}, err
+		}
 		return *svc, err
 	}
 	findChild := func(svcID, childName string) (service.Service, error) {
 		svc, err := f.FindChildService(ctx, svcID, childName)
+		if err != nil {
+			return service.Service{}, err
+		}
 		return *svc, err
 	}
 
