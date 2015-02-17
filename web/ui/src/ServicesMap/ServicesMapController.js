@@ -72,7 +72,7 @@
                     if (!addedHosts[running.HostID]) {
                         states[states.length] = {
                             id: running.HostID,
-                            value: { label: hostsFactory.hostMap[running.HostID].name }
+                            value: { label: hostsFactory.get(running.HostID).name }
                         };
                         nodeClasses[running.HostID] = 'host';
                         addedHosts[running.HostID] = true;

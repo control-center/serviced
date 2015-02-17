@@ -142,6 +142,7 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 	c.Lock()
 	defer c.Unlock()
 
+	glog.V(2).Infof("listing snapshots of volume:%v and c.name:%s ", c.root, c.name)
 	output, err := runcmd(c.sudoer, "subvolume", "list", "-s", c.root)
 	if err != nil {
 		glog.Errorf("Could not list subvolumes of %s: %s", c.root, err)
@@ -150,8 +151,11 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 
 	var files []os.FileInfo
 	for _, line := range strings.Split(string(output), "\n") {
+		glog.V(2).Infof("line: %s", line)
 		if parts := strings.Split(line, "path"); len(parts) == 2 {
 			label := strings.TrimSpace(parts[1])
+			label = strings.TrimPrefix(label, "volumes/")
+			glog.V(2).Infof("looking for tenant:%s in label:'%s'", c.name, label)
 			if strings.HasPrefix(label, c.name+"_") {
 				file, err := os.Stat(filepath.Join(c.root, label))
 				if err != nil {
@@ -159,6 +163,7 @@ func (c *BtrfsConn) Snapshots() ([]string, error) {
 					return nil, err
 				}
 				files = append(files, file)
+				glog.V(2).Infof("found snapshot:%s", label)
 			}
 		}
 	}

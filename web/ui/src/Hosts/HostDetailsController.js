@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory) {
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "instancesFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, instancesFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -30,9 +30,9 @@
             { id: 'MAC Address', name: 'ip_addresses_mac' }
         ]);
 
-        $scope.viewLog = function(running) {
-            $scope.editService = $.extend({}, running);
-            resourcesFactory.get_service_state_logs(running.ServiceID, running.ID, function(log) {
+        $scope.viewLog = function(instance) {
+            $scope.editService = angular.copy(instance);
+            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id, function(log) {
                 $scope.editService.log = log.Detail;
                 $modalService.create({
                     templateUrl: "view-log.html",
@@ -41,17 +41,26 @@
                     bigModal: true,
                     actions: [
                         {
-                            classes: "btn-default",
+                            role: "cancel",
+                            label: "close"
+                        },{
+                            classes: "btn-primary",
+                            label: "refresh",
+                            icon: "glyphicon-repeat",
+                            action: function() {
+                                var textarea = this.$el.find("textarea");
+                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id, function(log) {
+                                    $scope.editService.log = log.Detail;
+                                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                                });
+                            }
+                        },{
+                            classes: "btn-primary",
                             label: "download",
                             action: function(){
-                                utils.downloadFile('/services/' + running.ServiceID + '/' + running.ID + '/logs/download');
+                                utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
                             },
                             icon: "glyphicon-download"
-                        },
-                        {
-                            role: "cancel",
-                            classes: "btn-default",
-                            label: "close"
                         }
                     ],
                     onShow: function(){
@@ -62,41 +71,8 @@
             });
         };
 
-        $scope.toggleRunning = function(app, status, resourcesFactory, skipChildren) {
-            var serviceId,
-                newState;
-
-            // if app is an instance, use ServiceId
-            if("InstanceID" in app){
-                serviceId = app.ServiceID;
-
-            // else, app is a service, so use ID
-            } else {
-                serviceId = app.ID;
-            }
-
-            switch(status) {
-                case 'start':
-                    newState = 1;
-                    resourcesFactory.start_service(serviceId, function(){}, skipChildren);
-                    break;
-
-                case 'stop':
-                    newState = 0;
-                    resourcesFactory.stop_service(serviceId, function(){}, skipChildren);
-                    break;
-
-                case 'restart':
-                    newState = -1;
-                    resourcesFactory.restart_service(serviceId, function(){}, skipChildren);
-                    break;
-            }
-
-            app.DesiredState = newState;
-        };
-
         $scope.click_app = function(instance) {
-            $location.path('/services/' + instance.ServiceID);
+            $location.path('/services/' + instance.model.ServiceID);
         };
 
         // update hosts
@@ -107,21 +83,10 @@
             // TODO - update loop here
             hostsFactory.update()
                 .then(() => {
-                    $scope.currentHost = hostsFactory.hostMap[$scope.params.hostId];
-
-                    // grab a list of running services
-                    $scope.currentHost.getServiceInstances();
+                    $scope.currentHost = hostsFactory.get($scope.params.hostId);
 
                     $scope.breadcrumbs.push({ label: $scope.currentHost.name, itemClass: 'active' });
                 });
         }
-
-        resourcesFactory.get_stats(function(status) {
-            if (status === 200) {
-                $scope.collectingStats = true;
-            } else {
-                $scope.collectingStats = false;
-            }
-        });
     }]);
 })();

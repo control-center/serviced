@@ -10,16 +10,17 @@
     // service dictionary keyed by id
         serviceMap = {},
         // make angular share with everybody!
-        resourcesFactory, $q, serviceHealth;
+        resourcesFactory, $q, serviceHealth, instancesFactory;
 
     var UPDATE_FREQUENCY = 3000;
 
     angular.module('servicesFactory', []).
-    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth){
+    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "instancesFactory",
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, _instancesFactory){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
+        instancesFactory = _instancesFactory;
         serviceHealth = _serviceHealth;
         $q = q;
         init();
@@ -97,6 +98,9 @@
                         // HACK - services should update themselves?
                         updateHealth();
 
+                        // update instances
+                        instancesFactory.update();
+
                         deferred.resolve();
                     });
                 
@@ -134,6 +138,9 @@
                         updateHealth();
                   });
                 setInterval(update, UPDATE_FREQUENCY);
+
+                // kick off instancesFactory
+                instancesFactory.update();
             }
 
             return initPromise;
@@ -191,9 +198,10 @@
                         if(serviceMap[ids[0]]){
                             instance = serviceMap[ids[0]].instances.filter(function(instance){
                                 // ids[1] will be a string, and InstanceID is a number
-                                return instance.InstanceID === +ids[1]; 
+                                return instance.model.InstanceID === +ids[1];
                             });
                             if(instance.length){
+                                // TODO - move this into an instance method
                                 instance[0].status = statuses[id];
                             }
                         }
@@ -352,21 +360,13 @@
 
         // returns a promise good for a list
         // of running srvice instances
+        // TODO - reconsider this method? getter?
         getServiceInstances: function(){
-            var deferred = $q.defer();
-
-            resourcesFactory.get_running_services_for_service(this.id)
-                .success(function(newInstances, status) {
-                    // TODO - generate Instance objects?
-
-                    mergeArray(this.instances, newInstances, "ID");
-                    this.instances.sort(function(a,b){
-                        return a.InstanceID > b.InstanceID;
-                    });
-                    deferred.resolve(this.instances);
-                }.bind(this));
-
-            return deferred.promise;
+            var newInstances = instancesFactory.getByServiceId(this.id);
+            mergeArray(this.instances, newInstances, "id");
+            this.instances.sort(function(a,b){
+                return a.model.InstanceID > b.model.InstanceID;
+            });
         },
 
         // some convenience methods
@@ -526,7 +526,7 @@
         var oldKeys = a.map(function(el){ return el[key]; });
 
         b.forEach(function(el){
-            var oldElIndex = oldKeys.indexOf(el.ID);
+            var oldElIndex = oldKeys.indexOf(el[key]);
 
             // update
             if(oldElIndex !== -1){

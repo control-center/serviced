@@ -251,20 +251,20 @@
               <span translate>no_data</span>
           </td>
       </tr>
-      <tr ng-repeat="app in services.current.instances" data-id="{{app.ID}}.{{app.InstanceID}}">
-        <td>{{app.InstanceID}}</td>
-        <td>{{app.Name}}</td>
+      <tr ng-repeat="app in services.current.instances" data-id="{{app.id}}.{{app.model.InstanceID}}">
+        <td>{{app.model.InstanceID}}</td>
+        <td>{{app.name}}</td>
         <td style="text-align:center;">
-          <health-icon data-status="app.status" data-status="app.status"></health-icon>
+          <health-icon data-status="app.status"></health-icon>
         </td>
-        <td ng-click="click_host(app.HostID)" class="link">{{getHostName(app.HostID)}}</td>
-        <td>{{app.DockerID}}</td>
+        <td ng-click="click_host(app.model.HostID)" class="link">{{getHostName(app.model.HostID)}}</td>
+        <td>{{app.model.DockerID}}</td>
         <td>
           <button ng-click="viewLog(app)" class="btn btn-link action">
               <i class="glyphicon glyphicon-list-alt"></i>
               <span translate>action_view_log</span>
           </button>
-          <button ng-click="killRunning(app)" class="btn btn-link action">
+          <button ng-click="app.stop()" class="btn btn-link action">
               <i class="glyphicon glyphicon-refresh"></i>
               <span translate>action_restart</span>
           </button>

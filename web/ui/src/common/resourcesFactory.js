@@ -206,13 +206,9 @@
            *
            * @param {function} callback Running services are passed to callback on success.
            */
-          get_running_services: function(callback) {
-              $http.noCacheGet('/running').
-                  success(function(data) {
-                      callback(data);
-                  }).
+          get_running_services: function() {
+              return $http.get("/running").
                   error(function(data, status) {
-                      // TODO error screen
                       redirectIfUnauthorized(status);
                   });
           },
@@ -309,14 +305,9 @@
            * @param {string} serviceStateId Unique identifier for a service instance.
            * @param {function} callback Result passed to callback on success.
            */
-          kill_running: function(hostId, serviceStateId, callback) {
-              $http.delete('/hosts/' + hostId + '/' + serviceStateId).
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Terminating instance failed", data.Detail).error();
+          kill_running: function(hostId, serviceStateId) {
+              return $http.delete('/hosts/' + hostId + '/' + serviceStateId)
+                  .error(function(data, status) {
                       redirectIfUnauthorized(status);
                   });
           },
