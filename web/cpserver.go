@@ -369,7 +369,6 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 		glog.V(1).Infof("allvhosts: %+v", allvhosts)
 	}
 
-WatchingChildren:
 	for {
 		zkServiceVhost := "/servicevhosts" // should this use the constant from zzk/service/servicevhost?
 		glog.V(1).Infof("Running registry.WatchChildren for zookeeper path: %s", zkServiceVhost)
@@ -382,7 +381,7 @@ WatchingChildren:
 		select {
 		case <-shutdown:
 			close(cancelChan)
-			break WatchingChildren
+			return nil
 		default:
 		}
 	}

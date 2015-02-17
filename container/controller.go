@@ -670,8 +670,6 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 		return nil
 	}
 	healthCheckInterval := time.Tick(1 * time.Second)
-
-WaitingForPrereqs:
 	for {
 		select {
 		case <-rpcDead:
@@ -695,7 +693,7 @@ WaitingForPrereqs:
 			if !failedAny {
 				glog.Infof("Passed all prereqs.")
 				prereqsPassed <- true
-				break WaitingForPrereqs
+				return nil
 			}
 		}
 	}

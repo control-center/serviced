@@ -21,8 +21,6 @@ import (
 )
 
 func DockerLogin(username, password, email string) (string, error) {
-	var status string
-	var err error
 
 	if username == "" && password == "" && email == "" {
 		// Attempt login with .dockercfg file.
@@ -34,10 +32,11 @@ func DockerLogin(username, password, email string) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("Error: Unable to login, no data for index server.")
 		}
-		status, err = registry.Login(&authconfig, registry.HTTPRequestFactory(nil))
+		status, err := registry.Login(&authconfig, registry.HTTPRequestFactory(nil))
 		if err != nil {
 			return "", err
 		}
+		return status, nil
 	} else {
 		// Attempt login with this function's auth params.
 		authconfig := registry.AuthConfig{
@@ -46,13 +45,15 @@ func DockerLogin(username, password, email string) (string, error) {
 			Password:      password,
 			ServerAddress: registry.IndexServerAddress(),
 		}
-		status, err = registry.Login(&authconfig, registry.HTTPRequestFactory(nil))
+		status, err := registry.Login(&authconfig, registry.HTTPRequestFactory(nil))
 		if err != nil {
 			return "", err
 		}
+		return status, nil
 	}
 
-	return status, nil
+	return "", fmt.Errorf("Auth params don't make sense.")
+
 }
 
 func DockerIsLoggedIn() bool {

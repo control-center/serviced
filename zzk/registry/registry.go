@@ -14,6 +14,7 @@
 package registry
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -182,7 +183,7 @@ func (r *registryType) ensureKey(conn client.Connection, key string) error {
 	for {
 		err = conn.Create(path, node)
 		if err == client.ErrNodeExists || err == nil {
-			break
+			return nil
 		}
 		select {
 		case <-timeout:
@@ -190,7 +191,7 @@ func (r *registryType) ensureKey(conn client.Connection, key string) error {
 		default:
 		}
 	}
-	return nil
+	return fmt.Errorf("could not create key %q: %s", key, err)
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
@@ -199,7 +200,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 	for {
 		err = conn.CreateDir(path)
 		if err == client.ErrNodeExists || err == nil {
-			break
+			return nil
 		}
 		select {
 		case <-timeout:
@@ -207,7 +208,7 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 		default:
 		}
 	}
-	return nil
+	return fmt.Errorf("could not create dir %q: %s", path, err)
 }
 
 // getChildren gets all child paths for the given nodeID
@@ -237,8 +238,6 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 	if !exists {
 		return client.ErrNoNode
 	}
-
-WatchingChildren:
 	for {
 		glog.V(1).Infof("watching children at path: %s", path)
 		nodeIDs, event, err := conn.ChildrenW(path)
@@ -254,7 +253,7 @@ WatchingChildren:
 			glog.V(1).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:
 			glog.V(1).Infof("watch cancel at path: %s", path)
-			break WatchingChildren
+			return nil
 		}
 	}
 	glog.V(1).Infof("no longer watching children at path: %s", path)
@@ -270,8 +269,6 @@ func (r *registryType) watchItem(conn client.Connection, path string, nodeType c
 	if !exists {
 		return client.ErrNoNode
 	}
-
-WatchingItem:
 	for {
 		event, err := conn.GetW(path, nodeType)
 		if err != nil {
@@ -285,7 +282,7 @@ WatchingItem:
 		case ev := <-event:
 			glog.V(2).Infof("watch event %+v at path: %s", ev, path)
 		case <-cancel:
-			break WatchingItem
+			return nil
 		}
 
 	}

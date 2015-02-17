@@ -209,7 +209,7 @@ func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error
 	return nil
 }
 
-func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Connection, nodePath string, node *Node) {
+func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Connection, nodePath string, node *Node) error {
 	glog.Infof("updating DFS remote client UpdatedAt for node %s at interval %s", nodePath, updaterInterval)
 	for {
 		if node.version == nil {
@@ -228,4 +228,6 @@ func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Conn
 		case <-time.After(updaterInterval):
 		}
 	}
+
+	return nil
 }

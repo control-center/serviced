@@ -225,9 +225,9 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 
 		return services, nil
 	default:
-		services = nil
 		err := fmt.Errorf("Bad request type %v: %+v", v, request)
 		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
+		return nil, err
 	}
 	return services, nil
 }
