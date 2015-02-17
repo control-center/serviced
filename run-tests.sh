@@ -5,7 +5,7 @@ ES_TMP=/tmp/serviced_elastic
 ES_DIR=$ES_TMP/elasticsearch-$ES_VER
 
 if [[ -z $GORACE ]]; then
-	export GORACE="history_size=7,halt_on_error=1";
+	export GORACE="history_size=7 halt_on_error=1";
 fi;
 if [[ -z $GOTEST ]]; then
 	export GOTEST="-race -p 1";
