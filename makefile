@@ -423,17 +423,16 @@ docker_buildandpackage: docker_ok
 # Test targets        #
 #---------------------#
 
-
 .PHONY: test
 test: build docker_ok
-	/bin/bash run-tests.sh
+	./run-tests.sh
 	cd web && make test
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
 
 docker_ok:
-	if docker ps >/dev/null; then \
+	@if docker ps >/dev/null; then \
 		echo "docker OK"; \
 	else \
 		echo "Check 'docker ps' command"; \
