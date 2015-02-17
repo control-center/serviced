@@ -157,12 +157,14 @@ $(GOSRC)/$(godep_SRC):
 
 #
 # FIXME: drop -composites=false to get full coverage
+# FIXME: After upgrade to GO 1.4, drop -unreachable=false and remove to unreachable returns
 govet:
-	go tool vet -composites=false $(GOVET_FLAGS) .
+	go tool vet -composites=false -unreachable=false $(GOVET_FLAGS) .
 
 .PHONY: go
 go:
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	make govet
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -182,15 +184,14 @@ FORCE:
 serviced: $(Godeps_restored)
 serviced: FORCE
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	make govet
 	go install $(GOBUILD_FLAGS) ${LDFLAGS}
-	#
-	# FIXME: This step temporarily disabled until we have a build image for GO 1.4 which includes go vet
-	# make govet
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	make govet
 	go install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 .PHONY: docker_build
