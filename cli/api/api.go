@@ -70,6 +70,7 @@ type Options struct {
 	AdminGroup           string // user group that can log in to control center
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
 	RPCDialTimeout       int
+	SnapshotTTL          int // hours to keep snapshots around, zero for infinity
 }
 
 // LoadOptions overwrites the existing server options
