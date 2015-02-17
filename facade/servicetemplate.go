@@ -294,10 +294,16 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	//for each endpoint, evaluate its Application
 	getService := func(serviceID string) (service.Service, error) {
 		s, err := f.GetService(ctx, serviceID)
+		if err != nil {
+			return service.Service{}, err
+		}
 		return *s, err
 	}
 	findChildService := func(parentID, serviceName string) (service.Service, error) {
 		s, err := f.FindChildService(ctx, parentID, serviceName)
+		if err != nil {
+			return service.Service{}, err
+		}
 		return *s, err
 	}
 	if err = newsvc.EvaluateEndpointTemplates(getService, findChildService); err != nil {
