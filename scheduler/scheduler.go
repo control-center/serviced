@@ -29,7 +29,7 @@ import (
 	"path"
 )
 
-type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, string)
+type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, string, int)
 
 type scheduler struct {
 	sync.Mutex                     // only one process can stop and start the scheduler at a time
@@ -40,6 +40,7 @@ type scheduler struct {
 	shutdown      chan interface{} // Shuts down all the pools
 	started       bool             // is the loop running
 	zkleaderFunc  leaderFunc       // multiple implementations of leader function possible
+	snapshotTTL   int
 	facade        *facade.Facade
 	stopped       chan interface{}
 	registry      *registry.EndpointRegistry
@@ -49,7 +50,7 @@ type scheduler struct {
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade) (*scheduler, error) {
+func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, snapshotTTL int) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:         cpDao,
 		poolID:        poolID,
@@ -58,6 +59,7 @@ func NewScheduler(poolID string, instance_id string, storageServer *storage.Serv
 		stopped:       make(chan interface{}),
 		zkleaderFunc:  Lead, // random scheduler implementation
 		facade:        facade,
+		snapshotTTL:   snapshotTTL,
 		storageServer: storageServer,
 	}
 	return s, nil
@@ -268,7 +270,7 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 
 				go func() {
 					defer close(done)
-					s.zkleaderFunc(cancel, conn, s.cpDao, poolID)
+					s.zkleaderFunc(cancel, conn, s.cpDao, poolID, s.snapshotTTL)
 				}()
 			}
 		} else {
