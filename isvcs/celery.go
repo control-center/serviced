@@ -32,6 +32,6 @@ func init() {
 			Volumes: map[string]string{"celery": "/opt/celery/var"},
 		})
 	if err != nil {
-		glog.Fatal("Error initializing celery container: %s", err)
+		glog.Fatalf("Error initializing celery container: %s", err)
 	}
 }

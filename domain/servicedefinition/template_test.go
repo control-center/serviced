@@ -161,12 +161,12 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		return false, fmt.Sprintf("Commands are not equal %s != %s", a.Command, b.Command)
 	}
 	if len(a.Endpoints) != len(b.Endpoints) {
-		return false, fmt.Sprintf("Number of endpoints differ between %s [%s] and %s [%s]",
-			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
+		return false, fmt.Sprintf("Number of endpoints differ between %s [%d] and %s [%d]",
+			a.Name, len(a.Endpoints), b.Name, len(b.Endpoints))
 	}
 	if len(a.Services) != len(b.Services) {
-		return false, fmt.Sprintf("Number of sub services differ between %s [%s] and %s [%s]",
-			a.Name, b.Name, len(a.Endpoints), len(b.Endpoints))
+		return false, fmt.Sprintf("Number of sub services differ between %s [%d] and %s [%d]",
+			a.Name, len(a.Services), b.Name, len(b.Services))
 	}
 	sort.Sort(ServiceDefinitionByName(a.Services))
 	sort.Sort(ServiceDefinitionByName(b.Services))

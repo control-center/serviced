@@ -32,7 +32,7 @@ func ReadCpuacctStat(fileName string) (*CpuacctStat, error) {
 	stat := CpuacctStat{}
 	kv, err := parseSSKVint64(fileName)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing %f", fileName)
+		return nil, fmt.Errorf("error parsing %s", fileName)
 	}
 	for k, v := range kv {
 		switch k {

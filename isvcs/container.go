@@ -397,7 +397,7 @@ func (svc *IService) run() {
 		case rc := <-svc.exited:
 			glog.Errorf("isvc %s unexpectedly receieved exit code %d", svc.Name, rc)
 			if svc.exited, err = svc.start(); err != nil {
-				glog.Errorf("Error restarting isvc %s: %s")
+				glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
 			}
 		}
 	}

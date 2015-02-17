@@ -144,7 +144,7 @@ func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 		result[0].CreatedAt = rp.CreatedAt
 		result[0].UpdatedAt = rp.UpdatedAt
 		if !result[0].Equals(rp) {
-			t.Fatalf("expected [%+v] actual=%s", rp, result)
+			t.Fatalf("expected [%+v] actual=[%+v]", rp, result)
 		}
 	} else {
 		t.Fatalf("Unexpected Error Retrieving ResourcePools: %v", err)

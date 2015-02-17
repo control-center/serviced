@@ -129,12 +129,12 @@ func (dt *DaoTest) SetUpTest(c *C) {
 	//DAO tests expect default pool and system user
 
 	if err := dt.Facade.CreateDefaultPool(dt.CTX, "default"); err != nil {
-		c.Fatalf("could not create default pool:", err)
+		c.Fatalf("could not create default pool: %s", err)
 	}
 
 	// create the account credentials
 	if err := createSystemUser(dt.Dao); err != nil {
-		c.Fatalf("could not create systemuser:", err)
+		c.Fatalf("could not create systemuser: %s", err)
 	}
 }
 
@@ -172,7 +172,7 @@ func (dt *DaoTest) TestDao_NewService(t *C) {
 	svc.ID = ""
 	err = dt.Dao.AddService(svc, &id)
 	if err == nil {
-		t.Errorf("Expected error creating service with same name and parent", svc)
+		t.Errorf("Expected error creating service with same name and parent: %-v", svc)
 		t.Fail()
 	}
 }
@@ -219,7 +219,7 @@ func (dt *DaoTest) TestDao_UpdateService(t *C) {
 	svc.Name = "name"
 	err = dt.Dao.UpdateService(*svc, &unused)
 	if err == nil {
-		t.Errorf("Expected error updating service with same name and parent", svc)
+		t.Errorf("Expected error updating service with same name and parent: %-v", svc)
 		t.Fail()
 	}
 }
@@ -610,10 +610,10 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	assignments := []addressassignment.AddressAssignment{}
 	err = dt.Dao.GetServiceAddressAssignments(testService.ID, &assignments)
 	if err != nil {
-		t.Error("GetServiceAddressAssignments failed: %v", err)
+		t.Errorf("GetServiceAddressAssignments failed: %v", err)
 	}
 	if len(assignments) != 1 {
-		t.Error("Expected 1 AddressAssignment but found ", len(assignments))
+		t.Errorf("Expected 1 AddressAssignment but found %d", len(assignments))
 	}
 }
 

@@ -445,7 +445,7 @@ func DoRenameImageIdTest(t *testing.T, tests []RenameTest) {
 			continue
 		}
 		if !image.Equals(*test.ImageID) {
-			t.Fatal("got %s expected %s on %v", image.String(), test.ImageID.String(), index)
+			t.Fatalf("got %s expected %s on %v\n", image.String(), test.ImageID.String(), index)
 		}
 	}
 }

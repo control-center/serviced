@@ -85,7 +85,7 @@ func NewStatsReporter(destination string, interval time.Duration, conn coordclie
 
 // getOrCreateContainerRegistry returns a registry for a given service id or creates it
 // if it doesn't exist.
-func (sr StatsReporter) getOrCreateContainerRegistry(serviceID string, instanceID int) metrics.Registry {
+func (sr *StatsReporter) getOrCreateContainerRegistry(serviceID string, instanceID int) metrics.Registry {
 	key := registryKey{serviceID, instanceID}
 	if registry, ok := sr.containerRegistries[key]; ok {
 		return registry
@@ -96,7 +96,7 @@ func (sr StatsReporter) getOrCreateContainerRegistry(serviceID string, instanceI
 	return sr.containerRegistries[key]
 }
 
-func (sr StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
+func (sr *StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
 	// First build a list of what's actually running
 	keys := make(map[string][]int)
 	for _, rs := range *running {
@@ -131,14 +131,14 @@ func (sr StatsReporter) removeStaleRegistries(running *[]dao.RunningService) {
 
 // Close shuts down the reporting goroutine. Blocks waiting for the goroutine to signal that it
 // is indeed shutting down.
-func (sr StatsReporter) Close() {
+func (sr *StatsReporter) Close() {
 	sr.closeChannel <- true
 	_ = <-sr.closeChannel
 }
 
 // Updates the default registry, fills out the metric consumer format, and posts
 // the data to the TSDB. Stops when close signal is received on closeChannel.
-func (sr StatsReporter) report(d time.Duration) {
+func (sr *StatsReporter) report(d time.Duration) {
 	tc := time.Tick(d)
 	glog.Infof("collecting internal metrics at %s intervals", d)
 	for {
@@ -159,7 +159,7 @@ func (sr StatsReporter) report(d time.Duration) {
 	}
 }
 
-func (sr StatsReporter) updateHostStats() {
+func (sr *StatsReporter) updateHostStats() {
 
 	loadavg, err := linux.ReadLoadavg()
 	if err != nil {
@@ -225,7 +225,7 @@ func (sr StatsReporter) updateHostStats() {
 }
 
 // Updates the default registry.
-func (sr StatsReporter) updateStats() {
+func (sr *StatsReporter) updateStats() {
 	// Stats for host.
 	sr.updateHostStats()
 	// Stats for the containers.
@@ -260,7 +260,7 @@ func (sr StatsReporter) updateStats() {
 }
 
 // Fills out the metric consumer format.
-func (sr StatsReporter) gatherStats(t time.Time) []Sample {
+func (sr *StatsReporter) gatherStats(t time.Time) []Sample {
 	stats := []Sample{}
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)

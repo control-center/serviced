@@ -57,7 +57,7 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 	}
 
 	if service == nil {
-		glog.Errorf("Could not find service: %s", services)
+		glog.Errorf("Could not find service: %s", request.ServiceID)
 		restServerError(w, err)
 		return
 	}

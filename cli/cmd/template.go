@@ -301,7 +301,7 @@ func (c *ServicedCli) cmdTemplateCompile(ctx *cli.Context) {
 		mTemplate := metaTemplate{*template, servicedversion.GetVersion(), templateVersion}
 		jsonTemplate, err := json.MarshalIndent(mTemplate, " ", "  ")
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "failed to marshal template: %s", err)
+			fmt.Fprintf(os.Stderr, "failed to marshal template: %s\n", err)
 		} else {
 			fmt.Println(string(jsonTemplate))
 		}

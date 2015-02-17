@@ -305,7 +305,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	// delete the snapshot subvolume
 	snapshotVolume, err := dfs.GetVolume(tenantID)
 	if err != nil {
-		glog.Errorf("Could not find the volume for service %s (%s): %s")
+		glog.Errorf("Could not find the volume for service %s: %s", tenantID, err)
 		return err
 	}
 	if err := snapshotVolume.Unmount(); err != nil {
@@ -316,7 +316,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	// delete images for that tenantID
 	images, err := searchImagesByTenantID(tenantID)
 	if err != nil {
-		glog.Errorf("Error looking up images for %s: %s", tenantID)
+		glog.Errorf("Error looking up images for %s: %s", tenantID, err)
 		return err
 	}
 
@@ -371,7 +371,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 			if svc.ImageID != "" {
 				image, err := commons.ParseImageID(svc.ImageID)
 				if err != nil {
-					glog.Errorf("Invalid image %s for %s (%s): %s", svc.ImageID, svc.Name, svc.ID)
+					glog.Errorf("Invalid image %s for %s (%s): %s", svc.ImageID, svc.Name, svc.ID, err)
 				}
 				image.Host = dfs.dockerHost
 				image.Port = dfs.dockerPort

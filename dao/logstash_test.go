@@ -147,7 +147,7 @@ func TestWritingConfigFile(t *testing.T) {
 	}
 
 	if err = writeLogStashConfigFile(filters, tmpfile.Name()); err != nil {
-		t.Error("error calling writeLogStashConfigFile: %s", err)
+		t.Errorf("error calling writeLogStashConfigFile: %s", err)
 		t.Fail()
 	}
 

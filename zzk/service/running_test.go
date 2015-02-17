@@ -70,12 +70,12 @@ func TestNewRunningService(t *testing.T) {
 
 	svcstate, err := servicestate.BuildFromService(svc, "fakehostid")
 	if err != nil {
-		t.Error("%v", err)
+		t.Errorf("%v", err)
 	}
 
 	rs, err := NewRunningService(svc, svcstate)
 	if err != nil {
-		t.Error("%v", err)
+		t.Errorf("%v", err)
 	}
 
 	var query interface{}

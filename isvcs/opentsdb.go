@@ -39,7 +39,7 @@ func init() {
 			HostNetwork: true,
 		})
 	if err != nil {
-		glog.Fatal("Error initializing opentsdb container: %s", err)
+		glog.Fatalf("Error initializing opentsdb container: %s", err)
 	}
 
 }

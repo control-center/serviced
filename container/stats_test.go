@@ -41,7 +41,7 @@ func TestGetOpenConnections(t *testing.T) {
 		t.Fatalf("unexpected error reading procfile")
 	}
 	if conns != 28 {
-		t.Fatalf("expected 28 open connections, but got %s", conns)
+		t.Fatalf("expected 28 open connections, but got %d", conns)
 	}
 
 	conns, err = getOpenConnections("testfiles/proc.net.tcp.bad")
@@ -49,6 +49,6 @@ func TestGetOpenConnections(t *testing.T) {
 		t.Fatalf("unexpected error reading procfile")
 	}
 	if conns != 0 {
-		t.Fatalf("expected 0 open connections, but got %s", conns)
+		t.Fatalf("expected 0 open connections, but got %d", conns)
 	}
 }

@@ -50,7 +50,7 @@ type RsyncConn struct {
 func init() {
 	rsyncdriver, err := New()
 	if err != nil {
-		glog.Errorf("Can't create rsync driver", err)
+		glog.Errorf("Can't create rsync driver: %v", err)
 		return
 	}
 

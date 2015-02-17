@@ -164,7 +164,7 @@ func (d *daemon) startRPC() {
 
 	listener, err := net.Listen("tcp", options.Listen)
 	if err != nil {
-		glog.Fatalf("Unable to bind to port %s. Is another instance running?")
+		glog.Fatalf("Unable to bind to port %s. Is another instance running?", options.Listen)
 	}
 
 	rpcutils.SetDialTimeout(options.RPCDialTimeout)
@@ -245,7 +245,7 @@ func (d *daemon) startDockerRegistryProxy() {
 	http.Handle("/", proxy)
 	go func() {
 		if err := http.ListenAndServe(dockerRegistry, nil); err != nil {
-			glog.Fatalf("Unable to bind to docker registry port (:5000) %s. Is another instance already running?")
+			glog.Fatalf("Unable to bind to docker registry port (:5000) %s. Is another instance already running?", err)
 		}
 	}()
 }

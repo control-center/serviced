@@ -51,7 +51,7 @@ type BtrfsConn struct {
 func init() {
 	btrfsdriver, err := New()
 	if err != nil {
-		glog.Errorf("Can't create btrfs driver", err)
+		glog.Errorf("Can't create btrfs driver: %v", err)
 		return
 	}
 

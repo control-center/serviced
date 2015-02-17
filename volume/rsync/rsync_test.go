@@ -56,7 +56,7 @@ func TestRsyncVolume(t *testing.T) {
 
 	rsyncd, err := New()
 	if err != nil {
-		t.Fatal("Unable to create rsync driver: %v", err)
+		t.Fatalf("Unable to create rsync driver: %v", err)
 	}
 
 	if c, err := rsyncd.Mount("unittest", rsyncTestVolumePath); err != nil {
