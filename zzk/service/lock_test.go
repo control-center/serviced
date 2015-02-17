@@ -118,7 +118,24 @@ func (t *ZZKTest) TestEnsureServiceLock(c *C) {
 
 	// Release lock
 	close(exit)
-	runtime.Gosched()
+
+	done := false
+	interval := time.Tick(1 * time.Millisecond)
+	timeout := time.Tick(10 * time.Second)
+	for {
+		select {
+		case <-interval:
+			locked, _ = IsServiceLocked(conn)
+			if !locked {
+				done = true
+			}
+		case <-timeout:
+			done = true
+		}
+		if done {
+			break
+		}
+	}
 
 	locked, err = IsServiceLocked(conn)
 	c.Assert(err, IsNil)

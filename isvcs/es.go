@@ -121,7 +121,6 @@ func elasticsearchHealthCheck(port int) func() error {
 					return err
 				} else {
 					http.Post(baseUrl+"/controlplane", "application/json", buffer)
-					buffer.Close()
 				}
 			} else {
 				lastError = time.Now()
