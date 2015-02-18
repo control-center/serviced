@@ -34,7 +34,7 @@
                 // iterate services healthchecks
                 for(var serviceId in results.services){
                     serviceHealthCheck = results.health.Statuses[serviceId];
-                    serviceStatus = new Status(serviceId, results.services[serviceId].name, results.services[serviceId].service.DesiredState, results.services[serviceId].service.Instances);
+                    serviceStatus = new Status(serviceId, results.services[serviceId].name, results.services[serviceId].model.DesiredState, results.services[serviceId].model.Instances);
 
                     // if no healthcheck for this service mark as down
                     if(!serviceHealthCheck){
@@ -49,7 +49,7 @@
                             instanceHealthCheck = serviceHealthCheck[instanceId];
                             instanceUniqueId = serviceId +"."+ instanceId;
                             // evaluate the status of this instance
-                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].name +" "+ instanceId, results.services[serviceId].service.DesiredState, results.services[serviceId].service.Instances);
+                            instanceStatus = new Status(instanceUniqueId, results.services[serviceId].name +" "+ instanceId, results.services[serviceId].model.DesiredState, results.services[serviceId].model.Instances);
                             instanceStatus.evaluateHealthChecks(instanceHealthCheck, results.health.Timestamp);
                             
                             // add this guy's statuses to hash map for easy lookup

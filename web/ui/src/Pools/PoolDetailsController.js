@@ -110,6 +110,9 @@
             $location.path('/hosts/' + hostId);
         };
 
+        // start polling
+        poolsFactory.activate();
+
         // Ensure we have a list of pools
         poolsFactory.update()
             .then(() => {
@@ -117,14 +120,19 @@
                 if ($scope.currentPool) {
                     $scope.breadcrumbs.push({label: $scope.currentPool.id, itemClass: 'active'});
 
+                    // start polling
+                    hostsFactory.activate();
+
                     hostsFactory.update()
                         .then(() => {
                            // reduce the list to hosts associated with this pool
                             $scope.hosts = hostsFactory.hostList.filter(function(host){
                                 return host.model.PoolID === $scope.currentPool.id;
                             });
+
                         });
                 }
+
             });
     }]);
 })();

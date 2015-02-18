@@ -105,6 +105,9 @@
                 });
         };
 
+        // start polling
+        poolsFactory.activate();
+
         // Ensure we have a list of pools
         poolsFactory.update()
             .then(() => {

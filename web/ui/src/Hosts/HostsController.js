@@ -129,6 +129,8 @@
         // update hosts
         update();
 
+        hostsFactory.activate();
+
         function update(){
             // kick off hostsFactory updating
             // TODO - update loop here

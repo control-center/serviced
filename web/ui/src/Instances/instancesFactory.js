@@ -7,42 +7,42 @@
 
     angular.module('instancesFactory', []).
     factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, baseFactory){
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
         serviceHealth = _serviceHealth;
 
-        var newFactory = baseFactory(Instance, "get_running_services");
+        var newFactory = new BaseFactory(Instance, resourcesFactory.get_running_services);
 
-        return {
-            get: newFactory.get,
-            update: newFactory.update,
-            instanceMap: newFactory.objMap,
-            instanceList: newFactory.objArr,
-            activate: newFactory.activate,
-            deactivate: newFactory.deactivate,
-            getByServiceId: (id) => {
+        // alias some stuff for ease of use
+        newFactory.instanceArr = newFactory.objArr;
+        newFactory.instanceMap = newFactory.objMap;
+
+        angular.extend(newFactory, {
+            getByServiceId: function(id){
                 let results = [];
-                for(let i in newFactory.objMap){
-                    if(newFactory.objMap[i].model.ServiceID === id){
-                        results.push(newFactory.objMap[i]);
+                for(let i in this.objMap){
+                    if(this.objMap[i].model.ServiceID === id){
+                        results.push(this.objMap[i]);
                     }
                 }
                 return results;
             },
 
-            getByHostId: (id) => {
+            getByHostId: function(id){
                 let results = [];
-                for(let i in newFactory.objMap){
-                    if(newFactory.objMap[i].model.HostID === id){
-                        results.push(newFactory.objMap[i]);
+                for(let i in this.objMap){
+                    if(this.objMap[i].model.HostID === id){
+                        results.push(this.objMap[i]);
                     }
                 }
                 return results;
             },
-        };
+        });
+
+        return newFactory;
     }]);
 
     // Instance object constructor

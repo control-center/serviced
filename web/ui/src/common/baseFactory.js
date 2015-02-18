@@ -5,82 +5,85 @@
 
     var UPDATE_FREQUENCY = 3000;
 
+    var $q, $interval;
+
     angular.module('baseFactory', []).
     factory("baseFactory", ["$rootScope", "$q", "resourcesFactory", "$interval",
-    function($rootScope, $q, resourcesFactory, $interval){
+    function($rootScope, _$q, resourcesFactory, _$interval){
 
-        // return a function that can be called to unwrap
-        // a shiny new factory
-        return function(FactoryObj, resourceMethodName){
-            var objMap = {},
-                objArr = [],
-                update, updatePromise,
-                activate, deactivate;
+        $q = _$q;
+        $interval = _$interval;
 
-            update = function(){
-                var deferred = $q.defer();
-                resourcesFactory[resourceMethodName]()
-                    .success((data, status) => {
-                        var included = [];
-
-                        for(let id in data){
-                            let obj = data[id];
-
-                            // update
-                            if(objMap[obj.ID]){
-                                objMap[obj.ID].update(obj);
-
-                            // new
-                            } else {
-                                objMap[obj.ID] = new FactoryObj(obj);
-                                objArr.push(objMap[obj.ID]);
-                            }
-
-                            included.push(obj.ID);
-                        }
-
-                        // delete
-                        if(included.length !== Object.keys(objMap).length){
-                            // iterate objMap and find keys
-                            // not present in included list
-                            for(let id in objMap){
-                                if(included.indexOf(id) === -1){
-                                    objArr.splice(objArr.indexOf(objMap[id], 1));
-                                    delete objMap[id];
-                                }
-                            }
-                        }
-
-                        deferred.resolve();
-                    });
-                return deferred.promise;
-            };
-
-
-            activate = function(){
-                deactivate();
-                updatePromise = $interval(update, UPDATE_FREQUENCY);
-            };
-
-            deactivate = function(){
-                if(updatePromise){
-                    $interval.cancel(updatePromise);
-                }
-            };
-
-            return {
-                update: update,
-                get: function(id){
-                    return objMap[id];
-                },
-                activate: activate,
-                deactivate: deactivate,
-                objMap: objMap,
-                objArr: objArr
-            };
-        };
-
+        return BaseFactory;
     }]);
+
+    // TODO make update frequency configurable
+    // TODO - default ObjConstructor
+    function BaseFactory(ObjConstructor, updateFn){
+        this.objMap = {};
+        this.objArr = [];
+        this.updateFn = updateFn;
+        this.ObjConstructor = ObjConstructor;
+    }
+
+    BaseFactory.prototype = {
+        constructor: BaseFactory,
+
+        update: function(){
+            var deferred = $q.defer();
+            this.updateFn()
+                .success((data, status) => {
+                    var included = [];
+
+                    for(let id in data){
+                        let obj = data[id];
+
+                        // update
+                        if(this.objMap[obj.ID]){
+                            this.objMap[obj.ID].update(obj);
+
+                        // new
+                        } else {
+                            this.objMap[obj.ID] = new this.ObjConstructor(obj);
+                            this.objArr.push(this.objMap[obj.ID]);
+                        }
+
+                        included.push(obj.ID);
+                    }
+
+                    // delete
+                    if(included.length !== Object.keys(this.objMap).length){
+                        // iterate objMap and find keys
+                        // not present in included list
+                        for(let id in this.objMap){
+                            if(included.indexOf(id) === -1){
+                                this.objArr.splice(this.objArr.indexOf(this.objMap[id], 1));
+                                delete this.objMap[id];
+                            }
+                        }
+                    }
+
+                    deferred.resolve();
+                });
+            return deferred.promise;
+        },
+
+        activate: function(){
+            this.deactivate();
+            this.updatePromise = $interval(this.update.bind(this), UPDATE_FREQUENCY);
+        },
+
+        deactivate: function(){
+            if(this.updatePromise){
+                $interval.cancel(this.updatePromise);
+                this.updatePromise = null;
+            }
+        },
+
+        get: function(id){
+            return this.objMap[id];
+        }
+    };
 
 
     function Obj(obj){

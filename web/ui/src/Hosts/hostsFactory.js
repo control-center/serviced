@@ -8,23 +8,19 @@
 
     angular.module('hostsFactory', []).
     factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory", "baseFactory",
-    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, baseFactory){
+    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, BaseFactory){
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         instancesFactory = _instancesFactory;
         $q = q;
 
-        var newFactory = baseFactory(Host, "get_hosts");
+        var newFactory = new BaseFactory(Host, resourcesFactory.get_hosts);
+        
+        // alias some stuff for ease of use
+        newFactory.hostList = newFactory.objArr;
+        newFactory.hostMap = newFactory.objMap;
 
-        return {
-            get: newFactory.get,
-            update: newFactory.update,
-            hostMap: newFactory.objMap,
-            hostList: newFactory.objArr,
-            activate: newFactory.activate,
-            deactivate: newFactory.deactivate,
-        };
-
+        return newFactory;
     }]);
 
     // Host object constructor

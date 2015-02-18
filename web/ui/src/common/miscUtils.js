@@ -126,6 +126,14 @@
                     $scope.user.language = ln;
                 }
                 $translate.use(ln);
+            },
+
+            // call fn b after fn a
+            after: function(a, b, context){
+                return function(){
+                    a.apply(context, arguments);
+                    b.call(context);
+                };
             }
         };
 

@@ -79,6 +79,9 @@
         update();
 
         function update(){
+            // start polling
+            hostsFactory.activate();
+
             // kick off hostsFactory updating
             // TODO - update loop here
             hostsFactory.update()

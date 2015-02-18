@@ -127,9 +127,9 @@
         $scope.collect_vhosts = function(app) {
             var vhosts = [];
 
-            if (app.service.Endpoints) {
-                for (var i in app.service.Endpoints) {
-                    var endpoint = app.service.Endpoints[i];
+            if (app.model.Endpoints) {
+                for (var i in app.model.Endpoints) {
+                    var endpoint = app.model.Endpoints[i];
                     if (endpoint.VHosts) {
                         for ( var j in endpoint.VHosts) {
                             vhosts.push( endpoint.VHosts[j] );
