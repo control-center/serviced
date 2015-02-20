@@ -19,13 +19,12 @@ FROM ubuntu:trusty
 
 MAINTAINER Zenoss, Inc <dev@zenoss.com>
 
-RUN	apt-get update -qq
-RUN	apt-get install -qqy iptables ca-certificates aufs-tools
+RUN	apt-get update -qq && apt-get install -qqy iptables ca-certificates aufs-tools
 
 # Build dependencies
 #RUN	dpkg-divert --local --rename --add /sbin/initctl
 #RUN	ln -s /bin/true /sbin/initctl
-RUN	apt-get install -y -q wget curl git
+RUN	apt-get update -qq && apt-get install -y -q wget curl git
 
 # Install Go
 RUN	curl -s https://storage.googleapis.com/golang/go1.3.3.linux-amd64.tar.gz | tar -v -C /usr/local -xz
@@ -33,9 +32,9 @@ ENV	GOPATH  /go
 ENV	PATH $PATH:/go/bin:/usr/local/go/bin
 
 # Install nodejs, npm, gulp, etc
-RUN apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
+RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
 # karma has dependencies that need to run native builds, so we need build-essential
-RUN apt-get install build-essential=11.6ubuntu6
+RUN apt-get update -qq && apt-get install build-essential=11.6ubuntu6
 
 # create link from nodejs to node
 RUN ln /usr/bin/nodejs /usr/bin/node
@@ -45,10 +44,10 @@ RUN npm install -g gulp@3.8.10 jshint@2.5.11 6to5@2.13.3
 ADD userdo.sh /root/userdo.sh
 
 # build dependencies
-RUN	apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
+RUN	apt-get update -qq && apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
 RUN	gem install fpm
-RUN	apt-get install -y -q rpm
-RUN	apt-get install -y -q mercurial bzr
-RUN apt-get install -y -q libdevmapper-dev libsqlite3-dev
+RUN	apt-get update -qq && apt-get install -y -q rpm
+RUN	apt-get update -qq && apt-get install -y -q mercurial bzr
+RUN apt-get update -qq && apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
 WORKDIR	/go/src/github.com/control-center/serviced
