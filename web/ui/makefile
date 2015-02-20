@@ -11,6 +11,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+VERSION := $(shell cat ../../VERSION)
+
 UID = $(shell id -u)
 GID = $(shell id -g)
 PWD = $(shell pwd)
@@ -34,12 +36,12 @@ $(controlplane_JS): src/*.js src/**/*.js
 		npm install; \
 		gulp release; \
 	else \
-		docker build -t zenoss/serviced-build $(serviced_build_DOCKERFILE); \
+		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build \
+		zenoss/serviced-build:$(VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
 	fi
 
@@ -49,12 +51,12 @@ test: build
 		npm install; \
 		gulp test; \
 	else \
-		docker build -t zenoss/serviced-build $(serviced_build_DOCKERFILE); \
+		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build \
+		zenoss/serviced-build:$(VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
 	fi
 

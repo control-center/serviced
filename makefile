@@ -197,17 +197,17 @@ $(serviced): FORCE
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
 docker_build: docker_ok
-	docker build -t zenoss/serviced-build build
+	docker build -t zenoss/serviced-build:$(VERSION) build
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	if [ ! -d "$(pkg_build_tmp)" ];then \
 		mkdir -p $(pkg_build_tmp) ;\
 	fi
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	-v `pwd`/$(pkg_build_tmp):/tmp \
-	-t zenoss/serviced-build \
+	-t zenoss/serviced-build:$(VERSION) \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
@@ -408,17 +408,17 @@ docker_buildandpackage: docker_ok
 	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then \
         exit 1 ;\
     fi
-	docker build -t zenoss/serviced-build build
+	docker build -t zenoss/serviced-build:$(VERSION) build
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/control-center/serviced \
-	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	if [ ! -d "$(pkg_build_tmp)" ];then \
 		mkdir -p $(pkg_build_tmp) ;\
 	fi
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	-v `pwd`/$(pkg_build_tmp):/tmp \
-	-t zenoss/serviced-build make \
+	-t zenoss/serviced-build:$(VERSION) make \
 		IN_DOCKER=1 \
 		INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) \
 		GOPATH=$(docker_GOPATH) \
@@ -490,7 +490,7 @@ clean: clean_js clean_pkg clean_dao clean_godeps clean_serviced
 docker_clean_pkg:
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	zenoss/serviced-build /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 
 .PHONY: docker_clean
 docker_clean: docker_clean_pkg
