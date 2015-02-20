@@ -32,18 +32,18 @@ default: build
 build: $(controlplane_JS)
 
 $(controlplane_JS): src/*.js src/**/*.js
-	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
-		gulp release; \
-	else \
-		docker build -t zenoss/serviced-build-$(VERSION) $(serviced_build_DOCKERFILE); \
+	# if [ -x "$(NODEJS)" ]; then \
+	# 	npm install; \
+	# 	gulp release; \
+	# else \
+		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build-$(VERSION) \
+		zenoss/serviced-build:$(VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
-	fi
+	# fi
 
 .PHONY: test
 test: build
@@ -51,12 +51,12 @@ test: build
 		npm install; \
 		gulp test; \
 	else \
-		docker build -t zenoss/serviced-build-$(VERSION) $(serviced_build_DOCKERFILE); \
+		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build-$(VERSION) \
+		zenoss/serviced-build:$(VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
 	fi
 
