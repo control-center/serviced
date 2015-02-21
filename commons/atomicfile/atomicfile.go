@@ -44,9 +44,8 @@ func WriteFile(filename string, data []byte, perm os.FileMode) error {
 		return err
 	}
 
-	if err := os.Rename(name, filename); err != nil {
+	if err := os.Chmod(name, perm); err != nil {
 		return err
 	}
-
-	return os.Chmod(filename, perm)
+	return os.Rename(name, filename)
 }
