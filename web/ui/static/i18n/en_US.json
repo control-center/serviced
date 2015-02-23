@@ -155,7 +155,7 @@
     "content_wizard_no_hosts": "We did not detect any hosts. You can deploy to localhost or manually add a host.",
     "content_wizard_possession_multi": "have",
     "content_wizard_possession_single": "has",
-    "content_wizard_select_apps": "Select the applications to install:",
+    "content_wizard_select_apps": "Select the application to install:",
     "content_wizard_selected_apps": "Applications to install:",
     "content_wizard_select_pool": "Select the resource pool to install to:",
     "content_wizard_some_hosts": "We found the following hosts. Select the hosts to deploy to:",

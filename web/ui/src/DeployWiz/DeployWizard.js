@@ -23,7 +23,7 @@
         };
 
         var  validTemplateSelected = function() {
-            if($scope.selectedTemplates().length <= 0){
+            if(!$scope.install.templateID){
                 showError($translate.instant("label_wizard_select_app"));
                 return false;
             }else{
@@ -34,7 +34,7 @@
         };
 
         var validDeploymentID = function() {
-            if($scope.install.deploymentId === undefined || $scope.install.deploymentId === ""){
+            if($scope.install.deploymentID === undefined || $scope.install.deploymentID === ""){
                 showError($translate.instant("label_wizard_deployment_id"));
                 return false;
             }else{
@@ -59,7 +59,7 @@
                         var templates = [];
                         for (var key in templatesMap) {
                             var template = templatesMap[key];
-                            template.Id = key;
+                            template.ID = key;
                             templates[templates.length] = template;
                         }
                         $scope.templates.data = templates;
@@ -103,28 +103,7 @@
             step = 0;
 
             $scope.install = {
-                selected: {
-                    pool: 'default'
-                },
-                templateSelected: function(template) {
-                    // uncheck all other templates
-                    angular.forEach($scope.templates.data, function(t){
-                        if(template.Id !== t.Id){
-                            $scope.install.selected[t.Id] = false;
-                        }
-                    });
-
-                    // check any dependant templates
-                    if (template.depends) {
-                        $scope.install.selected[template.depends] = true;
-                    }
-                },
-                templateDisabled: function(template) {
-                    if (template.disabledBy) {
-                        return $scope.install.selected[template.disabledBy];
-                    }
-                    return false;
-                }
+                poolID: 'default'
             };
 
             if($scope.templates.data.length === 0){
@@ -176,31 +155,7 @@
         ];
 
         $scope.install = {
-            selected: {
-                pool: 'default'
-            },
-            templateSelected: function(template) {
-                if (template.depends) {
-                    $scope.install.selected[template.depends] = true;
-                }
-            },
-            templateDisabled: function(template) {
-                if (template.disabledBy) {
-                    return $scope.install.selected[template.disabledBy];
-                }
-                return false;
-            }
-        };
-
-        $scope.selectedTemplates = function() {
-            var templates = [];
-            for (var i=0; i < $scope.templates.data.length; i++) {
-                var template = $scope.templates.data[i];
-                if ($scope.install.selected[template.Id]) {
-                    templates[templates.length] = template;
-                }
-            }
-            return templates;
+            poolID: 'default'
         };
 
         $scope.getTemplateRequiredResources = function(template){
@@ -328,61 +283,46 @@
             $("#deploy-save-button").toggleClass('active');
             $("#deploy-save-button").attr("disabled", "disabled");
 
-            var selected = $scope.selectedTemplates();
-            var f = true;
-            var dName = "";
-            for (var i=0; i < selected.length; i++) {
-                if (f) {
-                    f = false;
-                } else {
-                    dName += ", ";
-                    if (i + 1 === selected.length) {
-                        dName += "and ";
-                    }
-                }
-                dName += selected[i].Name;
+            var deploymentDefinition = {
+                poolID: $scope.install.poolID,
+                TemplateID: $scope.install.templateID,
+                DeploymentID: $scope.install.deploymentID
+            };
 
-                var deploymentDefinition = {
-                    poolID: $scope.install.selected.pool,
-                    TemplateID: selected[i].Id,
-                    DeploymentID: $scope.install.deploymentId
-                };
-
-                var checkStatus = true;
-                resourcesFactory.deploy_app_template(deploymentDefinition, function() {
-                    servicesFactory.update().then(function(){
-                        checkStatus = false;
-                        closeModal();
-                    });
-                }, function(){
+            var checkStatus = true;
+            resourcesFactory.deploy_app_template(deploymentDefinition, function() {
+                servicesFactory.update().then(function(){
                     checkStatus = false;
                     closeModal();
                 });
+            }, function(){
+                checkStatus = false;
+                closeModal();
+            });
 
-                //now that we have started deploying our app, we poll for status
-                var getStatus = function(){
-                    if(checkStatus){
-                        var $status = $("#deployStatusText");
-                        resourcesFactory.get_deployed_templates(deploymentDefinition, function(data){
-                            if(data.Detail === "timeout"){
-                                $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+            //now that we have started deploying our app, we poll for status
+            var getStatus = function(){
+                if(checkStatus){
+                    var $status = $("#deployStatusText");
+                    resourcesFactory.get_deployed_templates(deploymentDefinition, function(data){
+                        if(data.Detail === "timeout"){
+                            $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
+                        }else{
+                            var parts = data.Detail.split("|");
+                            if(parts[1]){
+                                $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
                             }else{
-                                var parts = data.Detail.split("|");
-                                if(parts[1]){
-                                    $status.html('<strong>' + $translate.instant(parts[0]) + ":</strong> " + parts[1]);
-                                }else{
-                                    $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
-                                }
+                                $status.html('<strong>' + $translate.instant(parts[0]) + '</strong>');
                             }
+                        }
 
-                            getStatus();
-                        });
-                    }
-                };
+                        getStatus();
+                    });
+                }
+            };
 
-                $("#deployStatus").show();
-                getStatus();
-            }
+            $("#deployStatus").show();
+            getStatus();
 
             nextClicked = false;
         };
@@ -391,7 +331,7 @@
             var templates = [];
             for (var key in templatesMap) {
                 var template = templatesMap[key];
-                template.Id = key;
+                template.ID = key;
                 templates.push(template);
             }
             $scope.templates.data = templates;

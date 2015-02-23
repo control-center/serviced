@@ -105,7 +105,7 @@
                             });
 
                             // HACK - services should update themselves?
-                            this.updateHealth();
+                            //this.updateHealth();
 
                             deferred.resolve();
                         });
@@ -440,6 +440,7 @@
         }
     });
 
+    // fetch vhosts for service and all descendents
     Object.defineProperty(Service.prototype, "hosts", {
         get: function(){
             var hosts = this.cache.getIfClean("vhosts");

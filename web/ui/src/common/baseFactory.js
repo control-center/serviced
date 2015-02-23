@@ -29,6 +29,7 @@
     BaseFactory.prototype = {
         constructor: BaseFactory,
 
+        // TODO - debounce
         update: function(){
             var deferred = $q.defer();
             this.updateFn()
@@ -70,7 +71,10 @@
 
         activate: function(){
             this.deactivate();
-            this.updatePromise = $interval(this.update.bind(this), UPDATE_FREQUENCY);
+            this.updatePromise = $interval(() => {
+                this.update.call(this);
+            }, UPDATE_FREQUENCY);
+            this.update();
         },
 
         deactivate: function(){
