@@ -69,8 +69,9 @@
         },
 
         activate: function(){
-            this.deactivate();
-            this.updatePromise = $interval(this.update.bind(this), UPDATE_FREQUENCY);
+            if(!this.updatePromise){
+                this.updatePromise = $interval(this.update.bind(this), UPDATE_FREQUENCY);
+            }
         },
 
         deactivate: function(){
