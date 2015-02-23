@@ -576,7 +576,7 @@
 
         // kick off service stuff and magic and everything
         // NOTE THIS IS THE ENTRY POINT FOR THIS SERVICE!
-        servicesFactory.init().then(function(){
+        servicesFactory.update().then(function(){
             // setup initial state
             $scope.services = {
                 data: servicesFactory.serviceTree,
@@ -590,6 +590,11 @@
             // if the current service changes, update
             // various service controller thingies
             $scope.$watch(function(){
+                // if no current service is set, try to set one
+                if(!$scope.services.current){
+                    $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                }
+
                 if($scope.services && $scope.services.current){
                     return $scope.services.current.isDirty();
                 } else {

@@ -7,8 +7,6 @@
 
     var resourcesFactory, $q, serviceHealth, instancesFactory;
 
-    var UPDATE_FREQUENCY = 3000;
-
     angular.module('servicesFactory', []).
     factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "instancesFactory", "baseFactory", "miscUtils",
     function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, _instancesFactory, BaseFactory, utils){
@@ -19,6 +17,8 @@
         serviceHealth = _serviceHealth;
         $q = q;
 
+        var UPDATE_PADDING = 1000;
+
         var newFactory = new BaseFactory(Service, resourcesFactory.get_services);
 
         // alias some stuff for ease of use
@@ -26,90 +26,65 @@
         newFactory.serviceMap = newFactory.objMap;
 
         angular.extend(newFactory, {
-            // init generates the base tree/map of services
-            // and instances. update must be called to keep
-            // this data current!
-            init: function(){
-                if(!this.initPromise){
-                    this.initPromise = resourcesFactory.get_services()
-                        .success((data, status) => {
-
-                            var service;
-
-                            // store services as a flat map
-                            data.forEach((service) => {
-                                this.objMap[service.ID] = new Service(service);
-                            });
-
-                            // generate service tree
-                            for(var serviceId in this.objMap){
-                                // TODO - check for service
-                                service = this.objMap[serviceId];
-                                this.addServiceToTree(service);
-                            }
-
-                            this.updateHealth();
-
-                        });
-
-                    // grab instances
-                    instancesFactory.update();
-                }
-                return this.initPromise;
-            },
-
-
             // TODO - update list by application instead
             // of all services ever?
             update: function(){
-                var deferred = $q.defer();
+                var deferred = $q.defer(),
+                    now = new Date().getTime(),
+                    since;
 
-                // make sure init has been run
-                if(!this.initPromise){
-                    this.init();
+                // if this is the first update, request
+                // all services
+                if(this.lastUpdate === undefined){
+                    since = 0;
+                } else {
+                    since = (now - this.lastUpdate) + UPDATE_PADDING;
                 }
+                this.lastUpdate = now;
 
-                // dont update till init has finished
-                this.initPromise.then(() => {
-                    resourcesFactory.get_services(UPDATE_FREQUENCY + 1000)
-                        .success((data, status) => {
-                            // TODO - change backend to send
-                            // updated, created, and deleted
-                            // separately from each other
-                            data.forEach((serviceDef) => {
-                                var currentParent, service;
+                resourcesFactory.get_services(since)
+                    .success((data, status) => {
+                        // TODO - change backend to send
+                        // updated, created, and deleted
+                        // separately from each other
+                        data.forEach((serviceDef) => {
+                            var currentParent, service;
 
-                                // update
-                                if(this.objMap[serviceDef.ID]){
-                                    service = this.objMap[serviceDef.ID];
-                                    currentParent = service.parent;
+                            // update
+                            if(this.objMap[serviceDef.ID]){
+                                service = this.objMap[serviceDef.ID];
+                                currentParent = service.parent;
 
-                                    // if the service parent has changed,
-                                    // update its tree stuff (parent, depth, etc)
-                                    if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
-                                        this.objMap[serviceDef.ID].update(serviceDef);
-                                        this.addServiceToTree(service);
-                                    // otherwise, just update the service
-                                    } else {
-                                        this.objMap[serviceDef.ID].update(serviceDef);
-                                    }
-
-                                // new
+                                // if the service parent has changed,
+                                // update its tree stuff (parent, depth, etc)
+                                if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
+                                    this.objMap[serviceDef.ID].update(serviceDef);
+                                    this.addServiceToTree(service);
+                                // otherwise, just update the service
                                 } else {
-                                    this.objMap[serviceDef.ID] = new Service(serviceDef);
-                                    this.addServiceToTree(this.objMap[serviceDef.ID]);
+                                    this.objMap[serviceDef.ID].update(serviceDef);
                                 }
 
-                                // TODO - deleted serviced
+                            // new
+                            } else {
+                                this.objMap[serviceDef.ID] = new Service(serviceDef);
+                                this.addServiceToTree(this.objMap[serviceDef.ID]);
+                            }
 
-                            });
+                            // TODO - deleted serviced
 
-                            // HACK - services should update themselves?
-                            //this.updateHealth();
-
-                            deferred.resolve();
                         });
-                });
+
+                        // check to see if orphans found parents
+                        this.objArr.filter(service => service.isOrphan).forEach(service => {
+                            this.addServiceToTree(service);
+                        });
+
+                        // HACK - services should update themselves?
+                        this.updateHealth();
+
+                        deferred.resolve();
+                    });
 
                 return deferred.promise;
             },
@@ -120,8 +95,17 @@
                 var parent;
                 // if this is not a top level service
                 if(service.model.ParentServiceID){
-                    // TODO - check for parent
                     parent = this.objMap[service.model.ParentServiceID];
+
+                    // if the parent isn't available, mark
+                    // as an orphaned service and early return
+                    if(!parent){
+                        service.isOrphan = true;
+                        return;
+                    }
+
+                    service.isOrphan = false;
+
                     // TODO - consider order here? adding child updates
                     // then adding parent updates again
                     parent.addChild(service);
@@ -186,9 +170,6 @@
         newFactory.deactivate = utils.after(newFactory.deactivate, function(){
             instancesFactory.deactivate();
         }, newFactory);
-
-        // services require a bit of setup
-        newFactory.init();
 
         return newFactory;
     }]);
