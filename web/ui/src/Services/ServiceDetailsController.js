@@ -616,6 +616,7 @@
 
         $scope.$on("$destroy", function(){
             servicesFactory.deactivate();
+            hostsFactory.deactivate();
         });
 
         $scope.getHostName = function(id){

@@ -29,9 +29,6 @@
                 lastPollResults = $scope.services.deploying.length;
             });
         };
-        $scope.$on("$destroy", function(){
-            resourcesFactory.unregisterAllPolls();
-        });
         $scope.name = "apps";
         $scope.params = $routeParams;
         $scope.resourcesFactory = resourcesFactory;
@@ -251,6 +248,7 @@
         // Get a list of templates
         refreshTemplates();
 
+        servicesFactory.activate();
         // Get a list of deployed apps
         servicesFactory.update().then(function update(){
             $scope.services.data = servicesFactory.serviceTree;
@@ -264,5 +262,11 @@
 
         //register polls
         resourcesFactory.registerPoll("deployingApps", pollDeploying, 3000);
+        resourcesFactory.registerPoll("refreshTemplates", refreshTemplates, 3000);
+
+        $scope.$on("$destroy", function(){
+            resourcesFactory.unregisterAllPolls();
+            servicesFactory.deactivate();
+        });
     }]);
 })();

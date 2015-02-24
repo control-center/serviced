@@ -134,5 +134,10 @@
                 }
 
             });
+
+        $scope.$on("$destroy", function(){
+            poolsFactory.deactivate();
+            hostsFactory.deactivate();
+        });
     }]);
 })();
