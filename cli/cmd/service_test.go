@@ -34,6 +34,7 @@ const (
 )
 
 var DefaultServiceAPITest = ServiceAPITest{
+	errs:      make(map[string]error, 10),
 	services:  DefaultTestServices,
 	pools:     DefaultTestPools,
 	snapshots: DefaultTestSnapshots,
@@ -84,11 +85,12 @@ var (
 	ErrNoServiceFound = errors.New("no service found")
 	ErrInvalidService = errors.New("invalid service")
 	ErrCmdNotFound    = errors.New("command not found")
+	ErrStub           = errors.New("stub for facade failed")
 )
 
 type ServiceAPITest struct {
 	api.API
-	fail      bool
+	errs      map[string]error
 	services  []service.Service
 	pools     []pool.ResourcePool
 	snapshots []dao.SnapshotInfo
@@ -101,22 +103,24 @@ func InitServiceAPITest(args ...string) {
 }
 
 func (t ServiceAPITest) GetServices() ([]service.Service, error) {
-	if t.fail {
-		return nil, ErrInvalidService
+	if t.errs["GetServices"] != nil {
+		return nil, t.errs["GetServices"]
 	}
 	return t.services, nil
 }
 
 func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
-	if t.fail {
-		return nil, ErrInvalidService
+	fmt.Printf("tgj: GetResourcePools\n")
+	if t.errs["GetResourcePools"] != nil {
+		return nil, t.errs["GetResourcePools"]
 	}
 	return t.pools, nil
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
-	if t.fail {
-		return nil, ErrInvalidService
+	//fmt.Printf("tgj: GetService\n")
+	if t.errs["GetService"] != nil {
+		return nil, t.errs["GetService"]
 	}
 
 	for i, s := range t.services {
@@ -129,8 +133,8 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 }
 
 func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, error) {
-	if t.fail {
-		return nil, ErrInvalidService
+	if t.errs["AddService"] != nil {
+		return nil, t.errs["AddService"]
 	} else if config.Name == NilService {
 		return nil, nil
 	}
@@ -163,12 +167,9 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 }
 
 func (t ServiceAPITest) RemoveService(id string) error {
-	if s, err := t.GetService(id); err != nil {
-		return err
-	} else if s == nil {
-		return ErrNoServiceFound
+	if t.errs["RemoveService"] != nil {
+		return t.errs["RemoveService"]
 	}
-
 	return nil
 }
 
@@ -187,22 +188,16 @@ func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error
 }
 
 func (t ServiceAPITest) StartService(cfg api.SchedulerConfig) (int, error) {
-	if s, err := t.GetService(cfg.ServiceID); err != nil {
-		return 0, err
-	} else if s == nil {
-		return 0, ErrNoServiceFound
+	if t.errs["StartService"] != nil {
+		return 0, t.errs["StartService"]
 	}
-
 	return 1, nil
 }
 
 func (t ServiceAPITest) RestartService(cfg api.SchedulerConfig) (int, error) {
-	if s, err := t.GetService(cfg.ServiceID); err != nil {
-		return 0, err
-	} else if s == nil {
-		return 0, ErrNoServiceFound
+	if t.errs["RestartService"] != nil {
+		return 0, t.errs["RestartService"]
 	}
-
 	return 1, nil
 }
 
@@ -217,8 +212,8 @@ func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
-	if _, err := t.GetService(config.ServiceID); err != nil {
-		return err
+	if t.errs["AssignIP"] != nil {
+		return t.errs["AssignIP"]
 	}
 	return nil
 }
@@ -263,8 +258,8 @@ func (t ServiceAPITest) RunShell(config api.ShellConfig) error {
 }
 
 func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]dao.SnapshotInfo, error) {
-	if t.fail {
-		return nil, ErrInvalidSnapshot
+	if t.errs["GetSnapshotsByServiceID"] != nil {
+		return nil, t.errs["GetSnapshotsByServiceID"]
 	}
 
 	var snapshots []dao.SnapshotInfo
@@ -278,13 +273,9 @@ func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]dao.SnapshotInfo, 
 }
 
 func (t ServiceAPITest) AddSnapshot(id string, description string) (string, error) {
-	s, err := t.GetService(id)
-	if err != nil {
-		return "", ErrInvalidSnapshot
-	} else if s == nil {
-		return "", nil
+	if t.errs["AddSnapshot"] != nil {
+		return "", t.errs["AddSnapshot"]
 	}
-
 	return fmt.Sprintf("%s-snapshot description=%q", id, description), nil
 }
 
@@ -337,10 +328,10 @@ func ExampleServicedCLI_CmdServiceList() {
 }
 
 func ExampleServicedCLI_CmdServiceList_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
 	// Error retrieving service
-	pipeStderr(InitServiceAPITest, "serviced", "service", "list", "test-service-1")
+	pipeStderr(InitServiceAPITest, "serviced", "service", "list", "test-service-0")
 	// Error retrieving all services
 	pipeStderr(InitServiceAPITest, "serviced", "service", "list")
 
@@ -365,8 +356,8 @@ func ExampleServicedCLI_CmdServiceList_err() {
 func ExampleServicedCLI_CmdServiceList_complete() {
 	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
 
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
 	InitServiceAPITest("serviced", "service", "list", "--generate-bash-completion")
 
 	// Output:
@@ -404,15 +395,22 @@ func ExampleServicedCLI_CmdServiceAdd_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceAdd_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["AddService"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["AddService"] = nil }()
+	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-service-1", "test-service", "test-image", "bash -c lsof")
+
+	// Output:
+	// stub for facade failed
+}
+
+func ExampleServicedCLI_CmdServiceAdd_missingParentArg() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "test-service", "test-pool", "test-image", "bash -c lsof")
 
 	// Output:
 	// Must specify a parent service ID
 }
 
-func ExampleServicedCLI_CmdServiceAdd_err() {
+func ExampleServicedCLI_CmdServiceAdd_parentNotFound() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "add", "--parent-id", "test-parent", NilService, "test-image", "bash -c lsof")
 
 	// Output:
@@ -452,6 +450,16 @@ func ExampleServicedCLI_CmdServiceRemove_err() {
 
 	// Output:
 	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceRemove_failed() {
+	DefaultServiceAPITest.errs["RemoveService"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["RemoveService"] = nil }()
+
+	pipeStderr(InitServiceAPITest, "serviced", "service", "remove", "test-service-1")
+
+	// Output:
+	// test-service-1: stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceRemove_complete() {
@@ -497,10 +505,10 @@ func ExampleServicedCLI_CmdServiceEdit_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceEdit_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["GetServices"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["GetServices"] = nil }()
 	// Failed to get service
-	pipeStderr(InitServiceAPITest, "serviced", "service", "edit", "test-service-1")
+	pipeStderr(InitServiceAPITest, "serviced", "service", "edit", "test-service-0")
 	// TODO: Failed to update service
 
 	// Output:
@@ -545,8 +553,8 @@ func ExampleServicedCLI_CmdServiceAssignIPs_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceAssignIPs_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["AssignIP"] = ErrInvalidService
+	defer func() { DefaultServiceAPITest.errs["AssignIP"] = nil }()
 	pipeStderr(InitServiceAPITest, "serviced", "service", "assign-ip", "test-service-3")
 
 	// Output:
@@ -580,12 +588,12 @@ func ExampleServicedCLI_CmdServiceStart_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceStart_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["StartService"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["StartService"] = nil }()
 	pipeStderr(InitServiceAPITest, "serviced", "service", "start", "test-service-1")
 
 	// Output:
-	// invalid service
+	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceStart_err() {
@@ -622,12 +630,12 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceRestart_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["RestartService"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["RestartService"] = nil }()
 	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-1")
 
 	// Output:
-	// invalid service
+	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceRestart_err() {
@@ -845,12 +853,12 @@ func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["GetSnapshotsByServiceID"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["GetSnapshotsByServiceID"] = nil }()
 	pipeStderr(InitServiceAPITest, "serviced", "service", "list-snapshots", "test-service-1")
 
 	// Output:
-	// invalid service
+	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_err() {
@@ -894,12 +902,12 @@ func ExampleServicedCLI_CmdServiceSnapshot_usage() {
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_fail() {
-	DefaultServiceAPITest.fail = true
-	defer func() { DefaultServiceAPITest.fail = false }()
+	DefaultServiceAPITest.errs["AddSnapshot"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["AddSnapshot"] = nil }()
 	pipeStderr(InitServiceAPITest, "serviced", "service", "snapshot", "test-service-1")
 
 	// Output:
-	// invalid service
+	// stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_err() {
