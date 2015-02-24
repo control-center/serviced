@@ -46,9 +46,14 @@
                         label: "remove_virtual_ip",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
-                                poolsFactory.update();
-                            });
+                            resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP)
+                                .success(function(data) {
+                                    $notification.create("Removed Virtual IP", ip.IP).success();
+                                    poolsFactory.update();
+                                })
+                                .error(data => {
+                                    $notification.create("Remove Virtual IP failed", data.Detail).error();
+                                });
                             this.close();
                         }
                     }

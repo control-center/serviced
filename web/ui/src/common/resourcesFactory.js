@@ -29,32 +29,6 @@
       });
 
       var pollingFunctions = {};
-      var cached_hosts_for_pool = {};
-      var cached_app_templates;
-
-      var _get_app_templates = function(callback) {
-          $http.noCacheGet('/templates').
-              success(function(data) {
-                  cached_app_templates = data;
-                  callback(data);
-              }).
-              error(function() {
-                  // TODO error screen
-                  redirectIfUnauthorized(status);
-              });
-      };
-
-      var _get_hosts_for_pool = function(poolID, callback) {
-          $http.noCacheGet('/pools/' + poolID + '/hosts').
-              success(function(data) {
-                  cached_hosts_for_pool[poolID] = data;
-                  callback(data);
-              }).
-              error(function() {
-                  // TODO error screen
-                  redirectIfUnauthorized(status);
-              });
-      };
 
       var redirectIfUnauthorized = function(status){
           if (status === 401) {
@@ -62,425 +36,160 @@
           }
       };
 
-      return {
 
-          /*
-           * Assign an ip address to a service endpoint and it's children.  Leave IP parameter
-           * null for automatic assignment.
-           *
-           * @param {serviceID} string the serviceID to assign an ip address
-           * @param {ip} string ip address to assign to service, set as null for automatic assignment
-           * @param {function} callback data is passed to a callback on success.
-           */
-          assign_ip: function(serviceID, ip) {
-            var url = '/services/' + serviceID + "/ip";
-            if (ip !== null) {
-              url = url + "/" + ip;
-            }
-            return $http.put(url).
-                error(function(data, status) {
-                    redirectIfUnauthorized(status);
-                });
-          },
-
-          get_pools: function() {
-              return $http.get('/pools').
-                  error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Get a Pool
-           * @param {string} poolID the pool id
-           * @param {function} callback Pool data is passed to a callback on success.
-           */
-          get_pool: function(poolID, callback) {
-              $http.noCacheGet('/pools/' + poolID).
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Get all possible ips for a resource pool
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {function} callback Pool data is passed to a callback on success.
-           */
-          get_pool_ips: function(poolID, callback) {
-              $http.noCacheGet('/pools/' + poolID + "/ips").
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-        /*
-        * Get the list of services instances currently running for a given service.
-        *
-        * @param {string} serviceId The ID of the service to retrieve running instances for.
-        * @param {function} callback Running services are passed to callback on success.
-        */
-        get_running_services_for_service: function(serviceId){
-
-            var url = '/services/' + serviceId + '/running';
-
-            return $http.get(url, { cache: runningServicesCache }).
-                error(function(data, status) {
-                    redirectIfUnauthorized(status);
-                });
+    var methodConfigs = {
+        assignIP: {
+            method: "PUT",
+            url: (id, ip) => `/services/${id}/ip/${ip}`,
         },
+        getPools: {
+            method: "GET",
+            url: "/pools"
+        },
+        getPoolIPs: {
+            method: "GET", 
+            url: id => `/pools/${id}/ips`
+        },
+        addVHost: {
+            method: "PUT",
+            url: (serviceID, endpointName, vhostName) => {
+                return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
+            },
+            payload: (serviceID, endpointName, vhostName) => {
+                return JSON.stringify({
+                    'ServiceID': serviceID,
+                    'Application': endpointName,
+                    'VirtualHostName': vhostName
+                });
+            }
+        },
+        deleteVHost: {
+            method: "DELETE",
+            url: (serviceID, endpointName, vhostName) => {
+                return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
+            }
+        },
+        getRunningServices: {
+            method: "GET",
+            url: "/running"
+        },
+        addPool: {
+            method: "POST",
+            url: "/pools/add",
+            payload: pool => pool
+        },
+        removePool: {
+            method: "DELETE",
+            url: id => `/pools/${id}`
+        },
+        addPoolVirtualIP: {
+            method: "PUT",
+            url: poolID => `/pools/${poolID}/virtualip`,
+            payload: (poolID, ip, netmask, bindInterface) => {
+                return JSON.stringify({
+                    PoolID: poolID,
+                    IP: ip,
+                    Netmask: netmask,
+                    BindInterface: bindInterface
+                });
+            }
+        },
+        removePoolVirtualIP: {
+            method: "DELETE",
+            url: (poolID, ip) => `/pools/${poolID}/virtualip/${ip}`,
+        },
+        killRunning: {
+            method: "DELETE",
+            url: (hostID, instanceID) => `/hosts/${hostID}/${instanceID}`
+        },
+        getHosts: {
+            method: "GET",
+            url: "/hosts"
+        },
+        addHost: {
+            method: "POST",
+            url: "/hosts/add",
+            payload: host => host
+        },
+        removeHost: {
+            method: "DELETE",
+            url: id => `/hosts/${id}`
+        },
+        getRunningHosts: {
+            method: "GET",
+            url: "/hosts/running"
+        },
+        getServices: {
+            method: "GET",
+            url: since => `/services${ since ? "?since="+ since : ""}`,
+        },
+        getInstanceLogs: {
+            method: "GET",
+            url: (serviceID, instanceID) => `/services/${serviceID}/${instanceID}/logs`
+        },
+        dockerIsLoggedIn: {
+            method: "GET",
+            url: "/dockerIsLoggedIn"
+        },
+        getAppTemplates: {
+            method: "GET",
+            url: "/templates"
+        }
+    };
 
+    function generateMethod(config){
+        // method should be all lowercase
+        config.method = config.method.toLowerCase();
 
-          /*
-           * Get a list of virtual hosts
-           *
-           * @param {function} callback virtual hosts are passed to callback on success.
-           */
-          get_vhosts: function(callback) {
-              $http.noCacheGet('/vhosts').
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      redirectIfUnauthorized(status);
-                  });
-          },
+        // if url is a string, turn it into a getter fn
+        if(typeof config.url === "string"){
+            let url = config.url;
+            config.url = () => url;
+        }
 
-          /*
-           * add a virtual host,
-           */
-          add_vhost: function(serviceId, application, virtualhost) {
-              var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
-              var object = {'ServiceID':serviceId, 'Application':application, 'VirtualHostName':virtualhost};
-              var payload = JSON.stringify(object);
+        return function(/* args */){ 
+            var url = config.url.apply(null, arguments),
+                payload;
 
-              return $http.put(ep, payload)
-                  .error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
+            if(config.payload){
+                payload = config.payload.apply(null, arguments);
+            }
 
-          /*
-           * Remove a virtual host
-           */
-          delete_vhost: function(serviceId, application, virtualhost, callback) {
-              var ep = '/services/' + serviceId + '/endpoint/' + application + '/vhosts/' + virtualhost;
-              $http.delete(ep).
-                  success(function(data) {
-                      $notification.create("Removed virtual host", ep + data.Detail).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Unable to remove virtual hosts", ep + data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-        /*
-        * Get the list of services currently running on a particular host.
-        *
-        * @param {string} hostId The ID of the host to retrieve running services for.
-        * @param {function} callback Running services are passed to callback on success.
-        */
-        get_running_services_for_host: function(hostId) {
-            return $http.get(`/hosts/${hostId}/running`)
+            return $http[config.method](url, payload)
                 .error(function(data, status) {
                     redirectIfUnauthorized(status);
                 });
-        },
+        };
+    }
 
+    // generate methods from methodConfigs
+    var methods = {};
+    for(var name in methodConfigs){
+        methods[name] = generateMethod(methodConfigs[name]);
+    }
 
-          /*
-           * Get the list of all services currently running.
-           *
-           * @param {function} callback Running services are passed to callback on success.
-           */
-          get_running_services: function() {
-              return $http.get("/running").
-                  error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
+      return {
+          assign_ip: methods.assignIP,
+          get_pools: methods.getPools, 
+          // TODO - remove this and calculate values from servicesFactory
+          get_pool_ips: methods.getPoolIPs,
+          add_vhost: methods.addVHost,
+          delete_vhost: methods.deleteVHost,
+          get_running_services: methods.getRunningServices,
+          add_pool: methods.addPool,
+          remove_pool: methods.removePool,
+          add_pool_virtual_ip: methods.addPoolVirtualIP,
+          remove_pool_virtual_ip: methods.removePoolVirtualIP,
+          kill_running: methods.killRunning,
+          get_hosts: methods.getHosts,
+          add_host: methods.addHost,
+          remove_host: methods.removeHost,
+          get_running_hosts: methods.getRunningHosts,
+          get_services: methods.getServices,
+          get_service_state_logs: methods.getInstanceLogs,
+          docker_is_logged_in: methods.dockerIsLoggedIn,
+          get_app_templates: methods.getAppTemplates,
 
-          /*
-           * Posts new resource pool information to the server.
-           *
-           * @param {object} pool New pool details to be added.
-           * @param {function} callback Add result passed to callback on success.
-           */
-          add_pool: function(pool) {
-              return $http.post('/pools/add', pool).
-                  error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Updates existing resource pool.
-           *
-           * @param {string} poolID Unique identifier for pool to be edited.
-           * @param {object} editedPool New pool details for provided poolID.
-           * @param {function} callback Update result passed to callback on success.
-           */
-          update_pool: function(poolID, editedPool, callback) {
-              $http.put('/pools/' + poolID, editedPool).
-                  success(function(data) {
-                      $notification.create("Updated pool", poolID).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Updating pool failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Deletes existing resource pool.
-           *
-           * @param {string} poolID Unique identifier for pool to be removed.
-           * @param {function} callback Delete result passed to callback on success.
-           */
-          remove_pool: function(poolID, callback) {
-              $http.delete('/pools/' + poolID).
-                  success(function(data) {
-                      $notification.create("Removed pool", poolID).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing pool failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-          /*
-           * Puts new resource pool virtual ip
-           *
-           * @param {string} pool id to add virtual ip
-           * @param {string} ip virtual ip to add to pool
-           * @param {function} callback Add result passed to callback on success.
-           */
-          add_pool_virtual_ip: function(pool, ip, netmask, _interface) {
-              var payload = JSON.stringify( {'PoolID':pool, 'IP':ip, 'Netmask':netmask, 'BindInterface':_interface});
-
-              return $http.put('/pools/' + pool + '/virtualip', payload)
-                  .error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
-          /*
-           * Delete resource pool virtual ip
-           *
-           * @param {string} pool id of pool which contains the virtual ip
-           * @param {string} ip virtual ip to remove
-           * @param {function} callback Add result passed to callback on success.
-           */
-          remove_pool_virtual_ip: function(pool, ip, callback) {
-              $http.delete('/pools/' + pool + '/virtualip/' + ip).
-                  success(function(data) {
-                      $notification.create("Removed pool virtual ip", ip).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Remove pool virtual ip failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Stop a running instance of a service.
-           *
-           * @param {string} serviceStateId Unique identifier for a service instance.
-           * @param {function} callback Result passed to callback on success.
-           */
-          kill_running: function(hostId, serviceStateId) {
-              return $http.delete('/hosts/' + hostId + '/' + serviceStateId)
-                  .error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
-          
-            get_hosts: function(){
-                return $http.get("/hosts").
-                    error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                    });
-            },
-
-          /*
-           * Get a host
-           * @param {string} hostID the host id
-           * @param {function} callback host data is passed to a callback on success.
-           */
-          get_host: function(hostID, callback) {
-              $http.noCacheGet('/hosts/' + hostID).
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Unable to acquire host", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Posts new host information to the server.
-           *
-           * @param {object} host New host details to be added.
-           * @param {function} callback Add result passed to callback on success.
-           */
-          add_host: function(host) {
-              return $http.post('/hosts/add', host)
-                  .error(function(data, status){
-                     redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Updates existing host.
-           *
-           * @param {string} hostId Unique identifier for host to be edited.
-           * @param {object} editedHost New host details for provided hostId.
-           * @param {function} callback Update result passed to callback on success.
-           */
-          update_host: function(hostId, editedHost, callback) {
-              $http.put('/hosts/' + hostId, editedHost).
-                  success(function(data) {
-                      $notification.create("Updated host", hostId).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Updating host failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Deletes existing host.
-           *
-           * @param {string} hostId Unique identifier for host to be removed.
-           * @param {function} callback Delete result passed to callback on success.
-           */
-          remove_host: function(hostId) {
-              return $http.delete('/hosts/' + hostId)
-                  .error(function(data, status){
-                     redirectIfUnauthorized(status);
-                  });
-          },
-
-          get_running_hosts: function(){
-              return $http.get('/hosts/running')
-                  .error(function(data, status){
-                     redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Get the list of hosts belonging to a specified pool.
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {string} poolID Unique identifier for pool to use.
-           * @param {function} callback List of hosts pass to callback on success.
-           */
-          get_hosts_for_pool: function(cacheOk, poolID, callback) {
-              if (cacheOk && cached_hosts_for_pool[poolID]) {
-                  callback(cached_hosts_for_pool[poolID]);
-              } else {
-                  _get_hosts_for_pool(poolID, callback);
-              }
-          },
-
-        get_services: function(since){
-            var url = "/services";
-
-            if(since){
-                url += "?since="+ since;
-            }
-
-            return $http.get(url).
-                error(function(data, status) {
-                  redirectIfUnauthorized(status);
-                });
-        },
-
-          /*
-           * Retrieve some (probably not the one you want) set of logs for a
-           * defined service. To get more specific logs, use
-           * get_service_state_logs.
-           *
-           * @param {string} serviceId ID of the service to retrieve logs for.
-           * @param {function} callback Log data passed to callback on success.
-           */
-          get_service_logs: function(serviceId, callback) {
-              $http.noCacheGet('/services/' + serviceId + '/logs').
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Retrieve logs for a particular host running a particular service.
-           *
-           * @param {string} serviceStateId ID to retrieve logs for.
-           * @param {function} callback Log data passed to callback on success.
-           */
-          get_service_state_logs: function(serviceId, serviceStateId, callback) {
-              $http.noCacheGet('/services/' + serviceId + '/' + serviceStateId + '/logs').
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Determine if the user is logged into Docker Hub.
-           * @param {function} callback boolean passed to callback on success.          
-          */
-
-          docker_is_logged_in: function(callback) {
-            $http.noCacheGet('/dockerIsLoggedIn').
-            success(function(data){
-              callback(data.dockerLoggedIn);
-            }).
-            error(function() {
-              $notification.create("", "Unable to retrieve Docker Hub login status.").warning();
-            });
-          },
-
-          /*
-           * Retrieve all defined service (a.k.a. application) templates
-           *
-           * @param {boolean} cacheOk Whether or not cached data is OK to use.
-           * @param {function} callback Templates passed to callback on success.
-           */
-          get_app_templates: function(cacheOk, callback) {
-              if (cacheOk && cached_app_templates) {
-                  callback(cached_app_templates);
-              } else {
-                  _get_app_templates(callback);
-              }
-          },
 
           add_app_template: function(fileData){
               return $http({

@@ -32,7 +32,7 @@
 
         $scope.viewLog = function(instance) {
             $scope.editService = angular.copy(instance);
-            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id, function(log) {
+            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
                 $scope.editService.log = log.Detail;
                 $modalService.create({
                     templateUrl: "view-log.html",
@@ -49,7 +49,7 @@
                             icon: "glyphicon-repeat",
                             action: function() {
                                 var textarea = this.$el.find("textarea");
-                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id, function(log) {
+                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
                                     $scope.editService.log = log.Detail;
                                     textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                                 });
