@@ -156,7 +156,7 @@ deb: stage_deb
 		-d nfs-kernel-server \
 		-d net-tools \
 		-d nfs-common \
-		-d 'lxc-docker-1.3.3' \
+		-d 'lxc-docker-1.5.0' \
 		-d logrotate \
 		-t deb \
 		-a x86_64 \
@@ -185,7 +185,7 @@ rpm: stage_rpm
 		-d net-tools \
 		-d util-linux \
 		-d bash-completion \
-		-d 'zenoss-docker = 1.3.3' \
+		-d 'zenoss-docker = 1.5.0' \
 		-d logrotate \
 		-t rpm \
 		-a x86_64 \
