@@ -8,26 +8,6 @@
           return $http({url: location, method: "GET", params: {'time': new Date().getTime()}});
       };
 
-      // caches for various endpoints
-      var healthcheckCache = DSCacheFactory.createCache("healthcheckCache", {
-        // only 1 healthcheck exists
-        capacity: 1,
-        // expire every 5 seconds
-        maxAge: 5000
-      });
-
-      var runningServicesCache = DSCacheFactory.createCache("runningServicesCache", {
-        // store only 10 top level services (still has many children)
-        capacity: 10,
-        // expire every 5 seconds
-        maxAge: 5000
-      });
-
-      var templatesCache = DSCacheFactory.createCache("templatesCache", {
-        capacity: 25,
-        maxAge: 15000
-      });
-
       var pollingFunctions = {};
 
       var redirectIfUnauthorized = function(status){
@@ -134,6 +114,53 @@
         getAppTemplates: {
             method: "GET",
             url: "/templates"
+        },
+        removeAppTemplate: {
+            method: "DELETE",
+            url: id => `/templates/${id}`
+        },
+        updateService: {
+            method: "PUT",
+            url: id => `/services/${id}`,
+            payload: (id, service) => service
+        },
+        deployAppTemplate: {
+            method: "POST",
+            url: "/templates/deploy",
+            payload: template => template
+        },
+        removeService: {
+            method: "DELETE",
+            url: id => `/services/${id}`
+        },
+        startService: {
+            method: "PUT",
+            url: (id, skip) => `/services/${id}/startService${ skip ? "?auto=false" : "" }`
+        },
+        stopService: {
+            method: "PUT",
+            url: (id, skip) => `/services/${id}/stopService${ skip ? "?auto=false" : "" }`
+        },
+        restartService: {
+            method: "PUT",
+            url: (id, skip) => `/services/${id}/restartService${ skip ? "?auto=false" : "" }`
+        },
+        getVersion: {
+            method: "GET",
+            url: "/version"
+        },
+        getServiceHealth: {
+            method: "GET",
+            url: "/servicehealth"
+        },
+        getDeployStatus: {
+            method: "POST",
+            url: "/templates/deploy/status",
+            payload: def => def
+        },
+        getDeployingTemplates: {
+            method: "GET",
+            url: "/templates/deploy/active"
         }
     };
 
@@ -190,7 +217,7 @@
           docker_is_logged_in: methods.dockerIsLoggedIn,
           get_app_templates: methods.getAppTemplates,
 
-
+          // TODO - templatize this guy?
           add_app_template: function(fileData){
               return $http({
                   url: "/templates/add",
@@ -205,199 +232,19 @@
               }).error(function(data, status){
                   redirectIfUnauthorized(status);
               });
-
           },
 
-          delete_app_template: function(templateID, callback){
-              $http.delete('/templates/' + templateID).
-                  success(function(data) {
-                      $notification.create("Removed template", data.Detail).success();
-                      callback(data);
-                  }).
-                  error(function(data){
-                      $notification.create("Removing template failed", data.Detail).error();
-                  });
-          },
-
-          /*
-           * Create a new service definition.
-           *
-           * @param {object} service The service definition to create.
-           * @param {function} callback Response passed to callback on success.
-           */
-          add_service: function(service, callback) {
-              $http.post('/services/add', service).
-                  success(function(data) {
-                      $notification.create("", "Added new service").success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Adding service failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Update an existing service
-           *
-           * @param {string} serviceId The ID of the service to update.
-           * @param {object} editedService The modified service.
-           */
-          update_service: function(serviceId, editedService) {
-              return $http.put('/services/' + serviceId, editedService).
-                  error(function(data, status) {
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Deploy a service (application) template to a resource pool.
-           *
-           * @param {object} deployDef The template definition to deploy.
-           * @param {function} callback Response passed to callback on success.
-           */
-          deploy_app_template: function(deployDef, callback, failCallback) {
-              $http.post('/templates/deploy', deployDef).
-                  success(function(data) {
-                      $notification.create("", "Deployed application template").success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Deploying application template failed", data.Detail).error();
-                      failCallback(data);
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Snapshot a running service
-           *
-           * @param {string} serviceId ID of the service to snapshot.
-           * @param {function} callback Response passed to callback on success.
-           */
-          snapshot_service: function(serviceId, callback) {
-              $http.noCacheGet('/services/' + serviceId + '/snapshot').
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Snapshot service failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Remove a service definition.
-           *
-           * @param {string} serviceId The ID of the service to remove.
-           * @param {function} callback Response passed to callback on success.
-           */
-          remove_service: function(serviceId, callback) {
-              $http.delete('/services/' + serviceId).
-                  success(function(data) {
-                      $notification.create("Removed service", serviceId).success();
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Removing service failed", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-
-          /*
-           * Starts a service and all of its children
-           *
-           * @param {string} serviceId The ID of the service to start.
-           * @param {function} callback Response passed to callback on success.
-           * @param {bool} indicates if service's children should not be started
-           */
-          start_service: function(serviceId, callback, skipChildren) {
-              var url = "/services/"+ serviceId + "/startService";
-
-              // if children should NOT be started, set 'auto' param
-              // to false
-              if(skipChildren){
-                url += "?auto=false";
-              }
-
-              $http.put(url).
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Was unable to start service", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-          /*
-           * Stops a service and all of its children
-           *
-           * @param {string} serviceId The ID of the service to stop.
-           * @param {function} callback Response passed to callback on success.
-           */
-          stop_service: function(serviceId, callback, skipChildren) {
-              var url = "/services/"+ serviceId + "/stopService";
-
-              // if children should NOT be started, set 'auto' param
-              // to false
-              if(skipChildren){
-                url += "?auto=false";
-              }
-
-              $http.put(url).
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Was unable to stop service", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-          /*
-           * Restart a service and all of its children
-           *
-           * @param {string} serviceId The ID of the service to stop.
-           * @param {function} callback Response passed to callback on success.
-           */
-          restart_service: function(serviceId, callback, skipChildren) {
-              var url = "/services/"+ serviceId + "/restartService";
-
-              // if children should NOT be started, set 'auto' param
-              // to false
-              if(skipChildren){
-                url += "?auto=false";
-              }
-
-              $http.put(url).
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("Was unable to restart service", data.Detail).error();
-                      redirectIfUnauthorized(status);
-                  });
-          },
-          /**
-           * Gets the Serviced version from the server
-           */
-          get_version: function(callback){
-              $http.noCacheGet('/version').
-                  success(function(data) {
-                      callback(data);
-                  }).
-                  error(function(data, status) {
-                      // TODO error screen
-                      $notification.create("", "Could not retrieve Serviced version from server.").warning();
-                      redirectIfUnauthorized(status);
-                  });
-          },
+          delete_app_template: methods.removeAppTemplate,
+          update_service: methods.updateService,
+          deploy_app_template: methods.deployAppTemplate,
+          remove_service: methods.removeService,
+          start_service: methods.startService,
+          stop_service: methods.stopService,
+          restart_service: methods.restartService,
+          get_version: methods.getVersion,
+          get_service_health: methods.getServiceHealth,
+          get_deployed_templates: methods.getDeployStatus,
+          get_active_templates: methods.getDeployingTemplates,
 
           /**
            * Creates a backup file of serviced
@@ -467,48 +314,6 @@
                       redirectIfUnauthorized(status);
                       failCallback(data, status);
                   });
-          },
-
-          get_service_health: function(callback){
-
-            var url = "/servicehealth";
-
-            $http.get(url, { cache: healthcheckCache }).
-              success(function(data) {
-                  callback(data);
-              }).
-              error(function(data, status) {
-                  redirectIfUnauthorized(status);
-              });
-
-            
-          },
-
-          get_deployed_templates: function(deploymentDefinition, callback){
-            $http.post('/templates/deploy/status', deploymentDefinition).
-              success(function(data) {
-                  callback(data);
-              });
-          },
-
-          get_active_templates: function(callback){
-            $http.get('/templates/deploy/active', {cache: templatesCache}).
-              success(function(data) {
-                  callback(data);
-              });
-          },
-
-          get_stats: function(callback){
-            $http.get("/stats").
-              success(function(data, status) {
-                  callback(status);
-              }).
-              error(function(data, status) {
-                  // TODO error screen
-                  $notification.create("", 'serviced is not collecting stats.').error();
-                  redirectIfUnauthorized(status);
-                  callback(status);
-              });
           },
 
           registerPoll: function(label, callback, interval){

@@ -528,14 +528,6 @@
             });
         };
 
-        $scope.snapshotService = function(service) {
-            resourcesFactory.snapshot_service(service.ID, function(label) {
-                console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
-                // TODO: add the snapshot label to some partial view in the UI
-            });
-        };
-
-
         $scope.validateService = function() {
           // TODO: Validate name and startup command
           var svc = $scope.services.current.model,
@@ -618,7 +610,7 @@
 
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
-            resourcesFactory.restart_service(app.ID, angular.noop);
+            resourcesFactory.restart_service(app.ID);
         };
 
         $scope.startTerminal = function(app) {

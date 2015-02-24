@@ -54,17 +54,8 @@
                 $.each(uploadedFiles, function(key, value){
                     formData.append("tpl", value);
                 });
-                resourcesFactory.add_app_template(formData, function(){
-                    resourcesFactory.get_app_templates(false, function(templatesMap) {
-                        var templates = [];
-                        for (var key in templatesMap) {
-                            var template = templatesMap[key];
-                            template.ID = key;
-                            templates[templates.length] = template;
-                        }
-                        $scope.templates.data = templates;
-                    });
-                });
+                resourcesFactory.add_app_template(formData).success($scope.refreshAppTemplates);
+
                 resetError();
                 return true;
             }
@@ -290,7 +281,7 @@
             };
 
             var checkStatus = true;
-            resourcesFactory.deploy_app_template(deploymentDefinition, function() {
+            resourcesFactory.deploy_app_template(deploymentDefinition).success(function() {
                 servicesFactory.update().then(function(){
                     checkStatus = false;
                     closeModal();
@@ -304,7 +295,7 @@
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    resourcesFactory.get_deployed_templates(deploymentDefinition, function(data){
+                    resourcesFactory.get_deployed_templates(deploymentDefinition).success(function(data){
                         if(data.Detail === "timeout"){
                             $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
                         }else{
@@ -327,14 +318,19 @@
             nextClicked = false;
         };
 
-        resourcesFactory.get_app_templates(false, function(templatesMap) {
-            var templates = [];
-            for (var key in templatesMap) {
-                var template = templatesMap[key];
-                template.ID = key;
-                templates.push(template);
-            }
-            $scope.templates.data = templates;
+        $scope.refreshAppTemplates = function(){
+            return resourcesFactory.get_app_templates().success(function(templatesMap) {
+                var templates = [];
+                for (var key in templatesMap) {
+                    var template = templatesMap[key];
+                    template.ID = key;
+                    templates.push(template);
+                }
+                $scope.templates.data = templates;
+            });
+        };
+
+        $scope.refreshAppTemplates().success(() => {
             hostsFactory.update().then(resetStepPage);
         });
 

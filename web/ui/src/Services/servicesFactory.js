@@ -310,15 +310,15 @@
 
         // start, stop, or restart this service
         start: function(skipChildren){
-            resourcesFactory.start_service(this.id, function(){}, skipChildren);
+            resourcesFactory.start_service(this.id, skipChildren);
             this.desiredState = START;
         },
         stop: function(skipChildren){
-            resourcesFactory.stop_service(this.id, function(){}, skipChildren);
+            resourcesFactory.stop_service(this.id, skipChildren);
             this.desiredState = STOP;
         },
         restart: function(skipChildren){
-            resourcesFactory.restart_service(this.id, function(){}, skipChildren);
+            resourcesFactory.restart_service(this.id, skipChildren);
             this.desiredState = RESTART;
         },
 

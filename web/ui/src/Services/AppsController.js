@@ -194,7 +194,7 @@
          * PRIVATE FUNCTIONS
          */
         function refreshTemplates(){
-            resourcesFactory.get_app_templates(false, function(templates) {
+            resourcesFactory.get_app_templates().success(function(templates) {
                 $scope.templates.data = utils.mapToArr(templates);
             });
         }
@@ -203,7 +203,7 @@
         $scope.deployingServices = [];
         var lastPollResults = 0;
         function getDeploying(){
-            resourcesFactory.get_active_templates(function(data) {
+            resourcesFactory.get_active_templates().success(function(data) {
                 if(data){
                     $scope.deployingServices = data;
                 }
@@ -218,7 +218,7 @@
         }
 
         function removeService(service) {
-            resourcesFactory.remove_service(service.id, function(){
+            resourcesFactory.remove_service(service.id).success(function(){
                 // TODO - once the backend updates deleted
                 // services, this should be removed
                 // FIXME - should not modify servicesFactory's
@@ -234,7 +234,7 @@
         }
 
         function deleteTemplate(templateID){
-            resourcesFactory.delete_app_template(templateID, refreshTemplates);
+            resourcesFactory.delete_app_template(templateID).success(refreshTemplates);
         }
 
         // init stuff for this controller
