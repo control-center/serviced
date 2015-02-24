@@ -113,5 +113,10 @@
             .then(() => {
                 $scope.pools.data = poolsFactory.poolMap;
             });
+
+        $scope.$on("$destroy", function(){
+            poolsFactory.deactivate();
+        });
+
     }]);
 })();

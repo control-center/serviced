@@ -50,25 +50,25 @@
                         data.forEach((serviceDef) => {
                             var currentParent, service;
 
-                            // update
-                            if(this.objMap[serviceDef.ID]){
-                                service = this.objMap[serviceDef.ID];
-                                currentParent = service.parent;
+                                // update
+                                if(this.serviceMap[serviceDef.ID]){
+                                    service = this.serviceMap[serviceDef.ID];
+                                    currentParent = service.parent;
 
                                 // if the service parent has changed,
                                 // update its tree stuff (parent, depth, etc)
                                 if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
-                                    this.objMap[serviceDef.ID].update(serviceDef);
+                                    this.serviceMap[serviceDef.ID].update(serviceDef);
                                     this.addServiceToTree(service);
                                 // otherwise, just update the service
                                 } else {
-                                    this.objMap[serviceDef.ID].update(serviceDef);
+                                    this.serviceMap[serviceDef.ID].update(serviceDef);
                                 }
 
                             // new
                             } else {
-                                this.objMap[serviceDef.ID] = new Service(serviceDef);
-                                this.addServiceToTree(this.objMap[serviceDef.ID]);
+                                this.serviceMap[serviceDef.ID] = new Service(serviceDef);
+                                this.addServiceToTree(this.serviceMap[serviceDef.ID]);
                             }
 
                             // TODO - deleted serviced
@@ -76,9 +76,11 @@
                         });
 
                         // check to see if orphans found parents
-                        this.objArr.filter(service => service.isOrphan).forEach(service => {
-                            this.addServiceToTree(service);
-                        });
+                        for(let id in this.serviceMap){
+                            if(this.serviceMap[id].isOrphan){
+                                this.addServiceToTree(this.serviceMap[id]);
+                            }
+                        }
 
                         // HACK - services should update themselves?
                         this.updateHealth();
@@ -95,7 +97,7 @@
                 var parent;
                 // if this is not a top level service
                 if(service.model.ParentServiceID){
-                    parent = this.objMap[service.model.ParentServiceID];
+                    parent = this.serviceMap[service.model.ParentServiceID];
 
                     // if the parent isn't available, mark
                     // as an orphaned service and early return
@@ -113,8 +115,8 @@
 
                 // if this is a top level service
                 } else {
-                    this.objArr.push(service);
-                    this.objArr.sort(sortServicesByName);
+                    this.serviceTree.push(service);
+                    this.serviceTree.sort(sortServicesByName);
                 }
 
                 // ICKY GROSS HACK!
@@ -122,7 +124,7 @@
                 // individual services
                 // TODO - find a more elegant way to keep track of depth
                 // TODO - remove apps from service tree if they get a parent
-                this.objArr.forEach(function(topService){
+                this.serviceTree.forEach(function(topService){
                     topService.depth = 0;
                     topService.children.forEach(function recurse(service){
                         service.depth = service.parent.depth + 1;
@@ -135,19 +137,19 @@
             // their own health
             // TODO - debounce this guy
             updateHealth: function(){
-                serviceHealth.update(this.objMap).then((statuses) => {
+                serviceHealth.update(this.serviceMap).then((statuses) => {
                     var ids, instance;
 
                     for(var id in statuses){
                         // attach status to associated service
-                        if(this.objMap[id]){
-                            this.objMap[id].status = statuses[id];
+                        if(this.serviceMap[id]){
+                            this.serviceMap[id].status = statuses[id];
 
                         // this may be a service instance
                         } else if(id.indexOf(".") !== -1){
                             ids = id.split(".");
-                            if(this.objMap[ids[0]]){
-                                instance = this.objMap[ids[0]].instances.filter((instance) => {
+                            if(this.serviceMap[ids[0]]){
+                                instance = this.serviceMap[ids[0]].instances.filter((instance) => {
                                     // ids[1] will be a string, and InstanceID is a number
                                     return instance.model.InstanceID === +ids[1];
                                 });

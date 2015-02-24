@@ -70,11 +70,9 @@
         },
 
         activate: function(){
-            this.deactivate();
-            this.updatePromise = $interval(() => {
-                this.update.call(this);
-            }, UPDATE_FREQUENCY);
-            this.update();
+            if(!this.updatePromise){
+                this.updatePromise = $interval(this.update.bind(this), UPDATE_FREQUENCY);
+            }
         },
 
         deactivate: function(){

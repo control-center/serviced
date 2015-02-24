@@ -23,9 +23,9 @@
         angular.extend(newFactory, {
             getByServiceId: function(id){
                 let results = [];
-                for(let i in this.objMap){
-                    if(this.objMap[i].model.ServiceID === id){
-                        results.push(this.objMap[i]);
+                for(let i in this.instanceMap){
+                    if(this.instanceMap[i].model.ServiceID === id){
+                        results.push(this.instanceMap[i]);
                     }
                 }
                 return results;
@@ -33,9 +33,9 @@
 
             getByHostId: function(id){
                 let results = [];
-                for(let i in this.objMap){
-                    if(this.objMap[i].model.HostID === id){
-                        results.push(this.objMap[i]);
+                for(let i in this.instanceMap){
+                    if(this.instanceMap[i].model.HostID === id){
+                        results.push(this.instanceMap[i]);
                     }
                 }
                 return results;

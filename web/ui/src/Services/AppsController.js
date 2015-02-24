@@ -301,5 +301,9 @@
         // kick this controller off
         init();
 
+        $scope.$on("$destroy", function(){
+            resourcesFactory.unregisterAllPolls();
+            servicesFactory.deactivate();
+        });
     }]);
 })();
