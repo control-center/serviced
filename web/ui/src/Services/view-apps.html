@@ -45,14 +45,14 @@
             </td>
         </tr>
         <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.id}}"  ng-model="services.data">
-          <td ng-click="click_app(app.id)" class="link">{{app.name}}<span class="version" ng-show="app.service.Version"> (v{{app.service.Version}})</span></td>
-          <td>{{app.service.Description}}</td>
+          <td ng-click="click_app(app.id)" class="link">{{app.name}}<span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span></td>
+          <td>{{app.model.Description}}</td>
           <td style="text-align:center;">
               <health-icon data-status="app.status"></health-icon>
           </td>
-          <td>{{app.service.DeploymentID}}</td>
+          <td>{{app.model.DeploymentID}}</td>
 
-          <td ng-click="click_pool(app.service.PoolID)" ng-if="!app.isIsvc()" class="link">{{app.service.PoolID|cut:true:30}}</td>
+          <td ng-click="click_pool(app.model.PoolID)" ng-if="!app.isIsvc()" class="link">{{app.model.PoolID|cut:true:30}}</td>
           <td ng-if="app.isIsvc()" class="ntsh">N/A</td>
 
           <td ng-if="!app.isIsvc()">

@@ -129,6 +129,12 @@
         // update hosts
         update();
 
+        hostsFactory.activate();
+
+        $scope.$on("$destroy", function(){
+            hostsFactory.deactivate();
+        });
+
         function update(){
             // kick off hostsFactory updating
             // TODO - update loop here

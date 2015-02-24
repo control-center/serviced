@@ -6,8 +6,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory",
-    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils, hostsFactory) {
+    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "instancesFactory",
+    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils, hostsFactory, instancesFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -19,13 +19,13 @@
             { label: 'breadcrumb_services_map', itemClass: 'active' }
         ];
 
+        var runningServices;
         var data_received = {
             hosts: false,
             running: false,
             services: false
         };
         var nodeClasses = {};
-        var runningServices = null;
 
         var draw = function() {
             if (!data_received.hosts) {
@@ -55,10 +55,10 @@
                     nodeClasses[service.id] = 'service notrunning';
                 }
 
-                if (service.service.ParentServiceID !== '') {
-                    nodeClasses[service.service.ParentServiceID] = 'service meta';
+                if (service.model.ParentServiceID !== '') {
+                    nodeClasses[service.model.ParentServiceID] = 'service meta';
                     edges[edges.length] = {
-                        u: service.service.ParentServiceID,
+                        u: service.model.ParentServiceID,
                         v: key
                     };
                 }
@@ -68,19 +68,19 @@
 
             for (var i=0; i < runningServices.length; i++) {
                 var running = runningServices[i];
-                if (running.HostID) {
-                    if (!addedHosts[running.HostID]) {
+                if (running.model.HostID) {
+                    if (!addedHosts[running.model.HostID]) {
                         states[states.length] = {
-                            id: running.HostID,
-                            value: { label: hostsFactory.get(running.HostID).name }
+                            id: running.model.HostID,
+                            value: { label: hostsFactory.get(running.model.HostID).name }
                         };
-                        nodeClasses[running.HostID] = 'host';
-                        addedHosts[running.HostID] = true;
+                        nodeClasses[running.model.HostID] = 'host';
+                        addedHosts[running.model.HostID] = true;
                     }
-                    nodeClasses[running.ServiceID] = 'service';
+                    nodeClasses[running.model.ServiceID] = 'service';
                     edges[edges.length] = {
-                        u: running.ServiceID,
-                        v: running.HostID
+                        u: running.model.ServiceID,
+                        v: running.model.HostID
                     };
                 }
             }
@@ -120,9 +120,9 @@
             };
             draw();
         });
-        resourcesFactory.get_running_services(function(data) {
+        instancesFactory.update().then(function(){
             data_received.running = true;
-            runningServices = data;
+            runningServices = instancesFactory.instanceArr;
             draw();
         });
     }]);

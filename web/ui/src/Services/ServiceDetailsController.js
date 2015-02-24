@@ -258,7 +258,7 @@
 
             // if this service has children and startup command, ask the user
             // if we should start service + children, or just service
-            if(app.children && app.children.length && app.service.Startup){
+            if(app.children && app.children.length && app.model.Startup){
                 var children = app.children || [],
                     childCount = 0;
 
@@ -329,7 +329,7 @@
                 mode: "properties"
             };
 
-            $scope.editableService = angular.copy($scope.services.current.service);
+            $scope.editableService = angular.copy($scope.services.current.model);
             $scope.editableContext = makeEditableContext($scope.editableService.Context);
 
             $modalService.create({
@@ -426,7 +426,7 @@
         };
 
         $scope.editConfig = function(config) {
-            $scope.editableService = angular.copy($scope.services.current.service);
+            $scope.editableService = angular.copy($scope.services.current.model);
             $scope.selectedConfig = config;
 
             //set editor options for context editing
@@ -531,7 +531,7 @@
 
         $scope.validateService = function() {
           // TODO: Validate name and startup command
-          var svc = $scope.services.current.service,
+          var svc = $scope.services.current.model,
               max = svc.InstanceLimits.Max,
               min = svc.InstanceLimits.Min,
               num = svc.Instances;
@@ -554,7 +554,7 @@
 
         $scope.updateService = function(newService) {
             if ($scope.validateService()) {
-                return resourcesFactory.update_service($scope.services.current.service.ID, newService);
+                return resourcesFactory.update_service($scope.services.current.model.ID, newService);
             }
         };
 
@@ -581,11 +581,11 @@
             $scope.services = {
                 data: servicesFactory.serviceTree,
                 mapped: servicesFactory.serviceMap,
-                current: servicesFactory.getService($scope.params.serviceId)
+                current: servicesFactory.get($scope.params.serviceId)
             };
 
-            // kick off first update
-            $scope.update();
+            // start polling
+            servicesFactory.activate();
 
             // if the current service changes, update
             // various service controller thingies
@@ -600,14 +600,9 @@
             }, $scope.update);
         });
 
+        // start polling
+        hostsFactory.activate();
         hostsFactory.update();
-
-        // keep running instances updated
-        resourcesFactory.registerPoll("runningForCurrent", function(){
-            if($scope.services.current){
-                $scope.services.current.getServiceInstances();
-            }
-        }, 3000);
 
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
@@ -620,7 +615,8 @@
 
 
         $scope.$on("$destroy", function(){
-            resourcesFactory.unregisterAllPolls();
+            servicesFactory.deactivate();
+            hostsFactory.deactivate();
         });
 
         $scope.getHostName = function(id){
@@ -658,7 +654,7 @@
         $scope.editCurrentService = function(){
 
             // clone service for editing
-            $scope.editableService = angular.copy($scope.services.current.service);
+            $scope.editableService = angular.copy($scope.services.current.model);
             
             $modalService.create({
                 templateUrl: "edit-service.html",

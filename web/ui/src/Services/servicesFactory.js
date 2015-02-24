@@ -5,211 +5,192 @@
 (function() {
     'use strict';
 
-    // services in tree form
-    var serviceTree = [],
-    // service dictionary keyed by id
-        serviceMap = {},
-        // make angular share with everybody!
-        resourcesFactory, $q, serviceHealth, instancesFactory;
+    var resourcesFactory, $q, serviceHealth, instancesFactory;
 
     var UPDATE_FREQUENCY = 3000;
 
     angular.module('servicesFactory', []).
-    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "instancesFactory",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, _instancesFactory){
+    factory("servicesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "instancesFactory", "baseFactory", "miscUtils",
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, _instancesFactory, BaseFactory, utils){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         instancesFactory = _instancesFactory;
         serviceHealth = _serviceHealth;
         $q = q;
-        init();
 
-        // public interface for servicesFactory
-        // TODO - evaluate what should be exposed
-        return {
-            // returns a service by id
-            getService: function(id){
-                return serviceMap[id];
+        var newFactory = new BaseFactory(Service, resourcesFactory.get_services);
+
+        // alias some stuff for ease of use
+        newFactory.serviceTree = newFactory.objArr;
+        newFactory.serviceMap = newFactory.objMap;
+
+        angular.extend(newFactory, {
+            // init generates the base tree/map of services
+            // and instances. update must be called to keep
+            // this data current!
+            init: function(){
+                if(!this.initPromise){
+                    this.initPromise = resourcesFactory.get_services()
+                        .success((data, status) => {
+
+                            var service;
+
+                            // store services as a flat map
+                            data.forEach((service) => {
+                                this.serviceMap[service.ID] = new Service(service);
+                            });
+
+                            // generate service tree
+                            for(var serviceId in this.serviceMap){
+                                // TODO - check for service
+                                service = this.serviceMap[serviceId];
+                                this.addServiceToTree(service);
+                            }
+
+                            this.updateHealth();
+
+                        });
+
+                    // grab instances
+                    instancesFactory.update();
+                }
+                return this.initPromise;
             },
 
-            // forces updateServiceList in case
-            // a service wants to see changes asap!
-            update: update,
 
-            // NOTE - these are debug only! remove!
-            serviceTree: serviceTree,
-            serviceMap: serviceMap,
-            init: init,
-            updateHealth: updateHealth,
-            // get by name
-            get: function(name){
-                for(var id in serviceMap){
-                    if(serviceMap[id].name === name){
-                        return serviceMap[id];
-                    }
+            // TODO - update list by application instead
+            // of all services ever?
+            update: function(){
+                var deferred = $q.defer();
+
+                // make sure init has been run
+                if(!this.initPromise){
+                    this.init();
                 }
-            }
-        };
 
+                // dont update till init has finished
+                this.initPromise.then(() => {
+                    resourcesFactory.get_services(UPDATE_FREQUENCY + 1000)
+                        .success((data, status) => {
+                            // TODO - change backend to send
+                            // updated, created, and deleted
+                            // separately from each other
+                            data.forEach((serviceDef) => {
+                                var currentParent, service;
 
-        // hits the services endpoint and asks
-        // for changes since refresh, then rebuilds
-        // serviceTree
-        // TODO - update list by application instead
-        // of all services ever?
-        function update(){
-            var deferred = $q.defer();
+                                // update
+                                if(this.serviceMap[serviceDef.ID]){
+                                    service = this.serviceMap[serviceDef.ID];
+                                    currentParent = service.parent;
 
-            initPromise.then(function(){
-                resourcesFactory.get_services(UPDATE_FREQUENCY + 1000)
-                    .success(function(data, status){
-                        // TODO - change backend to send
-                        // updated, created, and deleted
-                        // separately from each other
-                        data.forEach(function(serviceDef){
-                            var currentParent, service;
+                                    // if the service parent has changed,
+                                    // update its tree stuff (parent, depth, etc)
+                                    if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
+                                        this.serviceMap[serviceDef.ID].update(serviceDef);
+                                        this.addServiceToTree(service);
+                                    // otherwise, just update the service
+                                    } else {
+                                        this.serviceMap[serviceDef.ID].update(serviceDef);
+                                    }
 
-                            // update
-                            if(serviceMap[serviceDef.ID]){
-                                service = serviceMap[serviceDef.ID];
-                                currentParent = service.parent;
-
-                                // if the service parent has changed,
-                                // update its tree stuff (parent, depth, etc)
-                                if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
-                                    serviceMap[serviceDef.ID].update(serviceDef);
-                                    addServiceToTree(service);
-                                // otherwise, just update the service
+                                // new
                                 } else {
-                                    serviceMap[serviceDef.ID].update(serviceDef);
+                                    this.serviceMap[serviceDef.ID] = new Service(serviceDef);
+                                    this.addServiceToTree(this.serviceMap[serviceDef.ID]);
                                 }
 
-                            // new
-                            } else {
-                                serviceMap[serviceDef.ID] = new Service(serviceDef);
-                                addServiceToTree(serviceMap[serviceDef.ID]);
-                            }
+                                // TODO - deleted serviced
 
-                            // TODO - deleted serviced
-
-                        });
-
-                        // HACK - services should update themselves?
-                        updateHealth();
-
-                        // update instances
-                        instancesFactory.update();
-
-                        deferred.resolve();
-                    });
-                
-            });
-
-            return deferred.promise;
-        }
-
-        var initPromise;
-
-        // makes the initial services request
-        // TODO - this can most likely be removed entirely
-        function init(){
-
-            // if init hasnt been called, create a new promise
-            // and make the initial request for services
-            if(!initPromise){
-                initPromise = resourcesFactory.get_services()
-                    .success(function(data, status) {
-
-                        var service;
-
-                        // store services as a flat map
-                        data.forEach(function(service){
-                            serviceMap[service.ID] = new Service(service);
-                        });
-
-                        // generate service tree
-                        for(var serviceId in serviceMap){
-                            // TODO - check for service
-                            service = serviceMap[serviceId];
-                            addServiceToTree(service);
-                        }
-
-                        updateHealth();
-                  });
-                setInterval(update, UPDATE_FREQUENCY);
-
-                // kick off instancesFactory
-                instancesFactory.update();
-            }
-
-            return initPromise;
-        }
-
-        // adds a service object to the service tree
-        // in the appropriate place
-        function addServiceToTree(service){
-
-            var parent;
-            // if this is not a top level service
-            if(service.service.ParentServiceID){
-                // TODO - check for parent
-                parent = serviceMap[service.service.ParentServiceID];
-                // TODO - consider order here? adding child updates
-                // then adding parent updates again
-                parent.addChild(service);
-                service.addParent(parent);
-
-            // if this is a top level service
-            } else {
-                serviceTree.push(service);
-                serviceTree.sort(sortServicesByName);
-            }
-
-            // ICKY GROSS HACK!
-            // iterate tree and store tree depth on
-            // individual services
-            // TODO - find a more elegant way to keep track of depth
-            // TODO - remove apps from service tree if they get a parent
-            serviceTree.forEach(function(topService){
-                topService.depth = 0;
-                topService.children.forEach(function recurse(service){
-                    service.depth = service.parent.depth + 1;
-                    service.children.forEach(recurse);
-                });
-            });
-        }
-
-        // HACK - individual services should update
-        // their own health
-        // TODO - debounce this guy
-        function updateHealth(){
-            serviceHealth.update(serviceMap).then(function(statuses){
-                var ids, instance;
-
-                for(var id in statuses){
-                    // attach status to associated service
-                    if(serviceMap[id]){
-                        serviceMap[id].status = statuses[id]; 
-
-                    // this may be a service instance
-                    } else if(id.indexOf(".") !== -1){
-                        ids = id.split(".");
-                        if(serviceMap[ids[0]]){
-                            instance = serviceMap[ids[0]].instances.filter(function(instance){
-                                // ids[1] will be a string, and InstanceID is a number
-                                return instance.model.InstanceID === +ids[1];
                             });
-                            if(instance.length){
-                                // TODO - move this into an instance method
-                                instance[0].status = statuses[id];
+
+                            // HACK - services should update themselves?
+                            this.updateHealth();
+
+                            deferred.resolve();
+                        });
+                });
+
+                return deferred.promise;
+            },
+
+            // adds a service object to the service tree
+            // in the appropriate place
+            addServiceToTree: function(service){
+                var parent;
+                // if this is not a top level service
+                if(service.model.ParentServiceID){
+                    // TODO - check for parent
+                    parent = this.serviceMap[service.model.ParentServiceID];
+                    // TODO - consider order here? adding child updates
+                    // then adding parent updates again
+                    parent.addChild(service);
+                    service.addParent(parent);
+
+                // if this is a top level service
+                } else {
+                    this.serviceTree.push(service);
+                    this.serviceTree.sort(sortServicesByName);
+                }
+
+                // ICKY GROSS HACK!
+                // iterate tree and store tree depth on
+                // individual services
+                // TODO - find a more elegant way to keep track of depth
+                // TODO - remove apps from service tree if they get a parent
+                this.serviceTree.forEach(function(topService){
+                    topService.depth = 0;
+                    topService.children.forEach(function recurse(service){
+                        service.depth = service.parent.depth + 1;
+                        service.children.forEach(recurse);
+                    });
+                });
+            },
+
+            // HACK - individual services should update
+            // their own health
+            // TODO - debounce this guy
+            updateHealth: function(){
+                serviceHealth.update(this.serviceMap).then((statuses) => {
+                    var ids, instance;
+
+                    for(var id in statuses){
+                        // attach status to associated service
+                        if(this.serviceMap[id]){
+                            this.serviceMap[id].status = statuses[id];
+
+                        // this may be a service instance
+                        } else if(id.indexOf(".") !== -1){
+                            ids = id.split(".");
+                            if(this.serviceMap[ids[0]]){
+                                instance = this.serviceMap[ids[0]].instances.filter((instance) => {
+                                    // ids[1] will be a string, and InstanceID is a number
+                                    return instance.model.InstanceID === +ids[1];
+                                });
+                                if(instance.length){
+                                    // TODO - move this into an instance method
+                                    instance[0].status = statuses[id];
+                                }
                             }
                         }
                     }
-                }
-            });
-        }
+                });
+            }
+        });
 
+        // wrap some methods with extra functionality
+        newFactory.activate = utils.after(newFactory.activate, function(){
+            instancesFactory.activate();
+        }, newFactory);
+
+        newFactory.deactivate = utils.after(newFactory.deactivate, function(){
+            instancesFactory.deactivate();
+        }, newFactory);
+
+        // services require a bit of setup
+        newFactory.init();
+
+        return newFactory;
     }]);
 
     function sortServicesByName(a, b){
@@ -289,7 +270,7 @@
             this.desiredState = service.DesiredState;
 
             // make service immutable
-            this.service = Object.freeze(service);
+            this.model = Object.freeze(service);
         },
 
         // invalidate all caches. This is needed 
@@ -302,7 +283,7 @@
             // infer service type
             // TODO - check for more types
             this.type = [];
-            if(this.service.ID.indexOf("isvc-") !== -1){
+            if(this.model.ID.indexOf("isvc-") !== -1){
                 this.type.push(ISVC);
             }
 
@@ -310,7 +291,7 @@
                 this.type.push(APP);
             }
 
-            if(this.children.length && !this.service.Startup){
+            if(this.children.length && !this.model.Startup){
                 this.type.push(META);
             }
         },
@@ -367,6 +348,7 @@
             this.instances.sort(function(a,b){
                 return a.model.InstanceID > b.model.InstanceID;
             });
+            return this.instances;
         },
 
         // some convenience methods
@@ -430,8 +412,8 @@
                 var result = [];
 
                 // if Endpoints, iterate Endpoints
-                if(service.service.Endpoints){
-                    result = service.service.Endpoints.reduce(function(acc, endpoint){
+                if(service.model.Endpoints){
+                    result = service.model.Endpoints.reduce(function(acc, endpoint){
                         if (endpoint.AddressConfig.Port > 0 && endpoint.AddressConfig.Protocol) {
                             acc.push({
                                 ID: endpoint.AddressAssignment.ID,
@@ -480,8 +462,8 @@
                 var result = [];
 
                 // if Endpoints, iterate Endpoints
-                if(service.service.Endpoints){
-                    result = service.service.Endpoints.reduce(function(acc, endpoint){
+                if(service.model.Endpoints){
+                    result = service.model.Endpoints.reduce(function(acc, endpoint){
                         // if VHosts, iterate VHosts
                         if(endpoint.VHosts){
                             endpoint.VHosts.forEach(function(VHost){

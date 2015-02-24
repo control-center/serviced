@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "instancesFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, instancesFactory) {
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -79,6 +79,9 @@
         update();
 
         function update(){
+            // start polling
+            hostsFactory.activate();
+
             // kick off hostsFactory updating
             // TODO - update loop here
             hostsFactory.update()
@@ -88,5 +91,9 @@
                     $scope.breadcrumbs.push({ label: $scope.currentHost.name, itemClass: 'active' });
                 });
         }
+
+        $scope.$on("$destroy", function(){
+            hostsFactory.deactivate();
+        });
     }]);
 })();
