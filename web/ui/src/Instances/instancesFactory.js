@@ -3,16 +3,17 @@
 (function() {
     'use strict';
 
-    var resourcesFactory, $q, serviceHealth;
+    var resourcesFactory, $q, serviceHealth, $notification;
 
     angular.module('instancesFactory', []).
-    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory){
+    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory", "$notification",
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
         serviceHealth = _serviceHealth;
+        $notification = _notification;
 
         var newFactory = new BaseFactory(Instance, resourcesFactory.get_running_services);
 
@@ -81,6 +82,9 @@
             resourcesFactory.kill_running(this.model.HostID, this.id)
                 .then(() => {
                     this.update();
+                })
+                .error((data, status) => {
+                    $notification.create("Stop Instance failed", data.Detail).error();
                 });
             // desired state 0 is stop
             this.desiredState = 0;

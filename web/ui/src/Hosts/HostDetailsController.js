@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory) {
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, $notification){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -47,11 +47,14 @@
                             classes: "btn-primary",
                             label: "refresh",
                             icon: "glyphicon-repeat",
-                            action: function() {
+                            action: () => {
                                 var textarea = this.$el.find("textarea");
                                 resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
                                     $scope.editService.log = log.Detail;
                                     textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                                })
+                                .error((data, status) => {
+                                    this.createNotification("Unable to fetch logs", data.Detail).error();
                                 });
                             }
                         },{
@@ -68,6 +71,9 @@
                         textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                     }
                 });
+            })
+            .error((data, status) => {
+                this.createNotification("Unable to fetch logs", data.Detail).error();
             });
         };
 

@@ -70,7 +70,11 @@
                     $scope.add_virtual_ip = {};
                     $notification.create("Added new pool virtual ip", ip).success();
                     poolsFactory.update();
+                })
+                .error((data, status) => {
+                    $notification.create("Add Virtual IP failed", data.Detail).error();
                 });
+
         };
 
         // Open the virtual ip modal

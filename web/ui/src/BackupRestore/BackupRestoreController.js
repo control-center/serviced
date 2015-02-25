@@ -162,7 +162,8 @@
                     pollRestoreStatus(notification);
                 }, 1);
 
-            }, function(data, status){
+            })
+            .error(function(data, status){
                 backupRestoreError(notification, data.Detail, status);
             });
 
