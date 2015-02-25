@@ -14,53 +14,69 @@
 package api
 
 import (
+	"errors"
 	"testing"
+	"unsafe"
+
+	daotest "github.com/control-center/serviced/dao/test"
+	"github.com/control-center/serviced/domain/service"
+
+	"github.com/stretchr/testify/mock"
+	. "gopkg.in/check.v1"
 )
 
-func TestListServices(t *testing.T) {
+// This plumbs gocheck into testing
+func Test(t *testing.T) {
+	TestingT(t)
 }
 
-func BenchmarkListServices(b *testing.B) {
+var _ = Suite(&serviceAPITest{})
+
+type serviceAPITest struct {
+	api API
+
+	//  A mock implementation of the ControlPlane interface
+	mockControlPlane *daotest.MockControlPlane
 }
 
-func TestGetService(t *testing.T) {
+func (st *serviceAPITest) SetUpTest(c *C) {
+	st.mockControlPlane = daotest.New()
+
+	apiObj := NewAPI(nil, nil, nil, st.mockControlPlane)
+	st.api = apiObj
 }
 
-func BenchmarkGetService(b *testing.B) {
+func (st *serviceAPITest) TearDownTest(c *C) {
+	// don't allow per-test-case values to be reused across test cases
+	st.api = nil
+	st.mockControlPlane = nil
 }
 
-func TestAddService(t *testing.T) {
+func (st *serviceAPITest) TestGetService_works(c *C) {
+	serviceID := "test-service"
+	expected, _ := service.NewService()
+
+	st.mockControlPlane.Responses["GetService"] = (unsafe.Pointer)(expected)
+	st.mockControlPlane.
+		On("GetService", serviceID, mock.Anything).
+		Return(nil)
+
+	actual, err := st.api.GetService(serviceID)
+
+	c.Assert(err, IsNil)
+	c.Assert(actual.ID, Equals, expected.ID)
 }
 
-func BenchmarkAddService(b *testing.B) {
-}
+func (st *serviceAPITest) TestGetService_fails(c *C) {
+	errorStub := errors.New("errorStub: GetService() failed")
+	serviceID := "test-service"
 
-func TestRemoveService(t *testing.T) {
-}
+	st.mockControlPlane.
+		On("GetService", serviceID, mock.Anything).
+		Return(errorStub)
 
-func BenchmarkRemoveService(b *testing.B) {
-}
+	actual, err := st.api.GetService(serviceID)
 
-func TestUpdateService(t *testing.T) {
-}
-
-func BenchmarkUpdateService(b *testing.B) {
-}
-
-func TestStartService(t *testing.T) {
-}
-
-func BenchmarkStartService(b *testing.B) {
-}
-
-func TestStopService(t *testing.T) {
-}
-
-func BenchmarkStopService(b *testing.B) {
-}
-
-func TestAssignIP(t *testing.T) {
-}
-
-func BenchmarkAssignIP(b *testing.B) {
+	c.Assert(actual, IsNil)
+	c.Assert(err, Equals, errorStub)
 }
