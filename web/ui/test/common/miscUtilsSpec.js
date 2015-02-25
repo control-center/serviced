@@ -166,6 +166,14 @@ describe('miscUtils', function() {
         it("Capitalizes the first character in a string", function(){
             expect(miscUtils.capitalizeFirst("hello")).toEqual("Hello");
         });
+
+        it("Capitalizes the first character in a single character string", function(){
+            expect(miscUtils.capitalizeFirst("h")).toEqual("H");
+        });
+
+        it("Handles an empty string", function(){
+            expect(miscUtils.capitalizeFirst("")).toEqual("");
+        });
     });
 
     // FIXME: Need to refactor unauthorized so that location can be injected as illustrated below.
