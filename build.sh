@@ -1,4 +1,5 @@
 #!/bin/bash
+pwd
 gvm use go1.4.2
 go version
 docker version
