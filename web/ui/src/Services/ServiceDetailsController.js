@@ -15,10 +15,9 @@
         $scope.resourcesFactory = resourcesFactory;
         $scope.hostsFactory = hostsFactory;
 
-        $scope.defaultHostAlias = location.hostname;
-        var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
-        if (re.test(location.hostname) || location.hostname === "localhost") {
-            $.getJSON("/hosts/defaultHostAlias", "", function(data) {
+        $scope.defaultHostAlias = $location.host();
+        if(utils.needsHostAlias($location.host())){
+            resourcesFactory.get_host_alias().success(function(data) {
                 $scope.defaultHostAlias = data.hostalias;
             });
         }
@@ -50,11 +49,11 @@
         };
 
         $scope.click_pool = function(id) {
-            $location.path('/pools/' + id);
+            resourcesFactory.routeToPool(id);
         };
 
         $scope.click_host = function(id) {
-            $location.path('/hosts/' + id);
+            resourcesFactory.routeToHost(id);
         };
 
         $scope.modalAddVHost = function() {

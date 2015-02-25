@@ -103,11 +103,11 @@
         };
 
         $scope.clickHost = function(hostId) {
-            $location.path('/hosts/' + hostId);
+            resourcesFactory.routeToHost(hostId);
         };
 
         $scope.clickPool = function(poolID) {
-            $location.path('/pools/' + poolID);
+            resourcesFactory.routeToPool(poolID);
         };
 
         $scope.dropped = [];
