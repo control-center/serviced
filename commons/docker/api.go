@@ -556,7 +556,11 @@ func (img *Image) Tag(tag string) (*Image, error) {
 	}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag}
 
 	glog.V(1).Infof("tagging image %s as: %s", args.repo, args.tag)
-	err = dc.TagImage(args.name, dockerclient.TagImageOptions{Repo: args.repo, Tag: args.tag})
+	opts := dockerclient.TagImageOptions{Repo: args.repo, Tag: args.tag}
+	if iid.Tag == "latest" {
+		opts.Force = true
+	}
+	err = dc.TagImage(args.name, opts)
 	if err != nil {
 		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
 		return nil, err
