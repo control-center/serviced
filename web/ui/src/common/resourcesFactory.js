@@ -802,6 +802,13 @@
               });
           },
 
+          get_host_alias: function(){
+              return $http.get('/hosts/defaultHostAlias')
+                  .error(function(data, status){
+                     redirectIfUnauthorized(status);
+                  });
+          },
+
           registerPoll: function(label, callback, interval){
               if(pollingFunctions[label] !== undefined){
                   clearInterval(pollingFunctions[label]);
@@ -818,7 +825,22 @@
               }
 
               pollingFunctions = {};
-          }
+          },
+
+            // redirect to specific service details
+            routeToService: function(id) {
+                $location.path('/services/' + id);
+            },
+
+            // redirect to specific pool
+            routeToPool: function(id) {
+                $location.path('/pools/' + id);
+            },
+
+            // redirect to specific host
+            routeToHost: function(id) {
+                $location.path('/hosts/' + id);
+            }
       };
   }]);
 

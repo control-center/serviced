@@ -9,12 +9,13 @@
             </a>
         </span>
         <span class="add-control">
-            <button class="btn-link" ng-click="modalAddApp()">
+            <button class="btn-link" ng-click="modal_deployWizard()">
                 <span class="glyphicon glyphicon-plus-sign"></span>
                 <span translate>application</span>
             </button>
         </span>
     </div>
+
     <table class="table" id="apps_data" >
       <thead>
         <tr>
@@ -26,87 +27,98 @@
           <th translate>running_tbl_actions</th>
         </tr>
       </thead>
+
       <tbody>
-        <tr ng-hide="services.data !== undefined">
+        <tr ng-hide="apps !== undefined">
           <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
         </tr>
-        <tr ng-hide="services.data.length !== 0">
+        <tr ng-hide="apps.length !== 0">
             <td colspan="100%" align="center" class="noData" translate>no_data</td>
         </tr>
-        <tr ng-hide="services.deploying.length == 0" ng-repeat="app in services.deploying | orderBy:services.sort" ng-model="services.deploying">
-            <td>{{app.templateName}}</td>
-            <td>{{app.Description}}</td>
+
+        <!-- DEPLOYING SERVICES -->
+        <tr ng-hide="services.deploying.length == 0" ng-repeat="service in services.deploying | orderBy:services.sort" ng-model="services.deploying">
+            <td>{{service.templateName}}</td>
+            <td>{{service.Description}}</td>
             <td>&nbsp;</td>
-            <td>{{app.DeploymentID}}</td>
-            <td ng-click="click_pool(app.PoolID)" class="link">{{app.PoolID|cut:true:50}}</td>
+            <td>{{service.DeploymentID}}</td>
+            <td ng-click="routeToPool(service.PoolID)" class="link">{{service.PoolID|cut:true:50}}</td>
             <td>&nbsp;</td>
             <td>
                 <span style="color:#AAA;font-style:italic;" translate>deploying</span>...
             </td>
         </tr>
-        <tr ng-repeat="app in services.data | orderBy:services.sort" data-id="{{app.id}}"  ng-model="services.data">
-          <td ng-click="click_app(app.id)" class="link">{{app.name}}<span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span></td>
-          <td>{{app.model.Description}}</td>
+
+        <!-- TENANT SERVICES -->
+        <tr ng-repeat="service in apps | orderBy:tableSort:services.reverse" data-id="{{service.id}}">
+          <td ng-click="routeToService(service.id)" class="link">{{service.name}}<span class="version" ng-show="service.model.Version"> (v{{service.model.Version}})</span></td>
+          <td>{{service.model.Description}}</td>
           <td style="text-align:center;">
-              <health-icon data-status="app.status"></health-icon>
+              <health-icon data-status="service.status"></health-icon>
           </td>
-          <td>{{app.model.DeploymentID}}</td>
+          <td>{{service.model.DeploymentID}}</td>
 
-          <td ng-click="click_pool(app.model.PoolID)" ng-if="!app.isIsvc()" class="link">{{app.model.PoolID|cut:true:30}}</td>
-          <td ng-if="app.isIsvc()" class="ntsh">N/A</td>
+          <td ng-click="routeToPool(service.model.PoolID)" ng-if="!service.isIsvc()" class="link">{{service.model.PoolID | cut:true:30}}</td>
+          <td ng-if="service.isIsvc()" class="ntsh">N/A</td>
 
-          <td ng-if="!app.isIsvc()">
-              <span ng-repeat="vhost in collect_vhosts(app) track by $index">
-                  <a href="{{vhost_url(vhost)}}" target="_blank" class="link">{{vhost_url(vhost)}}</a>
+          <td ng-if="!service.isIsvc()">
+              <span ng-repeat="vhost in aggregateVHosts(service) track by $index">
+                  <a href="{{createVHostURL(vhost)}}" target="_blank" class="link">{{createVHostURL(vhost)}}</a>
               </span>
           </td>
-          <td ng-if="app.isIsvc()" class="ntsh">N/A</td>
+          <td ng-if="service.isIsvc()" class="ntsh">N/A</td>
 
-          <td ng-if="!app.isIsvc()">
+          <td ng-if="!service.isIsvc()">
             <div>
-              <button ng-class="{disabled: app.desiredState === 1}" ng-click="clickRunning(app, 'start')" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
-              <button ng-class="{disabled: app.desiredState === 0}" ng-click="clickRunning(app, 'stop')" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
-              <button ng-click="clickRemoveService(app)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
+              <button ng-class="{disabled: service.desiredState === 1}" ng-click="startService(service)" class="btn btn-link action"><i class="glyphicon glyphicon-play"></i> Start</button>
+              <button ng-class="{disabled: service.desiredState === 0}" ng-click="stopService(service)" class="btn btn-link action"><i class="glyphicon glyphicon-stop"></i> Stop</button>
+              <button ng-click="modal_removeService(service)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
             </div>
           </td>
-          <td ng-if="app.isIsvc()" class="ntsh">N/A</td>
+          <td ng-if="service.isIsvc()" class="ntsh">N/A</td>
       </tr>
       </tbody>
     </table>
+
     <h3 class="pull-left" translate>templates</h3>
     <div class="control-buttons pull-right">
         <span class="add-control">
-            <button class="btn-link" ng-click="modalAddTemplate()">
+            <button class="btn-link" ng-click="modal_addTemplate()">
                 <span class="glyphicon glyphicon-plus-sign"></span>
                 <span translate>template</span>
             </button>
         </span>
     </div>
+
+    <!-- TEMPLATES -->
     <table class="table" id="template_data"  ng-model="templates.data">
         <thead>
-        <tr>
-            <th ng-repeat="header in templates.headers">
-                <span translate>{{header.name}}</span>
-                <button ng-click="templates.set_order(header.id, templates)"
+            <tr>
+                <th ng-repeat="header in templates.headers">
+                    <span translate>{{header.name}}</span>
+                    <button ng-click="templates.set_order(header.id, templates)"
                         ng-class="templates.get_order_class(header.id, templates)"></button>
-            </th>
-            <th translate>running_tbl_actions</th>
-        </tr>
+                </th>
+                <th translate>running_tbl_actions</th>
+            </tr>
         </thead>
+
         <tbody>
-        <tr ng-hide="templates.data !== undefined">
-            <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
-        </tr>
-        <tr ng-hide="templates.data.length !== 0">
-            <td colspan="100%" align="center" class="noData" translate>no_data</td>
-        </tr>
-        <tr ng-repeat="template in templates.data | orderBy:templates.sort">
-            <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>
-            <td>{{template.ID}}</td>
-            <td>{{template.Description}}</td>
-            <td>
-                <button ng-click="deleteTemplate(template.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
-            </td>
-        </tr>
+            <tr ng-hide="templates.data !== undefined">
+                <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
+            </tr>
+            <tr ng-hide="templates.data.length !== 0">
+                <td colspan="100%" align="center" class="noData" translate>no_data</td>
+            </tr>
+            <tr ng-repeat="template in templates.data | orderBy:templates.sort">
+                <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>
+                <td>{{template.ID}}</td>
+                <td>{{template.Description}}</td>
+                <td>
+                    <button ng-click="modal_deleteTemplate(template.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button>
+                </td>
+            </tr>
+        </tbody>
     </table>
+
     <div ng-include="'/static/partials/wizard-modal.html'"></div>

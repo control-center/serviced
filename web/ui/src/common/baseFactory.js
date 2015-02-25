@@ -29,6 +29,7 @@
     BaseFactory.prototype = {
         constructor: BaseFactory,
 
+        // TODO - debounce
         update: function(){
             var deferred = $q.defer();
             this.updateFn()

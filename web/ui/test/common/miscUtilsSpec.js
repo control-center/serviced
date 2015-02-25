@@ -1,4 +1,4 @@
-
+/* global jasmine: true, spyOn: true, beforeEach: true, DEBUG: true, expect: true, inject: true, module: true */
 
 describe('miscUtils', function() {
     var $scope = null;
@@ -9,15 +9,11 @@ describe('miscUtils', function() {
 
     beforeEach(inject(function($injector) {
         $scope = $injector.get('$rootScope').$new();
-        miscUtils = $injector.get('miscUtils')
+        miscUtils = $injector.get('miscUtils');
 
         // FIXME: would it be better to remove the 'if (DEBUG)' code in miscUtils.js instead?
-        DEBUG = null
+        DEBUG = null;
     }));
-
-    afterEach(function(){
-        delete DEBUG
-    });
 
     describe('buildTable', function() {
         it('Returns object with sort_icons', function() {
@@ -57,16 +53,16 @@ describe('miscUtils', function() {
         });
     });
 
-    describe('map_to_array', function() {
+    describe('mapToArr', function() {
         it('Transforms map to a new array', function() {
             var dummy_data = { test1: 'abc', test2: { foo: 'bar' }};
-            var dummy_data_array = miscUtils.map_to_array(dummy_data);
+            var dummy_data_array = miscUtils.mapToArr(dummy_data);
             expect(dummy_data_array).toEqual(['abc', {foo: 'bar'}]);
         });
 
         it('Transforms empty map to empty array', function() {
             var dummy_data = {};
-            var dummy_data_array = miscUtils.map_to_array(dummy_data);
+            var dummy_data_array = miscUtils.mapToArr(dummy_data);
             expect(dummy_data_array).toEqual([]);
         });
     });
@@ -97,6 +93,86 @@ describe('miscUtils', function() {
             miscUtils.set_order('bar', table);
             expect(table.sort_icons['foo']).toBe('glyphicon-chevron-down');
             expect(table.sort_icons['bar']).toBe('glyphicon-chevron-up');
+        });
+    });
+
+    describe("memoize", function(){
+        it("Calls the memoized function", function(){
+            var fn = jasmine.createSpy("memoized"),
+                hash = jasmine.createSpy("hash");
+
+            var memoized = miscUtils.memoize(fn, hash);
+            memoized();
+
+            expect(fn).toHaveBeenCalled();
+        });
+
+        it("Doesn't call the memoized function twice", function(){
+            var fn = jasmine.createSpy("memoized"),
+                hash = jasmine.createSpy("hash");
+
+            var memoized = miscUtils.memoize(fn, hash);
+            memoized();
+            memoized();
+
+            expect(fn.calls.count()).toEqual(1);
+        });
+
+        it("Passes args to the memoized function", function(){
+            var fn = jasmine.createSpy("memoized"),
+                hash = jasmine.createSpy("hash"),
+                args = [1,2,3];
+
+            var memoized = miscUtils.memoize(fn, hash);
+            memoized.apply(undefined, args);
+
+            expect(fn).toHaveBeenCalled();
+            expect(fn.calls.argsFor(0)).toEqual(args);
+        });
+
+        it("Passes args to the hash function", function(){
+            var fn = jasmine.createSpy("memoized"),
+                hash = jasmine.createSpy("hash"),
+                args = [1,2,3];
+
+            var memoized = miscUtils.memoize(fn, hash);
+            memoized.apply(undefined, args);
+
+            expect(hash.calls.argsFor(0)).toEqual(args);
+        });
+
+        it("Calls the memoized function again when the hash result changes", function(){
+            var fn = jasmine.createSpy("memoized"),
+                hashVal = 0,
+                hash = jasmine.createSpy("hash"),
+                hashFn = hash.and.callFake(function(){ return hashVal; });
+
+            var memoized = miscUtils.memoize(fn, hashFn);
+            memoized();
+            memoized();
+
+            expect(fn.calls.count()).toEqual(1);
+
+            // fake hash returning a new/different value
+            hashVal = 1;
+
+            memoized();
+            expect(fn.calls.count()).toEqual(2);
+
+        });
+    });
+
+    describe("capitalizeFirst", function(){
+        it("Capitalizes the first character in a string", function(){
+            expect(miscUtils.capitalizeFirst("hello")).toEqual("Hello");
+        });
+
+        it("Capitalizes the first character in a single character string", function(){
+            expect(miscUtils.capitalizeFirst("h")).toEqual("H");
+        });
+
+        it("Handles an empty string", function(){
+            expect(miscUtils.capitalizeFirst("")).toEqual("");
         });
     });
 
@@ -208,7 +284,7 @@ describe('miscUtils', function() {
 
     var fake_service_logs = function() {
         return { Detail: "foo bar" };
-    }
+    };
 
     var fake_services_tree = function() {
         fake1.children = [ fake1Child ];

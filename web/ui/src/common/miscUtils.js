@@ -25,6 +25,7 @@
 
                 return {
                     sort: sort,
+                    reverse: false,
                     headers: headers,
                     sort_icons: sort_icons,
                     set_order: utils.set_order,
@@ -40,6 +41,7 @@
                 table.sort_icons[table.sort] = 'glyphicon-chevron-down';
 
                 if (table.sort === order) {
+                    table.reverse = true;
                     table.sort = "-" + order;
                     table.sort_icons[table.sort] = 'glyphicon-chevron-down';
                     if(DEBUG){
@@ -47,6 +49,7 @@
                     }
                 } else {
                     table.sort = order;
+                    table.reverse = false;
                     table.sort_icons[table.sort] = 'glyphicon-chevron-up';
                     if(DEBUG){
                         console.log('Sorting ' + table +' by ' + order);
@@ -63,14 +66,6 @@
             /*
              * Helper and utility functions
              */
-            map_to_array: function(data) {
-                var arr = [];
-                for (var key in data) {
-                    arr[arr.length] = data[key];
-                }
-                return arr;
-            },
-
             // TODO - use angular $location object to make this testable
             unauthorized: function() {
                 console.error('You don\'t appear to be logged in.');
@@ -128,12 +123,52 @@
                 $translate.use(ln);
             },
 
+            capitalizeFirst: function(str){
+                return str.slice(0,1).toUpperCase() + str.slice(1);
+            },
+
             // call fn b after fn a
             after: function(a, b, context){
                 return function(){
                     a.apply(context, arguments);
                     b.call(context);
                 };
+            },
+
+            mapToArr: function(data) {
+                var arr = [];
+                for (var key in data) {
+                    arr.push(data[key]);
+                }
+                return arr;
+            },
+
+
+            // cache function results based on hash function.
+            // NOTE: unlike regular memoize, the caching is entirely
+            // based on hash function, not on arguments
+            memoize: function(fn, hash){
+                var cache = {};
+                return function(){
+                    var key = hash.apply(this, arguments),
+                        val;
+
+                    // if value isnt cached, evaluate and cache
+                    if(!(key in cache)){
+                        val = fn.apply(this, arguments);
+                        cache[key] = val;
+                    } else {
+                        val = cache[key];
+                    }
+
+                    return val;
+                };
+            },
+
+            needsHostAlias: function(host){
+                // check is location.hostname is an IP
+                var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
+                return re.test(host) || host === "localhost";
             }
         };
 
