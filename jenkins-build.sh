@@ -5,6 +5,7 @@ gvm use go1.4.2
 go version
 docker version
 export GOPATH=$WORKSPACE/gopath
+export PATH=$PATH:$GOPATH/bin
 sudo umount /exports/serviced_var || true
 sudo rm /tmp/serviced-root/var/isvcs/* -Rf
 sudo rm /tmp/serviced-test -Rf
