@@ -31,13 +31,13 @@
     </tr>
   </thead>
   <tbody>
-    <tr ng-hide="hosts.filtered !== undefined">
+    <tr ng-hide="hosts.all !== undefined">
       <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
     </tr>
-    <tr ng-hide="hosts.filtered.length !== 0">
+    <tr ng-hide="hosts.all.length !== 0">
         <td colspan="100%" align="center" class="noData" translate>no_data</td>
     </tr>
-    <tr ng-repeat="host in hosts.filtered">
+    <tr ng-repeat="host in hosts.all">
       <td ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
       <td style="text-align:center;">
         <div ng-if="host.active" class="good" style="position: relative;"><i class="healthIcon glyphicon"></i></div>

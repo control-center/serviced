@@ -1,12 +1,5 @@
 <p>
-  <span ng-repeat="template in selectedTemplates()">
-      <span ng-hide="$last">, </span>
-      <span ng-show="$last && !$first">{{'content_wizard_configured_and'|translate}} </span>
-      {{template.Name}}
-      <span ng-show="$last && !$first"> {{'content_wizard_possession_multi'|translate}}</span>
-      <span ng-show="$last && $first"> {{'content_wizard_possession_single'|translate}}</span>
-  </span>
-  {{'content_wizard_configured_is_config'|translate}} '{{install.selected.pool}}'.
+    <strong>{{template.Name}}</strong> {{'content_wizard_configured_is_config'|translate}} <strong>{{install.poolID}}</strong>.
 </p>
 
 <div>

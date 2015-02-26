@@ -4,8 +4,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory",
-    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory){
+    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory",
+    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory, poolsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -39,11 +39,14 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                $scope.add_host()
+                                resourcesFactory.add_host($scope.newHost)
                                     .success(function(data, status){
                                         $notification.create("", data.Detail).success();
                                         this.close();
-                                        $scope.newHost = {};
+                                        $scope.newHost = {
+                                            poolID: $scope.params.poolID
+                                        };
+                                        update();
                                     }.bind(this))
                                     .error(function(data, status){
                                         // TODO - form error highlighting
@@ -57,20 +60,7 @@
                 ]
             });
         };
-        
-        $scope.add_host = function() {
-            return resourcesFactory.add_host($scope.newHost)
-            .success(function(data) {
-                // After adding, refresh our list
-                update();
-                
-                // Reset for another add
-                $scope.newHost = {
-                    poolID: $scope.params.poolID
-                };
-            });
-        };
-        
+
         $scope.remove_host = function(hostId) {
             $modalService.create({
                 template: $translate.instant("confirm_remove_host") + " <strong>"+ hostsFactory.get(hostId).name +"</strong>",
@@ -112,36 +102,30 @@
 
         $scope.dropped = [];
 
-        $scope.filterHosts = function() {
-            // Run ordering filter, built in
-            var ordered = $filter('orderBy')($scope.hosts.all, $scope.hosts.sort);
-            // Run search filter, built in
-            $scope.hosts.filtered = $filter('filter')(ordered, $scope.hosts.search);
-        };
-
         // Build metadata for displaying a list of hosts
         $scope.hosts = utils.buildTable('Name', [
             { id: 'Name', name: 'Name'}
         ]);
 
-        $scope.hosts.filtered = [];
-
         // update hosts
         update();
 
         hostsFactory.activate();
+        poolsFactory.activate();
 
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
         });
 
         function update(){
-            // kick off hostsFactory updating
-            // TODO - update loop here
             hostsFactory.update()
                 .then(() => {
                     $scope.hosts.all = hostsFactory.hostList;
-                    $scope.filterHosts();
+                });
+
+            poolsFactory.update()
+                .then(() => {
+                    $scope.pools = poolsFactory.poolList;
                 });
         }
 

@@ -80,7 +80,7 @@
 
         stop: function(){
             resourcesFactory.kill_running(this.model.HostID, this.id)
-                .then(() => {
+                .success(() => {
                     this.update();
                 })
                 .error((data, status) => {

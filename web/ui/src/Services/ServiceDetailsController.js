@@ -78,10 +78,11 @@
 
                                 $scope.addVHost()
                                     .success(function(data, status){
-                                        this.close(); 
+                                        $notification.create("Added virtual host", data.Detail).success();
+                                        this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        this.createNotification("Unable to add virtual hosts", data.Detail).error(); 
+                                        this.createNotification("Unable to add virtual hosts", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
                             }
@@ -135,7 +136,6 @@
             var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
             return resourcesFactory.add_vhost( serviceId, serviceEndpoint, name)
                 .success(function(data, status){
-                    $notification.create("Added virtual host", data.Detail).success();
                     $scope.vhosts.add = {};
                 });
         };
@@ -144,7 +144,7 @@
         $scope.modalAssignIP = function(ip, poolID) {
           $scope.ips.assign = {'ip':ip, 'value':null};
           resourcesFactory.get_pool_ips(poolID)
-              .then(function(data) {
+              .success(function(data) {
                 var options= [{'Value':'Automatic', 'IPAddr':null}];
 
                 var i, IPAddr, value;
@@ -198,6 +198,7 @@
 
                                     $scope.assignIP()
                                         .success(function(data, status){
+                                            $notification.create("Added IP", data.Detail).success();
                                             this.close();
                                         }.bind(this))
                                         .error(function(data, status){
@@ -209,6 +210,9 @@
                         }
                     ]
                 });
+              })
+              .error((data, status) => {
+                $notification.create("Unable to retrieve IPs", data.Detail).error();
               });
         };
 
@@ -235,7 +239,6 @@
             return resourcesFactory.assign_ip(serviceID, IP)
                 .success(function(data, status){
                     servicesFactory.update();
-                    $notification.create("Added IP", data.Detail).success();
                 });
         };
 
@@ -351,8 +354,6 @@
                             $scope.updateService($scope.editableService)
                                 .success(function(data, status){
                                     $notification.create("Updated service", $scope.editableService.ID).success();
-                                    servicesFactory.update();
-                                    this.editableService = {};
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
@@ -460,8 +461,6 @@
                                 $scope.updateService($scope.editableService)
                                     .success(function(data, status){
                                         $notification.create("Updated service", $scope.editableService.ID).success();
-                                        servicesFactory.update();
-                                        this.editableService = {};
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -488,43 +487,51 @@
         $scope.viewLog = function(instance) {
             $scope.editService = angular.copy(instance);
 
-            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.model.ID).success(function(log) {
-                $scope.editService.log = log.Detail;
-                $modalService.create({
-                    templateUrl: "view-log.html",
-                    model: $scope,
-                    title: "title_log",
-                    bigModal: true,
-                    actions: [
-                        {
-                            role: "cancel",
-                            label: "close"
-                        },{
-                            classes: "btn-primary",
-                            label: "refresh",
-                            icon: "glyphicon-repeat",
-                            action: function() {
-                                var textarea = this.$el.find("textarea");
-                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
-                                    $scope.editService.log = log.Detail;
-                                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
-                                });
+            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.model.ID)
+                .success(function(log) {
+                    $scope.editService.log = log.Detail;
+                    $modalService.create({
+                        templateUrl: "view-log.html",
+                        model: $scope,
+                        title: "title_log",
+                        bigModal: true,
+                        actions: [
+                            {
+                                role: "cancel",
+                                label: "close"
+                            },{
+                                classes: "btn-primary",
+                                label: "refresh",
+                                icon: "glyphicon-repeat",
+                                action: function() {
+                                    var textarea = this.$el.find("textarea");
+                                    resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id)
+                                        .success(function(log) {
+                                            $scope.editService.log = log.Detail;
+                                            textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                                        })
+                                        .error((data, status) => {
+                                            this.createNotification("Unable to fetch logs", data.Detail).error();
+                                        });
+                                }
+                            },{
+                                classes: "btn-primary",
+                                label: "download",
+                                action: function(){
+                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                },
+                                icon: "glyphicon-download"
                             }
-                        },{
-                            classes: "btn-primary",
-                            label: "download",
-                            action: function(){
-                                utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
-                            },
-                            icon: "glyphicon-download"
+                        ],
+                        onShow: function(){
+                            var textarea = this.$el.find("textarea");
+                            textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                         }
-                    ],
-                    onShow: function(){
-                        var textarea = this.$el.find("textarea");
-                        textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
-                    }
+                    });
+                })
+                .error((data, status) => {
+                    this.createNotification("Unable to fetch logs", data.Detail).error();
                 });
-            });
         };
 
         $scope.validateService = function() {
@@ -552,7 +559,11 @@
 
         $scope.updateService = function(newService) {
             if ($scope.validateService()) {
-                return resourcesFactory.update_service($scope.services.current.model.ID, newService);
+                return resourcesFactory.update_service($scope.services.current.model.ID, newService)
+                    .success((data, status) => {
+                        servicesFactory.update();
+                        this.editableService = {};
+                    });
             }
         };
 
@@ -609,7 +620,10 @@
 
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
-            resourcesFactory.restart_service(app.ID);
+            resourcesFactory.restart_service(app.ID)
+                .error((data, status) => {
+                    $notification.create("Stop Service failed", data.Detail).error();
+                });
         };
 
         $scope.startTerminal = function(app) {
@@ -679,8 +693,6 @@
                                 $scope.updateService($scope.editableService)
                                     .success(function(data, status){
                                         $notification.create("Updated service", $scope.editableService.ID).success();
-                                        servicesFactory.update();
-                                        this.editableService = {};
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){

@@ -119,11 +119,20 @@
                     },{
                         role: "ok",
                         label: "remove_service",
-                        classes: "btn-danger",
+                        classes: "btn-danger submit",
                         action: function(){
                             if(this.validate()){
-                                removeService(service);
-                                this.close();
+                                this.disableSubmitButton();
+
+                                removeService(service)
+                                    .success(() => {
+                                        $notification.create("Removed App", service.name).success();
+                                        this.close();
+                                    })
+                                    .error((data, status) => {
+                                        $notification.create("Remove App failed", data.Detail).error();
+                                        this.close();
+                                    });
                             }
                         }
                     }
@@ -172,8 +181,14 @@
                         label: "template_remove",
                         classes: "btn-danger",
                         action: function(){
-                            deleteTemplate(templateID);
-                            this.close();
+                            deleteTemplate(templateID)
+                                .success(() => {
+                                    $notification.create("Removed Template", templateID).success();
+                                    this.close();
+                                })
+                                .error((data, status) => {
+                                    $notification.create("Remove Template failed", data.Detail).error();
+                                });
                         }
                     }
                 ]
@@ -218,23 +233,28 @@
         }
 
         function removeService(service) {
-            resourcesFactory.remove_service(service.id).success(function(){
-                // TODO - once the backend updates deleted
-                // services, this should be removed
-                // FIXME - should not modify servicesFactory's
-                // objects!
-                for(var i = 0; i < $scope.apps.length; i++){
-                    // find the removed service and remove it
-                    if($scope.apps[i].id === service.id){
-                        $scope.apps.splice(i, 1);
-                        return;
+            return resourcesFactory.remove_service(service.id)
+                .success(function(){
+                    // NOTE: this is here because services are
+                    // incrementally updated, which makes it impossible
+                    // to determine if a service has been removed
+                    // TODO - once the backend notifies on deleted
+                    // services, this should be removed
+                    // FIXME - should not modify servicesFactory's
+                    // objects!
+                    for(var i = 0; i < $scope.apps.length; i++){
+                        // find the removed service and remove it
+                        if($scope.apps[i].id === service.id){
+                            $scope.apps.splice(i, 1);
+                            return;
+                        }
                     }
-                }
-            });
+                });
         }
 
         function deleteTemplate(templateID){
-            resourcesFactory.delete_app_template(templateID).success(refreshTemplates);
+            return resourcesFactory.delete_app_template(templateID)
+                .success(refreshTemplates);
         }
 
         // init stuff for this controller
@@ -287,7 +307,7 @@
 
             //register polls
             resourcesFactory.registerPoll("deployingApps", getDeploying, 3000);
-            resourcesFactory.registerPoll("templates", refreshTemplates, 3000);
+            resourcesFactory.registerPoll("templates", refreshTemplates, 5000);
 
             //unregister polls on destroy
             $scope.$on("$destroy", function(){

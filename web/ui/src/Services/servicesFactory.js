@@ -71,7 +71,7 @@
                                 this.addServiceToTree(this.serviceMap[serviceDef.ID]);
                             }
 
-                            // TODO - deleted serviced
+                            // TODO - deleted service
 
                         });
 

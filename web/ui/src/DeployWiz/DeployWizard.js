@@ -14,15 +14,16 @@
 
         $scope.dockerLoggedIn = true;
 
-        resourcesFactory.docker_is_logged_in(function(loggedIn) {
-            $scope.dockerLoggedIn = loggedIn;
-        });
+        resourcesFactory.docker_is_logged_in()
+            .success(function(loggedIn) {
+                $scope.dockerLoggedIn = loggedIn;
+            });
 
         $scope.dockerIsNotLoggedIn = function() {
             return !$scope.dockerLoggedIn;
         };
 
-        var  validTemplateSelected = function() {
+        var validTemplateSelected = function() {
             if(!$scope.install.templateID){
                 showError($translate.instant("label_wizard_select_app"));
                 return false;
@@ -54,7 +55,11 @@
                 $.each(uploadedFiles, function(key, value){
                     formData.append("tpl", value);
                 });
-                resourcesFactory.add_app_template(formData).success($scope.refreshAppTemplates);
+                resourcesFactory.add_app_template(formData)
+                    .success($scope.refreshAppTemplates)
+                    .error(() => {
+                        showError("Add Application Template failed");
+                    });
 
                 resetError();
                 return true;
@@ -80,7 +85,7 @@
                         resetError();
                         $scope.step_page = $scope.steps[step].content;
                     } else {
-                        showError(data.Detail);
+                        showError("Add Host failed", data.Detail);
                     }
                 });
 
@@ -147,6 +152,15 @@
 
         $scope.install = {
             poolID: 'default'
+        };
+
+        $scope.selectTemplate = function(template){
+            $scope.template = template;
+            $scope.install.templateID = template.ID;
+        };
+
+        $scope.selectPool = function(pool){
+            $scope.install.poolID = pool.id;
         };
 
         $scope.getTemplateRequiredResources = function(template){
@@ -281,15 +295,19 @@
             };
 
             var checkStatus = true;
-            resourcesFactory.deploy_app_template(deploymentDefinition).success(function() {
-                servicesFactory.update().then(function(){
+            resourcesFactory.deploy_app_template(deploymentDefinition)
+                .success(function() {
+                    servicesFactory.update().then(function(){
+                        checkStatus = false;
+                        $notification.create("App deployed successfully").success();
+                        closeModal();
+                    });
+                })
+                .error(function(data, status){
                     checkStatus = false;
+                    $notification.create("App deploy failed", data.Detail).error();
                     closeModal();
                 });
-            }, function(){
-                checkStatus = false;
-                closeModal();
-            });
 
             //now that we have started deploying our app, we poll for status
             var getStatus = function(){

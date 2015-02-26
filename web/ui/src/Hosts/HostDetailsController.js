@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, $notification){
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification", "instancesFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, $notification, instancesFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -32,74 +32,77 @@
 
         $scope.viewLog = function(instance) {
             $scope.editService = angular.copy(instance);
-            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
-                $scope.editService.log = log.Detail;
-                $modalService.create({
-                    templateUrl: "view-log.html",
-                    model: $scope,
-                    title: "title_log",
-                    bigModal: true,
-                    actions: [
-                        {
-                            role: "cancel",
-                            label: "close"
-                        },{
-                            classes: "btn-primary",
-                            label: "refresh",
-                            icon: "glyphicon-repeat",
-                            action: () => {
-                                var textarea = this.$el.find("textarea");
-                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
-                                    $scope.editService.log = log.Detail;
-                                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
-                                })
-                                .error((data, status) => {
-                                    this.createNotification("Unable to fetch logs", data.Detail).error();
-                                });
+            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id)
+                .success(function(log) {
+                    $scope.editService.log = log.Detail;
+                    $modalService.create({
+                        templateUrl: "view-log.html",
+                        model: $scope,
+                        title: "title_log",
+                        bigModal: true,
+                        actions: [
+                            {
+                                role: "cancel",
+                                label: "close"
+                            },{
+                                classes: "btn-primary",
+                                label: "refresh",
+                                icon: "glyphicon-repeat",
+                                action: function(){
+                                    var textarea = this.$el.find("textarea");
+                                    resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id).success(function(log) {
+                                        $scope.editService.log = log.Detail;
+                                        textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                                    })
+                                    .error((data, status) => {
+                                        this.createNotification("Unable to fetch logs", data.Detail).error();
+                                    });
+                                }
+                            },{
+                                classes: "btn-primary",
+                                label: "download",
+                                action: function(){
+                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                },
+                                icon: "glyphicon-download"
                             }
-                        },{
-                            classes: "btn-primary",
-                            label: "download",
-                            action: function(){
-                                utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
-                            },
-                            icon: "glyphicon-download"
+                        ],
+                        onShow: function(){
+                            var textarea = this.$el.find("textarea");
+                            textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                         }
-                    ],
-                    onShow: function(){
-                        var textarea = this.$el.find("textarea");
-                        textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
-                    }
+                    });
+                })
+                .error((data, status) => {
+                    this.createNotification("Unable to fetch logs", data.Detail).error();
                 });
-            })
-            .error((data, status) => {
-                this.createNotification("Unable to fetch logs", data.Detail).error();
-            });
         };
 
         $scope.click_app = function(instance) {
             $location.path('/services/' + instance.model.ServiceID);
         };
 
-        // update hosts
-        update();
+        init();
 
-        function update(){
+        function init(){
             // start polling
             hostsFactory.activate();
+            instancesFactory.activate();
+
+            instancesFactory.update();
 
             // kick off hostsFactory updating
             // TODO - update loop here
             hostsFactory.update()
                 .then(() => {
                     $scope.currentHost = hostsFactory.get($scope.params.hostId);
-
                     $scope.breadcrumbs.push({ label: $scope.currentHost.name, itemClass: 'active' });
                 });
         }
 
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
+            instancesFactory.deactivate();
         });
     }]);
 })();
