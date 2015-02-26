@@ -583,41 +583,6 @@
             servicesFactory.updateHealth();
         };
 
-        // kick off service stuff and magic and everything
-        // NOTE THIS IS THE ENTRY POINT FOR THIS SERVICE!
-        servicesFactory.update().then(function(){
-            // setup initial state
-            $scope.services = {
-                data: servicesFactory.serviceTree,
-                mapped: servicesFactory.serviceMap,
-                current: servicesFactory.get($scope.params.serviceId)
-            };
-
-            // start polling
-            servicesFactory.activate();
-
-            // if the current service changes, update
-            // various service controller thingies
-            $scope.$watch(function(){
-                // if no current service is set, try to set one
-                if(!$scope.services.current){
-                    $scope.services.current = servicesFactory.get($scope.params.serviceId);
-                }
-
-                if($scope.services && $scope.services.current){
-                    return $scope.services.current.isDirty();
-                } else {
-                    // there is no current service
-                    console.warn("current service not yet available");
-                    return undefined;
-                }
-            }, $scope.update);
-        });
-
-        // start polling
-        hostsFactory.activate();
-        hostsFactory.update();
-
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
             resourcesFactory.restart_service(app.ID)
@@ -631,10 +596,6 @@
         };
 
 
-        $scope.$on("$destroy", function(){
-            servicesFactory.deactivate();
-            hostsFactory.deactivate();
-        });
 
         $scope.getHostName = function(id){
             if(hostsFactory.get(id)){
@@ -724,6 +685,48 @@
 
             return $scope.indent(indent - offset);
         };
+
+
+        function init(){
+            // setup initial state
+            $scope.services = {
+                data: servicesFactory.serviceTree,
+                mapped: servicesFactory.serviceMap,
+                current: servicesFactory.get($scope.params.serviceId)
+            };
+
+            // if the current service changes, update
+            // various service controller thingies
+            $scope.$watch(function(){
+                // if no current service is set, try to set one
+                if(!$scope.services.current){
+                    $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                }
+
+                if($scope.services.current){
+                    return $scope.services.current.isDirty();
+                } else {
+                    // there is no current service
+                    console.warn("current service not yet available");
+                    return undefined;
+                }
+            }, $scope.update);
+
+            hostsFactory.activate();
+            hostsFactory.update();
+
+            servicesFactory.activate();
+            servicesFactory.update();
+
+            $scope.$on("$destroy", function(){
+                servicesFactory.deactivate();
+                hostsFactory.deactivate();
+            });
+
+        }
+
+        // kick off controller
+        init();
 
         function hideChildren(app){
             app.children.forEach(function(child){
