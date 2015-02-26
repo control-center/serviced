@@ -14,7 +14,7 @@ depends on docker.
    it on every host that serviced will run on. Ensure docker is running.
 
 2. Install a generated package from 
-    http://jenkins.zendev.org/view/Control%20Plane/job/serviced_rpm . Or follow
+    http://jenkins.zendev.org/view/Control%20Center/job/serviced-build/ . Or follow
    the steps below in the dev section to a source build.
 
 3. Start the service. On ubuntu,
@@ -38,7 +38,7 @@ serviced host add HOST:PORT RESOURCE_POOL
 
 Dev Environment
 ---------------
-Serviced is written in go. To install go, download go v1.3 from http://golang.org.
+Serviced is written in go. To install go, download go v1.4 from http://golang.org.
 Untar the distribution to /usr/local/go. If you use a different location for go, you
 must set GOROOT. See the http://www.golang.org for more information. Ensure that 
 $GOROOT/bin is in you path.
