@@ -6,9 +6,9 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
 			"Comment": "null-187",
-			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
+			"Rev": "1351f936d976c60a0a48d728281922cf63eafb8d"
 		},
 		{
 			"ImportPath": "github.com/kr/pretty",
@@ -27,9 +27,9 @@
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
 		},
 		{
-			"ImportPath": "code.google.com/p/go.net/websocket",
+			"ImportPath": "golang.org/x/net/websocket",
 			"Comment": "null-139",
-			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
+			"Rev": "b6fdb7d8a4ccefede406f8fe0f017fb58265054c"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",
