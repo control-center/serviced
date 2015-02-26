@@ -14,6 +14,7 @@
 package api
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -171,6 +172,31 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 		return nil, err
 	}
 
+	return a.GetService(serviceID)
+}
+
+// MigrateService migrates an existing service
+func (a *api) MigrateService(serviceID string, input io.Reader) (*service.Service, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	inputBuffer := bytes.NewBuffer(nil)
+	_, err = io.Copy(inputBuffer, input)
+	if err != nil {
+		return nil, fmt.Errorf("could not read migration script: %s", err)
+	}
+
+	request := dao.ServiceMigrationRequest{ServiceID: serviceID}
+	request.MigrationScript = string(inputBuffer.Bytes())
+	if len(request.MigrationScript) == 0 {
+		return nil, fmt.Errorf("migration failed: script is empty")
+	}
+
+	if err := client.MigrateService(request, &unusedInt); err != nil {
+		return nil, fmt.Errorf("migration failed: %s", err)
+	}
 	return a.GetService(serviceID)
 }
 

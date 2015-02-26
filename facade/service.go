@@ -4,9 +4,14 @@
 package facade
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -28,6 +33,8 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 
 	"github.com/control-center/serviced/commons/docker"
+
+	"github.com/control-center/serviced/utils"
 )
 
 // AddService adds a service; return error if service already exists
@@ -110,6 +117,41 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	}
 
 	return f.updateService(ctx, &svc)
+}
+
+func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string) error {
+	var inputFileName, scriptFileName, outputFileName string
+
+	glog.V(2).Infof("Facade.MigrateService: %+v", svc.ID)
+
+	migrationDir, err := createTempMigrationDir(svc.ID)
+	defer os.RemoveAll(migrationDir)
+	if err != nil {
+		return err
+	}
+
+	glog.V(2).Infof("temp directory for service migration: %s", migrationDir)
+	inputFileName, err = createServiceMigrationInputFile(migrationDir, svc)
+	if err != nil {
+		return err
+	}
+
+	scriptFileName, err = createServiceMigrationScriptFile(migrationDir, scriptBody)
+	if err != nil {
+		return err
+	}
+
+	outputFileName, err = executeMigrationScript(migrationDir, scriptFileName, inputFileName)
+	if err != nil {
+		return err
+	}
+
+	err = readNewServiceDefinition(outputFileName, svc)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
@@ -1212,3 +1254,80 @@ var (
 	tenantIDs    = make(map[string]string)
 	tenanIDMutex = sync.RWMutex{}
 )
+
+// Creates a temporary directory to hold files related to service migration
+func createTempMigrationDir(serviceID string) (string, error) {
+	tmpParentDir := utils.TempDir("service-migration")
+	err := os.MkdirAll(tmpParentDir, 0750)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create temporary directory: %s", err)
+	}
+
+	var migrationDir string
+	dirPrefix := fmt.Sprintf("%s-", serviceID)
+	migrationDir, err = ioutil.TempDir(tmpParentDir, dirPrefix)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create temporary directory: %s", err)
+	}
+
+	return migrationDir, nil
+}
+
+// Write out the service definition as a JSON file for use as input to the service migration
+func createServiceMigrationInputFile(tmpDir string, svc *service.Service) (string, error) {
+	inputFileName := path.Join(tmpDir, "input.json")
+	jsonService, err := json.MarshalIndent(svc, " ", "  ")
+	if err != nil {
+		return "", fmt.Errorf("error marshalling service: %s", err)
+	}
+
+	err = ioutil.WriteFile(inputFileName, jsonService, 0440)
+	if err != nil {
+		return "", fmt.Errorf("error writing service to temp file: %s", err)
+	}
+
+	return inputFileName, nil
+}
+
+// Write out the body of the script to a file
+func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error) {
+	scriptFileName := path.Join(tmpDir, "migrate.py")
+	scriptFile, err := os.OpenFile(scriptFileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
+	defer scriptFile.Close()
+	if err != nil {
+		return "", fmt.Errorf("error creating script file: %s", err)
+	}
+
+	_, err = scriptFile.WriteString(scriptBody)
+	if err != nil {
+		return "", fmt.Errorf("error writing to script file: %s", err)
+	}
+
+	return scriptFileName, nil
+}
+
+// Execute the migration script
+func executeMigrationScript(tmpDir, scriptFileName, inputFileName string) (string, error) {
+	outputFileName := path.Join(tmpDir, "output.json")
+	migrateCmd := exec.Command("/usr/bin/python", scriptFileName, inputFileName, outputFileName)
+	err := migrateCmd.Run()
+	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
+		return "", fmt.Errorf("migration script failed: %s", err)
+	}
+
+	return outputFileName, nil
+}
+
+func readNewServiceDefinition(outputFileName string, svc *service.Service) error {
+	newServiceDefinition, err := ioutil.ReadFile(outputFileName)
+	if err != nil {
+		return fmt.Errorf("could not read new service definition: %s", err)
+	}
+
+	err = json.Unmarshal(newServiceDefinition, svc)
+	if err != nil {
+		return fmt.Errorf("could not unmarshall new service definition: %s", err)
+	}
+
+	return nil
+}

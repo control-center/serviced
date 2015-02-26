@@ -45,6 +45,11 @@ type ServiceRequest struct {
 	NameRegex    string
 }
 
+type ServiceMigrationRequest struct {
+	ServiceID       string
+	MigrationScript string
+}
+
 type ServiceStateRequest struct {
 	ServiceID      string
 	ServiceStateID string
@@ -104,6 +109,9 @@ type ControlPlane interface {
 
 	// Update an existing service
 	UpdateService(service service.Service, unused *int) error
+
+	// Migrate a service definition
+	MigrateService(request ServiceMigrationRequest, unused *int) error
 
 	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error

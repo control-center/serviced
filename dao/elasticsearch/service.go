@@ -53,6 +53,23 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 }
 
 //
+func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.MigrateService: id %+v", request.ServiceID)
+	svc, err := this.facade.GetService(datastore.Get(), request.ServiceID)
+	if err != nil {
+		return err
+	}
+
+	if err := this.facade.MigrateService(datastore.Get(), svc, request.MigrationScript); err != nil {
+		return err
+	}
+
+	var unusedInt int
+	glog.V(2).Infof("ControlPlaneDao.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
+	return this.UpdateService(*svc, &unusedInt)
+}
+
+//
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	if err := this.facade.RemoveService(datastore.Get(), id); err != nil {
 		return err

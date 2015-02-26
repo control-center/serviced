@@ -14,7 +14,6 @@
 package test
 
 import (
-	// "fmt"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -54,6 +53,16 @@ func New() *MockControlPlane {
 	mcp := &MockControlPlane{}
 	mcp.Responses = make(map[string]unsafe.Pointer)
 	return mcp
+}
+
+// Helper method that returns the arguments for first call to the specified mock
+func (mcp *MockControlPlane) GetArgsForMockCall(methodName string) mock.Arguments {
+	for _, call := range mcp.Calls {
+		if call.Method == methodName {
+			return call.Arguments
+		}
+	}
+	return nil
 }
 
 //for a service, get it's tenant Id

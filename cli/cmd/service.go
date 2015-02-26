@@ -85,6 +85,13 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"parent-id", "", "Parent service ID for which this service relates"},
 				},
 			}, {
+				Name:         "migrate",
+				ShortName:    "mig",
+				Usage:        "Migrate an existing service",
+				Description:  "serviced service migrate SERVICEID PATH_TO_SCRIPT",
+				BashComplete: c.printServicesAll,
+				Action:       c.cmdServiceMigrate,
+			}, {
 				Name:         "remove",
 				ShortName:    "rm",
 				Usage:        "Removes an existing service",
@@ -675,6 +682,41 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
 		fmt.Println(service.ID)
+	}
+}
+
+// serviced service migrate SERVICEID ...
+func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "migrate")
+		return
+	}
+
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	var input *os.File
+	if len(args) >= 2 {
+		filepath := args[1]
+		var err error
+		if input, err = os.Open(filepath); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+		defer input.Close()
+	} else {
+		input = os.Stdin
+	}
+
+	if migratedSvc, err := c.driver.MigrateService(svc.ID, input); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
+	} else {
+		fmt.Println(migratedSvc.ID)
 	}
 }
 

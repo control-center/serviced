@@ -110,7 +110,6 @@ func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 }
 
 func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
-	fmt.Printf("tgj: GetResourcePools\n")
 	if t.errs["GetResourcePools"] != nil {
 		return nil, t.errs["GetResourcePools"]
 	}
@@ -118,7 +117,6 @@ func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
-	//fmt.Printf("tgj: GetService\n")
 	if t.errs["GetService"] != nil {
 		return nil, t.errs["GetService"]
 	}
@@ -128,7 +126,6 @@ func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
 			return &t.services[i], nil
 		}
 	}
-
 	return nil, nil
 }
 
@@ -166,6 +163,13 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	return &s, nil
 }
 
+func (t ServiceAPITest) MigrateService(id string, script io.Reader) (*service.Service, error) {
+	if t.errs["MigrateService"] != nil {
+		return nil, t.errs["MigrateService"]
+	}
+	return t.GetService(id)
+}
+
 func (t ServiceAPITest) RemoveService(id string) error {
 	if t.errs["RemoveService"] != nil {
 		return t.errs["RemoveService"]
@@ -174,17 +178,17 @@ func (t ServiceAPITest) RemoveService(id string) error {
 }
 
 func (t ServiceAPITest) UpdateService(reader io.Reader) (*service.Service, error) {
-	var s service.Service
+	var svc service.Service
 
-	if err := json.NewDecoder(reader).Decode(&s); err != nil {
+	if err := json.NewDecoder(reader).Decode(&svc); err != nil {
 		return nil, ErrInvalidService
 	}
 
-	if _, err := t.GetService(s.ID); err != nil {
+	if _, err := t.GetService(svc.ID); err != nil {
 		return nil, err
 	}
 
-	return &s, nil
+	return &svc, nil
 }
 
 func (t ServiceAPITest) StartService(cfg api.SchedulerConfig) (int, error) {
@@ -415,6 +419,50 @@ func ExampleServicedCLI_CmdServiceAdd_parentNotFound() {
 
 	// Output:
 	// Error searching for parent service: service not found
+}
+
+func ExampleServicedCLI_CmdServiceMigrate_usage() {
+	InitServiceAPITest("serviced", "service", "migrate")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    migrate - Migrate an existing service
+	//
+	// USAGE:
+	//    command migrate [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service migrate SERVICEID PATH_TO_SCRIPT
+	//
+	// OPTIONS:
+
+}
+
+func ExampleServicedCLI_CmdServiceMigrate_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "migrate", "test-service-0", "path/to/script")
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceMigrate_cantReadScript() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "migrate", "test-service-1", "bogus/script/path")
+
+	// Output:
+	// open bogus/script/path: no such file or directory
+}
+
+func ExampleServicedCLI_CmdServiceMigrate_failed() {
+	DefaultServiceAPITest.errs["MigrateService"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["MigrateService"] = nil }()
+
+	pipeStderr(InitServiceAPITest, "serviced", "service", "migrate", "test-service-1")
+
+	// Output:
+	//
+	// test-service-1: stub for facade failed
 }
 
 func ExampleServicedCLI_CmdServiceRemove() {
