@@ -66,14 +66,6 @@
             /*
              * Helper and utility functions
              */
-            map_to_array: function(data) {
-                var arr = [];
-                for (var key in data) {
-                    arr[arr.length] = data[key];
-                }
-                return arr;
-            },
-
             // TODO - use angular $location object to make this testable
             unauthorized: function() {
                 console.error('You don\'t appear to be logged in.');
@@ -146,13 +138,14 @@
                 };
             },
 
-            mapToArr: function(map){
+            mapToArr: function(data) {
                 var arr = [];
-                for(let key in map){
-                    arr.push(map[key]);
+                for (var key in data) {
+                    arr.push(data[key]);
                 }
                 return arr;
             },
+
 
             // cache function results based on hash function.
             // NOTE: unlike regular memoize, the caching is entirely
@@ -161,16 +154,24 @@
                 var cache = {};
                 return function(){
                     var key = hash.apply(this, arguments),
-                        val = cache[key];
+                        val;
 
                     // if value isnt cached, evaluate and cache
-                    if(val === undefined){
+                    if(!(key in cache)){
                         val = fn.apply(this, arguments);
                         cache[key] = val;
+                    } else {
+                        val = cache[key];
                     }
 
                     return val;
                 };
+            },
+
+            needsHostAlias: function(host){
+                // check is location.hostname is an IP
+                var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
+                return re.test(host) || host === "localhost";
             }
         };
 

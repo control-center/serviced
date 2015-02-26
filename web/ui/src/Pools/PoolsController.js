@@ -30,7 +30,7 @@
         ]);
 
         $scope.click_pool = function(id) {
-            $location.path('/pools/' + id);
+            resourcesFactory.routeToPool(id);
         };
 
         // Function to remove a pool

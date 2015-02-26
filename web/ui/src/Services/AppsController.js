@@ -20,12 +20,12 @@
 
         // redirect to specific service details
         $scope.routeToService = function(id) {
-            $location.path('/services/' + id);
+            resourcesFactory.routeToService(id);
         };
 
         // redirect to specific pool
         $scope.routeToPool = function(id) {
-            $location.path('/pools/' + id);
+            resourcesFactory.routeToPool(id);
         };
 
         $scope.modal_deployWizard = function() {
@@ -239,11 +239,8 @@
 
         // init stuff for this controller
         function init(){
-            // check is location.hostname is an IP
-            var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
-            if (re.test($location.host()) || $location.host() === "localhost") {
-                // request host alias from API
-                $.getJSON("/hosts/defaultHostAlias", "", function(data) {
+            if(utils.needsHostAlias($location.host())){
+                resourcesFactory.get_host_alias().success(function(data) {
                     $scope.defaultHostAlias = data.hostalias;
                 });
             }

@@ -181,6 +181,10 @@
             getRestoreStatus: {
                 method: "GET",
                 url: "/backup/restore/status"
+            },
+            getHostAlias: {
+                method: "GET",
+                url: "/hosts/defaultHostAlias"
             }
         };
 
@@ -270,6 +274,7 @@
             get_backup_files: methods.getBackupFiles,
             get_backup_status: methods.getBackupStatus,
             get_restore_status: methods.getRestoreStatus,
+            get_host_alias: methods.getHostAlias,
 
             registerPoll: function(label, callback, interval){
               if(pollingFunctions[label] !== undefined){
@@ -287,6 +292,21 @@
               }
 
               pollingFunctions = {};
+            },
+
+            // redirect to specific service details
+            routeToService: function(id) {
+                $location.path('/services/' + id);
+            },
+
+            // redirect to specific pool
+            routeToPool: function(id) {
+                $location.path('/pools/' + id);
+            },
+
+            // redirect to specific host
+            routeToHost: function(id) {
+                $location.path('/hosts/' + id);
             }
         };
     }]);

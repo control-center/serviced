@@ -116,7 +116,7 @@
 
         // route host clicks to host page
         $scope.clickHost = function(hostId) {
-            $location.path('/hosts/' + hostId);
+            resourcesFactory.routeToHost(hostId);
         };
 
         // start polling
