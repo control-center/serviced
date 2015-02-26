@@ -1,5 +1,6 @@
 #!/bin/bash
 set -e
+unset EDITOR # so we don't fail a cli test :\
 gvm use go1.4.2
 go version
 docker version
