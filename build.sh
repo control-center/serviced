@@ -7,7 +7,6 @@ sudo umount /exports/serviced_var || true
 sudo rm /tmp/serviced-root/var/isvcs/* -Rf
 sudo rm /tmp/serviced-test -Rf
 docker ps -a -q | xargs --no-run-if-empty docker rm -f
-cd gopath/src/github.com/control-center/serviced
 docker images | egrep 'zenoss/ubuntu[ ]+wget' || docker pull zenoss/ubuntu:wget
 make clean test DOCKERCFG=""
 docker ps -a -q | xargs --no-run-if-empty docker rm -f
