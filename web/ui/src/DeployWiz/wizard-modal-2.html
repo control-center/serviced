@@ -6,7 +6,7 @@
             <th translate>label_app_name</th>
             <th translate>memory_required</th>
         </tr>
-        <tr ng-repeat="template in templates.data | orderBy: 'Name'" ng-class="install.templateClass(template)">
+        <tr ng-repeat="template in templates.data | orderBy: 'Name'" ng-class="install.templateClass(template)" ng-click="selectTemplate(template)" class="clickable">
             <td><input type="radio" ng-model="install.templateID" name="selected_template" id="selected_template_{{$index}}" ng-value="template.ID"></td>
             <td>{{template.Name}}<span class="version" ng-show="template.Version"> (v{{template.Version}})</span></td>
             <td>{{getTemplateRequiredResources(template).RAMCommitment | toGB}}</td>

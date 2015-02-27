@@ -65,6 +65,9 @@
                     }
 
                     deferred.resolve();
+                })
+                .error((data, status) => {
+                    console.error("Unable to update factory", data);
                 });
             return deferred.promise;
         },

@@ -47,9 +47,15 @@
                         label: "remove_pool",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.remove_pool(poolID, function(data) {
-                                poolsFactory.update();
-                            });
+                            resourcesFactory.remove_pool(poolID)
+                                .success(function(data) {
+                                    $notification.create("Removed Pool", poolID).success();
+                                    poolsFactory.update();
+                                })
+                                .error(data => {
+                                    this.createNotification("Remove Pool failed", data.Detail).error();
+                                });
+
                             this.close();
                         }
                     }

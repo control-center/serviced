@@ -39,20 +39,27 @@
 
                             // TODO - when the server switches to broadcast instead of
                             // channel. this can be greatly simplified
-                            resourcesFactory.create_backup(function checkFirstStatus(){
+                            resourcesFactory.create_backup().success(function checkFirstStatus(){
                                 // recursively check if a valid status has been pushed into
                                 // the pipe. if not, shake yourself off and try again. try again.
-                                resourcesFactory.get_backup_status(function(data){
+                                resourcesFactory.get_backup_status().success(function(data){
+                                    // no status has been pushed, so check again
                                     if(data.Detail === ""){
                                        checkFirstStatus();
+
+                                    // a valid status has been pushed, so
+                                    // start the usual poll cycle
                                     } else {
                                         notification.updateStatus(data.Detail);
-                                        getBackupStatus(notification);
+                                        pollBackupStatus(notification);
                                     }
-                                }, function(data, status){
+
+                                })
+                                .error(function(data, status){
                                     backupRestoreError(notification, data.Detail, status);
                                 });
-                            }, function(data, status){
+                            })
+                            .error(function(data, status){
                                 backupRestoreError(notification, data.Detail, status);
                             });
 
@@ -80,20 +87,27 @@
 
                             // TODO - when the server switches to broadcast instead of
                             // channel. this can be greatly simplified
-                            resourcesFactory.restore_backup(filename, function checkFirstStatus(){
+                            resourcesFactory.restore_backup(filename).success(function checkFirstStatus(){
                                 // recursively check if a valid status has been pushed into
                                 // the pipe. if not, shake yourself off and try again. try again.
-                                resourcesFactory.get_restore_status(function(data){
+                                resourcesFactory.get_restore_status().success(function(data){
+                                    // no status has been pushed, so check again
                                     if(data.Detail === ""){
                                        checkFirstStatus();
+
+                                    // a valid status has been pushed, so
+                                    // start the usual poll cycle
                                     } else {
                                         notification.updateStatus(data.Detail);
-                                        getRestoreStatus(notification);
+                                        pollRestoreStatus(notification);
                                     }
-                                }, function(data, status){
+
+                                })
+                                .error(function(data, status){
                                     backupRestoreError(notification, data.Detail, status);
                                 });
-                            }, function(data, status){
+                            })
+                            .error(function(data, status){
                                 backupRestoreError(notification, data.Detail, status);
                             });
 
@@ -104,14 +118,8 @@
             });
         };
 
-        // poll for backup files
-        resourcesFactory.registerPoll("running", getBackupFiles, 5000);
-        $scope.$on("$destroy", function(){
-            resourcesFactory.unregisterAllPolls();
-        });
-
-        function getBackupStatus(notification){
-            resourcesFactory.get_backup_status(function(data){
+        function pollBackupStatus(notification){
+            resourcesFactory.get_backup_status().success(function(data){
 
                 if(data.Detail === ""){
                     notification.updateStatus(BACKUP_COMPLETE);
@@ -125,22 +133,18 @@
 
                 // poll again
                 setTimeout(function(){
-                    getBackupStatus(notification);
+                    pollBackupStatus(notification);
                 }, 1);
 
-            }, function(data, status){
+            })
+            .error(function(data, status){
                 backupRestoreError(notification, data.Detail, status);
             });
         }
 
-        function getBackupFiles(){
-            resourcesFactory.get_backup_files(function(data){
-                $scope.backupFiles = data;
-            });
-        }
 
-        function getRestoreStatus(notification){
-            resourcesFactory.get_restore_status(function(data){
+        function pollRestoreStatus(notification){
+            resourcesFactory.get_restore_status().success(function(data){
 
                 // all done!
                 if(data.Detail === ""){
@@ -155,10 +159,11 @@
 
                 // poll again
                 setTimeout(function(){
-                    getRestoreStatus(notification);
+                    pollRestoreStatus(notification);
                 }, 1);
 
-            }, function(data, status){
+            })
+            .error(function(data, status){
                 backupRestoreError(notification, data.Detail, status);
             });
 
@@ -169,5 +174,17 @@
             notification.updateStatus(data);
             notification.error();
         }
+
+        function getBackupFiles(){
+            resourcesFactory.get_backup_files().success(function(data){
+                $scope.backupFiles = data;
+            });
+        }
+
+        // poll for backup files
+        resourcesFactory.registerPoll("running", getBackupFiles, 5000);
+        $scope.$on("$destroy", function(){
+            resourcesFactory.unregisterAllPolls();
+        });
     }]);
 })();

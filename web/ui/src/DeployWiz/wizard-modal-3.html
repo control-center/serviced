@@ -8,7 +8,7 @@
         <th translate>memory_capacity</th>
         <th translate>core_capacity</th>
     </tr>
-    <tr ng-repeat="pool in pools | orderBy:'ID'">
+    <tr ng-repeat="pool in pools | orderBy:'ID'" ng-click="selectPool(pool)" class="clickable">
         <td><input type="radio" ng-model="install.poolID" name="selected_pool" id="selected_pool_{{$index}}" ng-value="pool.id"></td>
         <td>{{pool.model.ID}}</td>
         <td>{{pool.model.Description}}</td>

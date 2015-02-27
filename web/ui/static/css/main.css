@@ -1005,6 +1005,10 @@ rect {
     padding: 5px 10px;
 }
 
+.clickable {
+    cursor: pointer;
+}
+
 .navbar-nav > li:last-child > button{
     padding-right: 15px;
 }

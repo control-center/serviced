@@ -130,8 +130,11 @@
             // call fn b after fn a
             after: function(a, b, context){
                 return function(){
-                    a.apply(context, arguments);
+                    var results;
+                    results = a.apply(context, arguments);
+                    // TODO - send results to b?
                     b.call(context);
+                    return results;
                 };
             },
 

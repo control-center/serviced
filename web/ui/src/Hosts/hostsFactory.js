@@ -7,8 +7,8 @@
     var resourcesFactory, $q, instancesFactory;
 
     angular.module('hostsFactory', []).
-    factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory", "baseFactory",
-    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, BaseFactory){
+    factory("hostsFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "instancesFactory", "baseFactory", "miscUtils",
+    function($rootScope, q, _resourcesFactory, $interval, _instancesFactory, BaseFactory, utils){
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         instancesFactory = _instancesFactory;
@@ -19,6 +19,22 @@
         // alias some stuff for ease of use
         newFactory.hostList = newFactory.objArr;
         newFactory.hostMap = newFactory.objMap;
+
+        // wrap update to do some extra work
+        newFactory.update = utils.after(newFactory.update, function(){
+            // check running hosts and mark them as active
+            resourcesFactory.get_running_hosts()
+                .success((activeHosts, status) => {
+                    this.hostList.forEach(host => {
+                        if(activeHosts.indexOf(host.id) !== -1){
+                            host.active = true;
+                        } else {
+                            host.active = false;
+                        }
+                    });
+                });
+
+        }, newFactory);
 
         return newFactory;
     }]);
@@ -44,15 +60,6 @@
             this.name = host.Name;
             this.id = host.ID;
             this.model = Object.freeze(host);
-        },
-
-        updateActive: function(){
-            resourcesFactory.get_running_hosts()
-                .success((activeHosts, status) => {
-                    if(activeHosts[this.id]){
-                        this.active = true;
-                    }
-                });
         }
     };
 

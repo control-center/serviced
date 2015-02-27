@@ -62,8 +62,8 @@
         };
 
         $scope.modalAbout = function() {
-            resourcesFactory.get_version(function(data){
-                $scope['version'] = data;
+            resourcesFactory.get_version().success(function(data){
+                $scope.version = data;
             });
 
             $modalService.create({

@@ -78,10 +78,11 @@
 
                                 $scope.addVHost()
                                     .success(function(data, status){
-                                        this.close(); 
+                                        $notification.create("Added virtual host", data.Detail).success();
+                                        this.close();
                                     }.bind(this))
                                     .error(function(data, status){
-                                        this.createNotification("Unable to add virtual hosts", data.Detail).error(); 
+                                        this.createNotification("Unable to add virtual hosts", data.Detail).error();
                                         enableSubmit();
                                     }.bind(this));
                             }
@@ -135,7 +136,6 @@
             var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
             return resourcesFactory.add_vhost( serviceId, serviceEndpoint, name)
                 .success(function(data, status){
-                    $notification.create("Added virtual host", data.Detail).success();
                     $scope.vhosts.add = {};
                 });
         };
@@ -143,72 +143,77 @@
         // modalAssignIP opens a modal view to assign an ip address to a service
         $scope.modalAssignIP = function(ip, poolID) {
           $scope.ips.assign = {'ip':ip, 'value':null};
-          resourcesFactory.get_pool_ips(poolID, function(data) {
-            var options= [{'Value':'Automatic', 'IPAddr':null}];
+          resourcesFactory.get_pool_ips(poolID)
+              .success(function(data) {
+                var options= [{'Value':'Automatic', 'IPAddr':null}];
 
-            var i, IPAddr, value;
-            //host ips
-            if (data && data.HostIPs) {
-              for(i = 0; i < data.HostIPs.length; ++i) {
-                IPAddr = data.HostIPs[i].IPAddress;
-                value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
-                options.push({'Value': value, 'IPAddr':IPAddr});
-                // set the default value to the currently assigned value
-                if ($scope.ips.assign.ip.IPAddr === IPAddr) {
-                  $scope.ips.assign.value = options[ options.length-1];
+                var i, IPAddr, value;
+                //host ips
+                if (data && data.HostIPs) {
+                  for(i = 0; i < data.HostIPs.length; ++i) {
+                    IPAddr = data.HostIPs[i].IPAddress;
+                    value = 'Host: ' + IPAddr + ' - ' + data.HostIPs[i].InterfaceName;
+                    options.push({'Value': value, 'IPAddr':IPAddr});
+                    // set the default value to the currently assigned value
+                    if ($scope.ips.assign.ip.IPAddr === IPAddr) {
+                      $scope.ips.assign.value = options[ options.length-1];
+                    }
+                  }
                 }
-              }
-            }
 
-            //host ips
-            if (data && data.VirtualIPs) {
-              for(i = 0; i < data.VirtualIPs.length; ++i) {
-                IPAddr = data.VirtualIPs[i].IP;
-                value =  "Virtual IP: " + IPAddr;
-                options.push({'Value': value, 'IPAddr':IPAddr});
-                // set the default value to the currently assigned value
-                if ($scope.ips.assign.ip.IPAddr === IPAddr) {
-                  $scope.ips.assign.value = options[ options.length-1];
+                //host ips
+                if (data && data.VirtualIPs) {
+                  for(i = 0; i < data.VirtualIPs.length; ++i) {
+                    IPAddr = data.VirtualIPs[i].IP;
+                    value =  "Virtual IP: " + IPAddr;
+                    options.push({'Value': value, 'IPAddr':IPAddr});
+                    // set the default value to the currently assigned value
+                    if ($scope.ips.assign.ip.IPAddr === IPAddr) {
+                      $scope.ips.assign.value = options[ options.length-1];
+                    }
+                  }
                 }
-              }
-            }
 
-            //default to automatic
-            if(!$scope.ips.assign.value) {
-              $scope.ips.assign.value = options[0];
-            }
+                //default to automatic
+                if(!$scope.ips.assign.value) {
+                  $scope.ips.assign.value = options[0];
+                }
 
-            $scope.ips.assign.options = options;
+                $scope.ips.assign.options = options;
 
-            $modalService.create({
-                templateUrl: "assign-ip.html",
-                model: $scope,
-                title: "assign_ip",
-                actions: [
-                    {
-                        role: "cancel"
-                    },{
-                        role: "ok",
-                        label: "assign_ip",
-                        action: function(){
-                            if(this.validate()){
-                                // disable ok button, and store the re-enable function
-                                var enableSubmit = this.disableSubmitButton();
+                $modalService.create({
+                    templateUrl: "assign-ip.html",
+                    model: $scope,
+                    title: "assign_ip",
+                    actions: [
+                        {
+                            role: "cancel"
+                        },{
+                            role: "ok",
+                            label: "assign_ip",
+                            action: function(){
+                                if(this.validate()){
+                                    // disable ok button, and store the re-enable function
+                                    var enableSubmit = this.disableSubmitButton();
 
-                                $scope.assignIP()
-                                    .success(function(data, status){
-                                        this.close();
-                                    }.bind(this))
-                                    .error(function(data, status){
-                                        this.createNotification("Unable to Assign IP", data.Detail).error();
-                                        enableSubmit();
-                                    }.bind(this));
+                                    $scope.assignIP()
+                                        .success(function(data, status){
+                                            $notification.create("Added IP", data.Detail).success();
+                                            this.close();
+                                        }.bind(this))
+                                        .error(function(data, status){
+                                            this.createNotification("Unable to Assign IP", data.Detail).error();
+                                            enableSubmit();
+                                        }.bind(this));
+                                }
                             }
                         }
-                    }
-                ]
-            });
-          });
+                    ]
+                });
+              })
+              .error((data, status) => {
+                $notification.create("Unable to retrieve IPs", data.Detail).error();
+              });
         };
 
         $scope.anyServicesExported = function(service) {
@@ -234,7 +239,6 @@
             return resourcesFactory.assign_ip(serviceID, IP)
                 .success(function(data, status){
                     servicesFactory.update();
-                    $notification.create("Added IP", data.Detail).success();
                 });
         };
 
@@ -350,8 +354,6 @@
                             $scope.updateService($scope.editableService)
                                 .success(function(data, status){
                                     $notification.create("Updated service", $scope.editableService.ID).success();
-                                    servicesFactory.update();
-                                    this.editableService = {};
                                     this.close();
                                 }.bind(this))
                                 .error(function(data, status){
@@ -414,9 +416,15 @@
                         label: "remove_virtual_host",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name, function( data) {
-                                servicesFactory.update();
-                            });
+                            resourcesFactory.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
+                                .success(() => {
+                                    servicesFactory.update();
+                                    $notification.create("Removed VHost", vhost.Name).success();
+                                })
+                                .error((data, status) => {
+                                    $notification.create("Remove VHost failed", data.Detail).error();
+                                });
+
                             this.close();
                         }
                     }
@@ -453,8 +461,6 @@
                                 $scope.updateService($scope.editableService)
                                     .success(function(data, status){
                                         $notification.create("Updated service", $scope.editableService.ID).success();
-                                        servicesFactory.update();
-                                        this.editableService = {};
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -481,52 +487,52 @@
         $scope.viewLog = function(instance) {
             $scope.editService = angular.copy(instance);
 
-            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.model.ID, function(log) {
-                $scope.editService.log = log.Detail;
-                $modalService.create({
-                    templateUrl: "view-log.html",
-                    model: $scope,
-                    title: "title_log",
-                    bigModal: true,
-                    actions: [
-                        {
-                            role: "cancel",
-                            label: "close"
-                        },{
-                            classes: "btn-primary",
-                            label: "refresh",
-                            icon: "glyphicon-repeat",
-                            action: function() {
-                                var textarea = this.$el.find("textarea");
-                                resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id, function(log) {
-                                    $scope.editService.log = log.Detail;
-                                    textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
-                                });
+            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.model.ID)
+                .success(function(log) {
+                    $scope.editService.log = log.Detail;
+                    $modalService.create({
+                        templateUrl: "view-log.html",
+                        model: $scope,
+                        title: "title_log",
+                        bigModal: true,
+                        actions: [
+                            {
+                                role: "cancel",
+                                label: "close"
+                            },{
+                                classes: "btn-primary",
+                                label: "refresh",
+                                icon: "glyphicon-repeat",
+                                action: function() {
+                                    var textarea = this.$el.find("textarea");
+                                    resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id)
+                                        .success(function(log) {
+                                            $scope.editService.log = log.Detail;
+                                            textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
+                                        })
+                                        .error((data, status) => {
+                                            this.createNotification("Unable to fetch logs", data.Detail).error();
+                                        });
+                                }
+                            },{
+                                classes: "btn-primary",
+                                label: "download",
+                                action: function(){
+                                    utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
+                                },
+                                icon: "glyphicon-download"
                             }
-                        },{
-                            classes: "btn-primary",
-                            label: "download",
-                            action: function(){
-                                utils.downloadFile('/services/' + instance.model.ServiceID + '/' + instance.model.ID + '/logs/download');
-                            },
-                            icon: "glyphicon-download"
+                        ],
+                        onShow: function(){
+                            var textarea = this.$el.find("textarea");
+                            textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
                         }
-                    ],
-                    onShow: function(){
-                        var textarea = this.$el.find("textarea");
-                        textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
-                    }
+                    });
+                })
+                .error((data, status) => {
+                    this.createNotification("Unable to fetch logs", data.Detail).error();
                 });
-            });
         };
-
-        $scope.snapshotService = function(service) {
-            resourcesFactory.snapshot_service(service.ID, function(label) {
-                console.log('Snapshotted service name:%s label:%s', service.Name, label.Detail);
-                // TODO: add the snapshot label to some partial view in the UI
-            });
-        };
-
 
         $scope.validateService = function() {
           // TODO: Validate name and startup command
@@ -553,7 +559,11 @@
 
         $scope.updateService = function(newService) {
             if ($scope.validateService()) {
-                return resourcesFactory.update_service($scope.services.current.model.ID, newService);
+                return resourcesFactory.update_service($scope.services.current.model.ID, newService)
+                    .success((data, status) => {
+                        servicesFactory.update();
+                        this.editableService = {};
+                    });
             }
         };
 
@@ -573,44 +583,12 @@
             servicesFactory.updateHealth();
         };
 
-        // kick off service stuff and magic and everything
-        // NOTE THIS IS THE ENTRY POINT FOR THIS SERVICE!
-        servicesFactory.update().then(function(){
-            // setup initial state
-            $scope.services = {
-                data: servicesFactory.serviceTree,
-                mapped: servicesFactory.serviceMap,
-                current: servicesFactory.get($scope.params.serviceId)
-            };
-
-            // start polling
-            servicesFactory.activate();
-
-            // if the current service changes, update
-            // various service controller thingies
-            $scope.$watch(function(){
-                // if no current service is set, try to set one
-                if(!$scope.services.current){
-                    $scope.services.current = servicesFactory.get($scope.params.serviceId);
-                }
-
-                if($scope.services && $scope.services.current){
-                    return $scope.services.current.isDirty();
-                } else {
-                    // there is no current service
-                    console.warn("current service not yet available");
-                    return undefined;
-                }
-            }, $scope.update);
-        });
-
-        // start polling
-        hostsFactory.activate();
-        hostsFactory.update();
-
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
-            resourcesFactory.restart_service(app.ID, angular.noop);
+            resourcesFactory.restart_service(app.ID)
+                .error((data, status) => {
+                    $notification.create("Stop Service failed", data.Detail).error();
+                });
         };
 
         $scope.startTerminal = function(app) {
@@ -618,10 +596,6 @@
         };
 
 
-        $scope.$on("$destroy", function(){
-            servicesFactory.deactivate();
-            hostsFactory.deactivate();
-        });
 
         $scope.getHostName = function(id){
             if(hostsFactory.get(id)){
@@ -680,8 +654,6 @@
                                 $scope.updateService($scope.editableService)
                                     .success(function(data, status){
                                         $notification.create("Updated service", $scope.editableService.ID).success();
-                                        servicesFactory.update();
-                                        this.editableService = {};
                                         this.close();
                                     }.bind(this))
                                     .error(function(data, status){
@@ -713,6 +685,48 @@
 
             return $scope.indent(indent - offset);
         };
+
+
+        function init(){
+            // setup initial state
+            $scope.services = {
+                data: servicesFactory.serviceTree,
+                mapped: servicesFactory.serviceMap,
+                current: servicesFactory.get($scope.params.serviceId)
+            };
+
+            // if the current service changes, update
+            // various service controller thingies
+            $scope.$watch(function(){
+                // if no current service is set, try to set one
+                if(!$scope.services.current){
+                    $scope.services.current = servicesFactory.get($scope.params.serviceId);
+                }
+
+                if($scope.services.current){
+                    return $scope.services.current.isDirty();
+                } else {
+                    // there is no current service
+                    console.warn("current service not yet available");
+                    return undefined;
+                }
+            }, $scope.update);
+
+            hostsFactory.activate();
+            hostsFactory.update();
+
+            servicesFactory.activate();
+            servicesFactory.update();
+
+            $scope.$on("$destroy", function(){
+                servicesFactory.deactivate();
+                hostsFactory.deactivate();
+            });
+
+        }
+
+        // kick off controller
+        init();
 
         function hideChildren(app){
             app.children.forEach(function(child){

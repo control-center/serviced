@@ -46,9 +46,14 @@
                         label: "remove_virtual_ip",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP, function() {
-                                poolsFactory.update();
-                            });
+                            resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP)
+                                .success(function(data) {
+                                    $notification.create("Removed Virtual IP", ip.IP).success();
+                                    poolsFactory.update();
+                                })
+                                .error(data => {
+                                    $notification.create("Remove Virtual IP failed", data.Detail).error();
+                                });
                             this.close();
                         }
                     }
@@ -65,7 +70,11 @@
                     $scope.add_virtual_ip = {};
                     $notification.create("Added new pool virtual ip", ip).success();
                     poolsFactory.update();
+                })
+                .error((data, status) => {
+                    $notification.create("Add Virtual IP failed", data.Detail).error();
                 });
+
         };
 
         // Open the virtual ip modal

@@ -19,7 +19,7 @@
             // TODO - deal with serviceList in a better way
             servicesDeferred.resolve(serviceList);
 
-            resourcesFactory.get_service_health(function(healthChecks){
+            resourcesFactory.get_service_health().success(function(healthChecks){
                 healthCheckDeferred.resolve(healthChecks);
             });
 
