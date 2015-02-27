@@ -92,6 +92,10 @@ func (s *ControlClient) UpdateService(service service.Service, unused *int) (err
 	return s.rpcClient.Call("ControlPlane.UpdateService", service, unused)
 }
 
+func (s *ControlClient) MigrateService(request dao.ServiceMigrationRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.MigrateService", request, unused)
+}
+
 func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }

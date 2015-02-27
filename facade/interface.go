@@ -1,4 +1,3 @@
-
 // Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -17,8 +16,8 @@ package facade
 import (
 	"time"
 
-	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -29,22 +28,23 @@ import (
 
 // The FacadeInterface is the API for a Facade
 type FacadeInterface interface {
-
 	AddService(ctx datastore.Context, svc service.Service) error
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
 
 	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
- 	GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error)
+	GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error)
 
- 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
+	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
+
+	MigrateService(ctx datastore.Context, svc *service.Service, script string, dryRun bool) error
 
 	RemoveService(ctx datastore.Context, id string) error
 
 	RestoreIPs(ctx datastore.Context, svc service.Service) error
 
- 	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
+	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
 
 	UpdateService(ctx datastore.Context, svc service.Service) error
 
@@ -62,7 +62,7 @@ type FacadeInterface interface {
 
 	GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, error)
 
- 	HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error)
+	HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error)
 
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
 }

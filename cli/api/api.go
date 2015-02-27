@@ -94,9 +94,14 @@ type api struct {
 	dao    dao.ControlPlane // Deprecated
 }
 
-// New creates a new API type
 func New() API {
-	return &api{}
+	// let lazy init populate each interface as necessary
+	return NewAPI(nil, nil, nil, nil)
+}
+
+// New creates a new API type
+func NewAPI(master *master.Client, agent *agent.Client, docker *dockerclient.Client, dao dao.ControlPlane) API {
+	return &api{master: master, agent: agent, docker: docker, dao: dao}
 }
 
 // Starts the agent or master services on this host

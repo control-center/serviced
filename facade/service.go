@@ -4,9 +4,14 @@
 package facade
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"math/rand"
+	"os"
+	"os/exec"
+	"path"
 	"reflect"
 	"regexp"
 	"strings"
@@ -28,6 +33,8 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 
 	"github.com/control-center/serviced/commons/docker"
+
+	"github.com/control-center/serviced/utils"
 )
 
 // AddService adds a service; return error if service already exists
@@ -110,6 +117,51 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	}
 
 	return f.updateService(ctx, &svc)
+}
+
+func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
+	var inputFileName, scriptFileName, outputFileName string
+
+	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v)", svc.ID, dryRun)
+
+	migrationDir, err := createTempMigrationDir(svc.ID)
+	defer os.RemoveAll(migrationDir)
+	if err != nil {
+		return err
+	}
+
+	glog.V(3).Infof("Facade:MigrateService: temp directory for service migration: %s", migrationDir)
+	inputFileName, err = createServiceMigrationInputFile(migrationDir, svc)
+	if err != nil {
+		return err
+	}
+
+	scriptFileName, err = createServiceMigrationScriptFile(migrationDir, scriptBody)
+	if err != nil {
+		return err
+	}
+
+	outputFileName, err = executeMigrationScript(migrationDir, scriptFileName, inputFileName)
+	if err != nil {
+		return err
+	}
+
+	err = readNewServiceDefinition(outputFileName, svc)
+	if err != nil {
+		return err
+	}
+
+	if dryRun {
+		err = f.verifyServiceForUpdate(ctx, svc, nil)
+		if err == nil {
+			glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
+		}
+	} else {
+		glog.V(2).Infof("Facade.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
+		err = f.UpdateService(ctx, *svc)
+	}
+
+	return err
 }
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
@@ -1066,44 +1118,22 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 
 // updateService internal method to use when service has been validated
 func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
-	id := strings.TrimSpace(svc.ID)
-	if id == "" {
-		return errors.New("empty Service.ID not allowed")
+	var oldSvc *service.Service
+	err := f.verifyServiceForUpdate(ctx, svc, &oldSvc)
+	if err != nil {
+		glog.Errorf("Could not verify service %s: %s", svc.ID, err)
+		return err
 	}
-	svc.ID = id
+
 	//add assignment info to service so it is availble in zk
 	f.fillServiceAddr(ctx, svc)
-
-	svcStore := f.serviceStore
-
-	// verify the service with name and parent does not collide with another existing service
-	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
-		return err
-	} else if s != nil {
-		if s.ID != svc.ID {
-			err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
-			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
-			return err
-		}
-	}
-
-	oldSvc, err := svcStore.Get(ctx, svc.ID)
-	if err != nil {
-		return err
-	}
 
 	//Deal with Service Config Files
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
 	svc.OriginalConfigs = oldSvc.OriginalConfigs
 
-	//check if config files haven't changed
+	svcStore := f.serviceStore
 	if !reflect.DeepEqual(oldSvc.OriginalConfigs, svc.ConfigFiles) {
-		//lets validate Service before doing more work....
-		if err := svc.ValidEntity(); err != nil {
-			return err
-		}
-
 		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
 		if err != nil {
 			return err
@@ -1166,6 +1196,53 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	return zkAPI(f).UpdateService(svc)
 }
 
+// Verify that the svc is valid for update.
+// Should be called for all new, updated (edited), and migrated services.
+// This method is only responsible for validation.
+func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Service, oldSvc **service.Service) error {
+	glog.V(2).Infof("Facade:verifyServiceForUpdate: service ID %+v", svc.ID)
+
+	id := strings.TrimSpace(svc.ID)
+	if id == "" {
+		return errors.New("empty Service.ID not allowed")
+	}
+	svc.ID = id
+
+	svcStore := f.serviceStore
+	currentSvc, err := svcStore.Get(ctx, svc.ID)
+	if err != nil {
+		return err
+	}
+
+	// verify the service with name and parent does not collide with another existing service
+	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
+		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
+		return err
+	} else if s != nil {
+		if s.ID != svc.ID {
+			err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
+			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
+			return err
+		}
+	}
+
+	// Primary service validation
+	if err := svc.ValidEntity(); err != nil {
+		return err
+	}
+
+	// make sure that the tenant ID and path are valid
+	_, _, err = f.getTenantIDAndPath(ctx, *svc)
+	if err != nil {
+		return err
+	}
+
+	if oldSvc != nil {
+		*oldSvc = currentSvc
+	}
+	return nil
+}
+
 func lookUpTenant(svcID string) (string, bool) {
 	tenanIDMutex.RLock()
 	defer tenanIDMutex.RUnlock()
@@ -1212,3 +1289,80 @@ var (
 	tenantIDs    = make(map[string]string)
 	tenanIDMutex = sync.RWMutex{}
 )
+
+// Creates a temporary directory to hold files related to service migration
+func createTempMigrationDir(serviceID string) (string, error) {
+	tmpParentDir := utils.TempDir("service-migration")
+	err := os.MkdirAll(tmpParentDir, 0750)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create temporary directory: %s", err)
+	}
+
+	var migrationDir string
+	dirPrefix := fmt.Sprintf("%s-", serviceID)
+	migrationDir, err = ioutil.TempDir(tmpParentDir, dirPrefix)
+	if err != nil {
+		return "", fmt.Errorf("Unable to create temporary directory: %s", err)
+	}
+
+	return migrationDir, nil
+}
+
+// Write out the service definition as a JSON file for use as input to the service migration
+func createServiceMigrationInputFile(tmpDir string, svc *service.Service) (string, error) {
+	inputFileName := path.Join(tmpDir, "input.json")
+	jsonService, err := json.MarshalIndent(svc, " ", "  ")
+	if err != nil {
+		return "", fmt.Errorf("error marshalling service: %s", err)
+	}
+
+	err = ioutil.WriteFile(inputFileName, jsonService, 0440)
+	if err != nil {
+		return "", fmt.Errorf("error writing service to temp file: %s", err)
+	}
+
+	return inputFileName, nil
+}
+
+// Write out the body of the script to a file
+func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error) {
+	scriptFileName := path.Join(tmpDir, "migrate.py")
+	scriptFile, err := os.OpenFile(scriptFileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
+	defer scriptFile.Close()
+	if err != nil {
+		return "", fmt.Errorf("error creating script file: %s", err)
+	}
+
+	_, err = scriptFile.WriteString(scriptBody)
+	if err != nil {
+		return "", fmt.Errorf("error writing to script file: %s", err)
+	}
+
+	return scriptFileName, nil
+}
+
+// Execute the migration script
+func executeMigrationScript(tmpDir, scriptFileName, inputFileName string) (string, error) {
+	outputFileName := path.Join(tmpDir, "output.json")
+	migrateCmd := exec.Command("/usr/bin/python", scriptFileName, inputFileName, outputFileName)
+	err := migrateCmd.Run()
+	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
+		return "", fmt.Errorf("migration script failed: %s", err)
+	}
+
+	return outputFileName, nil
+}
+
+func readNewServiceDefinition(outputFileName string, svc *service.Service) error {
+	newServiceDefinition, err := ioutil.ReadFile(outputFileName)
+	if err != nil {
+		return fmt.Errorf("could not read new service definition: %s", err)
+	}
+
+	err = json.Unmarshal(newServiceDefinition, svc)
+	if err != nil {
+		return fmt.Errorf("could not unmarshall new service definition: %s", err)
+	}
+
+	return nil
+}
