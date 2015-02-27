@@ -29,19 +29,19 @@ import (
 	"github.com/zenoss/glog"
 )
 
-type DatastoreGetter func() (datastore.Context)
+type DatastoreGetter func() datastore.Context
 
 type ServiceVolumeGetter func(fsType, varpath, serviceID string) (volume.Volume, error)
 
 type DistributedFilesystem struct {
-	fsType     string
-	varpath    string
-	dockerHost string
-	dockerPort int
-	datastoreGet DatastoreGetter
+	fsType           string
+	varpath          string
+	dockerHost       string
+	dockerPort       int
+	datastoreGet     DatastoreGetter
 	getServiceVolume ServiceVolumeGetter
-	facade     facade.FacadeInterface
-	timeout    time.Duration
+	facade           facade.FacadeInterface
+	timeout          time.Duration
 
 	// locking
 	mutex sync.Mutex
@@ -64,15 +64,15 @@ func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade fac
 	lock := zkservice.ServiceLock(conn)
 
 	return &DistributedFilesystem{
-			fsType: fsType,
-			varpath: varpath,
-			dockerHost: host,
-			dockerPort: port,
-			facade: facade,
-			timeout: timeout,
-			lock: lock,
-			datastoreGet: datastore.Get,
-			getServiceVolume: serviceVolumeGet}, nil
+		fsType:           fsType,
+		varpath:          varpath,
+		dockerHost:       host,
+		dockerPort:       port,
+		facade:           facade,
+		timeout:          timeout,
+		lock:             lock,
+		datastoreGet:     datastore.Get,
+		getServiceVolume: serviceVolumeGet}, nil
 }
 
 func (dfs *DistributedFilesystem) Lock() error {
@@ -108,7 +108,7 @@ func (dfs *DistributedFilesystem) GetStatus(timeout time.Duration) string {
 	return ""
 }
 
-func (dfs *DistributedFilesystem) log(msg string, argv ...interface{}) {
+func (dfs *DistributedFilesystem) logf(msg string, argv ...interface{}) {
 	defer glog.V(0).Infof(msg, argv...)
 	if dfs.logger != nil {
 		dfs.logger.Send(fmt.Sprintf(msg, argv...))
