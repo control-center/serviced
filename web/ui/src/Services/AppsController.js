@@ -279,6 +279,7 @@
                 { id: 'PoolID', name: 'deployed_tbl_pool'},
                 { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
             ]);
+            $scope.services.data = [];
 
             $scope.templates = utils.buildTable('Name', [
                 { id: 'Name', name: 'template_name'},
