@@ -630,6 +630,7 @@ func (c *Controller) Run() (err error) {
 		return nil
 	}
 	defer client.Close()
+	c.Close()
 	var unused int
 	client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, "__instance_shutdown", time.Now().String(), "passed"}, &unused)
 	return nil

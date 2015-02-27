@@ -328,7 +328,7 @@ func (c *Controller) getMatchingEndpoint(id string) *importedEndpoint {
 func (c *Controller) watchRemotePorts() {
 	/*
 		watch each tenant endpoint
-		    - when endpoints are added, add the endpoint proxy if not already added
+			- when endpoints are added, add the endpoint proxy if not already added
 			- when endpoints are added, add watch on that endpoint for updates
 			- when endpoints are deleted, tell that endpoint proxy to stop proxying - done with ephemeral znodes
 			- when endpoints are deleted, may not need to deal with removing watch on that endpoint since that watch will block forever
@@ -361,6 +361,17 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 
+	//translate closing call to endpoint cancel
+	cancelEndpointWatch := make(chan bool)
+	go func() {
+		select {
+		case <-c.closing:
+			glog.Infof("Closing endpoint watchers")
+			close(endpointsWatchCanceller)
+			close(cancelEndpointWatch)
+		}
+	}()
+
 	processTenantEndpoints := func(conn coordclient.Connection, parentPath string, tenantEndpointIDs ...string) {
 		glog.V(2).Infof("processTenantEndpoints for path: %s tenantEndpointIDs: %s", parentPath, tenantEndpointIDs)
 
@@ -380,17 +391,31 @@ func (c *Controller) watchRemotePorts() {
 			}
 			if !missingWatchers {
 				glog.V(2).Infof("all imports are being watched - cancelling watcher on /endpoints")
-				endpointsWatchCanceller <- true
-				return
+				select{
+				case endpointsWatchCanceller <- true:
+					return
+				default:
+					return
+				}
 			}
 		}
 
 		// setup watchers for each imported tenant endpoint
 		watchTenantEndpoints := func(tenantEndpointKey string) {
 			glog.V(2).Infof("  watching tenantEndpointKey: %s", tenantEndpointKey)
-			if err := endpointRegistry.WatchTenantEndpoint(zkConn, tenantEndpointKey,
-				c.processTenantEndpoint, endpointWatchError); err != nil {
-				glog.Errorf("error watching tenantEndpointKey %s: %v", tenantEndpointKey, err)
+			for {
+
+				glog.Infof("Starting watch for tenantEndpointKey %s: %v", tenantEndpointKey, err)
+				if err := endpointRegistry.WatchTenantEndpoint(zkConn, tenantEndpointKey,
+					c.processTenantEndpoint, endpointWatchError, cancelEndpointWatch); err != nil {
+						glog.Errorf("error watching tenantEndpointKey %s: %v", tenantEndpointKey, err)
+					}
+				select {
+				case <-cancelEndpointWatch:
+					glog.Infof("Closing watch for tenantEndpointKey %s", tenantEndpointKey)
+					return
+				case <-time.After(500 * time.Millisecond): //prevent tight loop
+				}
 			}
 		}
 
