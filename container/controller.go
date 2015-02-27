@@ -697,7 +697,6 @@ func (c *Controller) checkPrereqs(prereqsPassed chan bool, rpcDead chan struct{}
 			}
 		}
 	}
-	return nil
 }
 
 func (c *Controller) kickOffHealthChecks(healthExit chan struct{}) {

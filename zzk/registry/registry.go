@@ -14,7 +14,6 @@
 package registry
 
 import (
-	"fmt"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -191,7 +190,6 @@ func (r *registryType) ensureKey(conn client.Connection, key string) error {
 		default:
 		}
 	}
-	return fmt.Errorf("could not create key %q: %s", key, err)
 }
 
 func (r *registryType) ensureDir(conn client.Connection, path string) error {
@@ -208,7 +206,6 @@ func (r *registryType) ensureDir(conn client.Connection, path string) error {
 		default:
 		}
 	}
-	return fmt.Errorf("could not create dir %q: %s", path, err)
 }
 
 // getChildren gets all child paths for the given nodeID
@@ -256,8 +253,6 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 			return nil
 		}
 	}
-	glog.V(1).Infof("no longer watching children at path: %s", path)
-	return nil
 }
 
 func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan bool, processNode func(conn client.Connection,
@@ -286,5 +281,4 @@ func (r *registryType) watchItem(conn client.Connection, path string, nodeType c
 		}
 
 	}
-	return nil
 }

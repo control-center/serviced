@@ -281,7 +281,6 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
 		return nil, err
 	}
-	return services, nil
 }
 
 // GetServicesByPool looks up all services in a particular pool

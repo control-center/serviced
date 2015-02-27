@@ -117,8 +117,6 @@ func getServiceState(conn coordclient.Connection, serviceID, instanceIDStr strin
 		glog.V(2).Infof("Polling to retrieve service state instanceID:%d with valid PrivateIP", instanceID)
 		time.Sleep(1 * time.Second)
 	}
-
-	return nil, fmt.Errorf("unable to retrieve service state")
 }
 
 // getEndpoints builds exportedEndpoints and importedEndpoints
