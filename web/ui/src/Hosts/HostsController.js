@@ -39,7 +39,7 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                resourcesFactory.add_host($scope.newHost)
+                                resourcesFactory.addHost($scope.newHost)
                                     .success(function(data, status){
                                         $notification.create("", data.Detail).success();
                                         this.close();
@@ -75,7 +75,7 @@
                         classes: "btn-danger",
                         action: function(){
 
-                            resourcesFactory.remove_host(hostId)
+                            resourcesFactory.removeHost(hostId)
                                 .success(function(data, status) {
                                     $notification.create("Removed host", hostId).success();
                                     // After removing, refresh our list

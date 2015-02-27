@@ -39,10 +39,10 @@
 
                             // TODO - when the server switches to broadcast instead of
                             // channel. this can be greatly simplified
-                            resourcesFactory.create_backup().success(function checkFirstStatus(){
+                            resourcesFactory.createBackup().success(function checkFirstStatus(){
                                 // recursively check if a valid status has been pushed into
                                 // the pipe. if not, shake yourself off and try again. try again.
-                                resourcesFactory.get_backup_status().success(function(data){
+                                resourcesFactory.getBackupStatus().success(function(data){
                                     // no status has been pushed, so check again
                                     if(data.Detail === ""){
                                        checkFirstStatus();
@@ -87,10 +87,10 @@
 
                             // TODO - when the server switches to broadcast instead of
                             // channel. this can be greatly simplified
-                            resourcesFactory.restore_backup(filename).success(function checkFirstStatus(){
+                            resourcesFactory.restoreBackup(filename).success(function checkFirstStatus(){
                                 // recursively check if a valid status has been pushed into
                                 // the pipe. if not, shake yourself off and try again. try again.
-                                resourcesFactory.get_restore_status().success(function(data){
+                                resourcesFactory.getRestoreStatus().success(function(data){
                                     // no status has been pushed, so check again
                                     if(data.Detail === ""){
                                        checkFirstStatus();
@@ -119,7 +119,7 @@
         };
 
         function pollBackupStatus(notification){
-            resourcesFactory.get_backup_status().success(function(data){
+            resourcesFactory.getBackupStatus().success(function(data){
 
                 if(data.Detail === ""){
                     notification.updateStatus(BACKUP_COMPLETE);
@@ -144,7 +144,7 @@
 
 
         function pollRestoreStatus(notification){
-            resourcesFactory.get_restore_status().success(function(data){
+            resourcesFactory.getRestoreStatus().success(function(data){
 
                 // all done!
                 if(data.Detail === ""){
@@ -176,7 +176,7 @@
         }
 
         function getBackupFiles(){
-            resourcesFactory.get_backup_files().success(function(data){
+            resourcesFactory.getBackupFiles().success(function(data){
                 $scope.backupFiles = data;
             });
         }

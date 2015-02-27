@@ -301,7 +301,7 @@ describe('miscUtils', function() {
 
     var fake_resources_service =  function() {
        return {
-           get_pools: function(cacheOk, callback) {
+           getPools: function(cacheOk, callback) {
                callback(fake_pools());
            },
            get_hosts: function(cacheOk, callback) {

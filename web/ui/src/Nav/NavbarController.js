@@ -62,7 +62,7 @@
         };
 
         $scope.modalAbout = function() {
-            resourcesFactory.get_version().success(function(data){
+            resourcesFactory.getVersion().success(function(data){
                 $scope.version = data;
             });
 
