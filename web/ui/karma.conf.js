@@ -87,7 +87,6 @@ module.exports = function(config) {
       // specify a common output directory
       dir: 'test/results/coverage',
       reporters: [
-        { type: 'html', subdir: 'html' },   // use for local dev review
         { type: 'cobertura', subdir: 'cobertura' }  // for integration with Jenkins
       ]
     },
@@ -96,10 +95,10 @@ module.exports = function(config) {
     // Code coverage results below these thresholds will trigger a build failure
     // For more info, see https://www.npmjs.com/package/karma-threshold-reporter
     thresholdReporter: {
-      statements: 5,
-      branches: 0,
-      functions: 5,
-      lines: 5
+      statements: 8,
+      branches: 2,
+      functions: 7,
+      lines: 8
     }
   });
 };
