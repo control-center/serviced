@@ -50,7 +50,6 @@
                                     // a valid status has been pushed, so
                                     // start the usual poll cycle
                                     } else {
-                                        notification.updateStatus(data.Detail);
                                         pollBackupStatus(notification);
                                     }
 

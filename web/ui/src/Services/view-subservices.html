@@ -230,7 +230,7 @@
 
   <!-- This table has running instances -->
   <h3 ng-show="hasCurrentInstances()" translate>running_tbl_instances</h3>
-  <table class="table" ng-show="hasCurrentInstances()">
+  <table class="table" ng-show="hasCurrentInstances() && !services.current.isIsvc()">
     <thead>
       <tr>
         <th translate>running_tbl_instance_id</th>
