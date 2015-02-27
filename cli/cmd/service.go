@@ -91,6 +91,9 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service migrate SERVICEID PATH_TO_SCRIPT",
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceMigrate,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"dry-run", "Executes the migration and validation without updateing anything"},
+				},
 			}, {
 				Name:         "remove",
 				ShortName:    "rm",
@@ -713,7 +716,7 @@ func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
 		input = os.Stdin
 	}
 
-	if migratedSvc, err := c.driver.MigrateService(svc.ID, input); err != nil {
+	if migratedSvc, err := c.driver.MigrateService(svc.ID, input, ctx.Bool("dry-run")); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 	} else {
 		fmt.Println(migratedSvc.ID)

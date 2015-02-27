@@ -69,7 +69,7 @@ func (mf *MockFacade) GetTenantID(ctx datastore.Context, serviceID string) (stri
 	return args.String(0), args.Error(1)
 }
 
-func (mf *MockFacade) MigrateService(ctx datastore.Context, svc *service.Service, script string) error {
+func (mf *MockFacade) MigrateService(ctx datastore.Context, svc *service.Service, script string, dryRun bool) error {
 	return mf.Mock.Called(ctx, svc, script).Error(0)
 }
 

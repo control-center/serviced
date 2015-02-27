@@ -26,13 +26,7 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 		return err
 	}
 
-	// Create the tenant volume
-	if tenantID, err := this.facade.GetTenantID(datastore.Get(), svc.ID); err != nil {
-		glog.Warningf("Could not get tenant for service %s: %s", svc.ID, err)
-	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
-		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
-	}
-
+	this.createTenantVolume(svc.ID)
 	*serviceId = svc.ID
 	return nil
 }
@@ -43,30 +37,28 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 		return err
 	}
 
-	// Create the tenant volume
-	if tenantID, err := this.facade.GetTenantID(datastore.Get(), svc.ID); err != nil {
-		glog.Warningf("Could not get tenant for service %s: %s", svc.ID, err)
-	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
-		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
-	}
+	this.createTenantVolume(svc.ID)
 	return nil
 }
 
 //
 func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.MigrateService: id %+v", request.ServiceID)
+	glog.V(2).Infof("ControlPlaneDao.MigrateService: start migration for service id %+v", request.ServiceID)
 	svc, err := this.facade.GetService(datastore.Get(), request.ServiceID)
 	if err != nil {
+		glog.V(2).Infof("ControlPlaneDao.MigrateService: could not find service id %+v: %s", request.ServiceID, err)
 		return err
 	}
 
-	if err := this.facade.MigrateService(datastore.Get(), svc, request.MigrationScript); err != nil {
+	if err := this.facade.MigrateService(datastore.Get(), svc, request.MigrationScript, request.DryRun); err != nil {
+		glog.V(2).Infof("ControlPlaneDao.MigrateService: migration failed for id %+v: %s", request.ServiceID, err)
 		return err
 	}
 
-	var unusedInt int
-	glog.V(2).Infof("ControlPlaneDao.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
-	return this.UpdateService(*svc, &unusedInt)
+	if !request.DryRun {
+		this.createTenantVolume(svc.ID)
+	}
+	return nil
 }
 
 //
@@ -169,4 +161,13 @@ func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *stru
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
 	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
+}
+
+// Create the tenant volume
+func (this *ControlPlaneDao) createTenantVolume(serviceID string) {
+	if tenantID, err := this.facade.GetTenantID(datastore.Get(), serviceID); err != nil {
+		glog.Warningf("Could not get tenant for service %s: %s", serviceID, err)
+	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
+	}
 }

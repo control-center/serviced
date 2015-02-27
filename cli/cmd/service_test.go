@@ -163,7 +163,7 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	return &s, nil
 }
 
-func (t ServiceAPITest) MigrateService(id string, script io.Reader) (*service.Service, error) {
+func (t ServiceAPITest) MigrateService(id string, script io.Reader, dryRun bool) (*service.Service, error) {
 	if t.errs["MigrateService"] != nil {
 		return nil, t.errs["MigrateService"]
 	}
@@ -437,7 +437,7 @@ func ExampleServicedCLI_CmdServiceMigrate_usage() {
 	//    serviced service migrate SERVICEID PATH_TO_SCRIPT
 	//
 	// OPTIONS:
-
+	//    --dry-run	Executes the migration and validation without updateing anything
 }
 
 func ExampleServicedCLI_CmdServiceMigrate_err() {

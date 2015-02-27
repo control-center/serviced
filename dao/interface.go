@@ -48,6 +48,7 @@ type ServiceRequest struct {
 type ServiceMigrationRequest struct {
 	ServiceID       string
 	MigrationScript string
+	DryRun          bool
 }
 
 type ServiceStateRequest struct {
