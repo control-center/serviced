@@ -47,7 +47,7 @@
                         label: "remove_pool",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.remove_pool(poolID)
+                            resourcesFactory.removePool(poolID)
                                 .success(function(data) {
                                     $notification.create("Removed Pool", poolID).success();
                                     poolsFactory.update();
@@ -103,7 +103,7 @@
 
         // Function for adding new pools - through modal
         $scope.add_pool = function() {
-            return resourcesFactory.add_pool($scope.newPool)
+            return resourcesFactory.addPool($scope.newPool)
                 .success(function(data){
                     poolsFactory.update();
                     // Reset for another add

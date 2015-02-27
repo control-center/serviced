@@ -46,7 +46,7 @@
                         label: "remove_virtual_ip",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.remove_pool_virtual_ip(ip.PoolID, ip.IP)
+                            resourcesFactory.removePoolVirtualIP(ip.PoolID, ip.IP)
                                 .success(function(data) {
                                     $notification.create("Removed Virtual IP", ip.IP).success();
                                     poolsFactory.update();
@@ -65,7 +65,7 @@
         $scope.addVirtualIp = function(pool) {
             var ip = $scope.add_virtual_ip;
 
-            return resourcesFactory.add_pool_virtual_ip(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
+            return resourcesFactory.addPoolVirtualIP(ip.PoolID, ip.IP, ip.Netmask, ip.BindInterface)
                 .success(function(data, status){
                     $scope.add_virtual_ip = {};
                     $notification.create("Added new pool virtual ip", ip).success();

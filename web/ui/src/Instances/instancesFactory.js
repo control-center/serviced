@@ -15,7 +15,7 @@
         serviceHealth = _serviceHealth;
         $notification = _notification;
 
-        var newFactory = new BaseFactory(Instance, resourcesFactory.get_running_services);
+        var newFactory = new BaseFactory(Instance, resourcesFactory.getRunningServices);
 
         // alias some stuff for ease of use
         newFactory.instanceArr = newFactory.objArr;
@@ -79,7 +79,7 @@
         },
 
         stop: function(){
-            resourcesFactory.kill_running(this.model.HostID, this.id)
+            resourcesFactory.killRunning(this.model.HostID, this.id)
                 .success(() => {
                     this.update();
                 })

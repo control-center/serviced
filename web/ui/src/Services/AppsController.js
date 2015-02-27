@@ -66,7 +66,7 @@
                                 // disable ok button, and store the re-enable function
                                 var enableSubmit = this.disableSubmitButton();
 
-                                resourcesFactory.add_app_template(data)
+                                resourcesFactory.addAppTemplate(data)
                                     .success(function(data){
                                         $notification.create("Added template", data.Detail).success();
                                         refreshTemplates();
@@ -209,7 +209,7 @@
          * PRIVATE FUNCTIONS
          */
         function refreshTemplates(){
-            resourcesFactory.get_app_templates().success(function(templates) {
+            resourcesFactory.getAppTemplates().success(function(templates) {
                 $scope.templates.data = utils.mapToArr(templates);
             });
         }
@@ -218,7 +218,7 @@
         $scope.deployingServices = [];
         var lastPollResults = 0;
         function getDeploying(){
-            resourcesFactory.get_active_templates().success(function(data) {
+            resourcesFactory.getDeployingTemplates().success(function(data) {
                 if(data){
                     $scope.deployingServices = data;
                 }
@@ -233,7 +233,7 @@
         }
 
         function removeService(service) {
-            return resourcesFactory.remove_service(service.id)
+            return resourcesFactory.removeService(service.id)
                 .success(function(){
                     // NOTE: this is here because services are
                     // incrementally updated, which makes it impossible
@@ -253,14 +253,14 @@
         }
 
         function deleteTemplate(templateID){
-            return resourcesFactory.delete_app_template(templateID)
+            return resourcesFactory.deleteAppTemplate(templateID)
                 .success(refreshTemplates);
         }
 
         // init stuff for this controller
         function init(){
             if(utils.needsHostAlias($location.host())){
-                resourcesFactory.get_host_alias().success(function(data) {
+                resourcesFactory.getHostAlias().success(function(data) {
                     $scope.defaultHostAlias = data.hostalias;
                 });
             }

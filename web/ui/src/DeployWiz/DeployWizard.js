@@ -14,7 +14,7 @@
 
         $scope.dockerLoggedIn = true;
 
-        resourcesFactory.docker_is_logged_in()
+        resourcesFactory.dockerIsLoggedIn()
             .success(function(loggedIn) {
                 $scope.dockerLoggedIn = loggedIn;
             });
@@ -55,7 +55,7 @@
                 $.each(uploadedFiles, function(key, value){
                     formData.append("tpl", value);
                 });
-                resourcesFactory.add_app_template(formData)
+                resourcesFactory.addAppTemplate(formData)
                     .success($scope.refreshAppTemplates)
                     .error(() => {
                         showError("Add Application Template failed");
@@ -72,7 +72,7 @@
                 return false;
             }
 
-            resourcesFactory.add_host($scope.newHost)
+            resourcesFactory.addHost($scope.newHost)
                 .success(function(){
                     step += 1;
                     resetError();
@@ -295,7 +295,7 @@
             };
 
             var checkStatus = true;
-            resourcesFactory.deploy_app_template(deploymentDefinition)
+            resourcesFactory.deployAppTemplate(deploymentDefinition)
                 .success(function() {
                     servicesFactory.update().then(function(){
                         checkStatus = false;
@@ -313,7 +313,7 @@
             var getStatus = function(){
                 if(checkStatus){
                     var $status = $("#deployStatusText");
-                    resourcesFactory.get_deployed_templates(deploymentDefinition).success(function(data){
+                    resourcesFactory.getDeployStatus(deploymentDefinition).success(function(data){
                         if(data.Detail === "timeout"){
                             $("#deployStatus .dialogIcon").fadeOut(200, function(){$("#deployStatus .dialogIcon").fadeIn(200);});
                         }else{
@@ -337,7 +337,7 @@
         };
 
         $scope.refreshAppTemplates = function(){
-            return resourcesFactory.get_app_templates().success(function(templatesMap) {
+            return resourcesFactory.getAppTemplates().success(function(templatesMap) {
                 var templates = [];
                 for (var key in templatesMap) {
                     var template = templatesMap[key];

@@ -19,7 +19,7 @@
 
         var UPDATE_PADDING = 1000;
 
-        var newFactory = new BaseFactory(Service, resourcesFactory.get_services);
+        var newFactory = new BaseFactory(Service, resourcesFactory.getServices);
 
         // alias some stuff for ease of use
         newFactory.serviceTree = newFactory.objArr;
@@ -42,7 +42,7 @@
                 }
                 this.lastUpdate = now;
 
-                resourcesFactory.get_services(since)
+                resourcesFactory.getServices(since)
                     .success((data, status) => {
                         // TODO - change backend to send
                         // updated, created, and deleted
@@ -310,15 +310,15 @@
 
         // start, stop, or restart this service
         start: function(skipChildren){
-            resourcesFactory.start_service(this.id, skipChildren);
+            resourcesFactory.startService(this.id, skipChildren);
             this.desiredState = START;
         },
         stop: function(skipChildren){
-            resourcesFactory.stop_service(this.id, skipChildren);
+            resourcesFactory.stopService(this.id, skipChildren);
             this.desiredState = STOP;
         },
         restart: function(skipChildren){
-            resourcesFactory.restart_service(this.id, skipChildren);
+            resourcesFactory.restartService(this.id, skipChildren);
             this.desiredState = RESTART;
         },
 
