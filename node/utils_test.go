@@ -45,7 +45,7 @@ func TestValidOwnerSpec(t *testing.T) {
 	}
 	for _, spec := range invalidSpecs {
 		if validOwnerSpec(spec) {
-			t.Logf("%s should NOT be a valid owner spec")
+			t.Logf("%s should NOT be a valid owner spec", spec)
 			t.Fail()
 		}
 	}
@@ -57,7 +57,7 @@ func TestValidOwnerSpec(t *testing.T) {
 	}
 	for _, spec := range validSpecs {
 		if !validOwnerSpec(spec) {
-			t.Logf("%s should be a valid owner spec")
+			t.Logf("%s should be a valid owner spec", spec)
 			t.Fail()
 		}
 	}
