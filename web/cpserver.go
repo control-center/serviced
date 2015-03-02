@@ -385,6 +385,4 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 		default:
 		}
 	}
-
-	return nil
 }
