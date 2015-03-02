@@ -191,22 +191,22 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			var err error
 			if !state.IsRunning() {
 				// process has stopped
-				glog.Infof("Starting a new instance for %s", state.ID)
+				glog.Infof("Starting a new instance for %s %s", state.ID, svc.Name)
 				processDone, err = l.startInstance(&svc, state)
 			} else if processDone == nil {
-				glog.Infof("Attaching to instance %s via %s", state.ID, state.DockerID)
+				glog.Infof("Attaching to instance %s %s via %s", state.ID, svc.Name, state.DockerID)
 				processDone, err = l.attachInstance(&svc, state)
 			}
 
 			if err != nil {
-				glog.Errorf("Error trying to start or attach to service instance %s: %s", state.ID, err)
+				glog.Errorf("Error trying to start or attach to service instance %s %s: %s", state.ID, svc.Name, err)
 				return
 			}
 
 			if state.IsPaused() {
-				glog.Infof("Resuming a paused instance for %s", state.ID)
+				glog.Infof("Resuming a paused instance for %s %s", state.ID, svc.Name)
 				if err := l.resumeInstance(&svc, state); err != nil {
-					glog.Errorf("Could not resume paused instance %s: %s", state.ID, err)
+					glog.Errorf("Could not resume paused instance %s %s: %s", state.ID, svc.Name, err)
 					return
 				}
 			}
@@ -214,7 +214,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if state.IsPaused() {
 				// service instance is not running, pass
 			} else if err := l.pauseInstance(&svc, state); err != nil {
-				glog.Errorf("Could not pause service instance %s; stopping: %s", state.ID, err)
+				glog.Errorf("Could not pause service instance %s %s; stopping: %s", state.ID, svc.Name, err)
 				return
 			}
 		case service.SVCStop:
