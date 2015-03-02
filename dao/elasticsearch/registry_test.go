@@ -242,7 +242,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		// case 0: no parent
 		go func() {
 			parentKey := registry.TenantEndpointKey("bad_tenant", "bad_endpoint")
-			errC <- epr.WatchTenantEndpoint(dt.zkConn, parentKey, nil, nil)
+			errC <- epr.WatchTenantEndpoint(dt.zkConn, parentKey, nil, nil, make(chan bool))
 		}()
 		select {
 		case err := <-errC:
@@ -266,7 +266,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			_, err := epr.EnsureKey(dt.zkConn, parentKey)
 			t.Assert(err, IsNil)
 
-			epr.WatchTenantEndpoint(dt.zkConn, parentKey, changeEvt, errEvt)
+			epr.WatchTenantEndpoint(dt.zkConn, parentKey, changeEvt, errEvt, make(chan bool))
 			close(errC)
 		}()
 
