@@ -57,3 +57,5 @@ web/ui/build
 web/ui/test/results
 
 *.Godeps_restored
+
+*.pyc
