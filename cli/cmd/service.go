@@ -92,7 +92,7 @@ func (c *ServicedCli) initService() {
 				BashComplete: c.printServicesAll,
 				Action:       c.cmdServiceMigrate,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"dry-run", "Executes the migration and validation without updateing anything"},
+					cli.BoolFlag{"dry-run", "Executes the migration and validation without updating anything"},
 				},
 			}, {
 				Name:         "remove",
@@ -691,7 +691,7 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 // serviced service migrate SERVICEID ...
 func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
 	args := ctx.Args()
-	if len(args) < 1 {
+	if len(args) < 1 || len(args) > 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "migrate")
 		return
@@ -704,7 +704,7 @@ func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
 	}
 
 	var input *os.File
-	if len(args) >= 2 {
+	if len(args) == 2 {
 		filepath := args[1]
 		var err error
 		if input, err = os.Open(filepath); err != nil {

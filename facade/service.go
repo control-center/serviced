@@ -1335,13 +1335,7 @@ func createServiceMigrationInputFile(tmpDir string, svc *service.Service) (strin
 // Write out the body of the script to a file
 func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error) {
 	scriptFileName := path.Join(tmpDir, "migrate.py")
-	scriptFile, err := os.OpenFile(scriptFileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
-	defer scriptFile.Close()
-	if err != nil {
-		return "", fmt.Errorf("error creating script file: %s", err)
-	}
-
-	_, err = scriptFile.WriteString(scriptBody)
+	err := ioutil.WriteFile(scriptFileName, []byte(scriptBody), 0440)
 	if err != nil {
 		return "", fmt.Errorf("error writing to script file: %s", err)
 	}
