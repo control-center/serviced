@@ -367,7 +367,10 @@ func (c *Controller) watchRemotePorts() {
 		select {
 		case <-c.closing:
 			glog.Infof("Closing endpoint watchers")
-			close(endpointsWatchCanceller)
+			select{
+			    case endpointsWatchCanceller <- true:
+			    default:
+			}
 			close(cancelEndpointWatch)
 		}
 	}()
