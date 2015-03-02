@@ -55,7 +55,7 @@ func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest,
 		return err
 	}
 
-	glog.Infof("ControlPlaneDao.MigrateService: migrated servce %+v", request.ServiceID)
+	glog.Infof("ControlPlaneDao.MigrateService: migrated service %+v (dry-run=%v)", request.ServiceID, request.DryRun)
 	if !request.DryRun {
 		this.createTenantVolume(svc.ID)
 	}
