@@ -148,9 +148,9 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 		}
 	} else {
 		tableHost := newtable(0, 8, 2)
-		tableHost.printrow("ID", "POOL", "NAME", "ADDR", "RPCPORT", "CORES", "MEM", "NETWORK")
+		tableHost.printrow("ID", "POOL", "NAME", "ADDR", "RPCPORT", "CORES", "MEM", "NETWORK", "RELEASE")
 		for _, h := range hosts {
-			tableHost.printrow(h.ID, h.PoolID, h.Name, h.IPAddr, h.RPCPort, h.Cores, h.Memory, h.PrivateNetwork)
+			tableHost.printrow(h.ID, h.PoolID, h.Name, h.IPAddr, h.RPCPort, h.Cores, h.Memory, h.PrivateNetwork, h.ServiceD.Release)
 		}
 		tableHost.flush()
 	}
