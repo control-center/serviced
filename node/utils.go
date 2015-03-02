@@ -19,6 +19,8 @@
 package node
 
 import (
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -299,19 +301,35 @@ func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 	return
 }
 
-var createVolumeDirMutex sync.Mutex
-
 // createVolumeDir() creates a directory on the running host using the user ids
 // found within the specified image. For example, it can create a directory owned
 // by the mysql user (as seen by the container) despite there being no mysql user
 // on the host system.
 // Assumes that the local docker image (imageSpec) exists and has been sync'd
 // with the registry.
-func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
+func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
 
-	createVolumeDirMutex.Lock()
-	defer createVolumeDirMutex.Unlock()
+	if false {
+		// use hostpath based filelock
+		lockfile := ".serviced.initializing.lck"
+		lockfileHostPath := path.Join(hostPath, lockfile)
+		if lck, err := utils.LockFile(lockfileHostPath); err != nil {
+			glog.Errorf("DFS volume init unable to lock %s", lockfileHostPath)
+			return err
+		} else {
+			lck.Close()
+			defer os.Remove(lockfileHostPath)
+			glog.V(0).Infof("DFS volume init locked %s", lockfileHostPath)
+		}
+	} else {
+		// use zookeeper lock of basename of hostPath (volume name)
+		zkVolumeInitLock := path.Join("/locks/volumeinit", filepath.Base(hostPath))
+		lock := conn.NewLock(zkVolumeInitLock)
+		lock.Lock()
+		defer lock.Unlock()
+	}
 
+	// return if service volume has been initialized
 	dotfileCompatibility := path.Join(hostPath, ".serviced.initialized") // for compatibility with previous versions of serviced
 	dotfileHostPath := path.Join(filepath.Dir(hostPath), fmt.Sprintf(".%s.serviced.initialized", filepath.Base(hostPath)))
 	dotfiles := []string{dotfileCompatibility, dotfileHostPath}
@@ -323,6 +341,7 @@ func createVolumeDir(hostPath, containerSpec, imageSpec, userSpec, permissionSpe
 		}
 	}
 
+	// start initializing dfs volume dir with dir in image
 	starttime := time.Now()
 
 	var err error
