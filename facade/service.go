@@ -119,6 +119,10 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	return f.updateService(ctx, &svc)
 }
 
+// TODO: Need to pass the entire service hierarchy to the migration script
+// TODO: Should we use a lock to serialize migration for a given service
+// TODO: Current updateService() method does not allow a configuration to be added to a service
+// TODO: Current updateService() replaces OriginalConfigs with value from the svc in datastore, not the migrated service
 func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
 	var inputFileName, scriptFileName, outputFileName string
 
@@ -1209,6 +1213,11 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 
 	svcStore := f.serviceStore
 	currentSvc, err := svcStore.Get(ctx, svc.ID)
+	if err != nil {
+		return err
+	}
+
+	err = svc.ValidEntity()
 	if err != nil {
 		return err
 	}
