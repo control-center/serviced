@@ -141,7 +141,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	outputFileName, err = executeMigrationScript(migrationDir, scriptFileName, inputFileName)
+	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName)
 	if err != nil {
 		return err
 	}
@@ -1341,10 +1341,14 @@ func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error)
 }
 
 // Execute the migration script
-func executeMigrationScript(tmpDir, scriptFileName, inputFileName string) (string, error) {
+func executeMigrationScript(serviceID, tmpDir, scriptFileName, inputFileName string) (string, error) {
 	outputFileName := path.Join(tmpDir, "output.json")
 	migrateCmd := exec.Command("/usr/bin/python", scriptFileName, inputFileName, outputFileName)
-	err := migrateCmd.Run()
+	cmdMessages, err := migrateCmd.CombinedOutput()
+	if cmdMessages != nil {
+		glog.V(1).Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+	}
+
 	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
 		return "", fmt.Errorf("migration script failed: %s", err)
 	}
