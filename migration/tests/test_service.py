@@ -10,31 +10,31 @@ class ServiceTest(unittest.TestCase):
 	def test_no_input_file(self):
 		sys.argv = ['']
 		try:
-			svc = sdm.Service()
+			svc = sdm.receiveService()
 		except ValueError:
 			pass
 
 	def test_nonexistent_input_file(self):
 		sys.argv = ["", "i_dont_exist", "tests/out.json"]
 		try:
-			svc = sdm.Service()
+			svc = sdm.receiveService()
 		except IOError:
 			pass
 
 	def test_malformed_input_file(self):
 		sys.argv = ["", "tests/malformed.json", "tests/out.json"]
 		try:
-			svc = sdm.Service()
+			svc = sdm.receiveService()
 		except ValueError:
 			pass
 
 	def test_json_file(self):
 		sys.argv = ["", "tests/v0.json", "tests/out.json"]
-		svc = sdm.Service()
+		svc = sdm.receiveService()
 
 	def test_no_change(self):
 		sys.argv = ["", "tests/v0.json", "tests/out.json"]
-		svc = sdm.Service()
+		svc = sdm.receiveService()
 		svc.commit()
 		a = json.loads(open("tests/v0.json", "r").read())
 		b = json.loads(open("tests/out.json", "r").read())
@@ -42,7 +42,7 @@ class ServiceTest(unittest.TestCase):
 
 	def test_set_description(self):
 		sys.argv = ["", "tests/v0.json", "tests/out.json"]
-		svc = sdm.Service()
+		svc = sdm.receiveService()
 		svc.setDescription("an_unlikely-description")
 		svc.commit()
 		svc = json.loads(open("tests/out.json", "r").read())		

@@ -25,7 +25,7 @@ def versioned(func):
     """
     def func_wrapper(*args):
         if not required:
-            raise RuntimeError("You must first call require(version_number) before using this funciton.")
+            raise RuntimeError("You must first call require(version_number) before using this function.")
         return func(*args)
     return func_wrapper
 

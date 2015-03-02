@@ -4,6 +4,14 @@ import json
 
 from version import versioned
 
+def receiveService():
+    """
+    Loads the json file given by sys.argv[1].
+    """
+    if len(sys.argv) < 3:
+        raise ValueError("A serviced migration script must be called with input and output filenames.")
+    svc = json.loads(open(sys.argv[1], 'r').read())
+    return Service(svc)
 
 class Service:
     """
@@ -11,13 +19,8 @@ class Service:
     """
 
     @versioned
-    def __init__(self):
-        """
-        Loads the json file given by sys.argv[1].
-        """
-        if len(sys.argv) < 3:
-            raise ValueError("A serviced migration script must be called with input and output filenames.")
-        self.svc = json.loads(open(sys.argv[1], 'r').read())
+    def __init__(self, svc):
+        self.svc = svc
 
     @versioned
     def commit(self):
