@@ -99,15 +99,28 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 //
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.UpdateService: %+v", svc)
-	err := f.stopServiceForUpdate(ctx, svc)
-	if err != nil {
-		return err
+	//cannot update service without validating it.
+	if svc.DesiredState != int(service.SVCStop) {
+		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
+			glog.Warningf("Could not validate service %s (%s) for starting: %s", svc.Name, svc.ID, err)
+			svc.DesiredState = int(service.SVCStop)
+		}
+
+		for _, ep := range svc.GetServiceVHosts() {
+			for _, vh := range ep.VHosts {
+				//check that vhosts aren't already started elsewhere
+				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
+					return err
+				}
+			}
+		}
 	}
 
 	return f.updateService(ctx, &svc)
 }
 
-// TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
+// TODO: Need to pass the entire service hierarchy to the migration script
+// TODO: Should we use a lock to serialize migration for a given service
 // TODO: Current updateService() method does not allow a configuration to be added to a service
 // TODO: Current updateService() replaces OriginalConfigs with value from the svc in datastore, not the migrated service
 func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
@@ -121,13 +134,8 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	svcs, err2 := f.getServiceList(ctx, svc.ID)
-	if err2 != nil {
-		return err
-	}
-
 	glog.V(3).Infof("Facade:MigrateService: temp directory for service migration: %s", migrationDir)
-	inputFileName, err = f.createServiceMigrationInputFile(migrationDir, svcs)
+	inputFileName, err = createServiceMigrationInputFile(migrationDir, svc)
 	if err != nil {
 		return err
 	}
@@ -142,29 +150,19 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	svcs, err = readNewServiceDefinitions(outputFileName)
+	err = readNewServiceDefinition(outputFileName, svc)
 	if err != nil {
 		return err
 	}
 
-	for _, svc := range svcs {
-		if dryRun {
-			err = f.verifyServiceForUpdate(ctx, svc, nil)
-			if err == nil {
-				glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
-			}
-		} else {
-			glog.V(2).Infof("Facade.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
-			err := f.stopServiceForUpdate(ctx, *svc)
-			if err != nil {
-				return err
-			}
-			err = f.updateService(ctx, svc)
+	if dryRun {
+		err = f.verifyServiceForUpdate(ctx, svc, nil)
+		if err == nil {
+			glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
 		}
-
-		if err != nil {
-			break
-		}
+	} else {
+		glog.V(2).Infof("Facade.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
+		err = f.UpdateService(ctx, *svc)
 	}
 
 	return err
@@ -1133,13 +1131,71 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	//add assignment info to service so it is availble in zk
 	f.fillServiceAddr(ctx, svc)
 
-	err = f.updateServiceConfigs(ctx, oldSvc, svc)
-	if err != nil {
-		return err
+	//Deal with Service Config Files
+	//For now always make sure originalConfigs stay the same, essentially they are immutable
+	svc.OriginalConfigs = oldSvc.OriginalConfigs
+
+	// For migration:
+	// A) svc.OriginalConfigs has services which have been added related to oldSvc
+	//		==> add new services to configStore
+	// B) svc.OriginalConfigs has services which have been removed related to oldSvc
+	// 		==> remove old servcies from configStore
+	// C) svc.OrginalConfigs in oldSvc (may have changed or not)
+	//		==> keep oldServcies in configStore
+
+	// For update:
+	// A) svc.OriginalConfigs has services which have been added related to oldSvc
+	//		==> N/A. Current code always uses oldSvc.OriginalConfig
+	// B) oldSvc/svc.OriginalConfigs has services which have been removed related to svc (svc has new services)
+	// 		==> remove new svc services from configStore
+	// C)
+	svcStore := f.serviceStore
+	if !reflect.DeepEqual(oldSvc.OriginalConfigs, svc.ConfigFiles) {
+		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
+		if err != nil {
+			return err
+		}
+
+		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+		//config files are different, for each one that is different validate and add to newConfs
+		for key, oldConf := range oldSvc.OriginalConfigs {
+			if conf, found := svc.ConfigFiles[key]; found {
+				if !reflect.DeepEqual(oldConf, conf) {
+					newConf, err := serviceconfigfile.New(tenantID, servicePath, conf)
+					if err != nil {
+						return err
+					}
+					newConfs[key] = newConf
+				}
+			}
+		}
+
+		//Get current stored conf files and replace as needed
+		configStore := serviceconfigfile.NewStore()
+		existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
+		if err != nil {
+			return err
+		}
+		foundConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+		for _, svcConfig := range existingConfs {
+			foundConfs[svcConfig.ConfFile.Filename] = svcConfig
+		}
+		//add or replace stored service config
+		for _, newConf := range newConfs {
+			if existing, found := foundConfs[newConf.ConfFile.Filename]; found {
+				newConf.ID = existing.ID
+				//delete it from stored confs, left overs will be deleted from DB
+				delete(foundConfs, newConf.ConfFile.Filename)
+			}
+			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
+		}
+		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
+		for _, confToDelete := range foundConfs {
+			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
+		}
 	}
 
 	svc.UpdatedAt = time.Now()
-	svcStore := f.serviceStore
 	if err := svcStore.Put(ctx, svc); err != nil {
 		return err
 	}
@@ -1205,93 +1261,6 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 
 	if oldSvc != nil {
 		*oldSvc = currentSvc
-	}
-	return nil
-}
-
-func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, svc *service.Service) error {
-	//Deal with Service Config Files
-	//For now always make sure originalConfigs stay the same, essentially they are immutable
-	svc.OriginalConfigs = oldSvc.OriginalConfigs
-
-	if !reflect.DeepEqual(oldSvc.OriginalConfigs, svc.ConfigFiles) {
-		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
-		if err != nil {
-			return err
-		}
-
-		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-		//config files are different, for each one that is different validate and add to newConfs
-		for key, oldConf := range oldSvc.OriginalConfigs {
-			if conf, found := svc.ConfigFiles[key]; found {
-				if !reflect.DeepEqual(oldConf, conf) {
-					newConf, err := serviceconfigfile.New(tenantID, servicePath, conf)
-					if err != nil {
-						return err
-					}
-					newConfs[key] = newConf
-				}
-			}
-		}
-
-		//Get current stored conf files and replace as needed
-		configStore := serviceconfigfile.NewStore()
-		existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
-		if err != nil {
-			return err
-		}
-		foundConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-		for _, svcConfig := range existingConfs {
-			foundConfs[svcConfig.ConfFile.Filename] = svcConfig
-		}
-		//add or replace stored service config
-		for _, newConf := range newConfs {
-			if existing, found := foundConfs[newConf.ConfFile.Filename]; found {
-				newConf.ID = existing.ID
-				//delete it from stored confs, left overs will be deleted from DB
-				delete(foundConfs, newConf.ConfFile.Filename)
-			}
-			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
-		}
-		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
-		for _, confToDelete := range foundConfs {
-			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
-		}
-	}
-	return nil
-}
-
-func (f *Facade) getServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
-	svcs := make([]*service.Service, 0, 1)
-
-	err := f.walkServices(ctx, serviceID, true, func(childService *service.Service) error {
-		svcs = append(svcs, childService)
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("error assembling list of services: %s", err)
-	}
-
-	return svcs, nil
-}
-
-func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service) error {
-	//cannot update service without validating it.
-	if svc.DesiredState != int(service.SVCStop) {
-		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
-			glog.Warningf("Could not validate service %s (%s) for starting: %s", svc.Name, svc.ID, err)
-			svc.DesiredState = int(service.SVCStop)
-		}
-
-		for _, ep := range svc.GetServiceVHosts() {
-			for _, vh := range ep.VHosts {
-				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
-					return err
-				}
-			}
-		}
 	}
 	return nil
 }
@@ -1362,14 +1331,14 @@ func createTempMigrationDir(serviceID string) (string, error) {
 }
 
 // Write out the service definition as a JSON file for use as input to the service migration
-func (f *Facade) createServiceMigrationInputFile(tmpDir string, svcs []*service.Service) (string, error) {
+func createServiceMigrationInputFile(tmpDir string, svc *service.Service) (string, error) {
 	inputFileName := path.Join(tmpDir, "input.json")
-	jsonServices, err := json.MarshalIndent(svcs, " ", "  ")
+	jsonService, err := json.MarshalIndent(svc, " ", "  ")
 	if err != nil {
 		return "", fmt.Errorf("error marshalling service: %s", err)
 	}
 
-	err = ioutil.WriteFile(inputFileName, jsonServices, 0440)
+	err = ioutil.WriteFile(inputFileName, jsonService, 0440)
 	if err != nil {
 		return "", fmt.Errorf("error writing service to temp file: %s", err)
 	}
@@ -1404,16 +1373,16 @@ func executeMigrationScript(serviceID, tmpDir, scriptFileName, inputFileName str
 	return outputFileName, nil
 }
 
-func readNewServiceDefinitions(outputFileName string) ([]*service.Service, error) {
+func readNewServiceDefinition(outputFileName string, svc *service.Service) error {
 	newServiceDefinition, err := ioutil.ReadFile(outputFileName)
 	if err != nil {
-		return nil, fmt.Errorf("could not read new service definition: %s", err)
+		return fmt.Errorf("could not read new service definition: %s", err)
 	}
 
-	svcs := make([]*service.Service, 0, 1)
-	err = json.Unmarshal(newServiceDefinition, &svcs)
+	err = json.Unmarshal(newServiceDefinition, svc)
 	if err != nil {
-		return nil, fmt.Errorf("could not unmarshall new service definition: %s", err)
+		return fmt.Errorf("could not unmarshall new service definition: %s", err)
 	}
-	return svcs, nil
+
+	return nil
 }
