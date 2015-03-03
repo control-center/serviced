@@ -119,8 +119,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	return f.updateService(ctx, &svc)
 }
 
-// TODO: Need to pass the entire service hierarchy to the migration script
-// TODO: Should we use a lock to serialize migration for a given service
+// TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
 // TODO: Current updateService() method does not allow a configuration to be added to a service
 // TODO: Current updateService() replaces OriginalConfigs with value from the svc in datastore, not the migrated service
 func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
@@ -134,8 +133,13 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
+	svcs, err2 := f.getServiceList(ctx, svc.ID)
+	if err2 != nil {
+		return err
+	}
+
 	glog.V(3).Infof("Facade:MigrateService: temp directory for service migration: %s", migrationDir)
-	inputFileName, err = createServiceMigrationInputFile(migrationDir, svc)
+	inputFileName, err = f.createServiceMigrationInputFile(migrationDir, svcs)
 	if err != nil {
 		return err
 	}
@@ -150,19 +154,25 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	err = readNewServiceDefinition(outputFileName, svc)
+	svcs, err = readNewServiceDefinitions(outputFileName)
 	if err != nil {
 		return err
 	}
 
-	if dryRun {
-		err = f.verifyServiceForUpdate(ctx, svc, nil)
-		if err == nil {
-			glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
+	for _, svc := range svcs {
+		if dryRun {
+			err = f.verifyServiceForUpdate(ctx, svc, nil)
+			if err == nil {
+				glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
+			}
+		} else {
+			glog.V(2).Infof("Facade.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
+			err = f.UpdateService(ctx, *svc)
 		}
-	} else {
-		glog.V(2).Infof("Facade.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
-		err = f.UpdateService(ctx, *svc)
+
+		if err != nil {
+			break
+		}
 	}
 
 	return err
@@ -1251,6 +1261,21 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 	return nil
 }
 
+func (f *Facade) getServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
+	svcs := make([]*service.Service, 0, 1)
+
+	err := f.walkServices(ctx, serviceID, true, func(childService *service.Service) error {
+		svcs = append(svcs, childService)
+		return nil
+	})
+
+	if err != nil {
+		return nil, fmt.Errorf("error assembling list of services: %s", err)
+	}
+
+	return svcs, nil
+}
+
 func lookUpTenant(svcID string) (string, bool) {
 	tenanIDMutex.RLock()
 	defer tenanIDMutex.RUnlock()
@@ -1317,14 +1342,14 @@ func createTempMigrationDir(serviceID string) (string, error) {
 }
 
 // Write out the service definition as a JSON file for use as input to the service migration
-func createServiceMigrationInputFile(tmpDir string, svc *service.Service) (string, error) {
+func (f *Facade) createServiceMigrationInputFile(tmpDir string, svcs []*service.Service) (string, error) {
 	inputFileName := path.Join(tmpDir, "input.json")
-	jsonService, err := json.MarshalIndent(svc, " ", "  ")
+	jsonServices, err := json.MarshalIndent(svcs, " ", "  ")
 	if err != nil {
 		return "", fmt.Errorf("error marshalling service: %s", err)
 	}
 
-	err = ioutil.WriteFile(inputFileName, jsonService, 0440)
+	err = ioutil.WriteFile(inputFileName, jsonServices, 0440)
 	if err != nil {
 		return "", fmt.Errorf("error writing service to temp file: %s", err)
 	}
@@ -1359,16 +1384,16 @@ func executeMigrationScript(serviceID, tmpDir, scriptFileName, inputFileName str
 	return outputFileName, nil
 }
 
-func readNewServiceDefinition(outputFileName string, svc *service.Service) error {
+func readNewServiceDefinitions(outputFileName string) ([]*service.Service, error) {
 	newServiceDefinition, err := ioutil.ReadFile(outputFileName)
 	if err != nil {
-		return fmt.Errorf("could not read new service definition: %s", err)
+		return nil, fmt.Errorf("could not read new service definition: %s", err)
 	}
 
-	err = json.Unmarshal(newServiceDefinition, svc)
+	svcs := make([]*service.Service, 0, 1)
+	err = json.Unmarshal(newServiceDefinition, &svcs)
 	if err != nil {
-		return fmt.Errorf("could not unmarshall new service definition: %s", err)
+		return nil, fmt.Errorf("could not unmarshall new service definition: %s", err)
 	}
-
-	return nil
+	return svcs, nil
 }
