@@ -1001,7 +1001,7 @@ svc["Description"] = "%s"
 
 f = open(outputFile, 'w')
 f.write(json.dumps(svc, indent=4, sort_keys=True))
-f.close
+f.close()
 exit(%d)
 `
 	return fmt.Sprintf(scriptTemplate, newDescription, scriptExitCode)
@@ -1020,7 +1020,7 @@ svc["PoolID"] = ""
 
 f = open(outputFile, 'w')
 f.write(json.dumps(svc, indent=4, sort_keys=True))
-f.close
+f.close()
 `
 }
 
