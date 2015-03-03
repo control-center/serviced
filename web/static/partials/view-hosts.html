@@ -29,6 +29,7 @@
       <th>{{'label_host_memory' | translate}}</th>
       <th>{{'label_host_cores' | translate}}</th>
       <th>{{'label_host_kernel_version' | translate}}</th>
+      <th>{{'label_host_serviced_release' | translate}}</th>
       <th>{{'actions' | translate}}</th>
     </tr>
   </thead>
@@ -49,6 +50,7 @@
       <td>{{host.Memory | toGB}}</td>
       <td>{{host.Cores}}</td>
       <td>{{host.KernelVersion}}</td>
+      <td>{{host.ServiceD.Release}}</td>
       <td><button ng-click="remove_host(host.ID)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button></td>
     </tr>
   </tbody>
