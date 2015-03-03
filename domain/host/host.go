@@ -48,6 +48,7 @@ type Host struct {
 		Gitbranch string
 		Giturl    string
 		Buildtag  string
+		Release   string
 	}
 	MonitoringProfile domain.MonitorProfile
 	datastore.VersionedEntity
@@ -148,13 +149,14 @@ func Build(ip string, rpcport string, poolid string, ipAddrs ...string) (*Host, 
 	}
 	host.IPs = hostIPs
 
-	// get ebedded host information
+	// get embedded host information
 	host.ServiceD.Version = servicedversion.Version
 	host.ServiceD.Gitbranch = servicedversion.Gitbranch
 	host.ServiceD.Gitcommit = servicedversion.Gitcommit
 	host.ServiceD.Giturl = servicedversion.Giturl
 	host.ServiceD.Date = servicedversion.Date
 	host.ServiceD.Buildtag = servicedversion.Buildtag
+	host.ServiceD.Release = servicedversion.Release
 
 	return host, nil
 }

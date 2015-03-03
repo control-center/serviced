@@ -184,6 +184,7 @@
     "label_hosts_search": "Buscar",
     "label_host_kernel_version": "Versi\u00f3n del kernel",
     "label_host_kernel_release": "Revisi\u00f3n del kernel",
+    "label_host_serviced_release": "Revisi\u00f3n del CC",
     "label_ip_assignments": "Asignación de IP",
     "label_messages": "Mensajes",
     "label_netmask": "Mascara de Red",

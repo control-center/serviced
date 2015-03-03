@@ -74,6 +74,7 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 	host.ServiceD.Giturl = servicedversion.Giturl
 	host.ServiceD.Date = servicedversion.Date
 	host.ServiceD.Buildtag = servicedversion.Buildtag
+	host.ServiceD.Release = servicedversion.Release
 
 	host.KernelVersion, host.KernelRelease, err = getOSKernelData()
 	if err != nil {
