@@ -365,13 +365,14 @@ func (c *Controller) watchRemotePorts() {
 	cancelEndpointWatch := make(chan bool)
 	go func() {
 		select {
-		case <-c.closing:
+		case errc := <-c.closing:
 			glog.Infof("Closing endpoint watchers")
 			select{
 			    case endpointsWatchCanceller <- true:
 			    default:
 			}
 			close(cancelEndpointWatch)
+			errc <- nil
 		}
 	}()
 
