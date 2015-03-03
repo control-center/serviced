@@ -23,8 +23,8 @@
     var $q, $interval;
 
     angular.module('baseFactory', []).
-    factory("baseFactory", ["$q", "resourcesFactory", "$interval",
-    function(_$q, resourcesFactory, _$interval){
+    factory("baseFactory", ["$q", "$interval",
+    function(_$q, _$interval){
 
         $q = _$q;
         $interval = _$interval;
@@ -84,7 +84,7 @@
                         // not present in included list
                         for(let id in this.objMap){
                             if(included.indexOf(id) === -1){
-                                this.objArr.splice(this.objArr.indexOf(this.objMap[id], 1));
+                                this.objArr.splice(this.objArr.indexOf(this.objMap[id]), 1);
                                 delete this.objMap[id];
                             }
                         }

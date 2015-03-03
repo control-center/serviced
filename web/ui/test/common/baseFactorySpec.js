@@ -1,13 +1,260 @@
-/* global jasmine: true, spyOn: true, beforeEach: true, DEBUG: true, expect: true, inject: true, module: true */
+/* global jasmine: true, beforeEach: true, expect: true, inject: true, module: true */
 
 describe('baseFactory', function() {
     beforeEach(module('baseFactory'));
-    beforeEach(module('resourcesFactoryMock'));
 
-    describe("Calls provided update function", function(){
-        it("is defined", inject(function(baseFactory){
-            expect(baseFactory).toBeDefined();
-        }));
-    });
+    var $q, $interval;
+    beforeEach(inject(function($injector){
+        $q = $injector.get("$q");
+        $interval = $injector.get("$interval");
+    }));
 
+    // mock a deferred promise with $http-style
+    // success and error methods
+    var getDeferred = function(){
+        var deferred = {
+            fns: { success: function(){}, error: function(){} }, 
+            success: function(fn){
+                this.fns.success = fn;
+                return deferred;
+            },
+            error: function(fn){
+                this.fns.error = fn;
+                return deferred;
+            },
+            resolve: function(data, status){
+                this.fns.success.call(undefined, data, status);
+            }
+        };
+        return deferred;
+    };
+
+    // object constructor for use with baseFactory
+    function Obj(obj){
+        this.update(obj);
+    }
+    Obj.prototype = {
+        constructor: Obj,
+        update: function(obj){
+            if(obj){
+                this.updateObjDef(obj);
+            }
+        },
+        updateObjDef: function(obj){
+            this.name = obj.Name;
+            this.id = obj.ID;
+            this.model = Object.freeze(obj);
+        },
+    };
+
+    // mock objects to be returned from API
+    var bubbles = {
+            ID: 12346,
+            Name: "Bubbles",
+            ingredient: "sugar"
+        },
+        buttercup = {
+            ID: 12347,
+            Name: "Buttercup",
+            ingredient: "spice"
+        },
+        bud = {
+            ID: 12347,
+            Name: "Bud",
+            ingredient: "spice"
+        },
+        blossom = {
+            ID: 12345,
+            Name: "Blossom",
+            ingredient: "everything nice"
+        },
+        professor = {
+            ID: 12348,
+            Name: "Professor"
+        };
+
+    // mock responses from API
+    var mockData = {};
+    mockData[bubbles.ID] = bubbles;
+    mockData[buttercup.ID] = buttercup;
+    mockData[blossom.ID] = blossom;
+
+    var mockData2 = {};
+    mockData2[bubbles.ID] = bubbles;
+    mockData2[buttercup.ID] = buttercup;
+
+    var mockData3 = {};
+    mockData3[bubbles.ID] = bubbles;
+    mockData3[bud.ID] = bud;
+    mockData3[blossom.ID] = blossom;
+
+    var mockData4 = {};
+    mockData4[bubbles.ID] = bubbles;
+    mockData4[buttercup.ID] = buttercup;
+    mockData4[blossom.ID] = blossom;
+    mockData4[professor.ID] = professor;
+
+
+
+
+    it("Calls provided update function", inject(function(baseFactory){
+        var updateFnSpy = jasmine.createSpy("updateFn").and.callFake(function(){
+            var p = {
+                success: jasmine.createSpy("success").and.callFake(function(){
+                    return p;
+                }),
+                error: jasmine.createSpy("error").and.callFake(function(){
+                    return p;
+                })
+            };
+
+            return p;
+        });
+
+        var newFactory = new baseFactory(function(){}, updateFnSpy);
+        newFactory.update();
+
+        expect(updateFnSpy).toHaveBeenCalled();
+    }));
+
+    it("Uses provided ObjConstructor", inject(function(baseFactory){
+        var deferred = getDeferred();
+
+        var updateFnSpy = jasmine.createSpy("updateFn").and.returnValue(deferred);
+        var objConstructorSpy = jasmine.createSpy("objConstructor");
+
+        var newFactory = new baseFactory(objConstructorSpy, updateFnSpy);
+        newFactory.update();
+
+        deferred.resolve(mockData);
+
+        expect(objConstructorSpy).toHaveBeenCalled();
+    }));
+
+    it("Updates both objArr and objMap", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+        newFactory.update();
+        deferred.resolve(mockData);
+
+        expect(newFactory.objArr.length).toBe(Object.keys(newFactory.objMap).length);
+    }));
+
+    it("Adds objects", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+        newFactory.update();
+        deferred.resolve(mockData);
+
+        expect(newFactory.objArr.length).toEqual(3);
+
+        // generate a new deferred for next update call
+        deferred = getDeferred();
+        newFactory.update();
+        deferred.resolve(mockData4);
+
+        expect(newFactory.objArr.length).toEqual(4);
+    }));
+
+    it("Updates existing objects", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+        newFactory.update();
+        deferred.resolve(mockData);
+
+        expect(newFactory.get(12347).name).toBe(mockData[12347].Name);
+
+        // generate a new deferred for next update call
+        deferred = getDeferred();
+        newFactory.update();
+
+        deferred.resolve(mockData3);
+
+        // mockData3 replaces buttercup with bud
+        expect(newFactory.get(bud.ID).name).toBe(bud.Name);
+    }));
+
+    it("Deletes objects", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+        newFactory.update();
+        deferred.resolve(mockData);
+
+        expect(newFactory.objArr.length).toEqual(3);
+
+        // generate a new deferred for next update call
+        deferred = getDeferred();
+        newFactory.update();
+        deferred.resolve(mockData2);
+
+        expect(newFactory.objArr.length).toEqual(2);
+    }));
+
+    it("Starts polling updateFn", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+        newFactory.activate();
+
+        $interval.flush(3001);
+        deferred.resolve(mockData);
+        expect(newFactory.objArr.length).toEqual(3);
+
+        deferred = getDeferred();
+        $interval.flush(3001);
+        deferred.resolve(mockData4);
+        expect(newFactory.objArr.length).toEqual(4);
+
+        deferred = getDeferred();
+        $interval.flush(3001);
+        deferred.resolve(mockData2);
+        expect(newFactory.objArr.length).toEqual(2);
+    }));
+
+
+    it("Doesn't start polling if already polling", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+        var pollPromise;
+
+        newFactory.activate();
+
+        pollPromise = newFactory.updatePromise;
+
+        newFactory.activate();
+
+        expect(pollPromise).toBe(newFactory.updatePromise);
+    }));
+
+
+    it("Stops polling", inject(function(baseFactory){
+        var deferred = getDeferred();
+        var updateFn = function(){
+            return deferred;
+        };
+        var newFactory = new baseFactory(Obj, updateFn);
+
+        newFactory.activate();
+        $interval.flush(3001);
+        newFactory.deactivate();
+
+        expect(newFactory.updatePromise).toBe(null);
+    }));
 });

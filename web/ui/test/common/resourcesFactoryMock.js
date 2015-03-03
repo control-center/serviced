@@ -5,9 +5,7 @@
 // Angular will then inject an instance of the spy created by this factory.
 var resourcesFactoryMock = function($provide) {
     $provide.factory('resourcesFactory', function() {
-        var mock = jasmine.createSpyObj('resourcesFactory', [
-        ]);
-
+        var mock = jasmine.createSpyObj('resourcesFactory', []);
         return mock;
     });
 };
