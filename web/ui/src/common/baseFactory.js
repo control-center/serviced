@@ -23,8 +23,8 @@
     var $q, $interval;
 
     angular.module('baseFactory', []).
-    factory("baseFactory", ["$rootScope", "$q", "resourcesFactory", "$interval",
-    function($rootScope, _$q, resourcesFactory, _$interval){
+    factory("baseFactory", ["$q", "resourcesFactory", "$interval",
+    function(_$q, resourcesFactory, _$interval){
 
         $q = _$q;
         $interval = _$interval;
