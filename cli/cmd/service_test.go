@@ -437,7 +437,7 @@ func ExampleServicedCLI_CmdServiceMigrate_usage() {
 	//    serviced service migrate SERVICEID PATH_TO_SCRIPT
 	//
 	// OPTIONS:
-	//    --dry-run	Executes the migration and validation without updateing anything
+	//    --dry-run	Executes the migration and validation without updating anything
 }
 
 func ExampleServicedCLI_CmdServiceMigrate_err() {
