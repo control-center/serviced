@@ -16,7 +16,20 @@
           }
         };
 
-
+        /*
+         * a methodConfig is used to create a resources
+         * factory interface method. The methodConfig object
+         * has the following properties:
+         *
+         * @prop {string} method        - GET, POST, PUT, DELETE
+         * @prop {string|function} url  - a string representing the url, or a function
+         *                                that can generate the url. the function will
+         *                                receive arguments passed to the factory method
+         * @prop {function} [payload]   - function that returns the payload to be
+         *                                delivered for POST or PUT request. the function
+         *                                will receive arguments passed to the factory
+         *                                method
+         */
         var methodConfigs = {
             assignIP: {
                 method: "PUT",
@@ -27,7 +40,7 @@
                 url: "/pools"
             },
             getPoolIPs: {
-                method: "GET", 
+                method: "GET",
                 url: id => `/pools/${id}/ips`
             },
             addVHost: {
@@ -43,7 +56,7 @@
                     });
                 }
             },
-            deleteVHost: {
+            removeVHost: {
                 method: "DELETE",
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
@@ -213,36 +226,8 @@
             };
         }
 
-        // generate methods from methodConfigs
-        var methods = {};
-        for(var name in methodConfigs){
-            methods[name] = generateMethod(methodConfigs[name]);
-        }
-
-        return {
-            assign_ip: methods.assignIP,
-            get_pools: methods.getPools,
-            // TODO - remove this and calculate values from servicesFactory
-            get_pool_ips: methods.getPoolIPs,
-            add_vhost: methods.addVHost,
-            delete_vhost: methods.deleteVHost,
-            get_running_services: methods.getRunningServices,
-            add_pool: methods.addPool,
-            remove_pool: methods.removePool,
-            add_pool_virtual_ip: methods.addPoolVirtualIP,
-            remove_pool_virtual_ip: methods.removePoolVirtualIP,
-            kill_running: methods.killRunning,
-            get_hosts: methods.getHosts,
-            add_host: methods.addHost,
-            remove_host: methods.removeHost,
-            get_running_hosts: methods.getRunningHosts,
-            get_services: methods.getServices,
-            get_service_state_logs: methods.getInstanceLogs,
-            docker_is_logged_in: methods.dockerIsLoggedIn,
-            get_app_templates: methods.getAppTemplates,
-
-            // TODO - templatize this guy?
-            add_app_template: function(fileData){
+        var resourcesFactoryInterface = {
+            addAppTemplate: function(fileData){
               return $http({
                   url: "/templates/add",
                   method: "POST",
@@ -257,24 +242,6 @@
                   redirectIfUnauthorized(status);
               });
             },
-
-            delete_app_template: methods.removeAppTemplate,
-            update_service: methods.updateService,
-            deploy_app_template: methods.deployAppTemplate,
-            remove_service: methods.removeService,
-            start_service: methods.startService,
-            stop_service: methods.stopService,
-            restart_service: methods.restartService,
-            get_version: methods.getVersion,
-            get_service_health: methods.getServiceHealth,
-            get_deployed_templates: methods.getDeployStatus,
-            get_active_templates: methods.getDeployingTemplates,
-            create_backup: methods.createBackup,
-            restore_backup: methods.restoreBackup,
-            get_backup_files: methods.getBackupFiles,
-            get_backup_status: methods.getBackupStatus,
-            get_restore_status: methods.getRestoreStatus,
-            get_host_alias: methods.getHostAlias,
 
             registerPoll: function(label, callback, interval){
               if(pollingFunctions[label] !== undefined){
@@ -309,5 +276,13 @@
                 $location.path('/hosts/' + id);
             }
         };
+
+        // generate additional methods and attach
+        // to interface
+        for(var name in methodConfigs){
+            resourcesFactoryInterface[name] = generateMethod(methodConfigs[name]);
+        }
+
+        return resourcesFactoryInterface;
     }]);
 })();

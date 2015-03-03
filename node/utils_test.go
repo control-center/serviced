@@ -31,7 +31,21 @@ import (
 	"syscall"
 
 	"github.com/zenoss/glog"
+
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/zzk"
+	. "gopkg.in/check.v1"
 )
+
+var _ = Suite(&ZZKTest{})
+
+type ZZKTest struct {
+	zzk.ZZKTestSuite
+}
+
+func Test(t *testing.T) {
+	TestingT(t)
+}
 
 // Test validOwnerSpec
 func TestValidOwnerSpec(t *testing.T) {
@@ -45,7 +59,7 @@ func TestValidOwnerSpec(t *testing.T) {
 	}
 	for _, spec := range invalidSpecs {
 		if validOwnerSpec(spec) {
-			t.Logf("%s should NOT be a valid owner spec")
+			t.Logf("%s should NOT be a valid owner spec", spec)
 			t.Fail()
 		}
 	}
@@ -57,7 +71,7 @@ func TestValidOwnerSpec(t *testing.T) {
 	}
 	for _, spec := range validSpecs {
 		if !validOwnerSpec(spec) {
-			t.Logf("%s should be a valid owner spec")
+			t.Logf("%s should be a valid owner spec", spec)
 			t.Fail()
 		}
 	}
@@ -104,8 +118,18 @@ Last stable version: 0.6.6
 	}
 }
 
+func getTestConn(c *C, path string) client.Connection {
+	root, err := zzk.GetLocalConnection("/")
+	c.Assert(err, IsNil)
+	err = root.CreateDir(path)
+	c.Assert(err, IsNil)
+	conn, err := zzk.GetLocalConnection(path)
+	c.Assert(err, IsNil)
+	return conn
+}
+
 // Test createVolumeDir
-func TestCreateVolumeDir(t *testing.T) {
+func (ts *ZZKTest) TestCreateVolumeDir(t *C) {
 	// create temporary proc dir
 	tmpPath, err := ioutil.TempDir("", "node_util")
 	if err != nil {
@@ -132,7 +156,8 @@ func TestCreateVolumeDir(t *testing.T) {
 		perm:          "755",
 	}
 
-	if err := createVolumeDir(v.hostPath, v.containerPath, v.image, v.user, v.perm); err != nil {
+	conn := getTestConn(t, "/vinit")
+	if err := createVolumeDir(conn, v.hostPath, v.containerPath, v.image, v.user, v.perm); err != nil {
 		t.Fatalf("unable to create volume %+v: %s", tmpPath, err)
 	}
 

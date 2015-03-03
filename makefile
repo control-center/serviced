@@ -155,11 +155,17 @@ build_js:
 $(GOSRC)/$(godep_SRC):
 	go get $(godep_SRC)
 
+GOVET     = $(GOBIN)/govet
+govet_SRC = golang.org/x/tools/cmd/vet
+
+# Download govet source to $GOPATH/src/.
+$(GOSRC)/$(govet_SRC):
+	go get $(govet_SRC)
+
 #
 # FIXME: drop -composites=false to get full coverage
-# FIXME: After upgrade to GO 1.4, drop -unreachable=false and remove to unreachable returns
-govet:
-	go tool vet -composites=false -unreachable=false $(GOVET_FLAGS) .
+govet: $(GOSRC)/$(govet_SRC)
+	go tool vet -composites=false $(GOVET_FLAGS) .
 
 .PHONY: go
 go:
@@ -183,9 +189,7 @@ FORCE:
 serviced: $(Godeps_restored)
 serviced: FORCE
 	go build $(GOBUILD_FLAGS) ${LDFLAGS}
-	#
-	# FIXME: This step temporarily disabled until we have a build image for GO 1.4 which includes go vet
-	# make govet
+	make govet
 	go install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced

@@ -123,7 +123,7 @@ func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]dao.BackupFile,
 
 // Backup backs up serviced, saving the last n snapshots
 func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, error) {
-	dfs.log("Starting backup")
+	dfs.logf("Starting backup")
 
 	// get the full path of the backup
 	name := time.Now().Format("backup-2006-01-02-150405")
@@ -165,7 +165,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 	}
 
 	// export pools (and virtual ips)
-	dfs.log("Exporting resource pools")
+	dfs.logf("Exporting resource pools")
 	pools, err := dfs.facade.GetResourcePools(dfs.datastoreGet())
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %s", err)
@@ -175,10 +175,10 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not export resource pools: %s", err)
 		return "", err
 	}
-	dfs.log("Resource pool export successful")
+	dfs.logf("Resource pool export successful")
 
 	// export hosts
-	dfs.log("Exporting hosts")
+	dfs.logf("Exporting hosts")
 	hosts, err := dfs.facade.GetHosts(dfs.datastoreGet())
 	if err != nil {
 		glog.Errorf("Could not get hosts: %s", err)
@@ -188,10 +188,10 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not export hosts: %s", err)
 		return "", err
 	}
-	dfs.log("Host export successful")
+	dfs.logf("Host export successful")
 
 	// export all template definitions
-	dfs.log("Exporting template definitions")
+	dfs.logf("Exporting template definitions")
 	templates, err := dfs.facade.GetServiceTemplates(dfs.datastoreGet())
 	if err != nil {
 		glog.Errorf("Could not get service templates: %s", err)
@@ -201,13 +201,13 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not export service templates: %s", err)
 		return "", err
 	}
-	dfs.log("Template definition export successful")
+	dfs.logf("Template definition export successful")
 
 	// export snapshots
 	var snapshots []string
 	for _, svc := range svcs {
 		if svc.ParentServiceID == "" {
-			dfs.log("Exporting snapshots for %s (%s)", svc.Name, svc.ID)
+			dfs.logf("Exporting snapshots for %s (%s)", svc.Name, svc.ID)
 			_, labels, err := dfs.saveSnapshots(svc.ID, filepath.Join(dirpath, snapshotDir), last)
 
 			if err != nil {
@@ -215,12 +215,12 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 				return "", err
 			}
 			snapshots = append(snapshots, labels...)
-			dfs.log("Exporting of %s (%s) snapshots successful", svc.Name, svc.ID)
+			dfs.logf("Exporting of %s (%s) snapshots successful", svc.Name, svc.ID)
 		}
 	}
 
 	// export all of the docker images
-	dfs.log("Exporting docker images")
+	dfs.logf("Exporting docker images")
 	imageTags, err := dfs.exportImages(filepath.Join(dirpath, imageDir), templates, svcs, snapshots)
 	if err != nil {
 		glog.Errorf("Could not export docker images: %s", err)
@@ -230,14 +230,14 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not export images: %s", err)
 		return "", err
 	}
-	dfs.log("Docker image export successful")
+	dfs.logf("Docker image export successful")
 
-	dfs.log("Writing backup file")
+	dfs.logf("Writing backup file")
 	if err := exportTGZ(dirpath, filename); err != nil {
 		glog.Errorf("Could not write backup file %s: %s", filename, err)
 		return "", err
 	}
-	dfs.log("Backup file created: %s", filename)
+	dfs.logf("Backup file created: %s", filename)
 
 	glog.Infof("Backup succeeded with fsType:%s saved to file:%s", dfs.fsType, filename)
 	return filename, nil
@@ -245,7 +245,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 
 func (dfs *DistributedFilesystem) Restore(filename string) error {
 	// fail if any services are running
-	dfs.log("Checking running services")
+	dfs.logf("Checking running services")
 	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
@@ -292,7 +292,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		}
 	}()
 
-	dfs.log("Extracting backup file %s", filename)
+	dfs.logf("Extracting backup file %s", filename)
 	if err := importTGZ(dirpath, filename); err != nil {
 		glog.Errorf("Could not expand %s to %s: %s", filename, dirpath, err)
 		return err
@@ -315,7 +315,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	}
 
 	// restore the resource pools (and virtual ips)
-	dfs.log("Loading resource pools")
+	dfs.logf("Loading resource pools")
 	for _, pool := range pools {
 		pool.DatabaseVersion = 0
 
@@ -329,7 +329,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 			return err
 		}
 	}
-	dfs.log("Resource pool load successful")
+	dfs.logf("Resource pool load successful")
 
 	var hosts []host.Host
 	if err := importJSON(filepath.Join(dirpath, hostJSON), &hosts); err != nil {
@@ -338,7 +338,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	}
 
 	// restore the hosts (add it if it doesn't exist; assume hosts don't need to be updated from backup)
-	dfs.log("Loading static ips")
+	dfs.logf("Loading static ips")
 	for _, host := range hosts {
 		host.DatabaseVersion = 0
 		glog.V(1).Infof("Restoring host %s (%s)", host.ID, host.IPAddr)
@@ -352,7 +352,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 			return err
 		}
 	}
-	dfs.log("Static ip load successful")
+	dfs.logf("Static ip load successful")
 
 	var templates map[string]servicetemplate.ServiceTemplate
 	if err := importJSON(filepath.Join(dirpath, templateJSON), &templates); err != nil {
@@ -361,7 +361,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	}
 
 	// restore the service templates
-	dfs.log("Loading service templates")
+	dfs.logf("Loading service templates")
 	for templateID, template := range templates {
 		template.DatabaseVersion = 0
 
@@ -373,7 +373,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		}
 		reloadLogstashContainer = true
 	}
-	dfs.log("Service template load successful")
+	dfs.logf("Service template load successful")
 
 	// Get the tenant of all the services to be restored
 	snapshotFiles, err := ls(filepath.Join(dirpath, snapshotDir))
@@ -383,7 +383,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	}
 
 	// restore docker images
-	dfs.log("Loading docker images")
+	dfs.logf("Loading docker images")
 	var images []imagemeta
 	if err := importJSON(filepath.Join(dirpath, imageJSON), &images); err != nil {
 		glog.Errorf("Could not read images from %s: %s", filename, err)
@@ -394,17 +394,17 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		glog.Errorf("Could not import images from %s: %s", filename, err)
 		return err
 	}
-	dfs.log("Docker image load successful")
+	dfs.logf("Docker image load successful")
 
 	// restore snapshots
 	glog.V(1).Infof("Restoring services and snapshots")
 	for _, f := range snapshotFiles {
-		dfs.log("Loading %s", f)
+		dfs.logf("Loading %s", f)
 		if err := dfs.loadSnapshots(strings.TrimSuffix(f, ".tgz"), filepath.Join(dirpath, snapshotDir, f)); err != nil {
 			glog.Errorf("Could not import snapshot from %s: %s", f, err)
 			return err
 		}
-		dfs.log("Successfully loaded %s", f)
+		dfs.logf("Successfully loaded %s", f)
 	}
 
 	glog.Infof("Restore succeeded with fsType:%s from file:%s", dfs.fsType, filename)

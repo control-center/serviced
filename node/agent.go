@@ -770,7 +770,12 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
 
-	if err := createVolumeDir(resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
+	conn, err := a.zkClient.GetConnection()
+	if err != nil {
+		return "", fmt.Errorf("Could not get zk connection for resource path: %s, %s", resourcePath, err)
+	}
+
+	if err := createVolumeDir(conn, resourcePath, volume.ContainerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, volume.ContainerPath, err)
 		return "", err
 	}

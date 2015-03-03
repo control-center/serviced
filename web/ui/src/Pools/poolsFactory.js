@@ -13,7 +13,7 @@
         resourcesFactory = _resourcesFactory;
         $q = q;
 
-        var newFactory = new BaseFactory(Pool, resourcesFactory.get_pools);
+        var newFactory = new BaseFactory(Pool, resourcesFactory.getPools);
 
         // alias some stuff for ease of use
         newFactory.poolList = newFactory.objArr;

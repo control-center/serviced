@@ -14,7 +14,7 @@
         instancesFactory = _instancesFactory;
         $q = q;
 
-        var newFactory = new BaseFactory(Host, resourcesFactory.get_hosts);
+        var newFactory = new BaseFactory(Host, resourcesFactory.getHosts);
         
         // alias some stuff for ease of use
         newFactory.hostList = newFactory.objArr;
@@ -23,7 +23,7 @@
         // wrap update to do some extra work
         newFactory.update = utils.after(newFactory.update, function(){
             // check running hosts and mark them as active
-            resourcesFactory.get_running_hosts()
+            resourcesFactory.getRunningHosts()
                 .success((activeHosts, status) => {
                     this.hostList.forEach(host => {
                         if(activeHosts.indexOf(host.id) !== -1){

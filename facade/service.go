@@ -119,6 +119,10 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	return f.updateService(ctx, &svc)
 }
 
+// TODO: Need to pass the entire service hierarchy to the migration script
+// TODO: Should we use a lock to serialize migration for a given service
+// TODO: Current updateService() method does not allow a configuration to be added to a service
+// TODO: Current updateService() replaces OriginalConfigs with value from the svc in datastore, not the migrated service
 func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
 	var inputFileName, scriptFileName, outputFileName string
 
@@ -141,7 +145,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	outputFileName, err = executeMigrationScript(migrationDir, scriptFileName, inputFileName)
+	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName)
 	if err != nil {
 		return err
 	}
@@ -281,7 +285,6 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
 		return nil, err
 	}
-	return services, nil
 }
 
 // GetServicesByPool looks up all services in a particular pool
@@ -1214,6 +1217,11 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 		return err
 	}
 
+	err = svc.ValidEntity()
+	if err != nil {
+		return err
+	}
+
 	// verify the service with name and parent does not collide with another existing service
 	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
 		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
@@ -1327,13 +1335,7 @@ func createServiceMigrationInputFile(tmpDir string, svc *service.Service) (strin
 // Write out the body of the script to a file
 func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error) {
 	scriptFileName := path.Join(tmpDir, "migrate.py")
-	scriptFile, err := os.OpenFile(scriptFileName, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
-	defer scriptFile.Close()
-	if err != nil {
-		return "", fmt.Errorf("error creating script file: %s", err)
-	}
-
-	_, err = scriptFile.WriteString(scriptBody)
+	err := ioutil.WriteFile(scriptFileName, []byte(scriptBody), 0440)
 	if err != nil {
 		return "", fmt.Errorf("error writing to script file: %s", err)
 	}
@@ -1342,10 +1344,14 @@ func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error)
 }
 
 // Execute the migration script
-func executeMigrationScript(tmpDir, scriptFileName, inputFileName string) (string, error) {
+func executeMigrationScript(serviceID, tmpDir, scriptFileName, inputFileName string) (string, error) {
 	outputFileName := path.Join(tmpDir, "output.json")
 	migrateCmd := exec.Command("/usr/bin/python", scriptFileName, inputFileName, outputFileName)
-	err := migrateCmd.Run()
+	cmdMessages, err := migrateCmd.CombinedOutput()
+	if cmdMessages != nil {
+		glog.V(1).Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+	}
+
 	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
 		return "", fmt.Errorf("migration script failed: %s", err)
 	}

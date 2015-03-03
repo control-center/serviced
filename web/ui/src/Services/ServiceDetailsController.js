@@ -17,7 +17,7 @@
 
         $scope.defaultHostAlias = $location.host();
         if(utils.needsHostAlias($location.host())){
-            resourcesFactory.get_host_alias().success(function(data) {
+            resourcesFactory.getHostAlias().success(function(data) {
                 $scope.defaultHostAlias = data.hostalias;
             });
         }
@@ -134,7 +134,7 @@
             var name = $scope.vhosts.add.name;
             var serviceId = $scope.vhosts.add.app_ep.ApplicationId;
             var serviceEndpoint = $scope.vhosts.add.app_ep.ServiceEndpoint;
-            return resourcesFactory.add_vhost( serviceId, serviceEndpoint, name)
+            return resourcesFactory.addVHost( serviceId, serviceEndpoint, name)
                 .success(function(data, status){
                     $scope.vhosts.add = {};
                 });
@@ -143,7 +143,7 @@
         // modalAssignIP opens a modal view to assign an ip address to a service
         $scope.modalAssignIP = function(ip, poolID) {
           $scope.ips.assign = {'ip':ip, 'value':null};
-          resourcesFactory.get_pool_ips(poolID)
+          resourcesFactory.getPoolIPs(poolID)
               .success(function(data) {
                 var options= [{'Value':'Automatic', 'IPAddr':null}];
 
@@ -236,7 +236,7 @@
         $scope.assignIP = function() {
             var serviceID = $scope.ips.assign.ip.ServiceID;
             var IP = $scope.ips.assign.value.IPAddr;
-            return resourcesFactory.assign_ip(serviceID, IP)
+            return resourcesFactory.assignIP(serviceID, IP)
                 .success(function(data, status){
                     servicesFactory.update();
                 });
@@ -416,7 +416,7 @@
                         label: "remove_virtual_host",
                         classes: "btn-danger",
                         action: function(){
-                            resourcesFactory.delete_vhost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
+                            resourcesFactory.removeVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
                                 .success(() => {
                                     servicesFactory.update();
                                     $notification.create("Removed VHost", vhost.Name).success();
@@ -487,7 +487,7 @@
         $scope.viewLog = function(instance) {
             $scope.editService = angular.copy(instance);
 
-            resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.model.ID)
+            resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.model.ID)
                 .success(function(log) {
                     $scope.editService.log = log.Detail;
                     $modalService.create({
@@ -505,7 +505,7 @@
                                 icon: "glyphicon-repeat",
                                 action: function() {
                                     var textarea = this.$el.find("textarea");
-                                    resourcesFactory.get_service_state_logs(instance.model.ServiceID, instance.id)
+                                    resourcesFactory.getInstanceLogs(instance.model.ServiceID, instance.id)
                                         .success(function(log) {
                                             $scope.editService.log = log.Detail;
                                             textarea.scrollTop(textarea[0].scrollHeight - textarea.height());
@@ -559,7 +559,7 @@
 
         $scope.updateService = function(newService) {
             if ($scope.validateService()) {
-                return resourcesFactory.update_service($scope.services.current.model.ID, newService)
+                return resourcesFactory.updateService($scope.services.current.model.ID, newService)
                     .success((data, status) => {
                         servicesFactory.update();
                         this.editableService = {};
@@ -585,7 +585,7 @@
 
         // restart all running instances for this service
         $scope.killRunningInstances = function(app){
-            resourcesFactory.restart_service(app.ID)
+            resourcesFactory.restartService(app.ID)
                 .error((data, status) => {
                     $notification.create("Stop Service failed", data.Detail).error();
                 });
