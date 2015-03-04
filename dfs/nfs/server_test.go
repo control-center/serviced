@@ -55,7 +55,7 @@ func dirExists(path string) (bool, error) {
 	return s.IsDir(), err
 }
 
-var expectedExports = "%s\t192.168.1.0/24(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n%s/foo\t192.168.1.0/24(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n\n"
+var expectedExports = "%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)"
 
 func TestNewServer(t *testing.T) {
 	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
@@ -99,7 +99,9 @@ func TestNewServer(t *testing.T) {
 	start = reload
 
 	// create our test server
-	s, err := NewServer(baseDir, "foo", "192.168.1.0/24")
+	network := "192.168.1.0/24"
+	exported := "foo"
+	s, err := NewServer(baseDir, exported, network)
 	if err != nil {
 		t.Fatalf("unexpected error : %s ", err)
 	}
@@ -137,7 +139,8 @@ func TestNewServer(t *testing.T) {
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
 	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n\n"))
 
-	assertFileContents(t, etcExports, []byte(fmt.Sprintf(expectedExports, exportsPath, exportsPath)))
+	expected := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network)  + etcExportsEndMarker
+	assertFileContents(t, etcExports, []byte(expected))
 
 }
 
@@ -149,4 +152,76 @@ func assertFileContents(t *testing.T, filename string, contents []byte) {
 	if string(bytes) != string(contents) {
 		t.Fatalf("got [%d]:\n '%+v'' \n\n expected [%d]:\n '%+v'", len(bytes), string(bytes), len(contents), string(contents))
 	}
+}
+
+func TestWriteExports(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "nfs_unit_tests_")
+	if err != nil {
+		t.Fatalf("unexpected error: %s", err)
+	}
+	defer os.RemoveAll(tempDir)
+	t.Logf("created temp dir: %s", tempDir)
+
+	baseDir := path.Join(tempDir, "baseDir")
+
+	// mock out the exports directory, use stack to hold old values
+	defer func(e, exports, exportsd string) {
+		// restore to original values
+		exportsPath = e
+		etcExports = exports
+		exportsDir = exportsd
+	}(exportsPath, etcExports, exportsDir)
+	exportsPath = path.Join(tempDir, "exports")
+	etcExports = path.Join(tempDir, "etc/exports")
+	exportsDir = path.Join(tempDir, "exports")
+
+	// neuter bindmount during tests
+	bindMount = func(string, string) error {
+		return nil
+	}
+	defer func() {
+		bindMount = bindMountImp
+	} ()
+
+	network := "1.2.3.4/8"
+	exported := "foobar"
+	s := Server {
+		network:  	  network,
+		basePath:     baseDir,
+		exportedName: exported,
+	}
+
+	exportBlock := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network)  + etcExportsEndMarker
+	dummyBlock := etcExportsStartMarker + "# Some leftover crud from the last run" + etcExportsEndMarker
+	preamble := "# Arbitrary text that occurs at the beginning\n"
+	postamble := "\n# Some other text that occurs at the end\n"
+
+	testWriteExports := func(contents, expected string) {
+		ioutil.WriteFile(etcExports, []byte(contents), 0664)
+		s.writeExports()
+		assertFileContents(t, etcExports, []byte(expected))
+	}
+
+	// Write to missing file
+	s.writeExports()
+	assertFileContents(t, etcExports, []byte(exportBlock))
+
+	// Write to empty file
+	testWriteExports("", exportBlock)
+
+	// Write to file that only contains serviced exports
+	testWriteExports(dummyBlock, exportBlock)
+
+	// Write to file that contains non-serviced exports
+	testWriteExports(preamble, preamble + exportBlock)
+
+	// File contains serviced exports and preceding text
+	testWriteExports(preamble + dummyBlock, preamble + exportBlock)
+
+	// File contains serviced exports and following text
+	testWriteExports(dummyBlock + postamble, exportBlock + postamble)
+
+	// File contains serviced exports and both preceding and following text
+	testWriteExports(preamble + dummyBlock + postamble, preamble + exportBlock + postamble)
+
 }
