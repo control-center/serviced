@@ -1331,6 +1331,26 @@ func createTempMigrationDir(serviceID string) (string, error) {
 		return "", fmt.Errorf("Unable to create temporary directory: %s", err)
 	}
 
+	// HACK ALERT: The following is temporary so QE can do some basic integration testing
+	//             with the migration SDK and the serviced CLI. When the implementation
+	//             evolves to run the migration within a docker container, this code
+	//             will go away because the docker image will contain the migration SDK.
+	//
+	// To setup the migration SDK for use with this hack, do the following:
+	//
+	// $ zendev cd serviced
+	// $ sudo mkdir -p /tmp/serviced-root/service-migration/servicedmigration
+	// $ sudo cp migration/servicedmigration/*.py /tmp/serviced-root/service-migration/servicedmigration
+	//
+	// Once the setup is done, then you can run a migration script from the serviced CLI.
+	//
+	pythonPath := os.Getenv("PYTHONPATH")
+	if pythonPath == "" {
+		os.Setenv("PYTHONPATH", tmpParentDir)
+	} else if !strings.Contains(pythonPath, tmpParentDir) {
+		os.Setenv("PYTHONPATH", os.ExpandEnv("${PYTHONPATH};"+tmpParentDir))
+	}
+
 	var migrationDir string
 	dirPrefix := fmt.Sprintf("%s-", serviceID)
 	migrationDir, err = ioutil.TempDir(tmpParentDir, dirPrefix)
