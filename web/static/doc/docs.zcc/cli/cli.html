@@ -3,14 +3,14 @@
 <html lang="">
    <head>
       <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Using the Zenoss Control Center command-line interface</title>
+      <title>Using the Control Center command-line interface</title>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1">
       <meta http-equiv="X-UA-Compatible" content="IE=edge">
       <link rel="schema.DC" href="http://purl.org/dc/terms/">
       <meta name="DC.Type" content="reference">
       
-      <meta name="DC.Title" content="Using the Zenoss Control Center command-line interface">
+      <meta name="DC.Title" content="Using the Control Center command-line interface">
       
       <meta name="prodname" content="Zenoss Control Center">
       
@@ -69,7 +69,7 @@
          <div class="row">
             <div class="col-xs-12 col-md-21">
                <ol class="breadcrumb">
-                  <li>Using the Zenoss Control Center command-line interface</li>
+                  <li>Using the Control Center command-line interface</li>
                </ol>
             </div>
          </div>
@@ -83,9 +83,10 @@
                            <li class=" no-child "><a href="../../docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
                         </ul>
                      </li>
-                     <li class=" collapsible  active"><a class="selected" href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                     <li class=" collapsible  active"><a class="selected" href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
                            <li class=" no-child "><a href="../../docs.zcc/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/cli/script.html">serviced script</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -96,24 +97,24 @@
                   <article>
                      <div class="page reference  - topic-topic       reference-reference " id="referenceid">
                         
-                        <h1 class="title topictitle1"><span xmlns="http://www.w3.org/1999/xhtml" class="enumeration_chapter">Chapter 2. </span>Using the <span class="ph">Zenoss Control Center</span> command-line interface
+                        <h1 class="title topictitle1"><span xmlns="http://www.w3.org/1999/xhtml" class="enumeration_chapter">Chapter 2. </span>Using the <span class="ph">Control Center</span> command-line interface
                         </h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="referenceid-d1327e38" id="referenceid-d1327e38" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d1350e38" id="referenceid-d1350e38" class="anchor"></a>
                               
-                              <p class="p">The <span class="ph">Zenoss Control Center</span> command-line interface (CLI) and the <span class="ph">Zenoss Control Center</span> web interface both use the same application programming interface.
+                              <p class="p">The <span class="ph">Control Center</span> command-line interface (CLI) and the <span class="ph">Control Center</span> web interface both use the same application programming interface.
                                  Any action performed in the CLI can be performed in the web interface.
                               </p>
                               
                               
                               <p class="p">To use the CLI, you need a Linux shell account on hosts in 
-                                 <span class="ph">Zenoss Control Center</span> pools, and the account needs to be
+                                 <span class="ph">Control Center</span> pools, and the account needs to be
                                  a member of the <span class="keyword cmdname">docker</span> group.
                               </p>
                               
                               
-                              <p class="p">Currently, CLI commands that are invoked on hosts other than the <span class="ph">Zenoss Control Center</span> master host need to specify the master host and port manually. For example, to list
+                              <p class="p">Currently, CLI commands that are invoked on hosts other than the <span class="ph">Control Center</span> master host need to specify the master host and port manually. For example, to list
                                  running services, enter the following command on the master host: 
                               </p>
                               
@@ -126,8 +127,13 @@
                               <pre class="pre codeblock">serviced --endpoint <var class="keyword varname">Master-Host</var>:4979 service list</pre>
                               
                               <p class="p">Replace <var class="keyword varname">Master-Host</var> with the hostname or IP address of the
-                                 <span class="ph">Zenoss Control Center</span> master host.
+                                 <span class="ph">Control Center</span> master host.
                               </p>
+                              
+                              
+                              <aside class="note note "><span class="title">Note:</span> To commit a container, a <span class="keyword cmdname">serviced</span> CLI session must be run on the
+                                 <span class="ph">Control Center</span> master host.
+                              </aside>
                               
                               
                            </div>
