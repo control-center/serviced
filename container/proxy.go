@@ -164,7 +164,7 @@ func (p *proxy) listenAndproxy() {
 		select {
 		case conn := <-connections:
 			if len(p.addresses) == 0 {
-				glog.Warningf("No remote services available for prxying %s", p)
+				glog.Warningf("No remote services available for prxying %v", p)
 				conn.Close()
 				continue
 			}
