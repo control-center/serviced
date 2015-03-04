@@ -995,12 +995,12 @@ import json, os, string, sys
 
 inputFile = sys.argv[1]
 outputFile = sys.argv[2]
-svc = json.loads(open(inputFile, 'r').read())
+svcs = json.loads(open(inputFile, 'r').read())
 
-svc["Description"] = "%s"
+svcs[0]["Description"] = "%s"
 
 f = open(outputFile, 'w')
-f.write(json.dumps(svc, indent=4, sort_keys=True))
+f.write(json.dumps(svcs, indent=4, sort_keys=True))
 f.close()
 exit(%d)
 `
@@ -1014,12 +1014,12 @@ import json, os, string, sys
 
 inputFile = sys.argv[1]
 outputFile = sys.argv[2]
-svc = json.loads(open(inputFile, 'r').read())
+svcs = json.loads(open(inputFile, 'r').read())
 
-svc["PoolID"] = ""
+svcs[0]["PoolID"] = ""
 
 f = open(outputFile, 'w')
-f.write(json.dumps(svc, indent=4, sort_keys=True))
+f.write(json.dumps(svcs, indent=4, sort_keys=True))
 f.close()
 `
 }
