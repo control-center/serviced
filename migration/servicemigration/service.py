@@ -19,15 +19,38 @@ def _reloadServiceList():
 _reloadServiceList()
 
 @versioned
-def getServices(filters={}):
+def getServices(filters={}, parentFilters={}, childFilters={}):
     """
-    Returns any service that matches filters.
+    Returns any service that matches the given filters.
     """
-    svcs = []
+    f1 = []
     for svc in _serviceList:
         if nested_subset(svc, filters):
-            svcs.append(Service(svc))
-    return svcs
+            f1.append(Service(svc))
+    f2 = f1 if parentFilters == {} else []
+    if parentFilters != {}:
+        for svc in f1:
+            parents = getServices({
+                "ID": svc.svc["ParentServiceID"]
+            })
+            if len(parents) > 1:
+                raise ValueError("A service cannot have more than a single parent.")
+            if len(parents) == 0:
+                continue
+            parent = parents[0]
+            if nested_subset(parent.svc, parentFilters):
+                f2.append(svc)
+    f3 = f2 if childFilters == {} else []
+    if childFilters != {}:
+        for svc in f2:
+            children = getServices({
+                "ParentServiceID": svc.svc["ID"]
+            })
+            for child in children:
+                if nested_subset(child.svc, childFilters):
+                    f3.append(svc)
+
+    return f3
 
 @versioned
 def commit():
