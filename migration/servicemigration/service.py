@@ -128,3 +128,33 @@ class Service:
         Returns the healthcheck named name.
         """
         return self.data["HealthChecks"][name]
+
+    @versioned
+    def removeVolumes(self, filters={}):
+        """
+        Removes any volumes matching filters.
+        """
+        newVolumes = []
+        for volume in self.data["Volumes"]:
+            if not nested_subset(volume, filters):
+                newVolumes.append(volume)
+        self.data["Volumes"] = newVolumes
+
+    @versioned
+    def addVolume(self, volume):
+        """
+        Adds a volume.
+        """
+        self.data["Volumes"].append(volume)
+
+    @versioned
+    def getVolumes(self, filters={}):
+        """
+        Returns a list of volumes matching filters.
+        """
+        result = []
+        for volume in self.data["Volumes"]:
+            if nested_subset(volume, filters):
+                result.append(volume)
+        return result
+

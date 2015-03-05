@@ -160,3 +160,41 @@ class ServiceTest(unittest.TestCase):
 			"Name": "Zope"
 		})[0]
 		self.assertEqual(svc.getHealthCheck("answering")["Interval"], 10)
+
+	def test_remove_volumes(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		svc.removeVolumes({
+			"ResourcePath": "zenoss-custom-patches-pc"
+		})
+		sm.commit()
+		svc = getOutZope()
+		self.assertEqual(len(svc["Volumes"]), 7)
+
+	def test_add_volume(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		svc.addVolume({
+			"Owner": "an_unlikely-name:an_unlikely-name"
+		})
+		sm.commit()
+		svc = getOutZope()
+		for volume in svc["Volumes"]:
+			if volume["Owner"] == "an_unlikely-name:an_unlikely-name":
+				return	
+		raise ValueError("Didn't find new volume.")
+
+	def test_get_volume(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		vs = svc.getVolumes({
+			"Owner": "zenoss:zenoss"
+		})
+		self.assertEqual(len(vs), 8)
+
