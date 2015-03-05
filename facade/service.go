@@ -29,7 +29,6 @@ import (
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
-	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 
 	"github.com/control-center/serviced/commons/docker"
@@ -1059,22 +1058,15 @@ func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service)
 	}
 	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.ID, tenantID, servicePath)
 
-	configStore := serviceconfigfile.NewStore()
-	existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	foundConfs, err := getExistingConfigs(ctx, tenantID, servicePath)
 	if err != nil {
 		return err
-	}
-
-	//found confs are the modified confs for f service
-	foundConfs := make(map[string]*servicedefinition.ConfigFile)
-	for _, svcConfig := range existingConfs {
-		foundConfs[svcConfig.ConfFile.Filename] = &svcConfig.ConfFile
 	}
 
 	//replace with stored service config only if it is an existing config
 	for name, conf := range foundConfs {
 		if _, found := svc.ConfigFiles[name]; found {
-			svc.ConfigFiles[name] = *conf
+			svc.ConfigFiles[name] = conf.ConfFile
 		}
 	}
 	return nil
@@ -1235,26 +1227,26 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, svc *servic
 		}
 
 		//Get current stored conf files and replace as needed
-		configStore := serviceconfigfile.NewStore()
-		existingConfs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
+		foundConfs, err := getExistingConfigs(ctx, tenantID, servicePath)
 		if err != nil {
 			return err
 		}
-		foundConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-		for _, svcConfig := range existingConfs {
-			foundConfs[svcConfig.ConfFile.Filename] = svcConfig
-		}
+
 		//add or replace stored service config
+		configStore := serviceconfigfile.NewStore()
 		for _, newConf := range newConfs {
 			if existing, found := foundConfs[newConf.ConfFile.Filename]; found {
 				newConf.ID = existing.ID
 				//delete it from stored confs, left overs will be deleted from DB
 				delete(foundConfs, newConf.ConfFile.Filename)
 			}
+			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: updating config %s", svc.ID, newConf.ConfFile.Filename)
 			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
 		}
+
 		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
 		for _, confToDelete := range foundConfs {
+			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: deleting config %s", svc.ID, confToDelete.ConfFile.Filename)
 			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
 		}
 	}
@@ -1342,6 +1334,22 @@ var (
 	tenantIDs    = make(map[string]string)
 	tenanIDMutex = sync.RWMutex{}
 )
+
+// Returns a map based on the configuration file name of all existing configurations (modified by user or not)
+func getExistingConfigs(ctx datastore.Context, tenantID, servicePath string) (map[string]*serviceconfigfile.SvcConfigFile, error) {
+	configStore := serviceconfigfile.NewStore()
+	confs, err := configStore.GetConfigFiles(ctx, tenantID, servicePath)
+	if err != nil {
+		return nil, err
+	}
+
+	// foundConfs are the existing configurations for the service
+	existingConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+	for _, svcConfig := range confs {
+		existingConfs[svcConfig.ConfFile.Filename] = svcConfig
+	}
+	return existingConfs, nil
+}
 
 // Creates a temporary directory to hold files related to service migration
 func createTempMigrationDir(serviceID string) (string, error) {
