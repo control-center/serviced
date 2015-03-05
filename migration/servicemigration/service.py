@@ -31,23 +31,23 @@ def getServices(filters={}, parentFilters={}, childFilters={}):
     if parentFilters != {}:
         for svc in f1:
             parents = getServices({
-                "ID": svc.svc["ParentServiceID"]
+                "ID": svc.data["ParentServiceID"]
             })
             if len(parents) > 1:
                 raise ValueError("A service cannot have more than a single parent.")
             if len(parents) == 0:
                 continue
             parent = parents[0]
-            if nested_subset(parent.svc, parentFilters):
+            if nested_subset(parent.data, parentFilters):
                 f2.append(svc)
     f3 = f2 if childFilters == {} else []
     if childFilters != {}:
         for svc in f2:
             children = getServices({
-                "ParentServiceID": svc.svc["ID"]
+                "ParentServiceID": svc.data["ID"]
             })
             for child in children:
-                if nested_subset(child.svc, childFilters):
+                if nested_subset(child.data, childFilters):
                     f3.append(svc)
     return f3
 
@@ -68,8 +68,8 @@ class Service:
     """
 
     @versioned
-    def __init__(self, svc):
-        self.svc = svc
+    def __init__(self, data):
+        self.data = data
 
 
     @versioned
@@ -77,28 +77,25 @@ class Service:
         """
         Sets the description field of a service.
         """
-        self.svc["Description"] = desc
+        self.data["Description"] = desc
 
     @versioned
     def removeEndpoints(self, filters={}):
         """
         Removes any endpoints matching filters.
         """
-        if filters == None:
-            self.svc["Endpoints"] = []
-            return  
         newEndpoints = []
-        for endpoint in self.svc["Endpoints"]:
+        for endpoint in self.data["Endpoints"]:
             if not nested_subset(endpoint, filters):
                 newEndpoints.append(endpoint)
-        self.svc["Endpoints"] = newEndpoints
+        self.data["Endpoints"] = newEndpoints
 
     @versioned
     def addEndpoint(self, endpoint):
         """
         Adds an endpoint.
         """
-        self.svc["Endpoints"].append(endpoint)
+        self.data["Endpoints"].append(endpoint)
 
     @versioned
     def getEndpoints(self, filters={}):
@@ -106,7 +103,28 @@ class Service:
         Returns a list of endpoints matching filters.
         """
         result = []
-        for endpoint in self.svc["Endpoints"]:
+        for endpoint in self.data["Endpoints"]:
             if nested_subset(endpoint, filters):
                 result.append(endpoint)
         return result
+
+    @versioned
+    def removeHealthCheck(self, name):
+        """
+        Removes healthcheck named name.
+        """
+        del self.data["HealthChecks"][name]
+
+    @versioned
+    def addHealthCheck(self, name, healthcheck):
+        """
+        Adds a healthcheck.
+        """
+        self.data["HealthChecks"][name] = healthcheck
+
+    @versioned
+    def getHealthCheck(self, name):
+        """
+        Returns the healthcheck named name.
+        """
+        return self.data["HealthChecks"][name]
