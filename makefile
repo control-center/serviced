@@ -438,6 +438,7 @@ docker_buildandpackage: docker_ok
 
 .PHONY: test
 test: build docker_ok
+	cd migration && make test
 	./run-tests.sh
 	cd web && make test
 

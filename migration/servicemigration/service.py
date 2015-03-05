@@ -49,7 +49,6 @@ def getServices(filters={}, parentFilters={}, childFilters={}):
             for child in children:
                 if nested_subset(child.svc, childFilters):
                     f3.append(svc)
-
     return f3
 
 @versioned
