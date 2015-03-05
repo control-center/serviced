@@ -222,3 +222,40 @@ class ServiceTest(unittest.TestCase):
 		svc = getOutZope()
 		self.assertEquals(svc["Runs"]["an_unlikely-name"], "an_unlikely-operation")
 
+	def test_remove_logconfig(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		svc.removeLogConfigs({
+			"Type": "zope_eventlog"
+		})
+		sm.commit()
+		svc = getOutZope()
+		self.assertEqual(len(svc["LogConfigs"]), 2)
+
+	def test_add_logconfig(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		svc.addLogConfig({
+			"Type": "redis"
+		})
+		sm.commit()
+		svc = getOutZope()
+		for config in svc["LogConfigs"]:
+			if config["Type"] == "redis":
+				return	
+		raise ValueError("Didn't find new log config.")
+
+	def test_get_logconfig(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		vs = svc.getLogConfigs({
+			"Type": "zenossaudit"
+		})
+		self.assertEqual(len(vs), 1)
+

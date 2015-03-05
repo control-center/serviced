@@ -170,4 +170,33 @@ class Service:
         """
         self.data["Runs"][name] = run
 
+    @versioned
+    def removeLogConfigs(self, filters={}):
+        """
+        Removes any log configs matching filters.
+        """
+        newLogConfigs = []
+        for config in self.data["LogConfigs"]:
+            if not nested_subset(config, filters):
+                newLogConfigs.append(config)
+        self.data["LogConfigs"] = newLogConfigs
+
+    @versioned
+    def addLogConfig(self, config):
+        """
+        Adds a log config.
+        """
+        self.data["LogConfigs"].append(config)
+
+    @versioned
+    def getLogConfigs(self, filters={}):
+        """
+        Returns a list of log configs matching filters.
+        """
+        result = []
+        for config in self.data["LogConfigs"]:
+            if nested_subset(config, filters):
+                result.append(config)
+        return result
+
 
