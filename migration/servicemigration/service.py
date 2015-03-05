@@ -2,7 +2,6 @@
 import os
 import sys
 import json
-import yaml
 
 from version import versioned
 from util import nested_subset
@@ -15,7 +14,7 @@ def _reloadServiceList():
         sys.argv = ["", "tests/v0.json", "tests/out.json"]
     if len(sys.argv) < 3:
         raise ValueError("A serviced migration script must be called with input and output filenames.")
-    _serviceList = yaml.load(open(sys.argv[1], 'r').read())
+    _serviceList = json.loads(open(sys.argv[1], 'r').read())
 
 _reloadServiceList()
 

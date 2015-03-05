@@ -1,7 +1,6 @@
 import unittest
 
-from servicedmigration import util
-# import util
+from servicemigration import util
 
 target = {
 	"A": "B",

@@ -1339,11 +1339,12 @@ func createTempMigrationDir(serviceID string) (string, error) {
 	// To setup the migration SDK for use with this hack, do the following:
 	//
 	// $ zendev cd serviced
-	// $ sudo mkdir -p /tmp/serviced-root/service-migration/servicedmigration
-	// $ sudo cp migration/servicedmigration/*.py /tmp/serviced-root/service-migration/servicedmigration
+	// $ cd migrate
+	// $ make prep # will require sudo
 	//
 	// Once the setup is done, then you can run a migration script from the serviced CLI.
 	//
+
 	pythonPath := os.Getenv("PYTHONPATH")
 	if pythonPath == "" {
 		os.Setenv("PYTHONPATH", tmpParentDir)

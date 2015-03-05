@@ -1,7 +1,7 @@
 
 import unittest
 
-from servicedmigration import version
+from servicemigration import version
 
 
 major = int(version.API_VERSION.split('.')[0])
