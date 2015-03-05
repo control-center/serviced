@@ -1,6 +1,21 @@
+/* jshint ignore: start */
 
 // Define one global that can be reused for different test cases.
 var controlplane = angular.module('controlplaneTest', ['ngMock', 'ngCookies', 'pascalprecht.translate']);
+
+// adds success and error functions
+// to regular promise ala $http
+function httpify(deferred){
+    deferred.promise.success = function(fn){
+        deferred.promise.then(fn);
+        return deferred.promise;
+    };
+    deferred.promise.error = function(fn){
+        deferred.promise.then(null, fn);
+        return deferred.promise;
+    };
+    return deferred;
+}
 
 // polyfill bind for PhantomJS :(
 if (!Function.prototype.bind) {

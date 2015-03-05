@@ -55,15 +55,16 @@
                                     service = this.serviceMap[serviceDef.ID];
                                     currentParent = service.parent;
 
-                                // if the service parent has changed,
-                                // update its tree stuff (parent, depth, etc)
-                                if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
-                                    this.serviceMap[serviceDef.ID].update(serviceDef);
-                                    this.addServiceToTree(service);
-                                // otherwise, just update the service
-                                } else {
-                                    this.serviceMap[serviceDef.ID].update(serviceDef);
-                                }
+                                    // if the service parent has changed,
+                                    // update its tree stuff (parent, depth, etc)
+                                    if(currentParent && serviceDef.ParentServiceID !== service.parent.id){
+                                        this.serviceMap[serviceDef.ID].update(serviceDef);
+                                        this.addServiceToTree(service);
+
+                                    // otherwise, just update the service
+                                    } else {
+                                        this.serviceMap[serviceDef.ID].update(serviceDef);
+                                    }
 
                             // new
                             } else {
@@ -145,7 +146,8 @@
                         if(this.serviceMap[id]){
                             this.serviceMap[id].status = statuses[id];
 
-                        // this may be a service instance
+                        // this may be a service instance. instances are keyed
+                        // with the following pattern: serviceid.InstanceID (eg 1234567890.1)
                         } else if(id.indexOf(".") !== -1){
                             ids = id.split(".");
                             if(this.serviceMap[ids[0]]){

@@ -4,8 +4,26 @@
 // Call 'beforeEach(module(authServiceMock))' to inject this factory into a test case, and
 // Angular will then inject an instance of the spy created by this factory.
 var resourcesFactoryMock = function($provide) {
-    $provide.factory('resourcesFactory', function() {
-        var mock = jasmine.createSpyObj('resourcesFactory', []);
+    $provide.factory('resourcesFactory', function($q) {
+        var mock = jasmine.createSpyObj('resourcesFactory', [
+            "assignIP", "getPools", "getPoolIP",
+            "getService", "startService", "stopService", "restartService",
+            "getServices"
+        ]);
+
+        var currDeferred;
+
+        mock.getServices = mock.getServices.and.callFake(function(){
+            currDeferred = httpify($q.defer());
+            return currDeferred.promise;
+        });
+
+        // expose the last used deferred promise so that it
+        // can be manually fulfilled with mock data
+        mock._getCurrDeferred = function(){
+            return currDeferred;
+        };
+
         return mock;
     });
 };

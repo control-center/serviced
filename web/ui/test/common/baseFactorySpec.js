@@ -3,31 +3,12 @@
 describe('baseFactory', function() {
     beforeEach(module('baseFactory'));
 
-    var $q, $interval;
+    var $q, $interval, scope;
     beforeEach(inject(function($injector){
         $q = $injector.get("$q");
         $interval = $injector.get("$interval");
+        scope = $injector.get("$rootScope").$new();
     }));
-
-    // mock a deferred promise with $http-style
-    // success and error methods
-    var getDeferred = function(){
-        var deferred = {
-            fns: { success: function(){}, error: function(){} }, 
-            success: function(fn){
-                this.fns.success = fn;
-                return deferred;
-            },
-            error: function(fn){
-                this.fns.error = fn;
-                return deferred;
-            },
-            resolve: function(data, status){
-                this.fns.success.call(undefined, data, status);
-            }
-        };
-        return deferred;
-    };
 
     // object constructor for use with baseFactory
     function Obj(obj){
@@ -99,16 +80,7 @@ describe('baseFactory', function() {
 
     it("Calls provided update function", inject(function(baseFactory){
         var updateFnSpy = jasmine.createSpy("updateFn").and.callFake(function(){
-            var p = {
-                success: jasmine.createSpy("success").and.callFake(function(){
-                    return p;
-                }),
-                error: jasmine.createSpy("error").and.callFake(function(){
-                    return p;
-                })
-            };
-
-            return p;
+            return httpify($q.defer()).promise;
         });
 
         var newFactory = new baseFactory(function(){}, updateFnSpy);
@@ -118,118 +90,140 @@ describe('baseFactory', function() {
     }));
 
     it("Uses provided ObjConstructor", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
 
-        var updateFnSpy = jasmine.createSpy("updateFn").and.returnValue(deferred);
+        var updateFnSpy = jasmine.createSpy("updateFn").and.returnValue(deferred.promise);
         var objConstructorSpy = jasmine.createSpy("objConstructor");
 
         var newFactory = new baseFactory(objConstructorSpy, updateFnSpy);
         newFactory.update();
 
         deferred.resolve(mockData);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(objConstructorSpy).toHaveBeenCalled();
     }));
 
     it("Updates both objArr and objMap", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
         newFactory.update();
         deferred.resolve(mockData);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(newFactory.objArr.length).toBe(Object.keys(newFactory.objMap).length);
     }));
 
     it("Adds objects", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
         newFactory.update();
         deferred.resolve(mockData);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(newFactory.objArr.length).toEqual(3);
 
         // generate a new deferred for next update call
-        deferred = getDeferred();
+        deferred = httpify($q.defer());
         newFactory.update();
         deferred.resolve(mockData4);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(newFactory.objArr.length).toEqual(4);
     }));
 
     it("Updates existing objects", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
         newFactory.update();
         deferred.resolve(mockData);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(newFactory.get(12347).name).toBe(mockData[12347].Name);
 
         // generate a new deferred for next update call
-        deferred = getDeferred();
+        deferred = httpify($q.defer());
         newFactory.update();
 
         deferred.resolve(mockData3);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         // mockData3 replaces buttercup with bud
         expect(newFactory.get(bud.ID).name).toBe(bud.Name);
     }));
 
     it("Deletes objects", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
         newFactory.update();
         deferred.resolve(mockData);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(newFactory.objArr.length).toEqual(3);
 
         // generate a new deferred for next update call
-        deferred = getDeferred();
+        deferred = httpify($q.defer());
         newFactory.update();
         deferred.resolve(mockData2);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
 
         expect(newFactory.objArr.length).toEqual(2);
     }));
 
     it("Starts polling updateFn", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
         newFactory.activate();
 
         $interval.flush(3001);
         deferred.resolve(mockData);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
         expect(newFactory.objArr.length).toEqual(3);
 
-        deferred = getDeferred();
+        deferred = httpify($q.defer());
         $interval.flush(3001);
         deferred.resolve(mockData4);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
         expect(newFactory.objArr.length).toEqual(4);
 
-        deferred = getDeferred();
+        deferred = httpify($q.defer());
         $interval.flush(3001);
         deferred.resolve(mockData2);
+        // force a tick so promise can resolve
+        scope.$root.$digest();
         expect(newFactory.objArr.length).toEqual(2);
     }));
 
 
     it("Doesn't start polling if already polling", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
         var pollPromise;
@@ -245,9 +239,9 @@ describe('baseFactory', function() {
 
 
     it("Stops polling", inject(function(baseFactory){
-        var deferred = getDeferred();
+        var deferred = httpify($q.defer());
         var updateFn = function(){
-            return deferred;
+            return deferred.promise;
         };
         var newFactory = new baseFactory(Obj, updateFn);
 
