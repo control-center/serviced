@@ -198,3 +198,27 @@ class ServiceTest(unittest.TestCase):
 		})
 		self.assertEqual(len(vs), 8)
 
+	def test_remove_run(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		_ = svc.data["Runs"]["zendmd"]
+		svc.removeRun("zendmd")
+		sm.commit()
+		svc = getOutZope()
+		try:
+			_ = svc["Runs"]["zendmd"]
+		except KeyError:
+			pass
+
+	def test_add_run(self):
+		sm._reloadServiceList()
+		svc = sm.getServices({
+			"Name": "Zope"
+		})[0]
+		svc.addRun("an_unlikely-name", "an_unlikely-operation")
+		sm.commit()
+		svc = getOutZope()
+		self.assertEquals(svc["Runs"]["an_unlikely-name"], "an_unlikely-operation")
+

@@ -158,3 +158,16 @@ class Service:
                 result.append(volume)
         return result
 
+    def removeRun(self, name):
+        """
+        Removes run named name.
+        """
+        del self.data["Runs"][name]
+
+    def addRun(self, name, run):
+        """
+        Adds an entry to self.data["Runs"].
+        """
+        self.data["Runs"][name] = run
+
+
