@@ -252,7 +252,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			tableIPs.printrow(ip.InterfaceName, ip.IPAddress, "static")
 		}
 		for _, ip := range poolIps.VirtualIPs {
-			tableIPs.printrow("", ip.IP, "virtual")
+			tableIPs.printrow(ip.BindInterface, ip.IP, "virtual")
 		}
 		tableIPs.flush()
 	}
