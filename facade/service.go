@@ -107,8 +107,6 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 }
 
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
-// TODO: Current updateService() method does not allow a configuration to be added to a service
-// TODO: Current updateService() replaces OriginalConfigs with value from the svc in datastore, not the migrated service
 func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
 	var inputFileName, scriptFileName, outputFileName string
 
@@ -158,7 +156,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 			if err != nil {
 				return err
 			}
-			err = f.updateService(ctx, svc)
+			err = f.migrateService(ctx, svc)
 		}
 
 		if err != nil {
@@ -1113,8 +1111,18 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 	return nil
 }
 
-// updateService internal method to use when service has been validated
 func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
+	migrateConfiguration := false
+	return f.updateServiceDefinition(ctx, migrateConfiguration, svc)
+}
+
+func (f *Facade) migrateService(ctx datastore.Context, svc *service.Service) error {
+	migrateConfiguration := true
+	return f.updateServiceDefinition(ctx, migrateConfiguration, svc)
+}
+
+// updateService internal method to use when service has been validated
+func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfiguration bool, svc *service.Service) error {
 	var oldSvc *service.Service
 	err := f.verifyServiceForUpdate(ctx, svc, &oldSvc)
 	if err != nil {
@@ -1125,7 +1133,11 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) erro
 	//add assignment info to service so it is availble in zk
 	f.fillServiceAddr(ctx, svc)
 
-	err = f.updateServiceConfigs(ctx, oldSvc, svc)
+	if migrateConfiguration {
+		err = f.migrateServiceConfigs(ctx, oldSvc, svc)
+	} else {
+		err = f.updateServiceConfigs(ctx, oldSvc, svc)
+	}
 	if err != nil {
 		return err
 	}
@@ -1201,13 +1213,134 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 	return nil
 }
 
-func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, svc *service.Service) error {
+func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *service.Service) error {
+	if reflect.DeepEqual(oldSvc.OriginalConfigs, newSvc.OriginalConfigs) {
+		return nil
+	}
+
+	tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *newSvc)
+	if err != nil {
+		return err
+	}
+
+	// addedConfs = anything in new, but not old (new config needs to be added)
+	// deletedConfs = anything in old, but not new (old config needs to be removed)
+	// unchangedConfs = anything in both old and new without changes (retain existing config as is)
+	// changedConfs = anything in both old and new where new changed (need to replace existing config)
+	addedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+	for key, newConf := range newSvc.OriginalConfigs {
+		if _, found := oldSvc.OriginalConfigs[key]; !found {
+			configFile, err := serviceconfigfile.New(tenantID, servicePath, newConf)
+			if err != nil {
+				return err
+			}
+			addedConfs[key] = configFile
+		}
+	}
+
+	deletedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+	unchangedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+	changedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+	for key, oldConf := range oldSvc.OriginalConfigs {
+		configFile, err := serviceconfigfile.New(tenantID, servicePath, oldConf)
+		if err != nil {
+			return err
+		}
+		if conf, found := newSvc.OriginalConfigs[key]; !found {
+			deletedConfs[key] = configFile
+		} else if reflect.DeepEqual(oldConf, conf) {
+			unchangedConfs[key] = configFile
+		} else {
+			newConfig, err := serviceconfigfile.New(tenantID, servicePath, conf)
+			if err != nil {
+				return err
+			}
+			changedConfs[key] = newConfig // use the new configuration
+		}
+	}
+
+	existingConfs, err := getExistingConfigs(ctx, tenantID, servicePath)
+	if err != nil {
+		return err
+	}
+
+	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: new configurations: %d %v\n", len(addedConfs), addedConfs)
+	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleted configurations: %d %v\n", len(deletedConfs), deletedConfs)
+	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: changed configurations: %d %v\n", len(changedConfs), changedConfs)
+	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: unchanged configurations: %d %v\n", len(unchangedConfs), unchangedConfs)
+	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: existing, customized configurations: %d %v\n", len(existingConfs), existingConfs)
+
+	configStore := serviceconfigfile.NewStore()
+
+	// sanity check - nothing in the added list should be part of the current customizations
+	for _, conf := range addedConfs {
+		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
+			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: new configuration %s found in config store", newSvc.ID, existing.ConfFile.Filename)
+		}
+	}
+
+	// remove unchanged configurations from the list of existing configs
+	for _, conf := range unchangedConfs {
+		if _, found := existingConfs[conf.ConfFile.Filename]; found {
+			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: keep unchanged config %s", newSvc.ID, conf.ConfFile.Filename)
+			delete(existingConfs, conf.ConfFile.Filename)
+		} else {
+			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: unchanged configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
+		}
+	}
+
+	// if the new service changed the original configuration, then replace the previous one with the new one
+	for _, conf := range changedConfs {
+		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
+			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: replacing config %s", newSvc.ID, conf.ConfFile.Filename)
+			conf.ID = existing.ID
+			delete(existingConfs, conf.ConfFile.Filename)
+			err := configStore.Put(ctx, serviceconfigfile.Key(conf.ID), conf)
+			if err != nil {
+				glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to replace config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
+				return err
+			}
+		} else {
+			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: changed configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
+		}
+	}
+
+	// sanity check - At this point, deletedConfs and existingConfs should have the same set of filenames
+	for _, conf := range deletedConfs {
+		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
+			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, conf.ConfFile.Filename)
+			delete(existingConfs, conf.ConfFile.Filename)
+			err = configStore.Delete(ctx, serviceconfigfile.Key(existing.ID))
+			if err != nil {
+				glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to delete config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
+				return err
+			}
+		} else {
+			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: obsolete configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
+		}
+	}
+
+	// If things are working normally, existingConfs should be empty at this point, but
+	//	just in case it's not, delete any remaining configurations
+	for _, conf := range existingConfs {
+		glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, conf.ConfFile.Filename)
+		err = configStore.Delete(ctx, serviceconfigfile.Key(conf.ID))
+		if err != nil {
+			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to delete config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *service.Service) error {
 	//Deal with Service Config Files
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
-	svc.OriginalConfigs = oldSvc.OriginalConfigs
+	newSvc.OriginalConfigs = oldSvc.OriginalConfigs
 
-	if !reflect.DeepEqual(oldSvc.OriginalConfigs, svc.ConfigFiles) {
-		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
+	if !reflect.DeepEqual(oldSvc.OriginalConfigs, newSvc.ConfigFiles) {
+		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *newSvc)
 		if err != nil {
 			return err
 		}
@@ -1215,7 +1348,7 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, svc *servic
 		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
 		//config files are different, for each one that is different validate and add to newConfs
 		for key, oldConf := range oldSvc.OriginalConfigs {
-			if conf, found := svc.ConfigFiles[key]; found {
+			if conf, found := newSvc.ConfigFiles[key]; found {
 				if !reflect.DeepEqual(oldConf, conf) {
 					newConf, err := serviceconfigfile.New(tenantID, servicePath, conf)
 					if err != nil {
@@ -1240,13 +1373,13 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, svc *servic
 				//delete it from stored confs, left overs will be deleted from DB
 				delete(foundConfs, newConf.ConfFile.Filename)
 			}
-			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: updating config %s", svc.ID, newConf.ConfFile.Filename)
+			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: updating config %s", newSvc.ID, newConf.ConfFile.Filename)
 			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
 		}
 
 		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
 		for _, confToDelete := range foundConfs {
-			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: deleting config %s", svc.ID, confToDelete.ConfFile.Filename)
+			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, confToDelete.ConfFile.Filename)
 			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
 		}
 	}
