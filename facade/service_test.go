@@ -75,14 +75,13 @@ func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
 	expectedConfigFiles := make(map[string]servicedefinition.ConfigFile)
 	expectedConfigFiles["unchangedConfig"] = oldSvc.ConfigFiles["unchangedConfig"]
 	expectedConfigFiles["addedConfig"] = newSvc.OriginalConfigs["addedConfig"]
-	expectedConfigFiles["changedConfig"] = newSvc.OriginalConfigs["changedConfig"]
 	t.Assert(result.Description, Equals, newSvc.Description)
 	t.Assert(result.OriginalConfigs, DeepEquals, newSvc.OriginalConfigs)
 	t.Assert(result.ConfigFiles, DeepEquals, expectedConfigFiles)
 
 	confs, err := ft.getConfigFiles(result)
 	t.Assert(err, IsNil)
-	t.Assert(len(confs), Equals, 2)
+	t.Assert(len(confs), Equals, 1)
 	for _, conf := range confs {
 		t.Assert(conf.ConfFile.Filename, Not(Equals), "addedConfig")
 		t.Assert(expectedConfigFiles[conf.ConfFile.Filename], Equals, conf.ConfFile)
@@ -118,7 +117,6 @@ func (ft *FacadeTest) setupMigrationServices(t *C, originalConfigs map[string]se
 	if originalConfigs != nil {
 		newSvc.OriginalConfigs = make(map[string]servicedefinition.ConfigFile)
 		newSvc.OriginalConfigs["unchangedConfig"] = oldSvc.OriginalConfigs["unchangedConfig"]
-		newSvc.OriginalConfigs["changedConfig"] = servicedefinition.ConfigFile{Filename: "changedConfig", Content: "version changed"}
 		newSvc.OriginalConfigs["addedConfig"] = servicedefinition.ConfigFile{Filename: "addedConfig", Content: "original version"}
 
 		newSvc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
@@ -160,7 +158,6 @@ func (ft *FacadeTest) getConfigFiles(svc *service.Service) ([]*serviceconfigfile
 func getOriginalConfigs() map[string]servicedefinition.ConfigFile {
 	originalConfigs := make(map[string]servicedefinition.ConfigFile)
 	originalConfigs["unchangedConfig"] = servicedefinition.ConfigFile{Filename: "unchangedConfig", Content: "original version"}
-	originalConfigs["changedConfig"] = servicedefinition.ConfigFile{Filename: "changedConfig", Content: "original version"}
 	originalConfigs["deletedConfig"] = servicedefinition.ConfigFile{Filename: "deletedConfig", Content: "original version"}
 	return originalConfigs
 }

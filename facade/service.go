@@ -1225,8 +1225,7 @@ func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *se
 
 	// addedConfs = anything in new, but not old (new config needs to be added)
 	// deletedConfs = anything in old, but not new (old config needs to be removed)
-	// unchangedConfs = anything in both old and new without changes (retain existing config as is)
-	// changedConfs = anything in both old and new where new changed (need to replace existing config)
+	// sharedConfs = anything in both old and new versions of the service(retain existing config as is)
 	addedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
 	for key, newConf := range newSvc.OriginalConfigs {
 		if _, found := oldSvc.OriginalConfigs[key]; !found {
@@ -1239,23 +1238,16 @@ func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *se
 	}
 
 	deletedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	unchangedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	changedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
+	sharedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
 	for key, oldConf := range oldSvc.OriginalConfigs {
 		configFile, err := serviceconfigfile.New(tenantID, servicePath, oldConf)
 		if err != nil {
 			return err
 		}
-		if conf, found := newSvc.OriginalConfigs[key]; !found {
+		if _, found := newSvc.OriginalConfigs[key]; !found {
 			deletedConfs[key] = configFile
-		} else if reflect.DeepEqual(oldConf, conf) {
-			unchangedConfs[key] = configFile
 		} else {
-			newConfig, err := serviceconfigfile.New(tenantID, servicePath, conf)
-			if err != nil {
-				return err
-			}
-			changedConfs[key] = newConfig // use the new configuration
+			sharedConfs[key] = configFile
 		}
 	}
 
@@ -1266,8 +1258,7 @@ func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *se
 
 	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: new configurations: %d %v\n", len(addedConfs), addedConfs)
 	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleted configurations: %d %v\n", len(deletedConfs), deletedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: changed configurations: %d %v\n", len(changedConfs), changedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: unchanged configurations: %d %v\n", len(unchangedConfs), unchangedConfs)
+	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: sharedConfs configurations: %d %v\n", len(sharedConfs), sharedConfs)
 	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: existing, customized configurations: %d %v\n", len(existingConfs), existingConfs)
 
 	configStore := serviceconfigfile.NewStore()
@@ -1279,29 +1270,13 @@ func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *se
 		}
 	}
 
-	// remove unchanged configurations from the list of existing configs
-	for _, conf := range unchangedConfs {
+	// remove shared configurations from the list of existing configs
+	for _, conf := range sharedConfs {
 		if _, found := existingConfs[conf.ConfFile.Filename]; found {
 			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: keep unchanged config %s", newSvc.ID, conf.ConfFile.Filename)
 			delete(existingConfs, conf.ConfFile.Filename)
 		} else {
 			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: unchanged configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
-		}
-	}
-
-	// if the new service changed the original configuration, then replace the previous one with the new one
-	for _, conf := range changedConfs {
-		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: replacing config %s", newSvc.ID, conf.ConfFile.Filename)
-			conf.ID = existing.ID
-			delete(existingConfs, conf.ConfFile.Filename)
-			err := configStore.Put(ctx, serviceconfigfile.Key(conf.ID), conf)
-			if err != nil {
-				glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to replace config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
-				return err
-			}
-		} else {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: changed configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
 		}
 	}
 
