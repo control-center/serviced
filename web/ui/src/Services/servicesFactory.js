@@ -109,10 +109,7 @@
 
                     service.isOrphan = false;
 
-                    // TODO - consider order here? adding child updates
-                    // then adding parent updates again
                     parent.addChild(service);
-                    service.addParent(parent);
 
                 // if this is a top level service
                 } else {
@@ -272,7 +269,7 @@
                 this.type.push(ISVC);
             }
 
-            if(!this.parent){
+            if(!this.model.ParentServiceID){
                 this.type.push(APP);
             }
 
@@ -285,6 +282,10 @@
             // if this service is not already in the list
             if(this.children.indexOf(service) === -1){
                 this.children.push(service);
+
+                // make sure this child knows who
+                // its parent is
+                service.setParent(this);
 
                 // alpha sort children
                 this.children.sort(sortServicesByName);
@@ -302,11 +303,20 @@
             this.update();
         },
 
-        addParent: function(service){
+        setParent: function(service){
+            // if this is already the parent, IM OUT!
+            if(this.parent === service){
+                return;
+            }
+
+            // if a parent is already set, remove
+            // this service from its childship
             if(this.parent){
                 this.parent.removeChild(this);
             }
+
             this.parent = service;
+            this.parent.addChild(this);
             this.update();
         },
 
@@ -324,9 +334,9 @@
             this.desiredState = RESTART;
         },
 
-        // returns a promise good for a list
-        // of running srvice instances
-        // TODO - reconsider this method? getter?
+        // gets a list of running instances of this service.
+        // NOTE: this isn't using a cache because this can be
+        // invalidated at any time, so it should always be checked
         getServiceInstances: function(){
             var newInstances = instancesFactory.getByServiceId(this.id);
             mergeArray(this.instances, newInstances, "id");
