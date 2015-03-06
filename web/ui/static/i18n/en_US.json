@@ -207,6 +207,7 @@
     "label_ip_assignments": "IP Assignments",
     "label_host_kernel_version": "Kernel Version",
     "label_host_kernel_release": "Kernel Release",
+    "label_host_serviced_release": "CC Release",
     "label_messages": "Messages",
     "label_netmask": "Netmask",
     "label_owner": "Owner",

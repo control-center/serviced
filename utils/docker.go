@@ -51,9 +51,6 @@ func DockerLogin(username, password, email string) (string, error) {
 		}
 		return status, nil
 	}
-
-	return "", fmt.Errorf("Auth params don't make sense.")
-
 }
 
 func DockerIsLoggedIn() bool {

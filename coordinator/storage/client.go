@@ -228,6 +228,4 @@ func (c *Client) UpdateUpdatedAt(updaterInterval time.Duration, conn client.Conn
 		case <-time.After(updaterInterval):
 		}
 	}
-
-	return nil
 }

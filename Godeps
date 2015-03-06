@@ -27,9 +27,9 @@
 			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
 		},
 		{
-			"ImportPath": "golang.org/x/net/websocket",
+			"ImportPath": "code.google.com/p/go.net/websocket",
 			"Comment": "null-139",
-			"Rev": "b6fdb7d8a4ccefede406f8fe0f017fb58265054c"
+			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
 		},
 		{
 			"ImportPath": "github.com/gorilla/mux",

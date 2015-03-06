@@ -16,6 +16,7 @@ package elasticsearch
 import (
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -279,6 +280,131 @@ func (dt *DaoTest) TestDao_UpdateServiceWithConfigFile(t *C) {
 	t.Assert(result.ConfigFiles["testname"], DeepEquals, confFile2)
 	t.Assert(result.ConfigFiles, Not(DeepEquals), result.OriginalConfigs)
 
+}
+
+func (dt *DaoTest) TestDao_MigrateService(t *C) {
+	svc, err := dt.setupMigrationTest()
+	t.Assert(err, IsNil)
+
+	newDescription := "New Description"
+	scriptExitCode := 0
+	request := dao.ServiceMigrationRequest{
+		ServiceID:       svc.ID,
+		MigrationScript: dt.getMigrationScript(newDescription, scriptExitCode),
+		DryRun:          false,
+	}
+
+	err = dt.Dao.MigrateService(request, &unused)
+	if err != nil {
+		t.Errorf("Failure migrating service %-v with error: %s", svc, err)
+		t.Fail()
+	}
+
+	dt.assertServiceMigrated(t, svc, newDescription)
+}
+
+func (dt *DaoTest) TestDao_MigrateServiceWithDryRun(t *C) {
+	svc, err := dt.setupMigrationTest()
+	t.Assert(err, IsNil)
+
+	newDescription := "New Description"
+	scriptExitCode := 0
+	request := dao.ServiceMigrationRequest{
+		ServiceID:       svc.ID,
+		MigrationScript: dt.getMigrationScript(newDescription, scriptExitCode),
+		DryRun:          true,
+	}
+
+	err = dt.Dao.MigrateService(request, &unused)
+	if err != nil {
+		t.Errorf("Failure migrating service %-v with error: %s", svc, err)
+		t.Fail()
+	}
+
+	// Dry-run should not update the service Description
+	dt.assertServiceNotMigrated(t, svc)
+}
+
+func (dt *DaoTest) TestDao_MigrateServiceFailsForInvalidID(t *C) {
+	svc, err := dt.setupMigrationTest()
+	t.Assert(err, IsNil)
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID:       "Some Undefined Service",
+		MigrationScript: dt.getMigrationScript("unused", 0),
+		DryRun:          false,
+	}
+
+	err = dt.Dao.MigrateService(request, &unused)
+	if err == nil {
+		t.Errorf("Expected error migrating service with invalid ID")
+		t.Fail()
+	}
+
+	t.Assert(err, ErrorMatches, "No such entity.*")
+	dt.assertServiceNotMigrated(t, svc)
+}
+
+func (dt *DaoTest) TestDao_MigrateServiceScriptFails(t *C) {
+	dryRun := false
+	dt.testMigrationScriptFails(t, dryRun)
+}
+
+func (dt *DaoTest) TestDao_MigrateServiceWithDryRunScriptFails(t *C) {
+	dryRun := true
+	dt.testMigrationScriptFails(t, dryRun)
+}
+
+func (dt *DaoTest) testMigrationScriptFails(t *C, dryRun bool) {
+	svc, err := dt.setupMigrationTest()
+	t.Assert(err, IsNil)
+
+	newDescription := "New Description"
+	scriptExitCode := 1
+	request := dao.ServiceMigrationRequest{
+		ServiceID:       svc.ID,
+		MigrationScript: dt.getMigrationScript(newDescription, scriptExitCode),
+		DryRun:          dryRun,
+	}
+
+	err = dt.Dao.MigrateService(request, &unused)
+	if err == nil {
+		t.Errorf("Expected error migrating service with script failure")
+		t.Fail()
+	}
+
+	t.Assert(err, ErrorMatches, "migration script failed: exit status 1")
+	dt.assertServiceNotMigrated(t, svc)
+}
+
+func (dt *DaoTest) TestDao_MigrateServiceValidationFails(t *C) {
+	dryRun := false
+	dt.testMigrationScriptFails(t, dryRun)
+}
+
+func (dt *DaoTest) TestDao_MigrateServiceWithDryRunFailsValidation(t *C) {
+	dryRun := true
+	dt.testMigrationScriptFailsValidation(t, dryRun)
+}
+
+func (dt *DaoTest) testMigrationScriptFailsValidation(t *C, dryRun bool) {
+	svc, err := dt.setupMigrationTest()
+	t.Assert(err, IsNil)
+	request := dao.ServiceMigrationRequest{
+		ServiceID:       svc.ID,
+		MigrationScript: dt.getInvalidMigrationScript(),
+		DryRun:          true,
+	}
+
+	err = dt.Dao.MigrateService(request, &unused)
+	if err == nil {
+		t.Errorf("Expected error migrating service with invalid content")
+		t.Fail()
+		return
+	}
+
+	t.Assert(strings.Contains(err.Error(), "ValidationError"), Equals, true)
+	dt.assertServiceNotMigrated(t, svc)
 }
 
 func (dt *DaoTest) TestDao_GetService(t *C) {
@@ -715,11 +841,10 @@ func (dt *DaoTest) TestDao_ServiceTemplate(t *C) {
 }
 
 func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
-	t.Skip("TODO: fix this test")
 	// this is technically not a unit test since it depends on the leader
 	// starting a watch for snapshot requests and the code here is time
 	// dependent waiting for that leader to start the watch
-	return
+	t.Skip("TODO: fix this test")
 
 	glog.V(0).Infof("TestDao_NewSnapshot started")
 	defer glog.V(0).Infof("TestDao_NewSnapshot finished")
@@ -852,4 +977,90 @@ func (dt *DaoTest) TestUser_ValidateCredentials(t *C) {
 	if err != nil {
 		t.Fatalf("Failure authenticating credentials %s", err)
 	}
+}
+
+func (dt *DaoTest) setupMigrationTest() (*service.Service, error) {
+	svc, _ := service.NewService()
+	svc.ID = "migrationTest"
+	svc.Name = "migrationTest"
+	svc.PoolID = "default"
+	svc.Launch = "auto"
+	svc.DeploymentID = "deployment_id"
+	return svc, dt.Dao.AddService(*svc, &id)
+}
+
+func (dt *DaoTest) getMigrationScript(newDescription string, scriptExitCode int) string {
+	scriptTemplate := `
+import json, os, string, sys
+
+inputFile = sys.argv[1]
+outputFile = sys.argv[2]
+svcs = json.loads(open(inputFile, 'r').read())
+
+svcs[0]["Description"] = "%s"
+
+f = open(outputFile, 'w')
+f.write(json.dumps(svcs, indent=4, sort_keys=True))
+f.close()
+exit(%d)
+`
+	return fmt.Sprintf(scriptTemplate, newDescription, scriptExitCode)
+}
+
+// Returns a migration script that produces an invalid service definition (empyt PoolID)
+func (dt *DaoTest) getInvalidMigrationScript() string {
+	return `
+import json, os, string, sys
+
+inputFile = sys.argv[1]
+outputFile = sys.argv[2]
+svcs = json.loads(open(inputFile, 'r').read())
+
+svcs[0]["PoolID"] = ""
+
+f = open(outputFile, 'w')
+f.write(json.dumps(svcs, indent=4, sort_keys=True))
+f.close()
+`
+}
+
+func (dt *DaoTest) assertServiceMigrated(t *C, svc *service.Service, newDescription string) bool {
+	result := service.Service{}
+	err := dt.Dao.GetService(svc.ID, &result)
+	if err != nil {
+		t.Errorf("Unable to read service %s: %s", svc.ID, err)
+		t.Fail()
+	}
+
+	//XXX the time.Time types fail comparison despite being equal...
+	//	  as far as I can tell this is a limitation with Go
+	result.UpdatedAt = svc.UpdatedAt
+	result.CreatedAt = svc.CreatedAt
+
+	// For these unit tests, only desription is changed by migration
+	svc.Description = newDescription
+	if !svc.Equals(&result) {
+		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
+		t.Fail()
+		return false
+	}
+
+	return true
+}
+
+func (dt *DaoTest) assertServiceNotMigrated(t *C, svc *service.Service) bool {
+	result := service.Service{}
+	err := dt.Dao.GetService(svc.ID, &result)
+	if err != nil {
+		t.Errorf("Unable to read service %s: %s", svc.ID, err)
+		t.Fail()
+	}
+
+	if !svc.Equals(&result) {
+		t.Errorf("Expected Service %+v, Actual Service %+v", result, *svc)
+		t.Fail()
+		return false
+	}
+
+	return true
 }

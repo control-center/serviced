@@ -159,7 +159,7 @@ func TestWritingConfigFile(t *testing.T) {
 
 	// make sure our filter string is in it
 	if !strings.Contains(string(contents), filters) {
-		t.Log("Read in contents: %s", string(contents))
+		t.Logf("Read in contents: %s", string(contents))
 		t.Log(filters)
 		t.Error("Was unable to write the logstash conf file")
 	}
