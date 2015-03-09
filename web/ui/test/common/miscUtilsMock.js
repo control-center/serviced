@@ -8,12 +8,16 @@ var miscUtilsMock = function($provide) {
             'buildTable',
             'set_order',
             'get_order_class',
-            'map_to_array',
             'unauthorized',
             'indentClass',
             'downloadFile',
             'getModeFromFilename',
-            'updateLanguage'
+            'updateLanguage',
+            'capitalizeFirst',
+            'after',
+            'mapToArr',
+            'memoize',
+            'needsHostAlias'
         ]);
 
         return mock;

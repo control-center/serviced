@@ -1,3 +1,44 @@
+/* jshint ignore: start */
 
 // Define one global that can be reused for different test cases.
 var controlplane = angular.module('controlplaneTest', ['ngMock', 'ngCookies', 'pascalprecht.translate']);
+
+// adds success and error functions
+// to regular promise ala $http
+function httpify(deferred){
+    deferred.promise.success = function(fn){
+        deferred.promise.then(fn);
+        return deferred.promise;
+    };
+    deferred.promise.error = function(fn){
+        deferred.promise.then(null, fn);
+        return deferred.promise;
+    };
+    return deferred;
+}
+
+// polyfill bind for PhantomJS :(
+if (!Function.prototype.bind) {
+  Function.prototype.bind = function(oThis) {
+    if (typeof this !== 'function') {
+      // closest thing possible to the ECMAScript 5
+      // internal IsCallable function
+      throw new TypeError('Function.prototype.bind - what is trying to be bound is not callable');
+    }
+
+    var aArgs   = Array.prototype.slice.call(arguments, 1),
+        fToBind = this,
+        fNOP    = function() {},
+        fBound  = function() {
+          return fToBind.apply(this instanceof fNOP
+                 ? this
+                 : oThis,
+                 aArgs.concat(Array.prototype.slice.call(arguments)));
+        };
+
+    fNOP.prototype = this.prototype;
+    fBound.prototype = new fNOP();
+
+    return fBound;
+  };
+}
