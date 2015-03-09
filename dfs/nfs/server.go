@@ -67,6 +67,10 @@ const hostDenyDefaults = "\n# serviced, do not remove past this line\nrpcbind mo
 const hostAllowMarker = "# serviced, do not remove past this line"
 const hostAllowDefaults = "\n# serviced, do not remove past this line\nrpcbind mountd nfsd statd lockd rquotad : 127.0.0.1"
 
+
+const etcExportsStartMarker = "\n# --- SERVICED EXPORTS BEGIN ---\n# --- Do not edit this section\n"
+const etcExportsEndMarker = "\n# --- SERVICED EXPORTS END ---\n"
+
 func verifyExportsDir(path string) error {
 	stat, err := os.Stat(path)
 	if err != nil {
@@ -235,13 +239,12 @@ func (c *Server) hostsAllow() error {
 }
 
 func (c *Server) writeExports() error {
-
 	network := c.network
 	if network == "0.0.0.0/0" {
 		network = "*" // turn this in to nfs 'allow all hosts' syntax
 	}
-	s := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"+
-		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n\n",
+	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"+
+		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)",
 		exportsPath, network, exportsPath, c.exportedName, network)
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
@@ -253,7 +256,23 @@ func (c *Server) writeExports() error {
 	if err := bindMount(c.basePath, edir); err != nil {
 		return err
 	}
-	return atomicfile.WriteFile(etcExports, []byte(s), 0664)
+
+	originalContents, err := readFileIfExists(etcExports)
+	if err != nil {
+		return err
+	}
+
+	preamble, postamble := originalContents, ""
+	if index := strings.Index(originalContents, etcExportsStartMarker); index >= 0 {
+		preamble = originalContents[:index]
+		remainder := originalContents[index:]
+		if index := strings.Index(remainder, etcExportsEndMarker); index >= 0 {
+			postamble = remainder[index + len(etcExportsEndMarker):]
+		}
+	}
+	fileContents := preamble + etcExportsStartMarker + serviced_exports + etcExportsEndMarker + postamble
+
+	return atomicfile.WriteFile(etcExports, []byte(fileContents), 0664)
 }
 
 type bindMountF func(string, string) error
