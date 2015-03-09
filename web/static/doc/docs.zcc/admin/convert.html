@@ -85,9 +85,10 @@
                            <li class=" no-child "><a href="../../docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
                         </ul>
                      </li>
-                     <li class=" collapsible  collapsed"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                     <li class=" collapsible  collapsed"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
                            <li class=" no-child "><a href="../../docs.zcc/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/cli/script.html">serviced script</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -101,19 +102,19 @@
                         <h1 class="title topictitle1">Converting a single-host deployment to multi-host</h1>
                         <div class="body taskbody">
                            
-                           <div class="section context"><a name="taskid-d691e35" id="taskid-d691e35" class="anchor"></a>You may add hosts to a single-host deployment by
+                           <div class="section context"><a name="taskid-d714e35" id="taskid-d714e35" class="anchor"></a>You may add hosts to a single-host deployment by
                               following the steps in this procedure.
                            </div>
                            
                            
                            <ol class="ol steps">
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Install <span class="ph">Zenoss Control Center</span> on resource pool hosts.</span>
+                                 <span class="ph cmd">Install <span class="ph">Control Center</span> on resource pool hosts.</span>
                                  
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Log in to the <span class="ph">Zenoss Control Center</span> web interface, and then stop all applications.</span>
+                                 <span class="ph cmd">Log in to the <span class="ph">Control Center</span> web interface, and then stop all applications.</span>
                                  
                               </li>
                               
@@ -188,7 +189,7 @@
                                        
                                        <dd class="dd">Determines whether a <span class="keyword cmdname">serviced</span> instance performs master tasks. The
                                           master runs the application services scheduler and other internal services,
-                                          including the server for the <span class="ph">Zenoss Control Center</span> web interface. A
+                                          including the server for the <span class="ph">Control Center</span> web interface. A
                                           <span class="keyword cmdname">serviced</span> instance may be configured as both an agent and a
                                           master. Set the value to 1, true.
                                        </dd>
@@ -246,7 +247,7 @@ sudo sed -i.${EXT} -e 's|^#[^S]*\(SERVICED_REGISTRY=\).|\11|' \
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">In the <span class="ph">Zenoss Control Center</span> web interface,
+                                 <span class="ph cmd">In the <span class="ph">Control Center</span> web interface,
                                     start applications.</span>
                                  
                               </li>

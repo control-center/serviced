@@ -85,9 +85,10 @@
                            <li class=" no-child  active"><a class="selected" href="../../docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
                         </ul>
                      </li>
-                     <li class=" collapsible  collapsed"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                     <li class=" collapsible  collapsed"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
                            <li class=" no-child "><a href="../../docs.zcc/cli/serviced.html">serviced</a></li>
                            <li class=" no-child "><a href="../../docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/cli/script.html">serviced script</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -101,7 +102,7 @@
                         <h1 class="title topictitle1">Deploying multiple instances of a service</h1>
                         <div class="body taskbody">
                            
-                           <div class="section context"><a name="taskid-d1063e35" id="taskid-d1063e35" class="anchor"></a><span class="ph">Zenoss Control Center</span> can not deploy more than one instance of an application that
+                           <div class="section context"><a name="taskid-d1086e35" id="taskid-d1086e35" class="anchor"></a><span class="ph">Control Center</span> can not deploy more than one instance of an application that
                               includes virtual host names, unless the virtual host
                               names are unique. Follow this procedure to modify a application service template and deploy multiple
                               instances of an application.
@@ -110,7 +111,7 @@
                            
                            <ol class="ol steps">
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Log in to the <span class="ph">Zenoss Control Center</span> master host as a user with
+                                 <span class="ph cmd">Log in to the <span class="ph">Control Center</span> master host as a user with
                                     read and write privileges in <span class="ph filepath">/opt/serviced/templates</span>.</span>
                                  
                                  <ul class="ul choices">
@@ -129,7 +130,7 @@
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Change directory to the <span class="ph">Zenoss Control Center</span> templates directory,
+                                 <span class="ph cmd">Change directory to the <span class="ph">Control Center</span> templates directory,
                                     and copy the template file to modify.</span>
                                  
                                  <div class="itemgroup stepxmp"><pre class="pre codeblock">cd /opt/serviced/templates
@@ -172,7 +173,7 @@ sudo cp <var class="keyword varname">App-Template</var>.json <var class="keyword
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Log in to the <span class="ph">Zenoss Control Center</span> web interface, and deploy the new
+                                 <span class="ph cmd">Log in to the <span class="ph">Control Center</span> web interface, and deploy the new
                                     application.</span>
                                  
                               </li>
@@ -187,7 +188,7 @@ sudo cp <var class="keyword varname">App-Template</var>.json <var class="keyword
                      <div class="row">
                         <footer id="topicsNPLinks">
                            <div id="footer_previous"><a href="../../docs.zcc/admin/convert.html" class="previous" rel="internal" title="Converting a single-host deployment to multi-host"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Converting a single-host deployment to multi-host</span></a></div>
-                           <div id="footer_next"><a href="../../docs.zcc/cli/cli.html" class="next" rel="internal" title="Using the Zenoss Control Center command-line interface"><span class="sr-only">Using the Zenoss Control Center command-line interface</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                           <div id="footer_next"><a href="../../docs.zcc/cli/cli.html" class="next" rel="internal" title="Using the Control Center command-line interface"><span class="sr-only">Using the Control Center command-line interface</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>

@@ -11,7 +11,7 @@
    <target name="copy-image-list-item-1"
            depends="check-image-list-item-1, report-image-list-item-1"
            if="is-image-list-item-1">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-add-host.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-add-host.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-add-host.png"/>
          </fileset>
@@ -28,7 +28,7 @@
    <target name="copy-image-list-item-2"
            depends="check-image-list-item-2, report-image-list-item-2"
            if="is-image-list-item-2">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-start.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-start.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-start.png"/>
          </fileset>
@@ -45,7 +45,7 @@
    <target name="copy-image-list-item-3"
            depends="check-image-list-item-3, report-image-list-item-3"
            if="is-image-list-item-3">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-add-vhost.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-add-vhost.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-add-vhost.png"/>
          </fileset>
@@ -62,7 +62,7 @@
    <target name="copy-image-list-item-4"
            depends="check-image-list-item-4, report-image-list-item-4"
            if="is-image-list-item-4">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-internal-svcs.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-internal-svcs.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-internal-svcs.png"/>
@@ -80,7 +80,7 @@
    <target name="copy-image-list-item-5"
            depends="check-image-list-item-5, report-image-list-item-5"
            if="is-image-list-item-5">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-details.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-svc-details.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-svc-details.png"/>
@@ -99,7 +99,7 @@
    <target name="copy-image-list-item-6"
            depends="check-image-list-item-6, report-image-list-item-6"
            if="is-image-list-item-6">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-schedule.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail-schedule.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail-schedule.png"/>
@@ -117,7 +117,7 @@
    <target name="copy-image-list-item-7"
            depends="check-image-list-item-7, report-image-list-item-7"
            if="is-image-list-item-7">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-config.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail-config.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail-config.png"/>
@@ -136,7 +136,7 @@
    <target name="copy-image-list-item-8"
            depends="check-image-list-item-8, report-image-list-item-8"
            if="is-image-list-item-8">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-services.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail-services.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail-services.png"/>
@@ -154,7 +154,7 @@
    <target name="copy-image-list-item-9"
            depends="check-image-list-item-9, report-image-list-item-9"
            if="is-image-list-item-9">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-assign-ip.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-assign-ip.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-assign-ip.png"/>
          </fileset>
@@ -171,7 +171,7 @@
    <target name="copy-image-list-item-10"
            depends="check-image-list-item-10, report-image-list-item-10"
            if="is-image-list-item-10">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-edit-config.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-edit-config.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-edit-config.png"/>
@@ -190,7 +190,7 @@
    <target name="copy-image-list-item-11"
            depends="check-image-list-item-11, report-image-list-item-11"
            if="is-image-list-item-11">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-control.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail-control.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail-control.png"/>
@@ -208,7 +208,7 @@
    <target name="copy-image-list-item-12"
            depends="check-image-list-item-12, report-image-list-item-12"
            if="is-image-list-item-12">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-vhosts.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail-vhosts.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail-vhosts.png"/>
@@ -226,7 +226,7 @@
    <target name="copy-image-list-item-13"
            depends="check-image-list-item-13, report-image-list-item-13"
            if="is-image-list-item-13">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail.png"/>
          </fileset>
@@ -243,7 +243,7 @@
    <target name="copy-image-list-item-14"
            depends="check-image-list-item-14, report-image-list-item-14"
            if="is-image-list-item-14">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-add-pool.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-add-pool.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-add-pool.png"/>
          </fileset>
@@ -260,7 +260,7 @@
    <target name="copy-image-list-item-15"
            depends="check-image-list-item-15, report-image-list-item-15"
            if="is-image-list-item-15">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-bang.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-svc-bang.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-svc-bang.png"/>
          </fileset>
@@ -277,7 +277,7 @@
    <target name="copy-image-list-item-16"
            depends="check-image-list-item-16, report-image-list-item-16"
            if="is-image-list-item-16">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-question.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-svc-question.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-svc-question.png"/>
@@ -296,7 +296,7 @@
    <target name="copy-image-list-item-17"
            depends="check-image-list-item-17, report-image-list-item-17"
            if="is-image-list-item-17">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app-detail-ip-assign.png"
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app-detail-ip-assign.png"
             overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app-detail-ip-assign.png"/>
@@ -314,7 +314,7 @@
    <target name="copy-image-list-item-18"
            depends="check-image-list-item-18, report-image-list-item-18"
            if="is-image-list-item-18">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-svc-check.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-svc-check.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-svc-check.png"/>
          </fileset>
@@ -331,7 +331,7 @@
    <target name="copy-image-list-item-19"
            depends="check-image-list-item-19, report-image-list-item-19"
            if="is-image-list-item-19">
-      <copy toFile="/home/gemil/dita/docs.zcc/zcc/images/xf-app.png" overwrite="yes">
+      <copy toFile="/home/gemil/dita/docs.zcc/out/images/xf-app.png" overwrite="yes">
          <fileset dir="/home/gemil/dita/docs.zcc/gui/images">
             <include name="xf-app.png"/>
          </fileset>

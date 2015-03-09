@@ -33,7 +33,7 @@
       <meta name="DC.Format" content="XHTML">
       
       <meta name="DC.Identifier" content="referenceid">
-      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":null,"previousTopicHref":"docs.zcc\/cli\/serviced.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"docs.zcc\/cli\/script.html","previousTopicHref":"docs.zcc\/cli\/serviced.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
       <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-bootstrap/css/style.css">
       
       <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
@@ -69,7 +69,7 @@
          <div class="row">
             <div class="col-xs-12 col-md-21">
                <ol class="breadcrumb">
-                  <li><a class="breadcrumb" href="../../docs.zcc/cli/cli.html" title="Using the Zenoss Control Center command-line interface">Using the Zenoss Control Center command-line interface</a></li>
+                  <li><a class="breadcrumb" href="../../docs.zcc/cli/cli.html" title="Using the Control Center command-line interface">Using the Control Center command-line interface</a></li>
                   
                   <li>/etc/default/serviced</li>
                </ol>
@@ -85,9 +85,10 @@
                            <li class=" no-child "><a href="../../docs.zcc/admin/multiple.html">Deploying multiple instances of a service</a></li>
                         </ul>
                      </li>
-                     <li class=" collapsible  active"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Zenoss Control Center command-line interface</a><ul class="nav">
+                     <li class=" collapsible  active"><a href="../../docs.zcc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
                            <li class=" no-child "><a href="../../docs.zcc/cli/serviced.html">serviced</a></li>
                            <li class=" no-child  active"><a class="selected" href="../../docs.zcc/cli/defaults.html">/etc/default/serviced</a></li>
+                           <li class=" no-child "><a href="../../docs.zcc/cli/script.html">serviced script</a></li>
                         </ul>
                      </li>
                   </ul>
@@ -101,9 +102,9 @@
                         <h1 class="title topictitle1"><span class="ph filepath">/etc/default/serviced</span></h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="referenceid-d3504e36" id="referenceid-d3504e36" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d3539e36" id="referenceid-d3539e36" class="anchor"></a>
                               
-                              <p class="p"><span class="ph">Zenoss Control Center</span> (<span class="keyword cmdname">serviced</span>) is a single binary that behaves
+                              <p class="p"><span class="ph">Control Center</span> (<span class="keyword cmdname">serviced</span>) is a single binary that behaves
                                  differently based on the environment variables defined in its startup script. 
                               </p>
                               
@@ -191,9 +192,9 @@
                                  
                                  <dd class="dd">Determines whether a <span class="keyword cmdname">serviced</span> instance performs master tasks. The
                                     master runs the application services scheduler and other internal services, including
-                                    the server for the <span class="ph">Zenoss Control Center</span> web interface. A
+                                    the server for the <span class="ph">Control Center</span> web interface. A
                                     <span class="keyword cmdname">serviced</span> instance may be configured as agent and master, or just
-                                    agent, or just master. Only one <span class="keyword cmdname">serviced</span> instance in a <span class="ph">Zenoss Control Center</span> cluster may be the master.
+                                    agent, or just master. Only one <span class="keyword cmdname">serviced</span> instance in a <span class="ph">Control Center</span> cluster may be the master.
                                  </dd>
                                  
                                  
@@ -660,8 +661,8 @@
                                  </dd>
                                   
                                  
-                                 <dd class="dd">The name of the Linux group on the <span class="ph">Zenoss Control Center</span> master host whose
-                                    members are authorized to use the <span class="ph">Zenoss Control Center</span> web interface. You may
+                                 <dd class="dd">The name of the Linux group on the <span class="ph">Control Center</span> master host whose
+                                    members are authorized to use the <span class="ph">Control Center</span> web interface. You may
                                     replace the default group with a group that does not have superuser privileges.
                                  </dd>
                                  
@@ -676,7 +677,7 @@
                                   
                                  
                                  <dd class="dd">Determines whether <samp class="ph codeph">root</samp>, or members of the <samp class="ph codeph">sudo</samp> or
-                                    <samp class="ph codeph">wheel</samp> groups, may log in to the <span class="ph">Zenoss Control Center</span> web
+                                    <samp class="ph codeph">wheel</samp> groups, may log in to the <span class="ph">Control Center</span> web
                                     interface.
                                  </dd>
                                  
@@ -761,6 +762,19 @@
                                  
                                  
                                  
+                                 <dt class="dt dlterm"><samp class="ph codeph">SERVICED_SNAPSHOT_TTL</samp></dt>
+                                 
+                                 
+                                 <dd class="dd">Default: <samp class="ph codeph">12</samp></dd>
+                                  
+                                 
+                                 <dd class="dd">The number of hours a snapshot is retained before removal. To disable snapshot removal, 
+                                    set the value to 0.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
                                  <dt class="dt dlterm"><samp class="ph codeph">SERVICED_OPTS</samp></dt>
                                  
                                  
@@ -785,7 +799,7 @@
                      <div class="row">
                         <footer id="topicsNPLinks">
                            <div id="footer_previous"><a href="../../docs.zcc/cli/serviced.html" class="previous" rel="internal" title="serviced"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced</span></a></div>
-                           <div id="footer_next"></div>
+                           <div id="footer_next"><a href="../../docs.zcc/cli/script.html" class="next" rel="internal" title="serviced script"><span class="sr-only">serviced script</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
                         </footer>
                      </div>
                   </article>
