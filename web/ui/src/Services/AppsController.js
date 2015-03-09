@@ -11,7 +11,8 @@
         "$notification", "resourcesFactory", "authService",
         "$modalService", "$translate", "$timeout",
         "$cookies", "servicesFactory", "miscUtils",
-    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory, utils){
+        "ngTableParams", "$filter",
+    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory, utils, NgTableParams, $filter){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -271,6 +272,7 @@
                 { label: 'breadcrumb_deployed', itemClass: 'active' }
             ];
 
+            /*
             $scope.services = utils.buildTable('PoolID', [
                 { id: 'Name', name: 'deployed_tbl_name'},
                 { id: 'Description', name: 'deployed_tbl_description'},
@@ -279,13 +281,45 @@
                 { id: 'PoolID', name: 'deployed_tbl_pool'},
                 { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
             ]);
-            $scope.services.data = [];
+            */
+            $scope.services = {data: []};
+            $scope.$watch("apps", function(){
+                $scope.servicesTable.reload();
+            });
+            $scope.servicesTable = new NgTableParams({
+                sorting: {
+                    name: "asc"
+                }
+            },{
+                counts: [],
+                total: 1,
+                getData: function($defer, params) {
+                    $defer.resolve($scope.apps || []);
+                }
+            });
 
+            /*
             $scope.templates = utils.buildTable('Name', [
                 { id: 'Name', name: 'template_name'},
                 { id: 'ID', name: 'template_id'},
                 { id: 'Description', name: 'template_description'}
             ]);
+            */
+            $scope.templates = { data: [] };
+            $scope.$watch("templates.data", function(){
+                $scope.templatesTable.reload();
+            });
+            $scope.templatesTable = new NgTableParams({
+                sorting: {
+                    name: "asc"
+                }
+            },{
+                counts: [],
+                total: 1,
+                getData: function($defer, params) {
+                    $defer.resolve($scope.templates.data || []);
+                }
+            });
 
             // Get a list of templates
             refreshTemplates();
