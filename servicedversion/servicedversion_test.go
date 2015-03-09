@@ -29,7 +29,7 @@ func TestGetPackageRelease(t *testing.T) {
 	if utils.Platform == utils.Rhel {
 		expected = []string{"bash", "-c", "rpm -q --qf '%{VERSION}-%{Release}\n' serviced"}
 	} else {
-		expected = []string{"bash", "-c", "dpkg -s serviced | awk '/^Version/{print $NF;exit}'"}
+		expected = []string{"bash", "-o", "pipefail", "-c", "dpkg -s serviced | awk '/^Version/{print $NF;exit}'"}
 	}
 	if !reflect.DeepEqual(expected, actual) {
 		t.Fatalf("expected: %+v != actual: %+v", expected, actual)
