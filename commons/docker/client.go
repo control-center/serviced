@@ -14,6 +14,8 @@
 package docker
 
 import (
+	"io"
+
 	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
@@ -22,8 +24,7 @@ type DockerClientGetter func() (ClientInterface, error)
 
 // The default method used to get a new instance of ClientInterface.
 // The default instance is a thin shim around dockerclient.Client
-var defaultDockerClientGetter DockerClientGetter =
-	func() (ClientInterface, error) { return NewClient(dockerep) }
+var defaultDockerClientGetter DockerClientGetter = func() (ClientInterface, error) { return NewClient(dockerep) }
 
 var getDockerClient DockerClientGetter = defaultDockerClientGetter
 
@@ -48,6 +49,10 @@ type ClientInterface interface {
 
 	ImportImage(opts dockerclient.ImportImageOptions) error
 
+	SaveImages(opts dockerclient.SaveImageOptions) error
+
+	LoadImages(inputStream io.Reader) error
+
 	InspectContainer(id string) (*dockerclient.Container, error)
 
 	InspectImage(name string) (*dockerclient.Image, error)
@@ -58,13 +63,13 @@ type ClientInterface interface {
 
 	ListImages(all bool) ([]dockerclient.APIImages, error)
 
- 	MonitorEvents() (dockerclient.EventMonitor, error)
+	MonitorEvents() (dockerclient.EventMonitor, error)
 
 	PullImage(opts dockerclient.PullImageOptions, auth dockerclient.AuthConfiguration) error
 
 	PushImage(opts dockerclient.PushImageOptions, auth dockerclient.AuthConfiguration) error
 
- 	RemoveContainer(opts dockerclient.RemoveContainerOptions) error
+	RemoveContainer(opts dockerclient.RemoveContainerOptions) error
 
 	RemoveImage(name string) error
 
@@ -72,7 +77,7 @@ type ClientInterface interface {
 
 	StartContainer(id string, hostConfig *dockerclient.HostConfig) error
 
- 	StopContainer(id string, timeout uint) error
+	StopContainer(id string, timeout uint) error
 
 	TagImage(name string, opts dockerclient.TagImageOptions) error
 
@@ -87,14 +92,14 @@ func NewClient(dockerRegistry string) (ClientInterface, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Client{ dc: dc }, nil
+	return &Client{dc: dc}, nil
 }
 
-func (c* Client) CommitContainer(opts dockerclient.CommitContainerOptions) (*dockerclient.Image, error) {
+func (c *Client) CommitContainer(opts dockerclient.CommitContainerOptions) (*dockerclient.Image, error) {
 	return c.dc.CommitContainer(opts)
 }
 
-func (c* Client) CreateContainer(opts dockerclient.CreateContainerOptions) (*dockerclient.Container, error) {
+func (c *Client) CreateContainer(opts dockerclient.CreateContainerOptions) (*dockerclient.Container, error) {
 	return c.dc.CreateContainer(opts)
 }
 
@@ -110,7 +115,15 @@ func (c *Client) ImportImage(opts dockerclient.ImportImageOptions) error {
 	return c.dc.ImportImage(opts)
 }
 
-func (c* Client) InspectContainer(id string) (*dockerclient.Container, error) {
+func (c *Client) SaveImages(opts dockerclient.SaveImageOptions) error {
+	return c.dc.SaveImages(opts)
+}
+
+func (c *Client) LoadImages(inputStream io.Reader) error {
+	return c.dc.LoadImages(inputStream)
+}
+
+func (c *Client) InspectContainer(id string) (*dockerclient.Container, error) {
 	return c.dc.InspectContainer(id)
 }
 
@@ -118,15 +131,15 @@ func (c *Client) InspectImage(name string) (*dockerclient.Image, error) {
 	return c.dc.InspectImage(name)
 }
 
-func (c* Client) ListContainers(opts dockerclient.ListContainersOptions) ([]dockerclient.APIContainers, error) {
+func (c *Client) ListContainers(opts dockerclient.ListContainersOptions) ([]dockerclient.APIContainers, error) {
 	return c.dc.ListContainers(opts)
 }
 
-func (c* Client) ListImages(all bool) ([]dockerclient.APIImages, error) {
+func (c *Client) ListImages(all bool) ([]dockerclient.APIImages, error) {
 	return c.dc.ListImages(all)
 }
 
-func (c* Client) MonitorEvents() (dockerclient.EventMonitor, error) {
+func (c *Client) MonitorEvents() (dockerclient.EventMonitor, error) {
 	return c.dc.MonitorEvents()
 }
 
@@ -150,7 +163,7 @@ func (c *Client) RestartContainer(id string, timeout uint) error {
 	return c.dc.RestartContainer(id, timeout)
 }
 
-func (c* Client) StartContainer(id string, hostConfig *dockerclient.HostConfig) error {
+func (c *Client) StartContainer(id string, hostConfig *dockerclient.HostConfig) error {
 	return c.dc.StartContainer(id, hostConfig)
 }
 

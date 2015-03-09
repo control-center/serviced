@@ -590,6 +590,34 @@ func (img *Image) Inspect() (*dockerclient.Image, error) {
 	return InspectImage(img.UUID)
 }
 
+func SaveImages(outfile *os.File, repotags ...string) error {
+	dc, err := getDockerClient()
+	if err != nil {
+		return err
+	}
+	return dc.SaveImages(dockerclient.SaveImageOptions{Names: repotags, OutputStream: outfile})
+}
+
+func (img *Image) Save(outfile *os.File) error {
+	return SaveImages(outfile, img.ID.String())
+}
+
+func LoadImages(filename string) error {
+	dc, err := getDockerClient()
+	if err != nil {
+		return err
+	}
+
+	glog.V(1).Infof("importing images from %s", filename)
+	f, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	return dc.LoadImages(f)
+}
+
 func ImageHistory(uuid string) ([]*dockerclient.Image, error) {
 	layers := make([]*dockerclient.Image, 0, 64)
 	for uuid != "" {
