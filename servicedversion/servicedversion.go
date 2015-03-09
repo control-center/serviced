@@ -24,6 +24,7 @@ import (
 
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 var Version string
@@ -77,7 +78,8 @@ func GetPackageRelease(pkg string) (string, error) {
 	}
 
 	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", command, output)
-	return string(output), nil
+	release := strings.TrimSuffix(string(output), "\n")
+	return release, nil
 }
 
 // getCommandToGetPackageRelease returns the command to get the package release
@@ -86,7 +88,7 @@ func getCommandToGetPackageRelease(pkg string) []string {
 	if utils.Platform == utils.Rhel {
 		command = []string{"bash", "-c", fmt.Sprintf("rpm -q --qf '%%{VERSION}-%%{Release}\n' %s", pkg)}
 	} else {
-		command = []string{"bash", "-c", fmt.Sprintf("dpkg -s %s | awk '/^Version/{print $NF;exit}'", pkg)}
+		command = []string{"bash", "-o", "pipefail", "-c", fmt.Sprintf("dpkg -s %s | awk '/^Version/{print $NF;exit}'", pkg)}
 	}
 
 	return command
