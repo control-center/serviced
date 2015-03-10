@@ -49,7 +49,7 @@ func init() {
 	var err error
 	Release, err = GetPackageRelease("serviced")
 	if err != nil {
-		glog.Errorf("%s", err)
+		glog.V(1).Infof("%s", err) // this should be Warningf or Infof, but zendev infinitely loops when seeing stderr
 	}
 }
 
