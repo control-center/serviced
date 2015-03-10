@@ -196,15 +196,6 @@
             });
         };
 
-        $scope.tableSort = function(service){
-            var sort = $scope.services.sort;
-            if(sort[0] === "-"){
-                sort = sort.substr(1);
-            }
-            return service.model[sort];
-        };
-
-
 
         /*
          * PRIVATE FUNCTIONS
@@ -254,7 +245,7 @@
         }
 
         function deleteTemplate(templateID){
-            return resourcesFactory.deleteAppTemplate(templateID)
+            return resourcesFactory.removeAppTemplate(templateID)
                 .success(refreshTemplates);
         }
 
@@ -272,18 +263,8 @@
                 { label: 'breadcrumb_deployed', itemClass: 'active' }
             ];
 
-            /*
-            $scope.services = utils.buildTable('PoolID', [
-                { id: 'Name', name: 'deployed_tbl_name'},
-                { id: 'Description', name: 'deployed_tbl_description'},
-                { id: 'Health', name: 'health_check', hideSort: true},
-                { id: 'DeploymentID', name: 'deployed_tbl_deployment_id'},
-                { id: 'PoolID', name: 'deployed_tbl_pool'},
-                { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
-            ]);
-            */
-            $scope.services = {data: []};
-            $scope.$watch("apps", function(){
+            // TODO - this might not be adequate for dirty check
+            $scope.$watch("apps.length", function(){
                 $scope.servicesTable.reload();
             });
             $scope.servicesTable = new NgTableParams({
@@ -292,19 +273,16 @@
                 }
             },{
                 counts: [],
-                total: 1,
                 getData: function($defer, params) {
-                    $defer.resolve($scope.apps || []);
+                    // use build-in angular filter
+                    var orderedData = params.sorting() ?
+                        $filter('orderBy')($scope.apps, params.orderBy()) :
+                        $scope.apps;
+
+                    $defer.resolve(orderedData || []);
                 }
             });
 
-            /*
-            $scope.templates = utils.buildTable('Name', [
-                { id: 'Name', name: 'template_name'},
-                { id: 'ID', name: 'template_id'},
-                { id: 'Description', name: 'template_description'}
-            ]);
-            */
             $scope.templates = { data: [] };
             $scope.$watch("templates.data", function(){
                 $scope.templatesTable.reload();
@@ -315,9 +293,12 @@
                 }
             },{
                 counts: [],
-                total: 1,
                 getData: function($defer, params) {
-                    $defer.resolve($scope.templates.data || []);
+                    var orderedData = params.sorting() ?
+                        $filter('orderBy')($scope.templates.data, params.orderBy()) :
+                        $scope.templates.data;
+
+                    $defer.resolve(orderedData || []);
                 }
             });
 
@@ -332,7 +313,7 @@
             servicesFactory.update().then(function(){
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
-                if(!$cookies.autoRunWizardHasRun && $scope.services.data.length === 1){
+                if(!$cookies.autoRunWizardHasRun && $scope.apps.length === 1){
                     $scope.modalAddApp();
                 }
 

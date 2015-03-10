@@ -114,7 +114,7 @@
                 // if this is a top level service
                 } else {
                     this.serviceTree.push(service);
-                    this.serviceTree.sort(sortServicesByName);
+                    //this.serviceTree.sort(sortServicesByName);
                 }
 
                 // ICKY GROSS HACK!
