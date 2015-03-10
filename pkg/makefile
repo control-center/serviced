@@ -53,6 +53,10 @@ PKG_VERSION = $(VERSION)
 ifeq "$(RELEASE_PHASE)" ""
     ITERATION = 0.0.$(BUILD_NUMBER).unstable
 else
+    # This else portion is no longer used - replaced by:
+    #   http://jenkins.zendev.org/view/Promotions/job/serviced-promote/
+    #   https://github.com/control-center/serviced/blob/develop/pkg/reversion/deb/reversion.sh
+    #   https://github.com/control-center/serviced/blob/develop/pkg/reversion/rpm/reversion.sh
     # Included a RELEASE_PHASE - assume NOT a nightly build
     ifeq "$(RELEASE_PHASE)" "GA"
         ITERATION = 1
