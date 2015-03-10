@@ -67,6 +67,8 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular-moment/angular-moment.js",
     paths.thirdpartySrc + "angular-sticky/sticky.js",
 
+    paths.thirdpartySrc + "ng-table/ng-table.js",
+
     paths.thirdpartySrc + "d3/d3.js",
     paths.thirdpartySrc + "graphlib/graphlib.js",
     paths.thirdpartySrc + "dagre-d3/dagre-d3.js",
@@ -97,7 +99,8 @@ var staticFiles = [
     paths.staticSrc + 'lib/jquery-datetimepicker/*.css',
     paths.staticSrc + 'lib/thirdparty.*',
     paths.staticSrc + 'logview/**/*.*',
-    paths.staticSrc + 'scripts/**/*.*'
+    paths.staticSrc + 'scripts/**/*.*',
+    paths.staticSrc + 'lib/ng-table/ng-table.css'
 ];
 
 gulp.task("default", ["concat", "copyStatic"]);
@@ -110,7 +113,7 @@ gulp.task("release", function(){
 // this needs to run 3rd party code is
 // updated, which should be infrequent
 gulp.task("release3rdparty", function(){
-    sequence("concat3rdparty", "uglify3rdparty", function(){});
+    sequence("copyStatic", "concat3rdparty", "uglify3rdparty", function(){});
 });
 
 gulp.task("concat", function(){
