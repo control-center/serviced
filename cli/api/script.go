@@ -16,6 +16,7 @@ package api
 import (
 	"fmt"
 	"math"
+	"os"
 	"path"
 	"time"
 
@@ -49,6 +50,7 @@ func initConfig(config *script.Config, a *api) {
 	config.SvcStart = cliServiceControl(a.StartService)
 	config.SvcStop = cliServiceControl(a.StopService)
 	config.SvcRestart = cliServiceControl(a.RestartService)
+	config.SvcMigrate = cliServiceMigrate(a)
 	config.SvcWait = cliServiceWait(a)
 	config.Commit = a.Commit
 	config.SvcUse = cliServiceUse(a)
@@ -160,5 +162,20 @@ func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 			return "", fmt.Errorf("did not find service %s", svcPath)
 		}
 		return svcID, nil
+	}
+}
+
+func cliServiceMigrate(a API) script.ServiceMigrate {
+	return func(svcID string, scriptFile string) error {
+		input, err := os.Open(scriptFile)
+		if err != nil {
+			return fmt.Errorf("Could not open migration script: %s", err)
+		}
+		defer input.Close()
+
+		if _, err := a.MigrateService(svcID, input, false); err != nil {
+			return fmt.Errorf("Migration failed for service %s: %s", svcID, err)
+		}
+		return nil
 	}
 }
