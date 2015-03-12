@@ -14,6 +14,7 @@
 package nfs
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -67,9 +68,9 @@ const hostDenyDefaults = "\n# serviced, do not remove past this line\nrpcbind mo
 const hostAllowMarker = "# serviced, do not remove past this line"
 const hostAllowDefaults = "\n# serviced, do not remove past this line\nrpcbind mountd nfsd statd lockd rquotad : 127.0.0.1"
 
-
 const etcExportsStartMarker = "\n# --- SERVICED EXPORTS BEGIN ---\n# --- Do not edit this section\n"
 const etcExportsEndMarker = "\n# --- SERVICED EXPORTS END ---\n"
+const etcExportsRemoveComment = "# serviced removed: "
 
 func verifyExportsDir(path string) error {
 	stat, err := os.Stat(path)
@@ -262,12 +263,33 @@ func (c *Server) writeExports() error {
 		return err
 	}
 
-	preamble, postamble := originalContents, ""
-	if index := strings.Index(originalContents, etcExportsStartMarker); index >= 0 {
-		preamble = originalContents[:index]
-		remainder := originalContents[index:]
+	// comment out lines that conflicts with serviced exported mountpoints
+	mountpaths := map[string]bool{exportsPath: true, path.Join(exportsPath, c.exportedName): true}
+	filteredContent := ""
+	scanner := bufio.NewScanner(strings.NewReader(originalContents))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "#") {
+			fields := strings.Fields(line)
+			if len(fields) > 0 {
+				mountpoint := fields[0]
+				if _, ok := mountpaths[mountpoint]; ok {
+					filteredContent += etcExportsRemoveComment + line + "\n"
+					continue
+				}
+			}
+		}
+
+		filteredContent += line + "\n"
+	}
+
+	// create file content
+	preamble, postamble := filteredContent, ""
+	if index := strings.Index(filteredContent, etcExportsStartMarker); index >= 0 {
+		preamble = filteredContent[:index]
+		remainder := filteredContent[index:]
 		if index := strings.Index(remainder, etcExportsEndMarker); index >= 0 {
-			postamble = remainder[index + len(etcExportsEndMarker):]
+			postamble = remainder[index+len(etcExportsEndMarker):]
 		}
 	}
 	fileContents := preamble + etcExportsStartMarker + serviced_exports + etcExportsEndMarker + postamble
