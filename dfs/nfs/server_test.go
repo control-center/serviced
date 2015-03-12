@@ -139,7 +139,7 @@ func TestNewServer(t *testing.T) {
 	assertFileContents(t, etcHostsDeny, []byte(hostDenyDefaults))
 	assertFileContents(t, etcHostsAllow, []byte(hostAllowDefaults+" 192.168.1.20 192.168.1.21\n\n"))
 
-	expected := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network)  + etcExportsEndMarker
+	expected := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network) + etcExportsEndMarker
 	assertFileContents(t, etcExports, []byte(expected))
 
 }
@@ -181,20 +181,22 @@ func TestWriteExports(t *testing.T) {
 	}
 	defer func() {
 		bindMount = bindMountImp
-	} ()
+	}()
 
 	network := "1.2.3.4/8"
 	exported := "foobar"
-	s := Server {
-		network:  	  network,
+	s := Server{
+		network:      network,
 		basePath:     baseDir,
 		exportedName: exported,
 	}
 
-	exportBlock := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network)  + etcExportsEndMarker
+	exportBlock := etcExportsStartMarker + fmt.Sprintf(expectedExports, exportsPath, network, exportsPath, exported, network) + etcExportsEndMarker
 	dummyBlock := etcExportsStartMarker + "# Some leftover crud from the last run" + etcExportsEndMarker
 	preamble := "# Arbitrary text that occurs at the beginning\n"
 	postamble := "\n# Some other text that occurs at the end\n"
+	conflict1 := fmt.Sprintf("%s *(rw,fsid=0)\n", exportsPath)
+	conflict2 := fmt.Sprintf("%s *(rw)\n", path.Join(exportsPath, exported))
 
 	testWriteExports := func(contents, expected string) {
 		ioutil.WriteFile(etcExports, []byte(contents), 0664)
@@ -213,15 +215,18 @@ func TestWriteExports(t *testing.T) {
 	testWriteExports(dummyBlock, exportBlock)
 
 	// Write to file that contains non-serviced exports
-	testWriteExports(preamble, preamble + exportBlock)
+	testWriteExports(preamble, preamble+exportBlock)
 
 	// File contains serviced exports and preceding text
-	testWriteExports(preamble + dummyBlock, preamble + exportBlock)
+	testWriteExports(preamble+dummyBlock, preamble+exportBlock)
 
 	// File contains serviced exports and following text
-	testWriteExports(dummyBlock + postamble, exportBlock + postamble)
+	testWriteExports(dummyBlock+postamble, exportBlock+postamble)
 
 	// File contains serviced exports and both preceding and following text
-	testWriteExports(preamble + dummyBlock + postamble, preamble + exportBlock + postamble)
+	testWriteExports(preamble+dummyBlock+postamble, preamble+exportBlock+postamble)
 
+	// File contains serviced exports and both preceding - remove duplicates
+	testWriteExports(preamble+conflict1+dummyBlock+conflict2+postamble,
+		preamble+etcExportsRemoveComment+conflict1+exportBlock+etcExportsRemoveComment+conflict2+postamble)
 }
