@@ -32,6 +32,7 @@ var options Options
 type Options struct {
 	Endpoint             string // the endpoint address to make RPC requests to
 	UIPort               string
+	NFSClient            string
 	RPCPort              string
 	Listen               string
 	OutboundIP           string // outbound ip to listen on
