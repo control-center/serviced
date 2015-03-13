@@ -168,6 +168,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringFlag{"endpoint", configEnv("ENDPOINT", agentEndpoint), fmt.Sprintf("endpoint for remote serviced (example.com:%d)", defaultRPCPort)},
 		cli.StringFlag{"outbound", configEnv("OUTBOUND_IP", ""), "outbound ip address"},
 		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
+		cli.StringFlag{"nfs-client", configEnv("NFS_CLIENT", "1"), "establish agent as an nfs client sharing data, 0 to disable"},
 		cli.IntFlag{"listen", rpcPort, fmt.Sprintf("rpc port for serviced (%d)", defaultRPCPort)},
 		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
@@ -241,6 +242,7 @@ func (c *ServicedCli) Run(args []string) {
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	options := api.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
+		NFSClient:            ctx.GlobalString("nfs-client"),
 		Endpoint:             ctx.GlobalString("endpoint"),
 		StaticIPs:            ctx.GlobalStringSlice("static-ip"),
 		UIPort:               ctx.GlobalString("uiport"),
