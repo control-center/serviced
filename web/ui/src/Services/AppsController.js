@@ -263,44 +263,58 @@
                 { label: 'breadcrumb_deployed', itemClass: 'active' }
             ];
 
-            // TODO - this might not be adequate for dirty check
-            $scope.$watch("apps.length", function(){
+
+            /*
+            $scope.$watch(function(){
+                // TODO - clean this up :/
+                if(!$scope.apps){
+                    return;
+                }
+
+                // TODO - this is not be adequate for dirty check
+                return $scope.apps.length + $scope.deployingServices.length;
+            }, function(){
                 $scope.servicesTable.reload();
             });
-            $scope.servicesTable = new NgTableParams({
+            */
+
+            $scope.servicesTable = {
                 sorting: {
                     name: "asc"
-                }
-            },{
+                },
                 counts: [],
-                getData: function($defer, params) {
-                    // use build-in angular filter
+                getData: function(data, params) {
+                    // use built-in angular filter
                     var orderedData = params.sorting() ?
-                        $filter('orderBy')($scope.apps, params.orderBy()) :
-                        $scope.apps;
+                        $filter('orderBy')(data, params.orderBy()) :
+                        data;
 
-                    $defer.resolve(orderedData || []);
+                    if(!orderedData){
+                        return;
+                    }
+
+                    // mark any deploying services so they can be treated differently
+                    orderedData.forEach(function(service){
+                        service.deploying = false;
+                        $scope.deployingServices.forEach(function(deploying){
+                            if(service.model.DeploymentID === deploying.DeploymentID){
+                                service.deploying = true;
+                            }
+                        });
+                    });
+
+                    return orderedData;
                 }
-            });
+            };
 
             $scope.templates = { data: [] };
-            $scope.$watch("templates.data", function(){
-                $scope.templatesTable.reload();
-            });
-            $scope.templatesTable = new NgTableParams({
+            // table config
+            $scope.templatesTable = {
                 sorting: {
                     name: "asc"
-                }
-            },{
+                },
                 counts: [],
-                getData: function($defer, params) {
-                    var orderedData = params.sorting() ?
-                        $filter('orderBy')($scope.templates.data, params.orderBy()) :
-                        $scope.templates.data;
-
-                    $defer.resolve(orderedData || []);
-                }
-            });
+            };
 
             // Get a list of templates
             refreshTemplates();

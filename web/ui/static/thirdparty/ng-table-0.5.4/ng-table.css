@@ -134,3 +134,30 @@
     display: block;
   }
 }
+
+/* OVERRIDES */
+
+/* left align table headers */
+.ng-table th {
+  text-align: left;
+}
+/* change sort arrows to white */
+.ng-table th.sortable.sort-desc .sort-indicator:after,
+.ng-table th.sortable .sort-indicator:after,
+.ng-table th.sortable .sort-indicator:before {
+    border-color: white transparent !important;
+}
+/* make sort-asc and sort-desc arrows solid */
+.ng-table th.sortable.sort-asc .sort-indicator:after,
+.ng-table th.sortable.sort-asc .sort-indicator:hover:after,
+.ng-table th.sortable.sort-desc .sort-indicator:after {
+    opacity: 1;
+}
+/* get rid of white shadow on sorted header */
+.ng-table th.sortable.sort-desc,
+.ng-table th.sortable.sort-asc {
+    background-color: rgba(141, 192, 219, 0.25);
+    text-shadow: none;
+}
+
+

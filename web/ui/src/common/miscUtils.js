@@ -8,8 +8,8 @@
     "use strict";
 
     angular.module("miscUtils", [])
-    .factory("miscUtils", [
-    function(){
+    .factory("miscUtils", [ "$parse",
+    function($parse){
 
         var utils = {
             /*
@@ -172,6 +172,16 @@
                 // check is location.hostname is an IP
                 var re = /\b(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\b/;
                 return re.test(host) || host === "localhost";
+            },
+
+            // returns a function that will parse the
+            // expression `attr` on scope object $scope
+            // and return that value
+            propGetter: function($scope, attr){
+                var getter = $parse(attr);
+                return function(){
+                    return getter($scope);
+                };
             }
         };
 

@@ -1710,8 +1710,8 @@ input[type=file] {
     position: absolute;
     top: -10px;
     right: 8px;
-    width: 0; 
-    height: 0; 
+    width: 0;
+    height: 0;
     border-left: 10px solid transparent;
     border-right: 10px solid transparent;
     border-bottom: 10px solid #CCC;
@@ -1721,8 +1721,8 @@ input[type=file] {
     position: absolute;
     top: -9px;
     right: 8px;
-    width: 0; 
-    height: 0; 
+    width: 0;
+    height: 0;
     border-left: 10px solid transparent;
     border-right: 10px solid transparent;
     border-bottom: 10px solid white;
@@ -1731,3 +1731,54 @@ input[type=file] {
     display: block;
     position: relative;
 }
+
+
+/* jelly table */
+.jelly-table {
+    position: relative;
+    clear: both;
+}
+
+.jelly-table .loader{
+    opacity: 1;
+    width: 100%;
+    height: calc(100% - 106px);
+    position: absolute;
+    top: 30px;
+    left: 0;
+    background: rgba(255,255,255,.9) center center url("/static/img/loading.gif") no-repeat;
+    text-align: center;
+    overflow: hidden;
+
+    transition: opacity .4s;
+}
+.jelly-table .loader:hover {
+    background-color: rgba(255,255,255,.9);
+}
+.jelly-table .loader.disappear {
+    opacity: 0;
+}
+
+.jelly-table .noData {
+    font-size: 1.4em;
+}
+.jelly-table .noData td {
+    padding: 6px;
+}
+
+.jelly-table .statusBar {
+    color: #CCC;
+    font-size: .9em;
+    padding: 8px 0 0 0;
+    text-align: right;
+    border: none;
+    cursor: default;
+}
+.jelly-table .statusBar .entry {
+    display: inline-block;
+    margin: 2px 0 0 16px;
+}
+.jelly-table .statusBar .entry strong {
+    color: #999;
+}
+

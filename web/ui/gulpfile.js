@@ -164,6 +164,8 @@ gulp.task("watch", function(){
     gulp.watch(paths.src + "/**/*.js", ["concat"]);
     // copy html templates
     gulp.watch(paths.src + "/**/*.html", ["copyStatic"]);
+    // copy static content
+    gulp.watch(staticFiles, ["copyStatic"]);
     // copy translations
     gulp.watch(paths.staticSrc + "/i18n/*", ["copyStatic"]);
     // TODO - preprocess CSS

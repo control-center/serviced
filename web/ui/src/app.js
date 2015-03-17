@@ -26,7 +26,7 @@ var controlplane = angular.module('controlplane', [
     'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon',
     'authService', 'miscUtils', 'hostsFactory', 'poolsFactory', 'instancesFactory', 'baseFactory',
-    'ngTable'
+    'ngTable', 'jellyTable'
 ]);
 
 controlplane.
@@ -148,5 +148,12 @@ controlplane.
     filter('prettyDate', function(){
         return function(dateString){
             return moment(dateString).format('MMM Do YYYY, hh:mm:ss');
+        };
+    }).
+    // create a human readable "fromNow" string from
+    // a date. eg: "a few seconds ago"
+    filter('fromNow', function(){
+        return function(date){
+            return moment(date).fromNow();
         };
     });
