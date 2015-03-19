@@ -51,12 +51,10 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 		return err
 	}
 
-	if err := this.facade.AddService(datastore.Get(), *cloned); err != nil {
+	if err := this.AddService(*cloned, clonedServiceId); err != nil {
 		return err
 	}
 
-	this.createTenantVolume(svc.ID)
-	*clonedServiceId = svc.ID
 	return nil
 }
 
