@@ -81,6 +81,14 @@ func (mcp *MockControlPlane) AddService(service service.Service, serviceId *stri
 	return mcp.Mock.Called(service, serviceId).Error(0)
 }
 
+// Clone a new service
+func (mcp *MockControlPlane) CloneService(request dao.ServiceCloneRequest, serviceId *string) error {
+	if mcp.Responses["CloneService"] != nil {
+		*serviceId = *((*string)(mcp.Responses["CloneService"]))
+	}
+	return mcp.Mock.Called(request, serviceId).Error(0)
+}
+
 // Deploy a new service
 func (mcp *MockControlPlane) DeployService(service dao.ServiceDeploymentRequest, serviceId *string) error {
 	if mcp.Responses["DeployService"] != nil {
