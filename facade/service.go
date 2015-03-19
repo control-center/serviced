@@ -1508,7 +1508,8 @@ func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error)
 // scriptFilePath and inputFilePath are rooted under tmpDir
 // Returns the name of the file under tmpDir containing the output from the migration script
 func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath string) (string, error) {
-	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration:1.0.0"
+	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration"
+	const SERVICE_MIGRATION_TAG_NAME = "1.0.0"
 	const MOUNT_POINT = "/migration"
 	const OUTPUT_FILE = "output.json"
 
@@ -1520,12 +1521,20 @@ func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath str
 
 	containerOutputFile := path.Join(MOUNT_POINT, OUTPUT_FILE)
 
+	tagName := SERVICE_MIGRATION_TAG_NAME
+	tagOverride := os.Getenv("SERVICED_SERVICE_MIGRATION_TAG")
+	if tagOverride != "" {
+		tagName = tagOverride
+		glog.V(2).Infof("Facade:executeMigrationScript: using docker tag override=%q", tagName)
+	}
+	dokckerImage := fmt.Sprintf("%s:%s", SERVICE_MIGRATION_IMAGE_NAME, tagName)
+
 	mountPath := fmt.Sprintf("%s:/migration", tmpDir)
 	cmd := exec.Command("docker",
 		"run", "--rm", "-t",
 		"--name", "service-migration",
 		"-v", mountPath,
-		SERVICE_MIGRATION_IMAGE_NAME,
+		dokckerImage,
 		"python", containerScript, containerInputFile, containerOutputFile)
 
 	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)

@@ -126,7 +126,8 @@ SERVICED_FS_TYPE=btrfs
 # Default: 1    (enable)
 # SERVICED_MONITOR_DFS_MASTER_RESTART=1
 
+# Overrides the default for the service migration image.
+# SERVICED_SERVICE_MIGRATION_TAG=1.0.2
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
-
-
