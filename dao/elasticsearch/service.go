@@ -37,6 +37,29 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	return nil
 }
 
+// CloneService clones a service.  Return error if given serviceID is not found
+func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clonedServiceId *string) error {
+	svc, err := this.facade.GetService(datastore.Get(), request.ServiceID)
+	if err != nil {
+		glog.Errorf("ControlPlaneDao.CloneService: unable to find service id %+v: %s", request.ServiceID, err)
+		return err
+	}
+
+	cloned, err := service.CloneService(svc, request.Suffix)
+	if err != nil {
+		glog.Errorf("ControlPlaneDao.CloneService: unable to rename service %+v %v: %s", svc.ID, svc.Name, err)
+		return err
+	}
+
+	if err := this.facade.AddService(datastore.Get(), *cloned); err != nil {
+		return err
+	}
+
+	this.createTenantVolume(svc.ID)
+	*clonedServiceId = svc.ID
+	return nil
+}
+
 //
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
 	if err := this.facade.UpdateService(datastore.Get(), svc); err != nil {

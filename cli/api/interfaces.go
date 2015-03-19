@@ -55,6 +55,7 @@ type API interface {
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
+	CloneService(string, string) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
 	StartService(SchedulerConfig) (int, error)
