@@ -175,6 +175,21 @@ func (a *api) AddService(config ServiceConfig) (*service.Service, error) {
 	return a.GetService(serviceID)
 }
 
+// CloneService copies an existing service
+func (a *api) CloneService(serviceID string, suffix string) (*service.Service, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	request := dao.ServiceCloneRequest{ServiceID: serviceID, Suffix: suffix}
+	clonedServiceID := ""
+	if err := client.CloneService(request, &clonedServiceID); err != nil {
+		return nil, fmt.Errorf("copy service failed: %s", err)
+	}
+	return a.GetService(clonedServiceID)
+}
+
 // MigrateService migrates an existing service
 func (a *api) MigrateService(serviceID string, input io.Reader, dryRun bool) (*service.Service, error) {
 	client, err := a.connectDAO()

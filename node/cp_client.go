@@ -84,6 +84,10 @@ func (s *ControlClient) AddService(service service.Service, serviceId *string) (
 	return s.rpcClient.Call("ControlPlane.AddService", service, serviceId)
 }
 
+func (s *ControlClient) CloneService(request dao.ServiceCloneRequest, copiedServiceId *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.CloneService", request, copiedServiceId)
+}
+
 func (s *ControlClient) DeployService(service dao.ServiceDeploymentRequest, serviceId *string) (err error) {
 	return s.rpcClient.Call("ControlPlane.DeployService", service, serviceId)
 }
