@@ -40,9 +40,9 @@
                 tableID = "jellyTable" + count++;
 
                 // add loading and no data elements
-                table.after(`<div class="loader"></div>`);
                 table.find("tr").last()
                     .after(`<tr class="noData"><td colspan="100%" translate>no_data</td></tr>`)
+                    .after(`<tr class="loader"><td colspan="100%">&nbsp;</td></tr>`)
                     .after(`<tr class="loaderSpacer"><td colspan="100%">&nbsp;</td></tr>`);
 
                 // add table status bar
@@ -52,7 +52,7 @@
                             <ul>
                                 <li class="entry">Last Update: <strong>{{${tableID}.lastUpdate | fromNow}}</strong></li>
                                 <li class="entry">Showing <strong>{{${tableID}.resultsLength}}</strong>
-                                    Result{{ ${tableID}.resultsLength > 1 ? "s" : ""  }}
+                                    Result{{ ${tableID}.resultsLength !== 1 ? "s" : ""  }}
                                 </li>
                             </ul>
                         </td>
@@ -75,11 +75,19 @@
                     fn($scope);
 
                     var $loader, $loaderSpacer, $noData,
+                        toggleLoader, toggleNoData,
                         getData, pageConfig, dataConfig,
-                        timezone;
+                        timezone, orderBy;
 
                     var config = utils.propGetter($scope, attrs.config);
                     var data = utils.propGetter($scope, attrs.data);
+
+                    orderBy = $filter("orderBy");
+
+                    // setup some config defaults
+                    // TODO - create a defaults object and merge
+                    config().counts = config().counts || [];
+                    config().watch = config().watch || function(){ return data(); };
 
                     timezone = jstz.determine().name();
 
@@ -88,11 +96,48 @@
                     $loader = $wrap.find(".loader");
                     $loaderSpacer = $wrap.find(".loaderSpacer");
                     $noData = $wrap.find(".noData");
-                    $noData.hide();
+
+                    toggleLoader = function(newVal, oldVal){
+                        if(oldVal === newVal){
+                            return;
+                        }
+
+                        // show loading spinner
+                        if(newVal){
+                            $loader.show();
+                            $animate.removeClass($loader, "disappear");
+                            $loaderSpacer.show();
+
+                        // hide loading spinner
+                        } else {
+                            $animate.addClass($loader, "disappear")
+                                .then(function(){
+                                    $loader.hide();
+                                });
+                            $loaderSpacer.hide();
+                        }
+                    };
+                    toggleNoData = function(val){
+                        if(val){
+                            $noData.show();
+                        } else {
+                            $noData.hide();
+                        }
+                    };
 
                     getData = function($defer, params) {
                         var unorderedData = data(),
                             orderedData;
+
+                        // if unorderedData is an object, convert to array
+                        // NOTE: angular.isObject does not consider null to be an object
+                        if(!angular.isArray(unorderedData) && angular.isObject(unorderedData)){
+                            unorderedData = utils.mapToArr(unorderedData);
+
+                        // if it's null, create empty array
+                        } else if(unorderedData === null){
+                            unorderedData = [];
+                        }
 
                         // call overriden getData
                         if(config().getData){
@@ -101,21 +146,29 @@
                         // use default getData
                         } else {
                             orderedData = params.sorting() ?
-                                $filter('orderBy')(unorderedData, params.orderBy()) :
+                                orderBy(unorderedData, params.orderBy()) :
                                 unorderedData;
                         }
 
-                        // if no data default it to an empty array
-                        if(!orderedData){
+                        // if no data, show loading and default
+                        // to empty array
+                        if(angular.isUndefined(orderedData)){
+                            $scope[tableID].loading = true;
+                            toggleNoData(false);
                             orderedData = [];
 
+                        // if data, hide loading, and check if empty
+                        // array
                         } else {
-                            // if an array was returned but
-                            // is empty, show no data message
+                            $scope[tableID].loading = false;
+                            // if the request succeded but is
+                            // just empty, show no data message
                             if(!orderedData.length){
-                                $noData.show();
+                                toggleNoData(true);
+
+                            // otherwise, hide no data message
                             } else {
-                                $noData.hide();
+                                toggleNoData(false);
                             }
                         }
 
@@ -136,31 +189,15 @@
 
                     // configure ngtable
                     $scope[tableID] = new NgTableParams(pageConfig, dataConfig);
+                    $scope[tableID].loading = true;
+                    toggleNoData(false);
 
                     // watch data for changes
-                    // TODO - is this expensive?
-                    // TODO - custom watcher?
-                    $scope.$watch(attrs.data, function(){
+                    $scope.$watch(config().watch, function(){
                         $scope[tableID].reload();
                     });
 
-                    // show/hide loading icon
-                    $scope.$watch(tableID + ".settings().$loading", function(newVal, oldVal){
-                        if(oldVal === newVal) {
-                            return;
-                        }
-                        if(newVal){
-                            $loader.show();
-                            // TODO - use animate, implement own loading event
-                            //$animate.removeClass($loader, "disappear");
-                            $loaderSpacer.show();
-                        } else {
-                            $loader.hide();
-                            // TODO - use animate, implement own loading event
-                            //$animate.addClass($loader, "disappear");
-                            $loaderSpacer.hide();
-                        }
-                    });
+                    $scope.$watch(tableID + ".loading", toggleLoader);
                 };
             }
         };

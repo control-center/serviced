@@ -11,23 +11,6 @@
         // Ensure logged in
         authService.checkLogin($scope);
 
-        $scope.name = "pooldetails";
-        $scope.params = $routeParams;
-
-        $scope.add_virtual_ip = {};
-
-        $scope.breadcrumbs = [
-            { label: 'breadcrumb_pools', url: '#/pools' }
-        ];
-
-        // Build metadata for displaying a pool's virtual ips
-        $scope.virtual_ip_addresses = utils.buildTable('IP', [
-            { id: 'IP', name: 'pool_tbl_virtual_ip_address_ip'},
-            { id: 'Netmask', name: 'pool_tbl_virtual_ip_address_netmask'},
-            { id: 'BindInterface', name: 'pool_tbl_virtual_ip_address_bind_interface'},
-            { id: 'Actions', name: 'pool_tbl_virtual_ip_address_action'}
-        ]);
-
         //
         // Scope methods
         //
@@ -119,30 +102,63 @@
             resourcesFactory.routeToHost(hostId);
         };
 
-        // start polling
-        poolsFactory.activate();
+        function init(){
 
-        // Ensure we have a list of pools
-        poolsFactory.update()
-            .then(() => {
-                $scope.currentPool = poolsFactory.get($scope.params.poolID);
-                if ($scope.currentPool) {
-                    $scope.breadcrumbs.push({label: $scope.currentPool.id, itemClass: 'active'});
+            $scope.name = "pooldetails";
+            $scope.params = $routeParams;
 
-                    // start polling
-                    hostsFactory.activate();
+            $scope.add_virtual_ip = {};
 
-                    hostsFactory.update()
-                        .then(() => {
-                           // reduce the list to hosts associated with this pool
-                            $scope.hosts = hostsFactory.hostList.filter(function(host){
-                                return host.model.PoolID === $scope.currentPool.id;
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_pools', url: '#/pools' }
+            ];
+
+            // start polling
+            poolsFactory.activate();
+
+            // Ensure we have a list of pools
+            poolsFactory.update()
+                .then(() => {
+                    $scope.currentPool = poolsFactory.get($scope.params.poolID);
+                    if ($scope.currentPool) {
+                        $scope.breadcrumbs.push({label: $scope.currentPool.id, itemClass: 'active'});
+
+                        // start polling
+                        hostsFactory.activate();
+
+                        hostsFactory.update()
+                            .then(() => {
+                               // reduce the list to hosts associated with this pool
+                                $scope.hosts = hostsFactory.hostList.filter(function(host){
+                                    return host.model.PoolID === $scope.currentPool.id;
+                                });
+
                             });
+                    }
 
-                        });
+                });
+
+            $scope.virtualIPsTable = {
+                sorting: {
+                    IP: "asc"
+                },
+                watch: function(){
+                    // if poolsFactory updates, update view
+                    return poolsFactory.lastUpdate;
                 }
+            };
 
-            });
+            $scope.hostsTable = {
+                sorting: {
+                    name: "asc"
+                },
+                watch: function(){
+                    return hostsFactory.lastUpdate;
+                }
+            };
+        }
+
+        init();
 
         $scope.$on("$destroy", function(){
             poolsFactory.deactivate();

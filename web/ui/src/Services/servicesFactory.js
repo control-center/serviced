@@ -87,6 +87,9 @@
                         this.updateHealth();
 
                         deferred.resolve();
+                    })
+                    .finally(() => {
+                        this.lastUpdate = new Date().getTime();
                     });
 
                 return deferred.promise;

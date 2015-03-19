@@ -9,12 +9,6 @@
     function($scope, $routeParams, $notification, $translate, resourcesFactory, authService, $modalService) {
         // Ensure logged in
         authService.checkLogin($scope);
-        $scope.name = "backuprestore";
-        $scope.params = $routeParams;
-        $scope.breadcrumbs = [{ label: 'breadcrumb_backuprestore', itemClass: 'active' }];
-
-        //load backup files
-        getBackupFiles();
 
         // localization messages
         var BACKUP_RUNNING = $translate.instant("backup_running"),
@@ -180,8 +174,26 @@
             });
         }
 
-        // poll for backup files
-        resourcesFactory.registerPoll("running", getBackupFiles, 5000);
+        function init(){
+            $scope.name = "backuprestore";
+            $scope.params = $routeParams;
+            $scope.breadcrumbs = [{ label: 'breadcrumb_backuprestore', itemClass: 'active' }];
+
+            $scope.backupTable = {
+                sorting: {
+                    file_name: "asc"
+                }
+            };
+
+            //load backup files
+            getBackupFiles();
+
+            // poll for backup files
+            resourcesFactory.registerPoll("running", getBackupFiles, 5000);
+        }
+
+        init();
+
         $scope.$on("$destroy", function(){
             resourcesFactory.unregisterAllPolls();
         });

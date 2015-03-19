@@ -1734,7 +1734,7 @@ input[type=file] {
 
 
 /* jelly table */
-.jelly-table {
+.jelly-table table {
     position: relative;
     clear: both;
 }
@@ -1742,21 +1742,33 @@ input[type=file] {
 .jelly-table .loader{
     opacity: 1;
     width: 100%;
-    height: calc(100% - 106px);
     position: absolute;
+    margin: auto;
     top: 30px;
     left: 0;
+    bottom: 41px;
+    right: 0;
     background: rgba(255,255,255,.9) center center url("/static/img/loading.gif") no-repeat;
     text-align: center;
     overflow: hidden;
 
-    transition: opacity .4s;
+    transition: opacity .3s;
 }
 .jelly-table .loader:hover {
     background-color: rgba(255,255,255,.9);
 }
 .jelly-table .loader.disappear {
     opacity: 0;
+}
+.jelly-table .loader td {
+    border: none;
+}
+.jelly-table .loader:hover td {
+    background-color: transparent;
+}
+.jelly-table .loaderSpacer{
+    width: 100%;
+    height: 45px;
 }
 
 .jelly-table .noData {

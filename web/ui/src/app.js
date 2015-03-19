@@ -21,7 +21,7 @@ var DEBUG = false;
  * Main module & controllers
  ******************************************************************************/
 var controlplane = angular.module('controlplane', [
-    'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate',
+    'ngRoute', 'ngCookies','ngDragDrop','pascalprecht.translate', 'ngAnimate',
     'angularMoment', 'zenNotify', 'serviceHealth', 'ui.datetimepicker',
     'modalService', 'angular-data.DSCacheFactory', 'ui.codemirror',
     'sticky', 'graphPanel', 'servicesFactory', 'healthIcon',

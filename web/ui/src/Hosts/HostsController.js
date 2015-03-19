@@ -9,13 +9,6 @@
         // Ensure logged in
         authService.checkLogin($scope);
 
-        $scope.name = "hosts";
-        $scope.params = $routeParams;
-
-        $scope.breadcrumbs = [
-            { label: 'breadcrumb_hosts', itemClass: 'active' }
-        ];
-
         $scope.indent = utils.indentClass;
         $scope.newHost = {};
 
@@ -100,27 +93,10 @@
             resourcesFactory.routeToPool(poolID);
         };
 
-        $scope.dropped = [];
-
-        // Build metadata for displaying a list of hosts
-        $scope.hosts = utils.buildTable('Name', [
-            { id: 'Name', name: 'Name'}
-        ]);
-
-        // update hosts
-        update();
-
-        hostsFactory.activate();
-        poolsFactory.activate();
-
-        $scope.$on("$destroy", function(){
-            hostsFactory.deactivate();
-        });
-
         function update(){
             hostsFactory.update()
                 .then(() => {
-                    $scope.hosts.all = hostsFactory.hostList;
+                    $scope.hosts = hostsFactory.hostList;
                 });
 
             poolsFactory.update()
@@ -129,5 +105,36 @@
                 });
         }
 
+        function init(){
+            $scope.name = "hosts";
+            $scope.params = $routeParams;
+
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_hosts', itemClass: 'active' }
+            ];
+
+            $scope.hostsTable = {
+                sorting: {
+                    name: "asc"
+                },
+                watch: function(){
+                    return hostsFactory.lastUpdate;
+                }
+            };
+
+            $scope.dropped = [];
+
+            // update hosts
+            update();
+
+            hostsFactory.activate();
+            poolsFactory.activate();
+        }
+
+        init();
+
+        $scope.$on("$destroy", function(){
+            hostsFactory.deactivate();
+        });
     }]);
 })();

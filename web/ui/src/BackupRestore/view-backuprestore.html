@@ -11,33 +11,18 @@
   </span>
 </div>
 
-<table class="table" id="backup_data" >
-    <thead>
-        <tr>
-            <th translate>file_name</th>
-            <th translate>modified</th>
-            <th translate>actions</th>
-        </tr>
-    </thead>
-    <tbody>
-        <tr ng-hide="backupFiles !== undefined">
-            <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
-        </tr>
-        <tr ng-hide="backupFiles.length !== 0">
-            <td colspan="100%" align="center" class="noData" translate>no_backups</td>
-        </tr>
-        <tr ng-repeat="fileInfo in backupFiles | orderBy:'mod_time':true">
-            <td>{{fileInfo.full_path}}</td>
-            <td>{{fileInfo.mod_time | date: 'medium'}}</td>
-            <td>
-                <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
-                    <span class="glyphicon glyphicon-refresh"></span>
-                    <span translate>backup_restore</span>
-                </button>
-                <span ng-show="fileInfo.in_progress" class="ntsh">In Progress...</span>
-            </td>
-        </tr>
-    </tbody>
+<table jelly-table data-data="backupFiles" data-config="backupTable" class="table">
+    <tr ng-repeat="fileInfo in $data">
+        <td data-title="'file_name'|translate">{{fileInfo.full_path}}</td>
+        <td data-title="'modified'|translate">{{fileInfo.mod_time | date: 'medium'}}</td>
+        <td data-title="'actions'|translate">
+            <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
+                <span class="glyphicon glyphicon-refresh"></span>
+                <span translate>backup_restore</span>
+            </button>
+            <span ng-show="fileInfo.in_progress" class="ntsh">In Progress...</span>
+        </td>
+    </tr>
 </table>
 
 <script type="text/ng-template" id="backupInfoNotification.html">

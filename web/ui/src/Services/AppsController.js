@@ -263,26 +263,10 @@
                 { label: 'breadcrumb_deployed', itemClass: 'active' }
             ];
 
-
-            /*
-            $scope.$watch(function(){
-                // TODO - clean this up :/
-                if(!$scope.apps){
-                    return;
-                }
-
-                // TODO - this is not be adequate for dirty check
-                return $scope.apps.length + $scope.deployingServices.length;
-            }, function(){
-                $scope.servicesTable.reload();
-            });
-            */
-
             $scope.servicesTable = {
                 sorting: {
                     name: "asc"
                 },
-                counts: [],
                 getData: function(data, params) {
                     // use built-in angular filter
                     var orderedData = params.sorting() ?
@@ -304,6 +288,10 @@
                     });
 
                     return orderedData;
+                },
+                watch: function(){
+                    // TODO - check $scope.deployingServices as well
+                    return servicesFactory.lastUpdate;
                 }
             };
 
@@ -312,8 +300,7 @@
             $scope.templatesTable = {
                 sorting: {
                     name: "asc"
-                },
-                counts: [],
+                }
             };
 
             // Get a list of templates

@@ -18,38 +18,18 @@
 </div>
 
 <!-- Hosts -->
-<table class="table side-flush" id="hosts_data">
-  <thead>
-    <tr>
-      <th translate>label_host_id</th>
-      <th translate>label_active</th>
-      <th translate>label_pool_name</th>
-      <th translate>label_host_memory</th>
-      <th translate>label_host_cores</th>
-      <th translate>label_host_kernel_version</th>
-      <th translate>label_host_serviced_release</th>
-      <th translate>actions</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr ng-hide="hosts.all !== undefined">
-      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
-    </tr>
-    <tr ng-hide="hosts.all.length !== 0">
-        <td colspan="100%" align="center" class="noData" translate>no_data</td>
-    </tr>
-    <tr ng-repeat="host in hosts.all">
-      <td ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
-      <td style="text-align:center;">
+<table jelly-table data-data="hosts" data-config="hostsTable" class="table side-flush">
+    <tr ng-repeat="host in $data">
+      <td data-title="'label_host_id'|translate" sortable="'id'" ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
+      <td data-title="'label_active'|translate" sortable="'active'" style="text-align:center;">
         <div ng-if="host.active" class="good" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
         <div ng-if="!host.active" class="down" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
       </td>
-      <td ng-click="clickPool(host.model.PoolID)" class="link">{{host.model.PoolID|cut:true:50}}</td>
-      <td>{{host.model.Memory | toGB}}</td>
-      <td>{{host.model.Cores}}</td>
-      <td>{{host.model.KernelVersion}}</td>
-      <td>{{host.model.ServiceD.Release}}</td>
-      <td><button ng-click="remove_host(host.id)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button></td>
+      <td data-title="'label_pool_name'|translate" sortable="'model.PoolID'" ng-click="clickPool(host.model.PoolID)" class="link">{{host.model.PoolID|cut:true:50}}</td>
+      <td data-title="'label_host_memory'|translate" sortable="'model.Memory'|toGB">{{host.model.Memory | toGB}}</td>
+      <td data-title="'label_host_cores'|translate" sortable="'model.Cores'">{{host.model.Cores}}</td>
+      <td data-title="'label_host_kernel_version'|translate" sortable="'model.KernelVersion'">{{host.model.KernelVersion}}</td>
+      <td data-title="'label_host_serviced_release'|translate" sortable="'model.ServiceD.Release'">{{host.model.ServiceD.Release}}</td>
+      <td data-title="'actions'|translate"><button ng-click="remove_host(host.id)" class="btn btn-link action"><i class="glyphicon glyphicon-remove-sign"></i> Delete</button></td>
     </tr>
-  </tbody>
 </table>

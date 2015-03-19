@@ -46,6 +46,7 @@
         this.objArr = [];
         this.updateFn = updateFn;
         this.ObjConstructor = ObjConstructor;
+        this.lastUpdate;
     }
 
 
@@ -94,6 +95,9 @@
                 })
                 .error((data, status) => {
                     console.error("Unable to update factory", data);
+                })
+                .finally(() => {
+                    this.lastUpdate = new Date().getTime();
                 });
             return deferred.promise;
         },
