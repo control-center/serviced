@@ -14,11 +14,12 @@
 package test
 
 import (
+	"io"
 
 	"github.com/control-center/serviced/commons/docker"
 
-	dockerclient "github.com/zenoss/go-dockerclient"
 	"github.com/stretchr/testify/mock"
+	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 // assert the interface
@@ -48,6 +49,14 @@ func (mdc *MockDockerClient) KillContainer(opts dockerclient.KillContainerOption
 
 func (mdc *MockDockerClient) ImportImage(opts dockerclient.ImportImageOptions) error {
 	return mdc.Mock.Called(opts).Error(0)
+}
+
+func (mdc *MockDockerClient) SaveImages(opts dockerclient.SaveImageOptions) error {
+	return mdc.Mock.Called(opts).Error(0)
+}
+
+func (mdc *MockDockerClient) LoadImages(infile io.Reader) error {
+	return mdc.Mock.Called(infile).Error(0)
 }
 
 func (mdc *MockDockerClient) InspectContainer(id string) (*dockerclient.Container, error) {

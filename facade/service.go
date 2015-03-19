@@ -1467,26 +1467,6 @@ func createTempMigrationDir(serviceID string) (string, error) {
 		return "", fmt.Errorf("Unable to create temporary directory: %s", err)
 	}
 
-	// HACK ALERT: The following is temporary so QE can do some basic integration testing
-	//             with the migration SDK and the serviced CLI. When the implementation
-	//             evolves to run the migration within a docker container, this code
-	//             will go away because the docker image will contain the migration SDK.
-	//
-	// To setup the migration SDK for use with this hack, do the following:
-	//
-	// $ zendev cd serviced
-	// $ sudo mkdir -p /tmp/serviced-root/service-migration/servicedmigration
-	// $ sudo cp migration/servicedmigration/*.py /tmp/serviced-root/service-migration/servicedmigration
-	//
-	// Once the setup is done, then you can run a migration script from the serviced CLI.
-	//
-	pythonPath := os.Getenv("PYTHONPATH")
-	if pythonPath == "" {
-		os.Setenv("PYTHONPATH", tmpParentDir)
-	} else if !strings.Contains(pythonPath, tmpParentDir) {
-		os.Setenv("PYTHONPATH", os.ExpandEnv("${PYTHONPATH};"+tmpParentDir))
-	}
-
 	var migrationDir string
 	dirPrefix := fmt.Sprintf("%s-", serviceID)
 	migrationDir, err = ioutil.TempDir(tmpParentDir, dirPrefix)
@@ -1524,20 +1504,45 @@ func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error)
 	return scriptFileName, nil
 }
 
-// Execute the migration script
-func executeMigrationScript(serviceID, tmpDir, scriptFileName, inputFileName string) (string, error) {
-	outputFileName := path.Join(tmpDir, "output.json")
-	migrateCmd := exec.Command("/usr/bin/python", scriptFileName, inputFileName, outputFileName)
-	cmdMessages, err := migrateCmd.CombinedOutput()
+// Execute the migration script. The script is executed in a docker container which assumes that
+// scriptFilePath and inputFilePath are rooted under tmpDir
+// Returns the name of the file under tmpDir containing the output from the migration script
+func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath string) (string, error) {
+	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration:1.0.0"
+	const MOUNT_POINT = "/migration"
+	const OUTPUT_FILE = "output.json"
+
+	_, scriptFile := path.Split(scriptFilePath)
+	containerScript := path.Join(MOUNT_POINT, scriptFile)
+
+	_, inputFile := path.Split(inputFilePath)
+	containerInputFile := path.Join(MOUNT_POINT, inputFile)
+
+	containerOutputFile := path.Join(MOUNT_POINT, OUTPUT_FILE)
+
+	mountPath := fmt.Sprintf("%s:/migration", tmpDir)
+	cmd := exec.Command("docker",
+		"run", "--rm", "-t",
+		"--name", "service-migration",
+		"-v", mountPath,
+		SERVICE_MIGRATION_IMAGE_NAME,
+		"python", containerScript, containerInputFile, containerOutputFile)
+
+	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)
+
+	cmdMessages, err := cmd.CombinedOutput()
+	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
+		err := fmt.Errorf("migration script failed: %s", err)
+		if cmdMessages != nil {
+			glog.Errorf("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+		}
+		return "", err
+	}
 	if cmdMessages != nil {
 		glog.V(1).Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
 	}
 
-	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
-		return "", fmt.Errorf("migration script failed: %s", err)
-	}
-
-	return outputFileName, nil
+	return path.Join(tmpDir, OUTPUT_FILE), nil
 }
 
 func readNewServiceDefinitions(outputFileName string) ([]*service.Service, error) {

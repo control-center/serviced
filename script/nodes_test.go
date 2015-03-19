@@ -247,3 +247,27 @@ func (vs *ScriptSuite) Test_svcStartStopRestart(t *C) {
 	}
 
 }
+
+func (vs *ScriptSuite) Test_svcmigrate(t *C) {
+	ctx := newParseContext()
+	line := "SVC_MIGRATE zope somescript.py"
+	ctx.line = line
+	cmd, err := nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"zope", "somescript.py"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SVC_MIGRATE, line: line, args: []string{"zope", "somescript.py"}})
+
+	line = "SVC_MIGRATE"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, nil)
+	t.Assert(err, ErrorMatches, "line 0: expected 2, got 0: SVC_MIGRATE")
+
+	line = "SVC_MIGRATE zope"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"zope"})
+	t.Assert(err, ErrorMatches, "line 0: expected 2, got 1: SVC_MIGRATE zope")
+
+	line = "SVC_MIGRATE zope somescript.py extraArg"
+	ctx.line = line
+	cmd, err = nodeFactories[SVC_MIGRATE](ctx, SVC_MIGRATE, []string{"zope", "somescript.py", "extraArg"})
+	t.Assert(err, ErrorMatches, "line 0: expected 2, got 3: SVC_MIGRATE zope somescript.py extraArg")
+}

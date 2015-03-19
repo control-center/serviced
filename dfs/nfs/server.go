@@ -14,6 +14,7 @@
 package nfs
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -66,6 +67,10 @@ const hostDenyDefaults = "\n# serviced, do not remove past this line\nrpcbind mo
 
 const hostAllowMarker = "# serviced, do not remove past this line"
 const hostAllowDefaults = "\n# serviced, do not remove past this line\nrpcbind mountd nfsd statd lockd rquotad : 127.0.0.1"
+
+const etcExportsStartMarker = "\n# --- SERVICED EXPORTS BEGIN ---\n# --- Do not edit this section\n"
+const etcExportsEndMarker = "\n# --- SERVICED EXPORTS END ---\n"
+const etcExportsRemoveComment = "# serviced removed: "
 
 func verifyExportsDir(path string) error {
 	stat, err := os.Stat(path)
@@ -235,13 +240,12 @@ func (c *Server) hostsAllow() error {
 }
 
 func (c *Server) writeExports() error {
-
 	network := c.network
 	if network == "0.0.0.0/0" {
 		network = "*" // turn this in to nfs 'allow all hosts' syntax
 	}
-	s := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"+
-		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)\n\n",
+	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"+
+		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)",
 		exportsPath, network, exportsPath, c.exportedName, network)
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err
@@ -253,7 +257,44 @@ func (c *Server) writeExports() error {
 	if err := bindMount(c.basePath, edir); err != nil {
 		return err
 	}
-	return atomicfile.WriteFile(etcExports, []byte(s), 0664)
+
+	originalContents, err := readFileIfExists(etcExports)
+	if err != nil {
+		return err
+	}
+
+	// comment out lines that conflicts with serviced exported mountpoints
+	mountpaths := map[string]bool{exportsPath: true, path.Join(exportsPath, c.exportedName): true}
+	filteredContent := ""
+	scanner := bufio.NewScanner(strings.NewReader(originalContents))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if !strings.HasPrefix(line, "#") {
+			fields := strings.Fields(line)
+			if len(fields) > 0 {
+				mountpoint := fields[0]
+				if _, ok := mountpaths[mountpoint]; ok {
+					filteredContent += etcExportsRemoveComment + line + "\n"
+					continue
+				}
+			}
+		}
+
+		filteredContent += line + "\n"
+	}
+
+	// create file content
+	preamble, postamble := filteredContent, ""
+	if index := strings.Index(filteredContent, etcExportsStartMarker); index >= 0 {
+		preamble = filteredContent[:index]
+		remainder := filteredContent[index:]
+		if index := strings.Index(remainder, etcExportsEndMarker); index >= 0 {
+			postamble = remainder[index+len(etcExportsEndMarker):]
+		}
+	}
+	fileContents := preamble + etcExportsStartMarker + serviced_exports + etcExportsEndMarker + postamble
+
+	return atomicfile.WriteFile(etcExports, []byte(fileContents), 0664)
 }
 
 type bindMountF func(string, string) error

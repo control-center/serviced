@@ -50,6 +50,8 @@ func (c *ServicedCli) initService() {
 		}
 	}
 
+	rpcPort := configInt("RPC_PORT", defaultRPCPort)
+
 	c.app.Commands = append(c.app.Commands, cli.Command{
 		Name:        "service",
 		Usage:       "Administers services",
@@ -83,6 +85,14 @@ func (c *ServicedCli) initService() {
 					cli.GenericFlag{"p", &api.PortMap{}, "Expose a port for this service (e.g. -p tcp:3306:mysql)"},
 					cli.GenericFlag{"q", &api.PortMap{}, "Map a remote service port (e.g. -q tcp:3306:mysql)"},
 					cli.StringFlag{"parent-id", "", "Parent service ID for which this service relates"},
+				},
+			}, {
+				Name:        "clone",
+				Usage:       "Clones a new service",
+				Description: "serviced service clone { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
+				Action:      c.cmdServiceClone,
+				Flags: []cli.Flag{
+					cli.StringFlag{"suffix", "", "name to append to service name, volumes, endpoints"},
 				},
 			}, {
 				Name:         "migrate",
@@ -156,7 +166,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"mux", "enable port multiplexing"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
+					cli.StringFlag{"endpoint", api.GetGateway(rpcPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
@@ -175,7 +185,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "run",
@@ -190,7 +199,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.StringFlag{"user", "", "container username used to run command"},
 				},
 			}, {
@@ -199,9 +207,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
-				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-				},
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
@@ -214,9 +219,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
-				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-				},
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -688,6 +690,30 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 	}
 }
 
+// serviced service clone --config config { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }
+func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "clone")
+		return
+	}
+
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error searching for service: %s", err)
+		return
+	}
+
+	if copiedSvc, err := c.driver.CloneService(svc.ID, ctx.String("suffix")); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
+	} else if copiedSvc == nil {
+		fmt.Fprintln(os.Stderr, "received nil service definition")
+	} else {
+		fmt.Println(copiedSvc.ID)
+	}
+}
+
 // serviced service migrate SERVICEID ...
 func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
 	args := ctx.Args()
@@ -969,7 +995,6 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
-	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -977,7 +1002,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            isTTY,
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: "localhost" + agentPort,
+		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -1030,7 +1055,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
-	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -1039,7 +1063,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: "localhost" + agentPort,
+		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
 		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
 
@@ -1202,8 +1226,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 			hostmap[host.ID] = host
 		}
 
-		endpointArg := ctx.GlobalString("endpoint")
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "attach", args[0]}
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
 		if len(args) > 1 {
 			cmd = append(cmd, args[1:]...)
 		}
@@ -1313,8 +1336,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 			hostmap[host.ID] = host
 		}
 
-		endpointArg := ctx.GlobalString("endpoint")
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "logs", args[0]}
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
 		if len(args) > 1 {
 			cmd = append(cmd, args[1:]...)
 		}

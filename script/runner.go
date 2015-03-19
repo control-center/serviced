@@ -34,6 +34,7 @@ func init() {
 		SVC_RESTART: evalSvcRestart,
 		SVC_EXEC:    evalSvcExec,
 		SVC_WAIT:    evalSvcWait,
+		SVC_MIGRATE: evalSvcMigrate,
 	}
 }
 
@@ -49,6 +50,7 @@ type Config struct {
 	SvcStart       ServiceControl    // function to start a service
 	SvcStop        ServiceControl    // function to stop a service
 	SvcRestart     ServiceControl    // function to restart a service
+	SvcMigrate     ServiceMigrate    // function to migrate a service
 	SvcWait        ServiceWait       // function to wait for a service to be in a desired state
 	SvcUse         ServiceUse
 }
@@ -71,6 +73,7 @@ type runner struct {
 	svcStart        ServiceControl    // function to start a service
 	svcStop         ServiceControl    // function to stop a service
 	svcRestart      ServiceControl    // function to restart a service
+	svcMigrate      ServiceMigrate    // function to migrate a service
 	svcWait         ServiceWait
 	execCommand     execCmd
 	svcUse          ServiceUse
@@ -117,6 +120,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		svcStart:        config.SvcStart,
 		svcStop:         config.SvcStop,
 		svcWait:         config.SvcWait,
+		svcMigrate:      config.SvcMigrate,
 		svcRestart:      config.SvcRestart,
 		execCommand:     defaultExec,
 		svcUse:          config.SvcUse,
@@ -130,6 +134,7 @@ func newRunner(config *Config, pctx *parseContext) *runner {
 		r.svcStart = noOpServiceStart
 		r.svcStop = noOpServiceStop
 		r.svcRestart = noOpServiceRestart
+		r.svcMigrate = noOpServiceMigrate
 		r.svcWait = noOpServiceWait
 		r.svcUse = docker.ServiceUse
 	}

@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/control-center/serviced/commons"
@@ -216,38 +215,30 @@ func (dfs *DistributedFilesystem) exportImages(dirpath string, templates map[str
 		return nil, err
 	}
 
-	registry := fmt.Sprintf("%s:%d", dfs.dockerHost, dfs.dockerPort)
-	i := 0
+	filename := filepath.Join(dirpath, "images.tar")
+	file, err := os.Create(filename)
+	if err != nil {
+		glog.Errorf("Could not create file %s: %s", filename, err)
+		return nil, err
+	}
+
+	defer func() {
+		if err := file.Close(); err != nil {
+			glog.Warningf("Could not close file %s: %s", filename, err)
+		}
+	}()
+
 	var result []imagemeta
 	for uuid, tags := range imageTags {
-		metadata := imagemeta{Filename: fmt.Sprintf("%d.tar", i), UUID: uuid, Tags: tags}
-
-		filename := filepath.Join(dirpath, metadata.Filename)
-		// Try to find the tag referring to the local registry, so we don't
-		// make a call to Docker Hub potentially with invalid auth
-		// Default to the first tag in the list
-		if len(tags) == 0 {
-			continue
-		}
-
-		tag := tags[0]
-		for _, t := range tags {
-			if strings.HasPrefix(t, registry) {
-				tag = t
-				break
-			}
-		}
-
-		if err := saveImage(tag, filename); err == dockerclient.ErrNoSuchImage {
-			glog.Warningf("Docker image %s was referenced, but does not exist. Skipping.", tag)
-			continue
-		} else if err != nil {
-			glog.Errorf("Could not export %s: %s", tag, err)
-			return nil, err
-		}
+		metadata := imagemeta{Filename: "images.tar", UUID: uuid, Tags: tags}
 		result = append(result, metadata)
-		i++
 	}
+
+	if err := docker.SaveImages(file, append(tRepos, sRepos...)...); err != nil {
+		glog.Errorf("Could not export: %s", err)
+		return nil, err
+	}
+
 	return result, nil
 }
 
@@ -437,6 +428,7 @@ func getImageRefs(templates map[string]servicetemplate.ServiceTemplate, services
 	return t, s
 }
 
+// DEPRECATED
 func saveImage(imageID, filename string) error {
 	file, err := os.Create(filename)
 	if err != nil {
@@ -501,6 +493,14 @@ func loadImage(filename string, uuid string, tags []string) error {
 	// image not found so import
 	if image == nil {
 		glog.Warningf("Importing image from file, don't forget to sync (serviced docker sync)")
+		if name := filepath.Base(filename); name == "images.tar" {
+			if err := docker.LoadImages(filename); err != nil {
+				glog.Errorf("Could not import images from file %s: %s", filename, err)
+				return err
+			}
+			return nil
+		}
+
 		if err := docker.ImportImage(tags[0], filename); err != nil {
 			glog.Errorf("Could not import image from file %s: %s", filename, err)
 			return err

@@ -26,11 +26,11 @@ var (
 	SVC_STOP    = "SVC_STOP"
 	SVC_RESTART = "SVC_RESTART"
 	SVC_WAIT    = "SVC_WAIT"
+	SVC_MIGRATE = "SVC_MIGRATE"
 	DEPENDENCY  = "DEPENDENCY"
 
 	EMPTY     = "EMPTY"
 	emptyNode = node{cmd: EMPTY}
-
 )
 
 func init() {
@@ -48,7 +48,8 @@ func init() {
 		SVC_START:   require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
-		SVC_WAIT:	 parseWait,
+		SVC_WAIT:    parseWait,
+		SVC_MIGRATE: require([]string{REQUIRE_SVC}, parseArgCount(equals(2), buildNode)),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
@@ -229,7 +230,7 @@ func atMost(n int, parser lineParser) lineParser {
 func parseWait(ctx *parseContext, cmd string, args []string) (node, error) {
 	stateIdx := -1
 	for i, arg := range args {
-		if arg == "started"  || arg == "stopped" || arg == "paused" {
+		if arg == "started" || arg == "stopped" || arg == "paused" {
 			stateIdx = i
 			break
 		}
@@ -241,9 +242,9 @@ func parseWait(ctx *parseContext, cmd string, args []string) (node, error) {
 		err = fmt.Errorf("line %d: missing state argument (started|stopped|paused)", ctx.lineNum)
 	case stateIdx == 0:
 		err = fmt.Errorf("line %d: missing service id", ctx.lineNum)
-	case stateIdx < len(args) - 2:
+	case stateIdx < len(args)-2:
 		err = fmt.Errorf("line %d: too many arguments following state: %v", ctx.lineNum, args[stateIdx:])
-	case stateIdx == len(args) - 2:
+	case stateIdx == len(args)-2:
 		if strings.Trim(args[len(args)-1], "1234567890") != "" {
 			err = fmt.Errorf("line %d: expected integer timeout; got %s", ctx.lineNum, args[len(args)-1])
 		}

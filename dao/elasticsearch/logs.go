@@ -14,6 +14,8 @@
 package elasticsearch
 
 import (
+	"fmt"
+
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/rpc/agent"
@@ -34,8 +36,7 @@ func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) erro
 	}
 
 	serviceState := serviceStates[0]
-	// FIXME: don't assume port is 4979
-	endpoint := serviceState.HostIP + ":4979"
+	endpoint := fmt.Sprintf("%s:%d", serviceState.HostIP, this.port)
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
 		glog.Errorf("could not create client to %s", endpoint)
@@ -58,8 +59,7 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 		return err
 	}
 
-	// FIXME: don't assume port is 4979
-	endpoint := serviceState.HostIP + ":4979"
+	endpoint := fmt.Sprintf("%s:%d", serviceState.HostIP, this.port)
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
 		glog.Errorf("could not create client to %s", endpoint)

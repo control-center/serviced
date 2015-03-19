@@ -1,0 +1,3 @@
+#
+# Bogus migration script for testing purposes
+#

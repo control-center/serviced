@@ -45,6 +45,11 @@ type ServiceRequest struct {
 	NameRegex    string
 }
 
+type ServiceCloneRequest struct {
+	ServiceID string
+	Suffix    string
+}
+
 type ServiceMigrationRequest struct {
 	ServiceID       string
 	MigrationScript string
@@ -104,6 +109,9 @@ type ControlPlane interface {
 
 	// Add a new service
 	AddService(service service.Service, serviceId *string) error
+
+	// Clones a new service
+	CloneService(request ServiceCloneRequest, serviceId *string) error
 
 	// Deploy a new service
 	DeployService(service ServiceDeploymentRequest, serviceId *string) error

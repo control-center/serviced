@@ -32,6 +32,8 @@ var options Options
 type Options struct {
 	Endpoint             string // the endpoint address to make RPC requests to
 	UIPort               string
+	NFSClient            string
+	RPCPort              string
 	Listen               string
 	OutboundIP           string // outbound ip to listen on
 	Master               bool
@@ -85,6 +87,16 @@ func LoadOptions(ops Options) {
 		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", minTimeout)
 		options.ESStartupTimeout = minTimeout
 	}
+}
+
+// GetOptionsEndpoint returns the serviced RPC endpoint from options
+func GetOptionsRPCEndpoint() string {
+	return options.Endpoint
+}
+
+// GetOptionsRPCPort returns the serviced RPC port from options
+func GetOptionsRPCPort() string {
+	return options.RPCPort
 }
 
 type api struct {
