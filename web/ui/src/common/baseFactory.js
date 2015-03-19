@@ -46,7 +46,7 @@
         this.objArr = [];
         this.updateFn = updateFn;
         this.ObjConstructor = ObjConstructor;
-        this.lastUpdate;
+        this.lastUpdate = null;
     }
 
 
