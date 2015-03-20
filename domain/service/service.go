@@ -224,10 +224,12 @@ func CloneService(fromSvc *Service, suffix string) (*Service, error) {
 		suffix = "-" + svc.ID[0:12]
 	}
 	svc.Name += suffix
-	for idx := range svc.Endpoints {
-		svc.Endpoints[idx].Name += suffix
-		svc.Endpoints[idx].Application += suffix
-		svc.Endpoints[idx].ApplicationTemplate += suffix
+	for idx, ep := range svc.Endpoints {
+		if ep.Purpose == "export" {
+			svc.Endpoints[idx].Name += suffix
+			svc.Endpoints[idx].Application += suffix
+			svc.Endpoints[idx].ApplicationTemplate += suffix
+		}
 	}
 	for idx := range svc.Volumes {
 		svc.Volumes[idx].ResourcePath += suffix
