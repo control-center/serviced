@@ -44,6 +44,8 @@ var controlplanePartials = [
 ];
 
 // Third-party library files to be concatenated/minified to make thirdparty.js
+// NOTE: any changes here will not take effect until `release3rdparty` or `concat3rdparty`
+// task is run. Be sure to commit the new *MINIFIED* thirdparty.js file.
 var thirdpartyFiles = [
     paths.thirdpartySrc + "jquery/jquery.js",
     paths.thirdpartySrc + "jquery-timeago/jquery.timeago.js",
@@ -57,6 +59,7 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "elastic/elasticsearch.js",
 
     paths.thirdpartySrc + "angular/angular.js",
+    paths.thirdpartySrc + "angular/angular-animate.js",
     paths.thirdpartySrc + "angular/angular-route.js",
     paths.thirdpartySrc + "angular/angular-cookies.js",
     paths.thirdpartySrc + "angular-dragdrop/angular-dragdrop.js",
@@ -66,6 +69,8 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular-cache/angular-cache.js",
     paths.thirdpartySrc + "angular-moment/angular-moment.js",
     paths.thirdpartySrc + "angular-sticky/sticky.js",
+
+    paths.thirdpartySrc + "ng-table/ng-table.js",
 
     paths.thirdpartySrc + "d3/d3.js",
     paths.thirdpartySrc + "graphlib/graphlib.js",
@@ -97,7 +102,8 @@ var staticFiles = [
     paths.staticSrc + 'lib/jquery-datetimepicker/*.css',
     paths.staticSrc + 'lib/thirdparty.*',
     paths.staticSrc + 'logview/**/*.*',
-    paths.staticSrc + 'scripts/**/*.*'
+    paths.staticSrc + 'scripts/**/*.*',
+    paths.staticSrc + 'lib/ng-table/ng-table.css'
 ];
 
 gulp.task("default", ["concat", "copyStatic"]);
@@ -110,7 +116,7 @@ gulp.task("release", function(){
 // this needs to run 3rd party code is
 // updated, which should be infrequent
 gulp.task("release3rdparty", function(){
-    sequence("concat3rdparty", "uglify3rdparty", function(){});
+    sequence("copyStatic", "concat3rdparty", "uglify3rdparty", function(){});
 });
 
 gulp.task("concat", function(){
@@ -161,6 +167,8 @@ gulp.task("watch", function(){
     gulp.watch(paths.src + "/**/*.js", ["concat"]);
     // copy html templates
     gulp.watch(paths.src + "/**/*.html", ["copyStatic"]);
+    // copy static content
+    gulp.watch(staticFiles, ["copyStatic"]);
     // copy translations
     gulp.watch(paths.staticSrc + "/i18n/*", ["copyStatic"]);
     // TODO - preprocess CSS

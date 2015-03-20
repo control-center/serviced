@@ -39,24 +39,15 @@
     </button>
   </span>
 </div>
-<table class="table side-flush">
-  <thead>
-    <tr>
-      <th ng-repeat="header in virtual_ip_addresses.headers" translate>{{header.name}}</th>
-    </tr>
-  </thead>
+
+<!-- VIRTUAL IPS -->
+<table jelly-table data-data="currentPool.model.VirtualIPs" data-config="virtualIPsTable" class="table side-flush">
   <tbody>
-    <tr ng-hide="currentPool.model.VirtualIPs !== undefined">
-      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
-    </tr>
-    <tr ng-hide="currentPool.model.VirtualIPs.length !== 0">
-        <td colspan="100%" align="center" class="noData" translate>no_data</td>
-    </tr>
-    <tr ng-repeat="address in currentPool.model.VirtualIPs | orderBy:virtual_ip_addresses.sort">
-      <td>{{address.IP}}</td>
-      <td>{{address.Netmask}}</td>
-      <td>{{address.BindInterface}}</td>
-      <td>
+    <tr ng-repeat="address in $data">
+      <td data-title="'pool_tbl_virtual_ip_address_ip'|translate" sortable="'IP'">{{address.IP}}</td>
+      <td data-title="'pool_tbl_virtual_ip_address_netmask'|translate" sortable="'Netmask'">{{address.Netmask}}</td>
+      <td data-title="'pool_tbl_virtual_ip_address_bind_interface'|translate" sortable="'BindInterface'">{{address.BindInterface}}</td>
+      <td data-title="'pool_tbl_virtual_ip_address_action'|translate">
           <button ng-click="clickRemoveVirtualIp(address)" class="btn btn-link action">
               <i class="glyphicon glyphicon-remove-sign"></i>
               <span translate>label_delete</span>
@@ -67,27 +58,13 @@
 </table>
 
 <h3 class="pull-left" translate>hosts</h3>
-<table class="table side-flush" id="hosts_data">
-  <thead>
-    <tr>
-      <th translate>label_host_id</th>
-      <th translate>label_host_memory</th>
-      <th translate>label_host_cores</th>
-      <th translate>label_host_kernel_version</th>
-    </tr>
-  </thead>
+<table jelly-table data-data="hosts" data-config="hostsTable" class="table side-flush">
   <tbody>
-    <tr ng-hide="hosts!== undefined">
-      <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
-    </tr>
-    <tr ng-hide="hosts.length !== 0">
-        <td colspan="100%" align="center" class="noData" translate>no_data</td>
-    </tr>
-    <tr ng-repeat="host in hosts">
-      <td ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
-      <td>{{host.model.Memory | toGB}}</td>
-      <td>{{host.model.Cores}}</td>
-      <td>{{host.model.KernelVersion}}</td>
+    <tr ng-repeat="host in $data">
+      <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
+      <td data-title="'label_host_memory'|translate" sortable="'model.Memory|toGB'">{{host.model.Memory | toGB}}</td>
+      <td data-title="'label_host_cores'|translate" sortable="'model.Cores'">{{host.model.Cores}}</td>
+      <td data-title="'label_host_kernel_version'|translate" sortable="'model.KernelVersion'">{{host.model.KernelVersion}}</td>
     </tr>
   </tbody>
 </table>

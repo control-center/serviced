@@ -87,6 +87,9 @@
                         this.updateHealth();
 
                         deferred.resolve();
+                    })
+                    .finally(() => {
+                        this.lastUpdate = new Date().getTime();
                     });
 
                 return deferred.promise;
@@ -114,7 +117,7 @@
                 // if this is a top level service
                 } else {
                     this.serviceTree.push(service);
-                    this.serviceTree.sort(sortServicesByName);
+                    //this.serviceTree.sort(sortServicesByName);
                 }
 
                 // ICKY GROSS HACK!
@@ -211,7 +214,10 @@
         APP = "app",
         // a service with children but no
         // startup command
-        META = "meta";
+        META = "meta",
+        // a service who's parent is still
+        // being deployed
+        DEPLOYING = "deploying";
 
     // DesiredState enum
     var START = 1,
@@ -263,7 +269,6 @@
 
         evaluateServiceType: function(){
             // infer service type
-            // TODO - check for more types
             this.type = [];
             if(this.model.ID.indexOf("isvc-") !== -1){
                 this.type.push(ISVC);
@@ -275,6 +280,10 @@
 
             if(this.children.length && !this.model.Startup){
                 this.type.push(META);
+            }
+
+            if(this.parent && this.parent.isDeploying()){
+                this.type.push(DEPLOYING);
             }
         },
 
@@ -353,6 +362,16 @@
 
         isApp: function(){
             return !!~this.type.indexOf(APP);
+        },
+
+        isDeploying: function(){
+            return !!~this.type.indexOf(DEPLOYING);
+        },
+
+        // HACK: this is a temporary fix to mark
+        // services deploying.
+        markDeploying: function(){
+            this.type.push(DEPLOYING);
         },
 
         // if any cache is dirty, this whole object

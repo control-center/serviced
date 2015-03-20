@@ -11,7 +11,8 @@
         "$notification", "resourcesFactory", "authService",
         "$modalService", "$translate", "$timeout",
         "$cookies", "servicesFactory", "miscUtils",
-    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory, utils){
+        "ngTableParams", "$filter",
+    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory, utils, NgTableParams, $filter){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -195,15 +196,6 @@
             });
         };
 
-        $scope.tableSort = function(service){
-            var sort = $scope.services.sort;
-            if(sort[0] === "-"){
-                sort = sort.substr(1);
-            }
-            return service.model[sort];
-        };
-
-
 
         /*
          * PRIVATE FUNCTIONS
@@ -253,7 +245,7 @@
         }
 
         function deleteTemplate(templateID){
-            return resourcesFactory.deleteAppTemplate(templateID)
+            return resourcesFactory.removeAppTemplate(templateID)
                 .success(refreshTemplates);
         }
 
@@ -271,21 +263,45 @@
                 { label: 'breadcrumb_deployed', itemClass: 'active' }
             ];
 
-            $scope.services = utils.buildTable('PoolID', [
-                { id: 'Name', name: 'deployed_tbl_name'},
-                { id: 'Description', name: 'deployed_tbl_description'},
-                { id: 'Health', name: 'health_check', hideSort: true},
-                { id: 'DeploymentID', name: 'deployed_tbl_deployment_id'},
-                { id: 'PoolID', name: 'deployed_tbl_pool'},
-                { id: 'VirtualHost', name: 'vhost_names', hideSort: true}
-            ]);
-            $scope.services.data = [];
+            $scope.servicesTable = {
+                sorting: {
+                    name: "asc"
+                },
+                getData: function(data, params) {
+                    // use built-in angular filter
+                    var orderedData = params.sorting() ?
+                        $filter('orderBy')(data, params.orderBy()) :
+                        data;
 
-            $scope.templates = utils.buildTable('Name', [
-                { id: 'Name', name: 'template_name'},
-                { id: 'ID', name: 'template_id'},
-                { id: 'Description', name: 'template_description'}
-            ]);
+                    if(!orderedData){
+                        return;
+                    }
+
+                    // mark any deploying services so they can be treated differently
+                    orderedData.forEach(function(service){
+                        service.deploying = false;
+                        $scope.deployingServices.forEach(function(deploying){
+                            if(service.model.DeploymentID === deploying.DeploymentID){
+                                service.deploying = true;
+                            }
+                        });
+                    });
+
+                    return orderedData;
+                },
+                watch: function(){
+                    // TODO - check $scope.deployingServices as well
+                    return servicesFactory.lastUpdate;
+                }
+            };
+
+            $scope.templates = { data: [] };
+            // table config
+            $scope.templatesTable = {
+                sorting: {
+                    Name: "asc"
+                }
+            };
 
             // Get a list of templates
             refreshTemplates();
@@ -296,14 +312,14 @@
             // start polling for apps
             servicesFactory.activate();
             servicesFactory.update().then(function(){
-                // if only isvcs are deployed, and this is the first time
-                // running deploy wizard, show the deploy apps modal
-                if(!$cookies.autoRunWizardHasRun && $scope.services.data.length === 1){
-                    $scope.modalAddApp();
-                }
-
                 // locally bind top level service list
                 $scope.apps = servicesFactory.serviceTree;
+
+                // if only isvcs are deployed, and this is the first time
+                // running deploy wizard, show the deploy apps modal
+                if(!$cookies.autoRunWizardHasRun && $scope.apps.length === 1){
+                    $scope.modalAddApp();
+                }
             });
 
             //register polls

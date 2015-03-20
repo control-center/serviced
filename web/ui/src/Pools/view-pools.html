@@ -11,32 +11,16 @@
   </span>
 </div>
 
-<table class="table" id="apps_data" >
-  <thead>
-    <tr>
-      <th ng-repeat="header in pools.headers">
-            <span translate>{{header.name}}</span>
-            <button ng-click="pools.set_order(header.id, pools)" ng-class="pools.get_order_class(header.id, pools)"></button>
-      </th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr ng-hide="pools.data !== undefined">
-        <td colspan="100%" align="center"><img src="/static/img/loading.gif"></td>
-    </tr>
-    <tr ng-hide="pools.data.length !== 0">
-        <td colspan="100%" align="center" class="noData" translate>no_data</td>
-    </tr>
-    <tr ng-repeat="pool in pools.data | orderBy:pools.sort">
-      <td ng-click="click_pool(pool.id)" class="link">{{pool.id | cut:true:50}}</td>
-      <td>{{pool.model.CoreCapacity}}</td>
-      <td><span ng-class="{error: pool.model.MemoryCommitment>pool.model.MemoryCapacity}">{{pool.model.MemoryCommitment | toGB}}</span> / {{pool.model.MemoryCapacity | toGB}}</td>
-      <td>{{pool.model.CreatedAt | date : 'medium'}}</td>
-      <td>{{pool.model.UpdatedAt | date : 'medium'}}</td>
-      <td><button ng-click="clickRemovePool(pool.id)" class="btn btn-link action">
+<table jelly-table data-data="pools" data-config="poolsTable" class="table">
+    <tr ng-repeat="pool in $data">
+      <td data-title="'pools_tbl_id'|translate" sortable="'id'" ng-click="click_pool(pool.id)" class="link">{{pool.id | cut:true:50}}</td>
+      <td data-title="'core_capacity'|translate" sortable="'model.CoreCapacity'">{{pool.model.CoreCapacity}}</td>
+      <td data-title="'memory_usage'|translate" sortable="'model.MemoryCommitment|toGB'"><span ng-class="{error: pool.model.MemoryCommitment>pool.model.MemoryCapacity}">{{pool.model.MemoryCommitment | toGB}}</span> / {{pool.model.MemoryCapacity | toGB}}</td>
+      <td data-title="'pools_tbl_created_at'|translate" sortable="'model.CreatedAt'">{{pool.model.CreatedAt | date : 'medium'}}</td>
+      <td data-title="'updated_at'|translate" sortable="'model.UpdatedAt'">{{pool.model.UpdatedAt | date : 'medium'}}</td>
+      <td data-title="'pools_tbl_actions'|translate"><button ng-click="clickRemovePool(pool.id)" class="btn btn-link action">
           <i class="glyphicon glyphicon-remove-sign"></i>
           <span translate>delete</span>
       </button></td>
     </tr>
-  </tbody>
 </table>

@@ -11,24 +11,6 @@
         // Ensure logged in
         authService.checkLogin($scope);
 
-        $scope.name = "pools";
-        $scope.params = $routeParams;
-        $scope.newPool = {};
-
-        $scope.breadcrumbs = [
-            { label: 'breadcrumb_pools', itemClass: 'active' }
-        ];
-
-        // Build metadata for displaying a list of pools
-        $scope.pools = utils.buildTable('ID', [
-            { id: 'ID', name: 'pools_tbl_id'},
-            { id: 'CoreCapacity', name: 'core_capacity'},
-            { id: 'MemoryCapacity', name: 'memory_usage'},
-            { id: 'CreatedAt', name: 'pools_tbl_created_at'},
-            { id: 'UpdatedAt', name: 'updated_at'},
-            { id: 'Actions', name: 'pools_tbl_actions'}
-        ]);
-
         $scope.click_pool = function(id) {
             resourcesFactory.routeToPool(id);
         };
@@ -111,14 +93,37 @@
                 });
         };
 
-        // start polling
-        poolsFactory.activate();
+        function init(){
+            $scope.name = "pools";
+            $scope.params = $routeParams;
+            $scope.newPool = {};
 
-        // Ensure we have a list of pools
-        poolsFactory.update()
-            .then(() => {
-                $scope.pools.data = poolsFactory.poolMap;
-            });
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_pools', itemClass: 'active' }
+            ];
+
+            // start polling
+            poolsFactory.activate();
+
+            $scope.pools = {};
+            poolsFactory.update()
+                .then(() => {
+                    $scope.pools = poolsFactory.poolMap;
+                });
+
+            $scope.poolsTable = {
+                sorting: {
+                    id: "asc"
+                },
+                watch: function(){
+                    // if poolsFactory updates, update view
+                    return poolsFactory.lastUpdate;
+                }
+            };
+        }
+
+        // kick off controller
+        init();
 
         $scope.$on("$destroy", function(){
             poolsFactory.deactivate();
