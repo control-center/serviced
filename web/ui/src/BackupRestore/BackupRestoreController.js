@@ -181,7 +181,7 @@
 
             $scope.backupTable = {
                 sorting: {
-                    file_name: "asc"
+                    full_path: "asc"
                 }
             };
 

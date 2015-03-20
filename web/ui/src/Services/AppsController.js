@@ -299,7 +299,7 @@
             // table config
             $scope.templatesTable = {
                 sorting: {
-                    name: "asc"
+                    Name: "asc"
                 }
             };
 
@@ -312,14 +312,14 @@
             // start polling for apps
             servicesFactory.activate();
             servicesFactory.update().then(function(){
+                // locally bind top level service list
+                $scope.apps = servicesFactory.serviceTree;
+
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
                 if(!$cookies.autoRunWizardHasRun && $scope.apps.length === 1){
                     $scope.modalAddApp();
                 }
-
-                // locally bind top level service list
-                $scope.apps = servicesFactory.serviceTree;
             });
 
             //register polls
