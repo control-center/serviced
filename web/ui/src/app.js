@@ -156,4 +156,10 @@ controlplane.
         return function(date){
             return moment(date).fromNow();
         };
+    })
+    .run(function($rootScope, $window){
+        // scroll to top of page on navigation
+        $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
+            $window.scrollTo(0, 0);
+        });
     });

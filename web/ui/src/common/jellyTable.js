@@ -86,6 +86,8 @@
 
                     // setup some config defaults
                     // TODO - create a defaults object and merge
+                    // TODO - create a "defaultSort" property and use
+                    // it to compose the `sorting` config option
                     config().counts = config().counts || [];
                     config().watch = config().watch || function(){ return data(); };
 

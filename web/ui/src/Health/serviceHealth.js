@@ -28,8 +28,9 @@
                 health: healthCheckDeferred.promise
             }).then(function(results){
                 var serviceHealthCheck, instanceHealthCheck,
-                    serviceStatus, instanceStatus, instanceUniqueId,
-                    statuses = {};
+                    serviceStatus, instanceStatus, instanceUniqueId;
+                
+                statuses = {};
 
                 // iterate services healthchecks
                 for(var serviceId in results.services){
@@ -270,7 +271,17 @@
         return {
             update: update,
             get: function(id){
-                return statuses[id];
+                var status = statuses[id];
+
+                // if no status, return a stubbed out
+                // bad status
+                // HACK: this should be improved/fixed
+                if(!status){
+                    status = new Status(id, "bad", 0, 1);
+                    status.evaluateStatus();
+                }
+
+                return status;
             }
         };
     }]);

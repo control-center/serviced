@@ -92,6 +92,9 @@
                         this.lastUpdate = new Date().getTime();
                     });
 
+                // keep instances up to date
+                instancesFactory.update();
+
                 return deferred.promise;
             },
 
@@ -145,35 +148,11 @@
                         // attach status to associated service
                         if(this.serviceMap[id]){
                             this.serviceMap[id].status = statuses[id];
-
-                        // this may be a service instance. instances are keyed
-                        // with the following pattern: serviceid.InstanceID (eg 1234567890.1)
-                        } else if(id.indexOf(".") !== -1){
-                            ids = id.split(".");
-                            if(this.serviceMap[ids[0]]){
-                                instance = this.serviceMap[ids[0]].instances.filter((instance) => {
-                                    // ids[1] will be a string, and InstanceID is a number
-                                    return instance.model.InstanceID === +ids[1];
-                                });
-                                if(instance.length){
-                                    // TODO - move this into an instance method
-                                    instance[0].status = statuses[id];
-                                }
-                            }
                         }
                     }
                 });
             }
         });
-
-        // wrap some methods with extra functionality
-        newFactory.activate = utils.after(newFactory.activate, function(){
-            instancesFactory.activate();
-        }, newFactory);
-
-        newFactory.deactivate = utils.after(newFactory.deactivate, function(){
-            instancesFactory.deactivate();
-        }, newFactory);
 
         return newFactory;
     }]);
@@ -347,8 +326,7 @@
         // NOTE: this isn't using a cache because this can be
         // invalidated at any time, so it should always be checked
         getServiceInstances: function(){
-            var newInstances = instancesFactory.getByServiceId(this.id);
-            mergeArray(this.instances, newInstances, "id");
+            this.instances = instancesFactory.getByServiceId(this.id);
             this.instances.sort(function(a,b){
                 return a.model.InstanceID > b.model.InstanceID;
             });

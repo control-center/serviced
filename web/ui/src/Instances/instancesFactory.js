@@ -6,8 +6,8 @@
     var resourcesFactory, $q, serviceHealth, $notification;
 
     angular.module('instancesFactory', []).
-    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory", "$notification",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification){
+    factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory", "$notification", "miscUtils",
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification, utils){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
@@ -43,6 +43,11 @@
             },
         });
 
+        newFactory.update = utils.after(newFactory.update, function(){
+            // call update on all children
+            newFactory.instanceArr.forEach(instance => instance.update());
+        }, newFactory);
+
         return newFactory;
     }]);
 
@@ -66,7 +71,6 @@
             // TODO - should service update itself, its controller
             // update the service, or serviceHealth update all services?
             this.status = serviceHealth.get(this.healthId);
-
         },
 
         updateInstanceDef: function(instance){
@@ -74,7 +78,7 @@
             this.id = instance.ID;
             this.model = Object.freeze(instance);
             // TODO - formally define health id
-            this.healthId = this.id +"."+ instance.InstanceID;
+            this.healthId = this.model.ServiceID +"."+ instance.InstanceID;
             this.desiredState = instance.DesiredState;
         },
 

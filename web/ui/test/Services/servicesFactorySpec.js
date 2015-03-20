@@ -185,17 +185,6 @@ describe('servicesFactory', function() {
         expect(servicesFactory.get(serviceDefB.ID).children.length).toBe(1);
     });
 
-    it("Activates instancesFactory when activate is called", function(){
-        servicesFactory.activate();
-        expect(instancesFactory.activate).toHaveBeenCalled();
-    });
-
-    it("Deactivates instancesFactory when deactivate is called", function(){
-        servicesFactory.activate();
-        servicesFactory.deactivate();
-        expect(instancesFactory.deactivate).toHaveBeenCalled();
-    });
-
     it("Attaches service health to a service", function(){
         servicesFactory.update();
         var deferred = resourcesFactory._getCurrDeferred();
