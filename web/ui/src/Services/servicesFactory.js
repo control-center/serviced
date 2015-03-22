@@ -142,8 +142,6 @@
             // TODO - debounce this guy
             updateHealth: function(){
                 serviceHealth.update(this.serviceMap).then((statuses) => {
-                    var ids, instance;
-
                     for(var id in statuses){
                         // attach status to associated service
                         if(this.serviceMap[id]){
@@ -482,51 +480,6 @@
             return hosts;
         }
     });
-
-
-    // merge arrays of objects. Merges array b into array
-    // a based on the provided key/predicate. if already
-    // exists in a, a shallow merge or merge function is used.
-    // if anything is not present in b that is present in a,
-    // it is removed from a. a is mutated by this function
-    // TODO - make key into a predicate function
-    function mergeArray(a, b, key, merge){
-        // default to shallow merge
-        merge = merge || function(a, b){
-            for(var i in a){
-                a[i] = b[i];
-            }
-        };
-
-        var oldKeys = a.map(function(el){ return el[key]; });
-
-        b.forEach(function(el){
-            var oldElIndex = oldKeys.indexOf(el[key]);
-
-            // update
-            if(oldElIndex !== -1){
-                merge(a[oldElIndex], el);
-
-                // nullify id in list
-                oldKeys[oldElIndex] = null;
-
-            // add
-            } else {
-                a.push(el);
-            }
-        });
-
-        // delete
-        for(var i = a.length - 1; i >= 0; i--){
-            if(~oldKeys.indexOf(a[i][key])){
-                a.splice(i, 1);
-            }
-        }
-
-        return a;
-    }
-
-
 
     // simple cache object
     // TODO - angular has this sorta stuff built in

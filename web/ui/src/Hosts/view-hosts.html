@@ -22,8 +22,8 @@
     <tr ng-repeat="host in $data">
       <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
       <td data-title="'label_active'|translate" sortable="'active'" style="text-align:center;">
-        <div ng-if="host.active" class="good" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
-        <div ng-if="!host.active" class="down" style="position: relative;"><i class="healthIcon glyphicon"></i></div>
+        <div ng-if="host.active" class="good" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
+        <div ng-if="!host.active" class="down" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
       </td>
       <td data-title="'label_pool_name'|translate" sortable="'model.PoolID'" ng-click="clickPool(host.model.PoolID)" class="link">{{host.model.PoolID|cut:true:50}}</td>
       <td data-title="'label_host_memory'|translate" sortable="'model.Memory'|toGB">{{host.model.Memory | toGB}}</td>
