@@ -50,7 +50,12 @@ func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest,
 		return err
 	}
 
-	if err := this.facade.MigrateService(datastore.Get(), svc, request.MigrationScript, request.DryRun); err != nil {
+	err = this.facade.MigrateService(datastore.Get(),
+		svc,
+		request.MigrationScript,
+		request.DryRun,
+		request.SDKVersion)
+	if err != nil {
 		glog.Errorf("ControlPlaneDao.MigrateService: migration failed for id %+v: %s", request.ServiceID, err)
 		return err
 	}

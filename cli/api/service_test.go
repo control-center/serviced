@@ -96,6 +96,7 @@ func (st *serviceAPITest) TestMigrateService_works(c *C) {
 	scriptBody := "# no-op script"
 	inputScript := strings.NewReader(scriptBody)
 	expected, _ := service.NewService()
+	sdkVersion := "a.b.c"
 
 	st.mockControlPlane.
 		On("MigrateService", mock.Anything, mock.Anything).
@@ -106,7 +107,7 @@ func (st *serviceAPITest) TestMigrateService_works(c *C) {
 		On("GetService", serviceID, mock.Anything).
 		Return(nil)
 
-	actual, err := st.api.MigrateService(serviceID, inputScript, true)
+	actual, err := st.api.MigrateService(serviceID, inputScript, true, sdkVersion)
 
 	c.Assert(err, IsNil)
 	c.Assert(actual.ID, Equals, expected.ID)
@@ -118,6 +119,7 @@ func (st *serviceAPITest) TestMigrateService_works(c *C) {
 	c.Assert(request.ServiceID, Equals, serviceID)
 	c.Assert(request.MigrationScript, Equals, scriptBody)
 	c.Assert(request.DryRun, Equals, true)
+	c.Assert(request.SDKVersion, Equals, sdkVersion)
 }
 
 type mockInputReader struct {
@@ -137,7 +139,7 @@ func (st *serviceAPITest) TestMigrateService_failsToReadScript(c *C) {
 		On("Read", mock.Anything).
 		Return(0, errorStub)
 
-	actual, err := st.api.MigrateService(serviceID, mockInput, false)
+	actual, err := st.api.MigrateService(serviceID, mockInput, false, "")
 
 	c.Assert(actual, IsNil)
 	expectedError := fmt.Errorf("could not read migration script: %s", errorStub)
@@ -153,7 +155,7 @@ func (st *serviceAPITest) TestMigrateService_failsForEmptyScript(c *C) {
 	scriptBody := ""
 	inputScript := strings.NewReader(scriptBody)
 
-	actual, err := st.api.MigrateService(serviceID, inputScript, false)
+	actual, err := st.api.MigrateService(serviceID, inputScript, false, "")
 
 	c.Assert(actual, IsNil)
 	expectedError := fmt.Errorf("migration failed: script is empty")
@@ -174,7 +176,7 @@ func (st *serviceAPITest) TestMigrateService_fails(c *C) {
 		On("MigrateService", mock.Anything, mock.Anything).
 		Return(errorStub)
 
-	actual, err := st.api.MigrateService(serviceID, inputScript, false)
+	actual, err := st.api.MigrateService(serviceID, inputScript, false, "")
 
 	c.Assert(actual, IsNil)
 	expectedError := fmt.Errorf("migration failed: %s", errorStub)

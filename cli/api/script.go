@@ -173,7 +173,7 @@ func cliServiceMigrate(a API) script.ServiceMigrate {
 		}
 		defer input.Close()
 
-		if _, err := a.MigrateService(svcID, input, false); err != nil {
+		if _, err := a.MigrateService(svcID, input, false, ""); err != nil {
 			return fmt.Errorf("Migration failed for service %s: %s", svcID, err)
 		}
 		return nil

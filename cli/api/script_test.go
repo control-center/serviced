@@ -16,7 +16,7 @@ import (
 func (st *serviceAPITest) Test_script_cliServiceMigrate(t *C) {
 	mockAPI := new(mockAPI)
 	mockAPI.Mock.
-		On("MigrateService", "serviceID", mock.Anything, false).
+		On("MigrateService", "serviceID", mock.Anything, false, "").
 		Return(nil, nil)
 	serviceMigrateFunc := cliServiceMigrate(mockAPI)
 
@@ -29,7 +29,7 @@ func (st *serviceAPITest) Test_script_cliServiceMigrate_fails(t *C) {
 	errorStub := errors.New("errorStub: migration failed")
 	mockAPI := new(mockAPI)
 	mockAPI.Mock.
-		On("MigrateService", "serviceID", mock.Anything, false).
+		On("MigrateService", "serviceID", mock.Anything, false, "").
 		Return(nil, errorStub)
 	serviceMigrateFunc := cliServiceMigrate(mockAPI)
 
@@ -51,8 +51,8 @@ type mockAPI struct {
 	API
 }
 
-func (mock *mockAPI) MigrateService(serviceID string, input io.Reader, dryRun bool) (*service.Service, error) {
-	args := mock.Mock.Called(serviceID, input, dryRun)
+func (mock *mockAPI) MigrateService(serviceID string, input io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
+	args := mock.Mock.Called(serviceID, input, dryRun, sdkVersion)
 
 	var svc *service.Service
 	if arg0 := args.Get(0); arg0 != nil {

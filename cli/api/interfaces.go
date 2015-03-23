@@ -57,7 +57,7 @@ type API interface {
 	AddService(ServiceConfig) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
-	MigrateService(string, io.Reader, bool) (*service.Service, error)
+	MigrateService(string, io.Reader, bool, string) (*service.Service, error)
 	StartService(SchedulerConfig) (int, error)
 	RestartService(SchedulerConfig) (int, error)
 	StopService(SchedulerConfig) (int, error)

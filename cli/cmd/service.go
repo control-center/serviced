@@ -95,6 +95,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceMigrate,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"dry-run", "Executes the migration and validation without updating anything"},
+					cli.StringFlag{"sdk-version", "", "Overrides the default service-migration SDK version"},
 				},
 			}, {
 				Name:         "remove",
@@ -710,7 +711,7 @@ func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
 		input = os.Stdin
 	}
 
-	if migratedSvc, err := c.driver.MigrateService(svc.ID, input, ctx.Bool("dry-run")); err != nil {
+	if migratedSvc, err := c.driver.MigrateService(svc.ID, input, ctx.Bool("dry-run"), ctx.String("sdk-version")); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 	} else {
 		fmt.Println(migratedSvc.ID)
