@@ -10,8 +10,6 @@
     function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory){
         // Ensure logged in
         authService.checkLogin($scope);
-        $scope.name = "servicedetails";
-        $scope.params = $routeParams;
         $scope.resourcesFactory = resourcesFactory;
         $scope.hostsFactory = hostsFactory;
 
@@ -22,27 +20,10 @@
             });
         }
 
-        $scope.breadcrumbs = [
-            { label: 'breadcrumb_deployed', url: '#/apps' }
-        ];
-
-        $scope.vhosts = utils.buildTable('Name', [
-            { id: 'Name', name: 'vhost_name'},
-            { id: 'Application', name: 'vhost_application'},
-            { id: 'ServiceEndpoint', name: 'vhost_service_endpoint'},
-            { id: 'Name', name: 'vhost_url'}
-        ]);
-
-        $scope.ips = utils.buildTable('ServiceName', [
-            { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
-            { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
-            { id: 'HostName', name: 'tbl_virtual_ip_host'},
-            { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
-            { id: 'IPAddr', name: 'tbl_virtual_ip'}
-        ]);
-
         //add vhost data (includes name, app & service endpoint)
-        $scope.vhosts.add = {};
+        $scope.vhosts = {
+            add: {}
+        };
 
         $scope.click_app = function(id) {
             $location.path('/services/' + id);
@@ -529,8 +510,8 @@
                         }
                     });
                 })
-                .error((data, status) => {
-                    this.createNotification("Unable to fetch logs", data.Detail).error();
+                .error(function(data, status){
+                    $notification.create("Unable to fetch logs", data.Detail).error();
                 });
         };
 
@@ -622,7 +603,7 @@
         };
 
         $scope.isIsvc = function(service){
-            return service.type === "isvc";
+            return service.isIsvc();
         };
 
         $scope.hasCurrentInstances = function(){
@@ -688,6 +669,66 @@
 
 
         function init(){
+            $scope.name = "servicedetails";
+            $scope.params = $routeParams;
+
+            $scope.breadcrumbs = [
+                { label: 'breadcrumb_deployed', url: '#/apps' }
+            ];
+
+            $scope.ips = utils.buildTable('ServiceName', [
+                { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
+                { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
+                { id: 'HostName', name: 'tbl_virtual_ip_host'},
+                { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
+                { id: 'IPAddr', name: 'tbl_virtual_ip'}
+            ]);
+
+            $scope.vhostsTable = {
+                sorting: {
+                    Name: "asc"
+                }
+            };
+            $scope.ipsTable = {
+                sorting: {
+                    ServiceName: "asc"
+                }
+            };
+            $scope.configTable = {
+                sorting: {
+                    Filename: "asc"
+                }
+            };
+            $scope.instancesTable = {
+                sorting: {
+                    "model.InstanceID": "asc"
+                },
+                // instead of watching for a change, always
+                // reload at a specified interval
+                watch: (function(){
+                    var last = new Date().getTime(),
+                        now,
+                        interval = 1000;
+
+                    return function(){
+                        now = new Date().getTime();
+                        if(now - last > interval){
+                            last = now;
+                            return now;
+                        }
+                    };
+                })()
+            };
+            $scope.scheduledTasksTable = {
+                sorting: {
+                    Schedule: "asc"
+                }
+            };
+
+            // servicesTable should not be sortable since it
+            // is a hierarchy.
+            $scope.servicesTable = {};
+
             // setup initial state
             $scope.services = {
                 data: servicesFactory.serviceTree,
