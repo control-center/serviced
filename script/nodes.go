@@ -35,8 +35,8 @@ var (
 
 func init() {
 	nodeFactories = map[string]lineParser{
-		"":          parseEmtpyCommand,
-		"#":         parseEmtpyCommand,
+		"":          parseEmptyCommand,
+		"#":         parseEmptyCommand,
 		DESCRIPTION: atMost(1, parseArgCount(min(1), buildNode)),
 		VERSION:     atMost(1, parseArgCount(equals(1), buildNode)),
 		REQUIRE_SVC: atMost(1, parseArgCount(equals(0), buildNode)),
@@ -93,7 +93,7 @@ func max(n int) match {
 		if n >= x {
 			return nil
 		}
-		return fmt.Errorf("expected at at most %v, got %v", n, x)
+		return fmt.Errorf("expected at most %v, got %v", n, x)
 	}
 }
 
@@ -106,7 +106,7 @@ func min(n int) match {
 	}
 }
 
-func parseEmtpyCommand(ctx *parseContext, cmd string, args []string) (node, error) {
+func parseEmptyCommand(ctx *parseContext, cmd string, args []string) (node, error) {
 	return emptyNode, nil
 }
 

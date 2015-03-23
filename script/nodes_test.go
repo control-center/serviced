@@ -12,14 +12,14 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (vs *ScriptSuite) Test_emtpy(t *C) {
+func (vs *ScriptSuite) Test_empty(t *C) {
 	ctx := newParseContext()
-	n, err := parseEmtpyCommand(ctx, "", []string{})
+	n, err := parseEmptyCommand(ctx, "", []string{})
 	t.Assert(err, IsNil)
 	t.Assert(n, DeepEquals, emptyNode)
 
 	ctx.line = "#new comment"
-	n, err = parseEmtpyCommand(ctx, "#", []string{"new comment"})
+	n, err = parseEmptyCommand(ctx, "#", []string{"new comment"})
 	t.Assert(err, IsNil)
 	t.Assert(n, DeepEquals, emptyNode)
 }
