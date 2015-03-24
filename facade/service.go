@@ -1530,14 +1530,14 @@ func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath str
 	if tagName != "" {
 		glog.V(2).Infof("Facade:executeMigrationScript: using docker tag=%q", tagName)
 	}
-	dokckerImage := fmt.Sprintf("%s:%s", SERVICE_MIGRATION_IMAGE_NAME, tagName)
+	dockerImage := fmt.Sprintf("%s:%s", SERVICE_MIGRATION_IMAGE_NAME, tagName)
 
 	mountPath := fmt.Sprintf("%s:/migration", tmpDir)
 	cmd := exec.Command("docker",
 		"run", "--rm", "-t",
 		"--name", "service-migration",
 		"-v", mountPath,
-		dokckerImage,
+		dockerImage,
 		"python", containerScript, containerInputFile, containerOutputFile)
 
 	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)
