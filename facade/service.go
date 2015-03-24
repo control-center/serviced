@@ -107,12 +107,19 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 }
 
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
-func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool, sdkVersion string) error {
-	var inputFileName, scriptFileName, outputFileName string
+func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
+	svc, err := f.GetService(datastore.Get(), request.ServiceID)
+	if err != nil {
+		glog.Errorf("ControlPlaneDao.MigrateService: could not find service id %+v: %s", request.ServiceID, err)
+		return err
+	}
 
-	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v, sdkVersion=%s)", svc.ID, dryRun, sdkVersion)
+	var migrationDir, inputFileName, scriptFileName, outputFileName string
 
-	migrationDir, err := createTempMigrationDir(svc.ID)
+	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v, sdkVersion=%s)",
+		svc.ID, request.DryRun, request.SDKVersion)
+
+	migrationDir, err = createTempMigrationDir(svc.ID)
 	defer os.RemoveAll(migrationDir)
 	if err != nil {
 		return err
@@ -120,7 +127,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 
 	svcs, err2 := f.getServiceList(ctx, svc.ID)
 	if err2 != nil {
-		return err
+		return err2
 	}
 
 	glog.V(3).Infof("Facade:MigrateService: temp directory for service migration: %s", migrationDir)
@@ -129,12 +136,12 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	scriptFileName, err = createServiceMigrationScriptFile(migrationDir, scriptBody)
+	scriptFileName, err = createServiceMigrationScriptFile(migrationDir, request.ScriptBody)
 	if err != nil {
 		return err
 	}
 
-	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName, sdkVersion)
+	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName, request.SDKVersion)
 	if err != nil {
 		return err
 	}
@@ -145,7 +152,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 	}
 
 	for _, svc := range svcs {
-		if dryRun {
+		if request.DryRun {
 			err = f.verifyServiceForUpdate(ctx, svc, nil)
 			if err == nil {
 				glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)

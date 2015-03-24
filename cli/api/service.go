@@ -204,8 +204,8 @@ func (a *api) MigrateService(serviceID string, input io.Reader, dryRun bool, sdk
 	}
 
 	request := dao.ServiceMigrationRequest{ServiceID: serviceID, DryRun: dryRun, SDKVersion: sdkVersion}
-	request.MigrationScript = string(inputBuffer.Bytes())
-	if len(request.MigrationScript) == 0 {
+	request.ScriptBody = string(inputBuffer.Bytes())
+	if len(request.ScriptBody) == 0 {
 		return nil, fmt.Errorf("migration failed: script is empty")
 	}
 

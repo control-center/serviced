@@ -51,10 +51,10 @@ type ServiceCloneRequest struct {
 }
 
 type ServiceMigrationRequest struct {
-	ServiceID       string
-	MigrationScript string
-	SDKVersion      string
-	DryRun          bool
+	ServiceID  string // The ID of the service to migrate.
+	ScriptBody string // The content of the service migration script to use.
+	SDKVersion string // The version of the service migration SDK to use.
+	DryRun     bool
 }
 
 type ServiceStateRequest struct {
