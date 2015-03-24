@@ -38,7 +38,7 @@ type FacadeInterface interface {
 
 	GetTenantID(ctx datastore.Context, serviceID string) (string, error)
 
-	MigrateService(ctx datastore.Context, svc *service.Service, script string, dryRun bool) error
+	MigrateService(ctx datastore.Context, svc *service.Service, script string, dryRun bool, sdkVersion string) error
 
 	RemoveService(ctx datastore.Context, id string) error
 

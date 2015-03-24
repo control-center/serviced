@@ -107,10 +107,10 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 }
 
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
-func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool) error {
+func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool, sdkVersion string) error {
 	var inputFileName, scriptFileName, outputFileName string
 
-	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v)", svc.ID, dryRun)
+	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v, sdkVersion=%s)", svc.ID, dryRun, sdkVersion)
 
 	migrationDir, err := createTempMigrationDir(svc.ID)
 	defer os.RemoveAll(migrationDir)
@@ -134,7 +134,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName)
+	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName, sdkVersion)
 	if err != nil {
 		return err
 	}
@@ -1507,8 +1507,9 @@ func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error)
 // Execute the migration script. The script is executed in a docker container which assumes that
 // scriptFilePath and inputFilePath are rooted under tmpDir
 // Returns the name of the file under tmpDir containing the output from the migration script
-func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath string) (string, error) {
-	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration:1.0.0"
+func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath string, sdkVersion string) (string, error) {
+	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration"
+	const SERVICE_MIGRATION_TAG_NAME = "1.0.0"
 	const MOUNT_POINT = "/migration"
 	const OUTPUT_FILE = "output.json"
 
@@ -1517,15 +1518,26 @@ func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath str
 
 	_, inputFile := path.Split(inputFilePath)
 	containerInputFile := path.Join(MOUNT_POINT, inputFile)
-
 	containerOutputFile := path.Join(MOUNT_POINT, OUTPUT_FILE)
+
+	tagName := SERVICE_MIGRATION_TAG_NAME
+	if sdkVersion != "" {
+		tagName = sdkVersion
+	} else if tagOverride := os.Getenv("SERVICED_SERVICE_MIGRATION_TAG"); tagOverride != "" {
+		tagName = tagOverride
+	}
+
+	if tagName != "" {
+		glog.V(2).Infof("Facade:executeMigrationScript: using docker tag=%q", tagName)
+	}
+	dockerImage := fmt.Sprintf("%s:%s", SERVICE_MIGRATION_IMAGE_NAME, tagName)
 
 	mountPath := fmt.Sprintf("%s:/migration", tmpDir)
 	cmd := exec.Command("docker",
 		"run", "--rm", "-t",
 		"--name", "service-migration",
 		"-v", mountPath,
-		SERVICE_MIGRATION_IMAGE_NAME,
+		dockerImage,
 		"python", containerScript, containerInputFile, containerOutputFile)
 
 	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)

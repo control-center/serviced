@@ -191,7 +191,7 @@ func (a *api) CloneService(serviceID string, suffix string) (*service.Service, e
 }
 
 // MigrateService migrates an existing service
-func (a *api) MigrateService(serviceID string, input io.Reader, dryRun bool) (*service.Service, error) {
+func (a *api) MigrateService(serviceID string, input io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
@@ -203,7 +203,7 @@ func (a *api) MigrateService(serviceID string, input io.Reader, dryRun bool) (*s
 		return nil, fmt.Errorf("could not read migration script: %s", err)
 	}
 
-	request := dao.ServiceMigrationRequest{ServiceID: serviceID, DryRun: dryRun}
+	request := dao.ServiceMigrationRequest{ServiceID: serviceID, DryRun: dryRun, SDKVersion: sdkVersion}
 	request.MigrationScript = string(inputBuffer.Bytes())
 	if len(request.MigrationScript) == 0 {
 		return nil, fmt.Errorf("migration failed: script is empty")

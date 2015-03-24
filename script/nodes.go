@@ -35,8 +35,8 @@ var (
 
 func init() {
 	nodeFactories = map[string]lineParser{
-		"":          parseEmtpyCommand,
-		"#":         parseEmtpyCommand,
+		"":          parseEmptyCommand,
+		"#":         parseEmptyCommand,
 		DESCRIPTION: atMost(1, parseArgCount(min(1), buildNode)),
 		VERSION:     atMost(1, parseArgCount(equals(1), buildNode)),
 		REQUIRE_SVC: atMost(1, parseArgCount(equals(0), buildNode)),
@@ -49,7 +49,7 @@ func init() {
 		SVC_RESTART: require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_STOP:    require([]string{REQUIRE_SVC}, parseArgMatch(1, "^recurse$|^auto$", true, parseArgCount(bounds(1, 2), buildNode))),
 		SVC_WAIT:    parseWait,
-		SVC_MIGRATE: require([]string{REQUIRE_SVC}, parseArgCount(equals(2), buildNode)),
+		SVC_MIGRATE: require([]string{REQUIRE_SVC}, parseArgCount(bounds(1, 2), parseSDKVersion(buildNode))),
 		DEPENDENCY:  validParents([]string{DESCRIPTION, VERSION}, atMost(1, parseArgCount(equals(1), buildNode))),
 	}
 }
@@ -93,7 +93,7 @@ func max(n int) match {
 		if n >= x {
 			return nil
 		}
-		return fmt.Errorf("expected at at most %v, got %v", n, x)
+		return fmt.Errorf("expected at most %v, got %v", n, x)
 	}
 }
 
@@ -106,12 +106,38 @@ func min(n int) match {
 	}
 }
 
-func parseEmtpyCommand(ctx *parseContext, cmd string, args []string) (node, error) {
+func parseEmptyCommand(ctx *parseContext, cmd string, args []string) (node, error) {
 	return emptyNode, nil
 }
 
 func buildNode(ctx *parseContext, cmd string, args []string) (node, error) {
 	return node{cmd: cmd, line: ctx.line, lineNum: ctx.lineNum, args: args}, nil
+}
+
+func parseSDKVersion(parser lineParser) lineParser {
+	f := func(ctx *parseContext, cmd string, args []string) (node, error) {
+		n, err := parser(ctx, cmd, args)
+		if err == nil {
+			if len(args) == 2 {
+				if _, err := findSDKVersion(args[0]); err != nil {
+					return node{}, fmt.Errorf("line %d: %v", ctx.lineNum, err)
+				}
+			}
+		}
+		return n, err
+	}
+	return f
+}
+
+func findSDKVersion(arg string) (version string, err error) {
+	//try to match
+	const SDK_VERSION_PATTERN = `^SDK=([a-zA-Z0-9.\-_]+)$`
+	sdkVerRegex := regexp.MustCompile(SDK_VERSION_PATTERN)
+	matches := sdkVerRegex.FindStringSubmatch(arg)
+	if len(matches) != 2 || matches[1] == "" {
+		return "", fmt.Errorf("arg %s did not match %s", arg, SDK_VERSION_PATTERN)
+	}
+	return matches[1], nil
 }
 
 func parseArgMatch(argN int, pattern string, optional bool, parser lineParser) lineParser {

@@ -53,6 +53,7 @@ type ServiceCloneRequest struct {
 type ServiceMigrationRequest struct {
 	ServiceID       string
 	MigrationScript string
+	SDKVersion      string
 	DryRun          bool
 }
 
