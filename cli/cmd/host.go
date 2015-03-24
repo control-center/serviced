@@ -48,6 +48,7 @@ func (c *ServicedCli) initHost() {
 				Action:       c.cmdHostAdd,
 				Flags: []cli.Flag{
 					cli.StringSliceFlag{"ip", &cli.StringSlice{}, "List of available endpoints"},
+					cli.StringFlag{"memory", "", "Max memory allocated to this host"},
 				},
 			}, {
 				Name:         "remove",
@@ -156,7 +157,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 	}
 }
 
-// serviced host add HOST:PORT POOLID
+// serviced host add HOST:PORT POOLID [--memory SIZE|%]
 func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
@@ -187,6 +188,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 	cfg := api.HostConfig{
 		Address: &address,
 		PoolID:  args[1],
+		Memory:  ctx.String("memory"),
 	}
 
 	if host, err := c.driver.AddHost(cfg); err != nil {

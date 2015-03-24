@@ -402,7 +402,7 @@ func (d *daemon) startMaster() error {
 		rpcPort = parts[1]
 	}
 
-	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID)
+	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
@@ -495,7 +495,7 @@ func (d *daemon) startAgent() error {
 		rpcPort = parts[1]
 	}
 
-	thisHost, err := host.Build(agentIP, rpcPort, "unknown")
+	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "")
 	if err != nil {
 		panic(err)
 	}

@@ -22,6 +22,7 @@ import (
 type HostConfig struct {
 	Address *URL
 	PoolID  string
+	Memory  string
 	IPs     []string
 }
 
@@ -56,6 +57,7 @@ func (a *api) AddHost(config HostConfig) (*host.Host, error) {
 		IP:     config.Address.Host,
 		Port:   config.Address.Port,
 		PoolID: config.PoolID,
+		Memory: config.Memory,
 	}
 
 	h, err := agentClient.BuildHost(req)
