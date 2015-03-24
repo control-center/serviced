@@ -13,9 +13,16 @@ depends on docker.
 1. Follow the instruction at http://www.docker.io/ , to install 
    it on every host that serviced will run on. Ensure docker is running.
 
-2. Install a generated package from 
-    http://jenkins.zendev.org/view/Control%20Center/job/serviced-build/ . Or follow
-   the steps below in the dev section to a source build.
+2. Install a generated package
+
+      sudo apt-key adv --keyserver keys.gnupg.net --recv-keys AA5A1AD7
+￼     REPO=http://get.zenoss.io/apt/ubuntu
+      sudo sh -c 'echo "deb [ arch=amd64 ] '${REPO}' trusty universe" \
+          > /etc/apt/sources.list.d/zenoss.list'
+      sudo apt-get update
+      sudo apt-get install -y serviced
+
+   Or follow the steps below in the dev section to a source build.
 
 3. Start the service. On ubuntu,
 ```bash
