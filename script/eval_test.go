@@ -5,8 +5,7 @@
 package script
 
 import (
-	"errors"
-
+	// "errors"
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
 )
@@ -15,10 +14,11 @@ func (vs *ScriptSuite) Test_evalSvcMigrate(t *C) {
 	testRunner := setupRunner(setupMigrateNode())
 	testRunner.runnerObj.svcMigrate = testRunner.svcMigrate
 
-	expectedServiceID := "TEST_SERVICE_ID_FROM_PATH"
-	expectedScriptBody := testRunner.testNode.args[1]
+	expectedServiceID := "TEST_TENANT_ID"
+	expectedScriptBody := testRunner.testNode.args[0]
+	expectedSDKVersion := ""
 	testRunner.Mock.
-		On("svcMigrate", expectedServiceID, expectedScriptBody).
+		On("svcMigrate", expectedServiceID, expectedScriptBody, expectedSDKVersion).
 		Return(nil)
 
 	err := evalSvcMigrate(testRunner.runnerObj, testRunner.testNode)
@@ -26,13 +26,20 @@ func (vs *ScriptSuite) Test_evalSvcMigrate(t *C) {
 	t.Assert(err, IsNil)
 }
 
-func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfNoSvcFromPath(t *C) {
-	testRunner := setupRunner(setupMigrateNode())
-	testRunner.runnerObj.svcFromPath = nil
+func (vs *ScriptSuite) Test_evalSvcMigrate_withSDKVersion(t *C) {
+	testRunner := setupRunner(setupMigrateNodeWithSDKVer())
+	testRunner.runnerObj.svcMigrate = testRunner.svcMigrate
+
+	expectedServiceID := "TEST_TENANT_ID"
+	expectedScriptBody := testRunner.testNode.args[1]
+	expectedSDKVersion := "1.2.3"
+	testRunner.Mock.
+		On("svcMigrate", expectedServiceID, expectedScriptBody, expectedSDKVersion).
+		Return(nil)
 
 	err := evalSvcMigrate(testRunner.runnerObj, testRunner.testNode)
 
-	t.Assert(err, ErrorMatches, "no service id lookup function for SVC_MIGRATE")
+	t.Assert(err, IsNil)
 }
 
 func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfTenantNotFound(t *C) {
@@ -44,23 +51,36 @@ func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfTenantNotFound(t *C) {
 	t.Assert(err, ErrorMatches, "no service tenant id specified for SVC_MIGRATE")
 }
 
-func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfServiceFromPathNotFound(t *C) {
-	testRunner := setupRunner(setupMigrateNode())
-	errorStub := errors.New("ErrorStub: service lookup failed")
-	testRunner.runnerObj.svcFromPath = func(tenantID string, path string) (string, error) { return "", errorStub }
+func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfSDKMissingValue(t *C) {
+	migrateNode := node{
+		cmd:     "SVC_MIGRATE SDK= somescript.py",
+		args:    []string{"SDK=", "somescript.py"},
+		line:    "SVC_MIGRATE SDK= somescript.py",
+		lineNum: 0,
+	}
+	testRunner := setupRunner(migrateNode)
 
 	err := evalSvcMigrate(testRunner.runnerObj, testRunner.testNode)
 
-	t.Assert(err, ErrorMatches, "ErrorStub: service lookup failed")
+	// We can't use ErrorMatches because it wants to do some kind of regex on our regex
+	t.Assert(err, NotNil)
+	t.Assert(err.Error(), Equals, "arg SDK= did not match ^SDK=([a-zA-Z0-9.\\-_]+)$")
 }
 
-func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfServiceNotFound(t *C) {
-	testRunner := setupRunner(setupMigrateNode())
-	testRunner.runnerObj.svcFromPath = func(tenantID string, path string) (string, error) { return "", nil }
+func (vs *ScriptSuite) Test_evalSvcMigrate_failsIfFirstArgInvalid(t *C) {
+	migrateNode := node{
+		cmd:     "SVC_MIGRATE SDK=!@#$= somescript.py",
+		args:    []string{"SDK=!@#$=", "somescript.py"},
+		line:    "SVC_MIGRATE SDK=!@#$= somescript.py",
+		lineNum: 0,
+	}
+	testRunner := setupRunner(migrateNode)
 
 	err := evalSvcMigrate(testRunner.runnerObj, testRunner.testNode)
 
-	t.Assert(err, ErrorMatches, "no service id found for zope")
+	// We can't use ErrorMatches because it wants to do some kind of regex on our regex
+	t.Assert(err, NotNil)
+	t.Assert(err.Error(), Equals, "arg SDK=!@#$= did not match ^SDK=([a-zA-Z0-9.\\-_]+)$")
 }
 
 type EvalTestRunner struct {
@@ -69,8 +89,8 @@ type EvalTestRunner struct {
 	testNode  node
 }
 
-func (etr *EvalTestRunner) svcMigrate(serviceID string, scriptBody string) error {
-	return etr.Mock.Called(serviceID, scriptBody).Error(0)
+func (etr *EvalTestRunner) svcMigrate(serviceID string, scriptBody string, sdkVersion string) error {
+	return etr.Mock.Called(serviceID, scriptBody, sdkVersion).Error(0)
 }
 
 func setupRunner(testNode node) *EvalTestRunner {
@@ -99,9 +119,19 @@ func setupRunner(testNode node) *EvalTestRunner {
 
 func setupMigrateNode() node {
 	migrateNode := node{
-		cmd:     "SVC_MIGRATE zope somescript.py",
-		args:    []string{"zope", "somescript.py"},
-		line:    "SVC_MIGRATE zope somescript.py",
+		cmd:     "SVC_MIGRATE somescript.py",
+		args:    []string{"somescript.py"},
+		line:    "SVC_MIGRATE somescript.py",
+		lineNum: 0,
+	}
+	return migrateNode
+}
+
+func setupMigrateNodeWithSDKVer() node {
+	migrateNode := node{
+		cmd:     "SVC_MIGRATE SDK=1.2.3 somescript.py",
+		args:    []string{"SDK=1.2.3", "somescript.py"},
+		line:    "SVC_MIGRATE SDK=1.2.3 somescript.py",
 		lineNum: 0,
 	}
 	return migrateNode

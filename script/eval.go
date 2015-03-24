@@ -317,26 +317,23 @@ func evalSvcExec(r *runner, n node) error {
 }
 
 func evalSvcMigrate(r *runner, n node) error {
-	if r.svcFromPath == nil {
-		return fmt.Errorf("no service id lookup function for %s", SVC_MIGRATE)
-	}
-
-	svcPath := n.args[0]
 	tenantID, found := r.env["TENANT_ID"]
 	if !found {
 		return fmt.Errorf("no service tenant id specified for %s", SVC_MIGRATE)
 	}
 
-	svcID, err := r.svcFromPath(tenantID, svcPath)
-	if err != nil {
-		return err
-	}
-	if svcID == "" {
-		return fmt.Errorf("no service id found for %s", svcPath)
+	var sdkVersion string
+	if len(n.args) == 2 {
+		var err error
+		if sdkVersion, err = findSDKVersion(n.args[0]); err != nil {
+			return err
+		}
+
 	}
 
-	glog.V(0).Infof("running: service migrate %s %s", svcID, n.args[1])
-	if err := r.svcMigrate(svcID, n.args[1]); err != nil {
+	migrationScript := n.args[len(n.args)-1]
+	glog.V(0).Infof("running: service migrate %s %s", tenantID, migrationScript, sdkVersion)
+	if err := r.svcMigrate(tenantID, migrationScript, sdkVersion); err != nil {
 		return err
 	}
 

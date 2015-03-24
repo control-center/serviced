@@ -166,14 +166,14 @@ func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 }
 
 func cliServiceMigrate(a API) script.ServiceMigrate {
-	return func(svcID string, scriptFile string) error {
+	return func(svcID string, scriptFile string, sdkVersion string) error {
 		input, err := os.Open(scriptFile)
 		if err != nil {
 			return fmt.Errorf("Could not open migration script: %s", err)
 		}
 		defer input.Close()
 
-		if _, err := a.MigrateService(svcID, input, false, ""); err != nil {
+		if _, err := a.MigrateService(svcID, input, false, sdkVersion); err != nil {
 			return fmt.Errorf("Migration failed for service %s: %s", svcID, err)
 		}
 		return nil
