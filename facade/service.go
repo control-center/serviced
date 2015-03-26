@@ -1580,7 +1580,7 @@ func createServiceContainer(service *service.Service) (*docker.Container, error)
 // resides in the serviceContainer; i.e. under the directory specified by EMBEDDED_MIGRATION_DIRECTORY
 //
 // Returns the name of the file under tmpDir containing the output from the migration script
-func executeMigrationScript(serviceID string, serviceContainer *docker.Container, tmpDir, containerScript, inputFilePath string, sdkVersion string) (string, error) {
+func executeMigrationScript(serviceID string, serviceContainer *docker.Container, tmpDir, containerScript, inputFilePath, sdkVersion string) (string, error) {
 	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration"
 	const SERVICE_MIGRATION_TAG_NAME = "1.0.0"
 	const OUTPUT_FILE = "output.json"
