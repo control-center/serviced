@@ -117,7 +117,7 @@ func (st *serviceAPITest) TestMigrateService_works(c *C) {
 
 	request := args[0].(dao.ServiceMigrationRequest)
 	c.Assert(request.ServiceID, Equals, serviceID)
-	c.Assert(request.MigrationScript, Equals, scriptBody)
+	c.Assert(request.ScriptBody, Equals, scriptBody)
 	c.Assert(request.DryRun, Equals, true)
 	c.Assert(request.SDKVersion, Equals, sdkVersion)
 }

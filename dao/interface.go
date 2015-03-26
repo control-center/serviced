@@ -50,11 +50,13 @@ type ServiceCloneRequest struct {
 	Suffix    string
 }
 
+// Only use one of ScriptName or ScriptBody. If both are specified, ScriptBody has precedence.
 type ServiceMigrationRequest struct {
-	ServiceID       string
-	MigrationScript string
-	SDKVersion      string
-	DryRun          bool
+	ServiceID  string // The ID of the service to migrate.
+	ScriptBody string // The content of the service migration script to use.
+	ScriptName string // The name of the service migration script in the docker image for the specified service.
+	SDKVersion string // The version of the service migration SDK to use.
+	DryRun     bool
 }
 
 type ServiceStateRequest struct {
