@@ -65,25 +65,14 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 //
 func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.MigrateService: start migration for service id %+v", request.ServiceID)
-	svc, err := this.facade.GetService(datastore.Get(), request.ServiceID)
-	if err != nil {
-		glog.Errorf("ControlPlaneDao.MigrateService: could not find service id %+v: %s", request.ServiceID, err)
-		return err
-	}
-
-	err = this.facade.MigrateService(datastore.Get(),
-		svc,
-		request.MigrationScript,
-		request.DryRun,
-		request.SDKVersion)
-	if err != nil {
+	if err := this.facade.MigrateService(datastore.Get(), request); err != nil {
 		glog.Errorf("ControlPlaneDao.MigrateService: migration failed for id %+v: %s", request.ServiceID, err)
 		return err
 	}
 
 	glog.Infof("ControlPlaneDao.MigrateService: migrated service %+v (dry-run=%v)", request.ServiceID, request.DryRun)
 	if !request.DryRun {
-		this.createTenantVolume(svc.ID)
+		this.createTenantVolume(request.ServiceID)
 	}
 	return nil
 }

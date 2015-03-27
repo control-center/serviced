@@ -34,6 +34,16 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 
 	"github.com/control-center/serviced/utils"
+
+	dockerclient "github.com/zenoss/go-dockerclient"
+)
+
+const (
+	// The mount point in the service migration docker image
+	MIGRATION_MOUNT_POINT = "/migration"
+
+	// The well-known path within the service's docker image of the directory which contains the service's migration script
+	EMBEDDED_MIGRATION_DIRECTORY = "/opt/serviced/migration"
 )
 
 // AddService adds a service; return error if service already exists
@@ -107,12 +117,18 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 }
 
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
-func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scriptBody string, dryRun bool, sdkVersion string) error {
-	var inputFileName, scriptFileName, outputFileName string
+func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
+	svc, err := f.GetService(datastore.Get(), request.ServiceID)
+	if err != nil {
+		glog.Errorf("ControlPlaneDao.MigrateService: could not find service id %+v: %s", request.ServiceID, err)
+		return err
+	}
 
-	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v, sdkVersion=%s)", svc.ID, dryRun, sdkVersion)
+	glog.V(2).Infof("Facade:MigrateService: start for service id %+v (dry-run=%v, sdkVersion=%s)",
+		svc.ID, request.DryRun, request.SDKVersion)
 
-	migrationDir, err := createTempMigrationDir(svc.ID)
+	var migrationDir, inputFileName, scriptFileName, outputFileName string
+	migrationDir, err = createTempMigrationDir(svc.ID)
 	defer os.RemoveAll(migrationDir)
 	if err != nil {
 		return err
@@ -120,7 +136,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 
 	svcs, err2 := f.getServiceList(ctx, svc.ID)
 	if err2 != nil {
-		return err
+		return err2
 	}
 
 	glog.V(3).Infof("Facade:MigrateService: temp directory for service migration: %s", migrationDir)
@@ -129,14 +145,35 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 		return err
 	}
 
-	scriptFileName, err = createServiceMigrationScriptFile(migrationDir, scriptBody)
-	if err != nil {
-		return err
-	}
+	if request.ScriptBody != "" {
+		scriptFileName, err = createServiceMigrationScriptFile(migrationDir, request.ScriptBody)
+		if err != nil {
+			return err
+		}
 
-	outputFileName, err = executeMigrationScript(svc.ID, migrationDir, scriptFileName, inputFileName, sdkVersion)
-	if err != nil {
-		return err
+		_, scriptFile := path.Split(scriptFileName)
+		containerScript := path.Join(MIGRATION_MOUNT_POINT, scriptFile)
+		outputFileName, err = executeMigrationScript(svc.ID, nil, migrationDir, containerScript, inputFileName, request.SDKVersion)
+		if err != nil {
+			return err
+		}
+	} else {
+		container, err := createServiceContainer(svc)
+		if err != nil {
+			return err
+		} else {
+			defer func() {
+				if err := container.Delete(true); err != nil {
+					glog.Errorf("Could not remove container %s (%s): %s", container.ID, svc.ImageID, err)
+				}
+			}()
+		}
+
+		containerScript := path.Join(EMBEDDED_MIGRATION_DIRECTORY, request.ScriptName)
+		outputFileName, err = executeMigrationScript(svc.ID, container, migrationDir, containerScript, inputFileName, request.SDKVersion)
+		if err != nil {
+			return err
+		}
 	}
 
 	svcs, err = readNewServiceDefinitions(outputFileName)
@@ -145,7 +182,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, svc *service.Service, scr
 	}
 
 	for _, svc := range svcs {
-		if dryRun {
+		if request.DryRun {
 			err = f.verifyServiceForUpdate(ctx, svc, nil)
 			if err == nil {
 				glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
@@ -1504,21 +1541,54 @@ func createServiceMigrationScriptFile(tmpDir, scriptBody string) (string, error)
 	return scriptFileName, nil
 }
 
-// Execute the migration script. The script is executed in a docker container which assumes that
-// scriptFilePath and inputFilePath are rooted under tmpDir
+func createServiceContainer(service *service.Service) (*docker.Container, error) {
+	var emptyStruct struct{}
+	containerName := fmt.Sprintf("%s-%s", service.Name, "migration")
+	containerDefinition := &docker.ContainerDefinition{
+		dockerclient.CreateContainerOptions{
+			Name: containerName,
+			Config: &dockerclient.Config{
+				Image:   service.ImageID,
+				Volumes: map[string]struct{}{EMBEDDED_MIGRATION_DIRECTORY: emptyStruct},
+			},
+		},
+		dockerclient.HostConfig{},
+	}
+
+	container, err := docker.NewContainer(containerDefinition, false, 0, nil, nil)
+	if err != nil {
+		glog.Errorf("Error trying to create container %v: %v", containerDefinition, err)
+		return nil, err
+	}
+
+	glog.V(1).Infof("Created container %s named %s based on image %s", container.ID, containerName, service.ImageID)
+	return container, nil
+}
+
+// executeMigrationScript executes containerScript in a docker container based
+// the service migration SDK image.
+//
+// tmpDir is the temporary directory that is mounted into the service migration container under
+// the directory identified by MIGRATON_MOUNT_POINT. Both the input and output files are written to
+// tmpDir/MIGRATION_MOUNT_POINT
+//
+// The value of containerScript should be always be a fully qualified, container-local path
+// to the service migration script, though the path may vary depending on the value of serviceContainer.
+// If serviceContainer is not specified, then containerScript should start with MIGRATON_MOUNT_POINT
+// If serviceContainer is specified, then the service-migration container will be run
+// with volume(s) mounted from serviceContainer. This allows for cases where containerScript physically
+// resides in the serviceContainer; i.e. under the directory specified by EMBEDDED_MIGRATION_DIRECTORY
+//
 // Returns the name of the file under tmpDir containing the output from the migration script
-func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath string, sdkVersion string) (string, error) {
+func executeMigrationScript(serviceID string, serviceContainer *docker.Container, tmpDir, containerScript, inputFilePath, sdkVersion string) (string, error) {
 	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration"
 	const SERVICE_MIGRATION_TAG_NAME = "1.0.0"
-	const MOUNT_POINT = "/migration"
 	const OUTPUT_FILE = "output.json"
 
-	_, scriptFile := path.Split(scriptFilePath)
-	containerScript := path.Join(MOUNT_POINT, scriptFile)
-
+	// get the container-local path names for the input and output files.
 	_, inputFile := path.Split(inputFilePath)
-	containerInputFile := path.Join(MOUNT_POINT, inputFile)
-	containerOutputFile := path.Join(MOUNT_POINT, OUTPUT_FILE)
+	containerInputFile := path.Join(MIGRATION_MOUNT_POINT, inputFile)
+	containerOutputFile := path.Join(MIGRATION_MOUNT_POINT, OUTPUT_FILE)
 
 	tagName := SERVICE_MIGRATION_TAG_NAME
 	if sdkVersion != "" {
@@ -1527,18 +1597,22 @@ func executeMigrationScript(serviceID, tmpDir, scriptFilePath, inputFilePath str
 		tagName = tagOverride
 	}
 
-	if tagName != "" {
-		glog.V(2).Infof("Facade:executeMigrationScript: using docker tag=%q", tagName)
-	}
+	glog.V(2).Infof("Facade:executeMigrationScript: using docker tag=%q", tagName)
 	dockerImage := fmt.Sprintf("%s:%s", SERVICE_MIGRATION_IMAGE_NAME, tagName)
 
-	mountPath := fmt.Sprintf("%s:/migration", tmpDir)
-	cmd := exec.Command("docker",
+	mountPath := fmt.Sprintf("%s:%s:rw", tmpDir, MIGRATION_MOUNT_POINT)
+	runArgs := []string{
 		"run", "--rm", "-t",
 		"--name", "service-migration",
 		"-v", mountPath,
-		dockerImage,
-		"python", containerScript, containerInputFile, containerOutputFile)
+	}
+	if serviceContainer != nil {
+		runArgs = append(runArgs, "--volumes-from", serviceContainer.ID)
+	}
+	runArgs = append(runArgs, dockerImage)
+	runArgs = append(runArgs, "python", containerScript, containerInputFile, containerOutputFile)
+
+	cmd := exec.Command("docker", runArgs...)
 
 	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)
 

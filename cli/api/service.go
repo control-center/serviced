@@ -190,29 +190,48 @@ func (a *api) CloneService(serviceID string, suffix string) (*service.Service, e
 	return a.GetService(clonedServiceID)
 }
 
-// MigrateService migrates an existing service
-func (a *api) MigrateService(serviceID string, input io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
+// MigrateService migrates an existing service using a local script
+func (a *api) MigrateService(serviceID string, localScript io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
+	inputBuffer := bytes.NewBuffer(nil)
+	if _, err := io.Copy(inputBuffer, localScript); err != nil {
+		return nil, fmt.Errorf("could not read migration script: %s", err)
+	}
+
+	request := dao.ServiceMigrationRequest{
+		ServiceID:  serviceID,
+		ScriptBody: string(inputBuffer.Bytes()),
+		DryRun:     dryRun,
+		SDKVersion: sdkVersion,
+	}
+	if len(request.ScriptBody) == 0 {
+		return nil, fmt.Errorf("migration failed: script is empty")
+	}
+
+	return a.migrateService(request)
+}
+
+// MigrateServiceWithEmbeddedScript migrates an existing service using script embeded in the service's docker image
+func (a *api) MigrateServiceWithEmbeddedScript(serviceID string, scriptName string, dryRun bool, sdkVersion string) (*service.Service, error) {
+	request := dao.ServiceMigrationRequest{
+		ServiceID:  serviceID,
+		ScriptName: scriptName,
+		DryRun:     dryRun,
+		SDKVersion: sdkVersion,
+	}
+
+	return a.migrateService(request)
+}
+
+func (a *api) migrateService(request dao.ServiceMigrationRequest) (*service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	inputBuffer := bytes.NewBuffer(nil)
-	_, err = io.Copy(inputBuffer, input)
-	if err != nil {
-		return nil, fmt.Errorf("could not read migration script: %s", err)
-	}
-
-	request := dao.ServiceMigrationRequest{ServiceID: serviceID, DryRun: dryRun, SDKVersion: sdkVersion}
-	request.MigrationScript = string(inputBuffer.Bytes())
-	if len(request.MigrationScript) == 0 {
-		return nil, fmt.Errorf("migration failed: script is empty")
-	}
-
 	if err := client.MigrateService(request, &unusedInt); err != nil {
 		return nil, fmt.Errorf("migration failed: %s", err)
 	}
-	return a.GetService(serviceID)
+	return a.GetService(request.ServiceID)
 }
 
 // RemoveService removes an existing service
