@@ -118,8 +118,7 @@ func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
 }
 
 func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
-	pullImages(getImageIDs(template.Services...))
-	return nil
+	return pullImages(getImageIDs(template.Services...))
 }
 
 var deployments = make(map[string]map[string]string)
@@ -260,7 +259,7 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 	}
 
 	// pull the images
-	if err := pullServiceImages(svcDef); err != nil {
+	if err := pullServiceImages(&svcDef); err != nil {
 		glog.Errorf("Unable to pull one or more images")
 		return "", err
 	}
@@ -439,9 +438,8 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 	return nil
 }
 
-func pullServiceImages(svcDef servicedefinition.ServiceDefinition) error {
-	pullImages(getImageIDs(svcDef))
-	return nil
+func pullServiceImages(svcDef *servicedefinition.ServiceDefinition) error {
+	return pullImages(getImageIDs(*svcDef))
 }
 
 func pullImages(imgs []string) error {
