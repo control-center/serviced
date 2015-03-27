@@ -289,9 +289,9 @@ func (dt *DaoTest) TestDao_MigrateService(t *C) {
 	newDescription := "New Description"
 	scriptExitCode := 0
 	request := dao.ServiceMigrationRequest{
-		ServiceID:       svc.ID,
-		MigrationScript: dt.getMigrationScript(newDescription, scriptExitCode),
-		DryRun:          false,
+		ServiceID:  svc.ID,
+		ScriptBody: dt.getMigrationScript(newDescription, scriptExitCode),
+		DryRun:     false,
 	}
 
 	err = dt.Dao.MigrateService(request, &unused)
@@ -310,9 +310,9 @@ func (dt *DaoTest) TestDao_MigrateServiceWithDryRun(t *C) {
 	newDescription := "New Description"
 	scriptExitCode := 0
 	request := dao.ServiceMigrationRequest{
-		ServiceID:       svc.ID,
-		MigrationScript: dt.getMigrationScript(newDescription, scriptExitCode),
-		DryRun:          true,
+		ServiceID:  svc.ID,
+		ScriptBody: dt.getMigrationScript(newDescription, scriptExitCode),
+		DryRun:     true,
 	}
 
 	err = dt.Dao.MigrateService(request, &unused)
@@ -330,9 +330,9 @@ func (dt *DaoTest) TestDao_MigrateServiceFailsForInvalidID(t *C) {
 	t.Assert(err, IsNil)
 
 	request := dao.ServiceMigrationRequest{
-		ServiceID:       "Some Undefined Service",
-		MigrationScript: dt.getMigrationScript("unused", 0),
-		DryRun:          false,
+		ServiceID:  "Some Undefined Service",
+		ScriptBody: dt.getMigrationScript("unused", 0),
+		DryRun:     false,
 	}
 
 	err = dt.Dao.MigrateService(request, &unused)
@@ -362,9 +362,9 @@ func (dt *DaoTest) testMigrationScriptFails(t *C, dryRun bool) {
 	newDescription := "New Description"
 	scriptExitCode := 1
 	request := dao.ServiceMigrationRequest{
-		ServiceID:       svc.ID,
-		MigrationScript: dt.getMigrationScript(newDescription, scriptExitCode),
-		DryRun:          dryRun,
+		ServiceID:  svc.ID,
+		ScriptBody: dt.getMigrationScript(newDescription, scriptExitCode),
+		DryRun:     dryRun,
 	}
 
 	err = dt.Dao.MigrateService(request, &unused)
@@ -391,9 +391,9 @@ func (dt *DaoTest) testMigrationScriptFailsValidation(t *C, dryRun bool) {
 	svc, err := dt.setupMigrationTest()
 	t.Assert(err, IsNil)
 	request := dao.ServiceMigrationRequest{
-		ServiceID:       svc.ID,
-		MigrationScript: dt.getInvalidMigrationScript(),
-		DryRun:          true,
+		ServiceID:  svc.ID,
+		ScriptBody: dt.getInvalidMigrationScript(),
+		DryRun:     true,
 	}
 
 	err = dt.Dao.MigrateService(request, &unused)

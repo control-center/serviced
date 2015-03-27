@@ -328,7 +328,6 @@ func evalSvcMigrate(r *runner, n node) error {
 		if sdkVersion, err = findSDKVersion(n.args[0]); err != nil {
 			return err
 		}
-
 	}
 
 	migrationScript := n.args[len(n.args)-1]
