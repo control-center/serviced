@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -40,8 +40,8 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 	mems := make([]MemoryUsageStats, len(data.Results))
 	for i, result := range data.Results {
 		mems[i] = MemoryUsageStats{
-			StartDate: data.StartTimeActual,
-			EndDate:   data.EndTimeActual,
+			StartDate: time.Unix(data.StartTimeActual, 0),
+			EndDate:   time.Unix(data.EndTimeActual, 0),
 		}
 
 		for tag, value := range result.Tags {
@@ -80,6 +80,7 @@ func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*Memory
 		Metrics: []MetricOptions{
 			{
 				Metric:     "cgroup.memory.totalrss",
+				Name:       hostID,
 				Aggregator: "sum",
 			},
 		},
@@ -111,6 +112,7 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 		Metrics: []MetricOptions{
 			{
 				Metric:     "cgroup.memory.totalrss",
+				Name:       serviceID,
 				Aggregator: "max",
 			},
 		},
@@ -142,6 +144,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 	for i, instance := range instances {
 		metrics[i] = MetricOptions{
 			Metric: "cgroup.memory.totalrss",
+			Name:   fmt.Sprintf("%s.%d", instance.ServiceID, instance.InstanceID),
 			Tags: map[string][]string{
 				"controlplane_service_id":  []string{instance.ServiceID},
 				"controlplane_instance_id": []string{fmt.Sprintf("%d", instance.InstanceID)},

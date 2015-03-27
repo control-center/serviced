@@ -13,10 +13,7 @@
 
 package metrics
 
-import (
-	"encoding/json"
-	"time"
-)
+import "encoding/json"
 
 const timeFormat = "2006/01/02-15:04:00-MST"
 
@@ -56,9 +53,9 @@ type PerformanceData struct {
 	ClientID        string       `json:"clientId,omitempty"`
 	Source          string       `json:"source,omitempty"`
 	StartTime       string       `json:"startTime,omitempty"`
-	StartTimeActual time.Time    `json:"startTimeActual"`
+	StartTimeActual int64        `json:"startTimeActual"`
 	EndTime         string       `json:"endTime,omitempty"`
-	EndTimeActual   time.Time    `json:"endTimeActual"`
+	EndTimeActual   int64        `json:"endTimeActual"`
 	ExactTimeWindow bool         `json:"exactTimeWindow,omitempty"`
 	Results         []ResultData `json:"results,omitempty"`
 }
@@ -72,8 +69,8 @@ type ResultData struct {
 
 // Datapoint is a single numerical datapoint.
 type Datapoint struct {
-	Timestamp time.Time `json:"timestamp"`
-	Value     float64   `json:"value,omitempty"`
+	Timestamp int64   `json:"timestamp"`
+	Value     float64 `json:"value,omitempty"`
 }
 
 func (c *Client) performanceQuery(opts PerformanceOptions) (*PerformanceData, error) {
