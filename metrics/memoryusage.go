@@ -20,7 +20,12 @@ import (
 	"github.com/zenoss/glog"
 )
 
-type MemoryUsage struct {
+type ServiceInstance struct {
+	ServiceID  string
+	InstanceID int
+}
+
+type MemoryUsageStats struct {
 	StartDate  time.Time
 	EndDate    time.Time
 	HostID     string
@@ -31,11 +36,13 @@ type MemoryUsage struct {
 	Average    int64
 }
 
-func convertMemoryUsage(data *PerformanceData) []MemoryUsage {
-	mems := make([]MemoryUsage, len(data.Results))
+func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
+	mems := make([]MemoryUsageStats, len(data.Results))
 	for i, result := range data.Results {
-		mems[i].StartDate = data.StartTimeActual
-		mems[i].EndDate = data.EndTimeActual
+		mems[i] = MemoryUsageStats{
+			StartDate: data.StartTimeActual,
+			EndDate:   data.EndTimeActual,
+		}
 
 		for tag, value := range result.Tags {
 			switch tag {
@@ -62,7 +69,7 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsage {
 	return mems
 }
 
-func (c *Client) GetHostMemory(startDate time.Time, hostID string) (*MemoryUsage, error) {
+func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
 	options := PerformanceOptions{
 		Start:     startDate.Format(timeFormat),
 		End:       "now",
@@ -93,7 +100,7 @@ func (c *Client) GetHostMemory(startDate time.Time, hostID string) (*MemoryUsage
 	return &mems[0], nil
 }
 
-func (c *Client) GetServiceMemory(startDate time.Time, serviceID string) (*MemoryUsage, error) {
+func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
 	options := PerformanceOptions{
 		Start:     startDate.Format(timeFormat),
 		End:       "now",
@@ -124,22 +131,24 @@ func (c *Client) GetServiceMemory(startDate time.Time, serviceID string) (*Memor
 	return &mems[0], nil
 }
 
-func (c *Client) GetInstanceMemory(startDate time.Time, instances map[string][]string) ([]MemoryUsage, error) {
+func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
 	options := PerformanceOptions{
 		Start:     startDate.Format(timeFormat),
 		End:       "now",
 		Returnset: "exact",
-		Metrics: []MetricOptions{
-			{
-				Metric:     "cgroup.memory.totalrss",
-				Aggregator: "max",
-			},
-		},
 	}
 
-	for svcid, ids := range instances {
-		options.Tags[svcid] = ids
+	metrics := make([]MetricOptions, len(instances))
+	for i, instance := range instances {
+		metrics[i] = MetricOptions{
+			Metric: "cgroup.memory.totalrss",
+			Tags: map[string][]string{
+				"controlplane_service_id":  []string{instance.ServiceID},
+				"controlplane_instance_id": []string{fmt.Sprintf("%d", instance.InstanceID)},
+			},
+		}
 	}
+	options.Metrics = metrics
 
 	result, err := c.performanceQuery(options)
 	if err != nil {

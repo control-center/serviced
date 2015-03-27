@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/volume"
 )
 
@@ -97,6 +98,13 @@ type SnapshotRequest struct {
 type RollbackRequest struct {
 	SnapshotID   string
 	ForceRestart bool
+}
+
+type MetricRequest struct {
+	StartTime time.Time
+	HostID    string
+	ServiceID string
+	Instances []metrics.ServiceInstance
 }
 
 // The ControlPlane interface is the API for a serviced master.
@@ -191,6 +199,18 @@ type ControlPlane interface {
 
 	// Attach to a running container with a predefined action
 	Action(request AttachRequest, unused *int) error
+
+	// ------------------------------------------------------------------------
+	// Metrics
+
+	// Get service memory stats for a particular host
+	GetHostMemoryStats(req MetricRequest, stats *metrics.MemoryUsageStats) error
+
+	// Get service memory stats for a particular service
+	GetServiceMemoryStats(req MetricRequest, stats *metrics.MemoryUsageStats) error
+
+	// Get service memory stats for a particular service instance
+	GetInstanceMemoryStats(req MetricRequest, stats *[]metrics.MemoryUsageStats) error
 
 	//---------------------------------------------------------------------------
 	// ServiceTemplate CRUD

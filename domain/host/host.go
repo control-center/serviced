@@ -29,21 +29,21 @@ import (
 
 //Host that runs the control center agent.
 type Host struct {
-	ID              string // Unique identifier, default to hostid
-	Name            string // A label for the host, eg hostname, role
-	PoolID          string // Pool that the Host belongs to
-	IPAddr          string // The IP address the host can be reached at from a serviced master
-	RPCPort         int    // The RPC port of the host
-	Cores           int    // Number of cores available to serviced
-	Memory          uint64 // Amount of RAM (bytes) available to serviced
-	CommittedMemory uint64 // Amount of RAM (bytes) allocated by the user
-	PrivateNetwork  string // The private network where containers run, eg 172.16.42.0/24
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	IPs             []HostIPResource // The static IP resources available on the host
-	KernelVersion   string
-	KernelRelease   string
-	ServiceD        struct {
+	ID             string // Unique identifier, default to hostid
+	Name           string // A label for the host, eg hostname, role
+	PoolID         string // Pool that the Host belongs to
+	IPAddr         string // The IP address the host can be reached at from a serviced master
+	RPCPort        int    // The RPC port of the host
+	Cores          int    // Number of cores available to serviced
+	Memory         uint64 // Amount of RAM (bytes) available to serviced
+	RAMCommitment  uint64 // Amount of RAM (bytes) allocated by the user
+	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	IPs            []HostIPResource // The static IP resources available on the host
+	KernelVersion  string
+	KernelRelease  string
+	ServiceD       struct {
 		Version   string
 		Date      string
 		Gitcommit string
@@ -153,9 +153,9 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 
 	// set the memory
 	if mem, err := utils.ParseEngineeringNotation(memory); err == nil {
-		host.CommittedMemory = mem
+		host.RAMCommitment = mem
 	} else if mem, err := utils.ParsePercentage(memory, host.Memory); err == nil {
-		host.CommittedMemory = mem
+		host.RAMCommitment = mem
 	} else {
 		return nil, err
 	}

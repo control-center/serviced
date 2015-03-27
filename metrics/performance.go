@@ -33,15 +33,15 @@ type PerformanceOptions struct {
 
 // MetricOptions are the options for receieving metrics for a set of data.
 type MetricOptions struct {
-	Metric       string            `json:"metric,omitempty"`
-	Name         string            `json:"name,omitempty"`
-	ID           string            `json:"id,omitempty"`
-	Aggregator   string            `json:"aggregator,omitempty"`
-	Interpolator string            `json:"interpolator,omitempty"`
-	Rate         bool              `json:"rate,omitempty"`
-	RateOptions  RateOptions       `json:"rateOptions,omitempty"`
-	Expression   string            `json:"expression,omitempty"`
-	Tags         map[string]string `json:"tags,omitempty"`
+	Metric       string              `json:"metric,omitempty"`
+	Name         string              `json:"name,omitempty"`
+	ID           string              `json:"id,omitempty"`
+	Aggregator   string              `json:"aggregator,omitempty"`
+	Interpolator string              `json:"interpolator,omitempty"`
+	Rate         bool                `json:"rate,omitempty"`
+	RateOptions  RateOptions         `json:"rateOptions,omitempty"`
+	Expression   string              `json:"expression,omitempty"`
+	Tags         map[string][]string `json:"tags,omitempty"`
 }
 
 // RateOptions are the options for collecting performance data.

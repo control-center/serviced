@@ -65,8 +65,8 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 
 		cr += int64(s.RAMCommitment.Value)
 	}
-	totalMemory := host.CommittedMemory
-	if host.CommittedMemory <= 0 || host.CommittedMemory > host.Memory {
+	totalMemory := host.RAMCommitment
+	if host.RAMCommitment <= 0 || host.RAMCommitment > host.Memory {
 		totalMemory = host.Memory
 	}
 	glog.V(2).Infof("For host %s: Total Memory = %s, Total Existing Commitments = %s", host, totalMemory, cr)
