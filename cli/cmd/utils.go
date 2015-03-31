@@ -22,7 +22,7 @@ import (
 	"os/exec"
 	"syscall"
 
-	"code.google.com/p/go.crypto/ssh/terminal"
+	"golang.org/x/crypto/ssh/terminal"
 )
 
 func remove(index int, list ...interface{}) []interface{} {
@@ -93,10 +93,11 @@ func openEditor(data []byte, name, editor string) (reader io.Reader, err error) 
 			return nil, fmt.Errorf("could not seek file: %s", err)
 		}
 
-		data, err := ioutil.ReadAll(f)
+		data, err := ioutil.ReadFile(f.Name())
 		if err != nil {
 			return nil, fmt.Errorf("could not read file: %s", err)
 		}
+
 		reader = bytes.NewReader(data)
 	} else {
 		if _, err := os.Stdout.Write(data); err != nil {

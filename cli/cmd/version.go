@@ -39,5 +39,6 @@ func (c *ServicedCli) cmdVersion(ctx *cli.Context) {
 	fmt.Printf("Giturl:    %s\n", servicedversion.Giturl)
 	fmt.Printf("Date:      %s\n", servicedversion.Date)
 	fmt.Printf("Buildtag:  %s\n", servicedversion.Buildtag)
+	fmt.Printf("Release:   %s\n", servicedversion.Release)
 	fmt.Printf("IsvcsImage: %s:%s\n", isvcs.IMAGE_REPO, isvcs.IMAGE_TAG)
 }

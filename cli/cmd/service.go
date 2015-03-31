@@ -85,6 +85,14 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"parent-id", "", "Parent service ID for which this service relates"},
 				},
 			}, {
+				Name:        "clone",
+				Usage:       "Clones a new service",
+				Description: "serviced service clone { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }",
+				Action:      c.cmdServiceClone,
+				Flags: []cli.Flag{
+					cli.StringFlag{"suffix", "", "name to append to service name, volumes, endpoints"},
+				},
+			}, {
 				Name:         "remove",
 				ShortName:    "rm",
 				Usage:        "Removes an existing service",
@@ -381,7 +389,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		default:
 			if keyword == "" {
 				services = append(services, svc)
-			} else if strings.HasSuffix(pathmap[svc.ID], keyword) {
+			} else if strings.HasSuffix(pathmap[svc.ID], strings.ToLower(keyword)) {
 				services = append(services, svc)
 			}
 		}
@@ -672,6 +680,30 @@ func (c *ServicedCli) cmdServiceAdd(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, "received nil service definition")
 	} else {
 		fmt.Println(service.ID)
+	}
+}
+
+// serviced service clone --config config { SERVICEID | SERVICENAME | [POOL/]...PARENTNAME.../SERVICENAME }
+func (c *ServicedCli) cmdServiceClone(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "clone")
+		return
+	}
+
+	svc, err := c.searchForService(args[0])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error searching for service: %s", err)
+		return
+	}
+
+	if copiedSvc, err := c.driver.CloneService(svc.ID, ctx.String("suffix")); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
+	} else if copiedSvc == nil {
+		fmt.Fprintln(os.Stderr, "received nil service definition")
+	} else {
+		fmt.Println(copiedSvc.ID)
 	}
 }
 
@@ -1092,7 +1124,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		default:
 			if keyword == "" {
 				states = append(states, rs)
-			} else if strings.HasSuffix(pathmap[rs.ID], keyword) {
+			} else if strings.HasSuffix(pathmap[rs.ID], strings.ToLower(keyword)) {
 				states = append(states, rs)
 			}
 		}

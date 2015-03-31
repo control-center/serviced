@@ -25,18 +25,18 @@ RUN	apt-get install -qqy iptables ca-certificates aufs-tools
 # Build dependencies
 #RUN	dpkg-divert --local --rename --add /sbin/initctl
 #RUN	ln -s /bin/true /sbin/initctl
-RUN	apt-get install -y -q wget curl git
+RUN	apt-get update -qq && apt-get install -y -q wget curl git
 
 # Install Go
-RUN	curl -s https://storage.googleapis.com/golang/go1.3.3.linux-amd64.tar.gz | tar -v -C /usr/local -xz
+RUN	curl -s https://storage.googleapis.com/golang/go1.4.2.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 ENV	GOPATH  /go
 ENV	PATH $PATH:/go/bin:/usr/local/go/bin
 
 # build dependencies
-RUN	apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
+RUN	apt-get update -qq && apt-get install -y -q make gcc libpam0g-dev ruby ruby-dev
 RUN	gem install fpm
-RUN	apt-get install -y -q rpm
-RUN	apt-get install -y -q mercurial bzr
-RUN apt-get install -y -q libdevmapper-dev libsqlite3-dev
+RUN	apt-get update -qq && apt-get install -y -q rpm
+RUN	apt-get update -qq && apt-get install -y -q mercurial bzr
+RUN	apt-get update -qq && apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
 WORKDIR	/go/src/github.com/control-center/serviced

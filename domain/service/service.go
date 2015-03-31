@@ -203,6 +203,41 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	return &svc, nil
 }
 
+//CloneService copies a service and mutates id and names
+func CloneService(fromSvc *Service, suffix string) (*Service, error) {
+	svcuuid, err := utils.NewUUID36()
+	if err != nil {
+		return nil, err
+	}
+
+	svc := *fromSvc
+	svc.ID = svcuuid
+	svc.DesiredState = int(SVCStop)
+
+	now := time.Now()
+	svc.CreatedAt = now
+	svc.UpdatedAt = now
+
+	// add suffix to make certain things unique
+	suffix = strings.TrimSpace(suffix)
+	if len(suffix) == 0 {
+		suffix = "-" + svc.ID[0:12]
+	}
+	svc.Name += suffix
+	for idx, ep := range svc.Endpoints {
+		if ep.Purpose == "export" {
+			svc.Endpoints[idx].Name += suffix
+			svc.Endpoints[idx].Application += suffix
+			svc.Endpoints[idx].ApplicationTemplate += suffix
+		}
+	}
+	for idx := range svc.Volumes {
+		svc.Volumes[idx].ResourcePath += suffix
+	}
+
+	return &svc, nil
+}
+
 // GetServiceImports retrieves service endpoints whose purpose is "import"
 func (s *Service) GetServiceImports() []ServiceEndpoint {
 	result := []ServiceEndpoint{}

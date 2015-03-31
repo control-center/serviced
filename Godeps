@@ -6,9 +6,9 @@
 	],
 	"Deps": [
 		{
-			"ImportPath": "code.google.com/p/go.crypto/ssh/terminal",
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
 			"Comment": "null-187",
-			"Rev": "ebfe91cdc0348163deedb0e75d680c9305e4f1ff"
+			"Rev": "1351f936d976c60a0a48d728281922cf63eafb8d"
 		},
 		{
 			"ImportPath": "github.com/kr/pretty",
@@ -78,7 +78,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "82e5e03d7ffcc811a588f4562da754086a4735da"
+			"Rev": "09a83f7c5c0f425c00cb1e063e9179698579f296"
 		},
 		{
 			"ImportPath": "github.com/rcrowley/go-metrics",
