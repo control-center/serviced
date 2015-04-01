@@ -60,6 +60,16 @@
             this.name = host.Name;
             this.id = host.ID;
             this.model = Object.freeze(host);
+        },
+
+        resourcesGood: function() {
+            var instances = this.instances;
+            for (var i = 0; i < instances.length; i++) {
+                if (!instances[i].resourcesGood()) {
+                    return false;
+                }
+            }
+            return true;
         }
     };
 

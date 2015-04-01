@@ -156,7 +156,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fs
 	s.dfs = dfs
 
 	// initialize the metrics client
-	metricClient, err := metrics.NewClient(fmt.Sprintf("%s:8888", hostName))
+	metricClient, err := metrics.NewClient(fmt.Sprintf("http://%s:8888", hostName))
 	if err != nil {
 		return nil, err
 	}

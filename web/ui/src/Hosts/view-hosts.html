@@ -20,7 +20,10 @@
 <!-- Hosts -->
 <table jelly-table data-data="hosts" data-config="hostsTable" class="table side-flush">
     <tr ng-repeat="host in $data">
-      <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" class="link">{{host.name}}</td>
+      <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" class="link">
+        {{host.name}}
+        <div ng-show="!host.resourcesGood()" class="badnessIndicator" title="An instance is oversubscribed."></div>
+      </td>
       <td data-title="'label_active'|translate" sortable="'active'" style="text-align:center;">
         <div ng-if="host.active" class="good" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
         <div ng-if="!host.active" class="down" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>

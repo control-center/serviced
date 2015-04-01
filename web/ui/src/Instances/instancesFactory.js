@@ -54,15 +54,21 @@
     // Instance object constructor
     // takes a instance object (backend instance object)
     // and wraps it with extra functionality and info
-    function Instance(instance){
+    function Instance(instance) {
         this.active = false;
+
+        this.resources = {
+            RAMCommitment: 0,
+            RAMAverage: 0
+        };
+
         this.update(instance);
     }
 
     Instance.prototype = {
         constructor: Instance,
 
-        update: function(instance){
+        update: function(instance) {
             if(instance){
                this.updateInstanceDef(instance);
             }
@@ -73,13 +79,14 @@
             this.status = serviceHealth.get(this.healthId);
         },
 
-        updateInstanceDef: function(instance){
+        updateInstanceDef: function(instance) {
             this.name = instance.Name;
             this.id = instance.ID;
             this.model = Object.freeze(instance);
             // TODO - formally define health id
             this.healthId = this.model.ServiceID +"."+ instance.InstanceID;
             this.desiredState = instance.DesiredState;
+            this.resources.RAMAverage = Math.round(instance.RAMAverage / (1024*1024));
         },
 
         stop: function(){
@@ -92,6 +99,10 @@
                 });
             // desired state 0 is stop
             this.desiredState = 0;
+        },
+
+        resourcesGood: function() {
+            return this.resources.RAMAverage < this.resources.RAMCommitment;
         }
     };
 

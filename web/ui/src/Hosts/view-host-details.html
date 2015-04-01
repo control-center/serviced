@@ -62,6 +62,10 @@
 <table jelly-table data-data="currentHost.instances" data-config="instancesTable" class="table side-flush">
     <tr ng-repeat="app in $data">
       <td data-title="'label_service'|translate" sortable="'name'" ng-click="click_app(app)" class="link">{{app.name}}</td>
+      <td data-title="'RAM'|translate" style="text-align:left;">
+          <span ng-show="!app.resourcesGood()" style="color:#9C1200">{{app.resources.RAMAverage}}/{{app.resources.RAMCommitment}} MB</span>
+          <span ng-show="app.resourcesGood()">{{app.resources.RAMAverage}}/{{app.resources.RAMCommitment}} MB</span>
+      </td>
       <td data-title="'running_tbl_start'|translate" sortable="'model.StartedAt'">
           <span ng-if="app.model.StartedAt!=='0001-01-01T00:00:00Z'" am-time-ago="app.model.StartedAt" title="{{app.model.StartedAt}}"></span>
           <span ng-if="app.model.StartedAt==='0001-01-01T00:00:00Z'" translate>starting</span>

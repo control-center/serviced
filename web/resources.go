@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/isvcs"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
@@ -370,6 +371,13 @@ func restGetStatusForService(w *rest.ResponseWriter, r *rest.Request, client *no
 	w.WriteJson(&statusmap)
 }
 
+type uiRunningService struct {
+	dao.RunningService
+	RAMMax     int64
+	RAMLast    int64
+	RAMAverage int64
+}
+
 func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	var services []dao.RunningService
 	err := client.GetRunningServices(&empty, &services)
@@ -383,19 +391,65 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 		services = []dao.RunningService{}
 	}
 
-	for ii, rsvc := range services {
+	instances := []metrics.ServiceInstance{}
+
+	for _, rsvc := range services {
 		var svc service.Service
 		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
 			glog.Errorf("Could not get services: %v", err)
 			restServerError(w, err)
 		}
 		fillBuiltinMetrics(&svc)
-		services[ii].MonitoringProfile = svc.MonitoringProfile
+		rsvc.MonitoringProfile = svc.MonitoringProfile
+		instances = append(instances, metrics.ServiceInstance{
+			rsvc.ServiceID,
+			rsvc.InstanceID,
+		})
 	}
 
+	query := dao.MetricRequest{
+		StartTime: time.Now().Add(-time.Second * 5),
+		Instances: instances,
+	}
+
+	response := []metrics.MemoryUsageStats{}
+
+	if len(instances) > 0 {
+		client.GetInstanceMemoryStats(query, &response)
+	}
+
+	musMap := make(map[string]metrics.MemoryUsageStats)
+
+	for _, mus := range response {
+		key := fmt.Sprintf("%s-%s", mus.ServiceID, mus.InstanceID)
+		musMap[key] = mus
+	}
+
+	uiServices := []uiRunningService{}
+
 	services = append(services, getIRS()...)
-	glog.V(2).Infof("Return %d running services", len(services))
-	w.WriteJson(&services)
+
+	for _, rsvc := range services {
+		key := fmt.Sprintf("%s-%d", rsvc.ServiceID, rsvc.InstanceID)
+		if mus, ok := musMap[key]; ok {
+			uiServices = append(uiServices, uiRunningService{
+				rsvc,
+				mus.Max,
+				mus.Last,
+				mus.Average,
+			})
+		} else {
+			uiServices = append(uiServices, uiRunningService{
+				rsvc,
+				-1,
+				-1,
+				-1,
+			})
+		}
+	}
+
+	glog.V(2).Infof("Return %d running services", len(uiServices))
+	w.WriteJson(&uiServices)
 }
 
 func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
