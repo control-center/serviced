@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"syscall"
 	"text/template"
@@ -432,7 +433,9 @@ func cmdSetTreeCharset(ctx *cli.Context) {
 
 // serviced service status
 func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
-	var services []service.Service
+	var states map[string]map[string]interface{}
+	var err error
+
 	if len(ctx.Args()) > 0 {
 		svc, err := c.searchForService(ctx.Args()[0])
 		if err != nil {
@@ -443,129 +446,44 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			return
 		}
 
-		services = []service.Service{*svc}
-
-		// ensure that parent services are in services
-		for _, s := range services {
-			parentID := s.ParentServiceID
-			for parentID != "" {
-				svc, err := c.driver.GetService(parentID)
-				if err != nil || svc == nil {
-					fmt.Fprintf(os.Stderr, "unable to retrieve service for id:%s %s\n", parentID, err)
-					return
-				}
-				services = append(services, *svc)
-
-				parentID = svc.ParentServiceID
-			}
+		if states, err = c.driver.GetServiceStatus(svc.ID); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
 		}
 	} else {
-		var err error
-		services, err = c.driver.GetServices()
-		if err != nil {
+		if states, err = c.driver.GetServiceStatus(""); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
-		} else if services == nil || len(services) == 0 {
-			fmt.Fprintln(os.Stderr, "no services found")
-			return
-		}
-	}
-
-	hosts, err := c.driver.GetHosts()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
-	hostmap := make(map[string]host.Host)
-	for _, host := range hosts {
-		hostmap[host.ID] = host
-	}
-
-	lines := make(map[string]map[string]string)
-	for _, svc := range services {
-		glog.V(2).Infof("Getting service status for %s %s", svc.ID, svc.Name)
-		statemap, err := c.driver.GetServiceStatus(svc.ID)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			return
-		}
-
-		iid := svc.ID
-		lines[iid] = map[string]string{
-			"ID":        svc.ID,
-			"ServiceID": svc.ID,
-			"Name":      svc.Name,
-			"ParentID":  svc.ParentServiceID,
-		}
-
-		if statemap == nil || len(statemap) == 0 {
-			if svc.Instances > 0 {
-				switch service.DesiredState(svc.DesiredState) {
-				case service.SVCRun:
-					lines[iid]["Status"] = dao.Scheduled.String()
-				case service.SVCPause:
-					lines[iid]["Status"] = dao.Paused.String()
-				case service.SVCStop:
-					lines[iid]["Status"] = dao.Stopped.String()
-				}
-			}
-		} else {
-			if svc.Instances > 1 {
-				delete(lines, iid)
-			}
-
-			for _, svcstatus := range statemap {
-				if svc.Instances > 1 {
-					iid = fmt.Sprintf("%s/%d", svc.ID, svcstatus.State.InstanceID)
-					lines[iid] = map[string]string{
-						"ID":        iid,
-						"ServiceID": svc.ID,
-						"Name":      fmt.Sprintf("%s/%d", svc.Name, svcstatus.State.InstanceID),
-						"ParentID":  svc.ParentServiceID,
-					}
-				}
-				lines[iid]["Hostname"] = hostmap[svcstatus.State.HostID].Name
-				lines[iid]["DockerID"] = fmt.Sprintf("%.12s", svcstatus.State.DockerID)
-				lines[iid]["Uptime"] = svcstatus.State.Uptime().String()
-				lines[iid]["Status"] = svcstatus.Status.String()
-
-				insync := "Y"
-				if !svcstatus.State.InSync {
-					insync = "N"
-				}
-				lines[iid]["InSync"] = insync
-			}
-		}
-	}
-	childMap := make(map[string][]string)
-	top := make([]string, 0)
-	for _, line := range lines {
-		children := make([]string, 0)
-		for _, cline := range lines {
-			if cline["ParentID"] == line["ID"] {
-				children = append(children, cline["ID"])
-			}
-		}
-		if len(children) > 0 {
-			childMap[line["ID"]] = children
-		}
-		if line["ParentID"] == "" {
-			top = append(top, line["ID"])
 		}
 	}
 
 	cmdSetTreeCharset(ctx)
 
-	childMap[""] = top
-	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "IN_SYNC", "DOCKER_ID")
-	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
-		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["InSync"], s["DockerID"])
-	}, func(row []interface{}) string {
-		return strings.ToLower(row[1].(string))
-	})
-	tableService.flush()
+	t := NewTable([]string{"Name", "ServiceID", "Status", "Uptime", "Hostname", "InSync", "DockerID", "MemUsage"})
+	childmap := make(map[string][]string)
+	for id, state := range states {
+		parent := fmt.Sprintf("%v", state["ParentID"])
+		childmap[parent] = append(childmap[parent], id)
+	}
+
+	var addRows func(string)
+	addRows = func(root string) {
+		rows := childmap[root]
+		if len(rows) > 0 {
+			sort.Strings(rows)
+			t.IndentRow()
+			defer t.DedentRow()
+			for _, rowid := range childmap[root] {
+				row := states[rowid]
+				t.AddRow(row)
+				nextRoot := fmt.Sprintf("%v", row["ServiceID"])
+				addRows(nextRoot)
+			}
+		}
+	}
+	addRows("")
+	t.Padding = 6
+	t.Print()
 	return
 }
 

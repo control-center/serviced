@@ -136,6 +136,10 @@
 		{
 			"ImportPath": "github.com/stretchr/testify",
 			"Rev": "2eaa4b48b8954bf871229043b8064ca156a542a5"
+		}, 
+		{
+			"ImportPath": "github.com/pivotal-golang/bytefmt",
+			"Rev": "eb6a478daea5cd564c230719240761a1a2ccc713"
 		}
 	]
 }

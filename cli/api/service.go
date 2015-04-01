@@ -18,6 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strings"
+	"time"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
@@ -25,6 +27,9 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/metrics"
+
+	"github.com/pivotal-golang/bytefmt"
 )
 
 const ()
@@ -77,6 +82,108 @@ func (a *api) GetServices() ([]service.Service, error) {
 	return services, nil
 }
 
+func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interface{}, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	// get services
+	var svcs []service.Service
+	if serviceID = strings.TrimSpace(serviceID); serviceID != "" {
+		for serviceID != "" {
+			var svc service.Service
+			if err := client.GetService(serviceID, &svc); err != nil {
+				return nil, err
+			}
+			svcs = append(svcs, svc)
+			serviceID = svc.ParentServiceID
+		}
+	} else {
+		if err := client.GetServices(dao.ServiceRequest{}, &svcs); err != nil {
+			return nil, err
+		}
+	}
+
+	// get hosts
+	hosts, err := a.GetHosts()
+	if err != nil {
+		return nil, err
+	}
+	hostmap := make(map[string]string)
+	for _, host := range hosts {
+		hostmap[host.ID] = host.Name
+	}
+
+	// get status
+	rowmap := make(map[string]map[string]interface{})
+	metricReq := dao.MetricRequest{Instances: make([]metrics.ServiceInstance, 0)}
+	for _, svc := range svcs {
+		var status map[string]dao.ServiceStatus
+		if err := client.GetServiceStatus(svc.ID, &status); err != nil {
+			return nil, err
+		}
+
+		if status == nil || len(status) == 0 {
+			row := make(map[string]interface{})
+			row["ServiceID"] = svc.ID
+			row["Name"] = svc.Name
+			row["ParentID"] = svc.ParentServiceID
+
+			if svc.Instances > 0 {
+				switch service.DesiredState(svc.DesiredState) {
+				case service.SVCRun:
+					row["Status"] = dao.Scheduled.String()
+				case service.SVCPause:
+					row["Status"] = dao.Paused.String()
+				case service.SVCStop:
+					row["Status"] = dao.Stopped.String()
+				}
+			}
+			rowmap[svc.ID] = row
+		} else {
+			for _, stat := range status {
+				metricReq.Instances = append(metricReq.Instances, metrics.ServiceInstance{svc.ID, stat.State.InstanceID})
+				row := make(map[string]interface{})
+				row["ServiceID"] = svc.ID
+				row["ParentID"] = svc.ParentServiceID
+				row["RAMCommitment"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
+				row["Status"] = stat.Status.String()
+				row["Hostname"] = hostmap[stat.State.HostID]
+				row["DockerID"] = fmt.Sprintf("%.12s", stat.State.DockerID)
+				row["Uptime"] = stat.State.Uptime().String()
+
+				if stat.State.InSync {
+					row["InSync"] = "Y"
+				} else {
+					row["InSync"] = "N"
+				}
+				if svc.Instances > 1 {
+					row["Name"] = fmt.Sprintf("%s/%d", svc.Name, stat.State.InstanceID)
+				} else {
+					row["Name"] = svc.Name
+				}
+				row["MemUsage"] = fmt.Sprintf("--/%s", row["RAMCommitment"])
+
+				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID)] = row
+			}
+		}
+	}
+
+	// get memoryStats
+	metricReq.StartTime = time.Now().Add(-time.Minute)
+	var memstats []metrics.MemoryUsageStats
+	if err := client.GetInstanceMemoryStats(metricReq, &memstats); err == nil {
+		for _, memstat := range memstats {
+			id := fmt.Sprintf("%s/%s", memstat.ServiceID, memstat.InstanceID)
+			row := rowmap[id]
+			row["MemUsage"] = fmt.Sprintf("%s/%s", bytefmt.ByteSize(uint64(memstat.Last)), row["RAMCommitment"])
+		}
+	}
+	return rowmap, nil
+
+}
+
 // Gets all of the available services
 func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, error) {
 	client, err := a.connectDAO()
@@ -90,20 +197,6 @@ func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, e
 	}
 
 	return states, nil
-}
-
-func (a *api) GetServiceStatus(serviceID string) (map[string]dao.ServiceStatus, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return nil, err
-	}
-
-	var status map[string]dao.ServiceStatus
-	if err := client.GetServiceStatus(serviceID, &status); err != nil {
-		return nil, err
-	}
-
-	return status, nil
 }
 
 // Gets the service definition identified by its service ID

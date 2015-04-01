@@ -22,6 +22,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/pivotal-golang/bytefmt"
 )
 
 // Initializer for serviced host subcommands
@@ -148,12 +149,35 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			fmt.Println(string(jsonHost))
 		}
 	} else {
-		tableHost := newtable(0, 8, 2)
-		tableHost.printrow("ID", "POOL", "NAME", "ADDR", "RPCPORT", "CORES", "MEM", "NETWORK", "RELEASE")
+		t := NewTable([]string{"ID", "Pool", "Name", "Addr", "RPCPort", "Cores", "Memory", "MemUsage", "Network", "Release"})
 		for _, h := range hosts {
-			tableHost.printrow(h.ID, h.PoolID, h.Name, h.IPAddr, h.RPCPort, h.Cores, h.Memory, h.PrivateNetwork, h.ServiceD.Release)
+			var usage string
+			if stats, err := c.driver.GetHostMemory(h.ID); err != nil {
+				usage = "--"
+			} else {
+				usage = bytefmt.ByteSize(uint64(stats.Last))
+			}
+
+			ramcommit := bytefmt.ByteSize(h.RAMCommitment)
+			if h.RAMCommitment <= 0 {
+				ramcommit = bytefmt.ByteSize(h.Memory)
+			}
+
+			t.AddRow(map[string]interface{}{
+				"ID":       h.ID,
+				"Pool":     h.PoolID,
+				"Name":     h.Name,
+				"Addr":     h.IPAddr,
+				"RPCPort":  h.RPCPort,
+				"Cores":    h.Cores,
+				"Memory":   bytefmt.ByteSize(h.Memory),
+				"MemUsage": fmt.Sprintf("%s/%s", usage, ramcommit),
+				"Network":  h.PrivateNetwork,
+				"Release":  h.ServiceD.Release,
+			})
 		}
-		tableHost.flush()
+		t.Padding = 6
+		t.Print()
 	}
 }
 

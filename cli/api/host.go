@@ -14,7 +14,11 @@
 package api
 
 import (
+	"time"
+
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/agent"
 )
 
@@ -44,6 +48,25 @@ func (a *api) GetHost(id string) (*host.Host, error) {
 	}
 
 	return client.GetHost(id)
+}
+
+func (a *api) GetHostMemory(id string) (*metrics.MemoryUsageStats, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	req := dao.MetricRequest{
+		StartTime: time.Now().Add(-24 * time.Hour),
+		HostID:    id,
+	}
+
+	var result metrics.MemoryUsageStats
+	if err := client.GetHostMemoryStats(req, &result); err != nil {
+		return nil, err
+	}
+
+	return &result, nil
 }
 
 // Adds a new host
