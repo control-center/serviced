@@ -4,7 +4,8 @@ var instancesFactoryMock = function($provide) {
         var mock = jasmine.createSpyObj('instancesFactory', [
             "update",
             "activate",
-            "deactivate"
+            "deactivate",
+            "getByServiceId",
         ]);
         return mock;
     });

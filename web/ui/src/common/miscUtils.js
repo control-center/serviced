@@ -176,7 +176,7 @@
 
             parseEngineeringNotation: function(str) {
                 // Converts nK/k, nM/m, nG/g, nT/t to a number. e.g. 1K returns 1024.
-                if (str === "") {
+                if (str === "" || str === undefined) {
                     return 0;
                 }
                 var prefix = parseFloat(str);

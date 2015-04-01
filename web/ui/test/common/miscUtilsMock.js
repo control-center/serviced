@@ -17,7 +17,8 @@ var miscUtilsMock = function($provide) {
             'after',
             'mapToArr',
             'memoize',
-            'needsHostAlias'
+            'needsHostAlias',
+            'parseEngineeringNotation'
         ]);
 
         return mock;

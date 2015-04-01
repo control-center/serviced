@@ -341,6 +341,7 @@
         // invalidated at any time, so it should always be checked
         getServiceInstances: function(){
             this.instances = instancesFactory.getByServiceId(this.id);
+            this.instances = this.instances === undefined ? [] : this.instances;
             this.instances.sort(function(a,b){
                 return a.model.InstanceID > b.model.InstanceID;
             });
