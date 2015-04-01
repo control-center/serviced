@@ -57,10 +57,15 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 
 		var last, sum, max float64
 		for _, dp := range result.Datapoints {
-			if last = dp.Value; last > max {
+			// lets skip NaN values
+			if dp.Value.IsNaN {
+				continue
+			}
+
+			if last = dp.Value.Value; last > max {
 				max = last
 			}
-			sum += dp.Value
+			sum += dp.Value.Value
 		}
 		mems[i].Last = int64(last)
 		mems[i].Max = int64(max)

@@ -13,9 +13,42 @@
 
 package metrics
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strconv"
+)
 
 const timeFormat = "2006/01/02-15:04:00-MST"
+
+type Float struct {
+	Value float64
+	IsNaN bool
+}
+
+func (f *Float) UnmarshalJSON(b []byte) error {
+	var source string
+	json.Unmarshal(b, &source)
+
+	switch source {
+	case "NaN":
+		f.Value = 0
+		f.IsNaN = true
+	default:
+		json.Unmarshal(b, &f.Value)
+		f.IsNaN = false
+	}
+
+	return nil
+}
+
+func (f Float) MarshalJSON() ([]byte, error) {
+	if f.IsNaN {
+		return json.Marshal("NaN")
+	}
+
+	value := strconv.FormatFloat(f.Value, 'E', -1, 64)
+	return json.Marshal(value)
+}
 
 // PerformanceOptions is the request object for doing a performance query.
 type PerformanceOptions struct {
@@ -69,8 +102,8 @@ type ResultData struct {
 
 // Datapoint is a single numerical datapoint.
 type Datapoint struct {
-	Timestamp int64   `json:"timestamp"`
-	Value     float64 `json:"value,omitempty"`
+	Timestamp int64 `json:"timestamp"`
+	Value     Float `json:"value,omitempty"`
 }
 
 func (c *Client) performanceQuery(opts PerformanceOptions) (*PerformanceData, error) {
@@ -79,7 +112,6 @@ func (c *Client) performanceQuery(opts PerformanceOptions) (*PerformanceData, er
 	if err != nil {
 		return nil, err
 	}
-
 	var perfdata PerformanceData
 	if err = json.Unmarshal(body, &perfdata); err != nil {
 		return nil, err
