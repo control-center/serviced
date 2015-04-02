@@ -55,7 +55,7 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 			}
 		}
 
-		var last, sum, max float64
+		var last, sum, max, count float64
 		for _, dp := range result.Datapoints {
 			// lets skip NaN values
 			if dp.Value.IsNaN {
@@ -66,10 +66,11 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 				max = last
 			}
 			sum += dp.Value.Value
+			count++
 		}
 		mems[i].Last = int64(last)
 		mems[i].Max = int64(max)
-		mems[i].Average = int64(sum / float64(len(result.Datapoints)))
+		mems[i].Average = int64(sum / count)
 	}
 	return mems
 }
