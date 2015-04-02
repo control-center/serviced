@@ -97,32 +97,32 @@ func Test_ValidateTable(t *testing.T) {
 func Test_BuildInvalid(t *testing.T) {
 
 	empty := make([]string, 0)
-	_, err := Build("", "65535", "", empty...)
+	_, err := Build("", "65535", "", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("1234", "65535", "", empty...)
+	_, err = Build("1234", "65535", "", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("", "65535", "", empty...)
+	_, err = Build("", "65535", "", "", empty...)
 	if err == nil {
 		t.Errorf("expected error")
 	}
 
-	_, err = Build("127.0.0.1", "65535", "poolid", empty...)
+	_, err = Build("127.0.0.1", "65535", "poolid", "", empty...)
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "65535", "poolid", "127.0.0.1")
+	_, err = Build("", "65535", "poolid", "", "127.0.0.1")
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "65535", "poolid", "")
+	_, err = Build("", "65535", "poolid", "", "")
 	if err == nil {
 		t.Errorf("Expected error %v", err)
 	}
@@ -136,7 +136,7 @@ func Test_Build(t *testing.T) {
 	}
 
 	empty := make([]string, 0)
-	host, err := Build("", "65535", "test_pool", empty...)
+	host, err := Build("", "65535", "test_pool", "", empty...)
 	glog.Infof("build  error %v", err)
 	if err != nil {
 		t.Errorf("Unexpected error %v", err)

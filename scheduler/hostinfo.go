@@ -18,10 +18,10 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
 )
 
 // HostInfo provides methods for getting host information from the dao or
@@ -65,10 +65,12 @@ func (hi *DAOHostInfo) AvailableRAM(host *host.Host, result chan *hostitem, done
 
 		cr += int64(s.RAMCommitment.Value)
 	}
-
-	glog.V(2).Infof("For host %s: Total Memory = %s, Total Existing Commitments = %s", host, host.Memory, cr)
-
-	result <- &hostitem{host, int64(host.Memory) - cr, -1}
+	totalMemory := host.RAMCommitment
+	if host.RAMCommitment <= 0 || host.RAMCommitment > host.Memory {
+		totalMemory = host.Memory
+	}
+	glog.V(2).Infof("For host %s: Total Memory = %s, Total Existing Commitments = %s", host, totalMemory, cr)
+	result <- &hostitem{host, int64(totalMemory) - cr, -1}
 }
 
 func (hi *DAOHostInfo) PrioritizeByMemory(hosts []*host.Host) ([]*host.Host, error) {
