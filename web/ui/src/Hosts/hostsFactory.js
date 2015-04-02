@@ -73,7 +73,7 @@
             var instances = this.instances;
             var sum = 0;
             for (var i = 0; i < instances.length; i++) {
-                sum += instances[i].resources.RAMAverage;
+                sum += instances[i].resources.RAMLast;
             }
             if (sum > this.model.RAMCommitment) {
                 return false;

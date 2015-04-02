@@ -108,7 +108,7 @@
         },
 
         resourcesGood: function() {
-            return this.resources.RAMAverage < this.resources.RAMCommitment;
+            return this.resources.RAMLast < this.resources.RAMCommitment;
         }
     };
 
