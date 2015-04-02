@@ -689,7 +689,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 	oneHostIPResource.InterfaceName = "eth1"
 	assignIPsHostIPResources = append(assignIPsHostIPResources, oneHostIPResource)
 
-	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, []string{}...)
+	assignIPsHost, err := host.Build("", "65535", assignIPsPool.ID, "", []string{}...)
 	if err != nil {
 		t.Fatalf("Error creating host: %v", err)
 	}
