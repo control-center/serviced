@@ -147,7 +147,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 				row := make(map[string]interface{})
 				row["ServiceID"] = svc.ID
 				row["ParentID"] = svc.ParentServiceID
-				row["RAMCommitment"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
+				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.Status.String()
 				row["Hostname"] = hostmap[stat.State.HostID]
 				row["DockerID"] = fmt.Sprintf("%.12s", stat.State.DockerID)
@@ -163,7 +163,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 				} else {
 					row["Name"] = svc.Name
 				}
-				row["MemUsage"] = fmt.Sprintf("--/%s", row["RAMCommitment"])
+				row["Cur/Max/Avg"] = fmt.Sprintf("--")
 
 				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID)] = row
 			}
@@ -171,13 +171,13 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 	}
 
 	// get memoryStats
-	metricReq.StartTime = time.Now().Add(-time.Minute)
+	metricReq.StartTime = time.Now().Add(-24 * time.Hour)
 	var memstats []metrics.MemoryUsageStats
 	if err := client.GetInstanceMemoryStats(metricReq, &memstats); err == nil {
 		for _, memstat := range memstats {
 			id := fmt.Sprintf("%s/%s", memstat.ServiceID, memstat.InstanceID)
 			row := rowmap[id]
-			row["MemUsage"] = fmt.Sprintf("%s/%s", bytefmt.ByteSize(uint64(memstat.Last)), row["RAMCommitment"])
+			row["Cur/Max/Avg"] = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(memstat.Last)), bytefmt.ByteSize(uint64(memstat.Max)), bytefmt.ByteSize(uint64(memstat.Average)))
 		}
 	}
 	return rowmap, nil

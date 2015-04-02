@@ -459,7 +459,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	cmdSetTreeCharset(ctx)
 
-	t := NewTable([]string{"Name", "ServiceID", "Status", "Uptime", "Hostname", "InSync", "DockerID", "MemUsage"})
+	t := NewTable([]string{"Name", "ServiceID", "Status", "Uptime", "RAM", "Cur/Max/Avg", "Hostname", "InSync", "DockerID"})
 	childmap := make(map[string][]string)
 	for id, state := range states {
 		parent := fmt.Sprintf("%v", state["ParentID"])

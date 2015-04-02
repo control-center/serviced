@@ -149,31 +149,31 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			fmt.Println(string(jsonHost))
 		}
 	} else {
-		t := NewTable([]string{"ID", "Pool", "Name", "Addr", "RPCPort", "Cores", "Memory", "MemUsage", "Network", "Release"})
+		t := NewTable([]string{"ID", "Pool", "Name", "Addr", "RPCPort", "Cores", "RAM", "Cur/Max/Avg", "Network", "Release"})
 		for _, h := range hosts {
 			var usage string
 			if stats, err := c.driver.GetHostMemory(h.ID); err != nil {
 				usage = "--"
 			} else {
-				usage = bytefmt.ByteSize(uint64(stats.Last))
+				usage = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(stats.Last)), bytefmt.ByteSize(uint64(stats.Max)), bytefmt.ByteSize(uint64(stats.Average)))
 			}
 
 			ramcommit := bytefmt.ByteSize(h.RAMCommitment)
-			if h.RAMCommitment <= 0 {
+			if h.RAMCommitment <= 0 || h.Memory < h.RAMCommitment {
 				ramcommit = bytefmt.ByteSize(h.Memory)
 			}
 
 			t.AddRow(map[string]interface{}{
-				"ID":       h.ID,
-				"Pool":     h.PoolID,
-				"Name":     h.Name,
-				"Addr":     h.IPAddr,
-				"RPCPort":  h.RPCPort,
-				"Cores":    h.Cores,
-				"Memory":   bytefmt.ByteSize(h.Memory),
-				"MemUsage": fmt.Sprintf("%s/%s", usage, ramcommit),
-				"Network":  h.PrivateNetwork,
-				"Release":  h.ServiceD.Release,
+				"ID":          h.ID,
+				"Pool":        h.PoolID,
+				"Name":        h.Name,
+				"Addr":        h.IPAddr,
+				"RPCPort":     h.RPCPort,
+				"Cores":       h.Cores,
+				"RAM":         ramcommit,
+				"Cur/Max/Avg": usage,
+				"Network":     h.PrivateNetwork,
+				"Release":     h.ServiceD.Release,
 			})
 		}
 		t.Padding = 6
