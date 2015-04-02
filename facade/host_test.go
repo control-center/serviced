@@ -31,7 +31,7 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 	defer s.Facade.RemoveHost(s.CTX, testid)
 
 	//fill host with required values
-	h, err := host.Build("", "65535", poolid, []string{}...)
+	h, err := host.Build("", "65535", poolid, "", []string{}...)
 	h.ID = testid
 	if err != nil {
 		t.Fatalf("Unexpected error building host: %v", err)
