@@ -243,15 +243,6 @@
             // make service immutable
             this.model = Object.freeze(service);
 
-            this.resources.RAMCommitment = utils.parseEngineeringNotation(this.model.RAMCommitment)/(1024*1024);//MB
-            this.resources.RAMAverage = 0;
-
-            var instances = this.getServiceInstances();
-            for (var i = 0; i < instances.length; i++) {
-                var inst = instances[i];
-                this.resources.RAMAverage += inst.resources.RAMAverage;
-                inst.resources.RAMCommitment = this.resources.RAMCommitment;
-            }
         },
 
         // invalidate all caches. This is needed 
@@ -341,8 +332,7 @@
         // invalidated at any time, so it should always be checked
         getServiceInstances: function(){
             this.instances = instancesFactory.getByServiceId(this.id);
-            this.instances = this.instances === undefined ? [] : this.instances;
-            this.instances.sort(function(a,b){
+            this.instances.sort(function(a,b) {
                 return a.model.InstanceID > b.model.InstanceID;
             });
             return this.instances;

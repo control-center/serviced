@@ -408,7 +408,7 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 	}
 
 	query := dao.MetricRequest{
-		StartTime: time.Now().Add(-time.Second * 5),
+		StartTime: time.Now().Add(-time.Hour * 24),
 		Instances: instances,
 	}
 
