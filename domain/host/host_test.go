@@ -122,7 +122,7 @@ func Test_BuildInvalid(t *testing.T) {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "65535", "poolid", "")
+	_, err = Build("", "65535", "poolid", "", "")
 	if err == nil {
 		t.Errorf("Expected error %v", err)
 	}
