@@ -248,15 +248,23 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		tableIPs := newtable(0, 10, 2)
-		tableIPs.printrow("Interface Name", "IP Address", "Type")
+		t := NewTable([]string{"InterfaceName", "IPAddress", "Type"})
 		for _, ip := range poolIps.HostIPs {
-			tableIPs.printrow(ip.InterfaceName, ip.IPAddress, "static")
+			t.AddRow(map[string]interface{}{
+				"InterfaceName": ip.InterfaceName,
+				"IPAddress":     ip.IPAddress,
+				"Type":          "static",
+			})
 		}
 		for _, ip := range poolIps.VirtualIPs {
-			tableIPs.printrow(ip.BindInterface, ip.IP, "virtual")
+			t.AddRow(map[string]interface{}{
+				"InterfaceName": ip.BindInterface,
+				"IPAddress":     ip.IP,
+				"Type":          "virtual",
+			})
 		}
-		tableIPs.flush()
+		t.Padding = 6
+		t.Print()
 	}
 }
 

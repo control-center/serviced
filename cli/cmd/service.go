@@ -412,6 +412,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 	}
 
 	t := NewTable([]string{"Name", "ServiceID", "DepID", "Pool/Path"})
+	t.Padding = 6
 	for _, row := range services {
 		t.AddRow(map[string]interface{}{
 			"Name":      row.Name,
@@ -420,7 +421,6 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 			"Pool/Path": path.Join(row.PoolID, pathmap[row.ID]),
 		})
 	}
-	t.Padding = 6
 	t.Print()
 	return nil, fmt.Errorf("multiple results found; select one from list")
 }
@@ -1120,8 +1120,8 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return &states[0], nil
 	}
 
-	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "ID", "HOST", "HOSTIP", "DOCKERID", "POOL/PATH")
+	t := NewTable([]string{"Name", "ID", "Host", "HostIP", "DockerID", "Pool/Path"})
+	t.Padding = 6
 	for _, row := range states {
 		svcid := row.ServiceID
 		name := row.Name
@@ -1129,9 +1129,17 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 			svcid = fmt.Sprintf("%s/%d", row.ServiceID, row.InstanceID)
 			name = fmt.Sprintf("%s/%d", row.Name, row.InstanceID)
 		}
-		matches.printrow(name, svcid, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12], path.Join(row.PoolID, pathmap[row.ID]))
+
+		t.AddRow(map[string]interface{}{
+			"Name":      name,
+			"ID":        svcid,
+			"Host":      hostmap[row.HostID].Name,
+			"HostIP":    hostmap[row.HostID].IPAddr,
+			"DockerID":  row.DockerID[0:12],
+			"Pool/Path": path.Join(row.PoolID, pathmap[row.ID]),
+		})
 	}
-	matches.flush()
+	t.Print()
 	return nil, fmt.Errorf("multiple results found; specify unique item from list")
 }
 
