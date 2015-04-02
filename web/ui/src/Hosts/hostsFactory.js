@@ -44,6 +44,9 @@
     // and wraps it with extra functionality and info
     function Host(host){
         this.active = false;
+        this.resources = {
+            RAMCommitment: 0,
+        }
         this.update(host);
     }
 
@@ -59,7 +62,23 @@
         updateHostDef: function(host){
             this.name = host.Name;
             this.id = host.ID;
+            this.resources.RAMCommitment = host.RAMCommitment;
             this.model = Object.freeze(host);
+        },
+
+        resourcesGood: function() {
+            if (this.resources.RAMCommitment === 0) {
+                return true;
+            }
+            var instances = this.instances;
+            var sum = 0;
+            for (var i = 0; i < instances.length; i++) {
+                sum += instances[i].resources.RAMLast;
+            }
+            if (sum > this.model.RAMCommitment) {
+                return false;
+            }
+            return true;
         }
     };
 

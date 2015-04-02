@@ -263,13 +263,13 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 }
 
 func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
-	glog.Infof("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
+	glog.V(2).Infof("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
 	c, err := master.NewClient(sc.agentPort)
 	if err != nil {
 		glog.Errorf("Could not create a control center client to %v: %v", sc.agentPort, err)
 		return nil, err
 	}
-	glog.Info("end getMasterClient")
+	glog.V(2).Info("end getMasterClient")
 	return c, nil
 }
 

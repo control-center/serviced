@@ -3,17 +3,18 @@
 (function() {
     'use strict';
 
-    var resourcesFactory, $q, serviceHealth, $notification;
+    var resourcesFactory, $q, serviceHealth, $notification, utils;
 
     angular.module('instancesFactory', []).
     factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory", "$notification", "miscUtils",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification, utils){
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification, _utils){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
         serviceHealth = _serviceHealth;
         $notification = _notification;
+        utils = _utils;
 
         var newFactory = new BaseFactory(Instance, resourcesFactory.getRunningServices);
 
@@ -54,15 +55,23 @@
     // Instance object constructor
     // takes a instance object (backend instance object)
     // and wraps it with extra functionality and info
-    function Instance(instance){
+    function Instance(instance) {
         this.active = false;
+
+        this.resources = {
+            RAMCommitment: 0,
+            RAMLast: 0,
+            RAMMax: 0,
+            RAMAverage: 0
+        };
+
         this.update(instance);
     }
 
     Instance.prototype = {
         constructor: Instance,
 
-        update: function(instance){
+        update: function(instance) {
             if(instance){
                this.updateInstanceDef(instance);
             }
@@ -73,13 +82,17 @@
             this.status = serviceHealth.get(this.healthId);
         },
 
-        updateInstanceDef: function(instance){
+        updateInstanceDef: function(instance) {
             this.name = instance.Name;
             this.id = instance.ID;
             this.model = Object.freeze(instance);
             // TODO - formally define health id
             this.healthId = this.model.ServiceID +"."+ instance.InstanceID;
             this.desiredState = instance.DesiredState;
+            this.resources.RAMAverage = Math.max(0, Math.round(instance.RAMAverage / (1024*1024)));
+            this.resources.RAMLast = Math.max(0, Math.round(instance.RAMLast / (1024*1024)));
+            this.resources.RAMMax = Math.max(0, Math.round(instance.RAMMax / (1024*1024)));
+            this.resources.RAMCommitment = Math.round(utils.parseEngineeringNotation(instance.RAMCommitment)/(1024*1024));
         },
 
         stop: function(){
@@ -92,6 +105,10 @@
                 });
             // desired state 0 is stop
             this.desiredState = 0;
+        },
+
+        resourcesGood: function() {
+            return this.resources.RAMLast < this.resources.RAMCommitment;
         }
     };
 
