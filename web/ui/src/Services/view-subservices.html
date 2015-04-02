@@ -127,7 +127,9 @@
                 <span ng-if="app.children.length" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
                 <span ng-if="!app.children.length" ng-style="indent(1)"></span>
                 <span ng-click="click_app(app.model.ID)" class="link">
-                    {{app.model.Name}}<span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span>
+                    {{app.model.Name}}
+                    <div ng-show="!app.resourcesGood() && !app.isIsvc()" class="badnessIndicator" title="An instance is oversubscribed."></div>
+                    <span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span>
                 </span>
               </td>
               <td data-title="'Instances'" style="text-align:center;">
@@ -173,8 +175,18 @@
                 <td data-title="'label_service_status'|translate" sortable="'status.status'" style="text-align:center;">
                     <health-icon data-status="app.status"></health-icon>
                 </td>
+                <td data-title="'RAM Commitment'" style="text-align:left;">
+                    <span ng-show="app.resources.RAMCommitment===0">N/A</span>
+                    <span ng-show="!app.resourcesGood() && app.resources.RAMCommitment!==0" style="color:#9C1200">{{app.resources.RAMCommitment}} MB</span>
+                    <span ng-show="app.resourcesGood() && app.resources.RAMCommitment!==0">{{app.resources.RAMCommitment}} MB</span>
+                </td>
+                <td data-title="'RAM Cur/Max/Avg'" style="text-align:left;">
+                    <span ng-show="app.resources.RAMCommitment===0">N/A</span>
+                    <span ng-show="!app.resourcesGood() && app.resources.RAMCommitment!==0" style="color:#9C1200">{{app.resources.RAMLast}} / {{app.resources.RAMMax}} / {{app.resources.RAMAverage}} MB</span>
+                    <span ng-show="app.resourcesGood() && app.resources.RAMCommitment!==0">{{app.resources.RAMLast}} / {{app.resources.RAMMax}} / {{app.resources.RAMAverage}} MB</span>
+                </td>
                 <td data-title="'host'|translate" sortable="'getHostName(app.model.HostID)'" ng-click="click_host(app.model.HostID)" class="link">{{getHostName(app.model.HostID)}}</td>
-                <td data-title="'running_tbl_docker_id'|translate" sortable="'model.DockerID'">{{app.model.DockerID}}</td>
+                <td data-title="'running_tbl_docker_id'|translate" sortable="'model.DockerID'">{{app.model.DockerID|cut:false:12:"..."}}</td>
                 <td data-title="'running_tbl_actions'|translate">
                     <button ng-click="viewLog(app)" class="btn btn-link action">
                         <i class="glyphicon glyphicon-list-alt"></i>

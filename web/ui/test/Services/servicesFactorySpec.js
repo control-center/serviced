@@ -29,16 +29,19 @@ describe('servicesFactory', function() {
 
     var serviceDefA = {
             ID: "123456",
-            Name: "Service A"
+            Name: "Service A",
+            RAMCommitment: "1024M",
         },
         serviceDefB = {
             ID: "123457",
-            Name: "Service B"
+            Name: "Service B",
+            RAMCommitment: "1024M",
         },
         serviceDefC = {
             ID: "123458",
             Name: "Service C",
-            ParentServiceID: "123457"
+            ParentServiceID: "123457",
+            RAMCommitment: "1024M",
         };
 
 
@@ -233,16 +236,19 @@ describe('servicesFactory Service object', function() {
 
     var serviceDefA = {
             ID: "isvc-123456",
-            Name: "Service A"
+            Name: "Service A",
+            RAMCommitment: "1024M",
         },
         serviceDefB = {
             ID: "123457",
-            Name: "Service B"
+            Name: "Service B",
+            RAMCommitment: "1024M",
         },
         serviceDefC = {
             ID: "123458",
             Name: "Service C",
-            ParentServiceID: "123457"
+            ParentServiceID: "123457",
+            RAMCommitment: "1024M",
         };
 
     // creates a service

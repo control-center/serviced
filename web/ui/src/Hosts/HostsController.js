@@ -4,8 +4,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory",
-    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory, poolsFactory){
+    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory", "servicesFactory",
+    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory, poolsFactory, servicesFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -127,6 +127,7 @@
             // update hosts
             update();
 
+            servicesFactory.activate();
             hostsFactory.activate();
             poolsFactory.activate();
         }
@@ -135,6 +136,7 @@
 
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
+            servicesFactory.deactivate();
         });
     }]);
 })();
