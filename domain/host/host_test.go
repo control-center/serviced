@@ -117,7 +117,7 @@ func Test_BuildInvalid(t *testing.T) {
 		t.Errorf("Unexpected error %v", err)
 	}
 
-	_, err = Build("", "65535", "poolid", "127.0.0.1")
+	_, err = Build("", "65535", "poolid", "", "127.0.0.1")
 	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
 		t.Errorf("Unexpected error %v", err)
 	}
