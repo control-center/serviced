@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
@@ -35,6 +36,7 @@ type Host struct {
 	RPCPort        int    // The RPC port of the host
 	Cores          int    // Number of cores available to serviced
 	Memory         uint64 // Amount of RAM (bytes) available to serviced
+	RAMCommitment  uint64 // Amount of RAM (bytes) allocated by the user
 	PrivateNetwork string // The private network where containers run, eg 172.16.42.0/24
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
@@ -124,7 +126,7 @@ func New() *Host {
 // The poolid param is the pool the host should belong to.  Optional list of IP address strings to set as available IP
 // resources, if not set the IP used for the host will be given as an IP Resource. If any IP is not a valid IP on the
 // machine return error.
-func Build(ip string, rpcport string, poolid string, ipAddrs ...string) (*Host, error) {
+func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...string) (*Host, error) {
 	if strings.TrimSpace(poolid) == "" {
 		return nil, errors.New("empty poolid not allowed")
 	}
@@ -149,6 +151,15 @@ func Build(ip string, rpcport string, poolid string, ipAddrs ...string) (*Host, 
 	}
 	host.IPs = hostIPs
 
+	// set the memory
+	if mem, err := utils.ParseEngineeringNotation(memory); err == nil {
+		host.RAMCommitment = mem
+	} else if mem, err := utils.ParsePercentage(memory, host.Memory); err == nil {
+		host.RAMCommitment = mem
+	} else {
+		return nil, err
+	}
+
 	// get embedded host information
 	host.ServiceD.Version = servicedversion.Version
 	host.ServiceD.Gitbranch = servicedversion.Gitbranch
@@ -161,7 +172,7 @@ func Build(ip string, rpcport string, poolid string, ipAddrs ...string) (*Host, 
 	return host, nil
 }
 
-//UpdateHostInfo returns a new host with updated hardware and software info. Does not update poor or IP information
+//UpdateHostInfo returns a new host with updated hardware and software info. Does not update port or IP information
 func UpdateHostInfo(h Host) (Host, error) {
 	currentHost, err := currentHost(h.IPAddr, h.RPCPort, h.PoolID)
 	if err != nil {

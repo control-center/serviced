@@ -39,9 +39,10 @@ type AgentServer struct {
 //BuildHostRequest request to build a new host. IP and IPResources will be validated to ensure they exist
 //on the host. If IPResources is not set and IPResource using the IP parameter will be used
 type BuildHostRequest struct {
-	IP     string //IP for the host
-	Port   int    //Port to contact the host on
-	PoolID string //Pool to set on host
+	IP     string // IP for the host
+	Port   int    // Port to contact the host on
+	PoolID string // Pool to set on host
+	Memory string // Memory allotted to this host
 }
 
 // BuildHost creates a Host object from the current host.
@@ -49,7 +50,7 @@ func (a *AgentServer) BuildHost(request BuildHostRequest, hostResponse *host.Hos
 	*hostResponse = host.Host{}
 
 	glog.Infof("local static ips %v [%d]", a.staticIPs, len(a.staticIPs))
-	h, err := host.Build(request.IP, fmt.Sprintf("%d", request.Port), request.PoolID, a.staticIPs...)
+	h, err := host.Build(request.IP, fmt.Sprintf("%d", request.Port), request.PoolID, request.Memory, a.staticIPs...)
 	if err != nil {
 		return err
 	}

@@ -16,11 +16,11 @@ package scheduler
 import (
 	"errors"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/zenoss/glog"
 )
 
 // ServiceHostPolicy wraps a service and provides several policy
@@ -52,7 +52,7 @@ func (sp *ServiceHostPolicy) SelectHost(hosts []*host.Host) (*host.Host, error) 
 		host, err = sp.leastCommittedHost(hosts)
 	}
 
-	if err != nil{
+	if err != nil {
 		glog.V(2).Infof("Error choosing host: %s", err)
 	} else {
 		glog.V(2).Infof("Chose host %s", host)

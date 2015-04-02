@@ -29,6 +29,7 @@ import (
 	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	"github.com/zenoss/elastigo/api"
@@ -50,6 +51,7 @@ type ControlPlaneDao struct {
 	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
 	dockerRegistry string
+	metricClient   *metrics.Client
 	backupLock     sync.RWMutex
 	restoreLock    sync.RWMutex
 }
@@ -152,6 +154,13 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fs
 		return nil, err
 	}
 	s.dfs = dfs
+
+	// initialize the metrics client
+	metricClient, err := metrics.NewClient(fmt.Sprintf("http://%s:8888", hostName))
+	if err != nil {
+		return nil, err
+	}
+	s.metricClient = metricClient
 
 	return s, nil
 }
