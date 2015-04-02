@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/utils"
 )
 
 type NullRequest struct{}
@@ -91,6 +92,7 @@ type RunningService struct {
 	DesiredState      int
 	ParentServiceID   string
 	InstanceID        int
+	RAMCommitment     utils.EngNotation
 	MonitoringProfile domain.MonitorProfile
 }
 

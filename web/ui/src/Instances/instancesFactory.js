@@ -3,17 +3,18 @@
 (function() {
     'use strict';
 
-    var resourcesFactory, $q, serviceHealth, $notification;
+    var resourcesFactory, $q, serviceHealth, $notification, utils;
 
     angular.module('instancesFactory', []).
     factory("instancesFactory", ["$rootScope", "$q", "resourcesFactory", "$interval", "$serviceHealth", "baseFactory", "$notification", "miscUtils",
-    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification, utils){
+    function($rootScope, q, _resourcesFactory, $interval, _serviceHealth, BaseFactory, _notification, _utils){
 
         // share resourcesFactory throughout
         resourcesFactory = _resourcesFactory;
         $q = q;
         serviceHealth = _serviceHealth;
         $notification = _notification;
+        utils = _utils;
 
         var newFactory = new BaseFactory(Instance, resourcesFactory.getRunningServices);
 
@@ -59,6 +60,8 @@
 
         this.resources = {
             RAMCommitment: 0,
+            RAMLast: 0,
+            RAMMax: 0,
             RAMAverage: 0
         };
 
@@ -86,7 +89,10 @@
             // TODO - formally define health id
             this.healthId = this.model.ServiceID +"."+ instance.InstanceID;
             this.desiredState = instance.DesiredState;
-            this.resources.RAMAverage = Math.round(instance.RAMAverage / (1024*1024));
+            this.resources.RAMAverage = Math.max(0, Math.round(instance.RAMAverage / (1024*1024)));
+            this.resources.RAMLast = Math.max(0, Math.round(instance.RAMLast / (1024*1024)));
+            this.resources.RAMMax = Math.max(0, Math.round(instance.RAMMax / (1024*1024)));
+            this.resources.RAMCommitment = Math.round(utils.parseEngineeringNotation(instance.RAMCommitment)/(1024*1024));
         },
 
         stop: function(){
@@ -102,7 +108,7 @@
         },
 
         resourcesGood: function() {
-            return this.resources.RAMAverage < this.resources.RAMCommitment;
+            return this.resources.RAMLast < this.resources.RAMCommitment;
         }
     };
 

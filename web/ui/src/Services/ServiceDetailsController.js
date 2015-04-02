@@ -738,13 +738,13 @@
 
             // if the current service changes, update
             // various service controller thingies
-            $scope.$watch(function(){
+            $scope.$watch(function() {
                 // if no current service is set, try to set one
-                if(!$scope.services.current){
+                if(!$scope.services.current) {
                     $scope.services.current = servicesFactory.get($scope.params.serviceId);
                 }
 
-                if($scope.services.current){
+                if($scope.services.current) {
                     return $scope.services.current.isDirty();
                 } else {
                     // there is no current service
@@ -759,7 +759,7 @@
             servicesFactory.activate();
             servicesFactory.update();
 
-            $scope.$on("$destroy", function(){
+            $scope.$on("$destroy", function() {
                 servicesFactory.deactivate();
                 hostsFactory.deactivate();
             });
