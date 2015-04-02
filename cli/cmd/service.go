@@ -411,12 +411,17 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return &services[0], nil
 	}
 
-	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "DEPID", "POOL/PATH")
+	t := NewTable([]string{"Name", "ServiceID", "DepID", "Pool/Path"})
 	for _, row := range services {
-		matches.printrow(row.Name, row.ID, row.DeploymentID, path.Join(row.PoolID, pathmap[row.ID]))
+		t.AddRow(map[string]interface{}{
+			"Name":      row.Name,
+			"ServiceID": row.ID,
+			"DepID":     row.DeploymentID,
+			"Pool/Path": path.Join(row.PoolID, pathmap[row.ID]),
+		})
 	}
-	matches.flush()
+	t.Padding = 6
+	t.Print()
 	return nil, fmt.Errorf("multiple results found; select one from list")
 }
 
@@ -540,23 +545,42 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		cmdSetTreeCharset(ctx)
 
 		servicemap := api.NewServiceMap(services)
-		tableService := newtable(0, 8, 2)
-		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
-		tableService.formattree(servicemap.Tree(), "", func(id string) (row []interface{}) {
-			s := servicemap.Get(id)
-			// truncate the image ID
-			var imageID string
-			if strings.TrimSpace(s.ImageID) != "" {
-				id := strings.SplitN(s.ImageID, "/", 3)
-				id[0] = "..."
-				id[1] = id[1][:7] + "..."
-				imageID = strings.Join(id, "/")
+		t := NewTable([]string{"Name", "ServiceID", "Inst", "ImageID", "Pool", "DState", "Launch", "DepID"})
+
+		var addRows func(string)
+		addRows = func(root string) {
+			rowids := servicemap.Tree()[root]
+			if len(rowids) > 0 {
+				sort.Strings(rowids)
+				t.IndentRow()
+				defer t.DedentRow()
+				for _, rowid := range rowids {
+					row := servicemap.Get(rowid)
+					// truncate the image id
+					var imageID string
+					if strings.TrimSpace(row.ImageID) != "" {
+						id := strings.SplitN(row.ImageID, "/", 3)
+						id[0] = "..."
+						id[1] = id[1][:7] + "..."
+						imageID = strings.Join(id, "/")
+					}
+					t.AddRow(map[string]interface{}{
+						"Name":      row.Name,
+						"ServiceID": row.ID,
+						"Inst":      row.Instances,
+						"ImageID":   imageID,
+						"Pool":      row.PoolID,
+						"DState":    row.DesiredState,
+						"Launch":    row.Launch,
+						"DepID":     row.DeploymentID,
+					})
+					addRows(row.ID)
+				}
 			}
-			return append(row, s.Name, s.ID, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
-		}, func(row []interface{}) string {
-			return row[1].(string)
-		})
-		tableService.flush()
+		}
+		addRows("")
+		t.Padding = 6
+		t.Print()
 	} else {
 		tmpl, err := template.New("template").Parse(ctx.String("format"))
 		if err != nil {

@@ -153,12 +153,14 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 			fmt.Println(string(jsonPool))
 		}
 	} else {
-		tablePool := newtable(0, 8, 2)
-		tablePool.printrow("ID" /*"CORE", "MEM",*/)
+		t := NewTable([]string{"ID"})
+		t.Padding = 6
 		for _, p := range pools {
-			tablePool.printrow(p.ID /*p.CoreLimit, p.MemoryLimit,*/)
+			t.AddRow(map[string]interface{}{
+				"ID": p.ID,
+			})
 		}
-		tablePool.flush()
+		t.Print()
 	}
 }
 
