@@ -1803,9 +1803,18 @@ input[type=file] {
 }
 
 .badnessIndicator {
-    background:#9C1200; 
-    width:0.75em; 
-    height:0.75em; 
-    display:inline-block; 
+    background: #9C1200;
+    width: 8px;
+    height: 8px;
+    display: inline-block;
     border-radius: 50%;
+    position: relative;
+    top: -1px;
+    margin-left: 5px;
+    opacity: 0.0;
+    transition: opacity 1s;
+}
+
+.badnessIndicator.bad {
+    opacity: 0.6;
 }
