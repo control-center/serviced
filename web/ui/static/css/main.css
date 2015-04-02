@@ -1813,8 +1813,10 @@ input[type=file] {
     margin-left: 5px;
     opacity: 0.0;
     transition: opacity 1s;
+    visibility: hidden;
 }
 
 .badnessIndicator.bad {
     opacity: 0.6;
+    visibility: visible;
 }
