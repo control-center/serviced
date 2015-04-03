@@ -158,17 +158,18 @@ func (t *Table) getIndents(field string) (int, []string) {
 		} else {
 			rows[i] = indent + treeCharset["middle"] + row[field]
 		}
+
 		if i+1 < len(t.rows) {
 			switch t.treeIndent[i+1] {
 			case -1:
 				size := len(indent)
-				indent = strings.TrimSuffix(indent, " ")
+				indent = strings.TrimSuffix(indent, "  ")
 				if size == len(indent) {
 					indent = strings.TrimSuffix(indent, treeCharset["bar"])
 				}
 			case 1:
 				if lastIndex {
-					indent += " "
+					indent += "  "
 				} else {
 					indent += treeCharset["bar"]
 				}
