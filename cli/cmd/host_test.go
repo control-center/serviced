@@ -237,7 +237,7 @@ func ExampleServicedCLI_CmdHostAdd_usage() {
 	//
 	// OPTIONS:
 	//    --ip '--ip option --ip option'	List of available endpoints
-	//    --memory 				Max memory allocated to this host
+	//    --memory 				Memory to allocate on this host, e.g. 20G, 50%
 }
 
 func ExampleServicedCLI_CmdHostAdd_fail() {
