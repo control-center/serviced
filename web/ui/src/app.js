@@ -116,8 +116,13 @@ controlplane.
         };
     }).
     filter('toGB', function(){
-        return function(input){
-            return (input/1073741824).toFixed(2) + " GB";
+        return function(input, hide){
+            return (input/(1024*1024*1024)).toFixed(2) + (hide ? "": " GB");
+        };
+    }).
+    filter('toMB', function(){
+        return function(input, hide){
+            return (input/(1024*1024)).toFixed(2) + (hide ? "": " MB");
         };
     }).
     filter('cut', function(){

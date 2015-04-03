@@ -1801,3 +1801,22 @@ input[type=file] {
 .jelly-table [ng-table-pagination="params"] {
     display: none;
 }
+
+.badnessIndicator {
+    background: #9C1200;
+    width: 8px;
+    height: 8px;
+    display: inline-block;
+    border-radius: 50%;
+    position: relative;
+    top: -1px;
+    margin-left: 5px;
+    opacity: 0.0;
+    transition: opacity 1s;
+    visibility: hidden;
+}
+
+.badnessIndicator.bad {
+    opacity: 0.6;
+    visibility: visible;
+}

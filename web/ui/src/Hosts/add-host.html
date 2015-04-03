@@ -1,6 +1,6 @@
 <div class="form-group">
     <label for="new_host_name"><span translate>label_host_and_port</span>:</label>
-  <input class="form-control" focusme name="new_host_name" id="new_host_name" type="text"
+    <input class="form-control" focusme name="new_host_name" id="new_host_name" type="text"
          placeholder="{{'placeholder_host_and_port'|translate}}" ng-model="newHost.IPAddr"
          ng-pattern="/^(.*)\:[0-9]+$/"/>
 </div>
@@ -10,4 +10,10 @@
     <select class="form-control" name="new_host_parent" id="new_host_parent" 
         ng-model="newHost.PoolID" ng-required ng-options="pool.id as pool.id for pool in pools">
     </select>
+</div>
+
+<div class="form-group">
+    <label for="new_host_ram_commitment"><span translate>label_host_ram_commitment</span>:</label>
+    <input class="form-control" focusme name="new_host_ram_commitment" id="new_host_ram_commitment" type="text"
+         placeholder="{{'placeholder_host_ram_commitment'|translate}}" ng-model="newHost.RAMCommitment"/>
 </div>

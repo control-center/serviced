@@ -174,6 +174,34 @@
                 return re.test(host) || host === "localhost";
             },
 
+            parseEngineeringNotation: function(str) {
+                // Converts nK/k, nM/m, nG/g, nT/t to a number. e.g. 1K returns 1024.
+                if (str === "" || str === undefined) {
+                    return 0;
+                }
+                var prefix = parseFloat(str);
+                var suffix = str.slice(prefix.toString().length);
+                switch(suffix) {
+                    case "K":
+                    case "k":
+                        prefix *= (1 << 10);
+                        break;
+                    case "M":
+                    case "m":
+                        prefix *= (1 << 20);
+                        break;
+                    case "G":
+                    case "g":
+                        prefix *= (1 << 30);
+                        break;
+                    case "T":
+                    case "t":
+                        prefix *= (1 << 40);
+                        break;
+                }
+                return prefix;
+            },
+
             // returns a function that will parse the
             // expression `attr` on scope object $scope
             // and return that value

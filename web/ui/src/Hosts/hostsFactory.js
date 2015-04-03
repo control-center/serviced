@@ -44,6 +44,7 @@
     // and wraps it with extra functionality and info
     function Host(host){
         this.active = false;
+        this.RAMCommitment = 0;
         this.update(host);
     }
 
@@ -59,13 +60,54 @@
         updateHostDef: function(host){
             this.name = host.Name;
             this.id = host.ID;
+            this.RAMCommitment = host.RAMCommitment;
             this.model = Object.freeze(host);
+        },
+
+        resourcesGood: function() {
+            if (this.RAMCommitment === 0) {
+                return true;
+            }
+            return this.RAMAverage <= this.RAMCommitment;
         }
     };
 
     Object.defineProperty(Host.prototype, "instances", {
         get: function(){
             return instancesFactory.getByHostId(this.id);
+        }
+    });
+
+    Object.defineProperty(Host.prototype, "RAMLast", {
+        get: function() {
+            var instances = this.instances;
+            var sum = 0;
+            for (var i = 0; i < instances.length; i++) {
+                sum += instances[i].resources.RAMLast;
+            }
+            return sum;
+        }
+    });
+
+    Object.defineProperty(Host.prototype, "RAMMax", {
+        get: function() {
+            var instances = this.instances;
+            var sum = 0;
+            for (var i = 0; i < instances.length; i++) {
+                sum += instances[i].resources.RAMMax;
+            }
+            return sum;
+        }
+    });
+
+    Object.defineProperty(Host.prototype, "RAMAverage", {
+        get: function() {
+            var instances = this.instances;
+            var sum = 0;
+            for (var i = 0; i < instances.length; i++) {
+                sum += instances[i].resources.RAMAverage;
+            }
+            return sum;
         }
     });
 
