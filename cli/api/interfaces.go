@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/domain/servicestate"
 	template "github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/script"
 )
 
@@ -38,6 +39,7 @@ type API interface {
 	GetHost(string) (*host.Host, error)
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
+	GetHostMemory(string) (*metrics.MemoryUsageStats, error)
 
 	// Pools
 	GetResourcePools() ([]pool.ResourcePool, error)
@@ -51,7 +53,7 @@ type API interface {
 	// Services
 	GetServices() ([]service.Service, error)
 	GetServiceStates(string) ([]servicestate.ServiceState, error)
-	GetServiceStatus(string) (map[string]dao.ServiceStatus, error)
+	GetServiceStatus(string) (map[string]map[string]interface{}, error)
 	GetService(string) (*service.Service, error)
 	GetServicesByName(string) ([]service.Service, error)
 	AddService(ServiceConfig) (*service.Service, error)
