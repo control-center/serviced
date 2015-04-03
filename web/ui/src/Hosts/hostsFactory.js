@@ -46,7 +46,7 @@
         this.active = false;
         this.resources = {
             RAMCommitment: 0,
-        }
+        };
         this.update(host);
     }
 
