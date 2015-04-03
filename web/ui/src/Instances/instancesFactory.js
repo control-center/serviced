@@ -89,10 +89,10 @@
             // TODO - formally define health id
             this.healthId = this.model.ServiceID +"."+ instance.InstanceID;
             this.desiredState = instance.DesiredState;
-            this.resources.RAMAverage = Math.max(0, Math.round(instance.RAMAverage / (1024*1024)));
-            this.resources.RAMLast = Math.max(0, Math.round(instance.RAMLast / (1024*1024)));
-            this.resources.RAMMax = Math.max(0, Math.round(instance.RAMMax / (1024*1024)));
-            this.resources.RAMCommitment = Math.round(utils.parseEngineeringNotation(instance.RAMCommitment)/(1024*1024));
+            this.resources.RAMAverage = Math.max(0, instance.RAMAverage);
+            this.resources.RAMLast = Math.max(0, instance.RAMLast);
+            this.resources.RAMMax = Math.max(0, instance.RAMMax);
+            this.resources.RAMCommitment = utils.parseEngineeringNotation(instance.RAMCommitment);
         },
 
         stop: function(){

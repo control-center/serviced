@@ -177,13 +177,13 @@
                 </td>
                 <td data-title="'RAM Commitment'" style="text-align:left;">
                     <span ng-show="app.resources.RAMCommitment===0">N/A</span>
-                    <span ng-show="!app.resourcesGood() && app.resources.RAMCommitment!==0" style="color:#9C1200">{{app.resources.RAMCommitment}} MB</span>
-                    <span ng-show="app.resourcesGood() && app.resources.RAMCommitment!==0">{{app.resources.RAMCommitment}} MB</span>
+                    <span ng-show="!app.resourcesGood() && app.resources.RAMCommitment!==0" style="color:#9C1200">{{app.resources.RAMCommitment|toMB}}</span>
+                    <span ng-show="app.resourcesGood() && app.resources.RAMCommitment!==0">{{app.resources.RAMCommitment|toMB}}</span>
                 </td>
                 <td data-title="'RAM Cur/Max/Avg'" style="text-align:left;">
                     <span ng-show="app.resources.RAMCommitment===0">N/A</span>
-                    <span ng-show="!app.resourcesGood() && app.resources.RAMCommitment!==0" style="color:#9C1200">{{app.resources.RAMLast}} / {{app.resources.RAMMax}} / {{app.resources.RAMAverage}} MB</span>
-                    <span ng-show="app.resourcesGood() && app.resources.RAMCommitment!==0">{{app.resources.RAMLast}} / {{app.resources.RAMMax}} / {{app.resources.RAMAverage}} MB</span>
+                    <span ng-show="!app.resourcesGood() && app.resources.RAMCommitment!==0" style="color:#9C1200">{{app.resources.RAMLast|toMB:true}} / {{app.resources.RAMMax|toMB:true}} / {{app.resources.RAMAverage|toMB:true}} MB</span>
+                    <span ng-show="app.resourcesGood() && app.resources.RAMCommitment!==0">{{app.resources.RAMLast|toMB:true}} / {{app.resources.RAMMax|toMB:true}} / {{app.resources.RAMAverage|toMB:true}} MB</span>
                 </td>
                 <td data-title="'host'|translate" sortable="'getHostName(app.model.HostID)'" ng-click="click_host(app.model.HostID)" class="link">{{getHostName(app.model.HostID)}}</td>
                 <td data-title="'running_tbl_docker_id'|translate" sortable="'model.DockerID'">{{app.model.DockerID|cut:false:12:"..."}}</td>

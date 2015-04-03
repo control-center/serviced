@@ -106,9 +106,15 @@ func restGetDefaultHostAlias(w *rest.ResponseWriter, r *rest.Request, ctx *reque
 	w.WriteJson(&map[string]string{"hostalias": defaultHostAlias})
 }
 
+type addHostRequest struct {
+	IPAddr        string
+	PoolID        string
+	RAMCommitment string
+}
+
 //restAddHost adds a Host. Request input is host.Host
 func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
-	var payload host.Host
+	var payload addHostRequest
 	err := r.DecodeJsonPayload(&payload)
 	if err != nil {
 		glog.V(1).Infof("Could not decode host payload: %v", err)
@@ -147,14 +153,16 @@ func restAddHost(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
 		return
 	}
 
-	IPs := []string{}
-	for _, ip := range payload.IPs {
-		IPs = append(IPs, ip.IPAddress)
-	}
+	// IPs := []string{}
+	// for _, ip := range payload.IPs {
+	// 	IPs = append(IPs, ip.IPAddress)
+	// }
+
 	buildRequest := agent.BuildHostRequest{
 		IP:     hostIP,
 		Port:   rpcPort,
 		PoolID: payload.PoolID,
+		Memory: payload.RAMCommitment,
 	}
 	host, err := agentClient.BuildHost(buildRequest)
 	if err != nil {
