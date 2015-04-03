@@ -49,7 +49,7 @@ func (c *ServicedCli) initHost() {
 				Action:       c.cmdHostAdd,
 				Flags: []cli.Flag{
 					cli.StringSliceFlag{"ip", &cli.StringSlice{}, "List of available endpoints"},
-					cli.StringFlag{"memory", "", "Max memory allocated to this host"},
+					cli.StringFlag{"memory", "", "Memory to allocate on this host, e.g. 20G, 50%"},
 				},
 			}, {
 				Name:         "remove",
