@@ -168,12 +168,16 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 			fmt.Println(string(jsonTemplate))
 		}
 	} else {
-		tableTemplate := newtable(0, 8, 2)
-		tableTemplate.printrow("TEMPLATEID", "NAME", "DESCRIPTION")
-		for _, t := range templates {
-			tableTemplate.printrow(t.ID, t.Name, t.Description)
+		t := NewTable([]string{"TemplateID", "Name", "Description"})
+		t.Padding = 6
+		for _, tmp := range templates {
+			t.AddRow(map[string]interface{}{
+				"TemplateID":  tmp.ID,
+				"Name":        tmp.Name,
+				"Description": tmp.Description,
+			})
 		}
-		tableTemplate.flush()
+		t.Print()
 	}
 }
 

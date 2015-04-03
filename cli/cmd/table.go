@@ -15,10 +15,7 @@ package cmd
 
 import (
 	"fmt"
-	"os"
-	"sort"
 	"strings"
-	"text/tabwriter"
 )
 
 var (
@@ -50,115 +47,137 @@ func init() {
 	treeCharset = treeUTF8
 }
 
-// treemap is a list of node ids mapped to its respective parent
-type treemap map[string][]string
+type Table struct {
+	Fields     []string
+	Padding    int
+	rows       []map[string]string
+	fieldSize  map[string]int
+	treeIndent []int
+}
 
-// sort organizes a treemap by the number of child nodes
-func (t treemap) sort() {
-	for branch := range t {
-		sort.Sort(&leaf{t, branch})
+func NewTable(fields []string) *Table {
+	return &Table{
+		Fields:     fields,
+		Padding:    1,
+		rows:       make([]map[string]string, 0),
+		fieldSize:  make(map[string]int),
+		treeIndent: make([]int, 0),
 	}
 }
-
-//leaf is a child node of a tree map, identified by its parent node
-type leaf struct {
-	tmap   treemap
-	branch string
-}
-
-// Len implements sort.Interface
-func (l *leaf) Len() int { return len(l.tmap[l.branch]) }
-
-// Less implements sort.Interface
-func (l *leaf) Less(i, j int) bool { return len(l.tmap[l.branch][i]) < len(l.tmap[l.branch][j]) }
-
-// Swap implements sort.Interface
-func (l *leaf) Swap(i, j int) {
-	l.tmap[l.branch][i], l.tmap[l.branch][j] = l.tmap[l.branch][j], l.tmap[l.branch][i]
-}
-
-// table is the ascii table formatter
-type table struct {
-	writer    *tabwriter.Writer
-	paragraph []string
-	lastrow   bool
-}
-
-// newtable instantiates a new table formatter
-func newtable(minwidth, tabwidth, padding int) *table {
-	w := tabwriter.NewWriter(os.Stdout, minwidth, tabwidth, padding, '\t', 0)
-	return &table{writer: w}
-}
-
-// printrow prints the row to the writer
-func (tbl *table) printrow(row ...interface{}) {
-	var rowstr = make([]string, len(row))
-	for i, c := range row {
-		rowstr[i] = fmt.Sprintf("%v", c)
-	}
-	fmt.Fprintln(tbl.writer, strings.Join(rowstr, "\t"))
-}
-
-// printtreerow prints a tree row to the writer
-func (tbl *table) printtreerow(row ...interface{}) {
-	var charset string
-	if tbl.lastrow {
-		charset = treeCharset["last"]
-	} else {
-		charset = treeCharset["middle"]
-	}
-
-	row[0] = fmt.Sprintf("%s%s%v", strings.Join(tbl.paragraph, ""), charset, row[0])
-	tbl.printrow(row...)
-}
-
-// indent adds an indentation to a tree row
-func (tbl *table) indent() {
-	if tbl.lastrow {
-		tbl.paragraph = append(tbl.paragraph, "  ")
-	} else {
-		tbl.paragraph = append(tbl.paragraph, treeCharset["bar"])
-	}
-}
-
-// dedent removes an indentation from a tree row
-func (tbl *table) dedent() {
-	tbl.paragraph = tbl.paragraph[:len(tbl.paragraph)-1]
-}
-
-type nodeAndKey struct {
-	id  string
-	key string
-}
-
-type nodeByKey []nodeAndKey
-
-func (n nodeByKey) Len() int           { return len(n) }
-func (n nodeByKey) Swap(i, j int)      { n[i], n[j] = n[j], n[i] }
-func (n nodeByKey) Less(i, j int) bool { return n[i].key < n[j].key }
-
-// formattree formats the tree for printing
-func (tbl *table) formattree(tree map[string][]string, root string, getrow func(string) []interface{}, sortkey func(row []interface{}) string) {
-	tmap := treemap(tree)
-
-	var next func(string)
-	next = func(root string) {
-		var nodes []nodeAndKey
-		for _, node := range tmap[root] {
-			row := getrow(node)
-			nodes = append(nodes, nodeAndKey{id: node, key: sortkey(row)})
-		}
-		sort.Sort(nodeByKey(nodes))
-		for i, node := range nodes {
-			tbl.lastrow = i+1 >= len(tmap[root])
-			tbl.printtreerow(getrow(node.key)...)
-			tbl.indent()
-			next(node.key)
-			tbl.dedent()
+func (t *Table) AddRow(row map[string]interface{}) {
+	tblrow := make(map[string]string)
+	for name, value := range row {
+		v := fmt.Sprintf("%v", value)
+		tblrow[name] = v
+		if maxWidth := len(v); t.fieldSize[name] < maxWidth {
+			t.fieldSize[name] = maxWidth
 		}
 	}
-	next(root)
+	t.rows = append(t.rows, tblrow)
+	if len(t.rows) > len(t.treeIndent) {
+		t.treeIndent = append(t.treeIndent, 0)
+	}
 }
-
-// flush flushes the output
-func (tbl *table) flush() { tbl.writer.Flush() }
+func (t *Table) IndentRow() {
+	t.treeIndent = append(t.treeIndent, 1)
+}
+func (t *Table) DedentRow() {
+	t.treeIndent = append(t.treeIndent, -1)
+}
+func (t *Table) Print() {
+	if len(t.Fields) == 0 {
+		return
+	}
+	// compute the padding
+	padding := fmt.Sprintf("%"+fmt.Sprintf("%d", t.Padding)+"s", "")
+	// compute the first column width and output
+	col0width, col0rows := t.getIndents(t.Fields[0])
+	// display the headers
+	for i, field := range t.Fields {
+		var fieldSize int
+		if i > 0 {
+			if width := len(field); t.fieldSize[field] < width {
+				t.fieldSize[field] = width
+			}
+			fieldSize = t.fieldSize[field]
+		} else {
+			if width := len(field); col0width < width {
+				col0width = width
+			}
+			fieldSize = col0width
+		}
+		fmt.Printf("%-"+fmt.Sprintf("%d", fieldSize)+"s"+padding, field)
+	}
+	fmt.Println()
+	// display the rows
+	for i, row := range t.rows {
+		for j, field := range t.Fields {
+			if j > 0 {
+				fmt.Printf("%-"+fmt.Sprintf("%d", t.fieldSize[field])+"s"+padding, row[field])
+			} else {
+				fmt.Printf("%-"+fmt.Sprintf("%d", col0width)+"s"+padding, col0rows[i])
+			}
+		}
+		fmt.Println()
+	}
+}
+func (t *Table) getIndents(field string) (int, []string) {
+	// determines if the row is the last parent in the tree
+	isLastIndex := func(index int) bool {
+		if index+1 < len(t.rows) {
+			switch t.treeIndent[index+1] {
+			case -1:
+				return true
+			case 0:
+				return false
+			case 1:
+				level := t.treeIndent[index]
+				for _, ind := range t.treeIndent[index+1 : len(t.rows)] {
+					if level = level + ind; level == 0 {
+						return false
+					}
+				}
+			}
+		}
+		return true
+	}
+	maxWidth := t.fieldSize[field]
+	rows := make([]string, len(t.rows))
+	offset := 0
+	indent := ""
+	for i, row := range t.rows {
+		level := t.treeIndent[i]
+		if offset += level; offset <= 0 {
+			rows[i] = row[field]
+			offset = 0
+			continue
+		}
+		lastIndex := isLastIndex(i)
+		if lastIndex {
+			rows[i] = indent + treeCharset["last"] + row[field]
+		} else {
+			rows[i] = indent + treeCharset["middle"] + row[field]
+		}
+		if i+1 < len(t.rows) {
+			switch t.treeIndent[i+1] {
+			case -1:
+				size := len(indent)
+				indent = strings.TrimSuffix(indent, "  ")
+				if size == len(indent) {
+					indent = strings.TrimSuffix(indent, treeCharset["bar"])
+				}
+			case 1:
+				if lastIndex {
+					indent += "  "
+				} else {
+					indent += treeCharset["bar"]
+				}
+			}
+		}
+		// compute the max width of the column
+		if width := len(rows[i]); width > maxWidth {
+			maxWidth = width
+		}
+	}
+	return maxWidth, rows
+}
