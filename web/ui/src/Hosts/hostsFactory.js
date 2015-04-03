@@ -80,7 +80,6 @@
 
     Object.defineProperty(Host.prototype, "RAMLast", {
         get: function() {
-            console.log("RAMLAST");
             var instances = this.instances;
             var sum = 0;
             for (var i = 0; i < instances.length; i++) {
