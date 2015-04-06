@@ -39,6 +39,7 @@ func (c *ServicedCli) initPool() {
 				Action:       c.cmdPoolList,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.StringFlag{"show-fields", "ID", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:  "add",
@@ -62,6 +63,7 @@ func (c *ServicedCli) initPool() {
 				Action:       c.cmdPoolListIPs,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.StringFlag{"show-fields", "InterfaceName,IPAddress,Type", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:         "add-virtual-ip",
@@ -153,7 +155,7 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 			fmt.Println(string(jsonPool))
 		}
 	} else {
-		t := NewTable([]string{"ID"})
+		t := NewTable(ctx.String("show-fields"))
 		t.Padding = 6
 		for _, p := range pools {
 			t.AddRow(map[string]interface{}{
@@ -248,7 +250,7 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		t := NewTable([]string{"InterfaceName", "IPAddress", "Type"})
+		t := NewTable(ctx.String("show-fields"))
 		for _, ip := range poolIps.HostIPs {
 			t.AddRow(map[string]interface{}{
 				"InterfaceName": ip.InterfaceName,

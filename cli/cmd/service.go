@@ -68,6 +68,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
 					cli.StringFlag{"format", "", "format the output using the given go template"},
+					cli.StringFlag{"show-fields", "Name,ServiceID,Inst,ImageID,Pool,DState,Launch,DepID", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:        "status",
@@ -76,6 +77,7 @@ func (c *ServicedCli) initService() {
 				Action:      c.cmdServiceStatus,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
+					cli.StringFlag{"show-fields", "Name,ServiceID,Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:        "add",
@@ -411,7 +413,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return &services[0], nil
 	}
 
-	t := NewTable([]string{"Name", "ServiceID", "DepID", "Pool/Path"})
+	t := NewTable("Name,ServiceID,DepID,Pool/Path")
 	t.Padding = 6
 	for _, row := range services {
 		t.AddRow(map[string]interface{}{
@@ -464,7 +466,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	cmdSetTreeCharset(ctx)
 
-	t := NewTable([]string{"Name", "ServiceID", "Status", "Uptime", "RAM", "Cur/Max/Avg", "Hostname", "InSync", "DockerID"})
+	t := NewTable(ctx.String("show-fields"))
 	childmap := make(map[string][]string)
 	for id, state := range states {
 		parent := fmt.Sprintf("%v", state["ParentID"])
@@ -545,7 +547,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		cmdSetTreeCharset(ctx)
 
 		servicemap := api.NewServiceMap(services)
-		t := NewTable([]string{"Name", "ServiceID", "Inst", "ImageID", "Pool", "DState", "Launch", "DepID"})
+		t := NewTable(ctx.String("show-fields"))
 
 		var addRows func(string)
 		addRows = func(root string) {
@@ -1120,7 +1122,7 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return &states[0], nil
 	}
 
-	t := NewTable([]string{"Name", "ID", "Host", "HostIP", "DockerID", "Pool/Path"})
+	t := NewTable("Name,ID,Host,HostIP,DockerID,Pool/Path")
 	t.Padding = 6
 	for _, row := range states {
 		svcid := row.ServiceID
