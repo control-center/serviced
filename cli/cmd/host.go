@@ -49,7 +49,6 @@ func (c *ServicedCli) initHost() {
 				BashComplete: c.printHostAdd,
 				Action:       c.cmdHostAdd,
 				Flags: []cli.Flag{
-					cli.StringSliceFlag{"ip", &cli.StringSlice{}, "List of available endpoints"},
 					cli.StringFlag{"memory", "", "Memory to allocate on this host, e.g. 20G, 50%"},
 				},
 			}, {
