@@ -41,6 +41,7 @@ func (c *ServicedCli) initTemplate() {
 				Action:       c.cmdTemplateList,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.StringFlag{"show-fields", "TemplateID,Name,Description", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:        "add",
@@ -168,7 +169,7 @@ func (c *ServicedCli) cmdTemplateList(ctx *cli.Context) {
 			fmt.Println(string(jsonTemplate))
 		}
 	} else {
-		t := NewTable([]string{"TemplateID", "Name", "Description"})
+		t := NewTable(ctx.String("show-fields"))
 		t.Padding = 6
 		for _, tmp := range templates {
 			t.AddRow(map[string]interface{}{

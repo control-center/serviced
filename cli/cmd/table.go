@@ -55,7 +55,12 @@ type Table struct {
 	treeIndent []int
 }
 
-func NewTable(fields []string) *Table {
+func NewTable(fieldString string) *Table {
+	fields := strings.Split(fieldString, ",")
+	for i := range fields {
+		fields[i] = strings.TrimSpace(fields[i])
+	}
+
 	return &Table{
 		Fields:     fields,
 		Padding:    1,

@@ -129,6 +129,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			row["ServiceID"] = svc.ID
 			row["Name"] = svc.Name
 			row["ParentID"] = svc.ParentServiceID
+			row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 
 			if svc.Instances > 0 {
 				switch service.DesiredState(svc.DesiredState) {
@@ -173,13 +174,17 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 	// get memoryStats
 	metricReq.StartTime = time.Now().Add(-24 * time.Hour)
 	var memstats []metrics.MemoryUsageStats
-	if err := client.GetInstanceMemoryStats(metricReq, &memstats); err == nil {
-		for _, memstat := range memstats {
-			id := fmt.Sprintf("%s/%s", memstat.ServiceID, memstat.InstanceID)
-			row := rowmap[id]
-			row["Cur/Max/Avg"] = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(memstat.Last)), bytefmt.ByteSize(uint64(memstat.Max)), bytefmt.ByteSize(uint64(memstat.Average)))
+
+	if len(metricReq.Instances) > 0 {
+		if err := client.GetInstanceMemoryStats(metricReq, &memstats); err == nil {
+			for _, memstat := range memstats {
+				id := fmt.Sprintf("%s/%s", memstat.ServiceID, memstat.InstanceID)
+				row := rowmap[id]
+				row["Cur/Max/Avg"] = fmt.Sprintf("%s / %s / %s", bytefmt.ByteSize(uint64(memstat.Last)), bytefmt.ByteSize(uint64(memstat.Max)), bytefmt.ByteSize(uint64(memstat.Average)))
+			}
 		}
 	}
+
 	return rowmap, nil
 
 }

@@ -40,6 +40,7 @@ func (c *ServicedCli) initHost() {
 				Action:       c.cmdHostList,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
+					cli.StringFlag{"show-fields", "ID,Pool,Name,Addr,RPCPort,Cores,RAM,Cur/Max/Avg,Network,Release", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:         "add",
@@ -149,7 +150,7 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			fmt.Println(string(jsonHost))
 		}
 	} else {
-		t := NewTable([]string{"ID", "Pool", "Name", "Addr", "RPCPort", "Cores", "RAM", "Cur/Max/Avg", "Network", "Release"})
+		t := NewTable(ctx.String("show-fields"))
 		for _, h := range hosts {
 			var usage string
 			if stats, err := c.driver.GetHostMemory(h.ID); err != nil {
