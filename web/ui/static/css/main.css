@@ -1816,11 +1816,14 @@ input[type=file] {
     visibility: hidden;
 }
 
-.overcom.bad {
+.overcomIndicator.bad {
     opacity: 0.6;
     visibility: visible;
 }
 
-.overcomColor {
+.overcomText {
+}
+
+.overcomText.bad {
     color: #9C1200;
 }
