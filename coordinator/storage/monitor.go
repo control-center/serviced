@@ -166,8 +166,8 @@ func (m *Monitor) MonitorDFSVolume(mountpoint string, leaderIP string, checkValu
 		return
 	}
 
-	checkFileName := path.Join(monitorPath, leaderIP + "-fsid.txt")
-	glog.Infof("Writing checkValue of %s to file %s", checkValue,  checkFileName)
+	checkFileName := path.Join(monitorPath, leaderIP+"-fsid.txt")
+	glog.Infof("Writing checkValue of %s to file %s", checkValue, checkFileName)
 	if err := ioutil.WriteFile(checkFileName, []byte(checkValue), 0644); err != nil {
 		glog.Errorf("no longer monitoring status for DFS volume %s - unable to write checkfile  %+v: %s", mountpoint, checkFileName, err)
 		return

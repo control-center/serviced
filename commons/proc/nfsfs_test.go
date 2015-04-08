@@ -139,7 +139,7 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	procFindmntCommand = "grep %s tstproc/self/mountinfo | awk '{print $3, $9, $10, $5, $NF}'"
 
 	// mock up our ReadFSIDFromMount command
-	readFSIDFromMount = func(mountpoint, serverIP string)(string, error) { return "45a148e989326106", nil }
+	readFSIDFromMount = func(mountpoint, serverIP string) (string, error) { return "45a148e989326106", nil }
 	actual, err := GetNFSVolumeInfo("/tmp/serviced/var")
 	if err != nil {
 		t.Fatalf("could not get mount info: %s", err)
@@ -156,7 +156,7 @@ func TestGetNFSVolumeInfo(t *testing.T) {
 	expected := NFSMountInfo{
 		MountInfo: minfo,
 
-		FSID:     "45a148e989326106",
+		FSID: "45a148e989326106",
 	}
 	if expected != *actual {
 		t.Fatalf("expected: %+v != actual: %+v", expected, actual)

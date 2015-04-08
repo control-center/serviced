@@ -250,15 +250,15 @@ func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 
 	info := NFSMountInfo{
 		MountInfo: *minfo,
-		FSID:       FSID,
+		FSID:      FSID,
 	}
 
 	return &info, nil
 }
 
 // readFSIDFromMount function is declared as variable so we can mock it for unit test.
-var readFSIDFromMount = func (mountpoint, serverIP string) (string, error) {
-	checkFileName := path.Join(mountpoint, "monitor", serverIP + "-fsid.txt")
+var readFSIDFromMount = func(mountpoint, serverIP string) (string, error) {
+	checkFileName := path.Join(mountpoint, "monitor", serverIP+"-fsid.txt")
 	bytes, err := ioutil.ReadFile(checkFileName)
 	if err != nil {
 		return "", fmt.Errorf("Error reading checkfile %s: %v", checkFileName, err)

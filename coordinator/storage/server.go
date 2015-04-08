@@ -65,7 +65,6 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	node := &Node{
 		Host:       *s.host,
 		ExportPath: fmt.Sprintf("%s:%s", s.host.IPAddr, s.driver.ExportPath()),
-	    //ExportTime: time.Now().Format("2006-01-02 15:04:05 -0700 MST"), // TODO: Make format a constant?
 		ExportTime: strconv.FormatInt(time.Now().UnixNano(), 16),
 	}
 
