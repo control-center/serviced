@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os/exec"
+	"path"
 	"strings"
 )
 
@@ -242,20 +243,26 @@ func GetNFSVolumeInfo(mountpoint string) (*NFSMountInfo, error) {
 		return nil, fmt.Errorf("%s is not nfs; uses %s", minfo.LocalPath, minfo.FSType)
 	}
 
-	volume, err := GetProcNFSFSVolume(minfo.DeviceID)
+	FSID, err := readFSIDFromMount(mountpoint, minfo.ServerIP)
 	if err != nil {
 		return nil, err
 	}
 
 	info := NFSMountInfo{
 		MountInfo: *minfo,
-
-		Version:  volume.Version,
-		ServerID: volume.ServerID,
-		Port:     volume.Port,
-		FSID:     volume.FSID,
-		FSCache:  volume.FSCache,
+		FSID:      FSID,
 	}
 
 	return &info, nil
+}
+
+// readFSIDFromMount function is declared as variable so we can mock it for unit test.
+var readFSIDFromMount = func(mountpoint, serverIP string) (string, error) {
+	checkFileName := path.Join(mountpoint, "monitor", serverIP+"-fsid.txt")
+	bytes, err := ioutil.ReadFile(checkFileName)
+	if err != nil {
+		return "", fmt.Errorf("Error reading checkfile %s: %v", checkFileName, err)
+	}
+	result := string(bytes[:])
+	return result, nil
 }
