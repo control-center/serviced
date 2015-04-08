@@ -154,7 +154,7 @@ func (m *Monitor) DFSVolumeMonitorPollUpdateFunc(mountpoint, remoteIP string, ha
 }
 
 // MonitorVolume monitors the DFS volume - logs on failure and calls pollUpdateFunc
-func (m *Monitor) MonitorDFSVolume(mountpoint string, shutdown <-chan interface{}, pollUpdateFunc DFSVolumeMonitorPollUpdateFunc) {
+func (m *Monitor) MonitorDFSVolume(mountpoint string, leaderIP string, checkValue string, shutdown <-chan interface{}, pollUpdateFunc DFSVolumeMonitorPollUpdateFunc) {
 	glog.Infof("monitoring DFS export info for DFS volume %s at polling interval: %s", mountpoint, m.monitorInterval)
 
 	m.previousRestart = time.Now()
@@ -163,6 +163,13 @@ func (m *Monitor) MonitorDFSVolume(mountpoint string, shutdown <-chan interface{
 	os.RemoveAll(monitorPath)
 	if err := os.MkdirAll(monitorPath, 0755); err != nil {
 		glog.Errorf("no longer monitoring status for DFS volume %s - unable to mkdir %+v: %s", mountpoint, monitorPath, err)
+		return
+	}
+
+	checkFileName := path.Join(monitorPath, leaderIP + "-fsid.txt")
+	glog.Infof("Writing checkValue of %s to file %s", checkValue,  checkFileName)
+	if err := ioutil.WriteFile(checkFileName, []byte(checkValue), 0644); err != nil {
+		glog.Errorf("no longer monitoring status for DFS volume %s - unable to write checkfile  %+v: %s", mountpoint, checkFileName, err)
 		return
 	}
 

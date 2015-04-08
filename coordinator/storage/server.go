@@ -21,6 +21,8 @@ import (
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/zenoss/glog"
+	"strconv"
+	"time"
 )
 
 // Server manages the exporting of a file system to clients.
@@ -63,6 +65,8 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	node := &Node{
 		Host:       *s.host,
 		ExportPath: fmt.Sprintf("%s:%s", s.host.IPAddr, s.driver.ExportPath()),
+	    //ExportTime: time.Now().Format("2006-01-02 15:04:05 -0700 MST"), // TODO: Make format a constant?
+		ExportTime: strconv.FormatInt(time.Now().UnixNano(), 16),
 	}
 
 	// Create the storage leader and client nodes
@@ -84,7 +88,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 	}
 
 	// monitor dfs; log warnings each cycle; restart dfs if needed
-	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
+	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), s.host.IPAddr, node.ExportTime, shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
 
 	// loop until shutdown event
 	defer leader.ReleaseLead()
