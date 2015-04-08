@@ -22,6 +22,7 @@ type Node struct {
 	host.Host
 	Network    string
 	ExportPath string
+	ExportTime string
 	version    interface{}
 }
 

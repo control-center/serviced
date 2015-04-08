@@ -19,6 +19,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"strconv"
+	"sync"
 	"testing"
 	"time"
 )
@@ -78,7 +80,9 @@ func TestMonitorVolume(t *testing.T) {
 		}
 	}
 
-	go monitor.MonitorDFSVolume(tmpPath, shutdown, pDFSVolumeMonitorPollUpdateFunc)
+	exportTime := strconv.FormatInt(time.Now().UnixNano(), 16)
+
+	go monitor.MonitorDFSVolume(tmpPath, "1.2.3.4", exportTime, shutdown, pDFSVolumeMonitorPollUpdateFunc)
 
 	time.Sleep(time.Second * 2)
 
