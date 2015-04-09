@@ -1581,7 +1581,7 @@ func createServiceContainer(service *service.Service) (*docker.Container, error)
 //
 // Returns the name of the file under tmpDir containing the output from the migration script
 func executeMigrationScript(serviceID string, serviceContainer *docker.Container, tmpDir, containerScript, inputFilePath, sdkVersion string) (string, error) {
-	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration"
+	const SERVICE_MIGRATION_IMAGE_NAME = "zenoss/service-migration_v1"
 	const SERVICE_MIGRATION_TAG_NAME = "1.0.0"
 	const OUTPUT_FILE = "output.json"
 
