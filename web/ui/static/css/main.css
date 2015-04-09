@@ -1802,7 +1802,7 @@ input[type=file] {
     display: none;
 }
 
-.badnessIndicator {
+.overcomIndicator {
     background: #9C1200;
     width: 8px;
     height: 8px;
@@ -1816,7 +1816,14 @@ input[type=file] {
     visibility: hidden;
 }
 
-.badnessIndicator.bad {
+.overcomIndicator.bad {
     opacity: 0.6;
     visibility: visible;
+}
+
+.overcomText {
+}
+
+.overcomText.bad {
+    color: #9C1200;
 }
