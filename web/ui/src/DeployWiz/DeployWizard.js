@@ -354,7 +354,7 @@
 
         poolsFactory.update()
             .then(() => {
-                $scope.pools = poolsFactory.poolMap;
+                $scope.pools = poolsFactory.poolList;
             });
     }]);
 })();
