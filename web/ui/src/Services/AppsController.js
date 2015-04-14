@@ -106,7 +106,7 @@
         $scope.createVHostURL = function(vhost) {
             var port = $location.port() === "" ? "" : ":"+$location.port();
             var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
-            return $location.protocol() + "//" + host + port;
+            return $location.protocol() + "://" + host + port;
         };
 
         $scope.modal_removeService = function(service) {
