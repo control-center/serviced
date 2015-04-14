@@ -999,8 +999,13 @@ svcs = json.loads(open(inputFile, 'r').read())
 
 svcs[0]["Description"] = "%s"
 
+wrapper = {
+	"modified": svcs,
+	"cloned": []
+}
+
 f = open(outputFile, 'w')
-f.write(json.dumps(svcs, indent=4, sort_keys=True))
+f.write(json.dumps(wrapper, indent=4, sort_keys=True))
 f.close()
 exit(%d)
 `
@@ -1018,8 +1023,13 @@ svcs = json.loads(open(inputFile, 'r').read())
 
 svcs[0]["PoolID"] = ""
 
+wrapper = {
+	"modified": svcs,
+	"cloned": []
+}
+
 f = open(outputFile, 'w')
-f.write(json.dumps(svcs, indent=4, sort_keys=True))
+f.write(json.dumps(wrapper, indent=4, sort_keys=True))
 f.close()
 `
 }

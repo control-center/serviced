@@ -215,7 +215,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 			return err
 		} else if s != nil {
 			if s.ID != svc.ID {
-				return fmt.Errorf("Duplicate name detected for service %s found at %s", svc.Name, svc.ParentServiceID)
+				return fmt.Errorf("ValidationError: Duplicate name detected for service %s found at %s", svc.Name, svc.ParentServiceID)
 			}
 		}
 
@@ -223,7 +223,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 		for _, ep := range svc.Endpoints {
 			if ep.Purpose == "export" {
 				if _, ok := apps[ep.Application]; ok {
-					return fmt.Errorf("Duplicate Application detected for endpoint %s found for service %s id %s", ep.Name, svc.Name, svc.ID)
+					return fmt.Errorf("ValidationError: Duplicate Application detected for endpoint %s found for service %s id %s", ep.Name, svc.Name, svc.ID)
 				}
 			}
 		}
