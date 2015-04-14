@@ -20,7 +20,6 @@ import (
 	"os"
 	"path"
 	"strconv"
-	"sync"
 	"testing"
 	"time"
 )
