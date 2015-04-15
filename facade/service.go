@@ -188,7 +188,51 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 		}
 	}
 
-	// Validate the cloned services.
+	// Make required mutations to the cloned services.
+	for _, svc := range svcsMap["cloned"] {
+		svc.ID, err = utils.NewUUID36()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		svc.CreatedAt = now
+		svc.UpdatedAt = now
+		for _, ep := range svc.Endpoints {
+			ep.AddressAssignment = addressassignment.AddressAssignment{}
+		}
+	}
+
+	if err = f.validateClonedMigrationServices(ctx, svcsMap["cloned"]); err != nil {
+		return err
+	}
+
+	// If this isn't a dry run, make the changes.
+	if !request.DryRun {
+
+		// Add the cloned services.
+		for _, svc := range svcsMap["cloned"] {
+			if err = f.AddService(ctx, *svc); err != nil {
+				return err
+			}
+		}
+
+		// Migrate the modified services.
+		for _, svc := range svcsMap["modified"] {
+			if err = f.stopServiceForUpdate(ctx, *svc); err != nil {
+				return err
+			}
+			if err = f.migrateService(ctx, svc); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (f *Facade) validateClonedMigrationServices(ctx datastore.Context, clonedSvcs []*service.Service) error {
+
+	// Create a list of all endpoint Application names.
 	existing, err := f.serviceStore.GetServices(ctx)
 	if err != nil {
 		return err
@@ -201,14 +245,9 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 			}
 		}
 	}
-	for _, svc := range svcsMap["cloned"] {
-		svc.ID, err = utils.NewUUID36()
-		if err != nil {
-			return err
-		}
-		now := time.Now()
-		svc.CreatedAt = now
-		svc.UpdatedAt = now
+
+	// Perform the validation.
+	for _, svc := range clonedSvcs {
 
 		// verify the service with name and parent does not collide with another existing service
 		if s, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
@@ -226,36 +265,6 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 					return fmt.Errorf("ValidationError: Duplicate Application detected for endpoint %s found for service %s id %s", ep.Name, svc.Name, svc.ID)
 				}
 			}
-		}
-
-	}
-
-	// If this is a dry run, don't perform the following changes.
-	if request.DryRun {
-		return nil
-	}
-
-	// Migrate the modified services.
-	for _, svc := range svcsMap["modified"] {
-		if err = f.stopServiceForUpdate(ctx, *svc); err != nil {
-			return err
-		}
-		if err = f.migrateService(ctx, svc); err != nil {
-			return err
-		}
-	}
-
-	// Wipe out the cloned service's endpoint AddressAssignment data.
-	for _, svc := range svcsMap["cloned"] {
-		for _, ep := range svc.Endpoints {
-			ep.AddressAssignment = addressassignment.AddressAssignment{}
-		}
-	}
-
-	// Add the cloned services.
-	for _, svc := range svcsMap["cloned"] {
-		if err = f.AddService(ctx, *svc); err != nil {
-			return err
 		}
 	}
 
