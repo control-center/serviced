@@ -176,32 +176,99 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 		}
 	}
 
-	svcs, err = readNewServiceDefinitions(outputFileName)
+	svcsMap, err := readNewServiceDefinitions(outputFileName)
 	if err != nil {
 		return err
 	}
 
-	for _, svc := range svcs {
-		if request.DryRun {
-			err = f.verifyServiceForUpdate(ctx, svc, nil)
-			if err == nil {
-				glog.V(2).Infof("Facade:MigrateService: dry-run of migration script complete for serviceID %+v", svc.ID)
-			}
-		} else {
-			glog.V(2).Infof("Facade.MigrateService: migration script complete, updating serviceID %+v", svc.ID)
-			err := f.stopServiceForUpdate(ctx, *svc)
-			if err != nil {
-				return err
-			}
-			err = f.migrateService(ctx, svc)
-		}
-
-		if err != nil {
-			break
+	// Validate the modified services.
+	for _, svc := range svcsMap["modified"] {
+		if err = f.verifyServiceForUpdate(ctx, svc, nil); err != nil {
+			return err
 		}
 	}
 
-	return err
+	// Make required mutations to the cloned services.
+	for _, svc := range svcsMap["cloned"] {
+		svc.ID, err = utils.NewUUID36()
+		if err != nil {
+			return err
+		}
+		now := time.Now()
+		svc.CreatedAt = now
+		svc.UpdatedAt = now
+		for _, ep := range svc.Endpoints {
+			ep.AddressAssignment = addressassignment.AddressAssignment{}
+		}
+	}
+
+	if err = f.validateClonedMigrationServices(ctx, svcsMap["cloned"]); err != nil {
+		return err
+	}
+
+	// If this isn't a dry run, make the changes.
+	if !request.DryRun {
+
+		// Add the cloned services.
+		for _, svc := range svcsMap["cloned"] {
+			if err = f.AddService(ctx, *svc); err != nil {
+				return err
+			}
+		}
+
+		// Migrate the modified services.
+		for _, svc := range svcsMap["modified"] {
+			if err = f.stopServiceForUpdate(ctx, *svc); err != nil {
+				return err
+			}
+			if err = f.migrateService(ctx, svc); err != nil {
+				return err
+			}
+		}
+	}
+
+	return nil
+}
+
+func (f *Facade) validateClonedMigrationServices(ctx datastore.Context, clonedSvcs []*service.Service) error {
+
+	// Create a list of all endpoint Application names.
+	existing, err := f.serviceStore.GetServices(ctx)
+	if err != nil {
+		return err
+	}
+	apps := map[string]bool{}
+	for _, svc := range existing {
+		for _, ep := range svc.Endpoints {
+			if ep.Purpose == "export" {
+				apps[ep.Application] = true
+			}
+		}
+	}
+
+	// Perform the validation.
+	for _, svc := range clonedSvcs {
+
+		// verify the service with name and parent does not collide with another existing service
+		if s, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
+			return err
+		} else if s != nil {
+			if s.ID != svc.ID {
+				return fmt.Errorf("ValidationError: Duplicate name detected for service %s found at %s", svc.Name, svc.ParentServiceID)
+			}
+		}
+
+		// Make sure no endpoint apps are duplicated.
+		for _, ep := range svc.Endpoints {
+			if ep.Purpose == "export" {
+				if _, ok := apps[ep.Application]; ok {
+					return fmt.Errorf("ValidationError: Duplicate Application detected for endpoint %s found for service %s id %s", ep.Name, svc.Name, svc.ID)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
@@ -1199,7 +1266,7 @@ func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfigura
 }
 
 // Verify that the svc is valid for update.
-// Should be called for all new, updated (edited), and migrated services.
+// Should be called for all updated (edited), and migrated services.
 // This method is only responsible for validation.
 func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Service, oldSvc **service.Service) error {
 	glog.V(2).Infof("Facade:verifyServiceForUpdate: service ID %+v", svc.ID)
@@ -1631,13 +1698,13 @@ func executeMigrationScript(serviceID string, serviceContainer *docker.Container
 	return path.Join(tmpDir, OUTPUT_FILE), nil
 }
 
-func readNewServiceDefinitions(outputFileName string) ([]*service.Service, error) {
+func readNewServiceDefinitions(outputFileName string) (map[string][]*service.Service, error) {
 	newServiceDefinition, err := ioutil.ReadFile(outputFileName)
 	if err != nil {
 		return nil, fmt.Errorf("could not read new service definition: %s", err)
 	}
 
-	svcs := make([]*service.Service, 0, 1)
+	svcs := make(map[string][]*service.Service)
 	err = json.Unmarshal(newServiceDefinition, &svcs)
 	if err != nil {
 		return nil, fmt.Errorf("could not unmarshall new service definition: %s", err)
