@@ -46,7 +46,7 @@ type reconnectingClient struct {
 func (rc *reconnectingClient) connectAndSet() (*rpc.Client, error) {
 	if rc.remoteClient == nil {
 		glog.V(4).Infof("Connecting to %s", rc.addr)
-		conn, err := net.DialTimeout("tcp", rc.addr, time.Duration(dialTimeoutSecs) * time.Second)
+		conn, err := net.DialTimeout("tcp", rc.addr, time.Duration(dialTimeoutSecs)*time.Second)
 		if err != nil {
 			return nil, err
 		}
@@ -61,6 +61,8 @@ func (rc *reconnectingClient) Close() error {
 }
 
 func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+	// WARNING: Printing to stdout/err here can cause issues with zendev, e.g., your service
+	//          template may not deploy. This problem will go away once we move to using exit codes.
 	rc.RLock()
 	rpcClient := rc.remoteClient
 	var err error

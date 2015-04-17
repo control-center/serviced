@@ -36,12 +36,13 @@ func (this *ControlPlaneDao) GetServiceLogs(serviceID string, logs *string) erro
 	}
 
 	serviceState := serviceStates[0]
-	endpoint := fmt.Sprintf("%s:%d", serviceState.HostIP, this.port)
+	endpoint := fmt.Sprintf("%s:%d", serviceState.HostIP, this.rpcPort)
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
 		glog.Errorf("could not create client to %s", endpoint)
 		return err
 	}
+
 	defer agentClient.Close()
 	if mylogs, err := agentClient.GetDockerLogs(serviceState.DockerID); err != nil {
 		glog.Errorf("could not get docker logs from agent client: %s", err)
@@ -59,7 +60,8 @@ func (this *ControlPlaneDao) GetServiceStateLogs(request dao.ServiceStateRequest
 		return err
 	}
 
-	endpoint := fmt.Sprintf("%s:%d", serviceState.HostIP, this.port)
+	endpoint := fmt.Sprintf("%s:%d", serviceState.HostIP, this.rpcPort)
+
 	agentClient, err := agent.NewClient(endpoint)
 	if err != nil {
 		glog.Errorf("could not create client to %s", endpoint)
