@@ -27,16 +27,25 @@ const registryPort = 5000
 
 func init() {
 	var err error
+
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: registryHealthCheck,
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+	}
+	healthChecks := map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
 	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced exec docker-registry`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
-			Name:        "docker-registry",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     func() string { return command },
-			Ports:       []uint16{registryPort},
-			Volumes:     map[string]string{"registry": "/tmp/registry"},
-			HealthCheck: registryHealthCheck,
+			Name:         "docker-registry",
+			Repo:         IMAGE_REPO,
+			Tag:          IMAGE_TAG,
+			Command:      func() string { return command },
+			Ports:        []uint16{registryPort},
+			Volumes:      map[string]string{"registry": "/tmp/registry"},
+			HealthChecks: healthChecks,
 		},
 	)
 	if err != nil {
