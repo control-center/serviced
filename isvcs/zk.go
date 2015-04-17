@@ -27,19 +27,27 @@ import (
 )
 
 var Zookeeper = IServiceDefinition{
-	Name:        "zookeeper",
-	Repo:        IMAGE_REPO,
-	Tag:         IMAGE_TAG,
-	Command:     func() string { return "exec /opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
-	Ports:       []uint16{2181, 12181},
-	Volumes:     map[string]string{"data": "/tmp"},
-	HealthCheck: zkHealthCheck,
+	Name:    "zookeeper",
+	Repo:    IMAGE_REPO,
+	Tag:     IMAGE_TAG,
+	Command: func() string { return "exec /opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
+	Ports:   []uint16{2181, 12181},
+	Volumes: map[string]string{"data": "/tmp"},
 }
 
 var zookeeper *IService
 
 func init() {
 	var err error
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: zkHealthCheck,
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+	}
+
+	Zookeeper.HealthChecks = map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
 	zookeeper, err = NewIService(Zookeeper)
 	if err != nil {
 		glog.Fatalf("Error initializing zookeeper container: %s", err)
