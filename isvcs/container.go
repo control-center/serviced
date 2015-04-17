@@ -377,7 +377,9 @@ func (svc *IService) run() {
 
 				if collecting {
 					haltStats <- struct{}{}
-					haltHealthChecks <- struct{}{}
+					if len(svc.HealthChecks) > 0 {
+						haltHealthChecks <- struct{}{}
+					}
 					collecting = false
 				}
 
@@ -416,7 +418,9 @@ func (svc *IService) run() {
 
 					if collecting {
 						haltStats <- struct{}{}
-						haltHealthChecks <- struct{}{}
+						if len(svc.HealthChecks) > 0 {
+							haltHealthChecks <- struct{}{}
+						}
 						collecting = false
 					}
 
