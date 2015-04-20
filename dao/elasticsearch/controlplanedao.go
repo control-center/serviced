@@ -129,16 +129,11 @@ func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDa
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, rpcPort string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	rpcPortInt, err := strconv.Atoi(rpcPort)
-	if err != nil {
-		return nil, err
-	}
-
-	s, err := NewControlPlaneDao(hostName, port, rpcPortInt)
+	s, err := NewControlPlaneDao(hostName, port, rpcPort)
 	if err != nil {
 		return nil, err
 	}
