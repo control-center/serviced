@@ -21,6 +21,7 @@ package isvcs
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	"github.com/rcrowley/go-metrics"
@@ -84,18 +85,6 @@ type healthCheckDefinition struct {
 	//			Doesn't seem like we need one for current isvcs healthchecks, do we?
 }
 
-//
-// healthCheckStatus is nearly identical health.healthStatus so that eventually
-// we can use the same for both.
-//
-type healthCheckStatus struct {
-	Status    string  // "passed", "failed" or "stopped"
-	Interval  float64 // The interval at which to execute the script.
-	Timestamp int64   // The last time the healthcheck was performed.
-	StartedAt int64   // The time when the service was started.
-	Failure   error   // Contains details of the failure in cases of Status="failed"
-}
-
 type IServiceDefinition struct {
 	Name          string                             // name of the service (used in naming containers)
 	Repo          string                             // the service's docker repository
@@ -115,7 +104,7 @@ type IService struct {
 	exited         <-chan int
 	root           string
 	actions        chan actionrequest
-	healthStatuses map[string]healthCheckStatus
+	healthStatuses map[string]domain.HealthCheckStatus
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
@@ -479,7 +468,7 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 	return true
 }
 
-func (svc *IService) healthcheck(healthStatus *healthCheckStatus, currentTime int64) <-chan error {
+func (svc *IService) healthcheck(healthStatus *domain.HealthCheckStatus, currentTime int64) <-chan error {
 	err := make(chan error, 1)
 	go func() {
 		if len(svc.HealthChecks) > 0 {
@@ -518,7 +507,7 @@ type containerStat struct {
 
 func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 
-	svc.healthStatuses = make(map[string]healthCheckStatus)
+	svc.healthStatuses = make(map[string]domain.HealthCheckStatus)
 	if len(svc.HealthChecks) == 0 {
 		return
 	}
@@ -532,7 +521,7 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 
 	// Create the initial healthcheck result assuming we just use the
 	//		the default healthcheck definition
-	healthStatus := healthCheckStatus{
+	healthStatus := domain.HealthCheckStatus{
 		Status:    "unknown",
 		Interval:  healthCheck.Interval.Seconds(),
 		Timestamp: 0,

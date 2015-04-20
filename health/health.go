@@ -21,26 +21,20 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
 
-type healthStatus struct {
-	Status    string
-	Timestamp int64
-	Interval  float64
-	StartedAt int64
-}
-
 type messagePacket struct {
 	Timestamp int64
-	Statuses  map[string]map[string]map[string]*healthStatus
+	Statuses  map[string]map[string]map[string]*domain.HealthCheckStatus
 }
 
 // Map of ServiceID -> InstanceID -> HealthCheckName -> healthStatus
-var healthStatuses = make(map[string]map[string]map[string]*healthStatus)
+var healthStatuses = make(map[string]map[string]map[string]*domain.HealthCheckStatus)
 
 var cpDao dao.ControlPlane
 var runningServices []dao.RunningService
@@ -48,20 +42,21 @@ var exitChannel = make(chan bool)
 var lock = &sync.RWMutex{}
 
 func init() {
-	foreverHealthy := &healthStatus{
+	foreverHealthy := &domain.HealthCheckStatus{
 		Status:    "passed",
 		Timestamp: time.Now().UTC().Unix(),
 		Interval:  3.156e9, // One century in seconds.
 	}
-	healthStatuses["isvc-internalservices"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-elasticsearch-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-elasticsearch-serviced"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-zookeeper"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-opentsdb"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-logstash"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-celery"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*healthStatus{"0": {"alive": foreverHealthy}}
 
+	// FIXME: These values should be replaced with those maintained in isvcs.IService
+	healthStatuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-elasticsearch-logstash"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-elasticsearch-serviced"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-zookeeper"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-opentsdb"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-logstash"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-celery"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
 }
 
 func getService(serviceID, instanceID string) *dao.RunningService {
@@ -144,12 +139,12 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 	defer lock.Unlock()
 	serviceStatus, ok := healthStatuses[serviceID]
 	if !ok {
-		serviceStatus = make(map[string]map[string]*healthStatus)
+		serviceStatus = make(map[string]map[string]*domain.HealthCheckStatus)
 		healthStatuses[serviceID] = serviceStatus
 	}
 	instanceStatus, ok := serviceStatus[instanceID]
 	if !ok {
-		instanceStatus = make(map[string]*healthStatus)
+		instanceStatus = make(map[string]*domain.HealthCheckStatus)
 		serviceStatus[instanceID] = instanceStatus
 	}
 	if name == "__instance_shutdown" {
@@ -166,7 +161,7 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 		for iname, icheck := range healthChecks {
 			_, ok = instanceStatus[iname]
 			if !ok {
-				instanceStatus[iname] = &healthStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix()}
+				instanceStatus[iname] = &domain.HealthCheckStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix(), nil}
 			}
 		}
 	}
