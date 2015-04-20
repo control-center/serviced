@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strings"
 	"syscall"
 
 	"golang.org/x/crypto/ssh/terminal"
@@ -65,7 +66,8 @@ func findEditor(editor string) (string, error) {
 
 func openEditor(data []byte, name, editor string) (reader io.Reader, err error) {
 	if terminal.IsTerminal(syscall.Stdin) {
-		editor, err := findEditor(editor)
+		ed := strings.Split(editor, " ")
+		editor, err := findEditor(ed[0])
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +83,8 @@ func openEditor(data []byte, name, editor string) (reader io.Reader, err error) 
 			return nil, fmt.Errorf("could not write tempfile: %s", err)
 		}
 
-		e := exec.Command(editor, f.Name())
+		ed = append(ed, f.Name())
+		e := exec.Command(editor, ed[1:]...)
 		e.Stdin = os.Stdin
 		e.Stdout = os.Stdout
 		e.Stderr = os.Stderr
