@@ -46,6 +46,7 @@ var _ dao.ControlPlane = &ControlPlaneDao{}
 type ControlPlaneDao struct {
 	hostName       string
 	port           int
+	rpcPort        int
 	varpath        string
 	fsType         string
 	dfs            *dfs.DistributedFilesystem
@@ -116,7 +117,7 @@ func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) erro
 }
 
 // Create a elastic search control center data access object
-func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
+func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDao, error) {
 	glog.V(0).Infof("Opening ElasticSearch ControlPlane Dao: hostName=%s, port=%d", hostName, port)
 	api.Domain = hostName
 	api.Port = strconv.Itoa(port)
@@ -124,16 +125,17 @@ func NewControlPlaneDao(hostName string, port int) (*ControlPlaneDao, error) {
 	dao := &ControlPlaneDao{
 		hostName: hostName,
 		port:     port,
+		rpcPort:  rpcPort,
 	}
 
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
-	s, err := NewControlPlaneDao(hostName, port)
+	s, err := NewControlPlaneDao(hostName, port, rpcPort)
 	if err != nil {
 		return nil, err
 	}
