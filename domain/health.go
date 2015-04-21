@@ -73,7 +73,7 @@ type HealthCheckStatus struct {
 	Timestamp int64   // The last time the healthcheck was performed.
 	Interval  float64 // The interval at which the healthcheck was run
 	StartedAt int64   // The time when the service was started.
-	Failure   error   // Contains details of the failure in cases of Status="failed"
+	Failure   string  // Contains details of the failure in cases of Status="failed"
 }
 
 func (h *HealthCheckResult) ValidEntity() error {

@@ -43,6 +43,7 @@ func init() {
 	defaultHealthCheck := healthCheckDefinition{
 		healthCheck: elasticsearchHealthCheck(9200),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 	healthChecks := map[string]healthCheckDefinition{
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,

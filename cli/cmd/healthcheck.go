@@ -53,7 +53,7 @@ func (c *ServicedCli) cmdHealthCheck(ctx *cli.Context) error {
 				if status.Status != "passed" {
 					exitStatus = 1
 				}
-				printResult(serviceDescription, status.Name, status.Status)
+				printResult(serviceDescription, status.Name, status.Status, status.Failure)
 			}
 		}
 		return c.exit(exitStatus)
@@ -90,11 +90,22 @@ func getServiceDescription(serviceHealth dao.IServiceHealthResult) string {
 		serviceHealth.ContainerID)
 }
 
-func printResult(serviceDescription, healthCheckName, healthCheckStatus string) {
-	fmt.Printf("%s  %-*.*s %-s\n",
-		serviceDescription,
-		checkNameWidth,
-		checkNameWidth,
-		healthCheckName,
-		healthCheckStatus)
+func printResult(serviceDescription, healthCheckName, healthCheckStatus, failure string) {
+	if failure == "" {
+		fmt.Printf("%s  %-*.*s %-s\n",
+			serviceDescription,
+			checkNameWidth,
+			checkNameWidth,
+			healthCheckName,
+			healthCheckStatus)
+
+	} else {
+		fmt.Printf("%s  %-*.*s %-s - %s\n",
+			serviceDescription,
+			checkNameWidth,
+			checkNameWidth,
+			healthCheckName,
+			healthCheckStatus,
+			failure)
+	}
 }
