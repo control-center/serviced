@@ -14,6 +14,7 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"io"
 	"os"
@@ -60,40 +61,22 @@ func NewEnvironConfigReader(filename, prefix string) (*EnvironConfigReader, erro
 // does not match, then and error will return.
 func (p *EnvironConfigReader) parse(reader io.Reader) error {
 	var (
-		line        []byte
-		err         error
-		isCommented bool = false
-		n           int  = buffersize
+		line string
+		err  error
 	)
 
+	bufReader := bufio.NewReader(reader)
 	for err != io.EOF {
-		buffer := make([]byte, buffersize)
-		n, err = reader.Read(buffer)
+		line, err = bufReader.ReadString('\n')
 		if err != nil && err != io.EOF {
 			return err
 		}
 
-		// Get the lines and strip out the whitespace
-		for _, b := range buffer[:n] {
-			if isCommented = isCommented && b != '\n'; !isCommented {
-				isCommented = b == '#'
-
-				if b == '#' || b == '\n' {
-					if err := keyvalue(line); err != nil {
-						return err
-					}
-					line = make([]byte, 0)
-				} else {
-					line = append(line, b)
-				}
-			}
+		line = strings.TrimSpace(strings.Split(line, "#")[0])
+		if err := keyvalue([]byte(line)); err != nil {
+			return err
 		}
 	}
-
-	if err := keyvalue(line); err != nil {
-		return err
-	}
-
 	return nil
 }
 

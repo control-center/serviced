@@ -48,19 +48,22 @@ func main() {
 }
 
 func getConfigs(args []string) (*cmd.EnvironConfigReader, error) {
-	filename := conffile
-
+	var filename string
 	for i, arg := range args {
 		if strings.HasPrefix(arg, "--config-file") {
 			if idx := strings.IndexByte(arg, '='); idx >= 0 {
 				filename = arg[idx+1:]
 			} else if i+1 < len(args) {
-				filename = args[i+1]
+				if !strings.HasPrefix(args[i+1], "-") {
+					filename = args[i+1]
+				}
 			}
+			filename = strings.Trim(filename, "\"")
 			break
 		}
 	}
-
-	filename = strings.Trim(filename, "\"")
+	if filename = strings.TrimSpace(filename); filename == "" {
+		filename = conffile
+	}
 	return cmd.NewEnvironConfigReader(filename, "SERVICED_")
 }
