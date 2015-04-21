@@ -51,6 +51,9 @@ func init() {
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
+
+	tags := map[string][]string{"isvc": []string{"true"}}
+
 	InternalServicesISVC = Service{
 		Name:         "Internal Services",
 		ID:           "isvc-internalservices",
@@ -75,6 +78,7 @@ func init() {
 					YAxisLabel: "% Used",
 					ReturnSet:  "EXACT",
 					Type:       "area",
+					Tags:       tags,
 					Units:      "Percent",
 					DataPoints: []domain.DataPoint{
 						domain.DataPoint{
@@ -83,7 +87,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -99,7 +103,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -124,6 +128,7 @@ func init() {
 					YAxisLabel: "bytes",
 					ReturnSet:  "EXACT",
 					Type:       "area",
+					Tags:       tags,
 					Units:      "Bytes",
 					Base:       1024,
 					DataPoints: []domain.DataPoint{
@@ -175,8 +180,8 @@ func init() {
 					Name:        "Metrics",
 					Description: "Metrics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
 					},
 				},
@@ -204,7 +209,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -220,7 +225,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -281,8 +286,8 @@ func init() {
 					Name:        "Metrics",
 					Description: "Metrics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 						domain.Metric{ID: "cgroup.memory.totalrss", Name: "Total RSS Memory"},
 					},
 				},
@@ -310,7 +315,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -326,7 +331,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -395,8 +400,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -431,7 +436,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -447,7 +452,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -516,8 +521,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -552,7 +557,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -568,7 +573,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -637,8 +642,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -673,7 +678,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -689,7 +694,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -758,8 +763,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -794,7 +799,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -810,7 +815,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -879,8 +884,8 @@ func init() {
 					Name:        "CPU Usage",
 					Description: "CPU Statistics",
 					Metrics: []domain.Metric{
-						domain.Metric{ID: "CpuacctStat.system", Name: "CPU System"},
-						domain.Metric{ID: "CpuacctStat.user", Name: "CPU User"},
+						domain.Metric{ID: "cgroup.cpuacct.system", Name: "CPU System"},
+						domain.Metric{ID: "cgroup.cpuacct.user", Name: "CPU User"},
 					},
 				},
 				domain.MetricConfig{
@@ -915,7 +920,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (System)",
-							Metric:     "CpuacctStat.system",
+							Metric:     "cgroup.cpuacct.system",
 							Name:       "CPU (System)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{
@@ -931,7 +936,7 @@ func init() {
 							Fill:       false,
 							Format:     "%4.2f",
 							Legend:     "CPU (User)",
-							Metric:     "CpuacctStat.user",
+							Metric:     "cgroup.cpuacct.user",
 							Name:       "CPU (User)",
 							Rate:       true,
 							RateOptions: &domain.DataPointRateOptions{

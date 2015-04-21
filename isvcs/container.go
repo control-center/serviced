@@ -475,8 +475,8 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				glog.Warningf("Could not read CpuacctStat for isvc %s: %s", svc.Name, err)
 				break
 			} else {
-				metrics.GetOrRegisterGauge("CpuacctStat.system", registry).Update(cpuacctStat.System)
-				metrics.GetOrRegisterGauge("CpuacctStat.user", registry).Update(cpuacctStat.User)
+				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", registry).Update(cpuacctStat.System)
+				metrics.GetOrRegisterGauge("cgroup.cpuacct.user", registry).Update(cpuacctStat.User)
 			}
 
 			if memoryStat, err := cgroup.ReadMemoryStat(cgroup.GetCgroupDockerStatsFilePath(ctr.ID, cgroup.Memory)); err != nil {
@@ -490,14 +490,12 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			// Gather the stats
 			stats := []containerStat{}
 			registry.Each(func(name string, i interface{}) {
+				tagmap := make(map[string]string)
+				tagmap["isvc"] = "true"
+				tagmap["isvcname"] = svc.Name
 				if metric, ok := i.(metrics.Gauge); ok {
-					tagmap := make(map[string]string)
-					tagmap["isvcname"] = svc.Name
 					stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
-				}
-				if metricf64, ok := i.(metrics.GaugeFloat64); ok {
-					tagmap := make(map[string]string)
-					tagmap["isvcname"] = svc.Name
+				} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {
 					stats = append(stats, containerStat{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 				}
 			})
