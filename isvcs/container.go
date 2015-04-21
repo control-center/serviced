@@ -39,6 +39,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -104,6 +105,7 @@ type IService struct {
 	exited         <-chan int
 	root           string
 	actions        chan actionrequest
+	lock           *sync.RWMutex
 	healthStatuses map[string]*domain.HealthCheckStatus
 }
 
@@ -116,7 +118,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	svc := IService{sd, nil, "", make(chan actionrequest), nil}
+	svc := IService{sd, nil, "", make(chan actionrequest), &sync.RWMutex{}, nil}
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
 		for name, healthCheckDefinition := range svc.HealthChecks {
@@ -504,8 +506,6 @@ func (svc *IService) healthcheck(currentTime int64) <-chan error {
 		if len(svc.HealthChecks) > 0 {
 			var result error
 			if checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; found {
-
-				// FIXME: do we need a read/write lock on the svc to update the status?
 				result := svc.runCheckOrTimeout(checkDefinition)
 				svc.setHealthStatus(result, currentTime)
 			} else {
@@ -581,6 +581,9 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 		return
 	}
 
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
+
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
 		if result == nil {
 			healthStatus.Status = "passed"
@@ -602,6 +605,9 @@ func (svc *IService) setStoppedHealthStatus(stopResult error) {
 	if len(svc.healthStatuses) == 0 {
 		return
 	}
+
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
 
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
 		if stopResult == nil {

@@ -143,6 +143,9 @@ func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error)
 		return dao.IServiceHealthResult{}, err
 	}
 
+	svc.lock.RLock()
+	defer svc.lock.RUnlock()
+
 	result.ContainerName = svc.name()
 	result.ContainerID = ctr.ID
 	for _, value := range svc.healthStatuses {
