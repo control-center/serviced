@@ -17,100 +17,39 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"strconv"
-	"strings"
 	"syscall"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
-	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 )
+
+const defaultRPCPort = 4979
 
 // ServicedCli is the client ui for serviced
 type ServicedCli struct {
 	driver       api.API
 	app          *cli.App
+	config       ConfigReader
 	exitDisabled bool
 }
 
-const envPrefix = "SERVICED_"
-
-func configEnv(key string, defaultVal string) string {
-	s := os.Getenv(envPrefix + key)
-
-	if len(s) == 0 {
-		return defaultVal
-	}
-	return s
-}
-func configInt(key string, defaultVal int) int {
-	s := configEnv(key, "")
-	if len(s) == 0 {
-		return defaultVal
-	}
-	v, err := strconv.Atoi(s)
-	if err != nil {
-		return defaultVal
-	}
-	return v
-}
-func configBool(key string, defaultVal bool) bool {
-	s := configEnv(key, "")
-	if len(s) == 0 {
-		return defaultVal
-	}
-
-	trues := []string{"1", "true", "t", "yes"}
-	if v := strings.ToLower(s); v != "" {
-		for _, t := range trues {
-			if v == t {
-				return true
-			}
-		}
-	}
-
-	falses := []string{"0", "false", "f", "no"}
-	if v := strings.ToLower(s); v != "" {
-		for _, t := range falses {
-			if v == t {
-				return false
-			}
-		}
-	}
-
-	return defaultVal
-}
-
-const defaultRPCPort = 4979
-
-func getLocalAgentEndpoint(port int) string {
-	ip := configEnv("OUTBOUND_IP", "")
-	if ip != "" {
-		return fmt.Sprintf("%s:%d", ip, port)
-	} else {
-		return api.GetAgentIP(port)
-	}
-}
-
 // New instantiates a new command-line client
-func New(driver api.API) *ServicedCli {
-	var (
-		rpcPort          = configInt("RPC_PORT", defaultRPCPort)
-		agentEndpoint    = getLocalAgentEndpoint(rpcPort)
-		varPath          = api.GetVarPath()
-		esStartupTimeout = api.GetESStartupTimeout()
-		dockerDNS        = cli.StringSlice(api.GetDockerDNS())
-	)
+func New(driver api.API, config ConfigReader) *ServicedCli {
+	if config == nil {
+		panic("Missing configuration data!")
+	}
+	defaultOps := getDefaultOptions(config)
+	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	c := &ServicedCli{
 		driver: driver,
 		app:    cli.NewApp(),
+		config: config,
 	}
 
 	c.app.Name = "serviced"
@@ -118,101 +57,58 @@ func New(driver api.API) *ServicedCli {
 	c.app.Version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
 	c.app.EnableBashCompletion = true
 	c.app.Before = c.cmdInit
-	staticIps := cli.StringSlice{}
-	if len(configEnv("STATIC_IPS", "")) > 0 {
-		staticIps = cli.StringSlice(strings.Split(configEnv("STATIC_IPS", ""), ","))
-	}
-
-	defaultDockerRegistry := docker.DEFAULT_REGISTRY
-	if hostname, err := os.Hostname(); err == nil {
-		defaultDockerRegistry = fmt.Sprintf("%s:5000", hostname)
-	}
-
-	zks := cli.StringSlice{}
-	if len(configEnv("ZK", "")) > 0 {
-		zks = cli.StringSlice(strings.Split(configEnv("ZK", ""), ","))
-	}
-
-	isvcs_env := cli.StringSlice{}
-	if env := configEnv("ISVCS_ENV", ""); len(env) != 0 {
-		isvcs_env = append(isvcs_env, env)
-	}
-	for i := 0; ; i++ {
-		if env := configEnv(fmt.Sprintf("ISVCS_ENV_%d", i), ""); len(env) != 0 {
-			isvcs_env = append(isvcs_env, env)
-		} else {
-			break
-		}
-	}
-
-	/* TODO: 1.1
-	remotezks := cli.StringSlice{}
-	if len(configEnv("REMOTE_ZK", "")) > 0 {
-		zks = cli.StringSlice(strings.Split(configEnv("REMOTE_ZK", ""), ","))
-	}
-	*/
-
-	aliases := cli.StringSlice{}
-	if len(configEnv("VHOST_ALIASES", "")) > 0 {
-		aliases = cli.StringSlice(strings.Split(configEnv("VHOST_ALIASES", ""), ","))
-	}
-
-	defaultAdminGroup := "sudo"
-	if utils.Platform == utils.Rhel {
-		defaultAdminGroup = "wheel"
-	}
-
 	c.app.Flags = []cli.Flag{
-		cli.StringFlag{"docker-registry", configEnv("DOCKER_REGISTRY", defaultDockerRegistry), "local docker registry to use"},
-		cli.StringSliceFlag{"static-ip", &staticIps, "static ips for this agent to advertise"},
-		cli.StringFlag{"endpoint", configEnv("ENDPOINT", agentEndpoint), fmt.Sprintf("endpoint for remote serviced (example.com:%d)", defaultRPCPort)},
-		cli.StringFlag{"outbound", configEnv("OUTBOUND_IP", ""), "outbound ip address"},
-		cli.StringFlag{"uiport", configEnv("UI_PORT", ":443"), "port for ui"},
-		cli.StringFlag{"nfs-client", configEnv("NFS_CLIENT", "1"), "establish agent as an nfs client sharing data, 0 to disable"},
-		cli.IntFlag{"listen", rpcPort, fmt.Sprintf("rpc port for serviced (%d)", defaultRPCPort)},
-		cli.StringSliceFlag{"docker-dns", &dockerDNS, "docker dns configuration used for running containers"},
+		cli.StringFlag{"docker-registry", defaultOps.DockerRegistry, "local docker registry to use"},
+		cli.StringSliceFlag{"static-ip", convertToStringSlice(defaultOps.StaticIPs), "static ips for this agent to advertise"},
+		cli.StringFlag{"endpoint", defaultOps.Endpoint, fmt.Sprintf("endpoint for remote serviced (example.com:%d)", defaultRPCPort)},
+		cli.StringFlag{"outbound", defaultOps.OutboundIP, "outbound ip address"},
+		cli.StringFlag{"uiport", defaultOps.UIPort, "port for ui"},
+		cli.StringFlag{"nfs-client", defaultOps.NFSClient, "establish agent as an nfs client sharing data, 0 to disable"},
+		cli.IntFlag{"listen", config.IntVal("RPC_PORT", defaultRPCPort), fmt.Sprintf("rpc port for serviced (%d)", defaultRPCPort)},
+		cli.StringSliceFlag{"docker-dns", convertToStringSlice(defaultOps.DockerDNS), "docker dns configuration used for running containers"},
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
-		cli.IntFlag{"mux", configInt("MUX_PORT", 22250), "multiplexing port"},
-		cli.StringFlag{"var", configEnv("VARPATH", varPath), "path to store serviced data"},
-		cli.StringFlag{"keyfile", configEnv("KEY_FILE", ""), "path to private key file (defaults to compiled in private key)"},
-		cli.StringFlag{"certfile", configEnv("CERT_FILE", ""), "path to public certificate file (defaults to compiled in public cert)"},
-		cli.StringSliceFlag{"zk", &zks, "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
+		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
+		cli.StringFlag{"var", defaultOps.VarPath, "path to store serviced data"},
+		cli.StringFlag{"keyfile", defaultOps.KeyPEMFile, "path to private key file (defaults to compiled in private key)"},
+		cli.StringFlag{"certfile", defaultOps.CertPEMFile, "path to public certificate file (defaults to compiled in public cert)"},
+		cli.StringSliceFlag{"zk", convertToStringSlice(defaultOps.Zookeepers), "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
 		// TODO: 1.1
 		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
-		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
-		cli.StringFlag{"fstype", configEnv("FS_TYPE", "rsync"), "driver for underlying file system"},
-		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
-		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
-		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
-		cli.IntFlag{"max-dfs-timeout", configInt("MAX_DFS_TIMEOUT", 60*5), "max timeout to perform a dfs snapshot"},
-		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
-		cli.StringFlag{"master-pool-id", configEnv("MASTER_POOLID", "default"), "master's pool ID"},
-		cli.StringFlag{"admin-group", configEnv("ADMIN_GROUP", defaultAdminGroup), "system group that can log in to control center"},
+		cli.StringSliceFlag{"mount", convertToStringSlice(defaultOps.Mount), "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
+		cli.StringFlag{"fstype", defaultOps.FSType, "driver for underlying file system"},
+		cli.StringSliceFlag{"alias", convertToStringSlice(defaultOps.HostAliases), "list of aliases for this host, e.g., localhost"},
+		cli.IntFlag{"es-startup-timeout", defaultOps.ESStartupTimeout, "time to wait on elasticsearch startup before bailing"},
+		cli.IntFlag{"max-container-age", defaultOps.MaxContainerAge, "maximum age (seconds) of a stopped container before removing"},
+		cli.IntFlag{"max-dfs-timeout", defaultOps.MaxDFSTimeout, "max timeout to perform a dfs snapshot"},
+		cli.StringFlag{"virtual-address-subnet", defaultOps.VirtualAddressSubnet, "/16 subnet for virtual addresses"},
+		cli.StringFlag{"master-pool-id", defaultOps.MasterPoolID, "master's pool ID"},
+		cli.StringFlag{"admin-group", defaultOps.AdminGroup, "system group that can log in to control center"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
-		cli.StringFlag{"host-stats", configEnv("STATS_PORT", "127.0.0.1:8443"), "container statistics for host:port"},
-		cli.IntFlag{"stats-period", configInt("STATS_PERIOD", 10), "Period (seconds) for container statistics reporting"},
-		cli.StringFlag{"mc-username", "scott", "Username for Zenoss metric consumer"},
-		cli.StringFlag{"mc-password", "tiger", "Password for the Zenoss metric consumer"},
-		cli.StringFlag{"cpuprofile", "", "write cpu profile to file"},
-		cli.StringSliceFlag{"isvcs-env", &isvcs_env, "internal-service environment variable: ISVC:KEY=VAL"},
-		cli.IntFlag{"debug-port", configInt("DEBUG_PORT", 6006), "Port on which to listen for profiler connections"},
-		cli.IntFlag{"max-rpc-clients", configInt("MAX_RPC_CLIENTS", 3), "max number of rpc clients to an endpoint"},
-		cli.IntFlag{"rpc-dial-timeout", configInt("RPC_DIAL_TIMEOUT", 30), "timeout for creating rpc connections"},
-		cli.IntFlag{"snapshot-ttl", configInt("SNAPSHOT_TTL", 12), "snapshot TTL in hours, 0 to disable"},
+		cli.StringFlag{"host-stats", defaultOps.HostStats, "container statistics for host:port"},
+		cli.IntFlag{"stats-period", defaultOps.StatsPeriod, "Period (seconds) for container statistics reporting"},
+		cli.StringFlag{"mc-username", defaultOps.MCUsername, "Username for Zenoss metric consumer"},
+		cli.StringFlag{"mc-password", defaultOps.MCPasswd, "Password for the Zenoss metric consumer"},
+		cli.StringFlag{"cpuprofile", defaultOps.CPUProfile, "write cpu profile to file"},
+		cli.StringSliceFlag{"isvcs-env", convertToStringSlice(config.StringSlice("ISVCS_ENV", []string{})), "internal-service environment variable: ISVC:KEY=VAL"},
+		cli.IntFlag{"debug-port", defaultOps.DebugPort, "Port on which to listen for profiler connections"},
+		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
+		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
+		cli.IntFlag{"snapshot-ttl", defaultOps.SnapshotTTL, "snapshot TTL in hours, 0 to disable"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 		cli.BoolFlag{"alsologtostderr", "log to standard error as well as files"},
-		cli.StringFlag{"logstashurl", configEnv("LOG_ADDRESS", "127.0.0.1:5042"), "logstash url and port"},
-		cli.StringFlag{"logstash-es", configEnv("LOGSTASH_ES", "127.0.0.1:9100"), "host and port for logstash elastic search"},
-		cli.IntFlag{"logstash-max-days", configInt("LOGSTASH_MAX_DAYS", 14), "days to keep Logstash data"},
-		cli.IntFlag{"logstash-max-size", configInt("LOGSTASH_MAX_SIZE", 10), "max size of Logstash data to keep in gigabytes"},
-		cli.IntFlag{"v", configInt("LOG_LEVEL", 0), "log level for V logs"},
+		cli.StringFlag{"logstashurl", config.StringVal("LOG_ADDRESS", fmt.Sprintf("%s:5042", masterIP)), "logstash url and port"},
+		cli.StringFlag{"logstash-es", defaultOps.LogstashES, "host and port for logstash elastic search"},
+		cli.IntFlag{"logstash-max-days", defaultOps.LogstashMaxDays, "days to keep Logstash data"},
+		cli.IntFlag{"logstash-max-size", defaultOps.LogstashMaxSize, "max size of Logstash data to keep in gigabytes"},
+		cli.IntFlag{"v", defaultOps.Verbosity, "log level for V logs"},
 		cli.StringFlag{"stderrthreshold", "", "logs at or above this threshold go to stderr"},
 		cli.StringFlag{"vmodule", "", "comma-separated list of pattern=N settings for file-filtered logging"},
 		cli.StringFlag{"log_backtrace_at", "", "when logging hits line file:N, emit a stack trace"},
+		cli.StringFlag{"config-file", "/etc/default/serviced", "path to config"},
 	}
 
 	c.initVersion()
@@ -232,8 +128,7 @@ func New(driver api.API) *ServicedCli {
 
 // Run builds the command-line interface for serviced and runs.
 func (c *ServicedCli) Run(args []string) {
-	err := c.app.Run(args)
-	if err != nil {
+	if err := c.app.Run(args); err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 	}
 }

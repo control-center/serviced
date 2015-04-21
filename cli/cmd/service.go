@@ -51,7 +51,7 @@ func (c *ServicedCli) initService() {
 		}
 	}
 
-	rpcPort := configInt("RPC_PORT", defaultRPCPort)
+	rpcPort := c.config.IntVal("RPC_PORT", defaultRPCPort)
 
 	c.app.Commands = append(c.app.Commands, cli.Command{
 		Name:        "service",
@@ -177,7 +177,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
 					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
-					cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
+					cli.StringFlag{"virtual-address-subnet", c.config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 				},
 			}, {
 				Name:         "shell",
@@ -428,12 +428,12 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 }
 
 // cmdSetTreeCharset sets the default behavior for --ASCII, SERVICED_TREE_ASCII, and stdout pipe
-func cmdSetTreeCharset(ctx *cli.Context) {
+func cmdSetTreeCharset(ctx *cli.Context, config ConfigReader) {
 	if ctx.Bool("ascii") {
 		treeCharset = treeASCII
 	} else if !utils.Isatty(os.Stdout) {
 		treeCharset = treeSPACE
-	} else if configBool("TREE_ASCII", false) {
+	} else if config.BoolVal("TREE_ASCII", false) {
 		treeCharset = treeASCII
 	}
 }
@@ -464,7 +464,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 		}
 	}
 
-	cmdSetTreeCharset(ctx)
+	cmdSetTreeCharset(ctx, c.config)
 
 	t := NewTable(ctx.String("show-fields"))
 	childmap := make(map[string][]string)
@@ -544,7 +544,7 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		}
 	} else if ctx.String("format") == "" {
 
-		cmdSetTreeCharset(ctx)
+		cmdSetTreeCharset(ctx, c.config)
 
 		servicemap := api.NewServiceMap(services)
 		t := NewTable(ctx.String("show-fields"))

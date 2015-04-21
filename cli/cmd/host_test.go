@@ -70,7 +70,7 @@ type HostAPITest struct {
 }
 
 func InitHostAPITest(args ...string) {
-	New(DefaultHostAPITest).Run(args)
+	New(DefaultHostAPITest, TestConfigReader(make(map[string]string))).Run(args)
 }
 
 func (t HostAPITest) GetHosts() ([]host.Host, error) {

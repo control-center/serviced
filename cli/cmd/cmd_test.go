@@ -66,7 +66,7 @@ type APITest struct {
 }
 
 func InitAPITest(args ...string) {
-	New(DefaultAPITest).Run(args)
+	New(DefaultAPITest, TestConfigReader(map[string]string{})).Run(args)
 }
 
 func (t APITest) StartServer() error {

@@ -97,7 +97,7 @@ type ServiceAPITest struct {
 }
 
 func InitServiceAPITest(args ...string) {
-	c := New(DefaultServiceAPITest)
+	c := New(DefaultServiceAPITest, TestConfigReader(make(map[string]string)))
 	c.exitDisabled = true
 	c.Run(args)
 }
