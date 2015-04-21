@@ -29,7 +29,7 @@ var DefaultHealthStatus = domain.HealthCheckStatus{
 	Timestamp: 0,
 	Interval:  0,
 	StartedAt: 0,
-	Failure:   nil,
+	Failure:   "",
 }
 
 var FailedHealthStatus = domain.HealthCheckStatus{
@@ -38,7 +38,7 @@ var FailedHealthStatus = domain.HealthCheckStatus{
 	Timestamp: 0,
 	Interval:  0,
 	StartedAt: 0,
-	Failure:   nil,
+	Failure:   "something went wrong",
 }
 
 var StoppedHealthStatus = domain.HealthCheckStatus{
@@ -47,7 +47,7 @@ var StoppedHealthStatus = domain.HealthCheckStatus{
 	Timestamp: 0,
 	Interval:  0,
 	StartedAt: 0,
-	Failure:   nil,
+	Failure:   "",
 }
 
 var UnknownHealthStatus = domain.HealthCheckStatus{
@@ -56,7 +56,7 @@ var UnknownHealthStatus = domain.HealthCheckStatus{
 	Timestamp: 0,
 	Interval:  0,
 	StartedAt: 0,
-	Failure:   nil,
+	Failure:   "",
 }
 
 var DefaultTestHealthCheckResults = []dao.IServiceHealthResult{
@@ -152,7 +152,7 @@ func ExampleServicedCLI_CmdHealthCheck_failedStatus() {
 
 	// Output:
 	// Service Name            Container Name                         Container ID  Health Check  Status
-	// test-iservice-failed    container-failed                       id-failed     running       failed
+	// test-iservice-failed    container-failed                       id-failed     running       failed - something went wrong
 	// exit code 1
 }
 

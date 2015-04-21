@@ -42,6 +42,7 @@ func init() {
 	defaultHealthCheck := healthCheckDefinition{
 		healthCheck: zkHealthCheck,
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
 
 	Zookeeper.HealthChecks = map[string]healthCheckDefinition{

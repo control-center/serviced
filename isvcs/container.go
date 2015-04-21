@@ -70,8 +70,9 @@ const (
 
 const DEFAULT_HEALTHCHECK_NAME = "running"
 
-// FIXME: What should the default interval be?
-const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(1) * time.Minute
+// FIXME: What should the default interval and timeout be?
+const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
+const DEFAULT_HEALTHCHECK_TIMEOUT = time.Duration(10) * time.Second
 
 type actionrequest struct {
 	action   action
@@ -81,6 +82,7 @@ type actionrequest struct {
 type healthCheckDefinition struct {
 	healthCheck func() error  // A function to verify the service is healthy
 	Interval    time.Duration // The interval at which to execute the script.
+	Timeout     time.Duration // A timeout in which to complete the health check.
 }
 
 type IServiceDefinition struct {
@@ -296,7 +298,7 @@ func (svc *IService) attach() (*docker.Container, error) {
 func (svc *IService) start() (<-chan int, error) {
 	ctr, err := svc.attach()
 	if err != nil {
-		svc.setStoppedhealthStatus(fmt.Errorf("could not start service: %s", err))
+		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}
 
@@ -306,7 +308,7 @@ func (svc *IService) start() (<-chan int, error) {
 
 	// start the container
 	if err := ctr.Start(10 * time.Second); err != nil && err != docker.ErrAlreadyStarted {
-		svc.setStoppedhealthStatus(fmt.Errorf("could not start service: %s", err))
+		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}
 
@@ -318,7 +320,7 @@ func (svc *IService) start() (<-chan int, error) {
 			return nil, err
 		}
 	case rc := <-notify:
-		svc.setStoppedhealthStatus(ExitError(rc))
+		svc.setStoppedHealthStatus(ExitError(rc))
 		return nil, ExitError(rc)
 	}
 
@@ -328,17 +330,17 @@ func (svc *IService) start() (<-chan int, error) {
 func (svc *IService) stop() error {
 	ctr, err := docker.FindContainer(svc.name())
 	if err == docker.ErrNoSuchContainer {
-		svc.setStoppedhealthStatus(nil)
+		svc.setStoppedHealthStatus(nil)
 		return nil
 	} else if err != nil {
 		glog.Errorf("Could not get isvc container %s", svc.Name)
-		svc.setStoppedhealthStatus(err)
+		svc.setStoppedHealthStatus(err)
 		return err
 	}
 
 	glog.Warningf("Stopping isvc container %s", svc.name())
 	err = ctr.Stop(45 * time.Second)
-	svc.setStoppedhealthStatus(err)
+	svc.setStoppedHealthStatus(err)
 	return err
 }
 
@@ -502,36 +504,37 @@ func (svc *IService) healthcheck(currentTime int64) <-chan error {
 		if len(svc.HealthChecks) > 0 {
 			var result error
 			if checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; found {
-				glog.Infof("Running healthcheck function %q for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
 
 				// FIXME: do we need a read/write lock on the svc to update the status?
-				healthStatus := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]
-				result = checkDefinition.healthCheck()
-				if result == nil {
-					healthStatus.Status = "passed"
-				} else {
-					healthStatus.Status = "failed"
-				}
-				healthStatus.Failure = result
-				healthStatus.Timestamp = currentTime
-				if healthStatus.StartedAt == 0 {
-					healthStatus.StartedAt = currentTime
-				}
+				result := svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(result, currentTime)
 			} else {
 				glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
 			}
 			err <- result
 		} else {
-			healthStatus := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]
-			healthStatus.Status = "passed"
-			healthStatus.Timestamp = currentTime
-			if healthStatus.StartedAt == 0 {
-				healthStatus.StartedAt = currentTime
-			}
+			svc.setHealthStatus(nil, currentTime)
 			err <- nil
 		}
 	}()
 	return err
+}
+
+func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {
+	finished := make(chan error, 1)
+	go func() {
+		finished <- checkDefinition.healthCheck()
+	}()
+
+	var result error
+	select {
+	case err := <-finished:
+		result = err
+	case <-time.After(checkDefinition.Timeout):
+		glog.Errorf("healthcheck timed out for %s", svc.name())
+		result = fmt.Errorf("healthcheck timed out")
+	}
+	return result
 }
 
 type containerStat struct {
@@ -555,6 +558,7 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	}
 
 	timer := time.Tick(healthCheck.Interval)
+	healthCheckRunning := false
 	for {
 		select {
 		case <-halt:
@@ -562,7 +566,14 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			return
 
 		case currentTime := <-timer:
+			if healthCheckRunning {
+				glog.Warning("Healthcheck %q for isvc %s still running", DEFAULT_HEALTHCHECK_NAME, svc.name())
+				return
+			}
+
+			healthCheckRunning = true
 			err := <-svc.healthcheck(currentTime.Unix())
+			healthCheckRunning = false
 			if err != nil {
 				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.name(), err)
 				svc.stop()
@@ -641,7 +652,29 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	}
 }
 
-func (svc *IService) setStoppedhealthStatus(stopResult error) {
+func (svc *IService) setHealthStatus(result error, currentTime int64) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		if result == nil {
+			healthStatus.Status = "passed"
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Status = "failed"
+			healthStatus.Failure = result.Error()
+		}
+		healthStatus.Timestamp = currentTime
+		if healthStatus.StartedAt == 0 {
+			healthStatus.StartedAt = currentTime
+		}
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
+}
+
+func (svc *IService) setStoppedHealthStatus(stopResult error) {
 	if len(svc.healthStatuses) == 0 {
 		return
 	}
@@ -649,10 +682,11 @@ func (svc *IService) setStoppedhealthStatus(stopResult error) {
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
 		if stopResult == nil {
 			healthStatus.Status = "stopped"
+			healthStatus.Failure = ""
 		} else {
 			healthStatus.Status = "failed"
+			healthStatus.Failure = stopResult.Error()
 		}
-		healthStatus.Failure = stopResult
 		healthStatus.Timestamp = time.Now().Unix()
 		healthStatus.StartedAt = 0
 	} else {
