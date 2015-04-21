@@ -14,12 +14,16 @@
 package main
 
 import (
+	"fmt"
 	"os"
+	"strings"
 
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/cli/cmd"
 	"github.com/control-center/serviced/servicedversion"
 )
+
+const conffile = "/etc/default/serviced"
 
 var Version string
 var Date string
@@ -35,5 +39,31 @@ func main() {
 	servicedversion.Gitbranch = Gitbranch
 	servicedversion.Giturl = Giturl
 	servicedversion.Buildtag = Buildtag
-	cmd.New(api.New()).Run(os.Args)
+
+	config, err := getConfigs(os.Args)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "WARNING: could read default configs: %s\n", err)
+	}
+	cmd.New(api.New(), config).Run(os.Args)
+}
+
+func getConfigs(args []string) (*cmd.EnvironConfigReader, error) {
+	var filename string
+	for i, arg := range args {
+		if strings.HasPrefix(arg, "--config-file") {
+			if idx := strings.IndexByte(arg, '='); idx >= 0 {
+				filename = arg[idx+1:]
+			} else if i+1 < len(args) {
+				if !strings.HasPrefix(args[i+1], "-") {
+					filename = args[i+1]
+				}
+			}
+			filename = strings.Trim(filename, "\"")
+			break
+		}
+	}
+	if filename = strings.TrimSpace(filename); filename == "" {
+		filename = conffile
+	}
+	return cmd.NewEnvironConfigReader(filename, "SERVICED_")
 }

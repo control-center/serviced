@@ -77,7 +77,7 @@ type PoolAPITest struct {
 }
 
 func InitPoolAPITest(args ...string) {
-	New(DefaultPoolAPITest).Run(args)
+	New(DefaultPoolAPITest, TestConfigReader(make(map[string]string))).Run(args)
 }
 
 func (t PoolAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
