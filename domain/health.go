@@ -68,6 +68,7 @@ type HealthCheckResult struct {
 // running a health check. This type is shared by both internal servcies and
 // regular services.
 type HealthCheckStatus struct {
+	Name      string  // the name of the healthcheck
 	Status    string  // "passed", "failed",  "stopped", etc
 	Timestamp int64   // The last time the healthcheck was performed.
 	Interval  float64 // The interval at which the healthcheck was run

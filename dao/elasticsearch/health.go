@@ -14,11 +14,29 @@
 package elasticsearch
 
 import (
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/health"
+	"github.com/control-center/serviced/isvcs"
 )
 
 func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	health.RegisterHealthCheck(result.ServiceID, result.InstanceID, result.Name, result.Passed, this.facade)
+	return nil
+}
+
+func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
+	healthStatuses := make([]dao.IServiceHealthResult, len(IServiceNames))
+
+	for i, name := range IServiceNames {
+		status, err := isvcs.Mgr.GetHealthStatus(name)
+		if err != nil {
+			return err
+		}
+
+		healthStatuses[i] = status
+	}
+
+	*results = healthStatuses
 	return nil
 }
