@@ -537,13 +537,6 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	return result
 }
 
-type containerStat struct {
-	Metric    string            `json:"metric"`
-	Value     string            `json:"value"`
-	Timestamp int64             `json:"timestamp"`
-	Tags      map[string]string `json:"tags"`
-}
-
 func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 
 	if len(svc.HealthChecks) == 0 {
@@ -581,6 +574,55 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			}
 		}
 	}
+}
+
+func (svc *IService) setHealthStatus(result error, currentTime int64) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		if result == nil {
+			healthStatus.Status = "passed"
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Status = "failed"
+			healthStatus.Failure = result.Error()
+		}
+		healthStatus.Timestamp = currentTime
+		if healthStatus.StartedAt == 0 {
+			healthStatus.StartedAt = currentTime
+		}
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
+}
+
+func (svc *IService) setStoppedHealthStatus(stopResult error) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		if stopResult == nil {
+			healthStatus.Status = "stopped"
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Status = "failed"
+			healthStatus.Failure = stopResult.Error()
+		}
+		healthStatus.Timestamp = time.Now().Unix()
+		healthStatus.StartedAt = 0
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
+}
+
+type containerStat struct {
+	Metric    string            `json:"metric"`
+	Value     string            `json:"value"`
+	Timestamp int64             `json:"timestamp"`
+	Tags      map[string]string `json:"tags"`
 }
 
 func (svc *IService) stats(halt <-chan struct{}) {
@@ -651,47 +693,5 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				break
 			}
 		}
-	}
-}
-
-func (svc *IService) setHealthStatus(result error, currentTime int64) {
-	if len(svc.healthStatuses) == 0 {
-		return
-	}
-
-	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
-		if result == nil {
-			healthStatus.Status = "passed"
-			healthStatus.Failure = ""
-		} else {
-			healthStatus.Status = "failed"
-			healthStatus.Failure = result.Error()
-		}
-		healthStatus.Timestamp = currentTime
-		if healthStatus.StartedAt == 0 {
-			healthStatus.StartedAt = currentTime
-		}
-	} else {
-		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
-	}
-}
-
-func (svc *IService) setStoppedHealthStatus(stopResult error) {
-	if len(svc.healthStatuses) == 0 {
-		return
-	}
-
-	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
-		if stopResult == nil {
-			healthStatus.Status = "stopped"
-			healthStatus.Failure = ""
-		} else {
-			healthStatus.Status = "failed"
-			healthStatus.Failure = stopResult.Error()
-		}
-		healthStatus.Timestamp = time.Now().Unix()
-		healthStatus.StartedAt = 0
-	} else {
-		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
 	}
 }
