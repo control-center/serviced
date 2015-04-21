@@ -143,3 +143,10 @@ func (s SnapshotInfo) String() string {
 		return s.SnapshotID + " " + s.Description
 	}
 }
+
+type IServiceHealthResult struct {
+	ServiceName    string
+	ContainerName  string
+	ContainerID    string
+	HealthStatuses []domain.HealthCheckStatus
+}

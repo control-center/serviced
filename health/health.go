@@ -161,7 +161,7 @@ func RegisterHealthCheck(serviceID string, instanceID string, name string, passe
 		for iname, icheck := range healthChecks {
 			_, ok = instanceStatus[iname]
 			if !ok {
-				instanceStatus[iname] = &domain.HealthCheckStatus{"unknown", 0, icheck.Interval.Seconds(), time.Now().Unix(), nil}
+				instanceStatus[iname] = &domain.HealthCheckStatus{name, "unknown", 0, icheck.Interval.Seconds(), time.Now().Unix(), nil}
 			}
 		}
 	}
