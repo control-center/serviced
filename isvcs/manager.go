@@ -23,6 +23,8 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
@@ -30,6 +32,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 )
 
@@ -116,6 +119,50 @@ func (m *Manager) SetConfigurationOption(name, key string, value interface{}) er
 	glog.Infof("setting %s, %s: %s", name, key, value)
 	svc.Configuration[key] = value
 	return nil
+}
+
+// Returns a list of iservice names in sorted order
+func (m *Manager) GetServiceNames() []string {
+	names := make([]string, 0, len(m.services))
+	for name := range m.services {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error) {
+	result := dao.IServiceHealthResult{
+		ServiceName:    name,
+		ContainerName:  "",
+		ContainerID:    "",
+		HealthStatuses: make([]domain.HealthCheckStatus, 0),
+	}
+
+	svc, found := m.services[name]
+	if !found {
+		glog.Errorf("Internal service %q not found", name)
+		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
+	}
+
+	// FIXME: Does it make sense to exit with a failure when the container is
+	//        not found, or should we return an instance of IServiceHealthResult
+	//        with HealthStatuses["running"] == a-failed-instance?
+	ctr, err := docker.FindContainer(svc.name())
+	if err != nil {
+		glog.Errorf("Could not find container for isvc %s: %s", svc.Name, err)
+		return dao.IServiceHealthResult{}, err
+	}
+
+	svc.lock.RLock()
+	defer svc.lock.RUnlock()
+
+	result.ContainerName = svc.name()
+	result.ContainerID = ctr.ID
+	for _, value := range svc.healthStatuses {
+		result.HealthStatuses = append(result.HealthStatuses, *value)
+	}
+	return result, nil
 }
 
 // checks for the existence of all the container images

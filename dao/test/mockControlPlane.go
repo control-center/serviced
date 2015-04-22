@@ -379,3 +379,7 @@ func (mcp *MockControlPlane) GetServiceMemoryStats(req dao.MetricRequest, stats 
 func (mcp *MockControlPlane) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
 	return mcp.Mock.Called(req, stats).Error(0)
 }
+
+func (mcp *MockControlPlane) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
+	return mcp.Mock.Called(IServiceNames, results).Error(0)
+}
