@@ -551,7 +551,6 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	}
 
 	timer := time.Tick(healthCheck.Interval)
-	healthCheckRunning := false
 	for {
 		select {
 		case <-halt:
@@ -559,14 +558,7 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			return
 
 		case currentTime := <-timer:
-			if healthCheckRunning {
-				glog.Warning("Healthcheck %q for isvc %s still running", DEFAULT_HEALTHCHECK_NAME, svc.name())
-				return
-			}
-
-			healthCheckRunning = true
 			err := <-svc.healthcheck(currentTime.Unix())
-			healthCheckRunning = false
 			if err != nil {
 				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.name(), err)
 				svc.stop()
