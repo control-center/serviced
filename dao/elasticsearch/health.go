@@ -26,8 +26,11 @@ func (this *ControlPlaneDao) LogHealthCheck(result domain.HealthCheckResult, unu
 }
 
 func (this *ControlPlaneDao) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
-	healthStatuses := make([]dao.IServiceHealthResult, len(IServiceNames))
+	if len(IServiceNames) == 0 {
+		IServiceNames = isvcs.Mgr.GetServiceNames()
+	}
 
+	healthStatuses := make([]dao.IServiceHealthResult, len(IServiceNames))
 	for i, name := range IServiceNames {
 		status, err := isvcs.Mgr.GetHealthStatus(name)
 		if err != nil {

@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 )
 
@@ -118,6 +119,16 @@ func (m *Manager) SetConfigurationOption(name, key string, value interface{}) er
 	glog.Infof("setting %s, %s: %s", name, key, value)
 	svc.Configuration[key] = value
 	return nil
+}
+
+// Returns a list of iservice names in sorted order
+func (m *Manager) GetServiceNames() []string {
+	names := make([]string, 0, len(m.services))
+	for name := range m.services {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
 }
 
 func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error) {
