@@ -150,7 +150,7 @@ func elasticsearchHealthCheck(port int) func() error {
 			}
 			time.Sleep(time.Millisecond * 1000)
 		}
-		glog.Infof("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
+		glog.V(2).Infof("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
 		return nil
 	}
 }
