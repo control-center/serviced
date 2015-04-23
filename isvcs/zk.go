@@ -45,13 +45,22 @@ var Zookeeper = IServiceDefinition{
 	Command:      func() string { return "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
 	PortBindings: []portBinding{zookeeperPortBinding, exhibitorPortBinding},
 	Volumes:      map[string]string{"data": "/tmp"},
-	HealthCheck:  zkHealthCheck,
 }
 
 var zookeeper *IService
 
 func init() {
 	var err error
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: zkHealthCheck,
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+
+	Zookeeper.HealthChecks = map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
 	zookeeper, err = NewIService(Zookeeper)
 	if err != nil {
 		glog.Fatal("Error initializing zookeeper container: %s", err)
@@ -84,6 +93,6 @@ func zkHealthCheck() error {
 		}
 		time.Sleep(time.Millisecond * 1000)
 	}
-	glog.Info("zookeeper container started, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
+	glog.V(2).Info("zookeeper container started, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
 	return nil
 }

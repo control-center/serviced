@@ -32,7 +32,17 @@ func init() {
 		HostIpOverride: "", // docker registry should always be open
 		HostPort:       registryPort,
 	}
-	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`
+
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: registryHealthCheck,
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+	healthChecks := map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
+	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced exec docker-registry`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
 			Name:         "docker-registry",
@@ -41,7 +51,7 @@ func init() {
 			Command:      func() string { return command },
 			PortBindings: []portBinding{dockerPortBinding},
 			Volumes:      map[string]string{"registry": "/tmp/registry"},
-			HealthCheck:  registryHealthCheck,
+			HealthChecks: healthChecks,
 		},
 	)
 	if err != nil {

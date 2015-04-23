@@ -46,6 +46,15 @@ func init() {
 		HostPort:       9200,
 	}
 
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: elasticsearchHealthCheck(9200),
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+	healthChecks := map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
 			Name:          serviceName,
@@ -55,7 +64,8 @@ func init() {
 			PortBindings:  []portBinding{elasticsearch_servicedPortBinding},
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
 			Configuration: make(map[string]interface{}),
-			HealthCheck:   elasticsearchHealthCheck(9200),
+			HealthChecks:  healthChecks,
+			HostNetwork:   true,
 		},
 	)
 	if err != nil {
@@ -70,11 +80,16 @@ func init() {
 	}
 
 	serviceName = "elasticsearch-logstash"
-
 	elasticsearch_logstashPortBinding := portBinding{
 		HostIp:         "127.0.0.1",
 		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
 		HostPort:       9100,
+	}
+
+	logStashHealthCheck := defaultHealthCheck
+	logStashHealthCheck.healthCheck = elasticsearchHealthCheck(9100)
+	healthChecks = map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
 	}
 
 	elasticsearch_logstash, err = NewIService(
@@ -86,7 +101,7 @@ func init() {
 			PortBindings:  []portBinding{elasticsearch_logstashPortBinding},
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
 			Configuration: make(map[string]interface{}),
-			HealthCheck:   elasticsearchHealthCheck(9100),
+			HealthChecks:  healthChecks,
 		},
 	)
 	if err != nil {
@@ -148,7 +163,7 @@ func elasticsearchHealthCheck(port int) func() error {
 			}
 			time.Sleep(time.Millisecond * 1000)
 		}
-		glog.Infof("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
+		glog.V(2).Infof("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
 		return nil
 	}
 }

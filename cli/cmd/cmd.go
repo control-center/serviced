@@ -217,6 +217,7 @@ func New(driver api.API) *ServicedCli {
 
 	c.initVersion()
 	c.initPool()
+	c.initHealthCheck()
 	c.initHost()
 	c.initTemplate()
 	c.initService()
