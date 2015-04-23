@@ -77,6 +77,19 @@ func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest,
 	return nil
 }
 
+func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]service.Service) error {
+	if svcs, err := this.facade.GetServiceList(datastore.Get(), serviceID); err != nil {
+		return err
+	} else {
+		var out []service.Service
+		for _, svc := range svcs {
+			out = append(out, *svc)
+		}
+		*services = out
+		return nil
+	}
+}
+
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
 	if err := this.facade.RemoveService(datastore.Get(), id); err != nil {

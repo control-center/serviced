@@ -235,6 +235,16 @@ func getIRS() []dao.RunningService {
 	return services
 }
 
+func restGetServicesForMigration(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	serviceID := r.URL.Query().Get("serviceID")
+	services := []service.Service{}
+	if err := client.GetServiceList(serviceID, &services); err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		restServerError(w, err)
+	}
+	w.WriteJson(&services)
+}
+
 func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	tenantID := r.URL.Query().Get("tenantID")
 	if tags := r.URL.Query().Get("tags"); tags != "" {

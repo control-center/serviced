@@ -101,6 +101,10 @@ func (s *ControlClient) MigrateService(request dao.ServiceMigrationRequest, unus
 	return s.rpcClient.Call("ControlPlane.MigrateService", request, unused)
 }
 
+func (s *ControlClient) GetServiceList(serviceID string, services *[]service.Service) (err error) {
+	return s.rpcClient.Call("ControlPlane.GetServiceList", serviceID, services)
+}
+
 func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused)
 }

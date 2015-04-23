@@ -134,7 +134,7 @@ func (f *Facade) MigrateService(ctx datastore.Context, request dao.ServiceMigrat
 		return err
 	}
 
-	svcs, err2 := f.getServiceList(ctx, svc.ID)
+	svcs, err2 := f.GetServiceList(ctx, svc.ID)
 	if err2 != nil {
 		return err2
 	}
@@ -1465,7 +1465,7 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *ser
 	return nil
 }
 
-func (f *Facade) getServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
+func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
 	svcs := make([]*service.Service, 0, 1)
 
 	err := f.walkServices(ctx, serviceID, true, func(childService *service.Service) error {
