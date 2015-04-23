@@ -55,19 +55,15 @@ func init() {
 }
 
 func registryHealthCheck() error {
-
-	start := time.Now()
-	timeout := time.Second * 30
 	url := fmt.Sprintf("http://localhost:%d/", registryPort)
 	for {
 		if _, err := http.Get(url); err == nil {
 			break
 		} else {
-			if time.Since(start) > timeout {
-				return fmt.Errorf("could not startup docker-registry container")
-			}
+			glog.V(1).Infof("Still trying to connect to docker registry at %s: %v", url, err)
 		}
 		time.Sleep(time.Second)
 	}
+	glog.V(1).Infof("docker registry running, browser at %s", url)
 	return nil
 }
