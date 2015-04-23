@@ -90,7 +90,8 @@ func (t *Table) DedentRow() {
 	t.treeIndent = append(t.treeIndent, -1)
 }
 func (t *Table) Print() {
-	if len(t.Fields) == 0 {
+	colCount := len(t.Fields)
+	if colCount == 0 {
 		return
 	}
 	// compute the padding
@@ -98,7 +99,7 @@ func (t *Table) Print() {
 	// compute the first column width and output
 	col0width, col0rows := t.getIndents(t.Fields[0])
 	// display the headers
-	for i, field := range t.Fields {
+	for i, field := range t.Fields[:colCount-1] {
 		var fieldSize int
 		if i > 0 {
 			if width := len(field); t.fieldSize[field] < width {
@@ -113,17 +114,18 @@ func (t *Table) Print() {
 		}
 		fmt.Printf("%-"+fmt.Sprintf("%d", fieldSize)+"s"+padding, field)
 	}
-	fmt.Println()
+	fmt.Printf("%-s\n", t.Fields[colCount-1])
+
 	// display the rows
 	for i, row := range t.rows {
-		for j, field := range t.Fields {
+		for j, field := range t.Fields[:colCount-1] {
 			if j > 0 {
 				fmt.Printf("%-"+fmt.Sprintf("%d", t.fieldSize[field])+"s"+padding, row[field])
 			} else {
 				fmt.Printf("%-"+fmt.Sprintf("%d", col0width)+"s"+padding, col0rows[i])
 			}
 		}
-		fmt.Println()
+		fmt.Printf("%-s\n", row[t.Fields[colCount-1]])
 	}
 }
 func (t *Table) getIndents(field string) (int, []string) {

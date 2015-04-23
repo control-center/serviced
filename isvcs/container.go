@@ -21,6 +21,7 @@ package isvcs
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	"github.com/rcrowley/go-metrics"
@@ -38,6 +39,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -60,7 +62,7 @@ var (
 type ExitError int
 
 func (err ExitError) Error() string {
-	return fmt.Sprintf("isvc: service receieved exit code %d", int(err))
+	return fmt.Sprintf("isvc: service received exit code %d", int(err))
 }
 
 type action int
@@ -71,9 +73,21 @@ const (
 	restart
 )
 
+const DEFAULT_HEALTHCHECK_NAME = "running"
+
+// FIXME: What should the default interval and timeout be?
+const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
+const DEFAULT_HEALTHCHECK_TIMEOUT = time.Duration(10) * time.Second
+
 type actionrequest struct {
 	action   action
 	response chan error
+}
+
+type healthCheckDefinition struct {
+	healthCheck func() error  // A function to verify the service is healthy
+	Interval    time.Duration // The interval at which to execute the script.
+	Timeout     time.Duration // A timeout in which to complete the health check.
 }
 
 type IServiceDefinition struct {
@@ -83,7 +97,7 @@ type IServiceDefinition struct {
 	Command       func() string                      // the command to run in the container
 	Volumes       map[string]string                  // volumes to bind mount to the container
 	Ports         []uint16                           // ports to expose to the host
-	HealthCheck   func() error                       // A function to verify the service is healthy
+	HealthChecks  map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
 	Configuration map[string]interface{}             // service specific configuration
 	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
 	PostStart     func(*IService) error              // A function to run after the initial start of the service
@@ -92,9 +106,11 @@ type IServiceDefinition struct {
 
 type IService struct {
 	IServiceDefinition
-	exited  <-chan int
-	root    string
-	actions chan actionrequest
+	exited         <-chan int
+	root           string
+	actions        chan actionrequest
+	lock           *sync.RWMutex
+	healthStatuses map[string]*domain.HealthCheckStatus
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
@@ -106,7 +122,30 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	svc := IService{sd, nil, "", make(chan actionrequest)}
+	svc := IService{sd, nil, "", make(chan actionrequest), &sync.RWMutex{}, nil}
+	if len(svc.HealthChecks) > 0 {
+		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
+		for name, healthCheckDefinition := range svc.HealthChecks {
+			svc.healthStatuses[name] = &domain.HealthCheckStatus{
+				Name:      name,
+				Status:    "unknown",
+				Interval:  healthCheckDefinition.Interval.Seconds(),
+				Timestamp: 0,
+				StartedAt: 0,
+			}
+		}
+	} else {
+		name := DEFAULT_HEALTHCHECK_NAME
+		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, 1)
+		svc.healthStatuses[name] = &domain.HealthCheckStatus{
+			Name:      name,
+			Status:    "unknown",
+			Interval:  0,
+			Timestamp: 0,
+			StartedAt: 0,
+		}
+	}
+
 	envPerService[sd.Name] = make(map[string]string)
 	go svc.run()
 
@@ -265,6 +304,7 @@ func (svc *IService) attach() (*docker.Container, error) {
 func (svc *IService) start() (<-chan int, error) {
 	ctr, err := svc.attach()
 	if err != nil {
+		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}
 
@@ -274,17 +314,19 @@ func (svc *IService) start() (<-chan int, error) {
 
 	// start the container
 	if err := ctr.Start(10 * time.Second); err != nil && err != docker.ErrAlreadyStarted {
+		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}
 
-	// perform healthcheck
+	// perform an initial healthcheck to verify that the service started succeessfully
 	select {
-	case err := <-svc.healthcheck():
+	case err := <-svc.healthcheck(0):
 		if err != nil {
 			svc.stop()
 			return nil, err
 		}
 	case rc := <-notify:
+		svc.setStoppedHealthStatus(ExitError(rc))
 		return nil, ExitError(rc)
 	}
 
@@ -294,12 +336,18 @@ func (svc *IService) start() (<-chan int, error) {
 func (svc *IService) stop() error {
 	ctr, err := docker.FindContainer(svc.name())
 	if err == docker.ErrNoSuchContainer {
+		svc.setStoppedHealthStatus(nil)
 		return nil
 	} else if err != nil {
+		glog.Errorf("Could not get isvc container %s", svc.Name)
+		svc.setStoppedHealthStatus(err)
 		return err
 	}
 
-	return ctr.Stop(45 * time.Second)
+	glog.Warningf("Stopping isvc container %s", svc.name())
+	err = ctr.Stop(45 * time.Second)
+	svc.setStoppedHealthStatus(err)
+	return err
 }
 
 func (svc *IService) remove(notify chan<- int) {
@@ -339,6 +387,7 @@ func (svc *IService) run() {
 	var err error
 	var collecting bool
 	haltStats := make(chan struct{})
+	haltHealthChecks := make(chan struct{})
 
 	for {
 		select {
@@ -353,6 +402,9 @@ func (svc *IService) run() {
 
 				if collecting {
 					haltStats <- struct{}{}
+					if len(svc.HealthChecks) > 0 {
+						haltHealthChecks <- struct{}{}
+					}
 					collecting = false
 				}
 
@@ -362,7 +414,7 @@ func (svc *IService) run() {
 				}
 
 				if rc := <-svc.exited; rc != 0 {
-					glog.Warningf("isvc %s receieved exit code %d", svc.Name, rc)
+					glog.Warningf("isvc %s received exit code %d", svc.Name, rc)
 				}
 				svc.exited = nil
 				req.response <- nil
@@ -380,12 +432,23 @@ func (svc *IService) run() {
 
 				if !collecting {
 					go svc.stats(haltStats)
+					go svc.doHealthChecks(haltHealthChecks)
 					collecting = true
 				}
+
 				req.response <- nil
 			case restart:
 				glog.Infof("Restarting isvc %s", svc.Name)
 				if svc.exited != nil {
+
+					if collecting {
+						haltStats <- struct{}{}
+						if len(svc.HealthChecks) > 0 {
+							haltHealthChecks <- struct{}{}
+						}
+						collecting = false
+					}
+
 					if err := svc.stop(); err != nil {
 						req.response <- err
 						continue
@@ -399,7 +462,7 @@ func (svc *IService) run() {
 				req.response <- nil
 			}
 		case rc := <-svc.exited:
-			glog.Errorf("isvc %s unexpectedly receieved exit code %d", svc.Name, rc)
+			glog.Errorf("isvc %s unexpectedly received exit code %d", svc.Name, rc)
 			if svc.exited, err = svc.start(); err != nil {
 				glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
 			}
@@ -441,16 +504,120 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 	return true
 }
 
-func (svc *IService) healthcheck() <-chan error {
+func (svc *IService) healthcheck(currentTime int64) <-chan error {
 	err := make(chan error, 1)
 	go func() {
-		if svc.HealthCheck != nil {
-			err <- svc.HealthCheck()
+		if len(svc.HealthChecks) > 0 {
+			var result error
+			if checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; found {
+				result := svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(result, currentTime)
+			} else {
+				glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+			}
+			err <- result
 		} else {
+			svc.setHealthStatus(nil, currentTime)
 			err <- nil
 		}
 	}()
 	return err
+}
+
+func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {
+	finished := make(chan error, 1)
+	go func() {
+		finished <- checkDefinition.healthCheck()
+	}()
+
+	var result error
+	select {
+	case err := <-finished:
+		result = err
+	case <-time.After(checkDefinition.Timeout):
+		glog.Errorf("healthcheck timed out for %s", svc.name())
+		result = fmt.Errorf("healthcheck timed out")
+	}
+	return result
+}
+
+func (svc *IService) doHealthChecks(halt <-chan struct{}) {
+
+	if len(svc.HealthChecks) == 0 {
+		return
+	}
+
+	var found bool
+	var healthCheck healthCheckDefinition
+	if healthCheck, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
+		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.name())
+		return
+	}
+
+	timer := time.Tick(healthCheck.Interval)
+	for {
+		select {
+		case <-halt:
+			glog.Infof("Stopped healthchecks for %s", svc.name())
+			return
+
+		case currentTime := <-timer:
+			err := <-svc.healthcheck(currentTime.Unix())
+			if err != nil {
+				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.name(), err)
+				svc.stop()
+				return
+			}
+		}
+	}
+}
+
+func (svc *IService) setHealthStatus(result error, currentTime int64) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		if result == nil {
+			healthStatus.Status = "passed"
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Status = "failed"
+			healthStatus.Failure = result.Error()
+		}
+		healthStatus.Timestamp = currentTime
+		if healthStatus.StartedAt == 0 {
+			healthStatus.StartedAt = currentTime
+		}
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
+}
+
+func (svc *IService) setStoppedHealthStatus(stopResult error) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		if stopResult == nil {
+			healthStatus.Status = "stopped"
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Status = "failed"
+			healthStatus.Failure = stopResult.Error()
+		}
+		healthStatus.Timestamp = time.Now().Unix()
+		healthStatus.StartedAt = 0
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
 }
 
 type containerStat struct {
@@ -467,6 +634,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	for {
 		select {
 		case <-halt:
+			glog.Infof("stop collecting stats for %s", svc.name())
 			return
 		case t := <-tc:
 			ctr, err := docker.FindContainer(svc.name())
@@ -509,6 +677,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				glog.Warningf("Error marshalling isvc stats json.")
 				break
 			}
+
 			req, err := http.NewRequest("POST", "http://127.0.0.1:4242/api/put", bytes.NewBuffer(data))
 			if err != nil {
 				glog.Warningf("Error creating isvc stats request.")
