@@ -41,11 +41,15 @@ import (
 	"time"
 )
 
-var (
-	isvcsVolumes = map[string]string{
-		utils.ResourcesDir(): "/usr/local/serviced/resources",
+var isvcsVolumes map[string]string
+
+func loadvolumes() {
+	if isvcsVolumes == nil {
+		isvcsVolumes = map[string]string{
+			utils.ResourcesDir(): "/usr/local/serviced/resources",
+		}
 	}
-)
+}
 
 var (
 	ErrNotRunning       = errors.New("isvc: not running")

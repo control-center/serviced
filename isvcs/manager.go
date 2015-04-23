@@ -83,6 +83,8 @@ type Manager struct {
 
 // Returns a new Manager struct and starts the Manager's main loop()
 func NewManager(imagesDir, volumesDir string) *Manager {
+	loadvolumes()
+
 	manager := &Manager{
 		imagesDir:  imagesDir,
 		volumesDir: volumesDir,
