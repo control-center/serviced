@@ -18,7 +18,6 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
-	"github.com/control-center/serviced/dao"
 )
 
 const (
@@ -45,67 +44,39 @@ func (c *ServicedCli) cmdHealthCheck(ctx *cli.Context) error {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(2)
 	} else {
-		printHeader()
+
 		exitStatus := 0
+		t := NewTable("Service Name,Container Name,Container ID,Health Check,Status")
+		t.Padding = 2
 		for _, serviceHealth := range results {
-			serviceDescription := getServiceDescription(serviceHealth)
 			for _, status := range serviceHealth.HealthStatuses {
 				if status.Status != "passed" {
 					exitStatus = 1
 				}
-				printResult(serviceDescription, status.Name, status.Status, status.Failure)
+				t.AddRow(map[string]interface{}{
+					"Service Name":   serviceHealth.ServiceName,
+					"Container Name": serviceHealth.ContainerName,
+					"Container ID":   serviceHealth.ContainerID[:min(12, len(serviceHealth.ContainerID))],
+					"Health Check":   status.Name,
+					"Status":         getCombinedStatus(status.Status, status.Failure),
+				})
 			}
 		}
+		t.Print()
 		return c.exit(exitStatus)
 	}
 }
 
-func printHeader() {
-	fmt.Printf("%-*.*s %-*.*s %-*.*s  %-*.*s %-s\n",
-		serviceNameWidth,
-		serviceNameWidth,
-		"Service Name",
-		containerNameWidth,
-		containerNameWidth,
-		"Container Name",
-		containerIDWidth,
-		containerIDWidth,
-		"Container ID",
-		checkNameWidth,
-		checkNameWidth,
-		"Health Check",
-		"Status")
-}
-
-func getServiceDescription(serviceHealth dao.IServiceHealthResult) string {
-	return fmt.Sprintf("%-*.*s %-*.*s %-*.*s",
-		serviceNameWidth,
-		serviceNameWidth,
-		serviceHealth.ServiceName,
-		containerNameWidth,
-		containerNameWidth,
-		serviceHealth.ContainerName,
-		containerIDWidth,
-		containerIDWidth,
-		serviceHealth.ContainerID)
-}
-
-func printResult(serviceDescription, healthCheckName, healthCheckStatus, failure string) {
-	if failure == "" {
-		fmt.Printf("%s  %-*.*s %-s\n",
-			serviceDescription,
-			checkNameWidth,
-			checkNameWidth,
-			healthCheckName,
-			healthCheckStatus)
-
-	} else {
-		fmt.Printf("%s  %-*.*s %-s - %s\n",
-			serviceDescription,
-			checkNameWidth,
-			checkNameWidth,
-			healthCheckName,
-			healthCheckStatus,
-			failure)
+func min(a, b int) int {
+	if a < b {
+		return a
 	}
+	return b
+}
+
+func getCombinedStatus(status, failure string) string {
+	if failure == "" {
+		return status
+	}
+	return fmt.Sprintf("%s - %s", status, failure)
 }

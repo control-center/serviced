@@ -126,17 +126,17 @@ func ExampleServicedCLI_CmdHealthCheck_oneService() {
 	InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-1")
 
 	// Output:
-	// Service Name            Container Name                         Container ID  Health Check  Status
-	// test-iservice-1         container-1                            id1           running       passed
+	// Service Name     Container Name  Container ID  Health Check  Status
+	// test-iservice-1  container-1     id1           running       passed
 }
 
 func ExampleServicedCLI_CmdHealthCheck_twoServices() {
 	InitHealthCheckAPITest("serviced", "healthcheck", "test-iservice-1", "test-iservice-2")
 
 	// Output:
-	// Service Name            Container Name                         Container ID  Health Check  Status
-	// test-iservice-1         container-1                            id1           running       passed
-	// test-iservice-2         container-2                            id2           running       passed
+	// Service Name     Container Name  Container ID  Health Check  Status
+	// test-iservice-1  container-1     id1           running       passed
+	// test-iservice-2  container-2     id2           running       passed
 }
 
 func ExampleServicedCLI_CmdHealthCheck_undefinedService() {
@@ -151,8 +151,8 @@ func ExampleServicedCLI_CmdHealthCheck_failedStatus() {
 	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-failed")
 
 	// Output:
-	// Service Name            Container Name                         Container ID  Health Check  Status
-	// test-iservice-failed    container-failed                       id-failed     running       failed - something went wrong
+	// Service Name          Container Name    Container ID  Health Check  Status
+	// test-iservice-failed  container-failed  id-failed     running       failed - something went wrong
 	// exit code 1
 }
 
@@ -160,8 +160,8 @@ func ExampleServicedCLI_CmdHealthCheck_stoppedStatus() {
 	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-stopped")
 
 	// Output:
-	// Service Name            Container Name                         Container ID  Health Check  Status
-	// test-iservice-stopped   container-stopped                      id-stopped    running       stopped
+	// Service Name           Container Name     Container ID  Health Check  Status
+	// test-iservice-stopped  container-stopped  id-stopped    running       stopped
 	// exit code 1
 }
 
@@ -169,7 +169,7 @@ func ExampleServicedCLI_CmdHealthCheck_unknownStatus() {
 	pipeStderr(InitHealthCheckAPITest, "serviced", "healthcheck", "test-iservice-unknown")
 
 	// Output:
-	// Service Name            Container Name                         Container ID  Health Check  Status
-	// test-iservice-unknown   container-unknown                      id-unknown    running       unknown
+	// Service Name           Container Name     Container ID  Health Check  Status
+	// test-iservice-unknown  container-unknown  id-unknown    running       unknown
 	// exit code 1
 }
