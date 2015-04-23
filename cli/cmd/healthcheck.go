@@ -20,12 +20,6 @@ import (
 	"github.com/codegangsta/cli"
 )
 
-const (
-	serviceNameWidth   = 23
-	containerNameWidth = 38
-	containerIDWidth   = 12
-	checkNameWidth     = 13
-)
 
 // Initializer for serviced healthcheck subcommands
 func (c *ServicedCli) initHealthCheck() {
@@ -39,6 +33,9 @@ func (c *ServicedCli) initHealthCheck() {
 
 // serviced healthcheck list [ISERVICENAME]
 func (c *ServicedCli) cmdHealthCheck(ctx *cli.Context) error {
+	if ctx.Bool("help") {
+		return nil
+	}
 
 	if results, err := c.driver.ServicedHealthCheck(ctx.Args()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
