@@ -22,7 +22,6 @@ import (
 	"github.com/control-center/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 
-	"fmt"
 	"time"
 )
 
@@ -69,11 +68,8 @@ func init() {
 
 // a health check for zookeeper
 func zkHealthCheck() error {
-
-	start := time.Now()
 	lastError := time.Now()
 	minUptime := time.Second * 2
-	timeout := time.Second * 30
 	zookeepers := []string{"127.0.0.1:2181"}
 
 	for {
@@ -88,11 +84,8 @@ func zkHealthCheck() error {
 		if time.Since(lastError) > minUptime {
 			break
 		}
-		if time.Since(start) > timeout {
-			return fmt.Errorf("Zookeeper did not respond.")
-		}
 		time.Sleep(time.Millisecond * 1000)
 	}
-	glog.V(2).Info("zookeeper container started, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
+	glog.V(1).Info("zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
 	return nil
 }
