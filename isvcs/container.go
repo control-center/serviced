@@ -322,6 +322,7 @@ func (svc *IService) start() (<-chan int, error) {
 	select {
 	case err := <-svc.healthcheck(0):
 		if err != nil {
+			glog.Errorf("initial healthcheck for %s failed: %s", svc.Name, err)
 			svc.stop()
 			return nil, err
 		}
@@ -414,7 +415,8 @@ func (svc *IService) run() {
 				}
 
 				if rc := <-svc.exited; rc != 0 {
-					glog.Warningf("isvc %s received exit code %d", svc.Name, rc)
+					svc.setStoppedHealthStatus(ExitError(rc))
+					glog.Errorf("isvc %s received exit code %d", svc.Name, rc)
 				}
 				svc.exited = nil
 				req.response <- nil
@@ -459,9 +461,16 @@ func (svc *IService) run() {
 					req.response <- err
 					continue
 				}
+
+				if !collecting {
+					go svc.stats(haltStats)
+					go svc.doHealthChecks(haltHealthChecks)
+					collecting = true
+				}
 				req.response <- nil
 			}
 		case rc := <-svc.exited:
+			svc.setStoppedHealthStatus(ExitError(rc))
 			glog.Errorf("isvc %s unexpectedly received exit code %d", svc.Name, rc)
 			if svc.exited, err = svc.start(); err != nil {
 				glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
