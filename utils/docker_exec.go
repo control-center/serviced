@@ -35,7 +35,10 @@ func ExecDockerExec(containerID string, bashcmd []string) error {
 
 // RunDockerExec runs the command using docker exec
 func RunDockerExec(containerID string, bashcmd []string) ([]byte, error) {
+	oldStdin := os.Stdin
+	os.Stdin = nil // temporary stdin=nil https://github.com/docker/docker/pull/9537
 	command, err := generateDockerExecCommand(containerID, bashcmd, true)
+	os.Stdin = oldStdin
 	if err != nil {
 		return nil, err
 	}
@@ -62,8 +65,11 @@ func generateDockerExecCommand(containerID string, bashcmd []string, prependBash
 
 	// TODO: add '-h' hostname to specify the container hostname when that
 	// feature becomes available
-	attachCmd := []string{exeMap["docker"], "exec", "-t"}
+	attachCmd := []string{exeMap["docker"], "exec"}
 
+	if Isatty(os.Stdin) {
+		attachCmd = append(attachCmd, "-t")
+	}
 	if Isatty(os.Stdout) && Isatty(os.Stdin) {
 		attachCmd = append(attachCmd, "-i")
 	}
