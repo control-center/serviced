@@ -19,15 +19,13 @@
 package isvcs
 
 import (
-	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/elastigo/cluster"
 	"github.com/zenoss/glog"
 
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net/http"
-	"os"
-	"path"
-	"strconv"
 	"time"
 )
 
@@ -105,54 +103,60 @@ func init() {
 	}
 }
 
-// getEnvVarInt() returns the env var as an int value or the defaultValue if env var is unset
-func getEnvVarInt(envVar string, defaultValue int) int {
-	envVarValue := os.Getenv(envVar)
-	if len(envVarValue) > 0 {
-		if value, err := strconv.Atoi(envVarValue); err != nil {
-			glog.Errorf("Could not convert env var %s:%s to integer, error:%s", envVar, envVarValue, err)
-			return defaultValue
-		} else {
-			return value
-		}
-	}
-	return defaultValue
-}
-
 // elasticsearchHealthCheck() determines if elasticsearch is healthy
 func elasticsearchHealthCheck(port int) func() error {
 	return func() error {
-		start := time.Now()
 		lastError := time.Now()
 		minUptime := time.Second * 2
-		timeout := time.Second * time.Duration(getEnvVarInt("ES_STARTUP_TIMEOUT", 600))
 		baseUrl := fmt.Sprintf("http://localhost:%d", port)
 
-		schemaFile := path.Join(utils.ResourcesDir(), "controlplane.json")
-
 		for {
-			if healthResponse, err := cluster.Health(true); err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
-				if buffer, err := os.Open(schemaFile); err != nil {
-					glog.Fatalf("problem reading %s", err)
-					return err
-				} else {
-					http.Post(baseUrl+"/controlplane", "application/json", buffer)
-				}
+			healthResponse, err := getElasticHealth(baseUrl)
+			if err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
+				break
 			} else {
 				lastError = time.Now()
-				glog.V(2).Infof("Still trying to connect to elasticsearch container: %v: %s", err, healthResponse)
+				glog.Infof("Still trying to connect to elasticsearch at %s: %v: %s", baseUrl, err, healthResponse.Status)
+				glog.V(1).Infof("Still trying to connect to elasticsearch at %s: %v: %s", baseUrl, err, healthResponse.Status)
 			}
+
 			if time.Since(lastError) > minUptime {
 				break
 			}
-			if time.Since(start) > timeout {
-				return fmt.Errorf("Could not startup elasticsearch container.  waited timeout:%v", timeout)
-			}
 			time.Sleep(time.Millisecond * 1000)
 		}
-		glog.V(2).Infof("elasticsearch container started, browser at %s/_plugin/head/", baseUrl)
+		glog.V(1).Infof("elasticsearch running browser at %s/_plugin/head/", baseUrl)
 		return nil
 	}
+}
+
+func getElasticHealth(baseUrl string) (cluster.ClusterHealthResponse, error) {
+	healthUrl := fmt.Sprintf("%s/_cluster/health?pretty=true", baseUrl)
+	healthResponse := cluster.ClusterHealthResponse{}
+	healthResponse.Status = "unknown"
+	response, err := http.Get(healthUrl)
+	if err != nil {
+		return healthResponse, err
+	}
+
+	defer response.Body.Close()
+	if response.StatusCode != 200 {
+		err = fmt.Errorf("Failed to HTTP GET for %s, return code = %d", healthUrl, response.StatusCode)
+		return healthResponse, err
+	}
+
+	body, readErr := ioutil.ReadAll(response.Body)
+	if readErr != nil {
+		err = fmt.Errorf("Failed to read HTTP response from %s: %s", healthUrl, readErr)
+		return healthResponse, err
+	}
+
+	jsonErr := json.Unmarshal(body, &healthResponse)
+	if jsonErr != nil {
+		err = fmt.Errorf("Failed to unmarshall response to healthcheck from %s: %s", healthUrl, jsonErr)
+	}
+
+	return healthResponse, err
 }
 
 func PurgeLogstashIndices(days int, gb int) error {
