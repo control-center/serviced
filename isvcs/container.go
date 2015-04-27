@@ -86,7 +86,7 @@ type actionrequest struct {
 }
 
 // HealthCheckFunction- A function to verify the service is healthy
-type HealthCheckFunction func() error
+type HealthCheckFunction func(halt <-chan struct{}) error
 
 type healthCheckDefinition struct {
 	healthCheck HealthCheckFunction
@@ -559,8 +559,10 @@ func (svc *IService) startupHealthcheck() <-chan error {
 
 func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {
 	finished := make(chan error, 1)
+	halt := make(chan struct{}, 1)
+
 	go func() {
-		finished <- checkDefinition.healthCheck()
+		finished <- checkDefinition.healthCheck(halt)
 	}()
 
 	var result error
@@ -570,6 +572,7 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	case <-time.After(checkDefinition.Timeout):
 		glog.Errorf("healthcheck timed out for %s", svc.name())
 		result = fmt.Errorf("healthcheck timed out")
+		halt <- struct{}{}
 	}
 	return result
 }

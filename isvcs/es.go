@@ -104,8 +104,8 @@ func init() {
 }
 
 // elasticsearchHealthCheck() determines if elasticsearch is healthy
-func elasticsearchHealthCheck(port int) func() error {
-	return func() error {
+func elasticsearchHealthCheck(port int) HealthCheckFunction {
+	return func(halt <-chan struct{}) error {
 		lastError := time.Now()
 		minUptime := time.Second * 2
 		baseUrl := fmt.Sprintf("http://localhost:%d", port)
@@ -123,7 +123,14 @@ func elasticsearchHealthCheck(port int) func() error {
 			if time.Since(lastError) > minUptime {
 				break
 			}
-			time.Sleep(time.Millisecond * 1000)
+
+			select {
+			case <-halt:
+				glog.Infof("Quit healthcheck for elasticsearch at %s", baseUrl)
+				return nil
+			default:
+				time.Sleep(time.Second)
+			}
 		}
 		glog.V(1).Infof("elasticsearch running browser at %s/_plugin/head/", baseUrl)
 		return nil

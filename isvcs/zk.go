@@ -55,7 +55,7 @@ func init() {
 }
 
 // a health check for zookeeper
-func zkHealthCheck() error {
+func zkHealthCheck(halt <-chan struct{}) error {
 	lastError := time.Now()
 	minUptime := time.Second * 2
 	zookeepers := []string{"127.0.0.1:2181"}
@@ -72,7 +72,14 @@ func zkHealthCheck() error {
 		if time.Since(lastError) > minUptime {
 			break
 		}
-		time.Sleep(time.Millisecond * 1000)
+
+		select {
+		case <-halt:
+			glog.Infof("Quit healthcheck for zookeeper")
+			return nil
+		default:
+			time.Sleep(time.Second)
+		}
 	}
 	glog.V(1).Info("zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
 	return nil
