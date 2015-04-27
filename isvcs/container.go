@@ -611,7 +611,7 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	case err := <-finished:
 		result = err
 	case <-time.After(checkDefinition.Timeout):
-		glog.Errorf("healthcheck timed out for %s", svc.name())
+		glog.Errorf("healthcheck timed out for %s", svc.Name)
 		result = fmt.Errorf("healthcheck timed out")
 		halt <- struct{}{}
 	}
@@ -627,7 +627,7 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	var found bool
 	var checkDefinition healthCheckDefinition
 	if checkDefinition, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
-		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.name())
+		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
 		return
 	}
 
@@ -635,14 +635,14 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	for {
 		select {
 		case <-halt:
-			glog.Infof("Stopped healthchecks for %s", svc.name())
+			glog.Infof("Stopped healthchecks for %s", svc.Name)
 			return
 
 		case currentTime := <-timer:
 			err := svc.runCheckOrTimeout(checkDefinition)
 			svc.setHealthStatus(err, currentTime.Unix())
 			if err != nil {
-				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.name(), err)
+				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.Name, err)
 			}
 		}
 	}
@@ -712,7 +712,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	for {
 		select {
 		case <-halt:
-			glog.Infof("stop collecting stats for %s", svc.name())
+			glog.Infof("stop collecting stats for %s", svc.Name)
 			return
 		case t := <-tc:
 			ctr, err := docker.FindContainer(svc.name())
