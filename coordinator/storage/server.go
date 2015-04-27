@@ -42,12 +42,12 @@ type StorageDriver interface {
 }
 
 // NewServer returns a Server object to manage the exported file system
-func NewServer(driver StorageDriver, host *host.Host) (*Server, error) {
+func NewServer(driver StorageDriver, host *host.Host, volumesPath string) (*Server, error) {
 	if len(driver.ExportPath()) < 9 {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
 
-	monitor, err := NewMonitor(driver, getDefaultNFSMonitorMasterInterval())
+	monitor, err := NewMonitor(driver, getDefaultNFSMonitorMasterInterval(), volumesPath)
 	if err != nil {
 		return nil, fmt.Errorf("unable to create new monitor %s", err)
 	}
