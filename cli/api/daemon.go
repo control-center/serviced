@@ -414,10 +414,11 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
-	if nfsDriver, err := nfs.NewServer(path.Join(options.VarPath, "volumes"), "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+	volumesPath := path.Join(options.VarPath, "volumes")
+	if nfsDriver, err := nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
 		return err
 	} else {
-		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost)
+		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, volumesPath)
 		if err != nil {
 			return err
 		}
