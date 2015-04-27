@@ -75,17 +75,21 @@ const (
 
 const DEFAULT_HEALTHCHECK_NAME = "running"
 
-// FIXME: What should the default interval and timeout be?
 const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
 const DEFAULT_HEALTHCHECK_TIMEOUT = time.Duration(10) * time.Second
+
+const WAIT_FOR_INITIAL_HEALTHCHECK = time.Duration(2) * time.Minute
 
 type actionrequest struct {
 	action   action
 	response chan error
 }
 
+// HealthCheckFunction- A function to verify the service is healthy
+type HealthCheckFunction func() error
+
 type healthCheckDefinition struct {
-	healthCheck func() error  // A function to verify the service is healthy
+	healthCheck HealthCheckFunction
 	Interval    time.Duration // The interval at which to execute the script.
 	Timeout     time.Duration // A timeout in which to complete the health check.
 }
@@ -318,11 +322,11 @@ func (svc *IService) start() (<-chan int, error) {
 		return nil, err
 	}
 
-	// perform an initial healthcheck to verify that the service started succeessfully
+	// perform an initial healthcheck to verify that the service started successfully
 	select {
-	case err := <-svc.healthcheck(0):
+	case err := <-svc.startupHealthcheck():
 		if err != nil {
-			glog.Errorf("initial healthcheck for %s failed: %s", svc.Name, err)
+			glog.Errorf("Healthcheck for %s failed: %s", svc.Name, err)
 			svc.stop()
 			return nil, err
 		}
@@ -513,20 +517,40 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 	return true
 }
 
-func (svc *IService) healthcheck(currentTime int64) <-chan error {
+// Run the default healthcheck (if any) and the return the result.
+// If the healthcheck fails, then this method will sleep 1 second, and then
+// repeat the healthcheck, continuing that sleep/retry pattern until
+// the healthcheck succeeds or 2 minutes has elapsed.
+//
+// An error is returned if the no healtchecks succeed in the 2 minute interval,
+// otherwise nil is returned
+func (svc *IService) startupHealthcheck() <-chan error {
 	err := make(chan error, 1)
 	go func() {
+		var result error
 		if len(svc.HealthChecks) > 0 {
-			var result error
-			if checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; found {
-				result := svc.runCheckOrTimeout(checkDefinition)
-				svc.setHealthStatus(result, currentTime)
-			} else {
+			checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]
+			if !found {
 				glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+				err <- nil
+				return
+			}
+
+			startCheck := time.Now()
+			for {
+				currentTime := time.Now()
+				result = svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(result, currentTime.Unix())
+				if result == nil || time.Since(startCheck) > WAIT_FOR_INITIAL_HEALTHCHECK {
+					break
+				}
+
+				glog.Infof("waiting for %s to start, checking health status again in 1 second", svc.Name)
+				time.Sleep(time.Millisecond * 1000)
 			}
 			err <- result
 		} else {
-			svc.setHealthStatus(nil, currentTime)
+			svc.setHealthStatus(nil, time.Now().Unix())
 			err <- nil
 		}
 	}()
@@ -557,13 +581,13 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	}
 
 	var found bool
-	var healthCheck healthCheckDefinition
-	if healthCheck, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
+	var checkDefinition healthCheckDefinition
+	if checkDefinition, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
 		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.name())
 		return
 	}
 
-	timer := time.Tick(healthCheck.Interval)
+	timer := time.Tick(checkDefinition.Interval)
 	for {
 		select {
 		case <-halt:
@@ -571,11 +595,10 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 			return
 
 		case currentTime := <-timer:
-			err := <-svc.healthcheck(currentTime.Unix())
+			err := svc.runCheckOrTimeout(checkDefinition)
+			svc.setHealthStatus(err, currentTime.Unix())
 			if err != nil {
 				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.name(), err)
-				svc.stop()
-				return
 			}
 		}
 	}
