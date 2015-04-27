@@ -116,7 +116,6 @@ func elasticsearchHealthCheck(port int) HealthCheckFunction {
 				break
 			} else {
 				lastError = time.Now()
-				glog.Infof("Still trying to connect to elasticsearch at %s: %v: %s", baseUrl, err, healthResponse.Status)
 				glog.V(1).Infof("Still trying to connect to elasticsearch at %s: %v: %s", baseUrl, err, healthResponse.Status)
 			}
 
@@ -126,7 +125,7 @@ func elasticsearchHealthCheck(port int) HealthCheckFunction {
 
 			select {
 			case <-halt:
-				glog.Infof("Quit healthcheck for elasticsearch at %s", baseUrl)
+				glog.V(1).Infof("Quit healthcheck for elasticsearch at %s", baseUrl)
 				return nil
 			default:
 				time.Sleep(time.Second)

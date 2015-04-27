@@ -75,7 +75,7 @@ func zkHealthCheck(halt <-chan struct{}) error {
 
 		select {
 		case <-halt:
-			glog.Infof("Quit healthcheck for zookeeper")
+			glog.V(1).Infof("Quit healthcheck for zookeeper")
 			return nil
 		default:
 			time.Sleep(time.Second)

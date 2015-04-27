@@ -65,7 +65,7 @@ func registryHealthCheck(halt <-chan struct{}) error {
 
 		select {
 		case <-halt:
-			glog.Infof("Quit healthcheck for docker registry at %s", url)
+			glog.V(1).Infof("Quit healthcheck for docker registry at %s", url)
 			return nil
 		default:
 			time.Sleep(time.Second)
