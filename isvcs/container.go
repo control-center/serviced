@@ -614,6 +614,9 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
 		if result == nil {
+			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
+				glog.Infof("Health status for %s returned to 'passed'", svc.Name)
+			}
 			healthStatus.Status = "passed"
 			healthStatus.Failure = ""
 		} else {
