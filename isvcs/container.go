@@ -506,7 +506,7 @@ func (svc *IService) run() {
 	}
 }
 
-// Return true if the service is flapping (starting/stopping repeatedly).
+// isFlapping returns true if the service is flapping (starting/stopping repeatedly).
 //
 // A service is considered flappping, if has been running for less than 60 seconds
 // in 3 consecutive calls to this function.
@@ -558,7 +558,7 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 	return true
 }
 
-// Run the default healthcheck (if any) and the return the result.
+// startupHealthcheck runs the default healthchecks (if any) and the return the result.
 // If the healthcheck fails, then this method will sleep 1 second, and then
 // repeat the healthcheck, continuing that sleep/retry pattern until
 // the healthcheck succeeds or 2 minutes has elapsed.

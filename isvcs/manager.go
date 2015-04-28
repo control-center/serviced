@@ -149,8 +149,6 @@ func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error)
 
 	if ctr, err := docker.FindContainer(svc.name()); err == nil {
 		result.ContainerID = ctr.ID
-	} else {
-		result.ContainerID = "<none>"
 	}
 
 	svc.lock.RLock()
