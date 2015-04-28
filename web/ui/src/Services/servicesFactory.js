@@ -29,14 +29,14 @@
         angular.extend(newFactory, {
             // TODO - update list by application instead
             // of all services ever?
-            update: function(){
+            update: function(force){
                 var deferred = $q.defer(),
                     now = new Date().getTime(),
                     since;
 
                 // if this is the first update, request
                 // all services
-                if(this.lastUpdate === undefined){
+                if(this.lastUpdate === undefined || force){
                     since = 0;
                 } else {
                     since = (now - this.lastUpdate) + UPDATE_PADDING;
@@ -426,10 +426,10 @@
                                 ID: endpoint.AddressAssignment.ID,
                                 AssignmentType: endpoint.AddressAssignment.AssignmentType,
                                 EndpointName: endpoint.AddressAssignment.EndpointName,
-                                HostID: endpoint.AddressAssignment.HostID,
-                                PoolID: endpoint.AddressAssignment.PoolID,
                                 IPAddr: endpoint.AddressAssignment.IPAddr,
                                 Port: endpoint.AddressConfig.Port,
+                                HostID: endpoint.AddressAssignment.HostID,
+                                PoolID: service.model.PoolID,
                                 ServiceID: service.id,
                                 ServiceName: service.name
                             });
