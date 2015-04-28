@@ -15,44 +15,6 @@ describe('miscUtils', function() {
         DEBUG = null;
     }));
 
-    describe('buildTable', function() {
-        it('Returns object with sort_icons', function() {
-            var headers = [ {id: 'foo'}, {id: 'bar'}, {id: 'baz'}];
-
-            var table = miscUtils.buildTable('foo', headers);
-
-            expect(table.sort).toBe('foo');
-            expect(table.sort_icons).not.toBeUndefined();
-            expect(table.set_order).not.toBeUndefined();
-            expect(table.get_order_class).not.toBeUndefined();
-        });
-    });
-
-    describe('get_order_class', function() {
-        it('Includes \'active\' for value or -value of table.sort', function() {
-            var table = {
-                sort: 'foo',
-                sort_icons: { foo: 'bar', baz: 'wibble' }
-            };
-            expect(miscUtils.get_order_class('foo', table)).toMatch(/ active$/);
-
-            table.sort = '-foo';
-            expect(miscUtils.get_order_class('foo', table)).toMatch(/ active$/);
-            expect(miscUtils.get_order_class('baz', table)).toMatch(/ wibble$/);
-        });
-
-        it('Returns not \'active\' when no match on table.sort', function() {
-            var table = {
-                sort: 'foo',
-                sort_icons: { foo: 'bar', baz: 'wibble' }
-            };
-
-            var result = miscUtils.get_order_class('no-sort-match', table);
-            expect(result).not.toMatch(/ active$/);
-            expect(result).toMatch(/ undefined$/);
-        });
-    });
-
     describe('mapToArr', function() {
         it('Transforms map to a new array', function() {
             var dummy_data = { test1: 'abc', test2: { foo: 'bar' }};
@@ -64,35 +26,6 @@ describe('miscUtils', function() {
             var dummy_data = {};
             var dummy_data_array = miscUtils.mapToArr(dummy_data);
             expect(dummy_data_array).toEqual([]);
-        });
-    });
-
-    describe('set_order', function() {
-        it('Updates table.sort', function() {
-            var table = {
-                sort: 'foo',
-                sort_icons: { foo: 'bar', baz: 'wibble' }
-            };
-
-            miscUtils.set_order('foo', table);
-            expect(table.sort).toBe('-foo');
-
-            miscUtils.set_order('foo', table);
-            expect(table.sort).toBe('foo');
-
-            miscUtils.set_order('bar', table);
-            expect(table.sort).toBe('bar');
-        });
-
-        it('Updates table.sort_icons', function() {
-            var table = {
-                sort: 'foo',
-                sort_icons: { foo: 'bar', baz: 'wibble' }
-            };
-
-            miscUtils.set_order('bar', table);
-            expect(table.sort_icons['foo']).toBe('glyphicon-chevron-down');
-            expect(table.sort_icons['bar']).toBe('glyphicon-chevron-up');
         });
     });
 

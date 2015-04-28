@@ -104,7 +104,7 @@
         // begins auto-update
         activate: function(){
             if(!this.updatePromise){
-                this.updatePromise = $interval(this.update.bind(this), UPDATE_FREQUENCY);
+                this.updatePromise = $interval(() => this.update(), UPDATE_FREQUENCY);
             }
         },
 

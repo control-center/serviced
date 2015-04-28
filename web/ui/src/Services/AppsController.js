@@ -318,7 +318,7 @@
                 // if only isvcs are deployed, and this is the first time
                 // running deploy wizard, show the deploy apps modal
                 if(!$cookies.autoRunWizardHasRun && $scope.apps.length === 1){
-                    $scope.modalAddApp();
+                    $scope.modal_deployWizard();
                 }
             });
 

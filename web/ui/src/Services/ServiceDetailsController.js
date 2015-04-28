@@ -142,7 +142,7 @@
                   }
                 }
 
-                //host ips
+                //virtual ips
                 if (data && data.VirtualIPs) {
                   for(i = 0; i < data.VirtualIPs.length; ++i) {
                     IPAddr = data.VirtualIPs[i].IP;
@@ -219,7 +219,9 @@
             var IP = $scope.ips.assign.value.IPAddr;
             return resourcesFactory.assignIP(serviceID, IP)
                 .success(function(data, status){
-                    servicesFactory.update();
+                    // HACK: update(true) forces a full update to
+                    // work around issue https://jira.zenoss.com/browse/CC-939
+                    servicesFactory.update(true);
                 });
         };
 
@@ -676,14 +678,6 @@
                 { label: 'breadcrumb_deployed', url: '#/apps' }
             ];
 
-            $scope.ips = utils.buildTable('ServiceName', [
-                { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
-                { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
-                { id: 'HostName', name: 'tbl_virtual_ip_host'},
-                { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
-                { id: 'IPAddr', name: 'tbl_virtual_ip'}
-            ]);
-
             $scope.vhostsTable = {
                 sorting: {
                     Name: "asc"
@@ -735,6 +729,8 @@
                 mapped: servicesFactory.serviceMap,
                 current: servicesFactory.get($scope.params.serviceId)
             };
+
+            $scope.ips = {};
 
             // if the current service changes, update
             // various service controller thingies
