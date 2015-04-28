@@ -546,6 +546,8 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 	glog.V(1).Infof("System User %v", systemUser)
 
+	cfg.User = "root"
+	cfg.WorkingDir = "/"
 	cfg.Image = svc.ImageID
 
 	// get the endpoints
