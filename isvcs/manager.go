@@ -149,20 +149,14 @@ func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error)
 		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
 	}
 
-	// FIXME: Does it make sense to exit with a failure when the container is
-	//        not found, or should we return an instance of IServiceHealthResult
-	//        with HealthStatuses["running"] == a-failed-instance?
-	ctr, err := docker.FindContainer(svc.name())
-	if err != nil {
-		glog.Errorf("Could not find container for isvc %s: %s", svc.Name, err)
-		return dao.IServiceHealthResult{}, err
+	if ctr, err := docker.FindContainer(svc.name()); err == nil {
+		result.ContainerID = ctr.ID
 	}
 
 	svc.lock.RLock()
 	defer svc.lock.RUnlock()
 
 	result.ContainerName = svc.name()
-	result.ContainerID = ctr.ID
 	for _, value := range svc.healthStatuses {
 		result.HealthStatuses = append(result.HealthStatuses, *value)
 	}

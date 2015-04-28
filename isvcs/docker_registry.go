@@ -59,7 +59,7 @@ func init() {
 	}
 }
 
-func registryHealthCheck() error {
+func registryHealthCheck(halt <-chan struct{}) error {
 	url := fmt.Sprintf("http://localhost:%d/", registryPort)
 	for {
 		if _, err := http.Get(url); err == nil {
@@ -67,7 +67,14 @@ func registryHealthCheck() error {
 		} else {
 			glog.V(1).Infof("Still trying to connect to docker registry at %s: %v", url, err)
 		}
-		time.Sleep(time.Second)
+
+		select {
+		case <-halt:
+			glog.V(1).Infof("Quit healthcheck for docker registry at %s", url)
+			return nil
+		default:
+			time.Sleep(time.Second)
+		}
 	}
 	glog.V(1).Infof("docker registry running, browser at %s", url)
 	return nil

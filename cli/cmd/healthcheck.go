@@ -20,7 +20,6 @@ import (
 	"github.com/codegangsta/cli"
 )
 
-
 // Initializer for serviced healthcheck subcommands
 func (c *ServicedCli) initHealthCheck() {
 	c.app.Commands = append(c.app.Commands, cli.Command{
@@ -50,6 +49,10 @@ func (c *ServicedCli) cmdHealthCheck(ctx *cli.Context) error {
 				if status.Status != "passed" {
 					exitStatus = 1
 				}
+				if serviceHealth.ContainerID == "" {
+					serviceHealth.ContainerID = "<none>"
+				}
+
 				t.AddRow(map[string]interface{}{
 					"Service Name":   serviceHealth.ServiceName,
 					"Container Name": serviceHealth.ContainerName,
