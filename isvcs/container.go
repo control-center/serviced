@@ -75,17 +75,21 @@ const (
 
 const DEFAULT_HEALTHCHECK_NAME = "running"
 
-// FIXME: What should the default interval and timeout be?
 const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
 const DEFAULT_HEALTHCHECK_TIMEOUT = time.Duration(10) * time.Second
+
+const WAIT_FOR_INITIAL_HEALTHCHECK = time.Duration(2) * time.Minute
 
 type actionrequest struct {
 	action   action
 	response chan error
 }
 
+// HealthCheckFunction- A function to verify the service is healthy
+type HealthCheckFunction func(halt <-chan struct{}) error
+
 type healthCheckDefinition struct {
-	healthCheck func() error  // A function to verify the service is healthy
+	healthCheck HealthCheckFunction
 	Interval    time.Duration // The interval at which to execute the script.
 	Timeout     time.Duration // A timeout in which to complete the health check.
 }
@@ -109,6 +113,8 @@ type IService struct {
 	exited         <-chan int
 	root           string
 	actions        chan actionrequest
+	startTime      time.Time
+	restartCount   int
 	lock           *sync.RWMutex
 	healthStatuses map[string]*domain.HealthCheckStatus
 }
@@ -122,7 +128,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	svc := IService{sd, nil, "", make(chan actionrequest), &sync.RWMutex{}, nil}
+	svc := IService{sd, nil, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil}
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
 		for name, healthCheckDefinition := range svc.HealthChecks {
@@ -318,14 +324,17 @@ func (svc *IService) start() (<-chan int, error) {
 		return nil, err
 	}
 
-	// perform an initial healthcheck to verify that the service started succeessfully
+	// perform an initial healthcheck to verify that the service started successfully
 	select {
-	case err := <-svc.healthcheck(0):
+	case err := <-svc.startupHealthcheck():
 		if err != nil {
+			glog.Errorf("Healthcheck for %s failed: %s", svc.Name, err)
 			svc.stop()
 			return nil, err
 		}
+		svc.startTime = time.Now()
 	case rc := <-notify:
+		glog.Errorf("isvc %s exited on startup, rc=%d", svc.Name, rc)
 		svc.setStoppedHealthStatus(ExitError(rc))
 		return nil, ExitError(rc)
 	}
@@ -414,7 +423,8 @@ func (svc *IService) run() {
 				}
 
 				if rc := <-svc.exited; rc != 0 {
-					glog.Warningf("isvc %s received exit code %d", svc.Name, rc)
+					svc.setStoppedHealthStatus(ExitError(rc))
+					glog.Errorf("isvc %s received exit code %d", svc.Name, rc)
 				}
 				svc.exited = nil
 				req.response <- nil
@@ -459,15 +469,59 @@ func (svc *IService) run() {
 					req.response <- err
 					continue
 				}
+
+				if !collecting {
+					go svc.stats(haltStats)
+					go svc.doHealthChecks(haltHealthChecks)
+					collecting = true
+				}
 				req.response <- nil
 			}
 		case rc := <-svc.exited:
-			glog.Errorf("isvc %s unexpectedly received exit code %d", svc.Name, rc)
-			if svc.exited, err = svc.start(); err != nil {
-				glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
+			svc.setStoppedHealthStatus(ExitError(rc))
+			glog.Errorf("isvc %s exited unexpectedly; rc=%d", svc.Name, rc)
+
+			stopService := svc.isFlapping()
+			if !stopService {
+				glog.Infof("Restarting isvc %s ", svc.Name)
+				if svc.exited, err = svc.start(); err != nil {
+					glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
+					stopService = true
+				}
+			}
+
+			if stopService {
+				if collecting {
+					haltStats <- struct{}{}
+					if len(svc.HealthChecks) > 0 {
+						haltHealthChecks <- struct{}{}
+					}
+					collecting = false
+				}
+				glog.Errorf("isvc %s not restarted; failed too many times", svc.Name)
+				svc.stop()
+				svc.exited = nil
 			}
 		}
 	}
+}
+
+// isFlapping returns true if the service is flapping (starting/stopping repeatedly).
+//
+// A service is considered flappping, if has been running for less than 60 seconds
+// in 3 consecutive calls to this function.
+func (svc *IService) isFlapping() bool {
+	const MINIMUM_VIABLE_LIFESPAN = 60
+	const FLAPPING_THRESHOLD = 3
+
+	upTime := time.Since(svc.startTime)
+	if upTime.Seconds() < MINIMUM_VIABLE_LIFESPAN {
+		svc.restartCount += 1
+	} else {
+		svc.restartCount = 0
+	}
+
+	return svc.restartCount >= FLAPPING_THRESHOLD
 }
 
 func (svc *IService) checkvolumes(ctr *docker.Container) bool {
@@ -504,20 +558,40 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 	return true
 }
 
-func (svc *IService) healthcheck(currentTime int64) <-chan error {
+// startupHealthcheck runs the default healthchecks (if any) and the return the result.
+// If the healthcheck fails, then this method will sleep 1 second, and then
+// repeat the healthcheck, continuing that sleep/retry pattern until
+// the healthcheck succeeds or 2 minutes has elapsed.
+//
+// An error is returned if the no healtchecks succeed in the 2 minute interval,
+// otherwise nil is returned
+func (svc *IService) startupHealthcheck() <-chan error {
 	err := make(chan error, 1)
 	go func() {
+		var result error
 		if len(svc.HealthChecks) > 0 {
-			var result error
-			if checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; found {
-				result := svc.runCheckOrTimeout(checkDefinition)
-				svc.setHealthStatus(result, currentTime)
-			} else {
+			checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]
+			if !found {
 				glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+				err <- nil
+				return
+			}
+
+			startCheck := time.Now()
+			for {
+				currentTime := time.Now()
+				result = svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(result, currentTime.Unix())
+				if result == nil || time.Since(startCheck).Seconds() > WAIT_FOR_INITIAL_HEALTHCHECK.Seconds() {
+					break
+				}
+
+				glog.Infof("waiting for %s to start, checking health status again in 1 second", svc.Name)
+				time.Sleep(time.Second)
 			}
 			err <- result
 		} else {
-			svc.setHealthStatus(nil, currentTime)
+			svc.setHealthStatus(nil, time.Now().Unix())
 			err <- nil
 		}
 	}()
@@ -526,8 +600,10 @@ func (svc *IService) healthcheck(currentTime int64) <-chan error {
 
 func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {
 	finished := make(chan error, 1)
+	halt := make(chan struct{}, 1)
+
 	go func() {
-		finished <- checkDefinition.healthCheck()
+		finished <- checkDefinition.healthCheck(halt)
 	}()
 
 	var result error
@@ -535,8 +611,9 @@ func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) er
 	case err := <-finished:
 		result = err
 	case <-time.After(checkDefinition.Timeout):
-		glog.Errorf("healthcheck timed out for %s", svc.name())
+		glog.Errorf("healthcheck timed out for %s", svc.Name)
 		result = fmt.Errorf("healthcheck timed out")
+		halt <- struct{}{}
 	}
 	return result
 }
@@ -548,25 +625,24 @@ func (svc *IService) doHealthChecks(halt <-chan struct{}) {
 	}
 
 	var found bool
-	var healthCheck healthCheckDefinition
-	if healthCheck, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
-		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.name())
+	var checkDefinition healthCheckDefinition
+	if checkDefinition, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
+		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
 		return
 	}
 
-	timer := time.Tick(healthCheck.Interval)
+	timer := time.Tick(checkDefinition.Interval)
 	for {
 		select {
 		case <-halt:
-			glog.Infof("Stopped healthchecks for %s", svc.name())
+			glog.Infof("Stopped healthchecks for %s", svc.Name)
 			return
 
 		case currentTime := <-timer:
-			err := <-svc.healthcheck(currentTime.Unix())
+			err := svc.runCheckOrTimeout(checkDefinition)
+			svc.setHealthStatus(err, currentTime.Unix())
 			if err != nil {
-				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.name(), err)
-				svc.stop()
-				return
+				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.Name, err)
 			}
 		}
 	}
@@ -582,6 +658,9 @@ func (svc *IService) setHealthStatus(result error, currentTime int64) {
 
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
 		if result == nil {
+			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
+				glog.Infof("Health status for %s returned to 'passed'", svc.Name)
+			}
 			healthStatus.Status = "passed"
 			healthStatus.Failure = ""
 		} else {
@@ -606,11 +685,10 @@ func (svc *IService) setStoppedHealthStatus(stopResult error) {
 	defer svc.lock.Unlock()
 
 	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		healthStatus.Status = "stopped"
 		if stopResult == nil {
-			healthStatus.Status = "stopped"
 			healthStatus.Failure = ""
 		} else {
-			healthStatus.Status = "failed"
 			healthStatus.Failure = stopResult.Error()
 		}
 		healthStatus.Timestamp = time.Now().Unix()
@@ -634,7 +712,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	for {
 		select {
 		case <-halt:
-			glog.Infof("stop collecting stats for %s", svc.name())
+			glog.Infof("stop collecting stats for %s", svc.Name)
 			return
 		case t := <-tc:
 			ctr, err := docker.FindContainer(svc.name())
