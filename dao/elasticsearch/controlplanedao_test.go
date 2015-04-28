@@ -288,13 +288,13 @@ func (dt *DaoTest) TestDao_MigrateService(t *C) {
 
 	newDescription := "New Description"
 	scriptExitCode := 0
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: dt.getMigrationScript(newDescription, scriptExitCode),
 		DryRun:     false,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err != nil {
 		t.Errorf("Failure migrating service %-v with error: %s", svc, err)
 		t.Fail()
@@ -310,16 +310,16 @@ func (dt *DaoTest) TestDao_MigrateServiceClone(t *C) {
 	scriptBody := `
 import json, os, string, sys, copy
 
-inputFile = sys.argv[1]
-outputFile = sys.argv[2]
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
 svcs = json.loads(open(inputFile, 'r').read())
 clone = copy.deepcopy(svcs[0])
 clone["Name"] = "clone name"
 export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
 wrapper = {
-	"modified": svcs,
-	"cloned": [clone]
+	"Modified": svcs,
+	"Cloned": [clone]
 }
 
 f = open(outputFile, 'w')
@@ -327,13 +327,13 @@ f.write(json.dumps(wrapper, indent=4, sort_keys=True))
 f.close()
 exit(0)
 `
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: scriptBody,
 		DryRun:     false,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err != nil {
 		t.Errorf("Failure migrating service %-v with error: %s", svc, err)
 		t.Fail()
@@ -362,15 +362,15 @@ func (dt *DaoTest) TestDao_MigrateServiceCloneFailDupeName(t *C) {
 	scriptBody := `
 import json, os, string, sys, copy
 
-inputFile = sys.argv[1]
-outputFile = sys.argv[2]
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
 svcs = json.loads(open(inputFile, 'r').read())
 clone = copy.deepcopy(svcs[0])
 export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
 wrapper = {
-	"modified": svcs,
-	"cloned": [clone]
+	"Modified": svcs,
+	"Cloned": [clone]
 }
 
 f = open(outputFile, 'w')
@@ -378,13 +378,13 @@ f.write(json.dumps(wrapper, indent=4, sort_keys=True))
 f.close()
 exit(0)
 `
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: scriptBody,
 		DryRun:     false,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err == nil {
 		t.Errorf("Expected error cloning service during migration with unchanged name.")
 		t.Fail()
@@ -401,15 +401,15 @@ func (dt *DaoTest) TestDao_MigrateServiceCloneFailDupeEndpoint(t *C) {
 	scriptBody := `
 import json, os, string, sys, copy
 
-inputFile = sys.argv[1]
-outputFile = sys.argv[2]
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
 svcs = json.loads(open(inputFile, 'r').read())
 clone = copy.deepcopy(svcs[0])
 clone["Name"] = "clone name"
 export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 wrapper = {
-	"modified": svcs,
-	"cloned": [clone]
+	"Modified": svcs,
+	"Cloned": [clone]
 }
 
 f = open(outputFile, 'w')
@@ -417,13 +417,13 @@ f.write(json.dumps(wrapper, indent=4, sort_keys=True))
 f.close()
 exit(0)
 `
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: scriptBody,
 		DryRun:     false,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err == nil {
 		t.Errorf("Expected error cloning service during migration with unchanged name.")
 		t.Fail()
@@ -440,8 +440,8 @@ func (dt *DaoTest) TestDao_MigrateServiceCloneFailAddService(t *C) {
 	scriptBody := `
 import json, os, string, sys, copy
 
-inputFile = sys.argv[1]
-outputFile = sys.argv[2]
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
 svcs = json.loads(open(inputFile, 'r').read())
 clone = copy.deepcopy(svcs[0])
 clone["Name"] = "clone name"
@@ -449,8 +449,8 @@ export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
 clone["DesiredState"] = -2
 wrapper = {
-	"modified": svcs,
-	"cloned": [clone]
+	"Modified": svcs,
+	"Cloned": [clone]
 }
 
 f = open(outputFile, 'w')
@@ -458,13 +458,13 @@ f.write(json.dumps(wrapper, indent=4, sort_keys=True))
 f.close()
 exit(0)
 `
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: scriptBody,
 		DryRun:     false,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err == nil {
 		t.Errorf("Expected error cloning service during migration with incorrect desired state.")
 		t.Fail()
@@ -480,13 +480,13 @@ func (dt *DaoTest) TestDao_MigrateServiceWithDryRun(t *C) {
 
 	newDescription := "New Description"
 	scriptExitCode := 0
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: dt.getMigrationScript(newDescription, scriptExitCode),
 		DryRun:     true,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err != nil {
 		t.Errorf("Failure migrating service %-v with error: %s", svc, err)
 		t.Fail()
@@ -500,13 +500,13 @@ func (dt *DaoTest) TestDao_MigrateServiceFailsForInvalidID(t *C) {
 	svc, err := dt.setupMigrationTest()
 	t.Assert(err, IsNil)
 
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  "Some Undefined Service",
 		ScriptBody: dt.getMigrationScript("unused", 0),
 		DryRun:     false,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err == nil {
 		t.Errorf("Expected error migrating service with invalid ID")
 		t.Fail()
@@ -532,13 +532,13 @@ func (dt *DaoTest) testMigrationScriptFails(t *C, dryRun bool) {
 
 	newDescription := "New Description"
 	scriptExitCode := 1
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: dt.getMigrationScript(newDescription, scriptExitCode),
 		DryRun:     dryRun,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err == nil {
 		t.Errorf("Expected error migrating service with script failure")
 		t.Fail()
@@ -561,13 +561,13 @@ func (dt *DaoTest) TestDao_MigrateServiceWithDryRunFailsValidation(t *C) {
 func (dt *DaoTest) testMigrationScriptFailsValidation(t *C, dryRun bool) {
 	svc, err := dt.setupMigrationTest()
 	t.Assert(err, IsNil)
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  svc.ID,
 		ScriptBody: dt.getInvalidMigrationScript(),
 		DryRun:     true,
 	}
 
-	err = dt.Dao.MigrateService(request, &unused)
+	err = dt.Dao.RunMigrationScript(request, &unused)
 	if err == nil {
 		t.Errorf("Expected error migrating service with invalid content")
 		t.Fail()
@@ -1173,15 +1173,15 @@ func (dt *DaoTest) getMigrationScript(newDescription string, scriptExitCode int)
 	scriptTemplate := `
 import json, os, string, sys
 
-inputFile = sys.argv[1]
-outputFile = sys.argv[2]
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
 svcs = json.loads(open(inputFile, 'r').read())
 
 svcs[0]["Description"] = "%s"
 
 wrapper = {
-	"modified": svcs,
-	"cloned": []
+	"Modified": svcs,
+	"Cloned": []
 }
 
 f = open(outputFile, 'w')
@@ -1197,15 +1197,15 @@ func (dt *DaoTest) getInvalidMigrationScript() string {
 	return `
 import json, os, string, sys
 
-inputFile = sys.argv[1]
-outputFile = sys.argv[2]
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
 svcs = json.loads(open(inputFile, 'r').read())
 
 svcs[0]["PoolID"] = ""
 
 wrapper = {
-	"modified": svcs,
-	"cloned": []
+	"Modified": svcs,
+	"Cloned": []
 }
 
 f = open(outputFile, 'w')

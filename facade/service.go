@@ -181,6 +181,8 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 		return err
 	}
 
+	migrationRequest.DryRun = request.DryRun
+
 	err = f.MigrateServices(ctx, *migrationRequest)
 
 	return err
