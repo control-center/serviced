@@ -758,8 +758,9 @@ func (d *daemon) initWeb() {
 
 func (d *daemon) initDFS() error {
 	if options.FSType == "btrfs" {
-		if err := btrfs.IsBtrfsFilesystem(options.VarPath); err != nil {
-			return fmt.Errorf("varpath at %s is not a btrfs filesystem\n%s", options.VarPath, err)
+		volumesPath := path.Join(options.VarPath, "volumes")
+		if err := btrfs.IsBtrfsFilesystem(volumesPath); err != nil {
+			return fmt.Errorf("volumes path at %s is not a btrfs filesystem\n%s", volumesPath, err)
 		}
 	}
 	return nil
