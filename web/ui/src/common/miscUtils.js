@@ -1,5 +1,3 @@
-/* globals DEBUG: true */
-
 /* miscUtils.js
  * miscellaneous utils and stuff that
  * doesn't quite fit in elsewhere
