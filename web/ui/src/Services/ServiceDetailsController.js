@@ -678,14 +678,6 @@
                 { label: 'breadcrumb_deployed', url: '#/apps' }
             ];
 
-            $scope.ips = utils.buildTable('ServiceName', [
-                { id: 'ServiceName', name: 'tbl_virtual_ip_service'},
-                { id: 'AssignmentType', name: 'tbl_virtual_ip_assignment_type'},
-                { id: 'HostName', name: 'tbl_virtual_ip_host'},
-                { id: 'PoolID', name: 'tbl_virtual_ip_pool'},
-                { id: 'IPAddr', name: 'tbl_virtual_ip'}
-            ]);
-
             $scope.vhostsTable = {
                 sorting: {
                     Name: "asc"
@@ -737,6 +729,8 @@
                 mapped: servicesFactory.serviceMap,
                 current: servicesFactory.get($scope.params.serviceId)
             };
+
+            $scope.ips = {};
 
             // if the current service changes, update
             // various service controller thingies
