@@ -63,14 +63,25 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 }
 
 //
-func (this *ControlPlaneDao) MigrateService(request dao.ServiceMigrationRequest, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.MigrateService: start migration for service id %+v", request.ServiceID)
-	if err := this.facade.MigrateService(datastore.Get(), request); err != nil {
-		glog.Errorf("ControlPlaneDao.MigrateService: migration failed for id %+v: %s", request.ServiceID, err)
+func (this *ControlPlaneDao) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) error {
+	glog.V(2).Infof("ControlPlaneDao.RunMigrationScript: start migration for service id %+v", request.ServiceID)
+	if err := this.facade.RunMigrationScript(datastore.Get(), request); err != nil {
+		glog.Errorf("ControlPlaneDao.RunMigrationScript: migration failed for id %+v: %s", request.ServiceID, err)
 		return err
 	}
 
-	glog.Infof("ControlPlaneDao.MigrateService: migrated service %+v (dry-run=%v)", request.ServiceID, request.DryRun)
+	glog.Infof("ControlPlaneDao.RunMigrationScript: migrated service %+v (dry-run=%v)", request.ServiceID, request.DryRun)
+	if !request.DryRun {
+		this.createTenantVolume(request.ServiceID)
+	}
+	return nil
+}
+
+//
+func (this *ControlPlaneDao) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
+	if err := this.facade.MigrateServices(datastore.Get(), request); err != nil {
+		return err
+	}
 	if !request.DryRun {
 		this.createTenantVolume(request.ServiceID)
 	}

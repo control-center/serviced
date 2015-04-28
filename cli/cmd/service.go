@@ -687,7 +687,7 @@ func (c *ServicedCli) cmdServiceMigrate(ctx *cli.Context) {
 		input = os.Stdin
 	}
 
-	if migratedSvc, err := c.driver.MigrateService(svc.ID, input, ctx.Bool("dry-run"), ctx.String("sdk-version")); err != nil {
+	if migratedSvc, err := c.driver.RunMigrationScript(svc.ID, input, ctx.Bool("dry-run"), ctx.String("sdk-version")); err != nil {
 		fmt.Fprintf(os.Stderr, "%s: %s\n", svc.ID, err)
 	} else {
 		fmt.Println(migratedSvc.ID)

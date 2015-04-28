@@ -166,7 +166,7 @@ func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 
 func cliServiceMigrate(a API) script.ServiceMigrate {
 	return func(svcID string, scriptFile string, sdkVersion string) error {
-		if _, err := a.MigrateServiceWithEmbeddedScript(svcID, scriptFile, false, sdkVersion); err != nil {
+		if _, err := a.RunEmbeddedMigrationScript(svcID, scriptFile, false, sdkVersion); err != nil {
 			return fmt.Errorf("Migration failed for service %s: %s", svcID, err)
 		}
 		return nil

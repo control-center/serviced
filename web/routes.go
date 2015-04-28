@@ -78,7 +78,8 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"PUT", "/services/:serviceId/stopService", gz(sc.authorizedClient(restStopService))},
 
 		// Services (migration)
-		rest.Route{"GET", "/servicemigration", gz(sc.authorizedClient(restGetServicesForMigration))},
+		rest.Route{"GET", "/servicemigration/:serviceId", sc.authorizedClient(restGetServicesForMigration)},
+		rest.Route{"POST", "/servicemigration", sc.authorizedClient(restPostServicesForMigration)},
 
 		// Services (Virtual Host)
 		rest.Route{"GET", "/services/vhosts", gz(sc.authorizedClient(restGetVirtualHosts))},
