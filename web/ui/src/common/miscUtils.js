@@ -12,60 +12,7 @@
     function($parse){
 
         var utils = {
-            /*
-             * Functions for setting up grid views
-             * TODO - create angular controller for grids
-             */
-            buildTable: function(sort, headers) {
-                var sort_icons = {};
-                for(var i=0; i < headers.length; i++) {
-                    sort_icons[headers[i].id] = (sort === headers[i].id?
-                        'glyphicon-chevron-up' : 'glyphicon-chevron-down');
-                }
 
-                return {
-                    sort: sort,
-                    reverse: false,
-                    headers: headers,
-                    sort_icons: sort_icons,
-                    set_order: utils.set_order,
-                    get_order_class: utils.get_order_class,
-                };
-            },
-
-            set_order: function(order, table) {
-                // Reset the icon for the last order
-                if(DEBUG){
-                    console.log('Resetting ' + table.sort + ' to down.');
-                }
-                table.sort_icons[table.sort] = 'glyphicon-chevron-down';
-
-                if (table.sort === order) {
-                    table.reverse = true;
-                    table.sort = "-" + order;
-                    table.sort_icons[table.sort] = 'glyphicon-chevron-down';
-                    if(DEBUG){
-                        console.log('Sorting by -' + order);
-                    }
-                } else {
-                    table.sort = order;
-                    table.reverse = false;
-                    table.sort_icons[table.sort] = 'glyphicon-chevron-up';
-                    if(DEBUG){
-                        console.log('Sorting ' + table +' by ' + order);
-                    }
-                }
-            },
-
-            get_order_class: function(order, table) {
-                return'glyphicon btn-link sort pull-right ' + table.sort_icons[order] +
-                    ((table.sort === order || table.sort === '-' + order) ? ' active' : '');
-            },
-
-
-            /*
-             * Helper and utility functions
-             */
             // TODO - use angular $location object to make this testable
             unauthorized: function() {
                 console.error('You don\'t appear to be logged in.');
