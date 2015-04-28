@@ -104,8 +104,13 @@ func (mcp *MockControlPlane) UpdateService(service service.Service, unused *int)
 	return mcp.Mock.Called(service, unused).Error(0)
 }
 
+// Run a migration script
+func (mcp *MockControlPlane) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) error {
+	return mcp.Mock.Called(request, unused).Error(0)
+}
+
 // Migrate a service definition
-func (mcp *MockControlPlane) MigrateService(request dao.ServiceMigrationRequest, unused *int) error {
+func (mcp *MockControlPlane) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
 	return mcp.Mock.Called(request, unused).Error(0)
 }
 

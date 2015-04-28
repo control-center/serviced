@@ -15,7 +15,7 @@ import (
 func (st *serviceAPITest) Test_script_cliServiceMigrate(t *C) {
 	mockAPI := new(mockAPI)
 	mockAPI.Mock.
-		On("MigrateServiceWithEmbeddedScript", "serviceID", "testMigrate.txt", false, "").
+		On("RunEmbeddedMigrationScript", "serviceID", "testMigrate.txt", false, "").
 		Return(nil, nil)
 	serviceMigrateFunc := cliServiceMigrate(mockAPI)
 
@@ -27,7 +27,7 @@ func (st *serviceAPITest) Test_script_cliServiceMigrate(t *C) {
 func (st *serviceAPITest) Test_script_cliServiceMigrateWithVersion(t *C) {
 	mockAPI := new(mockAPI)
 	mockAPI.Mock.
-		On("MigrateServiceWithEmbeddedScript", "serviceID", "testMigrate.txt", false, "1.2.3").
+		On("RunEmbeddedMigrationScript", "serviceID", "testMigrate.txt", false, "1.2.3").
 		Return(nil, nil)
 	serviceMigrateFunc := cliServiceMigrate(mockAPI)
 
@@ -40,7 +40,7 @@ func (st *serviceAPITest) Test_script_cliServiceMigrate_fails(t *C) {
 	errorStub := errors.New("errorStub: migration failed")
 	mockAPI := new(mockAPI)
 	mockAPI.Mock.
-		On("MigrateServiceWithEmbeddedScript", "serviceID", "testMigrate.txt", false, "").
+		On("RunEmbeddedMigrationScript", "serviceID", "testMigrate.txt", false, "").
 		Return(nil, errorStub)
 	serviceMigrateFunc := cliServiceMigrate(mockAPI)
 
@@ -54,7 +54,7 @@ type mockAPI struct {
 	API
 }
 
-func (mock *mockAPI) MigrateServiceWithEmbeddedScript(serviceID string, scriptFile string, dryRun bool, sdkVersion string) (*service.Service, error) {
+func (mock *mockAPI) RunEmbeddedMigrationScript(serviceID string, scriptFile string, dryRun bool, sdkVersion string) (*service.Service, error) {
 	args := mock.Mock.Called(serviceID, scriptFile, dryRun, sdkVersion)
 
 	var svc *service.Service
