@@ -394,7 +394,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		glog.Errorf("Docker not found: %v", err)
 		return nil, err
 	}
-	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", utils.ResourcesDir() + ":" + "/usr/local/serviced/resources"}
+	argv := []string{"run", "-v", servicedVolume, "-v", pwdVolume, "-v", utils.ResourcesDir() + ":" + "/usr/local/serviced/resources", "-u", "root", "-w", "/"}
 	for _, mount := range cfg.Mount {
 		hostPath, containerPath, err := parseMountArg(mount)
 		if err != nil {

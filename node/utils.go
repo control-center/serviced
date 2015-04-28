@@ -348,7 +348,7 @@ func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec,
 	var output []byte
 	command := [...]string{
 		"docker", "run",
-		"--rm",
+		"--rm", "--user=root", "--workdir=/",
 		"-v", hostPath + ":/mnt/dfs",
 		imageSpec,
 		"/bin/bash", "-c",

@@ -1615,8 +1615,10 @@ func createServiceContainer(service *service.Service) (*docker.Container, error)
 		dockerclient.CreateContainerOptions{
 			Name: containerName,
 			Config: &dockerclient.Config{
-				Image:   service.ImageID,
-				Volumes: map[string]struct{}{EMBEDDED_MIGRATION_DIRECTORY: emptyStruct},
+				User:       "root",
+				WorkingDir: "/",
+				Image:      service.ImageID,
+				Volumes:    map[string]struct{}{EMBEDDED_MIGRATION_DIRECTORY: emptyStruct},
 			},
 		},
 		dockerclient.HostConfig{},
