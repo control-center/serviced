@@ -73,7 +73,7 @@ func (mf *MockFacade) RunMigrationScript(ctx datastore.Context, request dao.RunM
 	return mf.Mock.Called(ctx, request).Error(0)
 }
 
-func (mf *MockFacade) MigrateServices(ctx datastore.Context, request dao.MigrationRequest) error {
+func (mf *MockFacade) MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
 	return mf.Mock.Called(ctx, request).Error(0)
 }
 
