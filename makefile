@@ -95,7 +95,7 @@ IN_DOCKER = 0
 # against the generated Godeps.
 #------------------------------------------------------------------------------#
 GODEP     = $(GOBIN)/godep
-Godeps    = Godeps
+Godeps    = Godeps/Godeps.json
 godep_SRC = github.com/tools/godep
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
@@ -164,8 +164,11 @@ $(GOSRC)/$(govet_SRC):
 
 #
 # FIXME: drop -composites=false to get full coverage
+GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
+GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet: $(GOSRC)/$(govet_SRC)
-	go tool vet -composites=false $(GOVET_FLAGS) .
+	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
+	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
 
 .PHONY: go
 go:
