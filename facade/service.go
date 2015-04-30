@@ -1717,10 +1717,9 @@ func readServiceMigrationRequestFromFile(outputFileName string) (*dao.ServiceMig
 		return nil, fmt.Errorf("could not read new service definition: %s", err)
 	}
 
-	// svcs := make(map[string][]*service.Service)
-	var smr dao.ServiceMigrationRequest
-	if err = json.Unmarshal(data, &smr); err != nil {
+	var request dao.ServiceMigrationRequest
+	if err = json.Unmarshal(data, &request); err != nil {
 		return nil, fmt.Errorf("could not unmarshall new service definition: %s", err)
 	}
-	return &smr, nil
+	return &request, nil
 }

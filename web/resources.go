@@ -235,31 +235,16 @@ func getIRS() []dao.RunningService {
 	return services
 }
 
-func restGetServicesForMigration(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var migrationRequest dao.ServiceMigrationRequest
+	err := r.DecodeJsonPayload(&migrationRequest)
 	if err != nil {
+		glog.Errorf("Could not decode services for migration: %v", err)
 		restBadRequest(w, err)
 		return
 	}
-	services := []service.Service{}
-	if err := client.GetServiceList(serviceID, &services); err != nil {
-		glog.Errorf("Could not get services: %v", err)
-		restServerError(w, err)
-		return
-	}
-	w.WriteJson(&services)
-}
-
-func restPostServicesForMigration(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	var smr dao.ServiceMigrationRequest
-	err := r.DecodeJsonPayload(&smr)
-	if err != nil {
-		glog.Errorf("Could not decode services for migration: %v", err)
-		restServerError(w, err)
-		return
-	}
 	var unused int
-	if err = client.MigrateServices(smr, &unused); err != nil {
+	if err = client.MigrateServices(migrationRequest, &unused); err != nil {
 		restServerError(w, err)
 		return
 	}
@@ -529,30 +514,43 @@ func restGetTopServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 }
 
 func restGetService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	sid, err := url.QueryUnescape(r.PathParam("serviceId"))
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
 
-	if strings.Contains(sid, "isvc-") {
-		w.WriteJson(isvcs.ISVCSMap[sid])
+	includeChildren := r.URL.Query().Get("includeChildren")
+
+	if includeChildren == "true" {
+		services := []service.Service{}
+		if err := client.GetServiceList(serviceID, &services); err != nil {
+			glog.Errorf("Could not get services: %v", err)
+			restServerError(w, err)
+			return
+		}
+		w.WriteJson(&services)
+		return
+	}
+
+	if strings.Contains(serviceID, "isvc-") {
+		w.WriteJson(isvcs.ISVCSMap[serviceID])
 		return
 	}
 	svc := service.Service{}
-	if err := client.GetService(sid, &svc); err != nil {
-		glog.Errorf("Could not get service %v: %v", sid, err)
+	if err := client.GetService(serviceID, &svc); err != nil {
+		glog.Errorf("Could not get service %v: %v", serviceID, err)
 		restServerError(w, err)
 		return
 	}
 
-	if svc.ID == sid {
+	if svc.ID == serviceID {
 		fillBuiltinMetrics(&svc)
 		w.WriteJson(&svc)
 		return
 	}
 
-	glog.Errorf("No such service [%v]", sid)
+	glog.Errorf("No such service [%v]", serviceID)
 	restServerError(w, err)
 }
 
