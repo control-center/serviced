@@ -61,8 +61,8 @@ type API interface {
 	CloneService(string, string) (*service.Service, error)
 	RemoveService(string) error
 	UpdateService(io.Reader) (*service.Service, error)
-	MigrateService(string, io.Reader, bool, string) (*service.Service, error)
-	MigrateServiceWithEmbeddedScript(string, string, bool, string) (*service.Service, error)
+	RunMigrationScript(string, io.Reader, bool, string) (*service.Service, error)
+	RunEmbeddedMigrationScript(string, string, bool, string) (*service.Service, error)
 	StartService(SchedulerConfig) (int, error)
 	RestartService(SchedulerConfig) (int, error)
 	StopService(SchedulerConfig) (int, error)

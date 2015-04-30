@@ -52,12 +52,19 @@ type ServiceCloneRequest struct {
 }
 
 // Only use one of ScriptName or ScriptBody. If both are specified, ScriptBody has precedence.
-type ServiceMigrationRequest struct {
+type RunMigrationScriptRequest struct {
 	ServiceID  string // The ID of the service to migrate.
 	ScriptBody string // The content of the service migration script to use.
 	ScriptName string // The name of the service migration script in the docker image for the specified service.
 	SDKVersion string // The version of the service migration SDK to use.
 	DryRun     bool
+}
+
+type ServiceMigrationRequest struct {
+	ServiceID string
+	Modified  []*service.Service
+	Cloned    []*service.Service
+	DryRun    bool
 }
 
 type ServiceStateRequest struct {
@@ -131,7 +138,10 @@ type ControlPlane interface {
 	UpdateService(service service.Service, unused *int) error
 
 	// Migrate a service definition
-	MigrateService(request ServiceMigrationRequest, unused *int) error
+	RunMigrationScript(request RunMigrationScriptRequest, unused *int) error
+
+	// Migrate a service definition
+	MigrateServices(request ServiceMigrationRequest, unused *int) error
 
 	// Remove a service definition
 	RemoveService(serviceId string, unused *int) error

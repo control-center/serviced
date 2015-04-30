@@ -288,14 +288,14 @@ func (a *api) CloneService(serviceID string, suffix string) (*service.Service, e
 	return a.GetService(clonedServiceID)
 }
 
-// MigrateService migrates an existing service using a local script
-func (a *api) MigrateService(serviceID string, localScript io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
+// RunMigrationScript migrates an existing service using a local script
+func (a *api) RunMigrationScript(serviceID string, localScript io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
 	inputBuffer := bytes.NewBuffer(nil)
 	if _, err := io.Copy(inputBuffer, localScript); err != nil {
 		return nil, fmt.Errorf("could not read migration script: %s", err)
 	}
 
-	request := dao.ServiceMigrationRequest{
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  serviceID,
 		ScriptBody: string(inputBuffer.Bytes()),
 		DryRun:     dryRun,
@@ -308,9 +308,9 @@ func (a *api) MigrateService(serviceID string, localScript io.Reader, dryRun boo
 	return a.migrateService(request)
 }
 
-// MigrateServiceWithEmbeddedScript migrates an existing service using script embeded in the service's docker image
-func (a *api) MigrateServiceWithEmbeddedScript(serviceID string, scriptName string, dryRun bool, sdkVersion string) (*service.Service, error) {
-	request := dao.ServiceMigrationRequest{
+// RunEmbeddedMigrationScript migrates an existing service using script embeded in the service's docker image
+func (a *api) RunEmbeddedMigrationScript(serviceID string, scriptName string, dryRun bool, sdkVersion string) (*service.Service, error) {
+	request := dao.RunMigrationScriptRequest{
 		ServiceID:  serviceID,
 		ScriptName: scriptName,
 		DryRun:     dryRun,
@@ -320,13 +320,13 @@ func (a *api) MigrateServiceWithEmbeddedScript(serviceID string, scriptName stri
 	return a.migrateService(request)
 }
 
-func (a *api) migrateService(request dao.ServiceMigrationRequest) (*service.Service, error) {
+func (a *api) migrateService(request dao.RunMigrationScriptRequest) (*service.Service, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	if err := client.MigrateService(request, &unusedInt); err != nil {
+	if err := client.RunMigrationScript(request, &unusedInt); err != nil {
 		return nil, fmt.Errorf("migration failed: %s", err)
 	}
 	return a.GetService(request.ServiceID)

@@ -163,9 +163,9 @@ func (t ServiceAPITest) AddService(config api.ServiceConfig) (*service.Service, 
 	return &s, nil
 }
 
-func (t ServiceAPITest) MigrateService(id string, script io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
-	if t.errs["MigrateService"] != nil {
-		return nil, t.errs["MigrateService"]
+func (t ServiceAPITest) RunMigrationScript(id string, script io.Reader, dryRun bool, sdkVersion string) (*service.Service, error) {
+	if t.errs["RunMigrationScript"] != nil {
+		return nil, t.errs["RunMigrationScript"]
 	}
 	return t.GetService(id)
 }
@@ -456,8 +456,8 @@ func ExampleServicedCLI_CmdServiceMigrate_cantReadScript() {
 }
 
 func ExampleServicedCLI_CmdServiceMigrate_failed() {
-	DefaultServiceAPITest.errs["MigrateService"] = ErrStub
-	defer func() { DefaultServiceAPITest.errs["MigrateService"] = nil }()
+	DefaultServiceAPITest.errs["RunMigrationScript"] = ErrStub
+	defer func() { DefaultServiceAPITest.errs["RunMigrationScript"] = nil }()
 
 	pipeStderr(InitServiceAPITest, "serviced", "service", "migrate", "test-service-1")
 
