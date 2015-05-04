@@ -153,6 +153,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	}
 
 	envPerService[sd.Name] = make(map[string]string)
+	envPerService[sd.Name]["CONTROLPLANE_SERVICE_ID"] = svc.Name
 	go svc.run()
 
 	return &svc, nil
