@@ -13,12 +13,14 @@
 
 .PHONY: build test clean
 
+GO        ?= $(shell which go)
+
 default: build
 
 build:
 	cd elasticsearch && make build
-	go build
+	$(GO) build
 
 clean:
 	cd elasticsearch && make clean
-	go clean
+	$(GO) clean

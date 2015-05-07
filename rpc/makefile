@@ -15,10 +15,12 @@
 
 default: build
 
+GO        ?= $(shell which go)
+
 build:
-	cd agent && go build
-	cd master && go build
+	cd agent && $(GO) build
+	cd master && $(GO) build
 
 clean:
-	cd agent && go clean
-	cd master && go clean
+	cd agent && $(GO) clean
+	cd master && $(GO) clean

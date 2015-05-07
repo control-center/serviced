@@ -88,13 +88,14 @@ IN_DOCKER = 0
 #
 # Alternatively, one may run:
 #
-#    godep save -copy=false
+#    godep save ./...
 #
 # to generate the Godeps file based upon the src currently populated in
 # $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
 # against the generated Godeps.
 #------------------------------------------------------------------------------#
 GODEP     = $(GOBIN)/godep
+GO        = $(GODEP) go
 Godeps    = Godeps/Godeps.json
 godep_SRC = github.com/tools/godep
 
@@ -153,14 +154,14 @@ build_js:
 
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
-	go get $(godep_SRC)
+	$(GO) get $(godep_SRC)
 
 GOVET     = $(GOBIN)/govet
 govet_SRC = golang.org/x/tools/cmd/vet
 
 # Download govet source to $GOPATH/src/.
 $(GOSRC)/$(govet_SRC):
-	go get $(govet_SRC)
+	$(GO) get $(govet_SRC)
 
 #
 # FIXME: drop -composites=false to get full coverage
@@ -168,11 +169,11 @@ GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
 GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet: $(GOSRC)/$(govet_SRC)
 	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
-	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
+	$(GO) tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
 
 .PHONY: go
 go:
-	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -186,20 +187,20 @@ docker_SRC = github.com/docker/docker
 #
 # Force our go recipies to always fire since make doesn't
 # understand all of the target's *.go dependencies.  In this case let
-# 'go build' determine if the target needs to be rebuilt.
+# '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
 serviced: $(Godeps_restored)
 serviced: FORCE
-	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
-	go install $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
 $(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go build $(GOBUILD_FLAGS) ${LDFLAGS}
-	go install $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
@@ -219,7 +220,7 @@ docker_build: docker_ok
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the 'go get' of the
+# If that directory is missing, then trigger the '$(GO) get' of the
 # source.
 #
 # This requires some make fu borrowed from:
@@ -228,7 +229,7 @@ docker_build: docker_ok
 #
 missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
 $(GODEP): | $(missing_godep_SRC)
-	go install $(godep_SRC)
+	$(GO) install $(godep_SRC)
 
 #---------------------#
 # Install targets     #
@@ -472,7 +473,7 @@ clean_serviced:
 			echo "rm -f $${target}" ;\
                 fi ;\
         done
-	-go clean
+	-$(GO) clean
 
 .PHONY: clean_pkg
 clean_pkg:
@@ -480,7 +481,7 @@ clean_pkg:
 
 .PHONY: clean_godeps
 clean_godeps: | $(GODEP) $(Godeps)
-	-$(GODEP) restore && go clean -r && go clean -i github.com/control-center/serviced/... # this cleans all dependencies
+	-$(GODEP) restore && $(GO) clean -r && $(GO) clean -i github.com/control-center/serviced/... # this cleans all dependencies
 	@if [ -f "$(Godeps_restored)" ];then \
 		rm -f $(Godeps_restored) ;\
 		echo "rm -f $(Godeps_restored)" ;\
