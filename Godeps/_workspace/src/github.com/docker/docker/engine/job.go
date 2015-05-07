@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
 )
 
 // A job is the fundamental unit of work in the docker engine.
@@ -32,6 +35,12 @@ type Job struct {
 	status  Status
 	end     time.Time
 	closeIO bool
+
+	// When closed, the job has been cancelled.
+	// Note: not all jobs implement cancellation.
+	// See Job.Cancel() and Job.WaitCancelled()
+	cancelled  chan struct{}
+	cancelOnce sync.Once
 }
 
 type Status int
@@ -46,7 +55,7 @@ const (
 // If the job returns a failure status, an error is returned
 // which includes the status.
 func (job *Job) Run() error {
-	if job.Eng.IsShutdown() {
+	if job.Eng.IsShutdown() && !job.GetenvBool("overrideShutdown") {
 		return fmt.Errorf("engine is shutdown")
 	}
 	// FIXME: this is a temporary workaround to avoid Engine.Shutdown
@@ -66,10 +75,12 @@ func (job *Job) Run() error {
 		return fmt.Errorf("%s: job has already completed", job.Name)
 	}
 	// Log beginning and end of the job
-	job.Eng.Logf("+job %s", job.CallString())
-	defer func() {
-		job.Eng.Logf("-job %s%s", job.CallString(), job.StatusString())
-	}()
+	if job.Eng.Logging {
+		log.Infof("+job %s", job.CallString())
+		defer func() {
+			log.Infof("-job %s%s", job.CallString(), job.StatusString())
+		}()
+	}
 	var errorMessage = bytes.NewBuffer(nil)
 	job.Stderr.Add(errorMessage)
 	if job.handler == nil {
@@ -139,6 +150,14 @@ func (job *Job) GetenvBool(key string) (value bool) {
 
 func (job *Job) SetenvBool(key string, value bool) {
 	job.env.SetBool(key, value)
+}
+
+func (job *Job) GetenvTime(key string) (value time.Time, err error) {
+	return job.env.GetTime(key)
+}
+
+func (job *Job) SetenvTime(key string, value time.Time) {
+	job.env.SetTime(key, value)
 }
 
 func (job *Job) GetenvSubEnv(key string) *Env {
@@ -235,4 +254,16 @@ func (job *Job) StatusCode() int {
 
 func (job *Job) SetCloseIO(val bool) {
 	job.closeIO = val
+}
+
+// When called, causes the Job.WaitCancelled channel to unblock.
+func (job *Job) Cancel() {
+	job.cancelOnce.Do(func() {
+		close(job.cancelled)
+	})
+}
+
+// Returns a channel which is closed ("never blocks") when the job is cancelled.
+func (job *Job) WaitCancelled() <-chan struct{} {
+	return job.cancelled
 }

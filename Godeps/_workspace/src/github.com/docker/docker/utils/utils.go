@@ -1,8 +1,8 @@
 package utils
 
 import (
+	"bufio"
 	"bytes"
-	"crypto/rand"
 	"crypto/sha1"
 	"crypto/sha256"
 	"encoding/hex"
@@ -15,21 +15,25 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
-	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
-	"github.com/docker/docker/dockerversion"
+	log "github.com/Sirupsen/logrus"
+	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/common"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/log"
 )
 
 type KeyValuePair struct {
 	Key   string
 	Value string
 }
+
+var (
+	validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)
+)
 
 // Request a given URL and return an io.Reader
 func Download(url string) (resp *http.Response, err error) {
@@ -89,7 +93,7 @@ func isValidDockerInitPath(target string, selfPath string) bool { // target and 
 	if target == "" {
 		return false
 	}
-	if dockerversion.IAMSTATIC {
+	if dockerversion.IAMSTATIC == "true" {
 		if selfPath == "" {
 			return false
 		}
@@ -159,42 +163,10 @@ func GetTotalUsedFds() int {
 	return -1
 }
 
-// TruncateID returns a shorthand version of a string identifier for convenience.
-// A collision with other shorthands is very unlikely, but possible.
-// In case of a collision a lookup with TruncIndex.Get() will fail, and the caller
-// will need to use a langer prefix, or the full-length Id.
-func TruncateID(id string) string {
-	shortLen := 12
-	if len(id) < shortLen {
-		shortLen = len(id)
-	}
-	return id[:shortLen]
-}
-
-// GenerateRandomID returns an unique id
-func GenerateRandomID() string {
-	for {
-		id := make([]byte, 32)
-		if _, err := io.ReadFull(rand.Reader, id); err != nil {
-			panic(err) // This shouldn't happen
-		}
-		value := hex.EncodeToString(id)
-		// if we try to parse the truncated for as an int and we don't have
-		// an error then the value is all numberic and causes issues when
-		// used as a hostname. ref #3869
-		if _, err := strconv.ParseInt(TruncateID(value), 10, 64); err == nil {
-			continue
-		}
-		return value
-	}
-}
-
 func ValidateID(id string) error {
-	if id == "" {
-		return fmt.Errorf("Id can't be empty")
-	}
-	if strings.Contains(id, ":") {
-		return fmt.Errorf("Invalid character in id: ':'")
+	if ok := validHex.MatchString(id); !ok {
+		err := fmt.Errorf("image ID '%s' is invalid", id)
+		return err
 	}
 	return nil
 }
@@ -250,14 +222,6 @@ func HashData(src io.Reader) (string, error) {
 	return "sha256:" + hex.EncodeToString(h.Sum(nil)), nil
 }
 
-// FIXME: this is deprecated by CopyWithTar in archive.go
-func CopyDirectory(source, dest string) error {
-	if output, err := exec.Command("cp", "-ra", source, dest).CombinedOutput(); err != nil {
-		return fmt.Errorf("Error copy: %s (%s)", err, output)
-	}
-	return nil
-}
-
 type WriteFlusher struct {
 	sync.Mutex
 	w       io.Writer
@@ -294,24 +258,6 @@ func NewHTTPRequestError(msg string, res *http.Response) error {
 		Message: msg,
 		Code:    res.StatusCode,
 	}
-}
-
-func IsURL(str string) bool {
-	return strings.HasPrefix(str, "http://") || strings.HasPrefix(str, "https://")
-}
-
-func IsGIT(str string) bool {
-	return strings.HasPrefix(str, "git://") || strings.HasPrefix(str, "github.com/") || strings.HasPrefix(str, "git@github.com:") || (strings.HasSuffix(str, ".git") && IsURL(str))
-}
-
-var (
-	localHostRx = regexp.MustCompile(`(?m)^nameserver 127[^\n]+\n*`)
-)
-
-// RemoveLocalDns looks into the /etc/resolv.conf,
-// and removes any local nameserver entries.
-func RemoveLocalDns(resolvConf []byte) []byte {
-	return localHostRx.ReplaceAll(resolvConf, []byte{})
 }
 
 // An StatusError reports an unsuccessful exit by a command.
@@ -366,7 +312,7 @@ var globalTestID string
 // new directory.
 func TestDirectory(templateDir string) (dir string, err error) {
 	if globalTestID == "" {
-		globalTestID = RandomString()[:4]
+		globalTestID = common.RandomString()[:4]
 	}
 	prefix := fmt.Sprintf("docker-test%s-%s-", globalTestID, GetCallerName(2))
 	if prefix == "" {
@@ -377,7 +323,7 @@ func TestDirectory(templateDir string) (dir string, err error) {
 		return
 	}
 	if templateDir != "" {
-		if err = CopyDirectory(templateDir, dir); err != nil {
+		if err = archive.CopyWithTar(templateDir, dir); err != nil {
 			return
 		}
 	}
@@ -424,7 +370,17 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 		parts := strings.SplitN(e, "=", 2)
 		cache[parts[0]] = i
 	}
+
 	for _, value := range overrides {
+		// Values w/o = means they want this env to be removed/unset.
+		if !strings.Contains(value, "=") {
+			if i, exists := cache[value]; exists {
+				defaults[i] = "" // Used to indicate it should be removed
+			}
+			continue
+		}
+
+		// Just do a normal set/update
 		parts := strings.SplitN(value, "=", 2)
 		if i, exists := cache[parts[0]]; exists {
 			defaults[i] = value
@@ -432,7 +388,26 @@ func ReplaceOrAppendEnvValues(defaults, overrides []string) []string {
 			defaults = append(defaults, value)
 		}
 	}
+
+	// Now remove all entries that we want to "unset"
+	for i := 0; i < len(defaults); i++ {
+		if defaults[i] == "" {
+			defaults = append(defaults[:i], defaults[i+1:]...)
+			i--
+		}
+	}
+
 	return defaults
+}
+
+func DoesEnvExist(name string) bool {
+	for _, entry := range os.Environ() {
+		parts := strings.SplitN(entry, "=", 2)
+		if parts[0] == name {
+			return true
+		}
+	}
+	return false
 }
 
 // ReadSymlinkedDirectory returns the target directory of a symlink.
@@ -454,36 +429,6 @@ func ReadSymlinkedDirectory(path string) (string, error) {
 		return "", fmt.Errorf("canonical path points to a file '%s'", realPath)
 	}
 	return realPath, nil
-}
-
-// TreeSize walks a directory tree and returns its total size in bytes.
-func TreeSize(dir string) (size int64, err error) {
-	data := make(map[uint64]struct{})
-	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, e error) error {
-		// Ignore directory sizes
-		if fileInfo == nil {
-			return nil
-		}
-
-		s := fileInfo.Size()
-		if fileInfo.IsDir() || s == 0 {
-			return nil
-		}
-
-		// Check inode to handle hard links correctly
-		inode := fileInfo.Sys().(*syscall.Stat_t).Ino
-		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		if _, exists := data[uint64(inode)]; exists {
-			return nil
-		}
-		// inode is not a uint64 on all platforms. Cast it to avoid issues.
-		data[uint64(inode)] = struct{}{}
-
-		size += s
-
-		return nil
-	})
-	return
 }
 
 // ValidateContextDirectory checks if all the contents of the directory
@@ -537,4 +482,73 @@ func StringsContainsNoCase(slice []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// Reads a .dockerignore file and returns the list of file patterns
+// to ignore. Note this will trim whitespace from each line as well
+// as use GO's "clean" func to get the shortest/cleanest path for each.
+func ReadDockerIgnore(path string) ([]string, error) {
+	// Note that a missing .dockerignore file isn't treated as an error
+	reader, err := os.Open(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+		}
+		return nil, nil
+	}
+	defer reader.Close()
+
+	scanner := bufio.NewScanner(reader)
+	var excludes []string
+
+	for scanner.Scan() {
+		pattern := strings.TrimSpace(scanner.Text())
+		if pattern == "" {
+			continue
+		}
+		pattern = filepath.Clean(pattern)
+		excludes = append(excludes, pattern)
+	}
+	if err = scanner.Err(); err != nil {
+		return nil, fmt.Errorf("Error reading '%s': %v", path, err)
+	}
+	return excludes, nil
+}
+
+// Wrap a concrete io.Writer and hold a count of the number
+// of bytes written to the writer during a "session".
+// This can be convenient when write return is masked
+// (e.g., json.Encoder.Encode())
+type WriteCounter struct {
+	Count  int64
+	Writer io.Writer
+}
+
+func NewWriteCounter(w io.Writer) *WriteCounter {
+	return &WriteCounter{
+		Writer: w,
+	}
+}
+
+func (wc *WriteCounter) Write(p []byte) (count int, err error) {
+	count, err = wc.Writer.Write(p)
+	wc.Count += int64(count)
+	return
+}
+
+// ImageReference combines `repo` and `ref` and returns a string representing
+// the combination. If `ref` is a digest (meaning it's of the form
+// <algorithm>:<digest>, the returned string is <repo>@<ref>. Otherwise,
+// ref is assumed to be a tag, and the returned string is <repo>:<tag>.
+func ImageReference(repo, ref string) string {
+	if DigestReference(ref) {
+		return repo + "@" + ref
+	}
+	return repo + ":" + ref
+}
+
+// DigestReference returns true if ref is a digest reference; i.e. if it
+// is of the form <algorithm>:<digest>.
+func DigestReference(ref string) bool {
+	return strings.Contains(ref, ":")
 }
