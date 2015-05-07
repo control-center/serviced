@@ -154,14 +154,14 @@ build_js:
 
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
-	$(GO) get $(godep_SRC)
+	go get $(godep_SRC)
 
 GOVET     = $(GOBIN)/govet
 govet_SRC = golang.org/x/tools/cmd/vet
 
 # Download govet source to $GOPATH/src/.
 $(GOSRC)/$(govet_SRC):
-	$(GO) get $(govet_SRC)
+	$(GO) install $(govet_SRC)
 
 #
 # FIXME: drop -composites=false to get full coverage
@@ -220,7 +220,7 @@ docker_build: docker_ok
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the '$(GO) get' of the
+# If that directory is missing, then trigger the '$(GO) install' of the
 # source.
 #
 # This requires some make fu borrowed from:
