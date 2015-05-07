@@ -129,7 +129,7 @@ govet_SRC = golang.org/x/tools/cmd/vet
 
 # Download govet source to $GOPATH/src/.
 $(GOSRC)/$(govet_SRC):
-	$(GO) install $(govet_SRC)
+	go get $(govet_SRC)
 
 #
 # FIXME: drop -composites=false to get full coverage
@@ -137,7 +137,7 @@ GOVET_EXCLUDE_DIRS = Godeps/ build/ chef/ vagrant/
 GOVET_TARGET_DIRS =  $(filter-out $(GOVET_EXCLUDE_DIRS), $(sort $(dir $(wildcard */*))))
 govet: $(GOSRC)/$(govet_SRC)
 	@echo "GOVET_TARGET_DIRS='${GOVET_TARGET_DIRS}'"
-	$(GO) tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
+	go tool vet -composites=false $(GOVET_FLAGS) $(GOVET_TARGET_DIRS)
 
 .PHONY: go
 go:

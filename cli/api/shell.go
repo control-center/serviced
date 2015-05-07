@@ -150,7 +150,7 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	if err := svc.EvaluateRunsTemplate(getSvc, findChild); err != nil {
-		fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
+		return fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
 	command, ok := svc.Runs[config.Command]
 	if !ok {
