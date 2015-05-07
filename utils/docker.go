@@ -15,12 +15,20 @@ package utils
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/docker/docker/registry"
 )
 
 func DockerLogin(username, password, email string) (string, error) {
+
+	u, err := url.Parse(docker.DEFAULT_REGISTRY)
+	if err != nil {
+		return "", fmt.Errorf("Error: bad URL %s: %s", docker.DEFAULT_REGISTRY, err)
+	}
+	endpoint := registry.Endpoint{URL: u, Version: 1, IsSecure: false}
 
 	if username == "" && password == "" && email == "" {
 		// Attempt login with .dockercfg file.
@@ -32,7 +40,7 @@ func DockerLogin(username, password, email string) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("Error: Unable to login, no data for index server.")
 		}
-		status, err := registry.Login(&authconfig, registry.HTTPRequestFactory(nil))
+		status, err := registry.Login(&authconfig, &endpoint, registry.HTTPRequestFactory(nil))
 		if err != nil {
 			return "", err
 		}
@@ -45,7 +53,8 @@ func DockerLogin(username, password, email string) (string, error) {
 			Password:      password,
 			ServerAddress: registry.IndexServerAddress(),
 		}
-		status, err := registry.Login(&authconfig, registry.HTTPRequestFactory(nil))
+		endpoint.IsSecure = true
+		status, err := registry.Login(&authconfig, &endpoint, registry.HTTPRequestFactory(nil))
 		if err != nil {
 			return "", err
 		}
