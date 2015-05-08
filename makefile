@@ -161,12 +161,7 @@ FORCE:
 serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
-	$(GO) install $(GOBUILD_FLAGS) ${LDFLAGS}
-
-serviced = $(GOBIN)/serviced
-$(serviced): FORCE
-	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	$(GO) install $(GOBUILD_FLAGS) ${LDFLAGS}
+	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
