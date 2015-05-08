@@ -13,10 +13,12 @@
 
 .PHONY: build test clean
 
+GO        ?= $(shell which go)
+
 default: build
 
 build:
-	go build
+	$(GO) build
 
 clean:
-	go clean
+	$(GO) clean

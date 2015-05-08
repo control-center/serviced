@@ -13,12 +13,14 @@
 
 .PHONY: build test clean
 
+GO        ?= $(shell which go)
+
 default: build
 
 build:
-	go build
-	cd nfs && go build
+	$(GO) build
+	cd nfs && $(GO) build
 
 clean:
-	go clean
-	cd nfs && go clean
+	$(GO) clean
+	cd nfs && $(GO) clean

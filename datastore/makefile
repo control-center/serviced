@@ -13,12 +13,14 @@
 
 .PHONY: build test clean
 
+GO        ?= $(shell which go)
+
 default: build
 
 build:
-	cd elastic && go build
-	go build
+	cd elastic && $(GO) build
+	$(GO) build
 
 clean:
-	cd elastic && go clean
-	go clean
+	cd elastic && $(GO) clean
+	$(GO) clean

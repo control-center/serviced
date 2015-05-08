@@ -13,26 +13,28 @@
 
 .PHONY: build test clean
 
+GO        ?= $(shell which go)
+
 default: build
 
 build:
-	go build
-	cd host && go build
-	cd pool && go build
-	cd servicedefinition && go build
-	cd servicetemplate && go build
-	cd service && go build
-	cd servicestate && go build
-	cd addressassignment && go build
-	cd serviceconfigfile && go build
+	$(GO) build
+	cd host && $(GO) build
+	cd pool && $(GO) build
+	cd servicedefinition && $(GO) build
+	cd servicetemplate && $(GO) build
+	cd service && $(GO) build
+	cd servicestate && $(GO) build
+	cd addressassignment && $(GO) build
+	cd serviceconfigfile && $(GO) build
 
 clean:
-	go clean
-	cd host && go clean
-	cd pool && go clean
-	cd servicedefinition && go clean
-	cd servicetemplate && go clean
-	cd service && go clean
-	cd servicestate && go clean
-	cd addressassignment && go clean
-	cd serviceconfigfile && go clean
+	$(GO) clean
+	cd host && $(GO) clean
+	cd pool && $(GO) clean
+	cd servicedefinition && $(GO) clean
+	cd servicetemplate && $(GO) clean
+	cd service && $(GO) clean
+	cd servicestate && $(GO) clean
+	cd addressassignment && $(GO) clean
+	cd serviceconfigfile && $(GO) clean

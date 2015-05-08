@@ -78,24 +78,18 @@ IN_DOCKER = 0
 #------------------------------------------------------------------------------#
 # Build Repeatability with Godeps
 #------------------------------------------------------------------------------#
-# We manage go dependencies by 'godep restoring' from a checked-in list of go
-# packages at desired versions in:
+# We manage go dependencies by 'godep saving' from the current $GOPATH/src.
+# The Godeps directory is manually updated and thus requires some dev-vigilence
+# if our go imports change in name or version.
 #
-#    ./Godeps
-#
-# This file is manually updated and thus requires some dev-vigilence if our
-# go imports change in name or version.
-#
-# Alternatively, one may run:
-#
-#    godep save -copy=false
+#    godep save ./...
 #
 # to generate the Godeps file based upon the src currently populated in
 # $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
 # against the generated Godeps.
 #------------------------------------------------------------------------------#
 GODEP     = $(GOBIN)/godep
-Godeps    = Godeps/Godeps.json
+GO        = $(GODEP) go
 godep_SRC = github.com/tools/godep
 
 # Normalize DESTDIR so we can use this idiom in our install targets:
@@ -118,33 +112,8 @@ endif
 .PHONY: default build all
 default build all: $(build_TARGETS)
 
-# The presence of this file indicates that godep restore
-# has been run.  It will refresh when ./Godeps itself is updated.
-Godeps_restored = .Godeps_restored
-
-# NB: Dependency upon $(GODEP) below is intentional.  Otherwise dockerized builds
-#     may not 'go restore' properly, leaving an incompletely populated $GOPATH/src.
-#     Fundamental issue is we employ separate $GOPATHS for docker and non-dockerized
-#     build targets (which is good), but we share the same serviced source and
-#     use it as a build tree (which is ungood). Until we separate out the build trees
-#     and keep the source pristine, the potential exists for build-state from a
-#     non-dockerized build targets to affect build behavior in the dockerized
-#     build targets and vice-versa.
-
-$(Godeps_restored): $(GODEP) $(Godeps)
-	@echo "$(GODEP) restore" ;\
-	$(GODEP) restore ;\
-	rc=$$? ;\
-	if [ $${rc} -ne 0 ] ; then \
-		echo "ERROR: Failed $(GODEP) restore. [rc=$${rc}]" ;\
-		echo "** Unable to restore your GOPATH to a baseline state." ;\
-		echo "** Perhaps internet connectivity is down." ;\
-		exit $${rc} ;\
-	fi
-	touch $@
-
 .PHONY: build_isvcs
-build_isvcs: $(Godeps_restored)
+build_isvcs:
 	cd isvcs && make
 
 .PHONY: build_js
@@ -172,7 +141,7 @@ govet: $(GOSRC)/$(govet_SRC)
 
 .PHONY: go
 go:
-	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -186,20 +155,18 @@ docker_SRC = github.com/docker/docker
 #
 # Force our go recipies to always fire since make doesn't
 # understand all of the target's *.go dependencies.  In this case let
-# 'go build' determine if the target needs to be rebuilt.
+# '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
-serviced: $(Godeps_restored)
 serviced: FORCE
-	go build $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
-	go install $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 serviced = $(GOBIN)/serviced
-$(serviced): $(Godeps_restored)
 $(serviced): FORCE
-	go build $(GOBUILD_FLAGS) ${LDFLAGS}
-	go install $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+	$(GO) install $(GOBUILD_FLAGS) ${LDFLAGS}
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
@@ -219,7 +186,7 @@ docker_build: docker_ok
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
 # dependent upon the directory that holds the godep source.
-# If that directory is missing, then trigger the 'go get' of the
+# If that directory is missing, then trigger the '$(GO) install' of the
 # source.
 #
 # This requires some make fu borrowed from:
@@ -228,7 +195,7 @@ docker_build: docker_ok
 #
 missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
 $(GODEP): | $(missing_godep_SRC)
-	go install $(godep_SRC)
+	$(GO) install $(godep_SRC)
 
 #---------------------#
 # Install targets     #
@@ -442,7 +409,7 @@ docker_buildandpackage: docker_ok
 .PHONY: test
 test: build docker_ok
 	./run-tests.sh
-	cd web && make test
+	cd web && make "GO=$(GO)" test
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
@@ -472,26 +439,18 @@ clean_serviced:
 			echo "rm -f $${target}" ;\
                 fi ;\
         done
-	-go clean
+	-$(GO) clean
 
 .PHONY: clean_pkg
 clean_pkg:
 	cd pkg && make clean
 
-.PHONY: clean_godeps
-clean_godeps: | $(GODEP) $(Godeps)
-	-$(GODEP) restore && go clean -r && go clean -i github.com/control-center/serviced/... # this cleans all dependencies
-	@if [ -f "$(Godeps_restored)" ];then \
-		rm -f $(Godeps_restored) ;\
-		echo "rm -f $(Godeps_restored)" ;\
-	fi
-
 .PHONY: clean_dao
 clean_dao:
-	cd dao && make clean
+	cd dao && make "GO=$(GO)" clean
 
 .PHONY: clean
-clean: clean_js clean_pkg clean_dao clean_godeps clean_serviced
+clean: clean_js clean_pkg clean_dao clean_serviced
 
 .PHONY: docker_clean_pkg
 docker_clean_pkg:

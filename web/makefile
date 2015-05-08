@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO = $(shell which go)
+GO        ?= $(shell which go)
 
 .PHONY: default
 default: build
@@ -19,7 +19,7 @@ default: build
 .PHONY: build
 build:
 	cd ui && make build
-	go build
+	$(GO) build
 
 .PHONY: test
 test: build
