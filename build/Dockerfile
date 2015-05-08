@@ -30,6 +30,7 @@ RUN	apt-get update -qq && apt-get install -y -q wget curl git
 RUN	curl -s https://storage.googleapis.com/golang/go1.4.2.linux-amd64.tar.gz | tar -v -C /usr/local -xz
 ENV	GOPATH  /go
 ENV	PATH $PATH:/go/bin:/usr/local/go/bin
+RUN	go get github.com/tools/godep
 
 # Install nodejs, npm, gulp, etc
 RUN apt-get update -qq && apt-get install -y -q nodejs=0.10.25~dfsg2-2ubuntu1 npm=1.3.10~dfsg-1
