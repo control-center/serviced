@@ -117,6 +117,7 @@ HOST_IP=`hostname -i`
 docker run --rm --name capybara_demo \
     --add-host=${HOSTNAME}:${HOST_IP} \
     -v `pwd`/ui:/capybara:rw \
+    -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
     -e CAPYBARA_DRIVER=${DRIVER_NAME} \
