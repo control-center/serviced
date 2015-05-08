@@ -20,7 +20,14 @@ end
 
 def visitHostsPage()
     @hosts_page = Hosts.new
-    @hosts_page.load
+    #
+    # FIXME: For some reason the following load fails on Chrome for this page,
+    #        even though the same syntax works on FF
+    # @hosts_page.load
+    # expect(@hosts_page).to be_displayed
+    within(".navbar-collapse") do
+        click_link("Hosts")
+    end
     expect(@hosts_page).to be_displayed
 end
 
