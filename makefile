@@ -409,7 +409,7 @@ docker_buildandpackage: docker_ok
 .PHONY: test
 test: build docker_ok
 	./run-tests.sh
-	cd web && make test
+	cd web && make "GO=$(GO)" test
 
 smoketest: build docker_ok
 	/bin/bash smoke.sh
@@ -447,7 +447,7 @@ clean_pkg:
 
 .PHONY: clean_dao
 clean_dao:
-	cd dao && make clean
+	cd dao && make "GO=$(GO)" clean
 
 .PHONY: clean
 clean: clean_js clean_pkg clean_dao clean_serviced
