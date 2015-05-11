@@ -18,15 +18,15 @@ import (
 	"net/url"
 	"os"
 
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/docker/docker/registry"
+	"github.com/zenoss/glog"
 )
 
 func DockerLogin(username, password, email string) (string, error) {
 
-	u, err := url.Parse(docker.DEFAULT_REGISTRY)
+	u, err := url.Parse(registry.IndexServerAddress())
 	if err != nil {
-		return "", fmt.Errorf("Error: bad URL %s: %s", docker.DEFAULT_REGISTRY, err)
+		return "", fmt.Errorf("Error: bad URL %s: %s", registry.IndexServerAddress(), err)
 	}
 	endpoint := registry.Endpoint{URL: u, Version: 1, IsSecure: false}
 
@@ -36,8 +36,10 @@ func DockerLogin(username, password, email string) (string, error) {
 		if err != nil {
 			return "", err
 		}
+
 		authconfig, ok := configFile.Configs[registry.IndexServerAddress()]
 		if !ok {
+			glog.Warningf("unable to login to docker.io using credentials in %s/.dockercfg", os.Getenv("HOME"))
 			return "", fmt.Errorf("Error: Unable to login, no data for index server.")
 		}
 		status, err := registry.Login(&authconfig, &endpoint, registry.HTTPRequestFactory(nil))

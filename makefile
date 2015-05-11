@@ -158,7 +158,8 @@ docker_SRC = github.com/docker/docker
 # '$(GO) build' determine if the target needs to be rebuilt.
 FORCE:
 
-serviced: FORCE
+serviced: $(GODEP)
+serviced: FORCE 
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
@@ -190,7 +191,7 @@ docker_build: docker_ok
 #
 missing_godep_SRC = $(filter-out $(wildcard $(GOSRC)/$(godep_SRC)), $(GOSRC)/$(godep_SRC))
 $(GODEP): | $(missing_godep_SRC)
-	$(GO) install $(godep_SRC)
+	go install $(godep_SRC)
 
 #---------------------#
 # Install targets     #
@@ -426,7 +427,7 @@ clean_js:
 	cd web/ui && make clean
 
 .PHONY: clean_serviced
-clean_serviced:
+clean_serviced: $(GODEP)
 	@for target in serviced $(serviced) ;\
         do \
                 if [ -f "$${target}" ];then \
@@ -441,7 +442,7 @@ clean_pkg:
 	cd pkg && make clean
 
 .PHONY: clean_dao
-clean_dao:
+clean_dao: $(GODEP)
 	cd dao && make "GO=$(GO)" clean
 
 .PHONY: clean
