@@ -140,18 +140,21 @@ func elasticsearchHealthCheck(port int) func() error {
 	}
 }
 
-func PurgeLogstashIndices(days int, gb int) error {
+func PurgeLogstashIndices(days int, gb int) {
 	iservice := elasticsearch_logstash
 	port := iservice.Ports[0]
 	glog.Infof("Purging logstash entries older than %d days", days)
 	err := iservice.Exec([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--older-than", fmt.Sprintf("%d", days)})
+		"delete", "indices", "--older-than", fmt.Sprintf("%d", days), "--time-unit", "days", "--timestring", "%Y.%m.%d"})
 	if err != nil {
-		return err
+		glog.Errorf("Unable to purge logstash entries older than %d days: %s", days, err)
 	}
 	glog.Infof("Purging oldest logstash entries to limit disk usage to %d GB.", gb)
-	return iservice.Exec([]string{
+	err = iservice.Exec([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--disk-space", fmt.Sprintf("%d", gb)})
+		"delete", "--disk-space", fmt.Sprintf("%d", gb), "indices", "--all-indices"})
+	if err != nil {
+		glog.Errorf("Unable to purge logstash entries to limit disk usage to %d GB: %s", gb, err)
+	}
 }
