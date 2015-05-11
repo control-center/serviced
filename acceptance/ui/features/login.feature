@@ -9,7 +9,8 @@ Feature: User login
       And I fill in the user id field with the default user id
       And I fill in the password field with the default password
       And I click the sign-in button
-    Then I should see "Applications"
+    Then I should be on the applications page
+      And I should see "Applications"
       And I should see "Resource Pools"
       And I should see "Hosts"
       And I should see "Backup / Restore"
