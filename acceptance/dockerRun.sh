@@ -98,26 +98,12 @@ fi
 HOSTNAME=`hostname -s`
 HOST_IP=`hostname -i`
 
-#
-# TODO: for some reason, the browser is not display "Internal Services"
-#
-# Startting with --net or --add-host are mutually exclusive.
-# Both fail to fix the bug with internal-services-not-found
-#
-# When using --net, the makeCukeUser script fails. As a workaround, run
-# this script with --root when using --net
-# --net=host \
-# --add-host=${HOSTNAME}:${HOST_IP} \
-#
-# To reproduce bug, start serviced, and run
-#
-# APPLICATION_USERID=gjones APPLICATION_URL=https://gjones-dev ./dockerRun.sh
-#
-
 docker run --rm --name capybara_demo \
     --add-host=${HOSTNAME}:${HOST_IP} \
-    -v `pwd`/ui:/capybara:rw \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+    -v /etc/timezone:/etc/timezone:ro \
+    -v /etc/localtime:/etc/localtime:ro \
+    -v `pwd`/ui:/capybara:rw \
     -e CALLER_UID=${CALLER_UID} \
     -e CALLER_GID=${CALLER_GID} \
     -e CAPYBARA_DRIVER=${DRIVER_NAME} \
