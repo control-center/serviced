@@ -34,9 +34,8 @@ func init() {
 			Tag:     IMAGE_TAG,
 			Command: func() string { return command },
 			//only expose 8443 (the consumer port to the host)
-			Ports:       []uint16{4242, 8443, 8888, 9090},
-			Volumes:     map[string]string{"hbase": "/opt/zenoss/var/hbase"},
-			HostNetwork: true,
+			Ports:   []uint16{4242, 8443, 8888, 9090},
+			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
 		})
 	if err != nil {
 		glog.Fatalf("Error initializing opentsdb container: %s", err)

@@ -29,14 +29,13 @@ func init() {
 	command := "exec /opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	logstash, err = NewIService(
 		IServiceDefinition{
-			Name:        "logstash",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     func() string { return command },
-			Ports:       []uint16{5042, 5043, 9292},
-			Volumes:     map[string]string{},
-			Notify:      notifyLogstashConfigChange,
-			HostNetwork: true,
+			Name:    "logstash",
+			Repo:    IMAGE_REPO,
+			Tag:     IMAGE_TAG,
+			Command: func() string { return command },
+			Ports:   []uint16{5042, 5043, 9292},
+			Volumes: map[string]string{},
+			Notify:  notifyLogstashConfigChange,
 		})
 	if err != nil {
 		glog.Fatalf("Error initializing logstash_master container: %s", err)

@@ -231,9 +231,13 @@ func (svc *IService) create() (*docker.Container, error) {
 	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)
 	config.Cmd = []string{"/bin/sh", "-c", "trap 'kill 0' 15; " + svc.Command()}
 
-	// set the host network (if enabled)
+	// NOTE: USE WITH CARE
+	// Enabling host networking for an isvc may expose ports
+	// of the isvcs to access outside of the serviced host, potentially
+	// compromising security.
 	if svc.HostNetwork {
 		cd.NetworkMode = "host"
+		glog.Warningf("Host networking enabled for isvc %s", svc.Name)
 	}
 
 	// attach all exported ports
