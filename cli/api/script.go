@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"math"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -154,9 +155,9 @@ func cliServiceIDFromPath(a *api) script.ServiceIDFromPath {
 				fullpath = path.Join(svcMap[parentServiceID].Name, fullpath)
 				parentServiceID = svcMap[parentServiceID].ParentServiceID
 			}
-			pathmap[fullpath] = svc.ID
+			pathmap[strings.ToLower(fullpath)] = svc.ID
 		}
-		svcID, found := pathmap[svcPath]
+		svcID, found := pathmap[strings.ToLower(svcPath)]
 		if !found {
 			return "", fmt.Errorf("did not find service %s", svcPath)
 		}
