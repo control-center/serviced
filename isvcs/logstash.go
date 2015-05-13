@@ -53,9 +53,10 @@ func init() {
 				localFilePortBinding,
 				lumberJackPortBinding,
 				webserverPortBinding},
-			Volumes: map[string]string{},
-			Notify:  notifyLogstashConfigChange,
-			Links:   []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
+			Volumes:    map[string]string{},
+			Notify:     notifyLogstashConfigChange,
+			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
+			StartGroup: 1,
 		})
 	if err != nil {
 		glog.Fatalf("Error initializing logstash_master container: %s", err)

@@ -125,6 +125,7 @@ type IServiceDefinition struct {
 	PostStart     func(*IService) error              // A function to run after the initial start of the service
 	HostNetwork   bool                               // enables host network in the container
 	Links         []string                           // List of links to other containers in the form of <name>:<alias>
+	StartGroup    uint16                             // Start up group number
 }
 
 type IService struct {
@@ -278,6 +279,14 @@ func (svc *IService) create() (*docker.Container, error) {
 
 	// copy any links to other isvcs
 	if svc.Links != nil && len(svc.Links) > 0 {
+		// To use a link, the source container must be instantiated already, so
+		//    the service using a link can't be in the first start group.
+		//
+		// FIXME: Other sanity checks we could add - make sure that the source
+		//        container is not in the same group or a later group
+		if svc.StartGroup == 0 {
+			glog.Fatalf("isvc %s can not use docker Links with StartGroup=0", svc.Name)
+		}
 		cd.Links = make([]string, len(svc.Links))
 		copy(cd.Links, svc.Links)
 		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.Links)
