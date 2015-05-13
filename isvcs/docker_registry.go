@@ -37,6 +37,11 @@ func init() {
 		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
 	}
 
+	dockerPortBinding := portBinding{
+		HostIp:         "0.0.0.0",
+		HostIpOverride: "", // docker registry should always be open
+		HostPort:       registryPort,
+	}
 	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced exec docker-registry`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
@@ -44,7 +49,7 @@ func init() {
 			Repo:         IMAGE_REPO,
 			Tag:          IMAGE_TAG,
 			Command:      func() string { return command },
-			Ports:        []uint16{registryPort},
+			PortBindings: []portBinding{dockerPortBinding},
 			Volumes:      map[string]string{"registry": "/tmp/registry"},
 			HealthChecks: healthChecks,
 		},
