@@ -124,6 +124,7 @@ type IServiceDefinition struct {
 	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
 	PostStart     func(*IService) error              // A function to run after the initial start of the service
 	HostNetwork   bool                               // enables host network in the container
+	Links         []string                           // List of links to other containers in the form of <name>:<alias>
 }
 
 type IService struct {
@@ -274,6 +275,13 @@ func (svc *IService) create() (*docker.Container, error) {
 		}
 	}
 	glog.V(1).Infof("Bindings for %s = %v", svc.Name, cd.PortBindings)
+
+	// copy any links to other isvcs
+	if svc.Links != nil && len(svc.Links) > 0 {
+		cd.Links = make([]string, len(svc.Links))
+		copy(cd.Links, svc.Links)
+		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.Links)
+	}
 
 	// attach all exported volumes
 	config.Volumes = make(map[string]struct{})
