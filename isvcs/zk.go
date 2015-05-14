@@ -26,14 +26,26 @@ import (
 	"time"
 )
 
+var zookeeperPortBinding = portBinding{
+	HostIp:         "0.0.0.0",
+	HostIpOverride: "", // zookeeper should always be open
+	HostPort:       2181,
+}
+
+var exhibitorPortBinding = portBinding{
+	HostIp:         "127.0.0.1",
+	HostIpOverride: "SERVICED_ISVC_ZOOKEEPER_PORT_12181_HOSTIP",
+	HostPort:       12181,
+}
+
 var Zookeeper = IServiceDefinition{
-	Name:        "zookeeper",
-	Repo:        IMAGE_REPO,
-	Tag:         IMAGE_TAG,
-	Command:     func() string { return "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
-	Ports:       []uint16{2181, 12181},
-	Volumes:     map[string]string{"data": "/tmp"},
-	HealthCheck: zkHealthCheck,
+	Name:         "zookeeper",
+	Repo:         IMAGE_REPO,
+	Tag:          IMAGE_TAG,
+	Command:      func() string { return "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
+	PortBindings: []portBinding{zookeeperPortBinding, exhibitorPortBinding},
+	Volumes:      map[string]string{"data": "/tmp"},
+	HealthCheck:  zkHealthCheck,
 }
 
 var zookeeper *IService

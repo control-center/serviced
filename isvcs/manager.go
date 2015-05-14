@@ -30,6 +30,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 )
 
@@ -77,19 +78,21 @@ type managerRequest struct {
 
 // A manager of docker services run in ephemeral containers
 type Manager struct {
-	imagesDir  string              // local directory where images could be loaded from
-	volumesDir string              // local directory where volumes are stored
-	requests   chan managerRequest // the main loops request channel
-	services   map[string]*IService
+	imagesDir   string              // local directory where images could be loaded from
+	volumesDir  string              // local directory where volumes are stored
+	requests    chan managerRequest // the main loops request channel
+	services    map[string]*IService
+	startGroups map[int][]string // map by group number of a list of service names
 }
 
 // Returns a new Manager struct and starts the Manager's main loop()
 func NewManager(imagesDir, volumesDir string) *Manager {
 	manager := &Manager{
-		imagesDir:  imagesDir,
-		volumesDir: volumesDir,
-		requests:   make(chan managerRequest),
-		services:   make(map[string]*IService),
+		imagesDir:   imagesDir,
+		volumesDir:  volumesDir,
+		requests:    make(chan managerRequest),
+		services:    make(map[string]*IService),
+		startGroups: make(map[int][]string),
 	}
 	go manager.loop()
 	return manager
@@ -258,6 +261,7 @@ func (m *Manager) loop() {
 			case managerOpExit:
 				request.response <- nil
 				return // this will exit the loop()
+
 			case managerOpStart:
 				var err error
 				once.Do(func() {
@@ -272,38 +276,18 @@ func (m *Manager) loop() {
 					continue
 				}
 
-				// track the number of services that haven't started
-				started := make(chan int)
-				var count int
-				go func() {
-					for s := range started {
-						count += s
-					}
-				}()
-
-				// start services in parallel
-				var wg sync.WaitGroup
-				for name, svc := range m.services {
-					if !svc.IsRunning() {
-						wg.Add(1)
-						go func(svc *IService) {
-							defer wg.Done()
-							started <- 1
-							if err := svc.Start(); err != nil {
-								glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
-								return
-							}
-							started <- -1
-						}(m.services[name])
-					}
+				// Start each group of services in group-number order
+				unstartedServices := 0
+				for _, group := range m.orderedStartGroups() {
+					unstartedServices += m.startServiceGroup(group)
 				}
-				wg.Wait()
-				close(started)
-				if count > 0 {
-					request.response <- StartError(count)
+
+				if unstartedServices > 0 {
+					request.response <- StartError(unstartedServices)
 				} else {
 					request.response <- nil
 				}
+
 			case managerOpStop:
 				// track the number of services that haven't stopped
 				var noStop = make([]int, len(m.services))
@@ -341,6 +325,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerUnknownArg
 				} else {
 					m.services[svc.Name] = svc
+					m.addServiceToStartGroup(svc)
 					request.response <- nil
 				}
 			case managerOpInit:
@@ -350,6 +335,61 @@ func (m *Manager) loop() {
 			}
 		}
 	}
+}
+
+func (m *Manager) addServiceToStartGroup(svc *IService) {
+	startGroup := int(svc.StartGroup)
+	if m.startGroups[startGroup] == nil {
+		m.startGroups[startGroup] = make([]string, 0)
+	}
+	m.startGroups[startGroup] = append(m.startGroups[startGroup], svc.Name)
+}
+
+// Returns a list of start groups in numeric order (lowest to highest)
+func (m *Manager) orderedStartGroups() []int {
+	result := make([]int, len(m.startGroups))
+	i := 0
+	for key, _ := range m.startGroups {
+		result[i] = int(key)
+		i++
+	}
+	sort.Ints(result)
+	return result
+}
+
+// Start all of the services in the specified start group and wait for all of
+// them to finish. Returns the number of services which failed to start.
+func (m *Manager) startServiceGroup(group int) int {
+	glog.V(1).Infof("Starting isvcs in group %d: %v", group, m.startGroups[group])
+
+	// track the number of services that haven't started
+	var noStart = make([]int, len(m.startGroups[group]))
+
+	// start all of the services for this group in parallel
+	var wg sync.WaitGroup
+	index := 0
+	for _, name := range m.startGroups[group] {
+		svc := m.services[name]
+		if !svc.IsRunning() {
+			wg.Add(1)
+			go func(svc *IService, i int) {
+				defer wg.Done()
+				if err := svc.Start(); err != nil {
+					glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
+					noStart[i] = 1
+					return
+				}
+			}(m.services[name], index)
+		}
+		index++
+	}
+	wg.Wait()
+
+	unstartedServices := 0
+	for _, i := range noStart {
+		unstartedServices += i
+	}
+	return unstartedServices
 }
 
 // makeRequest sends a manager operation request to the *Manager's loop()

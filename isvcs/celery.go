@@ -24,12 +24,12 @@ func init() {
 	command := "supervisord -n -c /opt/celery/etc/supervisor.conf"
 	celery, err = NewIService(
 		IServiceDefinition{
-			Name:    "celery",
-			Repo:    IMAGE_REPO,
-			Tag:     IMAGE_TAG,
-			Command: func() string { return command },
-			Ports:   []uint16{},
-			Volumes: map[string]string{"celery": "/opt/celery/var"},
+			Name:         "celery",
+			Repo:         IMAGE_REPO,
+			Tag:          IMAGE_TAG,
+			Command:      func() string { return command },
+			PortBindings: []portBinding{},
+			Volumes:      map[string]string{"celery": "/opt/celery/var"},
 		})
 	if err != nil {
 		glog.Fatal("Error initializing celery container: %s", err)

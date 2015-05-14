@@ -27,16 +27,51 @@ var opentsdb *IService
 func init() {
 	var err error
 	command := `cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf`
+	opentsdbPortBinding := portBinding{
+		HostIp:         "0.0.0.0",
+		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_4242_HOSTIP",
+		HostPort:       4242,
+	}
+	metricConsumerPortBinding := portBinding{
+		HostIp:         "0.0.0.0",
+		HostIpOverride: "", // metric-consumer should always be open
+		HostPort:       8443,
+	}
+	metricConsumerAdminPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_58443_HOSTIP",
+		HostPort:       58443,
+	}
+	centralQueryPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_8888_HOSTIP",
+		HostPort:       8888,
+	}
+	centralQueryAdminPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_58888_HOSTIP",
+		HostPort:       58888,
+	}
+	hbasePortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_OPENTSDB_PORT_9090_HOSTIP",
+		HostPort:       9090,
+	}
+
 	opentsdb, err = NewIService(
 		IServiceDefinition{
 			Name:    "opentsdb",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,
 			Command: func() string { return command },
-			//only expose 8443 (the consumer port to the host)
-			Ports:       []uint16{4242, 8443, 8888, 9090},
-			Volumes:     map[string]string{"hbase": "/opt/zenoss/var/hbase"},
-			HostNetwork: true,
+			PortBindings: []portBinding{
+				opentsdbPortBinding,
+				metricConsumerPortBinding,
+				metricConsumerAdminPortBinding,
+				centralQueryPortBinding,
+				centralQueryAdminPortBinding,
+				hbasePortBinding},
+			Volumes: map[string]string{"hbase": "/opt/zenoss/var/hbase"},
 		})
 	if err != nil {
 		glog.Fatal("Error initializing opentsdb container: %s", err)
