@@ -94,18 +94,38 @@ type healthCheckDefinition struct {
 	Timeout     time.Duration // A timeout in which to complete the health check.
 }
 
+// portBinding defines how a port in the container is bound to port on the master host.
+// The port number in the container and the port exposed on the master host are always
+// same, but the IP on the master host can vary.
+//
+// HostIp - use blank or "0.0.0.0" to bind to a port that will be public on the master host IP;
+//          use "127.0.0.1" to bind to a port that will be restricted to "localhost" on the master host
+// HostIpOverride - if not blank, assumed to be an environment variable containing a value that
+//          overrides HostIp. The naming convention for the env var should be
+//               SERVICED_ISVC_<NAME>_PORT_<NUMBER>_HOSTIP
+//          where <NAME> is the name if the isvc (e.g. "opentsdb")
+//                <PORT> is the port number to be overriden (e.g. 12181)
+// HostPort - the port number on the master host to bind to.
+type portBinding struct {
+	HostIp         string
+	HostIpOverride string
+	HostPort       uint16
+}
+
 type IServiceDefinition struct {
 	Name          string                             // name of the service (used in naming containers)
 	Repo          string                             // the service's docker repository
 	Tag           string                             // the service's docker repository tag
 	Command       func() string                      // the command to run in the container
 	Volumes       map[string]string                  // volumes to bind mount to the container
-	Ports         []uint16                           // ports to expose to the host
+	PortBindings  []portBinding                      // defines how ports are exposed on the host
 	HealthChecks  map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
 	Configuration map[string]interface{}             // service specific configuration
 	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
 	PostStart     func(*IService) error              // A function to run after the initial start of the service
 	HostNetwork   bool                               // enables host network in the container
+	Links         []string                           // List of links to other containers in the form of <name>:<alias>
+	StartGroup    uint16                             // Start up group number
 }
 
 type IService struct {
@@ -231,20 +251,45 @@ func (svc *IService) create() (*docker.Container, error) {
 	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)
 	config.Cmd = []string{"/bin/sh", "-c", "trap 'kill 0' 15; " + svc.Command()}
 
-	// set the host network (if enabled)
+	// NOTE: USE WITH CARE!
+	// Enabling host networking for an isvc may expose ports
+	// of the isvcs to access outside of the serviced host, potentially
+	// compromising security.
 	if svc.HostNetwork {
 		cd.NetworkMode = "host"
+		glog.Warningf("Host networking enabled for isvc %s", svc.Name)
 	}
 
 	// attach all exported ports
-	if svc.Ports != nil && len(svc.Ports) > 0 {
+	if svc.PortBindings != nil && len(svc.PortBindings) > 0 {
 		config.ExposedPorts = make(map[dockerclient.Port]struct{})
 		cd.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
-		for _, portno := range svc.Ports {
-			port := dockerclient.Port(fmt.Sprintf("%d", portno))
+		for _, binding := range svc.PortBindings {
+			port := dockerclient.Port(fmt.Sprintf("%d", binding.HostPort))
 			config.ExposedPorts[port] = struct{}{}
-			cd.PortBindings[port] = append(cd.PortBindings[port], dockerclient.PortBinding{HostPort: fmt.Sprintf("%d", portno)})
+			portBinding := dockerclient.PortBinding{
+				HostIp:   getHostIp(binding),
+				HostPort: port.Port(),
+			}
+
+			cd.PortBindings[port] = append(cd.PortBindings[port], portBinding)
 		}
+	}
+	glog.V(1).Infof("Bindings for %s = %v", svc.Name, cd.PortBindings)
+
+	// copy any links to other isvcs
+	if svc.Links != nil && len(svc.Links) > 0 {
+		// To use a link, the source container must be instantiated already, so
+		//    the service using a link can't be in the first start group.
+		//
+		// FIXME: Other sanity checks we could add - make sure that the source
+		//        container is not in the same group or a later group
+		if svc.StartGroup == 0 {
+			glog.Fatalf("isvc %s can not use docker Links with StartGroup=0", svc.Name)
+		}
+		cd.Links = make([]string, len(svc.Links))
+		copy(cd.Links, svc.Links)
+		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.Links)
 	}
 
 	// attach all exported volumes
@@ -773,4 +818,15 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			}
 		}
 	}
+}
+
+func getHostIp(binding portBinding) string {
+	hostIp := binding.HostIp
+	if binding.HostIpOverride != "" {
+		if override := strings.TrimSpace(os.Getenv(binding.HostIpOverride)); override != "" {
+			hostIp = override
+			glog.Infof("Using HostIp override %s = %v", binding.HostIpOverride, hostIp)
+		}
+	}
+	return hostIp
 }
