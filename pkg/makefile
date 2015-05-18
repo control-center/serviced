@@ -52,6 +52,7 @@ CATEGORY      = admin
 PKG_VERSION = $(VERSION)
 ifeq "$(RELEASE_PHASE)" ""
     ITERATION = 0.0.$(BUILD_NUMBER).unstable
+    BUILD_LABEL = build-$(BUILD_NUMBER)
 else
     # This else portion is no longer used - replaced by:
     #   http://jenkins.zendev.org/view/Promotions/job/serviced-promote/
@@ -63,6 +64,7 @@ else
     else
         ITERATION = 0.1.$(RELEASE_PHASE)
     endif
+    BUILD_LABEL =
 endif
 
 ifeq "$(SUBPRODUCT)" ""
@@ -72,7 +74,7 @@ FULL_NAME=$(NAME)-$(SUBPRODUCT)
 endif
 
 define DESCRIPTION
-Zenoss Serviced PaaS runtime 
+Zenoss Serviced PaaS runtime.  $(BUILD_LABEL)
 Allows services to be uniformly created, scaled, and managed.
 endef
 export DESCRIPTION
