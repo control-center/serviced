@@ -201,6 +201,7 @@ func (c *Client) setNode(nodePath string, node *Node, doGetBeforeSet bool) error
 	}
 
 	node.Host.UpdatedAt = time.Now()
+	node.Host.ServiceD.Release = c.host.ServiceD.Release
 	if err := c.conn.Set(nodePath, node); err != nil {
 		return err
 	}
