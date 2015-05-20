@@ -66,7 +66,7 @@ func TestMonitorVolume(t *testing.T) {
 	}
 
 	// ---- start monitor
-	monitor, err := NewMonitor(driver, time.Duration(3*time.Second))
+	monitor, err := NewMonitor(driver, time.Duration(3*time.Second), tmpPath)
 	if err != nil {
 		t.Fatalf("unable to create new monitor %s", err)
 	}
