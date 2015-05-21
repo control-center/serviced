@@ -199,8 +199,8 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 		}
 	}
 
-	// Make required mutations to the cloned services.
-	for _, svc := range request.Cloned {
+	// Make required mutations to the added services.
+	for _, svc := range request.Added {
 		svc.ID, err = utils.NewUUID36()
 		if err != nil {
 			return err
@@ -213,15 +213,19 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 		}
 	}
 
-	if err = f.validateClonedMigrationServices(ctx, request.Cloned); err != nil {
+	if err = f.validateAddedMigrationServices(ctx, request.Added); err != nil {
+		return err
+	}
+
+	if err = f.validateServiceDeploymentRequests(ctx, request.Deploy); err != nil {
 		return err
 	}
 
 	// If this isn't a dry run, make the changes.
 	if !request.DryRun {
 
-		// Add the cloned services.
-		for _, svc := range request.Cloned {
+		// Add the added services.
+		for _, svc := range request.Added {
 			if err = f.AddService(ctx, *svc); err != nil {
 				return err
 			}
@@ -236,12 +240,49 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 				return err
 			}
 		}
+
+		// Deploy the service definitions.
+		for _, request := range request.Deploy {
+			parent, err := f.serviceStore.Get(ctx, request.ParentID)
+			if err != nil {
+				glog.Errorf("Could not get parent service %s", request.ParentID)
+				return err
+			}
+			_, err = f.DeployService(ctx, parent.PoolID, request.ParentID, false, request.Service)
+			if err != nil {
+				glog.Errorf("Could not deploy service definition: %+v", request.Service)
+				return err
+			}
+
+		}
 	}
 
 	return nil
 }
 
-func (f *Facade) validateClonedMigrationServices(ctx datastore.Context, clonedSvcs []*service.Service) error {
+func (f *Facade) validateServiceDeploymentRequests(ctx datastore.Context, requests []*dao.ServiceDeploymentRequest) error {
+	for _, request := range requests {
+
+		// Make sure the parent exists.
+		parent, err := f.serviceStore.Get(ctx, request.ParentID)
+		if err != nil {
+			glog.Errorf("Could not get parent service %s", request.ParentID)
+			return err
+		}
+
+		// Make sure we can build the service definition into a service.
+		_, err = service.BuildService(request.Service, request.ParentID, parent.PoolID, int(service.SVCStop), parent.DeploymentID)
+		if err != nil {
+			glog.Errorf("Could not create service: %s", err)
+			return err
+		}
+
+	}
+
+	return nil
+}
+
+func (f *Facade) validateAddedMigrationServices(ctx datastore.Context, addedSvcs []*service.Service) error {
 
 	// Create a list of all endpoint Application names.
 	existing, err := f.serviceStore.GetServices(ctx)
@@ -258,7 +299,7 @@ func (f *Facade) validateClonedMigrationServices(ctx datastore.Context, clonedSv
 	}
 
 	// Perform the validation.
-	for _, svc := range clonedSvcs {
+	for _, svc := range addedSvcs {
 
 		// verify the service with name and parent does not collide with another existing service
 		if s, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {

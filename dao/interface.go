@@ -63,7 +63,8 @@ type RunMigrationScriptRequest struct {
 type ServiceMigrationRequest struct {
 	ServiceID string
 	Modified  []*service.Service
-	Cloned    []*service.Service
+	Added     []*service.Service
+	Deploy    []*ServiceDeploymentRequest
 	DryRun    bool
 }
 
