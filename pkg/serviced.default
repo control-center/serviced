@@ -1,3 +1,5 @@
+# This file content should conform to systemd, i.e. VARIABLE=value
+
 # Need to set $HOME so Docker client can find .dockercfg
 # HOME=/root
 
@@ -13,24 +15,21 @@
 # Set the pool id for the master role
 # SERVICED_MASTER_POOLID=default
 
-# For multi-host, it is convenient to set a master IP to be used in this script
-# SERVICED_MASTER_IP=172.17.42.1
-
 # Set the the zookeeper ensemble, multiple masters should be comma separated
-# SERVICED_ZK=$SERVICED_MASTER_IP:2181
+# SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
 
 # Set to 1 to have serviced push/pull in to a docker registry
 # instead of only using the local docker index
 # SERVICED_REGISTRY=1
 
 # Set the local docker registry
-# SERVICED_DOCKER_REGISTRY=$SERVICED_MASTER_IP:5000
+# SERVICED_DOCKER_REGISTRY={{SERVICED_MASTER_IP}}:5000
 
 # Set the static IPs this host can advertize
 # SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
 
 # Set the default serviced RPC endpoint to dial
-# SERVICED_ENDPOINT=$SERVICED_MASTER_IP:4979
+# SERVICED_ENDPOINT={{SERVICED_MASTER_IP}}:4979
 
 # Set the max number of rpc clients (pool) to an endpoint
 # SERVICED_MAX_RPC_CLIENTS=3
@@ -70,16 +69,16 @@ SERVICED_FS_TYPE=btrfs
 # SERVICED_LOG_LEVEL=0
 
 # Set the address to which to send logs
-# SERVICED_LOG_ADDRESS=$SERVICED_MASTER_IP:5042
+# SERVICED_LOG_ADDRESS={{SERVICED_MASTER_IP}}:5042
 
 # Set the address for the logstash elastic search
-# SERVICED_LOGSTASH_ES=$SERVICED_MASTER_IP:9100
+# SERVICED_LOGSTASH_ES={{SERVICED_MASTER_IP}}:9100
 
 # Set the age (in days) of logstash data to keep
 # SERVICED_LOGSTASH_MAX_DAYS=14
 
 # Set the default serviced stats endpoint to use
-# SERVICED_STATS_PORT=$SERVICED_MASTER_IP:8443
+# SERVICED_STATS_PORT={{SERVICED_MASTER_IP}}:8443
 
 # Set the interval (in seconds) for host performance collection
 # SERVICED_STATS_PERIOD=10
