@@ -19,7 +19,7 @@ TIMEOUT=10
 #
 # The features/steps in this example assumes github as the default application
 if [ -z "${APPLICATION_URL-}" ]; then
-    APPLICATION_URL="http://localhost"
+    APPLICATION_URL="https://localhost"
 fi
 
 while (( "$#" )); do
@@ -28,6 +28,9 @@ while (( "$#" )); do
         shift 2
     elif [ "$1" == "-p" ]; then
         APPLICATION_PASSWORD="${2}"
+        shift 2
+    elif [ "$1" == "-a" ]; then
+        APPLICATION_URL="${2}"
         shift 2
     elif [ "$1" == "-d" ]; then
         DRIVER_NAME="${2}"
@@ -45,12 +48,13 @@ while (( "$#" )); do
         if [ "$1" != "-h" ]; then
             echo "ERROR: invalid argument '$1'"
         fi
-        echo "USAGE: dockerRun.sh [-u userid] [-p password] [-d driverName] [-t timeout]"
-        echo "                    [--root] [-i] [-h]"
+        echo "USAGE: dockerRun.sh [-u userid] [-p password] [-a url] [-d driverName]"
+        echo "                    [-t timeout] [--root] [-i] [-h]"
         echo ""
         echo "where"
         echo "    -u userid       a valid github user id (required)"
         echo "    -p password     the password for userid (required)"
+        echo "    -a url          the URL of the application"
         echo "    -d driverName   identifies the Capybara driver to use"
         echo "                    (e.g. selenium, selenium_chrome or poltergeist)"
         echo "    -t timeout      identifies the Capybara timeout to use (in seconds)"
