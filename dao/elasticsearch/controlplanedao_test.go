@@ -319,7 +319,8 @@ export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
 wrapper = {
 	"Modified": svcs,
-	"Cloned": [clone]
+	"Added": [clone],
+	"Deploy": []
 }
 
 f = open(outputFile, 'w')
@@ -355,6 +356,62 @@ exit(0)
 	t.Fail()
 }
 
+func (dt *DaoTest) TestDao_MigrateServiceDeploy(t *C) {
+	svc, err := dt.setupMigrationTest()
+	t.Assert(err, IsNil)
+
+	scriptBody := `
+import json, os, string, sys, copy
+
+inputFile = os.environ["MIGRATE_INPUTFILE"]
+outputFile = os.environ["MIGRATE_OUTPUTFILE"]
+svcs = json.loads(open(inputFile, 'r').read())
+wrapper = {
+	"Modified": svcs,
+	"Added": [],
+	"Deploy": [{
+		"ParentID": "migrationTest",
+		"Service": {
+			"Name": "added-service-name",
+	        "ImageID": "ubuntu:latest",
+	        "Launch": "auto"
+		}
+	}]
+}
+
+f = open(outputFile, 'w')
+f.write(json.dumps(wrapper, indent=4, sort_keys=True))
+f.close()
+exit(0)
+`
+	request := dao.RunMigrationScriptRequest{
+		ServiceID:  svc.ID,
+		ScriptBody: scriptBody,
+		DryRun:     false,
+	}
+
+	err = dt.Dao.RunMigrationScript(request, &unused)
+	if err != nil {
+		t.Errorf("Failure migrating service %-v with error: %s", svc, err)
+		t.Fail()
+	}
+
+	var svcs []service.Service
+	var serviceRequest dao.ServiceRequest
+	dt.Dao.GetServices(serviceRequest, &svcs)
+	for _, svc := range svcs {
+		if svc.Name == "added-service-name" {
+			if svc.ParentServiceID != "migrationTest" {
+				t.Error("Failed to correctly set parent service id when deploying service during migration.")
+				t.Fail()
+			}
+			return
+		}
+	}
+	t.Error("Failed to deploy service during migration.")
+	t.Fail()
+}
+
 func (dt *DaoTest) TestDao_MigrateServiceCloneFailDupeName(t *C) {
 	svc, err := dt.setupMigrationTest()
 	t.Assert(err, IsNil)
@@ -370,7 +427,8 @@ export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
 wrapper = {
 	"Modified": svcs,
-	"Cloned": [clone]
+	"Added": [clone],
+	"Deploy": []
 }
 
 f = open(outputFile, 'w')
@@ -409,7 +467,8 @@ clone["Name"] = "clone name"
 export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 wrapper = {
 	"Modified": svcs,
-	"Cloned": [clone]
+	"Added": [clone],
+	"Deploy": []
 }
 
 f = open(outputFile, 'w')
@@ -450,7 +509,8 @@ export["Application"] = "clone-application"
 clone["DesiredState"] = -2
 wrapper = {
 	"Modified": svcs,
-	"Cloned": [clone]
+	"Added": [clone],
+	"Deploy": []
 }
 
 f = open(outputFile, 'w')
