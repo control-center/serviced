@@ -27,16 +27,21 @@ const registryPort = 5000
 
 func init() {
 	var err error
+	dockerPortBinding := portBinding{
+		HostIp:         "0.0.0.0",
+		HostIpOverride: "", // docker registry should always be open
+		HostPort:       registryPort,
+	}
 	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
-			Name:        "docker-registry",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     func() string { return command },
-			Ports:       []uint16{registryPort},
-			Volumes:     map[string]string{"registry": "/tmp/registry"},
-			HealthCheck: registryHealthCheck,
+			Name:         "docker-registry",
+			Repo:         IMAGE_REPO,
+			Tag:          IMAGE_TAG,
+			Command:      func() string { return command },
+			PortBindings: []portBinding{dockerPortBinding},
+			Volumes:      map[string]string{"registry": "/tmp/registry"},
+			HealthCheck:  registryHealthCheck,
 		},
 	)
 	if err != nil {

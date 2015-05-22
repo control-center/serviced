@@ -39,17 +39,23 @@ func init() {
 	var err error
 
 	serviceName = "elasticsearch-serviced"
+
+	elasticsearch_servicedPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_SERVICED_PORT_9200_HOSTIP",
+		HostPort:       9200,
+	}
+
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
 			Name:          serviceName,
 			Repo:          IMAGE_REPO,
 			Tag:           IMAGE_TAG,
 			Command:       func() string { return "" },
-			Ports:         []uint16{9200},
+			PortBindings:  []portBinding{elasticsearch_servicedPortBinding},
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
 			Configuration: make(map[string]interface{}),
 			HealthCheck:   elasticsearchHealthCheck(9200),
-			HostNetwork:   true,
 		},
 	)
 	if err != nil {
@@ -64,13 +70,20 @@ func init() {
 	}
 
 	serviceName = "elasticsearch-logstash"
+
+	elasticsearch_logstashPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_ELASTICSEARCH_LOGSTASH_PORT_9100_HOSTIP",
+		HostPort:       9100,
+	}
+
 	elasticsearch_logstash, err = NewIService(
 		IServiceDefinition{
 			Name:          serviceName,
 			Repo:          IMAGE_REPO,
 			Tag:           IMAGE_TAG,
 			Command:       func() string { return "" },
-			Ports:         []uint16{9100},
+			PortBindings:  []portBinding{elasticsearch_logstashPortBinding},
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
 			Configuration: make(map[string]interface{}),
 			HealthCheck:   elasticsearchHealthCheck(9100),
@@ -142,7 +155,7 @@ func elasticsearchHealthCheck(port int) func() error {
 
 func PurgeLogstashIndices(days int, gb int) {
 	iservice := elasticsearch_logstash
-	port := iservice.Ports[0]
+	port := iservice.PortBindings[0].HostPort
 	glog.Infof("Purging logstash entries older than %d days", days)
 	err := iservice.Exec([]string{
 		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),

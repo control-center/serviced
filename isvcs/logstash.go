@@ -27,16 +27,36 @@ var logstash *IService
 func init() {
 	var err error
 	command := "/opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
+	localFilePortBinding := portBinding{
+		HostIp:         "0.0.0.0",
+		HostIpOverride: "", // logstash should always be open
+		HostPort:       5042,
+	}
+	lumberJackPortBinding := portBinding{
+		HostIp:         "0.0.0.0",
+		HostIpOverride: "", // lumberjack should always be open
+		HostPort:       5043,
+	}
+	webserverPortBinding := portBinding{
+		HostIp:         "127.0.0.1",
+		HostIpOverride: "SERVICED_ISVC_LOGSTASH_PORT_9292_HOSTIP",
+		HostPort:       9292,
+	}
+
 	logstash, err = NewIService(
 		IServiceDefinition{
-			Name:        "logstash",
-			Repo:        IMAGE_REPO,
-			Tag:         IMAGE_TAG,
-			Command:     func() string { return command },
-			Ports:       []uint16{5042, 5043, 9292},
-			Volumes:     map[string]string{},
-			Notify:      notifyLogstashConfigChange,
-			HostNetwork: true,
+			Name:    "logstash",
+			Repo:    IMAGE_REPO,
+			Tag:     IMAGE_TAG,
+			Command: func() string { return command },
+			PortBindings: []portBinding{
+				localFilePortBinding,
+				lumberJackPortBinding,
+				webserverPortBinding},
+			Volumes:    map[string]string{},
+			Notify:     notifyLogstashConfigChange,
+			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
+			StartGroup: 1,
 		})
 	if err != nil {
 		glog.Fatal("Error initializing logstash_master container: %s", err)
