@@ -178,7 +178,7 @@ func (m *Manager) wipe() error {
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
 	for _, c := range m.services {
-		glog.Infof("Checking isvcs container %+v", c)
+		glog.V(2).Infof("Checking isvcs container %+v", c)
 		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
 			return err
 		} else {
