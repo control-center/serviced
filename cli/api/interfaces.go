@@ -75,7 +75,7 @@ type API interface {
 
 	// Shell
 	StartShell(ShellConfig) error
-	RunShell(ShellConfig) error
+	RunShell(ShellConfig) (int, error)
 
 	// Snapshots
 	GetSnapshots() ([]dao.SnapshotInfo, error)
