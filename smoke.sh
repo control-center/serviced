@@ -154,6 +154,13 @@ test_service_shell() {
     return $?
 }
 
+test_service_run() {
+    ${SERVICED} service run s2 exit0; local rc="$?"
+    [ "$rc" -eq 0 ] || return "$rc"
+    ${SERVICED} service run s2 exit1; rc="$?"
+    [ "$rc" -eq 42 ] || return "255"
+}
+
 retry() {
     TIMEOUT=$1
     shift
@@ -180,6 +187,7 @@ start_serviced             && succeed "Serviced became leader within timeout"   
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
 add_template               && succeed "Added template successfully"              || fail "Unable to add template"
 deploy_service             && succeed "Deployed service successfully"            || fail "Unable to deploy service"
+test_service_run           && succeed "Service run ran successfully"             || fail "Unable to run service run"
 start_service              && succeed "Started service"                          || fail "Unable to start service"
 retry 10 test_started      && succeed "Service containers started"               || fail "Unable to see service containers"
 

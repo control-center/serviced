@@ -244,21 +244,21 @@ func (t ServiceAPITest) StartShell(config api.ShellConfig) error {
 	return nil
 }
 
-func (t ServiceAPITest) RunShell(config api.ShellConfig) error {
+func (t ServiceAPITest) RunShell(config api.ShellConfig) (int, error) {
 	s, err := t.GetService(config.ServiceID)
 	if err != nil {
-		return err
+		return 1, err
 	} else if s == nil {
-		return ErrNoServiceFound
+		return 1, ErrNoServiceFound
 	}
 
 	command, ok := s.Runs[config.Command]
 	if !ok {
-		return ErrCmdNotFound
+		return 1, ErrCmdNotFound
 	}
 
 	fmt.Printf("%s %s\n", command, strings.Join(config.Args, " "))
-	return nil
+	return 0, nil
 }
 
 func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]dao.SnapshotInfo, error) {

@@ -24,6 +24,10 @@
             "path": "/tmp/foo",
             "type": "foo"
           }],
+          "Runs": {
+            "exit0": "date",
+            "exit1": "date; exit 42"
+          },
           "Snapshot": {
             "Pause": "echo pause",
             "Resume": "echo resume"

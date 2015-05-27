@@ -126,15 +126,15 @@ func (a *api) StartShell(config ShellConfig) error {
 }
 
 // RunShell runs a predefined service shell command via the service definition
-func (a *api) RunShell(config ShellConfig) error {
+func (a *api) RunShell(config ShellConfig) (int, error) {
 	client, err := a.connectDAO()
 	if err != nil {
-		return err
+		return 1, err
 	}
 
 	svc, err := a.GetService(config.ServiceID)
 	if err != nil {
-		return err
+		return 1, err
 	}
 
 	getSvc := func(svcID string) (service.Service, error) {
@@ -150,15 +150,15 @@ func (a *api) RunShell(config ShellConfig) error {
 	}
 
 	if err := svc.EvaluateRunsTemplate(getSvc, findChild); err != nil {
-		return fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
+		return 1, fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
 	command, ok := svc.Runs[config.Command]
 	if !ok {
-		return fmt.Errorf("command not found for service")
+		return 1, fmt.Errorf("command not found for service")
 	}
 	mounts, err := buildMounts(config.ServicedEndpoint, config.ServiceID, config.Mounts)
 	if err != nil {
-		return err
+		return 1, err
 	}
 
 	quotedArgs := utils.ShellQuoteArgs(config.Args)
@@ -181,18 +181,18 @@ func (a *api) RunShell(config ShellConfig) error {
 	cfg.LogStash.Enable = config.LogStash.Enable
 	cfg.LogStash.SettleTime, err = time.ParseDuration(config.LogStash.SettleTime)
 	if err != nil {
-		return err
+		return 1, err
 	}
 
 	cfg.LogStash.IdleFlushTime, err = time.ParseDuration(config.LogStash.IdleFlushTime)
 	if err != nil {
-		return err
+		return 1, err
 	}
 
 	// TODO: change me to use sockets
 	cmd, err := shell.StartDocker(&cfg, options.Endpoint)
 	if err != nil {
-		return fmt.Errorf("failed to connect to service: %s", err)
+		return 1, fmt.Errorf("failed to connect to service: %s", err)
 	}
 
 	cmd.Stdin = os.Stdin
@@ -242,8 +242,8 @@ func (a *api) RunShell(config ShellConfig) error {
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
 			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 		}
-		return fmt.Errorf("Command returned non-zero exit code %d.  Container not commited.", exitcode)
+		return exitcode, fmt.Errorf("Command returned non-zero exit code %d.  Container not commited.", exitcode)
 	}
 
-	return nil
+	return exitcode, nil
 }

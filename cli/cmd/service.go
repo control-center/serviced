@@ -1016,12 +1016,12 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	config.LogStash.SettleTime = ctx.GlobalString("logstash-settle-time")
 	config.LogStash.IdleFlushTime = ctx.GlobalString("logstash-idle-flush-time")
 
-	if err := c.driver.RunShell(config); err != nil {
+	exitcode := 1
+	if exitcode, err = c.driver.RunShell(config); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		return c.exit(1)
 	}
 
-	return c.exit(0)
+	return c.exit(exitcode)
 }
 
 // buildRunningServicePaths returns a map where map[rs.ID] = fullpath
