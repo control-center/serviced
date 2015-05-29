@@ -99,7 +99,7 @@ func (reg *VIFRegistry) RegisterVirtualAddress(address, toport, protocol string)
 		viface = &vif{
 			hostname: host,
 			ip:       ip,
-			name:     "eth0:" + host,
+			name:     "eth0-" + host,
 			tcpPorts: make(map[string]string),
 			udpPorts: make(map[string]string),
 		}
@@ -140,7 +140,7 @@ func (viface *vif) createCommand() error {
 	c.Stderr = os.Stdout
 
 	if err := c.Run(); err != nil {
-		glog.Errorf("Adding virtual interface failed: %+v", err)
+		glog.Errorf("Adding virtual interface failed using cmd:%+v  error:%+v", command, err)
 		return err
 	}
 	command = []string{
@@ -150,7 +150,7 @@ func (viface *vif) createCommand() error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stdout
 	if err := c.Run(); err != nil {
-		glog.Errorf("Adding IP to virtual interface failed: %+v", err)
+		glog.Errorf("Adding IP to virtual interface failed using cmd:%+v  error:%+v", command, err)
 		return err
 	}
 	command = []string{
@@ -160,7 +160,7 @@ func (viface *vif) createCommand() error {
 	c.Stdout = os.Stdout
 	c.Stderr = os.Stdout
 	if err := c.Run(); err != nil {
-		glog.Errorf("Bringing interface %s up failed: %+v", viface.name, err)
+		glog.Errorf("Bringing interface %s up failed using cmd:%+v  error:%+v", viface.name, command, err)
 		return err
 	}
 	return nil
