@@ -60,3 +60,9 @@ web/ui/test/results
 
 *.pyc
 migration/tests/out.json
+
+acceptance/dockerImage/build/reporter.jar
+acceptance/dockerImage/reporter/dependency-reduced-pom.xml
+acceptance/dockerImage/reporter/target
+acceptance/ui/output
+

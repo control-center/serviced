@@ -48,8 +48,8 @@ while (( "$#" )); do
         if [ "$1" != "-h" ]; then
             echo "ERROR: invalid argument '$1'"
         fi
-        echo "USAGE: dockerRun.sh [-u userid] [-p password] [-a url] [-d driverName]"
-        echo "                    [-t timeout] [--root] [-i] [-h]"
+        echo "USAGE: runUIAcceptance.sh.sh [-u userid] [-p password] [-a url]"
+        echo "       [-d driverName] [-t timeout] [--root] [-i] [-h]"
         echo ""
         echo "where"
         echo "    -u userid       a valid github user id (required)"
@@ -102,7 +102,7 @@ fi
 HOSTNAME=`hostname -s`
 HOST_IP=`hostname -i`
 
-docker run --rm --name capybara_demo \
+docker run --rm --name ui_acceptance \
     --add-host=${HOSTNAME}:${HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
     -v /etc/timezone:/etc/timezone:ro \
@@ -116,5 +116,5 @@ docker run --rm --name capybara_demo \
     -e APPLICATION_USERID=${APPLICATION_USERID} \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
     ${INTERACTIVE_OPTION} \
-    -t capybara_demo \
+    -t zenoss/capybara:1.0.0 \
     ${CMD}
