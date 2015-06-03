@@ -456,6 +456,8 @@ func Images() ([]*Image, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	glog.V(0).Infof("Listing images")
 	imgs, err := dc.ListImages(false)
 	if err != nil {
 		return nil, err
@@ -506,7 +508,7 @@ func ImportImage(repotag, filename string) error {
 	}
 
 	if err = dc.ImportImage(opts); err != nil {
-		glog.V(1).Infof("unable to import %s: %v", repotag, err)
+		glog.V(0).Infof("unable to import %s: %v", repotag, err)
 		return err
 	}
 	return err
@@ -515,13 +517,15 @@ func ImportImage(repotag, filename string) error {
 // FindImage looks up an image by repotag, e.g., zenoss/devimg, from the local repository
 // TODO: add a FindImageByFilter that returns collections of images
 func FindImage(repotag string, pull bool) (*Image, error) {
-	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
+	glog.V(0).Infof("FindImage: looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull && useRegistry {
+		glog.V(0).Infof("FindImage: Pulling image: %s", repotag)
 		if err := PullImage(repotag); err != nil {
 			return nil, err
 		}
 	}
 
+	glog.V(0).Infof("FindImage: lookupImage: %s", repotag)
 	return lookupImage(repotag)
 }
 
@@ -555,11 +559,11 @@ func (img *Image) Tag(tag string) (*Image, error) {
 		tag      string
 	}{img.UUID, img.ID.String(), iid.BaseName(), iid.Registry(), iid.Tag}
 
-	glog.V(1).Infof("tagging image %s as: %s", args.repo, args.tag)
+	glog.V(0).Infof("tagging image %s as: %s", args.repo, args.tag)
 	opts := dockerclient.TagImageOptions{Repo: args.repo, Tag: args.tag, Force: true}
 	err = dc.TagImage(args.name, opts)
 	if err != nil {
-		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
+		glog.V(0).Infof("unable to tag image %s: %v", args.repo, err)
 		return nil, err
 	}
 
@@ -608,7 +612,7 @@ func LoadImages(filename string) error {
 		return err
 	}
 
-	glog.V(1).Infof("importing images from %s", filename)
+	glog.V(0).Infof("importing images from %s", filename)
 	f, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -711,11 +715,12 @@ func lookupImage(repotag string) (*Image, error) {
 
 func PullImage(repotag string) error {
 	// TODO: figure out a way to pass auth creds to the api
+	glog.V(0).Infof("Pulling image %s", repotag)
 	cmd := exec.Command("docker", "pull", repotag)
 
 	// Suppressing docker output (too chatty)
 	if err := cmd.Run(); err != nil {
-		glog.Errorf("Unable to pull image %s", repotag)
+		glog.V(0).Infof("Unable to pull image %s", repotag)
 		return fmt.Errorf("image %s not available", repotag)
 	}
 
@@ -729,7 +734,7 @@ func pullImage(repo, registry, tag string) error {
 		return err
 	}
 
-	glog.V(2).Info("pulling image: ", repo)
+	glog.V(0).Info("pulling image: ", repo)
 	opts := dockerclient.PullImageOptions{
 		Repository: repo,
 		Registry:   registry,
