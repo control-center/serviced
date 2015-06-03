@@ -8,7 +8,7 @@ if [[ -z $GORACE ]]; then
 	export GORACE="history_size=7 halt_on_error=1";
 fi;
 if [[ -z $GOTEST ]]; then
-	export GOTEST="-race -p 1";
+	export GOTEST="-v -race -p 1";
 fi;
 
 function stop_elastic {
