@@ -55,7 +55,14 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 	if ok {
 		s.regid = regid
 	} else {
-		cmd := []string{"docker", "run", "-d", "-p", "5000:5000", "registry"}
+		cmd := []string{
+			"docker", "run",
+			"-d",
+			"-p", "5000:5000",
+			// Workaround from https://github.com/docker/docker-registry/issues/796
+			"-e", "GUNICORN_OPTS=[--preload]",
+			"registry",
+		}
 		regid, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
 		if err != nil {
 			panic("can't start registry")
@@ -94,6 +101,7 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 						continue WaitForRegistryPing
 					}
 					regup <- struct{}{}
+					break WaitForRegistryPing
 				}
 			}
 		}(timeout, regup)
@@ -102,6 +110,13 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 		case <-time.After(60 * time.Second):
 			timeout <- struct{}{}
 		case <-regup:
+			// Give the registry a couple of seconds to complete startup to make
+			//     make sure that it's really ready. If the registry fails after
+			// 	   it's initial startup, this delay should catch that case.
+			time.Sleep(2 * time.Second)
+			if _, ok := isRegistryRunning(c); !ok {
+				panic("could not start registry")
+			}
 			break
 		}
 	}
