@@ -147,12 +147,22 @@ func (c *ServicedCli) cmdHostList(ctx *cli.Context) {
 			fmt.Println(string(jsonHost))
 		}
 	} else {
-		tableHost := newtable(0, 8, 2)
-		tableHost.printrow("ID", "POOL", "NAME", "ADDR", "RPCPORT", "CORES", "MEM", "NETWORK", "RELEASE")
+		t := NewTable("ID,POOL,NAME,ADDR,RPCPORT,CORES,MEM,NETWORK,RELEASE")
 		for _, h := range hosts {
-			tableHost.printrow(h.ID, h.PoolID, h.Name, h.IPAddr, h.RPCPort, h.Cores, h.Memory, h.PrivateNetwork, h.ServiceD.Release)
+			t.AddRow(map[string]interface{}{
+				"ID":      h.ID,
+				"POOL":    h.PoolID,
+				"NAME":    h.Name,
+				"ADDR":    h.IPAddr,
+				"RPCPORT": h.RPCPort,
+				"CORES":   h.Cores,
+				"MEM":     h.Memory,
+				"NETWORK": h.PrivateNetwork,
+				"RELEASE": h.ServiceD.Release,
+			})
 		}
-		tableHost.flush()
+		t.Padding = 6
+		t.Print()
 	}
 }
 

@@ -98,7 +98,7 @@ type HealthCheckAPITest struct {
 }
 
 func InitHealthCheckAPITest(args ...string) {
-	c := New(DefaultHealthCheckAPITest, TestConfigReader(make(map[string]string)))
+	c := New(DefaultHealthCheckAPITest)
 	c.exitDisabled = true
 	c.Run(args)
 }
