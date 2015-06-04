@@ -14,9 +14,7 @@
 package domain
 
 import (
-	"encoding/json"
 	"fmt"
-	"time"
 )
 
 type MinMax struct {
@@ -57,55 +55,7 @@ func (minmax *MinMax) Validate() error {
 	return nil
 }
 
-// HealthCheck is a health check object
-type HealthCheck struct {
-	Script   string        // A script to execute to verify the health of a service.
-	Interval time.Duration // The interval at which to execute the script.
-	Timeout  time.Duration // A timeout in which to complete the health check.
-}
-
-type jsonHealthCheck struct {
-	Script   string
-	Interval float64 // the serialzed version will be in seconds
-	Timeout  float64
-}
-
-func (hc HealthCheck) MarshalJSON() ([]byte, error) {
-	// in json, the interval is represented in seconds
-	interval := float64(hc.Interval) / 1000000000.0
-	timeout := float64(hc.Timeout) / 1000000000.0
-	return json.Marshal(jsonHealthCheck{
-		Script:   hc.Script,
-		Interval: interval,
-		Timeout:  timeout,
-	})
-}
-
-func (hc *HealthCheck) UnmarshalJSON(data []byte) error {
-	var tempHc jsonHealthCheck
-	if err := json.Unmarshal(data, &tempHc); err != nil {
-		return err
-	}
-	hc.Script = tempHc.Script
-	// interval in js is in seconds, convert to nanoseconds, then duration
-	hc.Interval = time.Duration(tempHc.Interval * 1000000000.0)
-	hc.Timeout = time.Duration(tempHc.Timeout * 1000000000.0)
-	return nil
-}
-
-type HealthCheckResult struct {
-	ServiceID  string
-	InstanceID string
-	Name       string
-	Timestamp  string
-	Passed     string
-}
-
 type Prereq struct {
 	Name   string
 	Script string
-}
-
-func (h *HealthCheckResult) ValidEntity() error {
-	return nil
 }

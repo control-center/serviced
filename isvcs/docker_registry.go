@@ -32,7 +32,17 @@ func init() {
 		HostIpOverride: "", // docker registry should always be open
 		HostPort:       registryPort,
 	}
-	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry`
+
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: registryHealthCheck,
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+	healthChecks := map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
+	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced exec docker-registry`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
 			Name:         "docker-registry",
@@ -41,7 +51,7 @@ func init() {
 			Command:      func() string { return command },
 			PortBindings: []portBinding{dockerPortBinding},
 			Volumes:      map[string]string{"registry": "/tmp/registry"},
-			HealthCheck:  registryHealthCheck,
+			HealthChecks: healthChecks,
 		},
 	)
 	if err != nil {
@@ -49,20 +59,23 @@ func init() {
 	}
 }
 
-func registryHealthCheck() error {
-
-	start := time.Now()
-	timeout := time.Second * 30
+func registryHealthCheck(halt <-chan struct{}) error {
 	url := fmt.Sprintf("http://localhost:%d/", registryPort)
 	for {
 		if _, err := http.Get(url); err == nil {
 			break
 		} else {
-			if time.Since(start) > timeout {
-				return fmt.Errorf("could not startup docker-registry container")
-			}
+			glog.V(1).Infof("Still trying to connect to docker registry at %s: %v", url, err)
 		}
-		time.Sleep(time.Second)
+
+		select {
+		case <-halt:
+			glog.V(1).Infof("Quit healthcheck for docker registry at %s", url)
+			return nil
+		default:
+			time.Sleep(time.Second)
+		}
 	}
+	glog.V(1).Infof("docker registry running, browser at %s", url)
 	return nil
 }

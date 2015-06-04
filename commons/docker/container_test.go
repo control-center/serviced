@@ -115,6 +115,7 @@ func TestOnContainerCreated(t *testing.T) {
 	OnContainerCreated(Wildcard, func(id string) {
 		cs <- id
 	})
+	defer CancelOnContainerCreated(Wildcard)
 
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
@@ -241,10 +242,12 @@ func TestRestartContainer(t *testing.T) {
 	ctr.OnEvent(Die, func(id string) {
 		diech <- struct{}{}
 	})
+	defer ctr.CancelOnEvent(Die)
 
 	ctr.OnEvent(Restart, func(id string) {
 		restartch <- struct{}{}
 	})
+	defer ctr.CancelOnEvent(Restart)
 
 	ctr.Restart(10 * time.Second)
 
@@ -260,8 +263,11 @@ func TestRestartContainer(t *testing.T) {
 		t.Fatal("Timed out waiting for Start event")
 	}
 
+	ctr.CancelOnEvent(Die)
+	ctr.CancelOnEvent(Restart)
 	ctr.Kill()
 	ctr.Delete(true)
+
 }
 
 func TestListContainers(t *testing.T) {

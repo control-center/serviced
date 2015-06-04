@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"syscall"
 	"text/template"
@@ -402,12 +403,17 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return &services[0], nil
 	}
 
-	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "DEPID", "POOL/PATH")
+	t := NewTable("NAME,SERVICEID,DEPID,POOL/PATH")
+	t.Padding = 6
 	for _, row := range services {
-		matches.printrow(row.Name, row.ID, row.DeploymentID, path.Join(row.PoolID, pathmap[row.ID]))
+		t.AddRow(map[string]interface{}{
+			"NAME":      row.Name,
+			"SERVICEID": row.ID,
+			"DEPID":     row.DeploymentID,
+			"POOL/PATH": path.Join(row.PoolID, pathmap[row.ID]),
+		})
 	}
-	matches.flush()
+	t.Print()
 	return nil, fmt.Errorf("multiple results found; select one from list")
 }
 
@@ -547,17 +553,35 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	}
 
 	cmdSetTreeCharset(ctx)
-
 	childMap[""] = top
-	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "IN_SYNC", "DOCKER_ID")
-	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
-		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["InSync"], s["DockerID"])
-	}, func(row []interface{}) string {
-		return strings.ToLower(row[1].(string))
-	})
-	tableService.flush()
+	t := NewTable("NAME,ID,STATUS,UPTIME,HOST,IN_SYNC,DOCKER_ID")
+
+	var addRows func(string)
+	addRows = func(root string) {
+		rowids := childMap[root]
+		if len(rowids) > 0 {
+			sort.Strings(rowids)
+			t.IndentRow()
+			defer t.DedentRow()
+			for _, rowid := range rowids {
+				row := lines[rowid]
+				t.AddRow(map[string]interface{}{
+					"NAME":      row["Name"],
+					"ID":        row["ID"],
+					"STATUS":    row["Status"],
+					"UPTIME":    row["Uptime"],
+					"HOST":      row["Hostname"],
+					"IN_SYNC":   row["InSync"],
+					"DOCKER_ID": row["DockerID"],
+				})
+				addRows(row["ID"])
+			}
+		}
+	}
+	addRows("")
+	t.Padding = 6
+	t.Print()
+
 	return
 }
 
@@ -614,23 +638,42 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		cmdSetTreeCharset(ctx)
 
 		servicemap := api.NewServiceMap(services)
-		tableService := newtable(0, 8, 2)
-		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
-		tableService.formattree(servicemap.Tree(), "", func(id string) (row []interface{}) {
-			s := servicemap.Get(id)
-			// truncate the image ID
-			var imageID string
-			if strings.TrimSpace(s.ImageID) != "" {
-				id := strings.SplitN(s.ImageID, "/", 3)
-				id[0] = "..."
-				id[1] = id[1][:7] + "..."
-				imageID = strings.Join(id, "/")
+		t := NewTable("NAME,SERVICEID,INST,IMAGEID,POOL,DSTATE,LAUNCH,DEPID")
+
+		var addRows func(string)
+		addRows = func(root string) {
+			rowids := servicemap.Tree()[root]
+			if len(rowids) > 0 {
+				sort.Strings(rowids)
+				t.IndentRow()
+				defer t.DedentRow()
+				for _, rowid := range rowids {
+					row := servicemap.Get(rowid)
+					// truncate the image id
+					var imageID string
+					if strings.TrimSpace(row.ImageID) != "" {
+						id := strings.SplitN(row.ImageID, "/", 3)
+						id[0] = "..."
+						id[1] = id[1][:7] + "..."
+						imageID = strings.Join(id, "/")
+					}
+					t.AddRow(map[string]interface{}{
+						"NAME":      row.Name,
+						"SERVICEID": row.ID,
+						"INST":      row.Instances,
+						"IMAGEID":   imageID,
+						"POOL":      row.PoolID,
+						"DSTATE":    row.DesiredState,
+						"LAUNCH":    row.Launch,
+						"DEPID":     row.DeploymentID,
+					})
+					addRows(row.ID)
+				}
 			}
-			return append(row, s.Name, s.ID, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
-		}, func(row []interface{}) string {
-			return row[1].(string)
-		})
-		tableService.flush()
+		}
+		addRows("")
+		t.Padding = 6
+		t.Print()
 	} else {
 		tmpl, err := template.New("template").Parse(ctx.String("format"))
 		if err != nil {
@@ -1137,8 +1180,8 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return &states[0], nil
 	}
 
-	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "ID", "HOST", "HOSTIP", "DOCKERID", "POOL/PATH")
+	t := NewTable("NAME,ID,HOST,HOSTIP,DOCKERID,POOL/PATH")
+	t.Padding = 6
 	for _, row := range states {
 		svcid := row.ServiceID
 		name := row.Name
@@ -1146,9 +1189,17 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 			svcid = fmt.Sprintf("%s/%d", row.ServiceID, row.InstanceID)
 			name = fmt.Sprintf("%s/%d", row.Name, row.InstanceID)
 		}
-		matches.printrow(name, svcid, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12], path.Join(row.PoolID, pathmap[row.ID]))
+
+		t.AddRow(map[string]interface{}{
+			"NAME":      name,
+			"ID":        svcid,
+			"HOST":      hostmap[row.HostID].Name,
+			"HOSTIP":    hostmap[row.HostID].IPAddr,
+			"DOCKERID":  row.DockerID[0:12],
+			"POOL/PATH": path.Join(row.PoolID, pathmap[row.ID]),
+		})
 	}
-	matches.flush()
+	t.Print()
 	return nil, fmt.Errorf("multiple results found; specify unique item from list")
 }
 
