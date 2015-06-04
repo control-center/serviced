@@ -10,14 +10,16 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
   - [Overview](#overview)
   - [How to run](#how-to-run)
     - [Step 1 - Start Control Center](#step-1---start-control-center)
-    - [Step 2 - Run the test suite](#step-2---run-the-test-suite)
-    - [Step 3 - Review the test results](#step-3---review-the-test-results)
+    - [Step 2 - Build the docker image](#step-2---build-the-docker-image)
+    - [Step 3 - Run the test suite](#step-3---run-the-test-suite)
+    - [Step 4 - Review the test results](#step-4---review-the-test-results)
     - [Cucumber Command Line Options](#cucumber-command-line-options)
     - [Environment variables](#environment-variables)
   - [Examples](#examples)
     - [Running a subset of tests](#running-a-subset-of-tests)
     - [Looking at a failed test case](#looking-at-a-failed-test-case)
     - [Tagging conventions](#tagging-conventions)
+    - [Mark a test PENDING](#mark-a-test-pending)
     - [Page Object Model](#page-object-model)
   - [TODOs](#todos)
   - [Known Issues](#known-issues)
@@ -40,16 +42,39 @@ A report of the test execution is written to `ui/output`.
 The test suite assumes serviced is already running and ready to receive requests
 from a web browser.
 
-The test runner assumes that CC is reachable via https://localhost. If Control Center
-is running on another machine, you can tell the runner the URL of that machine either
-by setting the environament variable APPLICATION_URL or specifying `-a <url>`
-command line argument.
+To run the test, you must specify the URL for Control Center either
+by setting the environment variable APPLICATION_URL or by specifying the
+command line argument `-a <url>`. Do not use https://localhost because from
+the perspective of Capybara/Cucumber running inside the container, https://localhost
+refers to the container itself.
 
-### Step 2 - Run the test suite
+### Step 2 - Build the docker image
+To build the docker image containing Cucumber and Capybara, use the following commands:
+
+```
+$ zendev cd serviced
+$ cd acceptance/dockerImage
+$ make
+```
+
+Once the image has been built, you can use the following commands to push it to Docker hub:
+
+```
+$ zendev cd serviced
+$ cd acceptance/dockerImage
+$ make dockerPush
+```
+
+**NOTE:** The version of the docker image is defined by the file [dockerImage/VERSION](dockerImage/VERSION).
+If you modify the contents of the image, you should update the version number in that file before
+building/pushing a new image.
+
+### Step 3 - Run the test suite
 
 Capybara uses different 'drivers' to interface with a web browser.
 The Selenium driver for Capybara is the default, and by default it executes tests againts Firefox.
 The test suite can be run against any one of several browsers by selecting differnet drivers.
+Both of the following commands run the test suite against Firefox:
 
 ```
 $ ./runUIAcceptance.sh -u <userID> -p <password>
@@ -57,13 +82,13 @@ or
 $ ./runUIAcceptance.sh -d selenium -u <userID> -p <password>
 ```
 
-To run against Chrome,
+To run the tests against Chrome, use
 
 ```
 $ ./runUIAcceptance.sh -d selenium_chrome -u <userID> -p <password>
 ```
 
-To run against Poltergeist/Phantomjs,
+To run the tests against Poltergeist/Phantomjs, use
 
 ```
 $ ./runUIAcceptance.sh -d poltergeist -u <userID> -p <password>
@@ -71,7 +96,7 @@ $ ./runUIAcceptance.sh -d poltergeist -u <userID> -p <password>
 
 For a full description of the command line options, run `./runUIAcceptance.sh -h`
 
-### Step 3 - Review the test results
+### Step 4 - Review the test results
 
 The output from the tests are written to stdout as the tests execute. Additionally, an HTML report is written to
 `ui/output/feature-overview.html`. If a test case fails, the HTML report will include a screenshot of the browser
@@ -85,17 +110,17 @@ Environment variables are used to pass information into the docker container whi
 
 The primary variables used by `runUIAcceptance.sh` are:
 
- * **`APPLICATION_URL`** - the URL of the application under test (defaults to https://localhost).
+ * **`APPLICATION_URL`** - the URL of the application under test. You can set this variable with the `-a` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_USERID`** - the user id to login into the application under test. You can set this variable with the `-u` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_PASSWORD`** - the password used to login into the application under test. You can set this variable with the `-p` command line option for `runUIAcceptance.sh`.
- * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is "selenium". You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
+ * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
  * **`CAPYBARA_TIMEOUT`** - the timeout, in seconds, that Capybara should wait for a page or element. The default is 10 seconds. You can set this variable with the `-t` command line option for `runUIAcceptance.sh`.
  * **`CUCUMBER_OPTS`** - any of the standard command line options for Cucumber.
 
-Internally, the script also uses the variables `CALLER_UID` and `CALLER_GID` capture the current users UID and GID which are used in the container to create a `cuke` user so that
-files written to `ui/output` will have the proper owner/group information (for OSX, see Known Issues). These two variables should not be overwritten or modified. For an example of how these variables are used, refer to the [dockerImage/build/makeCukeUser.sh](dockerImage/build/makeCukeUser.sh) script.
+Internally, the script also uses the variables `CALLER_UID` and `CALLER_GID` to capture the current user's UID and GID which are used in the container to create a `cuke` user so that
+files written to `ui/output` will have the proper owner/group information (for OSX, see Known Issues). These two variables should not be overwritten or modified. For an example of how these two variables are used, refer to the [dockerImage/build/makeCukeUser.sh](dockerImage/build/makeCukeUser.sh) script.
 
-For details of how these variables are used, see [ui/features/support/env.rb](ui/features/support/env.rb) and [ui/features/support/application.rb](ui/features/support/application.rb)
+For details of how all of these variables are used, see [ui/features/support/env.rb](ui/features/support/env.rb) and [ui/features/support/application.rb](ui/features/support/application.rb)
 
 For a full list of possible options for Cucumber itself, pass the `--help` option to Cucumber like this:
 
@@ -115,7 +140,7 @@ $ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u <userid> -p <password>
 ```
 
 ### Looking at a failed test case
-If a test step fails, the test harness will capture a screenshot. If you have not seen a failed test case already, run the tests with an invalid userid and/or password.  If you open `ui/output/feature-overview.html` with a browser and drill into the details for the login feature, you will see the output in nicely formatted table. Look for a "Screenshot" link below the error report for the failed step. Clicking on that link should display an image captured at the time of the failure.
+If a test step fails, the test harness will capture a screenshot. If you have not seen a failed test case already, run the tests with an invalid userid and/or password.  If you open `ui/output/feature-overview.html` with a browser and drill into the details for the login feature, you will see the output in a nicely formatted table. Look for a "Screenshot" link below the error report for the failed step. Clicking on that link should display an image captured at the time of the failure.
 
 ### Tagging conventions
 Cucumber offers a powerful tagging feature that can be used to control which features and/or scenarios are run, as well as enabling custom 'hooks' to run specific blocks of code at different points
@@ -136,13 +161,31 @@ For information of these Cucumber feature, see:
  * [Tags](https://github.com/cucumber/cucumber/wiki/Tags)
  * [Hooks](https://github.com/cucumber/cucumber/wiki/Hooks)
 
+### Mark a test PENDING
+When a test is marked `PENDING`, Cucumber will skip it. This is useful for several scenarios, including
+Behavior Driven Development (BDD), where you want to first write the test case, and then write the
+code to make the test case pass. However, in between
+the time you create the test case and the time you implement the code, you may not want all of
+the intervening test-case executions to fail (e.g. tests launched by an automated build).
+The following example illustrates how to mark a test case as PENDING:
+
+```
+  @login-required
+  Scenario: View empty Hosts page
+    When PENDING I am on the hosts page
+    Then I should see "Applications"
+      And I should see "Hosts Map"
+      And I should see "No Data Found"
+      And I should see "Showing 0 Results"
+```
+
 ### Page Object Model
-Cucmber and Capybara offer huge advantages in terms of being able to write tests using a simple, expressive DSL that describes how to interact with your application's UI.
+The combination of Cucmber and Capybara offer huge advantages in terms of being able to write tests using a simple, expressive DSL that describes how to interact with your application's UI.
 However, as your application and your tests grow, you can easily run into situations where implementation details about a particular page or reusable element are either 'leaking' into Step statements explicitly, or they are constantly repeated across step definitions. For instances, things like the IDs or CSS/Xpath expressions used to identify specific elements on a page can end up being repeated over and over again. When the actual page definition is changed by a developer, then you have to make the same refactor across multiple places in your tests.
 
 A Page Object Model is a DSL for describing for the page itself. Think of it as a secondary DSL "below" the DSL expresssed in the test features. The Page Object Model should encapsulate all of the implementation detail like DOM identifiers, CSS/xpath matching expressions, etc.
 
-These tests use [Site Prism](https://github.com/natritmeyer/site_prism) to implement a Page Object Model.  The various page objects are is defined in the [ui/features/pages] directory and used in the step definitions. For instance, the login page is defined in [ui/features/pages/login.rb](ui/features/pages/login.rb), and it is used in [ui/features/steps/login_steps.rb](ui/features/steps/login_steps.rb).
+These tests use [Site Prism](https://github.com/natritmeyer/site_prism) to implement a Page Object Model.  The various page objects are is defined in the [ui/features/pages](ui/features/pages) directory and used in the step definitions. For instance, the login page is defined in [ui/features/pages/login.rb](ui/features/pages/login.rb), and it is used in [ui/features/steps/login_steps.rb](ui/features/steps/login_steps.rb).
 
 For more discussion of page object model, see
 
@@ -151,7 +194,7 @@ For more discussion of page object model, see
 
 ## TODOs
 
- * Add example of REST validation
+ * Add example of REST validation using Cucumber.
 
 ## Known Issues
 
@@ -166,7 +209,9 @@ For more discussion of page object model, see
 
  * [Docker](http://www.docker.com)
  * [Cucumber - A tool for BDD testing](https://github.com/cucumber/cucumber)
+ * [The Cucumber Book](https://www.safaribooksonline.com/library/view/the-cucumber-book/9781941222911/) by Aslak Hellesoy, Matt Wynne
  * [Capybara - An Acceptance test framework for web applications](https://github.com/jnicklas/capybara)
+ * [Application Testing with Capybara](https://www.safaribooksonline.com/library/view/application-testing-with/9781783281251/) by Matthew Robbins
  * [Capybara cheat sheet](https://gist.github.com/zhengjia/428105)
  * [Site Prism - A Page Object Model DSL for Capybara](https://github.com/natritmeyer/site_prism)
  * [How to install PhantomJS on Ubuntu](https://gist.github.com/julionc/7476620)
