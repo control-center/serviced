@@ -23,3 +23,5 @@ reporterJar:
 	cd reporter && mvn -s ./settings.xml package
 	cp reporter/target/reporter.jar build/reporter.jar
 
+dockerPush:
+	docker push zenoss/capybara:$(VERSION)
