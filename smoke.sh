@@ -155,10 +155,23 @@ test_service_shell() {
 }
 
 test_service_run() {
-    ${SERVICED} service run s2 exit0; local rc="$?"
+    set -x
+    local rc=""
+    ${SERVICED} service run s2 exit0; rc="$?"
     [ "$rc" -eq 0 ] || return "$rc"
     ${SERVICED} service run s2 exit1; rc="$?"
     [ "$rc" -eq 42 ] || return "255"
+    # make sure kills to 'runs' are working OK
+    for signal in INT TERM; do
+        local sleepyPid=""
+        ${SERVICED} service run s2 sleepy60 &
+        sleepyPid="$!"
+        sleep 10
+        kill -"$signal" "$sleepyPid"
+        sleep 10
+        kill -0 "$sleepyPid" &>/dev/null && return 1 # make sure job is gone
+    done
+    set +x
 }
 
 retry() {
