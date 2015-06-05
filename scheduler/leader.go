@@ -15,12 +15,12 @@ package scheduler
 
 import (
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
@@ -61,77 +61,12 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	serviceListener := zkservice.NewServiceListener(&leader)
 
 	// kicks off the snapshot cleaning goroutine
-	go cleanSnapshots(cpClient, snapshotTTL, shutdown)
+	if snapshotTTL > 0 {
+		go dfs.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
+	}
 
 	// starts all of the listeners
 	zzk.Start(shutdown, conn, serviceListener, hostRegistry, snapshotListener)
-}
-
-func cleanSnapshots(cpClient dao.ControlPlane, snapshotTTL int, shutdown <-chan interface{}) {
-
-	// If the ttl param is zero, disable cleanup
-	if snapshotTTL == 0 {
-		return
-	}
-
-	cleaningInterval := time.Tick(10 * time.Minute)
-
-	ttl := time.Duration(snapshotTTL) * time.Hour
-
-	// Every cleaning interval, clear out TTL'd snapshots.
-	for {
-		select {
-		case <-shutdown:
-			return
-		case <-cleaningInterval:
-
-			glog.Info("Deleting snapshots older than SERVICED_SNAPSHOT_TTL.")
-
-			// Get a list of services.
-			var services []service.Service
-			var serviceRequest dao.ServiceRequest
-			if err := cpClient.GetServices(serviceRequest, &services); err != nil {
-				glog.Warningf("Failed GetServices")
-				break
-			}
-
-			// Find the tenants.
-			var tenants []service.Service
-			for _, s := range services {
-				if s.ParentServiceID == "" {
-					tenants = append(tenants, s)
-				}
-			}
-
-			// Get a list of snapshots.
-			var snapshots []dao.SnapshotInfo
-			for _, t := range tenants {
-				var tsnaps []dao.SnapshotInfo
-				cpClient.ListSnapshots(t.ID, &tsnaps)
-				snapshots = append(snapshots, tsnaps...)
-			}
-
-			// Delete the old snapshots.
-			for _, s := range snapshots {
-				split := strings.Split(s.SnapshotID, "_")
-				if len(split) < 2 {
-					glog.Errorf("Malformed snapshot id: %s", s)
-					break
-				}
-				timestamp := split[1]
-				snaptime, err := time.Parse("20060102-150405", timestamp)
-				if err != nil {
-					glog.Errorf("Malformed snapshot timestamp: %s", timestamp)
-				}
-				since := time.Since(snaptime)
-				if since > ttl {
-					glog.Infof("Deleting Snapshot %s", s)
-					cpClient.DeleteSnapshot(s.SnapshotID, nil)
-				}
-			}
-
-		}
-	}
 }
 
 func (l *leader) TakeSnapshot(serviceID string) (string, error) {
