@@ -49,6 +49,8 @@ func (ttl DockerTTL) Purge(age time.Duration) (time.Duration, error) {
 				return 0, err
 			}
 		} else if timeToLive < age {
+			// set the new time to live based on the age of the oldest
+			// non-expired snapshot.
 			age = timeToLive
 		}
 	}
