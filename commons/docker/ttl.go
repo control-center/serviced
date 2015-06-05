@@ -23,7 +23,7 @@ import (
 // DockerTTL is the ttl manager for stale docker containers.
 type DockerTTL struct{}
 
-// RunDockerTTL starts the ttl to reap stale docker containers.
+// RunTTL starts the ttl to reap stale docker containers.
 func RunTTL(cancel <-chan interface{}, min, max time.Duration) {
 	utils.RunTTL(DockerTTL{}, cancel, min, max)
 }
