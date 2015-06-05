@@ -19,6 +19,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path"
 	"sort"
 	"strings"
@@ -967,6 +968,16 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 
 // serviced service run SERVICEID [COMMAND [ARGS ...]]
 func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
+	// set up signal handler to stop the run
+	stopChan := make(chan struct{})
+	sigChan := make(chan os.Signal)
+	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		<-sigChan
+		glog.Infof("Received stop signal, stopping")
+		close(stopChan)
+	}()
+
 	args := ctx.Args()
 	if len(args) < 1 {
 		if !ctx.Bool("help") {
@@ -1017,7 +1028,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	config.LogStash.IdleFlushTime = ctx.GlobalString("logstash-idle-flush-time")
 
 	exitcode := 1
-	if exitcode, err = c.driver.RunShell(config); err != nil {
+	if exitcode, err = c.driver.RunShell(config, stopChan); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}
 

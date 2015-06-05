@@ -244,7 +244,7 @@ func (t ServiceAPITest) StartShell(config api.ShellConfig) error {
 	return nil
 }
 
-func (t ServiceAPITest) RunShell(config api.ShellConfig) (int, error) {
+func (t ServiceAPITest) RunShell(config api.ShellConfig, stopChan chan struct{}) (int, error) {
 	s, err := t.GetService(config.ServiceID)
 	if err != nil {
 		return 1, err

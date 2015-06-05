@@ -126,7 +126,7 @@ func (a *api) StartShell(config ShellConfig) error {
 }
 
 // RunShell runs a predefined service shell command via the service definition
-func (a *api) RunShell(config ShellConfig) (int, error) {
+func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return 1, err
@@ -199,15 +199,40 @@ func (a *api) RunShell(config ShellConfig) (int, error) {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	err = cmd.Run()
-	if _, ok := utils.GetExitStatus(err); !ok {
-		glog.Fatalf("abnormal termination from shell command: %s", err)
-	}
-
 	dockercli, err := a.connectDocker()
 	if err != nil {
 		glog.Fatalf("unable to connect to the docker service: %s", err)
 	}
+
+	err = cmd.Start()
+	if err != nil {
+		glog.Fatalf("unable to start container: %s", err)
+	}
+	cmdChan := make(chan error)
+	go func() {
+		cmdChan <- cmd.Wait()
+	}()
+	glog.Infof("started command in container %s", cmd)
+	select {
+	case <-stopChan:
+		glog.Infof("received signal to stop, stopping container")
+		killContainerOpts := dockerclient.KillContainerOptions{ID: cfg.SaveAs}
+		err = dockercli.KillContainer(killContainerOpts)
+		if err != nil {
+			glog.Errorf("unable to kill conatiner: %s", err)
+		}
+		glog.Infof("killed container")
+		return 1, err
+	case err = <-cmdChan:
+		if _, ok := utils.GetExitStatus(err); !ok {
+			glog.Fatalf("abnormal termination from shell command: %s", err)
+		}
+	}
+
+	if _, ok := utils.GetExitStatus(err); !ok {
+		glog.Fatalf("abnormal termination from shell command: %s", err)
+	}
+
 	exitcode, err := dockercli.WaitContainer(config.SaveAs)
 	if err != nil {
 		glog.Fatalf("failure waiting for container: %s", err)
