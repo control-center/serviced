@@ -82,5 +82,5 @@ func (sync *PoolSync) convert(data interface{}) (string, *pool.ResourcePool, err
 	if pool, ok := data.(*pool.ResourcePool); ok {
 		return poolpath(pool.ID), pool, nil
 	}
-	return "", nil, errors.New("invalid type")
+	return "", nil, errors.New("could not convert data to a resource pool object")
 }

@@ -123,5 +123,5 @@ func (sync *RemoteServiceSync) convert(data interface{}) (*service.Service, erro
 	if svc, ok := data.(*service.Service); ok {
 		return svc, nil
 	}
-	return nil, errors.New("invalid type")
+	return nil, errors.New("could not convert data to service object")
 }
