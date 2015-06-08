@@ -157,14 +157,6 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		}
 	}()
 
-	// synchronize with the remote
-	wg.Add(1)
-	go func() {
-		defer glog.Infof("Stopping remote sync")
-		defer wg.Done()
-		s.remoteSync(_shutdown, conn)
-	}()
-
 	// synchronize locally
 	wg.Add(1)
 	go func() {
