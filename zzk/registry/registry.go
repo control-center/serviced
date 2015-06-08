@@ -27,11 +27,8 @@ type KeyNode struct {
 	version  interface{}
 }
 
-func (node *KeyNode) Version() interface{}                { return node.version }
-func (node *KeyNode) SetVersion(version interface{})      { node.version = version }
-func (node *KeyNode) GetID() string                       { return node.ID }
-func (node *KeyNode) Create(conn client.Connection) error { return nil }
-func (node *KeyNode) Update(conn client.Connection) error { return nil }
+func (node *KeyNode) Version() interface{}           { return node.version }
+func (node *KeyNode) SetVersion(version interface{}) { node.version = version }
 
 type registryType struct {
 	getPath   func(nodes ...string) string

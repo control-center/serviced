@@ -138,9 +138,6 @@ func (l *HostStateListener) Done() {
 	}
 }
 
-// PostProcess implements zzk.Listener
-func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
-
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var (
