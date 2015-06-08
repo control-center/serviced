@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,75 +10,78 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package scheduler
 
 import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
 
-const (
-	minWait = 30 * time.Second
-	maxWait = 3 * time.Hour
-)
+// LocalSyncInterface contains the primary datastore information from which to
+// sync.
+type LocalSyncInterface interface {
+	// GetResourcePools returns all the resource pools
+	GetResourcePools() ([]pool.ResourcePool, error)
+	// GetHosts returns hosts for a particular resource pool
+	GetHosts(poolID string) ([]host.Host, error)
+	// GetServices returns services for a particular resource pool
+	GetServices(poolID string) ([]service.Service, error)
+}
 
-func (s *scheduler) localSync(shutdown <-chan interface{}, rootConn client.Connection) {
-	wait := time.After(0)
+// LocalSync performs synchronization from the primary datastore to the
+// coordinator
+type LocalSync struct {
+	client LocalSyncInterface
+	conn   client.Connection
+}
 
-retry:
-	for {
-		select {
-		case <-wait:
-		case <-shutdown:
-			return
-		}
-
-		pools, err := s.GetResourcePools()
-		if err != nil {
-			glog.Errorf("Could not get resource pools: %s", err)
-			wait = time.After(minWait)
-			continue
-		} else if err := zkservice.SyncPools(rootConn, pools); err != nil {
-			glog.Errorf("Could not do a local sync of resource pools: %s", err)
-			wait = time.After(minWait)
-			continue
-		}
-
-		for _, pool := range pools {
-			// Update the hosts
-			if hosts, err := s.GetHostsByPool(pool.ID); err != nil {
-				glog.Errorf("Could not get hosts in pool %s: %s", pool.ID, err)
-				wait = time.After(minWait)
-				continue retry
-			} else if err := zkservice.SyncHosts(rootConn, pool.ID, hosts); err != nil {
-				glog.Errorf("Could not do a local sync of hosts: %s", err)
-				wait = time.After(minWait)
-				continue retry
-			}
-
-			// Update the services
-			if svcs, err := s.GetServicesByPool(pool.ID); err != nil {
-				glog.Errorf("Could not get services: %s", err)
-				wait = time.After(minWait)
-				continue retry
-			} else if zkservice.SyncServices(rootConn, pool.ID, svcs); err != nil {
-				glog.Errorf("Could not do a local sync of services: %s", err)
-				wait = time.After(minWait)
-				continue retry
-			}
-
-			// Update Virtual IPs
-			if err := zkvirtualips.SyncVirtualIPs(rootConn, pool.ID, pool.VirtualIPs); err != nil {
-				glog.Errorf("Could not sync virtual ips for %s: %s", pool.ID, err)
-				wait = time.After(minWait)
-				continue retry
-			}
-		}
-
-		wait = time.After(maxWait)
+// Purge performs the synchronization for services, hosts, pools, and virtual
+// ip.
+// Implements utils.TTL
+func (sync *LocalSync) Purge(age time.Duration) (time.Duration, error) {
+	// synchronize resource pools
+	pools, err := sync.client.GetResourcePools()
+	if err != nil {
+		glog.Errorf("Could not get resource pools: %s", err)
+		return 0, err
+	} else if err := zkservice.SyncPools(sync.conn, pools); err != nil {
+		glog.Errorf("Could not synchronize resource pools: %s", err)
+		return 0, err
 	}
+
+	for _, pool := range pools {
+		// synchronize virtual ips
+		if err := zkvirtualips.SyncVirtualIPs(sync.conn, pool.ID, pool.VirtualIPs); err != nil {
+			glog.Errorf("Could not synchronize virtual ips in pool %s: %s", pool.ID, err)
+			return 0, err
+		}
+
+		// synchronize hosts
+		if hosts, err := sync.client.GetHosts(pool.ID); err != nil {
+			glog.Errorf("Could not get hosts in pool %s: %s", pool.ID, err)
+			return 0, err
+		} else if err := zkservice.SyncHosts(sync.conn, pool.ID, hosts); err != nil {
+			glog.Errorf("Could not synchronize hosts in pool %s: %s", pool.ID, err)
+			return 0, err
+		}
+
+		// synchronize services
+		if svcs, err := sync.client.GetServices(pool.ID); err != nil {
+			glog.Errorf("Could not get services in pool %s: %s", pool.ID, err)
+			return 0, err
+		} else if err := zkservice.SyncServices(sync.conn, pool.ID, svcs); err != nil {
+			glog.Errorf("Could not synchronize services in pool %s: %s", pool.ID, err)
+			return 0, err
+		}
+	}
+
+	return age, nil
 }
