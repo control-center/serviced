@@ -17,47 +17,55 @@ UID = $(shell id -u)
 GID = $(shell id -g)
 PWD = $(shell pwd)
 
-serviced_build_DOCKERFILE = ../../build
+serviced_build_DOCKERDIR = ../../build
 javascript_BLDDIR   = $(PWD)/build/js
 controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
 NODEJS = $(shell which node)
-docker_working_DIR = "/mnt"
-
+docker_working_DIR = /mnt
 
 .PHONY: default
 default: build
 
 .PHONY: build
-build: $(controlplane_JS)
+build: npmInstall $(controlplane_JS)
+
+#
+# If you have NPM installed locally, this step will refresh the NPM dependencies.
+# If you are using the serviced-build image to build the UI AND you need
+# to refresh the NPM dependencies, then run the following commands:
+# 'make buildDockerImage;make pushDockerImage' to
+# rebuild and publish zenoss/serviced-build with the NPM dependencies.
+#
+npmInstall:
+	if [ -x "$(NODEJS)" ]; then \
+		./npmLink.sh; \
+		npm install; \
+	fi
 
 $(controlplane_JS): src/*.js src/**/*.js
 	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
 		gulp release; \
 	else \
-		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
 		zenoss/serviced-build:$(VERSION) \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
 	fi
 
 .PHONY: test
 test: build
 	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
 		gulp test; \
 	else \
-		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
 		zenoss/serviced-build:$(VERSION) \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
 
 .PHONY: clean

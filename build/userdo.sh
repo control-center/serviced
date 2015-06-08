@@ -10,10 +10,10 @@ USERHOME=/home/"$USERNAME"
 
 # ensure $UID_X and $GID_X are set
 if [[ -z $UID_X ]]; then
-    echo "Please specify environment variable UID (eg: -e UID=\$(id -u))"
+    echo "Please specify environment variable UID_X (eg: -e UID_X=\$(id -u))"
     exit 1
 elif [[ -z $GID_X ]]; then
-    echo "Please specify environment variable GID (eg: -e GID=\$(id -g))"
+    echo "Please specify environment variable GID_X (eg: -e GID_X=\$(id -g))"
     exit 1
 fi
 

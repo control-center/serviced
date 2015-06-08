@@ -28,9 +28,13 @@ and calls `serviced/web/ui/makefile` to build the UI code.  By default, the `ser
 the Docker container `zenoss/serviced-build` defined in `serviced/build/Dockerfile` to launch
 the UI portion of the build. This image contains all of the tools required to build the UI.
 
-The first time the build is executed a number of additional third-party UI build tools will be automatically
-downloaded and cached locally. This may take a few minutes. However, after the tools are cached
+If you have node.js installed locally, then the first time the build is executed a number of
+additional third-party UI build tools will be automatically downloaded and cached locally.
+This may take a few minutes. However, after the tools are cached
 locally, subsequent builds will not repeat those downloads.
+
+If you do not have node.js installed locally, these tools are included in the Docker
+image `zenoss/serviced-build`.
 
 ### Primary make targets
 The three primary make targets are `build`, `test`, and `clean`. All of these targets perform the corresponding
@@ -81,6 +85,14 @@ $ npm install
 $ npm shrinkwrap --dev
 
 << commit changes to package.json and npm-shrinkwrap.json >>
+```
+Verify a local build works with your changes. Assuming it does, then you need to refresh the `zenoss/serviced-build`
+Docker image to include your changes so everyone who does NOT have node.js installed will use them also.
+
+```
+$ cd ../..
+$ make buildDockerImage
+$ make pushDockerImage
 ```
 
 ## Rebuilding thirdparty.js

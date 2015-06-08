@@ -52,7 +52,7 @@ isvcs/build/*.tar.gz
 *.iml
 *.test
 
-web/ui/node_modules/
+web/ui/node_modules
 web/ui/build
 web/ui/test/results
 
@@ -60,3 +60,6 @@ web/ui/test/results
 
 *.pyc
 migration/tests/out.json
+
+build/package.json
+build/npm-shrinkwrap.json

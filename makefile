@@ -159,15 +159,22 @@ docker_SRC = github.com/docker/docker
 FORCE:
 
 serviced: $(GODEP)
-serviced: FORCE 
+serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
+buildDockerImage: docker_ok
+	cp web/ui/package.json build
+	cp web/ui/npm-shrinkwrap.json build
+	docker build -t zenoss/serviced-build:$(VERSION) build
+
+pushDockerImage: docker_ok
+	docker push zenoss/serviced-build:$(VERSION)
+
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
 docker_build: docker_ok
-	docker build -t zenoss/serviced-build:$(VERSION) build
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
@@ -376,7 +383,6 @@ docker_buildandpackage: docker_ok
 	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then \
         exit 1 ;\
     fi
-	docker build -t zenoss/serviced-build:$(VERSION) build
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/control-center/serviced \
 	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
