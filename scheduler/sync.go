@@ -14,11 +14,14 @@
 package scheduler
 
 import (
+	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/facade"
+	zkservice "github.com/control-center/serviced/zzk/service"
+	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 )
 
 // Facade wrapper for synchronizers
@@ -28,19 +31,48 @@ type Facade struct {
 }
 
 // GetResourcePools returns all of the resource pools.
-// Implements LocalSyncInterface
+// Implements LocalSyncDatastore
 func (f *Facade) GetResourcePools() ([]pool.ResourcePool, error) {
 	return f.facade.GetResourcePools(f.ctx)
 }
 
 // GetHosts returns hosts for a particular poolID.
-// Implements LocalSyncInterface
+// Implements LocalSyncDatastore
 func (f *Facade) GetHosts(poolID string) ([]host.Host, error) {
 	return f.facade.FindHostsInPool(f.ctx, poolID)
 }
 
 // GetServices returns services for a particular poolID.
-// Implements LocalSyncInterface
+// Implements LocalSyncDatastore
 func (f *Facade) GetServices(poolID string) ([]service.Service, error) {
 	return f.facade.GetServicesByPool(f.ctx, poolID)
+}
+
+// CoordSync is the coordinator wrapper for synchronization.
+type CoordSync struct {
+	conn client.Connection
+}
+
+// SyncResourcePools synchronizes resource pools.
+// Implements LocalSyncInterface
+func (c *CoordSync) SyncResourcePools(pools []pool.ResourcePool) error {
+	return zkservice.SyncPools(c.conn, pools)
+}
+
+// SyncVirtualIPs synchronizes virtual ips for a pool.
+// Implements LocalSyncInterface
+func (c *CoordSync) SyncVirtualIPs(poolID string, vips []pool.VirtualIP) error {
+	return zkvirtualips.SyncVirtualIPs(c.conn, poolID, vips)
+}
+
+// SyncHosts synchronizes hosts for a pool.
+// Implements LocalSyncInterface
+func (c *CoordSync) SyncHosts(poolID string, hosts []host.Host) error {
+	return zkservice.SyncHosts(c.conn, poolID, hosts)
+}
+
+// SyncServices synchronizes services for a resource pool.
+// Implements LocalSyncInterface
+func (c *CoordSync) SyncServices(poolID string, svcs []service.Service) error {
+	return zkservice.SyncServices(c.conn, poolID, svcs)
 }

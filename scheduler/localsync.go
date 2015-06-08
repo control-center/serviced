@@ -16,18 +16,15 @@ package scheduler
 import (
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
-	zkservice "github.com/control-center/serviced/zzk/service"
-	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
 
-// LocalSyncInterface contains the primary datastore information from which to
+// LocalSyncDatastore contains the primary datastore information from which to
 // sync.
-type LocalSyncInterface interface {
+type LocalSyncDatastore interface {
 	// GetResourcePools returns all the resource pools
 	GetResourcePools() ([]pool.ResourcePool, error)
 	// GetHosts returns hosts for a particular resource pool
@@ -36,11 +33,23 @@ type LocalSyncInterface interface {
 	GetServices(poolID string) ([]service.Service, error)
 }
 
+// LocalSyncInterface is the endpoint where data is synced
+type LocalSyncInterface interface {
+	// SyncResourcePools synchronizes resource pools
+	SyncResourcePools(pools []pool.ResourcePool) error
+	// SyncVirtualIPs synchronizes virtual ips for a pool
+	SyncVirtualIPs(poolID string, virtualIPs []pool.VirtualIP) error
+	// SyncHosts synchronizes hosts for a pool
+	SyncHosts(poolID string, hosts []host.Host) error
+	// SyncServices synchronizes services for a resource pool
+	SyncServices(poolID string, svcs []service.Service) error
+}
+
 // LocalSync performs synchronization from the primary datastore to the
 // coordinator
 type LocalSync struct {
-	client LocalSyncInterface
-	conn   client.Connection
+	ds    LocalSyncDatastore
+	iface LocalSyncInterface
 }
 
 // Purge performs the synchronization for services, hosts, pools, and virtual
@@ -48,36 +57,36 @@ type LocalSync struct {
 // Implements utils.TTL
 func (sync *LocalSync) Purge(age time.Duration) (time.Duration, error) {
 	// synchronize resource pools
-	pools, err := sync.client.GetResourcePools()
+	pools, err := sync.ds.GetResourcePools()
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %s", err)
 		return 0, err
-	} else if err := zkservice.SyncPools(sync.conn, pools); err != nil {
+	} else if err := sync.iface.SyncResourcePools(pools); err != nil {
 		glog.Errorf("Could not synchronize resource pools: %s", err)
 		return 0, err
 	}
 
 	for _, pool := range pools {
 		// synchronize virtual ips
-		if err := zkvirtualips.SyncVirtualIPs(sync.conn, pool.ID, pool.VirtualIPs); err != nil {
+		if err := sync.iface.SyncVirtualIPs(pool.ID, pool.VirtualIPs); err != nil {
 			glog.Errorf("Could not synchronize virtual ips in pool %s: %s", pool.ID, err)
 			return 0, err
 		}
 
 		// synchronize hosts
-		if hosts, err := sync.client.GetHosts(pool.ID); err != nil {
+		if hosts, err := sync.ds.GetHosts(pool.ID); err != nil {
 			glog.Errorf("Could not get hosts in pool %s: %s", pool.ID, err)
 			return 0, err
-		} else if err := zkservice.SyncHosts(sync.conn, pool.ID, hosts); err != nil {
+		} else if err := sync.iface.SyncHosts(pool.ID, hosts); err != nil {
 			glog.Errorf("Could not synchronize hosts in pool %s: %s", pool.ID, err)
 			return 0, err
 		}
 
 		// synchronize services
-		if svcs, err := sync.client.GetServices(pool.ID); err != nil {
+		if svcs, err := sync.ds.GetServices(pool.ID); err != nil {
 			glog.Errorf("Could not get services in pool %s: %s", pool.ID, err)
 			return 0, err
-		} else if err := zkservice.SyncServices(sync.conn, pool.ID, svcs); err != nil {
+		} else if err := sync.iface.SyncServices(pool.ID, svcs); err != nil {
 			glog.Errorf("Could not synchronize services in pool %s: %s", pool.ID, err)
 			return 0, err
 		}
