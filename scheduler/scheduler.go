@@ -164,8 +164,9 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	go func() {
 		defer glog.Infof("Stopping local sync")
 		defer wg.Done()
-		client := &Facade{s.facade, datastore.Get()}
-		utils.RunTTL(&LocalSync{client, conn}, _shutdown, 30*time.Second, 3*time.Hour)
+		ds := &Facade{s.facade, datastore.Get()}
+		iface := &CoordSync{conn}
+		utils.RunTTL(&LocalSync{ds, iface}, _shutdown, 30*time.Second, 3*time.Hour)
 	}()
 
 	wg.Add(1)
