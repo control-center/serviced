@@ -43,9 +43,27 @@ func (f *Facade) GetHosts(poolID string) ([]host.Host, error) {
 }
 
 // GetServices returns services for a particular poolID.
-// Implements LocalSyncDatastore
+// Implements LocalSyncDatastore, RemoteSyncInterface
 func (f *Facade) GetServices(poolID string) ([]service.Service, error) {
 	return f.facade.GetServicesByPool(f.ctx, poolID)
+}
+
+// AddService creates a new service.
+// Implements RemoteSyncInterface
+func (f *Facade) AddService(svc *service.Service) error {
+	return f.facade.AddService(f.ctx, *svc)
+}
+
+// UpdateService updates an existing service.
+// Implements RemoteSyncInterface
+func (f *Facade) UpdateService(svc *service.Service) error {
+	return f.facade.UpdateService(f.ctx, *svc)
+}
+
+// RemoteService deletes an existing service.
+// Implements RemoteSyncInterface
+func (f *Facade) RemoveService(id string) error {
+	return f.facade.RemoveService(f.ctx, id)
 }
 
 // CoordSync is the coordinator wrapper for synchronization.
