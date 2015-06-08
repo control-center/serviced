@@ -43,7 +43,11 @@ func SyncVirtualIPs(conn client.Connection, poolID string, vips []pool.VirtualIP
 
 // IDs returns the current data by id
 func (sync *VirtualIPSync) IDs() ([]string, error) {
-	return sync.conn.Children(poolpath(sync.poolID, vippath()))
+	if ids, err := sync.conn.Children(poolpath(sync.poolID, vippath())); err == client.ErrNoNode {
+		return []string{}, nil
+	} else {
+		return ids, err
+	}
 }
 
 // Create creates the new object data

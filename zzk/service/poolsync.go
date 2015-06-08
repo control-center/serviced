@@ -37,7 +37,11 @@ func SyncPools(conn client.Connection, pools []pool.ResourcePool) error {
 
 // IDs returns the current data by id
 func (sync *PoolSync) IDs() ([]string, error) {
-	return sync.conn.Children(poolpath())
+	if ids, err := sync.conn.Children(poolpath()); err == client.ErrNoNode {
+		return []string{}, nil
+	} else {
+		return ids, err
+	}
 }
 
 // Create creates the new object data
