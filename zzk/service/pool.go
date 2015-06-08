@@ -35,21 +35,6 @@ type PoolNode struct {
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *PoolNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *PoolNode) Create(conn client.Connection) error {
-	return AddResourcePool(conn, node.ResourcePool)
-}
-
-// Update implements zzk.Node
-func (node *PoolNode) Update(conn client.Connection) error {
-	return nil
-}
-
 // Version implements client.Node
 func (node *PoolNode) Version() interface{} { return node.version }
 

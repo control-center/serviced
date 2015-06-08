@@ -42,8 +42,6 @@ func (l *ServiceLockListener) Ready() error { return nil }
 
 func (l *ServiceLockListener) Done() {}
 
-func (l *ServiceLockListener) PostProcess(p map[string]struct{}) {}
-
 func (l *ServiceLockListener) Spawn(shutdown <-chan interface{}, poolID string) {
 
 	lock := l.conn.NewLock(l.GetPath(poolID, zkServiceLock))
