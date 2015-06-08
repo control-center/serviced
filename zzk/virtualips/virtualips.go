@@ -293,14 +293,6 @@ func (l *VirtualIPListener) stopInstances(ip string) {
 	}
 }
 
-func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
-	nodes := make([]zzk.Node, len(virtualIPs))
-	for i := range virtualIPs {
-		nodes[i] = &VirtualIPNode{VirtualIP: &virtualIPs[i]}
-	}
-	return zzk.Sync(conn, nodes, vippath())
-}
-
 func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {
 	var node VirtualIPNode
 	path := vippath(virtualIP.IP)

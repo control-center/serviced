@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
@@ -43,26 +42,19 @@ retry:
 			glog.Errorf("Could not get resource pools: %s", err)
 			wait = time.After(minWait)
 			continue
-		} else if err := zkservice.SyncResourcePools(rootConn, pools); err != nil {
+		} else if err := zkservice.SyncPools(rootConn, pools); err != nil {
 			glog.Errorf("Could not do a local sync of resource pools: %s", err)
 			wait = time.After(minWait)
 			continue
 		}
 
 		for _, pool := range pools {
-			conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(pool.ID))
-			if err != nil {
-				glog.Errorf("Could not get a pool-based connection for %s to zookeeper: %s", pool.ID, err)
-				wait = time.After(minWait)
-				continue retry
-			}
-
 			// Update the hosts
 			if hosts, err := s.GetHostsByPool(pool.ID); err != nil {
 				glog.Errorf("Could not get hosts in pool %s: %s", pool.ID, err)
 				wait = time.After(minWait)
 				continue retry
-			} else if err := zkservice.SyncHosts(conn, hosts); err != nil {
+			} else if err := zkservice.SyncHosts(rootConn, pool.ID, hosts); err != nil {
 				glog.Errorf("Could not do a local sync of hosts: %s", err)
 				wait = time.After(minWait)
 				continue retry
@@ -73,14 +65,14 @@ retry:
 				glog.Errorf("Could not get services: %s", err)
 				wait = time.After(minWait)
 				continue retry
-			} else if zkservice.SyncServices(conn, svcs); err != nil {
+			} else if zkservice.SyncServices(rootConn, pool.ID, svcs); err != nil {
 				glog.Errorf("Could not do a local sync of services: %s", err)
 				wait = time.After(minWait)
 				continue retry
 			}
 
 			// Update Virtual IPs
-			if err := zkvirtualips.SyncVirtualIPs(conn, pool.VirtualIPs); err != nil {
+			if err := zkvirtualips.SyncVirtualIPs(rootConn, pool.ID, pool.VirtualIPs); err != nil {
 				glog.Errorf("Could not sync virtual ips for %s: %s", pool.ID, err)
 				wait = time.After(minWait)
 				continue retry

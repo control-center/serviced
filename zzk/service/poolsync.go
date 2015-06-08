@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,81 +14,69 @@
 package service
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
-	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/utils"
 )
 
-// PoolSyncHandler is the handler for synchronizing ResourcePool data
-type PoolSyncHandler interface {
-	// GetResourcePools gets all resource pools
-	GetResourcePools() ([]pool.ResourcePool, error)
-	// AddUpdateResourcePool adds or updates a resource pool
-	AddUpdateResourcePool(*pool.ResourcePool) error
-	// RemoveResourcePool deletes a resource pool
-	RemoveResourcePool(string) error
+// PoolSync is the zookeeper synchronization object for pools
+type PoolSync struct {
+	conn client.Connection // the global client connector
 }
 
-// PoolSynchronizer is the synchronizer for ResourcePool data
-type PoolSynchronizer struct {
-	handler       PoolSyncHandler
-	getConnection zzk.GetConnection
+// SyncPools performs the pool synchronization
+func SyncPools(conn client.Connection, pools []pool.ResourcePool) error {
+	poolmap := make(map[string]interface{})
+	for i, pool := range pools {
+		poolmap[pool.ID] = &pools[i]
+	}
+	return utils.Sync(&PoolSync{conn}, poolmap)
 }
 
-// NewPoolSynchronizer initializes a new Synchronizer
-func NewPoolSynchronizer(handler PoolSyncHandler, getConnection zzk.GetConnection) *zzk.Synchronizer {
-	pSync := &PoolSynchronizer{handler, getConnection}
-	return zzk.NewSynchronizer(pSync)
+// IDs returns the current data by id
+func (sync *PoolSync) IDs() ([]string, error) {
+	return sync.conn.Children(poolpath())
 }
 
-// Allocate implements zzk.SyncHandler
-func (l *PoolSynchronizer) Allocate() zzk.Node { return &PoolNode{} }
-
-// GetConnection implements zzk.SyncHandler
-func (l *PoolSynchronizer) GetConnection(path string) (client.Connection, error) {
-	return l.getConnection(path)
-}
-
-// GetPath implements zzk.SyncHandler
-func (l *PoolSynchronizer) GetPath(nodes ...string) string { return poolpath(nodes...) }
-
-// Ready implements zzk.SyncHandler
-func (l *PoolSynchronizer) Ready() error { return nil }
-
-// Done implements zzk.SyncHandler
-func (l *PoolSynchronizer) Done() {}
-
-// GetAll implements zzk.SyncHandler
-func (l *PoolSynchronizer) GetAll() ([]zzk.Node, error) {
-	pools, err := l.handler.GetResourcePools()
+// Create creates the new object data
+func (sync *PoolSync) Create(data interface{}) error {
+	path, pool, err := sync.convert(data)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	nodes := make([]zzk.Node, len(pools))
-	for i := range pools {
-		nodes[i] = &PoolNode{ResourcePool: &pools[i]}
+	var node PoolNode
+	if err := sync.conn.Create(path, &node); err != nil {
+		return err
 	}
-	return nodes, nil
+	node.ResourcePool = pool
+	return sync.conn.Set(path, &node)
 }
 
-// AddUpdate implements zzk.SyncHandler
-func (l *PoolSynchronizer) AddUpdate(id string, node zzk.Node) (string, error) {
-	if pnode, ok := node.(*PoolNode); !ok {
-		glog.Errorf("Could not extract pool node data for %s", id)
-		return "", zzk.ErrInvalidType
-	} else if pool := pnode.ResourcePool; pool == nil {
-		glog.Errorf("Pool is nil for %s", id)
-		return "", zzk.ErrInvalidType
-	} else if err := l.handler.AddUpdateResourcePool(pool); err != nil {
-		return "", err
+// Update updates the existing object data
+func (sync *PoolSync) Update(data interface{}) error {
+	path, pool, err := sync.convert(data)
+	if err != nil {
+		return err
 	}
-
-	return node.GetID(), nil
+	var node PoolNode
+	if err := sync.conn.Get(path, &node); err != nil {
+		return err
+	}
+	node.ResourcePool = pool
+	return sync.conn.Set(path, &node)
 }
 
-// Delete implements zzk.SyncHandler
-func (l *PoolSynchronizer) Delete(id string) error {
-	return l.handler.RemoveResourcePool(id)
+// Delete deletes an existing pool by its id
+func (sync *PoolSync) Delete(id string) error {
+	return sync.conn.Delete(poolpath(id))
+}
+
+// convert transforms the generic object data into its proper type
+func (sync *PoolSync) convert(data interface{}) (string, *pool.ResourcePool, error) {
+	if pool, ok := data.(*pool.ResourcePool); ok {
+		return poolpath(pool.ID), pool, nil
+	}
+	return "", nil, errors.New("invalid type")
 }
