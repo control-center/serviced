@@ -83,5 +83,5 @@ func (sync *ServiceSync) convert(data interface{}) (string, *service.Service, er
 	if service, ok := data.(*service.Service); ok {
 		return poolpath(sync.poolID, servicepath(service.ID)), service, nil
 	}
-	return "", nil, errors.New("invalid type")
+	return "", nil, errors.New("could not convert to a service object")
 }

@@ -88,5 +88,5 @@ func (sync *VirtualIPSync) convert(data interface{}) (string, *pool.VirtualIP, e
 	if vip, ok := data.(*pool.VirtualIP); ok {
 		return poolpath(sync.poolID, vippath(vip.IP)), vip, nil
 	}
-	return "", nil, errors.New("invalid type")
+	return "", nil, errors.New("could not convert to a virtual ip object")
 }

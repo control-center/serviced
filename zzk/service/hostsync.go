@@ -83,5 +83,5 @@ func (sync *HostSync) convert(data interface{}) (string, *host.Host, error) {
 	if host, ok := data.(*host.Host); ok {
 		return poolpath(sync.poolID, hostpath(host.ID)), host, nil
 	}
-	return "", nil, errors.New("invalid type")
+	return "", nil, errors.New("could not convert data to host object")
 }
