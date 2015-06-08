@@ -47,21 +47,6 @@ type VirtualIPNode struct {
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *VirtualIPNode) GetID() string {
-	return node.IP
-}
-
-// Create implements zzk.Node
-func (node *VirtualIPNode) Create(conn client.Connection) error {
-	return AddVirtualIP(conn, node.VirtualIP)
-}
-
-// Update implements zzk.Node
-func (node *VirtualIPNode) Update(conn client.Connection) error {
-	return nil
-}
-
 func (node *VirtualIPNode) Version() interface{}           { return node.version }
 func (node *VirtualIPNode) SetVersion(version interface{}) { node.version = version }
 
@@ -129,9 +114,6 @@ func (l *VirtualIPListener) Ready() error {
 
 // Done implements zzk.Listener
 func (l *VirtualIPListener) Done() {}
-
-// PostProcess implements zzk.Listener
-func (l *VirtualIPListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn implements zzk.Listener
 func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
@@ -291,14 +273,6 @@ func (l *VirtualIPListener) stopInstances(ip string) {
 			}
 		}
 	}
-}
-
-func SyncVirtualIPs(conn client.Connection, virtualIPs []pool.VirtualIP) error {
-	nodes := make([]zzk.Node, len(virtualIPs))
-	for i := range virtualIPs {
-		nodes[i] = &VirtualIPNode{VirtualIP: &virtualIPs[i]}
-	}
-	return zzk.Sync(conn, nodes, vippath())
 }
 
 func AddVirtualIP(conn client.Connection, virtualIP *pool.VirtualIP) error {

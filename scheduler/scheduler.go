@@ -15,12 +15,14 @@ package scheduler
 
 import (
 	"sync"
+	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -157,20 +159,14 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 		}
 	}()
 
-	// synchronize with the remote
-	wg.Add(1)
-	go func() {
-		defer glog.Infof("Stopping remote sync")
-		defer wg.Done()
-		s.remoteSync(_shutdown, conn)
-	}()
-
 	// synchronize locally
 	wg.Add(1)
 	go func() {
 		defer glog.Infof("Stopping local sync")
 		defer wg.Done()
-		s.localSync(_shutdown, conn)
+		ds := &Facade{s.facade, datastore.Get()}
+		iface := &CoordSync{conn}
+		utils.RunTTL(&LocalSync{ds, iface}, _shutdown, 30*time.Second, 3*time.Hour)
 	}()
 
 	wg.Add(1)

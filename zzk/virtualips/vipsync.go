@@ -11,34 +11,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package service
+package virtualips
 
 import (
 	"errors"
+	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/utils"
 )
 
-// ServiceSync is the zookeeper synchronization object for services
-type ServiceSync struct {
+func poolpath(nodes ...string) string {
+	return path.Join(append([]string{"/pools"}, nodes...)...)
+}
+
+// VirtualIPSync is the zookeeper synchronization object for vips
+type VirtualIPSync struct {
 	conn   client.Connection // the global client connector
 	poolID string
 }
 
-// SyncServices performs the service synchronization
-func SyncServices(conn client.Connection, poolID string, services []service.Service) error {
-	servicemap := make(map[string]interface{})
-	for i, service := range services {
-		servicemap[service.ID] = &services[i]
+// SyncVirtualIPs performs the vip synchronization
+func SyncVirtualIPs(conn client.Connection, poolID string, vips []pool.VirtualIP) error {
+	vipmap := make(map[string]interface{})
+	for i, vip := range vips {
+		vipmap[vip.IP] = &vips[i]
 	}
-	return utils.Sync(&ServiceSync{conn, poolID}, servicemap)
+	return utils.Sync(&VirtualIPSync{conn, poolID}, vipmap)
 }
 
 // IDs returns the current data by id
-func (sync *ServiceSync) IDs() ([]string, error) {
-	if ids, err := sync.conn.Children(poolpath(sync.poolID, servicepath())); err == client.ErrNoNode {
+func (sync *VirtualIPSync) IDs() ([]string, error) {
+	if ids, err := sync.conn.Children(poolpath(sync.poolID, vippath())); err == client.ErrNoNode {
 		return []string{}, nil
 	} else {
 		return ids, err
@@ -46,42 +51,42 @@ func (sync *ServiceSync) IDs() ([]string, error) {
 }
 
 // Create creates the new object data
-func (sync *ServiceSync) Create(data interface{}) error {
-	path, service, err := sync.convert(data)
+func (sync *VirtualIPSync) Create(data interface{}) error {
+	path, vip, err := sync.convert(data)
 	if err != nil {
 		return err
 	}
-	var node ServiceNode
+	var node VirtualIPNode
 	if err := sync.conn.Create(path, &node); err != nil {
 		return err
 	}
-	node.Service = service
+	node.VirtualIP = vip
 	return sync.conn.Set(path, &node)
 }
 
 // Update updates the existing object data
-func (sync *ServiceSync) Update(data interface{}) error {
-	path, service, err := sync.convert(data)
+func (sync *VirtualIPSync) Update(data interface{}) error {
+	path, vip, err := sync.convert(data)
 	if err != nil {
 		return err
 	}
-	var node ServiceNode
+	var node VirtualIPNode
 	if err := sync.conn.Get(path, &node); err != nil {
 		return err
 	}
-	node.Service = service
+	node.VirtualIP = vip
 	return sync.conn.Set(path, &node)
 }
 
-// Delete deletes an existing service by its id
-func (sync *ServiceSync) Delete(id string) error {
-	return sync.conn.Delete(poolpath(sync.poolID, servicepath(id)))
+// Delete deletes an existing vip by its id
+func (sync *VirtualIPSync) Delete(id string) error {
+	return sync.conn.Delete(poolpath(sync.poolID, vippath(id)))
 }
 
 // convert transforms the generic object data into its proper type
-func (sync *ServiceSync) convert(data interface{}) (string, *service.Service, error) {
-	if service, ok := data.(*service.Service); ok {
-		return poolpath(sync.poolID, servicepath(service.ID)), service, nil
+func (sync *VirtualIPSync) convert(data interface{}) (string, *pool.VirtualIP, error) {
+	if vip, ok := data.(*pool.VirtualIP); ok {
+		return poolpath(sync.poolID, vippath(vip.IP)), vip, nil
 	}
 	return "", nil, errors.New("invalid type")
 }
