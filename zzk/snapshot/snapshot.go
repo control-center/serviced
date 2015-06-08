@@ -74,9 +74,6 @@ func (l *SnapshotListener) Ready() (err error) { return }
 // Done implements zzk.Listener
 func (l *SnapshotListener) Done() { return }
 
-// PostProcess implements zzk.Listener
-func (l *SnapshotListener) PostProcess(p map[string]struct{}) {}
-
 // Spawn takes a snapshot of a service and waits for the node to be deleted.  If
 // the node is not removed, then no action is performed.
 func (l *SnapshotListener) Spawn(shutdown <-chan interface{}, nodeID string) {

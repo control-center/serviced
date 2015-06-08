@@ -89,17 +89,6 @@ func (v *EndpointNode) Version() interface{} { return v.version }
 // SetVersion is an implementation of client.Node
 func (v *EndpointNode) SetVersion(version interface{}) { v.version = version }
 
-// GetID is an implementation of zzk.Node
-func (v *EndpointNode) GetID() string {
-	return hostContainerKey(v.HostID, v.ContainerID)
-}
-
-// Create is an implementation of zzk.Node
-func (v *EndpointNode) Create(conn client.Connection) error { return nil }
-
-// Update is an implementation of zzk.Node
-func (v *EndpointNode) Update(conn client.Connection) error { return nil }
-
 // EndpointRegistry holds exported ApplicationEndpoint in EndpointNode nodes
 type EndpointRegistry struct {
 	registryType

@@ -52,21 +52,6 @@ type ServiceNode struct {
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *ServiceNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *ServiceNode) Create(conn client.Connection) error {
-	return UpdateService(conn, node.Service)
-}
-
-// Update implements zzk.Node
-func (node *ServiceNode) Update(conn client.Connection) error {
-	return UpdateService(conn, node.Service)
-}
-
 // Version implements client.Node
 func (node *ServiceNode) Version() interface{} { return node.version }
 
@@ -101,9 +86,6 @@ func (l *ServiceListener) Ready() (err error) { return }
 
 // Done implements zzk.Listener
 func (l *ServiceListener) Done() { return }
-
-// PostProcess implements zzk.Listener
-func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
