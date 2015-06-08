@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,82 +10,78 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
 package service
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/zzk"
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/utils"
 )
 
-// ServiceSyncHandler is the handler for local Service data
-type ServiceSyncHandler interface {
-	// GetServicesByPool gets all the services for a pool ID
-	GetServicesByPool(string) ([]service.Service, error)
-	// AddUpdateService adds or updates a service
-	AddUpdateService(*service.Service) error
-	// RemoveService removes an existing service
-	RemoveService(string) error
+// ServiceSync is the zookeeper synchronization object for services
+type ServiceSync struct {
+	conn   client.Connection // the global client connector
+	poolID string
 }
 
-// ServiceSynchonizer is the Synchronizer for Service data
-type ServiceSynchronizer struct {
-	handler ServiceSyncHandler
-	poolID  string
-}
-
-// NewServiceSynchronizer initializes a new Synchronizer for Service data
-func NewServiceSynchronizer(handler ServiceSyncHandler, poolID string) *zzk.Synchronizer {
-	sSync := &ServiceSynchronizer{handler, poolID}
-	return zzk.NewSynchronizer(sSync)
-}
-
-// Allocate implements zzk.SyncHandler
-func (l *ServiceSynchronizer) Allocate() zzk.Node { return &ServiceNode{} }
-
-// GetConnection implements zzk.SyncHandler
-func (l *ServiceSynchronizer) GetConnection(path string) (client.Connection, error) { return nil, nil }
-
-// GetPath implements zzk.SyncHandler
-func (l *ServiceSynchronizer) GetPath(nodes ...string) string { return servicepath(nodes...) }
-
-// Ready implements zzk.SyncHandler
-func (l *ServiceSynchronizer) Ready() error { return nil }
-
-// Done implements zzk.SyncHandler
-func (l *ServiceSynchronizer) Done() {}
-
-// GetAll implements zzk.SyncHandler
-func (l *ServiceSynchronizer) GetAll() ([]zzk.Node, error) {
-	services, err := l.handler.GetServicesByPool(l.poolID)
-	if err != nil {
-		return nil, err
-	}
-
-	nodes := make([]zzk.Node, len(services))
+// SyncServices performs the service synchronization
+func SyncServices(conn client.Connection, poolID string, services []service.Service) error {
+	servicemap := make(map[string]interface{})
 	for i, service := range services {
-		nodes[i] = &ServiceNode{Service: &service}
+		servicemap[service.ID] = &services[i]
 	}
-
-	return nodes, nil
+	return utils.Sync(&ServiceSync{conn, poolID}, servicemap)
 }
 
-// AddUpdate implements zzk.SyncHandler
-func (l *ServiceSynchronizer) AddUpdate(id string, node zzk.Node) (string, error) {
-	if snode, ok := node.(*ServiceNode); !ok {
-		glog.Errorf("Could not extract service node data for %s", id)
-		return "", zzk.ErrInvalidType
-	} else if svc := snode.Service; svc == nil {
-		glog.Errorf("Service is nil for %s", id)
-		return "", zzk.ErrInvalidType
-	} else if err := l.handler.AddUpdateService(svc); err != nil {
-		return "", err
+// IDs returns the current data by id
+func (sync *ServiceSync) IDs() ([]string, error) {
+	if ids, err := sync.conn.Children(poolpath(sync.poolID, servicepath())); err == client.ErrNoNode {
+		return []string{}, nil
+	} else {
+		return ids, err
 	}
-	return node.GetID(), nil
 }
 
-// Delete implements zzk.SyncHandler
-func (l *ServiceSynchronizer) Delete(id string) error {
-	return l.handler.RemoveService(id)
+// Create creates the new object data
+func (sync *ServiceSync) Create(data interface{}) error {
+	path, service, err := sync.convert(data)
+	if err != nil {
+		return err
+	}
+	var node ServiceNode
+	if err := sync.conn.Create(path, &node); err != nil {
+		return err
+	}
+	node.Service = service
+	return sync.conn.Set(path, &node)
+}
+
+// Update updates the existing object data
+func (sync *ServiceSync) Update(data interface{}) error {
+	path, service, err := sync.convert(data)
+	if err != nil {
+		return err
+	}
+	var node ServiceNode
+	if err := sync.conn.Get(path, &node); err != nil {
+		return err
+	}
+	node.Service = service
+	return sync.conn.Set(path, &node)
+}
+
+// Delete deletes an existing service by its id
+func (sync *ServiceSync) Delete(id string) error {
+	return sync.conn.Delete(poolpath(sync.poolID, servicepath(id)))
+}
+
+// convert transforms the generic object data into its proper type
+func (sync *ServiceSync) convert(data interface{}) (string, *service.Service, error) {
+	if service, ok := data.(*service.Service); ok {
+		return poolpath(sync.poolID, servicepath(service.ID)), service, nil
+	}
+	return "", nil, errors.New("could not convert to a service object")
 }

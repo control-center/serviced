@@ -40,21 +40,6 @@ type ServiceVhostNode struct {
 	version   interface{}
 }
 
-// GetID implements zzk.Node
-func (node *ServiceVhostNode) GetID() string {
-	return fmt.Sprintf("%s_%s", node.ServiceID, node.Vhost)
-}
-
-// Create implements zzk.Node
-func (node *ServiceVhostNode) Create(conn client.Connection) error {
-	return UpdateServiceVhost(conn, node.ServiceID, node.Vhost)
-}
-
-// Update implements zzk.Node
-func (node *ServiceVhostNode) Update(conn client.Connection) error {
-	return UpdateServiceVhost(conn, node.ServiceID, node.Vhost)
-}
-
 // Version implements client.Node
 func (node *ServiceVhostNode) Version() interface{} { return node.version }
 

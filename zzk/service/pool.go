@@ -35,34 +35,11 @@ type PoolNode struct {
 	version interface{}
 }
 
-// ID implements zzk.Node
-func (node *PoolNode) GetID() string {
-	return node.ID
-}
-
-// Create implements zzk.Node
-func (node *PoolNode) Create(conn client.Connection) error {
-	return AddResourcePool(conn, node.ResourcePool)
-}
-
-// Update implements zzk.Node
-func (node *PoolNode) Update(conn client.Connection) error {
-	return nil
-}
-
 // Version implements client.Node
 func (node *PoolNode) Version() interface{} { return node.version }
 
 // SetVersion implements client.Node
 func (node *PoolNode) SetVersion(version interface{}) { node.version = version }
-
-func SyncResourcePools(conn client.Connection, pools []pool.ResourcePool) error {
-	nodes := make([]zzk.Node, len(pools))
-	for i := range pools {
-		nodes[i] = &PoolNode{ResourcePool: &pools[i]}
-	}
-	return zzk.Sync(conn, nodes, poolpath())
-}
 
 func AddResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
 	var node PoolNode

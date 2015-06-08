@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -14,180 +14,114 @@
 package scheduler
 
 import (
-	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/host"
-	"github.com/control-center/serviced/domain/pool"
+	"errors"
+	"time"
+
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/registry"
-	zkservice "github.com/control-center/serviced/zzk/service"
+	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
-func (s *scheduler) startRemote(cancel <-chan struct{}, remote, local client.Connection) <-chan interface{} {
-	var (
-		shutdown = make(chan interface{})
-		done     = make(chan interface{})
-	)
-
-	// wait to receieve a cancel channel or a done channel and shutdown
-	go func() {
-		defer close(shutdown)
-		select {
-		case <-cancel:
-		case <-done:
-		}
-	}()
-
-	// start the listeners and wait for shutdown or for something to break
-	go func() {
-		defer close(done)
-		glog.Infof("Remote connection established; synchronizing")
-		zzk.Start(shutdown, remote, nil, s.getPoolSynchronizer(), s.getEndpointSynchronizer(local))
-		glog.Warningf("Running in disconnected mode")
-	}()
-
-	// indicate when the listeners a finished
-	return done
+// RemoteSyncDatastore contains the primary datastore information from which
+// to sync.
+type RemoteSyncDatastore interface {
+	// GetUpdatedServices gets the list of updated serviced for the remote pool
+	GetUpdatedServices(poolID string) ([]string, []service.Service, error)
 }
 
-func (s *scheduler) monitorRemote(shutdown <-chan interface{}, remote, local client.Connection) {
-	var done <-chan interface{}
-	_shutdown := make(chan interface{})
-	cancel := make(chan struct{})
+// RemoteSyncInterface is the endpoint where the data is synced
+type RemoteSyncInterface interface {
+	// GetServices returns all the services within a pool
+	GetServices(poolID string) ([]service.Service, error)
+	// AddService creates  a new service
+	AddService(svc *service.Service) error
+	// UpdateService updates an existing service
+	UpdateService(svc *service.Service) error
+	// DeleteService deletes a service
+	RemoveService(serviceID string) error
+}
 
-	defer func() {
-		close(_shutdown)
-		close(cancel)
-		select {
-		case <-done:
-		}
-	}()
+// RemoteServiceSync performs service synchronizations for services that
+// originate in remote pools.
+type RemoteServiceSync struct {
+	ds     RemoteSyncDatastore
+	iface  RemoteSyncInterface
+	poolID string
+}
 
-	// monitor the leader's realm
-	ch := zzk.MonitorRealm(_shutdown, remote, "/scheduler")
-	for {
-		select {
-		case realm := <-ch:
-			switch realm {
-			case "":
-				// empty realm means something bad happened; exit
-				return
-			case s.realm:
-				// remote realm is the same as local realm; disconnect
-				// from the master until this changes
-				if done != nil {
-					cancel <- struct{}{}
-					<-done
-					done = nil
-				}
-			default:
-				// start remote synchonization if not yet started
-				if done == nil {
-					done = s.startRemote(cancel, remote, local)
-				}
-			}
-		case <-done:
-			// synchronization failed; shutdown
-			return
-		case <-shutdown:
-			// receieved signal to shutdown
-			return
-		}
+// Purge looks up the remote data and performs the synchronization.
+// Implements utils.TTL
+func (sync *RemoteServiceSync) Purge(age time.Duration) (time.Duration, error) {
+	// look up the services
+	ids, svcs, err := sync.ds.GetUpdatedServices(sync.poolID)
+	if err != nil {
+		glog.Errorf("Could not look up remote services for pool %s: %s", sync.poolID, err)
+		return 0, err
 	}
-}
 
-func (s *scheduler) remoteSync(shutdown <-chan interface{}, local client.Connection) {
-	for {
-		select {
-		case remote := <-zzk.Connect("/", zzk.GetRemoteConnection):
-			if remote != nil {
-				s.monitorRemote(shutdown, remote, local)
-			}
-		case <-shutdown:
-			return
-		}
-
-		select {
-		case <-shutdown:
-			return
-		default:
-			// probably lost connection to the remote; try again
-		}
+	// build the datamap
+	datamap := make(map[string]interface{})
+	for _, id := range ids {
+		datamap[id] = nil
 	}
+	for i, svc := range svcs {
+		datamap[svc.ID] = &svcs[i]
+	}
+
+	// perform the sync
+	if err := utils.Sync(sync, datamap); err != nil {
+		glog.Errorf("Could not sync services for remote pool %s: %s", sync.poolID, err)
+		return 0, err
+	}
+	return age, nil
 }
 
-func (s *scheduler) getPoolSynchronizer() zzk.Listener {
-	poolSync := zkservice.NewPoolSynchronizer(s, zzk.GetRemoteConnection)
+// IDs return the complete list of service ids.
+// Implements utils.Synchronizer
+func (sync *RemoteServiceSync) IDs() ([]string, error) {
+	svcs, err := sync.iface.GetServices(sync.poolID)
+	if err != nil {
+		glog.Errorf("Could not look up services in pool %s: %s", sync.poolID, err)
+		return nil, err
+	}
 
-	// Add the host listener
-	poolSync.AddListener(func(id string) zzk.Listener {
-		return zkservice.NewHostSynchronizer(s, id)
-	})
-
-	// Add the service listener
-	poolSync.AddListener(func(id string) zzk.Listener {
-		return zkservice.NewServiceSynchronizer(s, id)
-	})
-
-	return poolSync
+	ids := make([]string, len(svcs))
+	for i, svc := range svcs {
+		ids[i] = svc.ID
+	}
+	return ids, nil
 }
 
-func (s *scheduler) getEndpointSynchronizer(local client.Connection) zzk.Listener {
-	return registry.NewEndpointSynchronizer(local, s.registry, zzk.GetRemoteConnection)
-}
-
-func (s *scheduler) GetResourcePools() ([]pool.ResourcePool, error) {
-	return s.facade.GetResourcePools(datastore.Get())
-}
-
-func (s *scheduler) AddUpdateResourcePool(pool *pool.ResourcePool) error {
-	if p, err := s.facade.GetResourcePool(datastore.Get(), pool.ID); err != nil {
+// Create creates a new service.
+// Implements utils.Synchronizer
+func (sync *RemoteServiceSync) Create(data interface{}) error {
+	svc, err := sync.convert(data)
+	if err != nil {
 		return err
-	} else if p == nil {
-		return s.facade.AddResourcePool(datastore.Get(), pool)
 	}
-
-	return s.facade.UpdateResourcePool(datastore.Get(), pool)
+	return sync.iface.AddService(svc)
 }
 
-func (s *scheduler) RemoveResourcePool(id string) error {
-	return s.facade.RemoveResourcePool(datastore.Get(), id)
-}
-
-func (s *scheduler) GetServicesByPool(id string) ([]service.Service, error) {
-	return s.facade.GetServicesByPool(datastore.Get(), id)
-}
-
-func (s *scheduler) AddUpdateService(svc *service.Service) error {
-	if sv, err := s.facade.GetService(datastore.Get(), svc.ID); err != nil {
+// Update updates existing service.
+// Implements utils.Synchronizer
+func (sync *RemoteServiceSync) Update(data interface{}) error {
+	svc, err := sync.convert(data)
+	if err != nil {
 		return err
-	} else if sv == nil {
-		return s.facade.AddService(datastore.Get(), *svc)
 	}
-
-	return s.facade.UpdateService(datastore.Get(), *svc)
+	return sync.iface.UpdateService(svc)
 }
 
-func (s *scheduler) RemoveService(id string) error {
-	return s.facade.RemoveService(datastore.Get(), id)
+// Delete deletes an existing service
+// Implements utils.Synchronizer
+func (sync *RemoteServiceSync) Delete(id string) error {
+	return sync.iface.RemoveService(id)
 }
 
-func (s *scheduler) GetHostsByPool(id string) ([]host.Host, error) {
-	return s.facade.FindHostsInPool(datastore.Get(), id)
-}
-
-func (s *scheduler) AddUpdateHost(host *host.Host) error {
-	if h, err := s.facade.GetHost(datastore.Get(), host.ID); err != nil {
-		return err
-	} else if h == nil {
-		return s.facade.AddHost(datastore.Get(), host)
+// convert transforms an interface into domain service object
+func (sync *RemoteServiceSync) convert(data interface{}) (*service.Service, error) {
+	if svc, ok := data.(*service.Service); ok {
+		return svc, nil
 	}
-
-	return s.facade.UpdateHost(datastore.Get(), host)
-}
-
-func (s *scheduler) RemoveHost(id string) error {
-	return s.facade.RemoveHost(datastore.Get(), id)
+	return nil, errors.New("could not convert data to service object")
 }

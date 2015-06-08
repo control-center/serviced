@@ -109,8 +109,6 @@ type Listener interface {
 	Done()
 	// Spawn is the action to be performed when a child node is found on the parent
 	Spawn(<-chan interface{}, string)
-	// PostProcess performs additional action based on the nodes that are in processing
-	PostProcess(p map[string]struct{})
 }
 
 // PathExists verifies if a path exists and does not raise an exception if the
@@ -214,8 +212,6 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 				}(node)
 			}
 		}
-
-		l.PostProcess(processing)
 
 		select {
 		case e := <-event:

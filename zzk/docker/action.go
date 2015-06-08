@@ -76,9 +76,6 @@ func (l *ActionListener) Ready() (err error) { return }
 // Done implements zzk.Listener
 func (l *ActionListener) Done() { return }
 
-// PostProcess implements zzk.Listener
-func (l *ActionListener) PostProcess(p map[string]struct{}) {}
-
 // Spawn attaches to a container and performs the requested action
 func (l *ActionListener) Spawn(shutdown <-chan interface{}, actionID string) {
 	defer func() {
