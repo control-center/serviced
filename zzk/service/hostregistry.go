@@ -209,14 +209,6 @@ func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
 	return hostIDs, nil
 }
 
-func SyncHosts(conn client.Connection, hosts []host.Host) error {
-	nodes := make([]zzk.Node, len(hosts))
-	for i := range hosts {
-		nodes[i] = &HostNode{Host: &hosts[i]}
-	}
-	return zzk.Sync(conn, nodes, hostpath())
-}
-
 func AddHost(conn client.Connection, host *host.Host) error {
 	var node HostNode
 	if err := conn.Create(hostpath(host.ID), &node); err != nil {
