@@ -30,26 +30,26 @@ type Store struct {
 
 // Put adds or updates a governed pool
 func (s *Store) Put(ctx datastore.Context, pool *GovernedPool) error {
-	return s.ds.Put(ctx, Key(pool.PoolID), pool)
+	return s.ds.Put(ctx, Key(pool.RemotePoolID), pool)
 }
 
 // Get returns a governed pool by its id.  Return ErrNoSuchEntity if not found.
-func (s *Store) Get(ctx datastore.Context, poolID string) (*GovernedPool, error) {
+func (s *Store) Get(ctx datastore.Context, remotePoolID string) (*GovernedPool, error) {
 	var pool GovernedPool
-	if err := s.ds.Get(ctx, Key(poolID), &pool); err != nil {
+	if err := s.ds.Get(ctx, Key(remotePoolID), &pool); err != nil {
 		return nil, err
 	}
 	return &pool, nil
 }
 
 // Delete removes a governed pool if it exists
-func (s *Store) Delete(ctx datastore.Context, poolID string) error {
-	return s.ds.Delete(ctx, Key(poolID))
+func (s *Store) Delete(ctx datastore.Context, remotePoolID string) error {
+	return s.ds.Delete(ctx, Key(remotePoolID))
 }
 
 // GetGovernedPools gets a list of all governed pools
 func (s *Store) GetGovernedPools(ctx datastore.Context) ([]GovernedPool, error) {
-	return query(ctx, "_exists_:PoolID")
+	return query(ctx, "_exists_:RemotePoolID")
 }
 
 // Key creates a Key suitable for getting, putting, and deleting governed pools

@@ -56,26 +56,26 @@ func (s *S) TestGovernedPool_CRUD(t *C) {
 	// insert
 	err := s.store.Put(s.ctx, expectedPool)
 	t.Assert(err, IsNil)
-	defer s.store.Delete(s.ctx, expectedPool.PoolID)
+	defer s.store.Delete(s.ctx, expectedPool.RemotePoolID)
 	expectedPool.DatabaseVersion++
-	actualPool, err := s.store.Get(s.ctx, expectedPool.PoolID)
+	actualPool, err := s.store.Get(s.ctx, expectedPool.RemotePoolID)
 	t.Assert(err, IsNil)
 	t.Assert(actualPool, DeepEquals, expectedPool)
 
 	// update
-	expectedPool.RemotePoolID = "test_remote_pool_id 2"
+	expectedPool.PoolID = "test_pool_id 2"
 	expectedPool.RemoteAddress = "test_remote_address 2"
 	err = s.store.Put(s.ctx, expectedPool)
 	t.Assert(err, IsNil)
 	expectedPool.DatabaseVersion++
-	actualPool, err = s.store.Get(s.ctx, expectedPool.PoolID)
+	actualPool, err = s.store.Get(s.ctx, expectedPool.RemotePoolID)
 	t.Assert(err, IsNil)
 	t.Assert(actualPool, DeepEquals, expectedPool)
 
 	// delete
-	err = s.store.Delete(s.ctx, expectedPool.PoolID)
+	err = s.store.Delete(s.ctx, expectedPool.RemotePoolID)
 	t.Assert(err, IsNil)
-	actualPool, err = s.store.Get(s.ctx, expectedPool.PoolID)
+	actualPool, err = s.store.Get(s.ctx, expectedPool.RemotePoolID)
 	t.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 }
 
@@ -89,17 +89,17 @@ func (s *S) TestGovernedPool_GetGovernedPools(t *C) {
 	pool := New("test_pool_1", "test_remote_1", "remote_address_1")
 	err = s.store.Put(s.ctx, pool)
 	t.Assert(err, IsNil)
-	defer s.store.Delete(s.ctx, pool.PoolID)
+	defer s.store.Delete(s.ctx, pool.RemotePoolID)
 	pool.DatabaseVersion++
 	expectedPools = append(expectedPools, *pool)
 	actualPools, err = s.store.GetGovernedPools(s.ctx)
 	t.Assert(err, IsNil)
 	t.Assert(actualPools, DeepEquals, expectedPools)
 
-	pool = New("test_pool_2", "test_remote_1", "remote_address_1")
+	pool = New("test_pool_2", "test_remote_2", "remote_address_2")
 	err = s.store.Put(s.ctx, pool)
 	t.Assert(err, IsNil)
-	defer s.store.Delete(s.ctx, pool.PoolID)
+	defer s.store.Delete(s.ctx, pool.RemotePoolID)
 	pool.DatabaseVersion++
 	expectedPools = append(expectedPools, *pool)
 	actualPools, err = s.store.GetGovernedPools(s.ctx)
