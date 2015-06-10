@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/dao/elasticsearch"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/dfs/nfs"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
@@ -89,7 +90,6 @@ type daemon struct {
 	facade           *facade.Facade
 	hostID           string
 	zClient          *coordclient.Client
-	storageHandler   *storage.Server
 	masterPoolID     string
 	hostAgent        *node.HostAgent
 	shutdown         chan interface{}
@@ -358,15 +358,6 @@ func (d *daemon) startMaster() error {
 	}
 	zzk.InitializeLocalClient(localClient)
 
-	if len(options.RemoteZookeepers) > 0 {
-		remoteClient, err := d.initZK(options.RemoteZookeepers)
-		if err != nil {
-			glog.Warningf("failed to create a remote coordclient; running in disconnected mode: %v", err)
-		} else {
-			zzk.InitializeRemoteClient(remoteClient)
-		}
-	}
-
 	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {
@@ -410,23 +401,64 @@ func (d *daemon) startMaster() error {
 	}
 
 	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
-		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
+		glog.Errorf("Could not create varpath %s: %s", options.VarPath, err)
 		return err
 	}
 
-	volumesPath := path.Join(options.VarPath, "volumes")
-	if nfsDriver, err := nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+	volumesPath := filepath.Join(options.VarPath, "volumes")
+	nfsdriver, err := nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0")
+	if err != nil {
+		glog.Errorf("Could not set up storage driver for nfs: %s", err)
 		return err
-	} else {
-		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, volumesPath)
-		if err != nil {
-			return err
+	}
+
+	storagemgr, err := storage.NewServer(nfsdriver, volumesPath)
+	if err != nil {
+		glog.Errorf("Could not set up storage server: %s", err)
+		return err
+	}
+
+	resmgr := scheduler.NewResourceManager(d.cpDao)
+	go d.startScheduler(thisHost, resmgr, storagemgr)
+	return nil
+}
+
+func (d *daemon) startScheduler(host *host.Host, resmgr *scheduler.ResourceManager, storagemgr *storage.Server) {
+	for {
+		// * ttl manager
+		ttlmgr := scheduler.NewTTLManager()
+
+		var conn coordclient.Connection
+		var sched *scheduler.Scheduler
+		select {
+		case conn = <-zzk.Connect("/", zzk.GetLocalConnection):
+			if conn != nil {
+				sched = scheduler.StartScheduler(conn, host, resmgr, storagemgr, ttlmgr)
+
+				// start ttls
+				facade := scheduler.NewFacade(d.facade, d.dsContext)
+				coordsync := scheduler.NewCoordSync(conn)
+
+				glog.Infof("Starting local sync ttl")
+				ttlmgr.StartTTL(scheduler.NewLocalSync(facade, coordsync), 10*time.Minute, 3*time.Hour)
+
+				if options.SnapshotTTL > 0 {
+					glog.Infof("Starting snapshot ttl")
+					ttlmgr.StartTTL(dfs.NewSnapshotTTL(d.cpDao), 10*time.Minute, time.Duration(options.SnapshotTTL)*time.Hour)
+				}
+
+			}
+		case <-d.shutdown:
+			return
+		}
+
+		select {
+		case <-sched.Wait():
+		case <-d.shutdown:
+			sched.Stop()
+			return
 		}
 	}
-
-	d.startScheduler()
-
-	return nil
 }
 
 func getKeyPairs(certPEMFile, keyPEMFile string) (certPEM, keyPEM []byte, err error) {
@@ -766,10 +798,6 @@ func (d *daemon) initDFS() error {
 	return nil
 }
 
-func (d *daemon) startScheduler() {
-	go d.runScheduler()
-}
-
 func (d *daemon) addTemplates() {
 	root := utils.LocalDir("templates")
 	glog.V(1).Infof("Adding templates from %s", root)
@@ -804,23 +832,4 @@ func (d *daemon) addTemplates() {
 			glog.Warningf("Not loading templates from %s: %s", root, err)
 		}
 	}()
-}
-
-func (d *daemon) runScheduler() {
-	for {
-		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, options.SnapshotTTL)
-		if err != nil {
-			glog.Errorf("Could not start scheduler: %s", err)
-			return
-		}
-
-		sched.Start()
-		select {
-		case <-d.shutdown:
-			glog.Info("Shutting down scheduler")
-			sched.Stop()
-			glog.Info("Scheduler stopped")
-			return
-		}
-	}
 }

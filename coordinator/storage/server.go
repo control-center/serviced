@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -17,19 +17,25 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/coordinator/client/zookeeper"
-	"github.com/control-center/serviced/domain/host"
-	"github.com/zenoss/glog"
 	"strconv"
 	"time"
+
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/zenoss/glog"
+)
+
+const (
+	storageLeaderPath  = "/storage/leader"
+	storageClientsPath = "/storage/clients"
 )
 
 // Server manages the exporting of a file system to clients.
 type Server struct {
-	host    *host.Host
 	driver  StorageDriver
 	monitor *Monitor
+	node    *Node
+	conn    client.Connection
 }
 
 // StorageDriver is an interface that storage subsystem must implement to be used
@@ -42,7 +48,7 @@ type StorageDriver interface {
 }
 
 // NewServer returns a Server object to manage the exported file system
-func NewServer(driver StorageDriver, host *host.Host, volumesPath string) (*Server, error) {
+func NewServer(driver StorageDriver, volumesPath string) (*Server, error) {
 	if len(driver.ExportPath()) < 9 {
 		return nil, fmt.Errorf("export path can not be empty")
 	}
@@ -53,7 +59,6 @@ func NewServer(driver StorageDriver, host *host.Host, volumesPath string) (*Serv
 	}
 
 	s := &Server{
-		host:    host,
 		driver:  driver,
 		monitor: monitor,
 	}
@@ -61,45 +66,42 @@ func NewServer(driver StorageDriver, host *host.Host, volumesPath string) (*Serv
 	return s, nil
 }
 
-func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error {
-	node := &Node{
-		Host:       *s.host,
-		ExportPath: fmt.Sprintf("%s:%s", s.host.IPAddr, s.driver.ExportPath()),
+// Leader returns the manager's leader node
+// Implements scheduler.Manager
+func (s *Server) Leader(conn client.Connection, host *host.Host) client.Leader {
+	s.conn = conn
+	s.node = &Node{
+		Host:       *host,
+		ExportPath: fmt.Sprintf("%s:%s", host.IPAddr, s.driver.ExportPath()),
 		ExportTime: strconv.FormatInt(time.Now().UnixNano(), 16),
 	}
 
 	// Create the storage leader and client nodes
-	if exists, _ := conn.Exists("/storage/leader"); !exists {
-		conn.CreateDir("/storage/leader")
+	if exists, _ := conn.Exists(storageLeaderPath); !exists {
+		conn.CreateDir(storageLeaderPath)
 	}
-
-	storageClientsPath := "/storage/clients"
-
 	if exists, _ := conn.Exists(storageClientsPath); !exists {
 		conn.CreateDir(storageClientsPath)
 	}
 
-	leader := conn.NewLeader("/storage/leader", node)
-	leaderW, err := leader.TakeLead()
-	if err != zookeeper.ErrDeadlock && err != nil {
-		glog.Errorf("Could not take storage lead: %s", err)
-		return err
-	}
+	return conn.NewLeader(storageLeaderPath, s.node)
+}
 
+// Run runs the storage leader
+// Implements scheduler.Manager
+func (s *Server) Run(shutdown <-chan interface{}) error {
+	glog.Infof("Starting storage manager")
 	// monitor dfs; log warnings each cycle; restart dfs if needed
-	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), s.host.IPAddr, node.ExportTime, shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
-
-	// loop until shutdown event
-	defer leader.ReleaseLead()
+	go s.monitor.MonitorDFSVolume(path.Join("/exports", s.driver.ExportPath()), s.node.Host.IPAddr, s.node.ExportTime, shutdown, s.monitor.DFSVolumeMonitorPollUpdateFunc)
 
 	for {
-		clients, clientW, err := conn.ChildrenW(storageClientsPath)
+		clients, clientW, err := s.conn.ChildrenW(storageClientsPath)
 		if err != nil {
 			glog.Errorf("Could not set up watch for storage clients: %s", err)
 			return err
 		}
 
-		s.monitor.SetMonitorStorageClients(conn, storageClientsPath)
+		s.monitor.SetMonitorStorageClients(s.conn, storageClientsPath)
 		s.driver.SetClients(clients...)
 		if err := s.driver.Sync(); err != nil {
 			glog.Errorf("Error syncing driver: %s", err)
@@ -109,10 +111,8 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 		select {
 		case e := <-clientW:
 			glog.Info("storage.server: receieved event: %s", e)
-		case <-leaderW:
-			err := fmt.Errorf("storage.server: lost lead")
-			return err
 		case <-shutdown:
+			glog.Infof("Shutting down storage manager")
 			return nil
 		}
 	}

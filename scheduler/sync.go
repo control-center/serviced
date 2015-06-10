@@ -30,6 +30,11 @@ type Facade struct {
 	ctx    datastore.Context
 }
 
+// NewFacade instantiates a new facade object
+func NewFacade(facade *facade.Facade, ctx datastore.Context) *Facade {
+	return &Facade{facade, ctx}
+}
+
 // GetResourcePools returns all of the resource pools.
 // Implements LocalSyncDatastore
 func (f *Facade) GetResourcePools() ([]pool.ResourcePool, error) {
@@ -69,6 +74,11 @@ func (f *Facade) RemoveService(id string) error {
 // CoordSync is the coordinator wrapper for synchronization.
 type CoordSync struct {
 	conn client.Connection
+}
+
+// NewCoordSync instantiates a new coordsync object
+func NewCoordSync(conn client.Connection) *CoordSync {
+	return &CoordSync{conn}
 }
 
 // SyncResourcePools synchronizes resource pools.
