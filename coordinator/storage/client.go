@@ -14,8 +14,8 @@
 package storage
 
 import (
-	"fmt"
 	"os"
+	"path"
 	"sync"
 	"time"
 
@@ -98,7 +98,7 @@ func (c *Client) loop() {
 
 	var doneC chan<- string
 	var leader client.Leader
-	nodePath := fmt.Sprintf("/storage/clients/%s", node.IPAddr)
+	nodePath := path.Join(storageClientsPath, node.IPAddr)
 	updateMonitorInterval := getDefaultDFSMonitorRemoteInterval()
 	go UpdateRemoteMonitorFile(c.localPath, updateMonitorInterval, c.host.IPAddr, remoteShutdown)
 	go c.UpdateUpdatedAt(updateMonitorInterval, c.conn, nodePath, node)
