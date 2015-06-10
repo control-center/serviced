@@ -38,23 +38,6 @@ func (ps *Store) GetResourcePools(ctx datastore.Context) ([]ResourcePool, error)
 	return query(ctx, "_exists_:ID")
 }
 
-// GetResourcePoolsByRealm gets a list of resource pools for a given realm
-func (s *Store) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]ResourcePool, error) {
-	glog.V(3).Infof("Pool Store.GetResourcePoolsByRealm")
-	id := strings.TrimSpace(realm)
-	if id == "" {
-		return nil, errors.New("empty realm not allowed")
-	}
-	q := datastore.NewQuery(ctx)
-	query := search.Query().Term("Realm", id)
-	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
-	results, err := q.Execute(search)
-	if err != nil {
-		return nil, err
-	}
-	return convert(results)
-}
-
 // HasVirtualIP returns true if there is a virtual ip found for the given pool
 func (s *Store) HasVirtualIP(ctx datastore.Context, poolID, virtualIP string) (bool, error) {
 	if poolID = strings.TrimSpace(poolID); poolID == "" {

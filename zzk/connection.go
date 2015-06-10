@@ -74,24 +74,6 @@ func GetLocalConnection(path string) (client.Connection, error) {
 	return localclient.GetConnection(path)
 }
 
-// InitializeRemoteClient initializes the remote zookeeper client
-func InitializeRemoteClient(client *client.Client) {
-	managerLock.Lock()
-	defer managerLock.Unlock()
-	manager[remote] = &zclient{client, make(map[string]*zconn)}
-}
-
-// GetRemoteConnection acquires a connection from the remote zookeeper client
-func GetRemoteConnection(path string) (client.Connection, error) {
-	managerLock.RLock()
-	client, ok := manager[remote]
-	managerLock.RUnlock()
-	if !ok || client.Client == nil {
-		return nil, ErrNotInitialized
-	}
-	return client.GetConnection(path)
-}
-
 // Connect generates a client connection asynchronously
 func Connect(path string, getConnection GetConnection) <-chan client.Connection {
 	connc := make(chan client.Connection, 1)

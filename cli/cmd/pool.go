@@ -44,7 +44,7 @@ func (c *ServicedCli) initPool() {
 			}, {
 				Name:  "add",
 				Usage: "Adds a new resource pool",
-				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY REALM",
+				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY",
 				Description:  "serviced pool add POOLID",
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
@@ -189,12 +189,6 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 	if err != nil {
 		fmt.Println("MEMORY_LIMIT must be a number")
 		return
-	}
-	*/
-
-	/* TODO: 1.1
-	if len(args) > 2 {
-		cfg.Realm = args[2]
 	}
 	*/
 

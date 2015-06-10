@@ -49,7 +49,6 @@ func (s *S) Test_PoolCRUD(t *C) {
 	defer s.ps.Delete(s.ctx, Key("testid"))
 
 	pool := New("testID")
-	pool.Realm = "default"
 	pool2 := ResourcePool{}
 
 	if err := s.ps.Get(s.ctx, Key(pool.ID), &pool2); !datastore.IsErrNoSuchEntity(err) {
@@ -94,7 +93,6 @@ func (s *S) Test_GetPools(t *C) {
 	}
 
 	pool := New("Test_GetPools1")
-	pool.Realm = "test_realm1"
 	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -107,7 +105,6 @@ func (s *S) Test_GetPools(t *C) {
 	}
 
 	pool.ID = "Test_GetPools2"
-	pool.Realm = "test_realm2"
 	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
@@ -121,31 +118,9 @@ func (s *S) Test_GetPools(t *C) {
 	}
 
 	pool.ID = "Test_GetPools3"
-	pool.Realm = "test_realm2"
 	err = s.ps.Put(s.ctx, Key(pool.ID), pool)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
-	}
-
-	pools, err = s.ps.GetResourcePoolsByRealm(s.ctx, "test_realm0")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(pools) != 0 {
-		t.Errorf("Expected %v results, got %v: %#v", 0, len(pools), pools)
-	}
-
-	pools, err = s.ps.GetResourcePoolsByRealm(s.ctx, "test_realm1")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(pools) != 1 {
-		t.Errorf("Expected %v results, got %v: %#v", 1, len(pools), pools)
-	}
-
-	pools, err = s.ps.GetResourcePoolsByRealm(s.ctx, "test_realm2")
-	if err != nil {
-		t.Errorf("Unexpected error: %v", err)
-	} else if len(pools) != 2 {
-		t.Errorf("Expected %v results, got %v: %#v", 2, len(pools), pools)
 	}
 }
 
@@ -153,7 +128,6 @@ func (s *S) Test_HasVirtualIP(t *C) {
 	defer s.ps.Delete(s.ctx, Key("testid"))
 
 	pool := New("testID")
-	pool.Realm = "default"
 	pool.VirtualIPs = []VirtualIP{
 		{IP: "10.20.1.2", Netmask: "255.255.255.255", BindInterface: "test"},
 	}

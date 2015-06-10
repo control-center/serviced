@@ -137,7 +137,7 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 
 	glog.V(2).Infof("Host %s waiting to acquire virtual ip %s", l.hostID, ip)
 	// Try to take lead on the path
-	leader := zzk.NewHostLeader(l.conn, l.hostID, "", l.GetPath(ip))
+	leader := zzk.NewHostLeader(l.conn, l.hostID, l.GetPath(ip))
 	_, err := leader.TakeLead()
 	if err != nil {
 		glog.Errorf("Error while trying to acquire a lock for %s: %s", ip, err)
@@ -297,6 +297,6 @@ func RemoveVirtualIP(conn client.Connection, ip string) error {
 }
 
 func GetHostID(conn client.Connection, ip string) (string, error) {
-	leader := zzk.NewHostLeader(conn, "", "", vippath(ip))
+	leader := zzk.NewHostLeader(conn, "", vippath(ip))
 	return zzk.GetHostID(leader)
 }
