@@ -41,7 +41,6 @@ func getDefaultOptions(config ConfigReader) api.Options {
 		CertPEMFile:          config.StringVal("CERT_FILE", ""),
 		VarPath:              config.StringVal("VARPATH", getDefaultVarPath(config.StringVal("HOME", ""))),
 		Zookeepers:           config.StringSlice("ZK", []string{}),
-		RemoteZookeepers:     []string{},
 		HostStats:            config.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
 		StatsPeriod:          config.IntVal("STATS_PERIOD", 10),
 		MCUsername:           "scott",

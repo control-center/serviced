@@ -19,7 +19,6 @@ import (
 	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/zenoss/glog"
 )
 
@@ -34,7 +33,6 @@ var (
 // HostLeader is the node to store leader information for a host
 type HostLeader struct {
 	HostID  string
-	Realm   string
 	version interface{}
 }
 
@@ -45,8 +43,8 @@ func (node *HostLeader) Version() interface{} { return node.version }
 func (node *HostLeader) SetVersion(version interface{}) { node.version = version }
 
 // NewHostLeader initializes a new host leader
-func NewHostLeader(conn client.Connection, hostID, realm, path string) client.Leader {
-	return conn.NewLeader(path, &HostLeader{HostID: hostID, Realm: realm})
+func NewHostLeader(conn client.Connection, hostID, path string) client.Leader {
+	return conn.NewLeader(path, &HostLeader{HostID: hostID})
 }
 
 // GetHostID finds the host of a led node
@@ -56,45 +54,6 @@ func GetHostID(leader client.Leader) (string, error) {
 		return "", err
 	}
 	return hl.HostID, nil
-}
-
-func MonitorRealm(shutdown <-chan interface{}, conn client.Connection, path string) <-chan string {
-	realmC := make(chan string)
-
-	go func() {
-		defer close(realmC)
-		var realm string
-		leader := conn.NewLeader(path, &HostLeader{})
-		for {
-			// monitor path for changes
-			_, event, err := conn.ChildrenW(path)
-			if err != nil {
-				return
-			}
-
-			// Get the current leader and check for changes in its realm
-			var hl HostLeader
-			if err := leader.Current(&hl); err == zookeeper.ErrNoLeaderFound {
-				// pass
-			} else if err != nil {
-				return
-			} else if hl.Realm != realm {
-				realm = hl.Realm
-				select {
-				case realmC <- realm:
-				case <-shutdown:
-					return
-				}
-			}
-
-			select {
-			case <-event:
-			case <-shutdown:
-				return
-			}
-		}
-	}()
-	return realmC
 }
 
 // Listener is zookeeper node listener type

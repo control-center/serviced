@@ -32,7 +32,6 @@ type VirtualIP struct {
 // ResourcePool A collection of computing resources with optional quotas.
 type ResourcePool struct {
 	ID                string      // Unique identifier for resource pool, eg "default"
-	Realm             string      // The name of the realm where this pool resides
 	Description       string      // Description of the resource pool
 	VirtualIPs        []VirtualIP // All virtual IPs associated with a pool
 	CoreLimit         int         // Number of cores on the host available to serviced
@@ -67,9 +66,6 @@ func (a *ResourcePool) VirtualIPsEqual(b *ResourcePool) bool {
 // Equal returns true if two resource pools are equal
 func (a *ResourcePool) Equals(b *ResourcePool) bool {
 	if a.ID != b.ID {
-		return false
-	}
-	if a.Realm != b.Realm {
 		return false
 	}
 	if a.Description != b.Description {

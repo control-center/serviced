@@ -46,7 +46,6 @@ type Options struct {
 	VarPath              string
 	ResourcePath         string
 	Zookeepers           []string
-	RemoteZookeepers     []string
 	ReportStats          bool
 	HostStats            string
 	StatsPeriod          int
