@@ -52,11 +52,18 @@ type LocalSync struct {
 	iface LocalSyncInterface
 }
 
+// NewLocalSync instantiates a new LocalSync ttl
+func NewLocalSync(ds LocalSyncDatastore, iface LocalSyncInterface) *LocalSync {
+	return &LocalSync{ds, iface}
+}
+
 // Purge performs the synchronization for services, hosts, pools, and virtual
 // ip.
 // Implements utils.TTL
 func (sync *LocalSync) Purge(age time.Duration) (time.Duration, error) {
+	glog.Infof("Performing local sync")
 	// synchronize resource pools
+	glog.Infof("Synchronizing resource pools")
 	pools, err := sync.ds.GetResourcePools()
 	if err != nil {
 		glog.Errorf("Could not get resource pools: %s", err)
@@ -68,12 +75,14 @@ func (sync *LocalSync) Purge(age time.Duration) (time.Duration, error) {
 
 	for _, pool := range pools {
 		// synchronize virtual ips
+		glog.Infof("Synchronizing virtual ips")
 		if err := sync.iface.SyncVirtualIPs(pool.ID, pool.VirtualIPs); err != nil {
 			glog.Errorf("Could not synchronize virtual ips in pool %s: %s", pool.ID, err)
 			return 0, err
 		}
 
 		// synchronize hosts
+		glog.Infof("Synchronizing hosts")
 		if hosts, err := sync.ds.GetHosts(pool.ID); err != nil {
 			glog.Errorf("Could not get hosts in pool %s: %s", pool.ID, err)
 			return 0, err
@@ -83,6 +92,7 @@ func (sync *LocalSync) Purge(age time.Duration) (time.Duration, error) {
 		}
 
 		// synchronize services
+		glog.Infof("Synchronizing services")
 		if svcs, err := sync.ds.GetServices(pool.ID); err != nil {
 			glog.Errorf("Could not get services in pool %s: %s", pool.ID, err)
 			return 0, err
@@ -92,5 +102,6 @@ func (sync *LocalSync) Purge(age time.Duration) (time.Duration, error) {
 		}
 	}
 
+	glog.Infof("Completed local sync")
 	return age, nil
 }

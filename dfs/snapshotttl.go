@@ -38,6 +38,11 @@ type SnapshotTTL struct {
 	client SnapshotTTLInterface
 }
 
+// NewSnapshotTTL instantiates a ttl for snapshots
+func NewSnapshotTTL(client SnapshotTTLInterface) *SnapshotTTL {
+	return &SnapshotTTL{client}
+}
+
 // RunSnapshotTTL runs the ttl for snapshots
 func RunSnapshotTTL(client SnapshotTTLInterface, cancel <-chan interface{}, min, max time.Duration) {
 	utils.RunTTL(&SnapshotTTL{client}, cancel, min, max)
@@ -48,6 +53,7 @@ func RunSnapshotTTL(client SnapshotTTLInterface, cancel <-chan interface{}, min,
 // Implements utils.TTL
 func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 	expire := time.Now().Add(-age)
+	glog.Infof("Purging snapshots created before %s", expire)
 
 	var svcs []service.Service
 	if err := ttl.client.GetServices(dao.ServiceRequest{}, &svcs); err != nil {
@@ -69,6 +75,7 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 				if parts := strings.Split(s.SnapshotID, "_"); len(parts) == 2 {
 					if ts, err := time.Parse(timeFormat, parts[1]); err == nil {
 						if timeToLive := ts.Sub(expire); timeToLive <= 0 {
+							glog.Infof("Deleting snapshot %s; created at %s", s.SnapshotID, ts)
 							if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
 								glog.Errorf("Could not delete snapshot %s for tenant service %s (%s): %s", s.SnapshotID, svc.Name, svc.ID, err)
 								return 0, err
@@ -84,5 +91,6 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 		}
 	}
 
+	glog.Infof("Next snapshot purge in %s", age)
 	return age, nil
 }

@@ -118,7 +118,7 @@ func TestServer(t *testing.T) {
 	}
 
 	// TODO: this gets stuck at server.go:90 call to conn.CreateDir hangs
-	s, err := NewServer(mockNfsDriver, hostServer, path.Join(mockNfsDriver.exportPath, mockNfsDriver.exportName))
+	s, err := NewServer(mockNfsDriver, path.Join(mockNfsDriver.exportPath, mockNfsDriver.exportName))
 	if err != nil {
 		t.Fatalf("unexpected error creating Server: %s", err)
 	}
@@ -129,7 +129,8 @@ func TestServer(t *testing.T) {
 	}
 	shutdown := make(chan interface{})
 	defer close(shutdown)
-	go s.Run(shutdown, conn)
+	s.Leader(conn, hostServer)
+	go s.Run(shutdown)
 
 	// give it some time
 	time.Sleep(time.Second * 5)
