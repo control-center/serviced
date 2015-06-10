@@ -24,7 +24,6 @@ var (
     "resourcepool": {
       "properties":{
         "ID" :          {"type": "string", "index":"not_analyzed"},
-        "Realm":        {"type": "string", "index":"not_analyzed"},
         "Description" : {"type": "string", "index":"not_analyzed"},
         "CoreLimit":    {"type": "long", "index":"not_analyzed"},
         "MemoryLimit":  {"type": "long", "index":"not_analyzed"},

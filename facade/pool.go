@@ -60,10 +60,6 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 
 	vips := entity.VirtualIPs
 	entity.VirtualIPs = []pool.VirtualIP{}
-	// TODO: Get rid of me when we have front-end functionality of pool realms
-	if entity.Realm == "" {
-		entity.Realm = defaultRealm
-	}
 	now := time.Now()
 	entity.CreatedAt = now
 	entity.UpdatedAt = now
@@ -315,22 +311,6 @@ func (f *Facade) GetResourcePools(ctx datastore.Context) ([]pool.ResourcePool, e
 	return pools, err
 }
 
-//GetResourcePoolsByRealm Returns a list of all ResourcePools by Realm
-func (f *Facade) GetResourcePoolsByRealm(ctx datastore.Context, realm string) ([]pool.ResourcePool, error) {
-	pools, err := f.poolStore.GetResourcePoolsByRealm(ctx, realm)
-
-	if err != nil {
-		return nil, fmt.Errorf("Could not load pools: %v", err)
-	}
-
-	for i := range pools {
-		f.calcPoolCapacity(ctx, &pools[i])
-		f.calcPoolCommitment(ctx, &pools[i])
-	}
-
-	return pools, err
-}
-
 // GetResourcePool returns  an ResourcePool ip id. nil if not found
 func (f *Facade) GetResourcePool(ctx datastore.Context, id string) (*pool.ResourcePool, error) {
 	glog.V(2).Infof("Facade.GetResourcePool: id=%s", id)
@@ -361,7 +341,6 @@ func (f *Facade) CreateDefaultPool(ctx datastore.Context, id string) error {
 
 	glog.V(4).Infof("'%s' resource pool not found; creating...", id)
 	entity = pool.New(id)
-	entity.Realm = defaultRealm
 	entity.Description = "Default Pool"
 	if err := f.AddResourcePool(ctx, entity); err != nil {
 		return err
@@ -435,5 +414,3 @@ func (f *Facade) GetPoolIPs(ctx datastore.Context, poolID string) (*PoolIPs, err
 
 	return &PoolIPs{PoolID: poolID, HostIPs: hostIPs, VirtualIPs: virtualIPs}, nil
 }
-
-var defaultRealm = "default"
