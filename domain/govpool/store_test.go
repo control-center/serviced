@@ -106,3 +106,22 @@ func (s *S) TestGovernedPool_GetGovernedPools(t *C) {
 	t.Assert(err, IsNil)
 	t.Assert(actualPools, DeepEquals, expectedPools)
 }
+
+func (s *S) TestGovernedPool_GetByPoolID(t *C) {
+	expectedPool := &GovernedPool{
+		PoolID:        "test_pool_id",
+		RemotePoolID:  "test_remote_pool_id",
+		RemoteAddress: "test_remote_address",
+	}
+	err := s.store.Put(s.ctx, expectedPool)
+	t.Assert(err, IsNil)
+	defer s.store.Delete(s.ctx, expectedPool.RemotePoolID)
+	expectedPool.DatabaseVersion++
+	actualPool, err := s.store.GetByPoolID(s.ctx, expectedPool.PoolID)
+	t.Assert(err, IsNil)
+	t.Assert(actualPool, DeepEquals, expectedPool)
+
+	actualPool, err = s.store.GetByPoolID(s.ctx, expectedPool.RemotePoolID)
+	t.Assert(err, IsNil)
+	t.Assert(actualPool, IsNil)
+}

@@ -14,7 +14,10 @@
 package govpool
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/elastigo/search"
 )
 
@@ -50,6 +53,30 @@ func (s *Store) Delete(ctx datastore.Context, remotePoolID string) error {
 // GetGovernedPools gets a list of all governed pools
 func (s *Store) GetGovernedPools(ctx datastore.Context) ([]GovernedPool, error) {
 	return query(ctx, "_exists_:RemotePoolID")
+}
+
+// GetByPoolID finds a governed pool by the pool id of its
+// associated resource pool.
+func (s *Store) GetByPoolID(ctx datastore.Context, poolID string) (*GovernedPool, error) {
+	if poolID = strings.TrimSpace(poolID); poolID == "" {
+		return nil, domain.EmptyNotAllowed("pool id")
+	}
+
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("PoolID", poolID)
+	search := search.Search("controlplane").Type(kind).Size("1").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+
+	if data, err := convert(results); err != nil {
+		return nil, err
+	} else if len(data) > 0 {
+		return &data[0], nil
+	}
+
+	return nil, nil
 }
 
 // Key creates a Key suitable for getting, putting, and deleting governed pools
