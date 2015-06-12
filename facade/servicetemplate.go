@@ -119,22 +119,7 @@ func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
 }
 
 func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
-	for _, img := range getImageIDs(template.Services...) {
-		imageID, err := commons.ParseImageID(img)
-		if err != nil {
-			return err
-		}
-		tag := imageID.Tag
-		if tag == "" {
-			tag = "latest"
-		}
-		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
-		glog.Infof("Pulling image %s", image)
-		if err := docker.PullImage(image); err != nil {
-			glog.Warningf("Unable to pull image %s", image)
-		}
-	}
-	return nil
+	return pullImages(getImageIDs(template.Services...))
 }
 
 var deployments = make(map[string]map[string]string)
@@ -234,19 +219,35 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	return tenantID, err
 }
 
-func (f *Facade) DeployService(ctx datastore.Context, parentID string, sd servicedefinition.ServiceDefinition) (string, error) {
+func (f *Facade) DeployService(ctx datastore.Context, parentID string, svcDef servicedefinition.ServiceDefinition) (string, error) {
 	parent, err := service.NewStore().Get(ctx, parentID)
 	if err != nil {
 		return "", fmt.Errorf("could not get parent '%s': %s", parentID, err)
 	}
 
-	tenantId, err := f.GetTenantID(ctx, parentID)
-	if err != nil {
-		return "", fmt.Errorf("getting tenant id: %s", err)
+	// get the tenant id
+	tenantID := svc.ID
+	if svc.ParentServiceID != "" {
+		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil { // make this call a little cheaper
+			glog.Errorf("Could not get tenant for %s (%s): %s", svc.Name, svc.ID, err)
+			return "", err
+		}
+	}
+
+	// pull the images
+	if err := pullServiceImages(&svcDef); err != nil {
+		glog.Errorf("Unable to pull one or more images")
+		return "", err
+	}
+
+	// check the images
+	if err := checkImages(make(map[string]struct{}), svcDef); err != nil {
+		glog.Errorf("Error while validating image IDs: %s", err)
+		return "", err
 	}
 
 	volumes := make(map[string]string)
-	return f.deployServiceDefinition(ctx, sd, parent.PoolID, parentID, volumes, parent.DeploymentID, &tenantId)
+	return f.deployServiceDefinition(ctx, svcDef, parent.PoolID, parentID, volumes, parent.DeploymentID, &tenantId)
 }
 
 func (f *Facade) deployServiceDefinition(ctx datastore.Context, sd servicedefinition.ServiceDefinition, pool string, parentServiceID string, volumes map[string]string, deploymentId string, tenantId *string) (string, error) {
@@ -408,6 +409,29 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f *Facade) error {
 	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
 		glog.Fatalf("Could not start logstash container: %s", err)
 		return err
+	}
+	return nil
+}
+
+func pullServiceImages(svcDef *servicedefinition.ServiceDefinition) error {
+	return pullImages(getImageIDs(*svcDef))
+}
+
+func pullImages(imgs []string) error {
+	for _, img := range imgs {
+		imageID, err := commons.ParseImageID(img)
+		if err != nil {
+			return err
+		}
+		tag := imageID.Tag
+		if tag == "" {
+			tag = "latest"
+		}
+		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
+		glog.Infof("Pulling image %s", image)
+		if err := docker.PullImage(image); err != nil {
+			glog.Warningf("Unable to pull image %s", image)
+		}
 	}
 	return nil
 }
