@@ -288,7 +288,10 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return fmt.Errorf("cannot delete pool %s: found %d services", id, count)
 	}
 
-	if err := f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete); err != nil {
+	// TODO: this should be transactional
+	if err := f.RemoveGovernedPool(ctx, id); err != nil {
+		return err
+	} else if err := f.delete(ctx, f.poolStore, pool.Key(id), beforePoolDelete, afterPoolDelete); err != nil {
 		return err
 	}
 

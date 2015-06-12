@@ -18,6 +18,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/govpool"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -51,6 +52,7 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.Mappings = append(ft.Mappings, addressassignment.MAPPING)
 	ft.Mappings = append(ft.Mappings, serviceconfigfile.MAPPING)
 	ft.Mappings = append(ft.Mappings, user.MAPPING)
+	ft.Mappings = append(ft.Mappings, govpool.MAPPING)
 
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
