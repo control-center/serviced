@@ -22,9 +22,9 @@ const mapping = `
 {
     "governedpool": {
         "properties": {
-            "PoolID":       {"type": "string", "index": "not_analyzed"},
-			"RemotePoolID": {"type": "string", "index": "not_analyzed"},
-            "Address":      {"type": "string", "index": "not_analyzed"}
+            "PoolID":        {"type": "string", "index": "not_analyzed"},
+            "RemotePoolID":  {"type": "string", "index": "not_analyzed"},
+            "RemoteAddress": {"type": "string", "index": "not_analyzed"}
         }
     }
 }`

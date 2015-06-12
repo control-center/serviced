@@ -80,8 +80,8 @@ func (s *Store) GetByPoolID(ctx datastore.Context, poolID string) (*GovernedPool
 }
 
 // Key creates a Key suitable for getting, putting, and deleting governed pools
-func Key(poolID string) datastore.Key {
-	return datastore.NewKey(kind, poolID)
+func Key(remotePoolID string) datastore.Key {
+	return datastore.NewKey(kind, remotePoolID)
 }
 
 func query(ctx datastore.Context, query string) ([]GovernedPool, error) {
