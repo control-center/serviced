@@ -18,6 +18,11 @@ import (
 	"github.com/control-center/serviced/facade"
 )
 
+type GovernedPoolRequest struct {
+	Pool pool.ResourcePool
+	Key  string
+}
+
 //GetResourcePool gets the pool for the given poolID or nil
 func (c *Client) GetResourcePool(poolID string) (*pool.ResourcePool, error) {
 	response := pool.New(poolID)
@@ -36,9 +41,20 @@ func (c *Client) GetResourcePools() ([]pool.ResourcePool, error) {
 	return response, nil
 }
 
-//AddResourcePool adds the ResourcePool
+// AddResourcePool adds the ResourcePool
 func (c *Client) AddResourcePool(pool pool.ResourcePool) error {
 	return c.call("AddResourcePool", pool, nil)
+}
+
+// AddGovernedPool creates a resource pool and associates it with a governor
+func (c *Client) AddGovernedPool(pool pool.ResourcePool, key string) error {
+	return c.call("AddGovernedPool", GovernedPoolRequest{pool, key}, nil)
+}
+
+// SetPoolGovernor sets an upstream governor to an existing resource pool
+func (c *Client) SetPoolGovernor(poolID, key string) error {
+	pool := pool.ResourcePool{ID: poolID}
+	return c.call("SetPoolGovernor", GovernedPoolRequest{pool, key}, nil)
 }
 
 //UpdateResourcePool adds the ResourcePool

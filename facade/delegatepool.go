@@ -25,6 +25,7 @@ import (
 var (
 	ErrRemotePoolExists = errors.New("facade: remote pool exists")
 	ErrGovPoolExists    = errors.New("facade: governed pool exists")
+	ErrPoolHasServices  = errors.New("facade: resource pool has services")
 )
 
 // AddGovernedPool adds a governor to an existing resource pool
@@ -52,6 +53,15 @@ func (f *Facade) AddGovernedPool(ctx datastore.Context, poolID string, msg strin
 	} else if pool != nil {
 		glog.Errorf("Pool %s already has a governor", poolID)
 		return ErrGovPoolExists
+	}
+
+	// verify the pool does not have any services
+	if svcs, err := f.GetServicesByPool(ctx, poolID); err != nil {
+		glog.Errorf("Could not look up services for %s: %s", poolID, err)
+		return err
+	} else if svccount := len(svcs); svccount > 0 {
+		glog.Errorf("Found %d services associated with pool %s; cannot add governor", svccount, poolID)
+		return ErrPoolHasServices
 	}
 
 	// create the governed pool and store the secret
