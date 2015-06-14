@@ -46,6 +46,7 @@ type API interface {
 	GetResourcePools() ([]pool.ResourcePool, error)
 	GetResourcePool(string) (*pool.ResourcePool, error)
 	AddResourcePool(PoolConfig) (*pool.ResourcePool, error)
+	SetPoolGovernor(PoolConfig) error
 	RemoveResourcePool(string) error
 	GetPoolIPs(string) (*facade.PoolIPs, error)
 	AddVirtualIP(pool.VirtualIP) error

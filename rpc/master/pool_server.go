@@ -36,6 +36,22 @@ func (s *Server) AddResourcePool(pool pool.ResourcePool, _ *struct{}) error {
 	return s.f.AddResourcePool(s.context(), &pool)
 }
 
+// AddGovernedPool adds a resource pool with its governor
+func (s *Server) AddGovernedPool(request GovernedPoolRequest, _ *struct{}) error {
+	if err := s.f.AddResourcePool(s.context(), &request.Pool); err != nil {
+		return err
+	} else if err := s.f.AddGovernedPool(s.context(), request.Pool.ID, request.Key); err != nil {
+		defer s.f.RemoveResourcePool(s.context(), request.Pool.ID)
+		return err
+	}
+	return nil
+}
+
+// SetGovernedPool sets a governor on an existing resource pool
+func (s *Server) SetGovernedPool(request GovernedPoolRequest, _ *struct{}) error {
+	return s.f.AddGovernedPool(s.context(), request.Pool.ID, request.Key)
+}
+
 // UpdateResourcePool updates the pool
 func (s *Server) UpdateResourcePool(pool pool.ResourcePool, _ *struct{}) error {
 	return s.f.UpdateResourcePool(s.context(), &pool)
