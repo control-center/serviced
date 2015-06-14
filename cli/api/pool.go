@@ -14,6 +14,8 @@
 package api
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/facade"
 )
@@ -25,6 +27,7 @@ var ()
 // PoolConfig is the deserialized data from the command-line
 type PoolConfig struct {
 	PoolID      string
+	GovKey      string
 	CoreLimit   int
 	MemoryLimit uint64
 }
@@ -62,11 +65,26 @@ func (a *api) AddResourcePool(config PoolConfig) (*pool.ResourcePool, error) {
 		MemoryLimit: config.MemoryLimit,
 	}
 
-	if err := client.AddResourcePool(p); err != nil {
-		return nil, err
+	if key := strings.TrimSpace(config.GovKey); key != "" {
+		if err := client.AddGovernedPool(p, key); err != nil {
+			return nil, err
+		}
+	} else {
+		if err := client.AddResourcePool(p); err != nil {
+			return nil, err
+		}
 	}
 
 	return a.GetResourcePool(p.ID)
+}
+
+// Sets the upstream governor to an existing resource pool
+func (a *api) SetPoolGovernor(config PoolConfig) error {
+	client, err := a.connectMaster()
+	if err != nil {
+		return err
+	}
+	return client.SetPoolGovernor(config.PoolID, config.GovKey)
 }
 
 // Removes an existing pool

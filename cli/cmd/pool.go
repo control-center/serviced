@@ -44,10 +44,19 @@ func (c *ServicedCli) initPool() {
 			}, {
 				Name:  "add",
 				Usage: "Adds a new resource pool",
-				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY",
-				Description:  "serviced pool add POOLID",
+				//Description:  "serviced pool add POOLID CORE_LIMIT MEMORY_LIMIT PRIORITY --set-governor=KEY",
+				Description:  "serviced pool add POOLID [--governor=GOVERNORKEY]",
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
+				Flags: []cli.Flag{
+					cli.StringFlag{"governor, g", "", "Encoded key to the upstream governor pool"},
+				},
+			}, {
+				Name:         "set-governor",
+				Usage:        "Set an upstream governor key to an existing resource pool",
+				Description:  "serviced pool set-governor POOLID GOVERNORKEY",
+				BashComplete: c.printPoolsFirst,
+				Action:       c.cmdPoolSetGovernor,
 			}, {
 				Name:         "remove",
 				ShortName:    "rm",
@@ -177,6 +186,7 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 
 	cfg := api.PoolConfig{}
 	cfg.PoolID = args[0]
+	cfg.GovKey = ctx.String("governor")
 
 	/* Disabled until enforced. See ZEN-11450
 	cfg.CoreLimit, err = strconv.Atoi(args[1])
@@ -198,6 +208,24 @@ func (c *ServicedCli) cmdPoolAdd(ctx *cli.Context) {
 		fmt.Fprintln(os.Stderr, "received nil resource pool")
 	} else {
 		fmt.Println(pool.ID)
+	}
+}
+
+// serviced pool set-governor POOLID GOVERNORKEY
+func (c *ServicedCli) cmdPoolSetGovernor(ctx *cli.Context) {
+	args := ctx.Args()
+	if len(args) < 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "add")
+		return
+	}
+
+	cfg := api.PoolConfig{}
+	cfg.PoolID = args[0]
+	cfg.GovKey = args[1]
+
+	if err := c.driver.SetPoolGovernor(cfg); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
 }
 

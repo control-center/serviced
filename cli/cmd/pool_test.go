@@ -247,9 +247,10 @@ func ExampleServicedCLI_CmdPoolAdd_usage() {
 	//    command add [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced pool add POOLID
+	//    serviced pool add POOLID [--governor=GOVERNORKEY]
 	//
 	// OPTIONS:
+	//    --governor, -g 	Encoded key to the upstream governor pool
 }
 
 func ExampleServicedCLI_CmdPoolAdd_err() {
@@ -264,6 +265,26 @@ func ExampleServicedCLI_CmdPoolRemove() {
 
 	// Output:
 	// test-pool-id-1
+}
+
+func ExampleServicedCLI_CmdPoolSetGovernor_usage() {
+	InitPoolAPITest("serviced", "pool", "set-governor")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    add - Adds a new resource pool
+	//
+	// USAGE:
+	//    command add [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced pool add POOLID [--governor=GOVERNORKEY]
+	//
+	// OPTIONS:
+	//    --governor, -g 	Encoded key to the upstream governor pool
+
 }
 
 func ExampleServicedCLI_CmdPoolRemove_usage() {
