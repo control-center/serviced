@@ -26,6 +26,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -177,18 +178,27 @@ func getElasticHealth(baseUrl string) (cluster.ClusterHealthResponse, error) {
 func PurgeLogstashIndices(days int, gb int) {
 	iservice := elasticsearch_logstash
 	port := iservice.PortBindings[0].HostPort
+	prefix := []string{"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port)}
+
 	glog.Infof("Purging logstash entries older than %d days", days)
-	err := iservice.Exec([]string{
-		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "indices", "--older-than", fmt.Sprintf("%d", days), "--time-unit", "days", "--timestring", "%Y.%m.%d"})
-	if err != nil {
-		glog.Errorf("Unable to purge logstash entries older than %d days: %s", days, err)
+	indices := []string{"indices", "--older-than", fmt.Sprintf("%d", days), "--time-unit", "days", "--timestring", "%Y.%m.%d"}
+	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
+		if strings.Contains(string(output), "No indices found in Elasticsearch") ||
+			strings.Contains(string(output), "No indices matched provided args") {
+			glog.Infof("Ignore previous error - nothing to purge - logstash entries are not older than %d days", days)
+		} else {
+			glog.Errorf("Unable to purge logstash entries older than %d days: %s", days, err)
+		}
 	}
+
 	glog.Infof("Purging oldest logstash entries to limit disk usage to %d GB.", gb)
-	err = iservice.Exec([]string{
-		"/usr/local/bin/curator", "--port", fmt.Sprintf("%d", port),
-		"delete", "--disk-space", fmt.Sprintf("%d", gb), "indices", "--all-indices"})
-	if err != nil {
-		glog.Errorf("Unable to purge logstash entries to limit disk usage to %d GB: %s", gb, err)
+	indices = []string{"--disk-space", fmt.Sprintf("%d", gb), "indices", "--all-indices"}
+	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
+		if strings.Contains(string(output), "No indices found in Elasticsearch") ||
+			strings.Contains(string(output), "No indices matched provided args") {
+			glog.Infof("Ignore previous error - nothing to purge - logstash entries are using less than %d GB", gb)
+		} else {
+			glog.Errorf("Unable to purge logstash entries to limit disk usage to %d GB: %s", gb, err)
+		}
 	}
 }
