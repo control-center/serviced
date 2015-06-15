@@ -29,6 +29,7 @@ const mapping = `
     }
 }`
 
+// MAPPING is the es datamap for the govpool document
 var MAPPING, mappingError = elastic.NewMapping(mapping)
 
 func init() {
