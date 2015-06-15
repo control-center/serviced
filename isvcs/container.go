@@ -205,18 +205,18 @@ func (svc *IService) Restart() error {
 	return <-response
 }
 
-func (svc *IService) Exec(command []string) error {
+func (svc *IService) Exec(command []string) ([]byte, error) {
 	ctr, err := docker.FindContainer(svc.name())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	output, err := utils.AttachAndRun(ctr.ID, command)
 	if err != nil {
-		return err
+		return output, err
 	}
 	os.Stdout.Write(output)
-	return nil
+	return output, nil
 }
 
 func (svc *IService) getResourcePath(p string) string {
