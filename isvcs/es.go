@@ -185,7 +185,7 @@ func PurgeLogstashIndices(days int, gb int) {
 	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
 		if strings.Contains(string(output), "No indices found in Elasticsearch") ||
 			strings.Contains(string(output), "No indices matched provided args") {
-			glog.Infof("Nothing to purge - logstash entries are not older than %d days", days)
+			glog.Infof("Ignore previous error - nothing to purge - logstash entries are not older than %d days", days)
 		} else {
 			glog.Errorf("Unable to purge logstash entries older than %d days: %s", days, err)
 		}
@@ -196,7 +196,7 @@ func PurgeLogstashIndices(days int, gb int) {
 	if output, err := iservice.Exec(append(append(prefix, "delete"), indices...)); err != nil {
 		if strings.Contains(string(output), "No indices found in Elasticsearch") ||
 			strings.Contains(string(output), "No indices matched provided args") {
-			glog.Infof("Nothing to purge - logstash entries are using less than %d GB", gb)
+			glog.Infof("Ignore previous error - nothing to purge - logstash entries are using less than %d GB", gb)
 		} else {
 			glog.Errorf("Unable to purge logstash entries to limit disk usage to %d GB: %s", gb, err)
 		}
