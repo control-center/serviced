@@ -125,7 +125,7 @@ func (facade *jwtFacade) DecodeToken(encodedToken string) (*Token, error) {
 }
 
 // ValidateToken validates the token for compliance with the JWT standards and Zenoss-specific requirements
-func (facade *jwtFacade) ValidateToken(token *Token, method, urlString string, body []byte, expirationLimit time.Duration) error {
+func (facade *jwtFacade) ValidateToken(token *Token, method, urlString string, body []byte, jwtTTL time.Duration) error {
 	if err := validateMinimumRequirements(token); err != nil {
 		return fmt.Errorf("invalid token: %v", err)
 	} else if token.Signature == "" {
@@ -135,9 +135,9 @@ func (facade *jwtFacade) ValidateToken(token *Token, method, urlString string, b
 	issuedAtTime, err := getIssuedAtTime(token)
 	if err != nil {
 		return fmt.Errorf("Claims['iat'] is not valid: %s", err)
-	} else if expirationLimit.Seconds() > 1.0 {
+	} else if jwtTTL.Seconds() > 1.0 {
 		var expirationTime float64
-		expirationTime = issuedAtTime + float64(expirationLimit.Seconds())
+		expirationTime = issuedAtTime + float64(jwtTTL.Seconds())
 		if expirationTime < float64(time.Now().Unix()) {
 			return fmt.Errorf("token has expired")
 		}

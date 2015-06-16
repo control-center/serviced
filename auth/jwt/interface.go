@@ -73,5 +73,5 @@ type JWT interface {
 	NewToken(method, urlString, uriPrefix string, body []byte) (*Token, error)
 
 	// Validate the Token for compliance with the JWT standards and Zenoss-specific requirements
-	ValidateToken(token *Token, method, urlString string, body []byte, expirationLimit time.Duration) error
+	ValidateToken(token *Token, method, urlString string, body []byte, jwtTTL time.Duration) error
 }
