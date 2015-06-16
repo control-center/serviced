@@ -10,6 +10,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package delegateauth implements JWT authentication for serviced delegates.
 package delegateauth
 
 import (
@@ -22,8 +24,12 @@ import (
 )
 
 const (
-	DELEGATE_ISSUER_ID = "serviced_delegate"
-	DELEGATE_AUTH_V1 = "cc_delegate_auth_v1"
+	// DelegateIssuerID - The issuer ('iss') value for delegate authentication
+	DelegateIssuerID = "serviced_delegate"
+
+	// DelegateAuthV1 - The Zenoss Authentication Version ('zav') for version 1
+	// of the serviced delegate authentication scheme
+	DelegateAuthV1 = "cc_delegate_auth_v1"
 )
 
 // A package-private facade that implements the JWT interface while hiding
@@ -35,8 +41,9 @@ type delegateAuthorizer struct {
 // assert the interface
 var _ DelegateAuthorizer = &delegateAuthorizer{}
 
-func NewDelegateAuthorizer() (*delegateAuthorizer, error) {
-	Jwt, err := jwt.NewInstance(jwt.DEFAULT_ALGORITHM, getKeyLookup())
+// NewDelegateAuthorizer creates a new authorizer instance
+func NewDelegateAuthorizer() (DelegateAuthorizer, error) {
+	Jwt, err := jwt.NewInstance(jwt.DefaultSigningAlgorithm, getKeyLookup())
 	if err != nil {
 		return nil, err
 	}
@@ -100,9 +107,9 @@ func (authorizer *delegateAuthorizer) getToken(poolID, method, urlString, uriPre
 		return nil, fmt.Errorf("failed to build token: %s", err)
 	}
 
-	token.Claims["iss"] = DELEGATE_ISSUER_ID
+	token.Claims["iss"] = DelegateIssuerID
 	token.Claims["sub"] = poolID
-	token.Claims["zav"] = DELEGATE_AUTH_V1
+	token.Claims["zav"] = DelegateAuthV1
 	return token, nil
 }
 
@@ -126,12 +133,11 @@ func (authorizer *delegateAuthorizer) readBody(request *http.Request) ([]byte, e
 	return body, nil
 }
 
-
 func getKeyLookup() jwt.KeyLookupFunc {
 	return func(claims map[string]interface{}) (interface{}, error) {
-		if claims["iss"] != DELEGATE_ISSUER_ID {
+		if claims["iss"] != DelegateIssuerID {
 			return nil, fmt.Errorf("Claims['iss']=%q is invalid", claims["iss"])
-		} else if claims["zav"] != DELEGATE_AUTH_V1 {
+		} else if claims["zav"] != DelegateAuthV1 {
 			return nil, fmt.Errorf("Claims['zav']=%q is invalid", claims["zav"])
 		}
 

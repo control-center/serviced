@@ -36,7 +36,7 @@ type JwtSuite struct{}
 var _ = Suite(&JwtSuite{})
 
 func (t *JwtSuite) TestEncodeAndSignToken(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	token := t.getValidToken()
 
 	encodedToken, err := jwt.EncodeAndSignToken(token)
@@ -87,7 +87,7 @@ func (t *JwtSuite) TestEncodeAndSignToken(c *C) {
 }
 
 func (t *JwtSuite) TestDecodeToken(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	expectedToken := t.getValidToken()
 
 	// Manually sign the token
@@ -113,7 +113,7 @@ func (t *JwtSuite) TestDecodeToken(c *C) {
 
 // Verify we can eat our own dog food
 func (t *JwtSuite) TestDecodeASignedToken(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	expectedToken := t.getValidToken()
 
 	encodedToken, err := jwt.EncodeAndSignToken(expectedToken)
@@ -129,7 +129,7 @@ func (t *JwtSuite) TestDecodeASignedToken(c *C) {
 }
 
 func (t *JwtSuite) TestEncodeAndSignTokenFailsForEmptyToken(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	token, _ := jwt.NewToken("GET", "http://control-center/services", "", nil)
 	token.Claims = make(map[string]interface{})
 
@@ -142,7 +142,7 @@ func (t *JwtSuite) TestEncodeAndSignTokenFailsForEmptyToken(c *C) {
 
 func (t *JwtSuite) TestEncodeAndSignTokenFailsForBadKey(c *C) {
 	lookupError := fmt.Errorf("force key lookup failure")
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, func(claims map[string]interface{}) (interface{}, error) {
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, func(claims map[string]interface{}) (interface{}, error) {
 		return nil, lookupError
 	})
 	token := t.getValidToken()
@@ -155,7 +155,7 @@ func (t *JwtSuite) TestEncodeAndSignTokenFailsForBadKey(c *C) {
 }
 
 func (t *JwtSuite) TestEncodeAndSignTokenFailsSigning(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	token := t.getValidToken()
 	token.Header["badField"] = make(chan int)
 
@@ -167,7 +167,7 @@ func (t *JwtSuite) TestEncodeAndSignTokenFailsSigning(c *C) {
 }
 
 func (t *JwtSuite) TestDecodeTokenFailsForEmptySignature(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 
 	token, err := jwt.DecodeToken("")
 
@@ -176,7 +176,7 @@ func (t *JwtSuite) TestDecodeTokenFailsForEmptySignature(c *C) {
 }
 
 func (t *JwtSuite) TestDecodeTokenFailsForBadSignature(c *C) {
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 
 	// Manually sign the token, but tamper with the value of the signature segment
 	expectedToken := t.getValidToken()
@@ -199,7 +199,7 @@ func (t *JwtSuite) TestDecodeTokenFailsForBadSignature(c *C) {
 
 func (t *JwtSuite) TestDecodeTokenFailsForBadKey(c *C) {
 	lookupError := fmt.Errorf("force key lookup failure")
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, func(claims map[string]interface{}) (interface{}, error) {
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, func(claims map[string]interface{}) (interface{}, error) {
 		return nil, lookupError
 	})
 
@@ -224,7 +224,7 @@ func (t *JwtSuite) TestDecodeTokenFailsForBadKey(c *C) {
 
 func (t *JwtSuite) TestValidateToken(c *C) {
 	request := t.getValidRequest()
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	signedToken, err := t.getSignedToken(jwt, t.getValidToken())
 	c.Assert(err, IsNil)
 
@@ -235,7 +235,7 @@ func (t *JwtSuite) TestValidateToken(c *C) {
 
 func (t *JwtSuite) TestValidateTokenFailsMinimumRequirement(c *C) {
 	request := t.getValidRequest()
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	badToken := t.getValidToken()
 	delete(badToken.Header, "typ")
 
@@ -246,7 +246,7 @@ func (t *JwtSuite) TestValidateTokenFailsMinimumRequirement(c *C) {
 
 func (t *JwtSuite) TestValidateTokenFailsForEmptySignature(c *C) {
 	request := t.getValidRequest()
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 
 	err := jwt.ValidateToken(t.getValidToken(), request.Method, request.URL.String(), nil, time.Duration(60)*time.Second)
 
@@ -255,7 +255,7 @@ func (t *JwtSuite) TestValidateTokenFailsForEmptySignature(c *C) {
 
 func (t *JwtSuite) TestValidateTokenFailsForInvalidIAT(c *C) {
 	request := t.getValidRequest()
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	minToken := t.getValidToken()
 	minToken.Claims["iat"] = true
 	signedToken, err := t.getSignedToken(jwt, minToken)
@@ -269,7 +269,7 @@ func (t *JwtSuite) TestValidateTokenFailsForInvalidIAT(c *C) {
 func (t *JwtSuite) TestValidateTokenFailsForExpiredIAT(c *C) {
 	request := t.getValidRequest()
 	expirationLimt := time.Duration(60) * time.Second
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	minToken := t.getValidToken()
 	minToken.Claims["iat"] = float64(time.Now().Unix() - int64(expirationLimt) - 1)
 	signedToken, err := t.getSignedToken(jwt, minToken)
@@ -284,7 +284,7 @@ func (t *JwtSuite) TestValidateTokenFailsForExpiredIAT(c *C) {
 func (t *JwtSuite) TestValidateTokenIgnoresIAT(c *C) {
 	var expirationLimt float64
 	request := t.getValidRequest()
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	minToken := t.getValidToken()
 	minToken.Claims["iat"] = float64(time.Now().Unix() - int64(expirationLimt) - 1)
 	signedToken, err := t.getSignedToken(jwt, minToken)
@@ -298,7 +298,7 @@ func (t *JwtSuite) TestValidateTokenIgnoresIAT(c *C) {
 func (t *JwtSuite) TestValidateTokenFailsWithTamperedBody(c *C) {
 	body := "{\"param1\": \"value1\", \"param2\": 5}"
 	request := t.getValidRequestWithBody(body)
-	jwt, _ := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	token := t.getValidToken()
 	signedToken, err := t.getSignedToken(jwt, token)
 	c.Assert(err, IsNil)
@@ -377,7 +377,7 @@ func (t *JwtSuite) TestValidateMinimumRequirementsFailsForHeaderInvalidAlg(c *C)
 func (t *JwtSuite) TestValidateMinimumRequirementsFailsForHeaderMissingTyp(c *C) {
 	token := &Token{
 		Header: map[string]interface{}{
-			"alg": DEFAULT_ALGORITHM,
+			"alg": DefaultSigningAlgorithm,
 		},
 		Claims: t.getValidClaims(),
 	}
@@ -392,7 +392,7 @@ func (t *JwtSuite) TestValidateMinimumRequirementsFailsForHeaderInvalidTyp(c *C)
 	token := &Token{
 		Header: map[string]interface{}{
 			"typ": "surfboard",
-			"alg": DEFAULT_ALGORITHM,
+			"alg": DefaultSigningAlgorithm,
 		},
 		Claims: t.getValidClaims(),
 	}
@@ -572,14 +572,14 @@ func (t *JwtSuite) getDummyKeyLookup() KeyLookupFunc {
 func (t *JwtSuite) getValidHeader() map[string]interface{} {
 	return map[string]interface{}{
 		"typ": "JWT",
-		"alg": DEFAULT_ALGORITHM,
+		"alg": DefaultSigningAlgorithm,
 	}
 }
 
 func (t *JwtSuite) getValidClaims() map[string]interface{} {
 	validRequest := t.getValidRequest()
-	canonicalUrl := fmt.Sprintf("%s %s  ", validRequest.Method, validRequest.URL.Path)
-	requestHash := sha256.Sum256([]byte(canonicalUrl))
+	canonicalURL := fmt.Sprintf("%s %s  ", validRequest.Method, validRequest.URL.Path)
+	requestHash := sha256.Sum256([]byte(canonicalURL))
 	encodedHash := hex.EncodeToString(requestHash[:])
 
 	return map[string]interface{}{

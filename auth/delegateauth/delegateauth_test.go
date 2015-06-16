@@ -31,9 +31,9 @@ func Test(t *testing.T) {
 	TestingT(t)
 }
 
-type delegateAuthTest struct{
+type delegateAuthTest struct {
 	//  A mock implementation of JWT
-	mockJWT *jwttest.MockJWT
+	mockJWT    *jwttest.MockJWT
 	authorizer *delegateAuthorizer
 }
 
@@ -89,7 +89,7 @@ func (t *delegateAuthTest) TestAddTokenWithoutBody(c *C) {
 	url := "http://control-center/dummy"
 	uriPrefix := "somePrefix"
 	emptyToken := t.getToken()
-	var nilBody []byte = nil
+	var nilBody []byte
 	encodedToken := "mockEncodedTokenString"
 
 	t.mockJWT.
@@ -125,7 +125,7 @@ func (t *delegateAuthTest) TestAddTokenFailsToBuildToken(c *C) {
 	method := "GET"
 	url := "http://control-center/dummy"
 	uriPrefix := "somePrefix"
-	var nilBody []byte = nil
+	var nilBody []byte
 	t.mockJWT.
 		On("NewToken", method, url, uriPrefix, nilBody).
 		Return(nil, tokenFailure)
@@ -141,7 +141,7 @@ func (t *delegateAuthTest) TestAddTokenFailsToEncodeToken(c *C) {
 	method := "GET"
 	url := "http://control-center/dummy"
 	uriPrefix := "somePrefix"
-	var nilBody []byte = nil
+	var nilBody []byte
 	emptyToken := t.getToken()
 	t.mockJWT.
 		On("NewToken", method, url, uriPrefix, nilBody).
@@ -166,7 +166,7 @@ func (t *delegateAuthTest) TestValidateToken(c *C) {
 	t.mockJWT.
 		On("DecodeToken", "bogusValue").
 		Return(emptyToken, nil)
-	var nilBody []byte = nil
+	var nilBody []byte
 	t.mockJWT.
 		On("ValidateToken", emptyToken, method, url, nilBody, 0).
 		Return(nil)
@@ -230,7 +230,7 @@ func (t *delegateAuthTest) TestValidateTokenFailsDecoding(c *C) {
 func (t *delegateAuthTest) TestValidateTokenFailsToReadBody(c *C) {
 	method := "GET"
 	url := "http://control-center/dummy"
-	request, _ := http.NewRequest(method, url, &failedReadCloser{failRead:true})
+	request, _ := http.NewRequest(method, url, &failedReadCloser{failRead: true})
 	request.Header.Add("Authorization", "JWT bogusValue")
 	emptyToken := t.getToken()
 	t.mockJWT.
@@ -252,7 +252,7 @@ func (t *delegateAuthTest) TestValidateTokenFails(c *C) {
 		On("DecodeToken", "bogusValue").
 		Return(emptyToken, nil)
 	tokenFailure := fmt.Errorf("Validation failed")
-	var nilBody []byte = nil
+	var nilBody []byte
 	t.mockJWT.
 		On("ValidateToken", emptyToken, method, url, nilBody, 0).
 		Return(tokenFailure)
@@ -265,8 +265,8 @@ func (t *delegateAuthTest) TestValidateTokenFails(c *C) {
 func (t *delegateAuthTest) TestKeyLookup(c *C) {
 	keyLookup := getKeyLookup()
 	claims := make(map[string]interface{})
-	claims["iss"] = DELEGATE_ISSUER_ID
-	claims["zav"] = DELEGATE_AUTH_V1
+	claims["iss"] = DelegateIssuerID
+	claims["zav"] = DelegateAuthV1
 	claims["sub"] = "somePoolid"
 
 	key, err := keyLookup(claims)
@@ -279,7 +279,7 @@ func (t *delegateAuthTest) TestKeyLookupFailsForInvalidISS(c *C) {
 	keyLookup := getKeyLookup()
 	claims := make(map[string]interface{})
 	claims["iss"] = "not a valid issuer"
-	claims["zav"] = DELEGATE_AUTH_V1
+	claims["zav"] = DelegateAuthV1
 	claims["sub"] = "somePoolid"
 
 	key, err := keyLookup(claims)
@@ -291,7 +291,7 @@ func (t *delegateAuthTest) TestKeyLookupFailsForInvalidISS(c *C) {
 func (t *delegateAuthTest) TestKeyLookupFailsForInvalidZAV(c *C) {
 	keyLookup := getKeyLookup()
 	claims := make(map[string]interface{})
-	claims["iss"] = DELEGATE_ISSUER_ID
+	claims["iss"] = DelegateIssuerID
 	claims["zav"] = "not a valid auth version"
 	claims["sub"] = "somePoolid"
 
@@ -358,15 +358,14 @@ func (t *delegateAuthTest) getToken() *jwt.Token {
 }
 
 type failedReadCloser struct {
-	failRead  bool
+	failRead bool
 }
 
 func (fr *failedReadCloser) Read(p []byte) (n int, err error) {
 	if fr.failRead {
 		return 0, fmt.Errorf("read failed")
-	} else {
-		return 0, io.EOF
 	}
+	return 0, io.EOF
 }
 
 func (fr *failedReadCloser) Close() error {

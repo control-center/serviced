@@ -19,7 +19,7 @@ import (
 )
 
 func (t *JwtSuite) TestNewInstance(c *C) {
-	jwt, err := NewInstance(DEFAULT_ALGORITHM, t.getDummyKeyLookup())
+	jwt, err := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	c.Assert(jwt, NotNil)
 	c.Assert(err, IsNil)
 
@@ -31,7 +31,7 @@ func (t *JwtSuite) TestNewInstance(c *C) {
 
 	signerFacade, _ := jwtFacade.signer.(*signerFacade)
 	c.Assert(signerFacade, NotNil)
-	c.Assert(signerFacade.signingMethod.Alg(), Equals, DEFAULT_ALGORITHM)
+	c.Assert(signerFacade.signingMethod.Alg(), Equals, DefaultSigningAlgorithm)
 
 }
 
@@ -43,7 +43,7 @@ func (t *JwtSuite) TestNewInstanceWithInvalidAlgorithm(c *C) {
 }
 
 func (t *JwtSuite) TestNewInstanceWithoutKeyLookup(c *C) {
-	jwt, err := NewInstance(DEFAULT_ALGORITHM, nil)
+	jwt, err := NewInstance(DefaultSigningAlgorithm, nil)
 	c.Assert(jwt, IsNil)
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "keyLookup can not be nil")

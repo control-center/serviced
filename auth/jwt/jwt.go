@@ -10,6 +10,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package jwt implements Zenoss-specific JWT facilities
 package jwt
 
 import (
@@ -35,23 +37,28 @@ type jwtFacade struct {
 // assert the interface
 var _ JWT = &jwtFacade{}
 
+// RegisterSigner registers the signer used for signing and verifying the JWT token.
 func (facade *jwtFacade) RegisterSigner(signer Signer) {
 	facade.signer = signer
 }
 
+// RegisterKeyLookup registers the key lookup function. The key lookup function uses the data
+// from the Claims field of the token to retrieve the key used to sign the token.
 func (facade *jwtFacade) RegisterKeyLookup(keyLookup KeyLookupFunc) {
 	facade.keyLookup = keyLookup
 }
 
-// Allocates a new token with a complete Header and partial Claims.
+// NewToken creates a new token with a complete Header and partial Claims. The
+// only claim initialized by this method is issued-at-time ('iat'). All other
+// claims should be provided by the specific authentication scheme.
 func (facade *jwtFacade) NewToken(method, urlString, uriPrefix string, body []byte) (*Token, error) {
 	token := &Token{
 		Header: map[string]interface{}{
 			"typ": "JWT",
-			"alg": DEFAULT_ALGORITHM,
+			"alg": DefaultSigningAlgorithm,
 		},
 		Claims: map[string]interface{}{
-			"iat": float64(time.Now().Unix()),		// use float64 to match default behavior of json.Unmarshall()
+			"iat": float64(time.Now().Unix()), // use float64 to match default behavior of json.Unmarshall()
 		},
 	}
 
@@ -65,7 +72,7 @@ func (facade *jwtFacade) NewToken(method, urlString, uriPrefix string, body []by
 	return token, nil
 }
 
-// Returns a signed token in the standard JWT format :
+// EncodeAndSignToken returns a signed token in the standard JWT format :
 // <base64-encoded-header>.<base64-encoded-claims>.<base64-encoded-signature>
 // The value of token.Signature will also be populated with the return value.
 func (facade *jwtFacade) EncodeAndSignToken(token *Token) (string, error) {
@@ -83,15 +90,16 @@ func (facade *jwtFacade) EncodeAndSignToken(token *Token) (string, error) {
 	jwtgoToken.Header = token.Header
 	jwtgoToken.Claims = token.Claims
 
-	if encodedToken, err := jwtgoToken.SignedString(key); err == nil {
-		token.Signature = strings.Split(encodedToken, ".")[2]
-		return encodedToken, nil
-	} else {
+	encodedToken, err := jwtgoToken.SignedString(key)
+	if err != nil {
 		return "", fmt.Errorf("Error encoding token: %v", err)
 	}
+
+	token.Signature = strings.Split(encodedToken, ".")[2]
+	return encodedToken, nil
 }
 
-// DecodeToken encodedToken into a Token. The value of encodedToken should have
+// DecodeToken decodes encodedToken into a Token. The value of encodedToken should have
 // the standard JWT format:
 // <base64-encoded-header>.<base64-encoded-claims>.<base64-encoded-signature>
 //
@@ -104,7 +112,7 @@ func (facade *jwtFacade) DecodeToken(encodedToken string) (*Token, error) {
 	jwtgoToken, err := jwtgo.Parse(encodedToken, func(token *jwtgo.Token) (interface{}, error) {
 		return facade.keyLookup(token.Claims)
 	})
-	if err != nil || !jwtgoToken.Valid  {
+	if err != nil || !jwtgoToken.Valid {
 		return nil, fmt.Errorf("Failed to decode token: %v", err)
 	}
 
@@ -116,7 +124,7 @@ func (facade *jwtFacade) DecodeToken(encodedToken string) (*Token, error) {
 	return token, nil
 }
 
-// Validate the Token for compliance with the JWT standards and Zenoss-specific requirements
+// ValidateToken validates the token for compliance with the JWT standards and Zenoss-specific requirements
 func (facade *jwtFacade) ValidateToken(token *Token, method, urlString string, body []byte, expirationLimit time.Duration) error {
 	if err := validateMinimumRequirements(token); err != nil {
 		return fmt.Errorf("invalid token: %v", err)
@@ -148,7 +156,7 @@ func (facade *jwtFacade) ValidateToken(token *Token, method, urlString string, b
 	return nil
 }
 
-// Validate the minimum set of attributes required for the Header and Claims
+// validateMinimumRequirements validates the minimum set of attributes required for the Header and Claims
 // per a combination of JWT and Zenoss-specific conventions.
 func validateMinimumRequirements(token *Token) error {
 	if token == nil {
@@ -157,7 +165,7 @@ func validateMinimumRequirements(token *Token) error {
 
 	headerRequirements := map[string]interface{}{
 		"typ": "JWT",
-		"alg": DEFAULT_ALGORITHM,
+		"alg": DefaultSigningAlgorithm,
 	}
 	if err := validateMap(token.Header, headerRequirements); err != nil {
 		return fmt.Errorf("token.Header invalid: %v", err)
@@ -169,7 +177,7 @@ func validateMinimumRequirements(token *Token) error {
 		"sub": nil, // JWT-standard, subject
 		"zav": nil, // Zenoss-standard, Zenoss Authentication Version
 		"req": nil, // Zenoss-standard, request signature, a base64-encoded value of a
-					// SHA256 of the canonical request parameters
+		// SHA256 of the canonical request parameters
 	}
 	if err := validateMap(token.Claims, claimsRequirements); err != nil {
 		return fmt.Errorf("token.Claims invalid: %s", err)
@@ -178,7 +186,7 @@ func validateMinimumRequirements(token *Token) error {
 	return nil
 }
 
-// Validate that the source map contains the minimum required attributes.
+// validateMap validates that the source map contains the minimum required attributes.
 func validateMap(source, minimumRequirements map[string]interface{}) error {
 	if source == nil {
 		return fmt.Errorf("can not be nil")
@@ -196,6 +204,8 @@ func validateMap(source, minimumRequirements map[string]interface{}) error {
 	return nil
 }
 
+// getIssuedAtTime returns the value of the 'iat' claim in as a float64. This method
+// handles type conversion from a variety of types to float64
 func getIssuedAtTime(token *Token) (float64, error) {
 	rawIatValue := token.Claims["iat"]
 	var err error
