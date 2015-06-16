@@ -72,6 +72,7 @@ type Options struct {
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
 	RPCDialTimeout       int
 	SnapshotTTL          int // hours to keep snapshots around, zero for infinity
+	JWTTTL               int // TTL for JWT tokens (seconds past issued-at-time)
 }
 
 // LoadOptions overwrites the existing server options
