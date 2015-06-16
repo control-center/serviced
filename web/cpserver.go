@@ -45,12 +45,13 @@ type ServiceConfig struct {
 	hostaliases []string
 	muxTLS      bool
 	muxPort     int
+	jwtTTL      int
 }
 
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, aGroup string) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, jwtTTL int, aGroup string) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
@@ -58,6 +59,7 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		hostaliases: hostaliases,
 		muxTLS:      muxTLS,
 		muxPort:     muxPort,
+		jwtTTL:      jwtTTL,
 	}
 	adminGroup = aGroup
 	return &cfg

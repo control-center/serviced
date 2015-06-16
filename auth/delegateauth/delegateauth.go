@@ -19,6 +19,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"time"
 
 	"github.com/control-center/serviced/auth/jwt"
 )
@@ -35,20 +36,22 @@ const (
 // A package-private facade that implements the JWT interface while hiding
 // implementation details specific to the dgrijalva/jwt-go library
 type delegateAuthorizer struct {
-	jwt jwt.JWT
+	jwt    jwt.JWT
+	jwtTTL int
 }
 
 // assert the interface
 var _ DelegateAuthorizer = &delegateAuthorizer{}
 
 // NewDelegateAuthorizer creates a new authorizer instance
-func NewDelegateAuthorizer() (DelegateAuthorizer, error) {
+func NewDelegateAuthorizer(jwtTTL int) (DelegateAuthorizer, error) {
 	Jwt, err := jwt.NewInstance(jwt.DefaultSigningAlgorithm, getKeyLookup())
 	if err != nil {
 		return nil, err
 	}
 	authorizer := &delegateAuthorizer{
-		jwt: Jwt,
+		jwt:    Jwt,
+		jwtTTL: jwtTTL,
 	}
 	return authorizer, nil
 }
@@ -97,8 +100,8 @@ func (authorizer *delegateAuthorizer) ValidateToken(request *http.Request) error
 		return err
 	}
 
-	// FIXME: add expiration limit
-	return authorizer.jwt.ValidateToken(token, request.Method, request.URL.String(), body, 0)
+	tokenTTL := time.Duration(authorizer.jwtTTL) * time.Second
+	return authorizer.jwt.ValidateToken(token, request.Method, request.URL.String(), body, tokenTTL)
 }
 
 func (authorizer *delegateAuthorizer) getToken(poolID, method, urlString, uriPrefix string, body []byte) (*jwt.Token, error) {
