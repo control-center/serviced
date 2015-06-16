@@ -49,7 +49,7 @@ func (c *ServicedCli) initPool() {
 				BashComplete: nil,
 				Action:       c.cmdPoolAdd,
 				Flags: []cli.Flag{
-					cli.StringFlag{"governor, g", "", "Encoded key to the upstream governor pool"},
+					cli.StringFlag{"governor, g", "", "Set an upstream governor key to the resource pool"},
 				},
 			}, {
 				Name:         "set-governor",
@@ -216,7 +216,7 @@ func (c *ServicedCli) cmdPoolSetGovernor(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "add")
+		cli.ShowCommandHelp(ctx, "set-governor")
 		return
 	}
 
