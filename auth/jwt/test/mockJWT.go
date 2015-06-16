@@ -67,7 +67,7 @@ func (mjwt *MockJWT) DecodeToken(encodedToken string) (*jwt.Token, error) {
 	return token, args.Error(1)
 }
 
-func (mjwt *MockJWT) ValidateToken(token *jwt.Token, method, urlString string, body []byte, expirationLimit time.Duration) error {
-	args := mjwt.Mock.Called(token, method, urlString, body, expirationLimit)
+func (mjwt *MockJWT) ValidateToken(token *jwt.Token, method, urlString string, body []byte, jwtTTL time.Duration) error {
+	args := mjwt.Mock.Called(token, method, urlString, body, jwtTTL)
 	return args.Error(0)
 }
