@@ -10,39 +10,51 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package jwt implements Zenoss-specific JWT facilities
 package jwt
 
 import (
 	"time"
 )
 
-// The default for the JWT-standard name of the signing algorithm.
 const (
-	DEFAULT_ALGORITHM = "HS256"
+	// DefaultSigningAlgorithm defines the default the signing algorithm.
+	// The JWT specification defines the a of valid algorithms.
+	// HS256 represents the HMAC SHA-256 algorithm.
+	DefaultSigningAlgorithm = "HS256"
 )
 
+// Token defines the standard JWT structure
 type Token struct {
 	Header    map[string]interface{} // The first segment of the token
 	Claims    map[string]interface{} // The second segment of the token
 	Signature string                 // The third segment of the token.  Populated when you decode a token
 }
 
+// KeyLookupFunc is the function that uses the contents of Claims to lookup
+// the encryption key used to sign the token.
 type KeyLookupFunc func(claims map[string]interface{}) (interface{}, error)
 
+// Signer is the interface for signing and verifying message signatures.
 type Signer interface {
 	Sign(msg string, key interface{}) (string, error)
 	Verify(msg, signature string, key interface{}) error
 	Algorithm() string
 }
 
+// JWT is the interface for managing Zenoss-specific JWT facilities for a given
+// JWT authentication scheme. Application-level code in serviced should NOT use
+// this interface directly. Instead, application-level code in other parts of
+// serviced should use an interface specific to a particular authentication
+// scheme such as DelegateAuthorizer.
 type JWT interface {
 
-	// Register the signer used for signing and verifying the JWT token
+	// Register the signer used for signing and verifying the JWT token.
 	RegisterSigner(signer Signer)
 
 	// Register the key lookup function. The key lookup function uses the data
-	// from the Claims field of the token to lookup the key passed to the
-	// signing function.
+	// from the Claims field to retrieve the key used to sign and verify the token.
 	RegisterKeyLookup(keyLookup KeyLookupFunc)
 
 	// Decodes encodedToken into a Token. The value of encodedToken should have

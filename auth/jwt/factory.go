@@ -10,6 +10,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package jwt implements Zenoss-specific JWT facilities
 package jwt
 
 import (
@@ -18,10 +20,11 @@ import (
 	jwtgo "github.com/dgrijalva/jwt-go"
 )
 
+// NewInstance returns a new instance of JWT
 func NewInstance(algorithm string, keyLookup KeyLookupFunc) (JWT, error) {
 	// TODO: support other algorithms ... someday ... maybe
-	if algorithm != DEFAULT_ALGORITHM {
-		return nil, fmt.Errorf("algorithm %q is invalid; must be one of [%q]", algorithm, DEFAULT_ALGORITHM)
+	if algorithm != DefaultSigningAlgorithm {
+		return nil, fmt.Errorf("algorithm %q is invalid; must be one of [%q]", algorithm, DefaultSigningAlgorithm)
 	} else if keyLookup == nil {
 		return nil, fmt.Errorf("keyLookup can not be nil")
 	}
