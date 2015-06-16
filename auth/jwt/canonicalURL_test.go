@@ -21,18 +21,18 @@ import (
 
 type canonicalURLTest struct {
 	description string
-	path string
-	result string
+	path        string
+	result      string
 }
 
 func (t *JwtSuite) TestCanonicalURL(c *C) {
-	testData := []canonicalURLTest {
-		{"simple",	"/services", "/services  "},
-		{"simple with sorted queries",	"/services?q2=a&q1=a", "/services q1=a&q2=a "},
-		{"sort same query params",	"/services?q1=z&q1=a", "/services q1=a&q1=z "},
-		{"sorted same query params w/null-value",	"/services?q1=z&q1=a&q1=", "/services q1=&q1=a&q1=z "},
-		{"normalize null-value params",	"/services?q2&q1", "/services q1=&q2= "},
-		{"null-key values first",	"/services?q1=a&=null", "/services =null&q1=a "},
+	testData := []canonicalURLTest{
+		{"simple", "/services", "/services  "},
+		{"simple with sorted queries", "/services?q2=a&q1=a", "/services q1=a&q2=a "},
+		{"sort same query params", "/services?q1=z&q1=a", "/services q1=a&q1=z "},
+		{"sorted same query params w/null-value", "/services?q1=z&q1=a&q1=", "/services q1=&q1=a&q1=z "},
+		{"normalize null-value params", "/services?q2&q1", "/services q1=&q2= "},
+		{"null-key values first", "/services?q1=a&=null", "/services =null&q1=a "},
 
 		{"remove duplicate slashes", "/services//someID/of//something", "/services/someID/of/something  "},
 		{"remove empty query separator", "/services?", "/services  "},
@@ -55,16 +55,16 @@ func (t *JwtSuite) TestCanonicalURL(c *C) {
 }
 
 func (t *JwtSuite) TestCanonicalURLEdgeCases(c *C) {
-	testData := []canonicalURLTest {
+	testData := []canonicalURLTest{
 		// instead of converting mixed-case values for necessary escapes,
 		//		golang's url.Parse() is actually unescaping them :-(
 		{"expected /services/%2A%3B%24", "/services/%2a%3b%24", "/services/*;$  "},
 
 		// golang's url.Parse() removes fragments since these aren't sent to servers
-		{"fragments are removed",	"/services/#frag", "/services  "},
+		{"fragments are removed", "/services/#frag", "/services  "},
 
 		// golang's url.Parse() unescapes some reserved percent-encoded values in query params
-		{"expected /services q1=a%2F%26b&q2=x",	"/services?q1=a%2f%26b&q2=x", "/services q1=a/%26b&q2=x "},
+		{"expected /services q1=a%2F%26b&q2=x", "/services?q1=a%2f%26b&q2=x", "/services q1=a/%26b&q2=x "},
 	}
 
 	for _, data := range testData {
@@ -87,9 +87,9 @@ func (t *JwtSuite) TestCanonicalURLWithBody(c *C) {
 }
 
 func (t *JwtSuite) TestCanonicalURLWithInvalidURL(c *C) {
-	invalidUrl := "ba!@#$%^://control-center"
+	invalidURL := "ba!@#$%^://control-center"
 
-	canonical, err := CanonicalURL("GET", invalidUrl, "", nil)
+	canonical, err := CanonicalURL("GET", invalidURL, "", nil)
 
 	c.Assert(err, NotNil)
 	c.Assert(err, ErrorMatches, "failed to parse input string.*")
@@ -99,7 +99,7 @@ func (t *JwtSuite) TestCanonicalURLWithInvalidURL(c *C) {
 func (t *JwtSuite) TestGetCanonicalURIWithPrefix(c *C) {
 
 	url, _ := url.Parse("http://control-center/dummy/services")
-	uriPrefix :=  "/dummy"
+	uriPrefix := "/dummy"
 
 	canonical := getCanonicalURI(url, uriPrefix)
 
@@ -109,7 +109,7 @@ func (t *JwtSuite) TestGetCanonicalURIWithPrefix(c *C) {
 func (t *JwtSuite) TestGetCanonicalURIWithoutPrefix(c *C) {
 
 	url, _ := url.Parse("http://control-center/dummy/services")
-	uriPrefix :=  ""
+	uriPrefix := ""
 
 	canonical := getCanonicalURI(url, uriPrefix)
 
@@ -119,7 +119,7 @@ func (t *JwtSuite) TestGetCanonicalURIWithoutPrefix(c *C) {
 func (t *JwtSuite) TestGetCanonicalURIWithPrefixAndTrailingSlash(c *C) {
 
 	url, _ := url.Parse("http://control-center/dummy/services/")
-	uriPrefix :=  "/dummy/"
+	uriPrefix := "/dummy/"
 
 	canonical := getCanonicalURI(url, uriPrefix)
 
@@ -129,7 +129,7 @@ func (t *JwtSuite) TestGetCanonicalURIWithPrefixAndTrailingSlash(c *C) {
 func (t *JwtSuite) TestGetCanonicalURIWhenPrefixMatchesPath(c *C) {
 
 	url, _ := url.Parse("http://control-center/services")
-	uriPrefix :=  "/services"
+	uriPrefix := "/services"
 
 	canonical := getCanonicalURI(url, uriPrefix)
 
@@ -139,7 +139,7 @@ func (t *JwtSuite) TestGetCanonicalURIWhenPrefixMatchesPath(c *C) {
 func (t *JwtSuite) TestGetCanonicalURIWhenPrefixDoesNotMatchPath(c *C) {
 
 	url, _ := url.Parse("http://control-center/services")
-	uriPrefix :=  "/servicesss"
+	uriPrefix := "/servicesss"
 
 	canonical := getCanonicalURI(url, uriPrefix)
 
@@ -148,11 +148,11 @@ func (t *JwtSuite) TestGetCanonicalURIWhenPrefixDoesNotMatchPath(c *C) {
 
 func (t *JwtSuite) TestGetCanonicalURIForEmptyPath(c *C) {
 
-	url, _ := url.Parse("http://control-center")	// w/o trailing slash
+	url, _ := url.Parse("http://control-center") // w/o trailing slash
 	canonical := getCanonicalURI(url, "")
 	c.Assert(canonical, Equals, "/")
 
-	url, _ = url.Parse("http://control-center/")	// w/trailing slash
+	url, _ = url.Parse("http://control-center/") // w/trailing slash
 	canonical = getCanonicalURI(url, "")
 	c.Assert(canonical, Equals, "/")
 

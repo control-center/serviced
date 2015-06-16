@@ -10,6 +10,8 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// Package jwt implements Zenoss-specific JWT facilities
 package jwt
 
 import (
@@ -20,8 +22,9 @@ import (
 	purell "github.com/PuerkitoBio/purell"
 )
 
+// CanonicalURL returns a canonical URL per Zenoss-conventions
 func CanonicalURL(method, urlString, uriPrefix string, body []byte) ([]byte, error) {
-	parsedUrl, err := url.Parse(urlString)
+	parsedURL, err := url.Parse(urlString)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse input string %q : %v", urlString, err)
 	}
@@ -39,13 +42,13 @@ func CanonicalURL(method, urlString, uriPrefix string, body []byte) ([]byte, err
 	// 		should be safe for CC REST URLs:
 	normalizationRules |= purell.FlagSortQuery | purell.FlagRemoveDuplicateSlashes
 
-	normalizedUrl, err := url.Parse(purell.NormalizeURL(parsedUrl, normalizationRules))
+	normalizedURL, err := url.Parse(purell.NormalizeURL(parsedURL, normalizationRules))
 	if err != nil {
 		return nil, fmt.Errorf("failed to normalized URL: %v", err)
 	}
 
-	canonicalURI := getCanonicalURI(normalizedUrl, uriPrefix)
-	canonicalQuery := getCanonicalQuery(normalizedUrl)
+	canonicalURI := getCanonicalURI(normalizedURL, uriPrefix)
+	canonicalQuery := getCanonicalQuery(normalizedURL)
 
 	canonicalURL := make([]byte, 0, len(method)+len(canonicalURI)+len(canonicalQuery)+len(body)+3)
 	canonicalURL = append(canonicalURL, []byte(method)...)
