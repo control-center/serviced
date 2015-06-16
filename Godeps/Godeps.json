@@ -11,6 +11,11 @@
 			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
 		},
 		{
+			"ImportPath": "github.com/PuerkitoBio/purell",
+			"Comment": "v0.1.0-23-gd69616f",
+			"Rev": "d69616f51cdfcd7514d6a380847a152dfc2a749d"
+		},
+		{
 			"ImportPath": "github.com/Sirupsen/logrus",
 			"Comment": "v0.7.3-4-gaaf92c9",
 			"Rev": "aaf92c95712104318fc35409745f1533aa5ff327"
@@ -31,6 +36,11 @@
 		{
 			"ImportPath": "github.com/control-center/go-zookeeper/zk",
 			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
+		},
+		{
+			"ImportPath": "github.com/dgrijalva/jwt-go",
+			"Comment": "v2.2.0-28-g2e53eb6",
+			"Rev": "2e53eb673c4450614e3bca6f345197f9527dce71"
 		},
 		{
 			"ImportPath": "github.com/docker/distribution/digest",
@@ -205,6 +215,10 @@
 		{
 			"ImportPath": "github.com/kr/text",
 			"Rev": "6807e777504f54ad073ecef66747de158294b639"
+		},
+		{
+			"ImportPath": "github.com/opennota/urlesc",
+			"Rev": "5fa9ff0392746aeae1c4b37fcc42c65afa7a9587"
 		},
 		{
 			"ImportPath": "github.com/pivotal-golang/bytefmt",
