@@ -53,10 +53,11 @@ func (t *delegateAuthTest) TearDownTest(c *C) {
 }
 
 func (t *delegateAuthTest) TestNewDelegateAuthorizer(c *C) {
-	da, err := NewDelegateAuthorizer()
+	da, err := NewDelegateAuthorizer(10)
 
 	c.Assert(err, IsNil)
 	c.Assert(da, NotNil)
+	c.Assert(da.(*delegateAuthorizer).jwtTTL, Equals, 10)
 }
 
 func (t *delegateAuthTest) TestAddTokenWithBody(c *C) {

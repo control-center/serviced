@@ -63,6 +63,7 @@ func getDefaultOptions(config ConfigReader) api.Options {
 		MaxRPCClients:        config.IntVal("MAX_RPC_CLIENTS", 3),
 		RPCDialTimeout:       config.IntVal("RPC_DIAL_TIMEOUT", 30),
 		SnapshotTTL:          config.IntVal("SNAPSHOT_TTL", 12),
+		JWTTTL:               config.IntVal("JWT_TTL", 180),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
