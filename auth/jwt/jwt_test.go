@@ -268,25 +268,25 @@ func (t *JwtSuite) TestValidateTokenFailsForInvalidIAT(c *C) {
 
 func (t *JwtSuite) TestValidateTokenFailsForExpiredIAT(c *C) {
 	request := t.getValidRequest()
-	expirationLimt := time.Duration(60) * time.Second
+	jwtTTL := time.Duration(60) * time.Second
 	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	minToken := t.getValidToken()
-	minToken.Claims["iat"] = float64(time.Now().Unix() - int64(expirationLimt) - 1)
+	minToken.Claims["iat"] = float64(time.Now().Unix() - int64(jwtTTL) - 1)
 	signedToken, err := t.getSignedToken(jwt, minToken)
 	c.Assert(err, IsNil)
 
-	err = jwt.ValidateToken(signedToken, request.Method, request.URL.String(), nil, expirationLimt)
+	err = jwt.ValidateToken(signedToken, request.Method, request.URL.String(), nil, jwtTTL)
 
 	c.Assert(err, NotNil)
 	c.Assert(err.Error(), Equals, "token has expired")
 }
 
 func (t *JwtSuite) TestValidateTokenIgnoresIAT(c *C) {
-	var expirationLimt float64
+	var jwtTTL float64
 	request := t.getValidRequest()
 	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	minToken := t.getValidToken()
-	minToken.Claims["iat"] = float64(time.Now().Unix() - int64(expirationLimt) - 1)
+	minToken.Claims["iat"] = float64(time.Now().Unix() - int64(jwtTTL) - 1)
 	signedToken, err := t.getSignedToken(jwt, minToken)
 	c.Assert(err, IsNil)
 
