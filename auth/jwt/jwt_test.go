@@ -112,20 +112,20 @@ func (t *JwtSuite) TestDecodeToken(c *C) {
 }
 
 // Verify we can eat our own dog food
-func (t *JwtSuite) TestDecodeASignedToken(c *C) {
+func (t *JwtSuite) TestDecodeAnEncodedToken(c *C) {
 	jwt, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
 	expectedToken := t.getValidToken()
 
 	encodedToken, err := jwt.EncodeAndSignToken(expectedToken)
 	c.Assert(err, IsNil)
 
-	actualToken, err := jwt.DecodeToken(encodedToken)
+	decodedToken, err := jwt.DecodeToken(encodedToken)
 	c.Assert(err, IsNil)
 
-	t.assertMapsEqual(c, actualToken.Header, expectedToken.Header)
-	t.assertMapsEqual(c, actualToken.Claims, expectedToken.Claims)
-	c.Assert(actualToken.Signature, NotNil)
-	c.Assert(actualToken.Signature, Equals, strings.Split(encodedToken, ".")[2])
+	t.assertMapsEqual(c, decodedToken.Header, expectedToken.Header)
+	t.assertMapsEqual(c, decodedToken.Claims, expectedToken.Claims)
+	c.Assert(decodedToken.Signature, NotNil)
+	c.Assert(decodedToken.Signature, Equals, strings.Split(encodedToken, ".")[2])
 }
 
 func (t *JwtSuite) TestEncodeAndSignTokenFailsForEmptyToken(c *C) {
@@ -220,6 +220,20 @@ func (t *JwtSuite) TestDecodeTokenFailsForBadKey(c *C) {
 
 	c.Assert(err.Error(), Equals, "Failed to decode token: force key lookup failure")
 	c.Assert(token, IsNil)
+}
+
+func (t *JwtSuite) TestDecodeFailsForKeyMismatch(c *C) {
+	jwtSender, _ := NewInstance(DefaultSigningAlgorithm, t.getDummyKeyLookup())
+	expectedToken := t.getValidToken()
+
+	encodedToken, err := jwtSender.EncodeAndSignToken(expectedToken)
+	c.Assert(err, IsNil)
+
+	jwtReciever, _ := NewInstance(DefaultSigningAlgorithm, t.getAltKeyLookup())
+	decodedToken, err := jwtReciever.DecodeToken(encodedToken)
+
+	c.Assert(err.Error(), Equals, "Failed to decode token: signature is invalid")
+	c.Assert(decodedToken, IsNil)
 }
 
 func (t *JwtSuite) TestValidateToken(c *C) {
@@ -566,6 +580,12 @@ func (t *JwtSuite) TestGetIssuedAtTimeForInt(c *C) {
 func (t *JwtSuite) getDummyKeyLookup() KeyLookupFunc {
 	return func(claims map[string]interface{}) (interface{}, error) {
 		return []byte("somekey"), nil
+	}
+}
+
+func (t *JwtSuite) getAltKeyLookup() KeyLookupFunc {
+	return func(claims map[string]interface{}) (interface{}, error) {
+		return []byte("someOtherkey"), nil
 	}
 }
 
