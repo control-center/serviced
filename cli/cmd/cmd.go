@@ -94,7 +94,7 @@ func New(driver api.API, config ConfigReader) *ServicedCli {
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
 		cli.IntFlag{"snapshot-ttl", defaultOps.SnapshotTTL, "snapshot TTL in hours, 0 to disable"},
-		cli.IntFlag{"jwt-ttl", defaultOps.JWTTTL, "JWT TTL in seconds past issued-at-time"},
+		cli.IntFlag{"auth-expiration", defaultOps.JWTTTL, "Authentication expiration in seconds past issued-at-time"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
