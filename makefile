@@ -87,6 +87,23 @@ IN_DOCKER = 0
 # to generate the Godeps file based upon the src currently populated in
 # $GOPATH/src.  It may be useful to periodically audit the checked-in Godeps
 # against the generated Godeps.
+#
+# NOTE: We depend on some files internal to docker, and in 1.6.0 Docker changed
+#       how they generated the dockerversion package. This change broke our
+#       godep dependencies somewhat. The symptom of this problem is an error like
+#       this when running godep save ./...
+# "cannot find package "github.com/docker/docker/autogen/dockerversion" in any of:"
+#
+# To fix the problem, you must manually generate the dockerversion package in
+# GOPATH by using the following commands:
+#    cd  ~/src/europa/src/golang/src/github.com/docker/docker
+#    git checkout master
+#    git pull origin                # make sure you have the latest code
+#    git checkout v1.6.0            # use the 1.6.0 release
+#    hack/make.sh                   # generate the dockerversion package
+#    cdz serviced
+#    godep save ./...
+#
 #------------------------------------------------------------------------------#
 GODEP     = $(GOBIN)/godep
 GO        = $(GODEP) go
@@ -159,7 +176,7 @@ docker_SRC = github.com/docker/docker
 FORCE:
 
 serviced: $(GODEP)
-serviced: FORCE 
+serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
