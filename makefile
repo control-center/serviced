@@ -229,6 +229,7 @@ install_DIRS += $(_DESTDIR)$(prefix)/isvcs
 install_DIRS += $(_DESTDIR)$(sysconfdir)/default
 install_DIRS += $(_DESTDIR)$(sysconfdir)/bash_completion.d
 install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.daily
+install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.hourly
 
 # Specify the stuff to install as attributes of the various
 # install directories we know about.
@@ -240,7 +241,9 @@ install_DIRS += $(_DESTDIR)$(sysconfdir)/cron.daily
 #
 default_INSTCMD = cp
 $(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
+$(_DESTDIR)$(sysconfdir)/cron.hourly_TARGETS       = pkg/cron.hourly:serviced
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
+$(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logrotate-docker.conf:logrotate-docker.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
