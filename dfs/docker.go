@@ -22,10 +22,10 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/commons/layer"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -45,7 +45,7 @@ type imagemeta struct {
 // ResetRegistry will update the host:port of the docker registry
 func (dfs *DistributedFilesystem) ResetRegistry() error {
 	// get all the services in the system
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
+	_, svcs, err := dfs.facade.GetAllServices(dfs.datastoreGet(), facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not get services for updating the registry")
 		return err
@@ -165,7 +165,7 @@ func (dfs *DistributedFilesystem) desynchronize(image *docker.Image) error {
 	}
 
 	// look up services for that tenant
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: image.ID.User})
+	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), image.ID.User, facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not get services for tenant %s from %s (%s): %s", image.ID.User, image.ID, image.UUID, err)
 		return err

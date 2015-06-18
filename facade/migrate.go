@@ -42,6 +42,14 @@ const (
 	EMBEDDED_MIGRATION_DIRECTORY = "/opt/serviced/migration"
 )
 
+func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registry string, noOp bool) (string, error) {
+	result, err := docker.ServiceUse(serviceID, imageName, registry, noOp)
+	if err != nil {
+		return "", err
+	}
+	return result, nil
+}
+
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
 func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrationScriptRequest) error {
 	svc, err := f.GetService(datastore.Get(), request.ServiceID)

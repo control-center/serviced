@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
 	"github.com/zenoss/glog"
 )
 
@@ -51,7 +52,7 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 	}
 
 	// Pause all running services for that tenant
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: tenantID})
+	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID, facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not get all services: %s", err)
 		return "", err
@@ -125,7 +126,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		return err
 	}
 
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: tenantID})
+	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID, facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
@@ -347,7 +348,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	}
 
 	// map service id to service
-	current, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: tenantID})
+	_, current, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID, facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return err
@@ -393,14 +394,14 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 				delete(currentServices, serviceID)
 			} else {
 				glog.Infof("Adding service %s (%s)", svc.Name, svc.ID)
-				if err := dfs.facade.AddService(dfs.datastoreGet(), svc); err != nil {
+				if err := dfs.facade.AddService(dfs.datastoreGet(), svc, false); err != nil {
 					glog.Errorf("Could not add service %s: %s", serviceID, err)
 					return err
 				}
 			}
 
 			// restore the address assignments
-			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), svc); err != nil {
+			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), &svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 

@@ -158,7 +158,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 	}
 
 	// retrieve services
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
+	_, svcs, err := dfs.facade.GetAllServices(dfs.datastoreGet(), facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return "", err
@@ -246,7 +246,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 func (dfs *DistributedFilesystem) Restore(filename string) error {
 	// fail if any services are running
 	dfs.logf("Checking running services")
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{})
+	_, svcs, err := dfs.facade.GetAllServices(dfs.datastoreGet(), facade.NoServiceFilter)
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
