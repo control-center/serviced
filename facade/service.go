@@ -89,9 +89,14 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 	}
 
 	// verify that the service can be added
-	if isRemote {
+	if !isRemote {
 		if err := f.canEditService(ctx, svc.PoolID); err != nil {
 			glog.Errorf("Can not add service %s (%s) to pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
+			return err
+		}
+	} else {
+		if err := f.canEditRemoteService(ctx, &svc); err != nil {
+			glog.Errorf("Can not add service %s (%s) to delegate pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
 			return err
 		}
 	}
@@ -162,10 +167,15 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service, isRemote bool) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 
-	// verify that the service can be added
-	if isRemote {
+	// verify that the service can be updated
+	if !isRemote {
 		if err := f.canEditService(ctx, svc.PoolID); err != nil {
-			glog.Errorf("Can not add service %s (%s) to pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
+			glog.Errorf("Can not update service %s (%s) in pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
+			return err
+		}
+	} else {
+		if err := f.canEditRemoteService(ctx, &svc); err != nil {
+			glog.Errorf("Can not update service %s (%s) in delegate pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
 			return err
 		}
 	}
@@ -674,6 +684,21 @@ func (f *Facade) canEditService(ctx datastore.Context, poolID string) error {
 		// if it returns nil, delete the secret and return nil
 	}
 
+	return nil
+}
+
+// canEditRemoteService verifies the pool id and updates the necessary fields
+func (f *Facade) canEditRemoteService(ctx datastore.Context, svc *service.Service) error {
+	p, err := f.GetGovernedPool(ctx, svc.PoolID)
+	if err != nil {
+		glog.Errorf("Could not verify governed pool %s: %s", svc.PoolID, err)
+		return err
+	} else if p == nil {
+		return ErrGovPoolNotExists
+	}
+
+	svc.PoolID = p.PoolID
+	svc.DeploymentID = fmt.Sprintf("%s:%s", p.RemotePoolID, svc.DeploymentID)
 	return nil
 }
 
