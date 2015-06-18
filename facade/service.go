@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 )
@@ -39,7 +38,8 @@ var (
 	ErrServiceRunning    = errors.New("facade: service is running")
 	ErrDStateUnknown     = errors.New("facade: service desired state is unknown")
 	ErrBadServicePath    = errors.New("facade: bad service path")
-	ErrNoParent          = errors.New("facade: child service cannot become parent")
+	ErrNoParent          = errors.New("facade: child service cannot become tenant")
+	ErrNoChild           = errors.New("facade: tenant service cannot become child")
 	ErrDupEndpoints      = errors.New("facade: found duplicate endpoints on application")
 )
 
@@ -107,7 +107,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, autoAssi
 
 	// Compare the incoming config files to see if there are modifications from
 	// the original.  If there are, we need to perform an update to add those
-	// modifications to the service. (WHY?)
+	// modifications to the service.
 	if svc.OriginalConfigs == nil {
 		if svc.ConfigFiles != nil {
 			svc.OriginalConfigs = svc.ConfigFiles
@@ -116,7 +116,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, autoAssi
 		}
 	}
 	configs := svc.ConfigFiles
-	svc.ConfigFiles = make(map[string]servicedefinition.ConfigFile)
+	svc.ConfigFiles = nil
 
 	// strip the database version
 	svc.DatabaseVersion = 0
@@ -605,6 +605,80 @@ func (f *Facade) canStartService(ctx datastore.Context, serviceID string, autoLa
 	return f.walkServices(ctx, serviceID, autoLaunch, canStartService)
 }
 
+// validateServicePath ensures that the provided service path is valid
+func (f *Facade) validateServicePath(ctx datastore.Context, oldService, newService *service.Service) error {
+	newService.ParentServiceID = strings.TrimSpace(newService.ParentServiceID)
+
+	if newService.ParentServiceID != oldService.ParentServiceID {
+		if newService.ParentServiceID == "" {
+			glog.Errorf("Child service %s (%s) cannot become a tenant", svc.Name, svc.ID, err)
+			return ErrNoParent
+		} else if oldService.ParentServiceID == "" {
+			glog.Errorf("Tenant service %s (%s) cannot become a child", svc.Name, svc.ID, err)
+			return ErrNoChild
+		}
+	}
+
+	if newService.ParentServiceID != oldService.ParentServiceID || newService.Name != svc.Name {
+		if svc, err := f.GetChildService(ctx, newService.ParentServiceID, newService.Name); err != nil {
+			glog.Errorf("Could not verify service path for %s (%s): %s", newService.Name, newService.ID, err)
+			return err
+		} else if svc != nil {
+			glog.Errorf("Found service %s (%s) at %s", svc.Name, svc.ID, svc.ParentServiceID)
+			return ErrServicePathExists
+		}
+	}
+	return nil
+}
+
+// validateServiceEndpoints ensures that there are no duplicate endpoints
+// throughout the application.
+func (f *Facade) validateServiceEndpoints(ctx datastore.Context, oldService, newService *service.Service) error {
+	endpointApps := make(map[string]struct{})
+	check := func(svc *service.Service) bool {
+		dup := false
+		for _, ep := range svc.Endpoints {
+			if ep.Purpose == "export" {
+				if _, ok := endpointApps[ep.Application]; ok {
+					glog.Errorf("Duplicate application detected for endpoint %s on service %s (%s)", ep.Name, svc.Name, svc.ID)
+					dup = true
+				} else {
+					endpointApps[ep.Application] = struct{}{}
+				}
+			}
+		}
+		return dup
+	}
+
+	if check(newService) {
+		return ErrDupEndpoints
+	}
+
+	tenantID := svc.ID
+	if newService.ParentServiceID != "" {
+		var err error
+		if tenantID, err = f.GetTenantID(ctx, newService.ParentServiceID); err != nil {
+			glog.Errorf("Could not find the tenant of service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+	}
+
+	if _, svcs, err := f.GetServicesByTenant(ctx, tenantID, func(svc *service.Service) bool {
+		return
+		// skip the current service
+		if svc.ID != newService.ID {
+			return check(svc)
+		}
+		return false
+	}); err != nil {
+		glog.Errorf("Could not look up application services for %s (%s): %s", newService.Name, newService.ID, err)
+		return err
+	} else if len(svcs) > 0 {
+		return ErrDupEndpoints
+	}
+	return nil
+}
+
 // updateService updates a service in the datastore and sets attributes on the
 // service.
 func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migrate bool) error {
@@ -618,59 +692,18 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migr
 
 	/* validation */
 
-	// cannot make a child service a tenant service
-	if currentService.ParentServiceID != svc.ParentServiceID && svc.ParentServiceID == "" {
-		glog.Errorf("Cannot change a child service %s (%s) into a tenant", svc.Name, svc.ID)
-		return ErrNoParent
-	}
-
-	// make sure the path is still valid
-	// TODO: some delegate pools may have invalid parent service ids (how to fix?)
-	if currentService.ParentServiceID != svc.ParentServiceID || currentService.Name != svc.Name {
-		if _, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-			glog.Errorf("Could not verify service path for %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-	} else if s != nil {
-		glog.Errorf("Found service %s (%s) at %s", svc.Name, svc.ID, svc.ParentServiceID, ErrServicePathExists)
-		return ErrServicePathExists
-	}
-
-	// make sure there are no duplicate endpoints
-	var tenantID string
-	if svc.ParentServiceID != "" {
-		var err error
-		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
-			glog.Errorf("Could not find the tenant of service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-	} else {
-		tenantID = svc.ID
-	}
-	endpointApps := make(map[string]struct{})
-	if _, tenantsvcs, err := f.GetServicesByTenant(ctx, tenantID, func(svc *service.Service) bool {
-		for _, ep := range svc.Endpoints {
-			if ep.Purpose == "export" {
-				if _, ok := endpointApps[ep.Application]; ok {
-					glog.Errorf("Duplicate application detected for endpoint %s on service %s (%s)", ep.Name, svc.Name, svc.ID)
-					return true
-				} else {
-					endpointApps[ep.Application] = struct{}{}
-				}
-			}
-		}
-		return false
-	}); err != nil {
-		glog.Errorf("Could not validate application endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
+	if err := f.validateServicePath(ctx, currentService, svc); err != nil {
+		glog.Errorf("Could not validate service path for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
-	} else if len(tenantsvcs) > 0 {
-		return ErrDupEndpoints
+	} else if err := f.validateServiceEndpoints(ctx, currentService, svc); err != nil {
+		glog.Errorf("Could not validate service endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
 	}
 
 	// set immutable values
 	svc.DeploymentID = currentService.DeploymentID
 	svc.OriginalConfigs = currentService.OriginalConfigs
-	config, svc.ConfigFiles = svc.ConfigFiles, make(map[string]*serviceconfigfile.SvcConfigFile)
+	config, svc.ConfigFiles = svc.ConfigFiles, nil
 	svc.CreatedAt = currentService.CreatedAt
 
 	// clear address assignments
@@ -686,7 +719,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migr
 		return err
 	}
 
-	// check the pool and update address assignments
+	// update address assignments
 	if currentService.PoolID != svc.PoolID {
 		// check and remove address assignments
 		if err := f.RemoveAddrAssignmentsByService(ctx, svc.ID); err != nil {
