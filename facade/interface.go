@@ -28,11 +28,9 @@ import (
 
 // The FacadeInterface is the API for a Facade
 type FacadeInterface interface {
-	AddService(ctx datastore.Context, svc service.Service) error
+	AddService(ctx datastore.Context, svc service.Service, assignIP bool) error
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
-
-	GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error)
 
 	GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error)
 
@@ -44,7 +42,7 @@ type FacadeInterface interface {
 
 	RemoveService(ctx datastore.Context, id string) error
 
-	RestoreIPs(ctx datastore.Context, svc service.Service) error
+	RestoreIPs(ctx datastore.Context, svc *service.Service) error
 
 	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
 

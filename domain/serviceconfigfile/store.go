@@ -14,8 +14,11 @@
 package serviceconfigfile
 
 import (
-	"github.com/zenoss/elastigo/search"
+	"strings"
+
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
+	"github.com/zenoss/elastigo/search"
 )
 
 //NewStore creates a Service  store
@@ -43,6 +46,36 @@ func (s *Store) GetConfigFiles(ctx datastore.Context, tenantID string, svcPath s
 		return nil, err
 	}
 	return convert(results)
+}
+
+func (s *Store) GetFileID(ctx datastore.Context, tenantID string, svcPath string, name string) (string, error) {
+	if tenantID = strings.TrimSpace(tenantID); tenantID == "" {
+		return "", domain.EmptyNotAllowed("TenantID")
+	} else if svcPath = strings.TrimSpace(svcPath); svcPath == "" {
+		return "", domain.EmptyNotAllowed("Service Path")
+	} else if name = strings.TrimSpace(name); name == "" {
+		return "", domain.EmptyNotAllowed("File Path")
+	}
+
+	search := search.Search("controlplane").Type(kind).Filter(
+		"and",
+		search.Filter().Terms("ServiceTenantID", tenantID),
+		search.Filter().Terms("ServicePath", svcPath),
+		search.Filter().Terms("ConfFile.Filename", name),
+	)
+	q := datastore.NewQuery(ctx)
+	results, err := q.Execute(search)
+	if err != nil {
+		return "", err
+	}
+	if results.Len() == 0 {
+		return "", nil
+	}
+	conflist, err := convert(results)
+	if err != nil {
+		return "", err
+	}
+	return conflist[0].ID, nil
 }
 
 func convert(results datastore.Results) ([]*SvcConfigFile, error) {

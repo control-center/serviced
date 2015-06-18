@@ -161,7 +161,6 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, autoAssi
 // does not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
-	store := f.serviceStore
 
 	// verify that the service can be added
 	if err := f.canEditService(ctx, svc.PoolID); err != nil {
@@ -170,7 +169,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	}
 
 	// update the service
-	if err := f.updateService(ctx, &svc, false); err != nil {
+	if err := f.updateService(ctx, &svc); err != nil {
 		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -220,6 +219,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, serviceID string) error {
 			glog.Errorf("Could not remove service %s (%s) from coordinator client: %s", svc.Name, svc.ID, err)
 			return err
 		}
+		return nil
 	}
 
 	return f.walkServices(ctx, serviceID, true, removeService)
@@ -247,7 +247,7 @@ func (f *Facade) SyncRemoteService(ctx datastore.Context, svc service.Service) e
 	svc.PoolID = gp.PoolID
 
 	// update the service
-	if err := f.updateService(ctx, &svc, false); err != nil {
+	if err := f.updateService(ctx, &svc); err != nil {
 		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -295,7 +295,7 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 			svc.DesiredState = int(state)
 		}
 
-		if err := f.updateService(ctx, svc, false); err != nil {
+		if err := f.updateService(ctx, svc); err != nil {
 			glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
@@ -476,7 +476,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, tags []string, filter 
 		glog.Errorf("Could not look up services by tags %s: %s", tags, err)
 		return nil, nil, err
 	}
-	serviceIDs, svcs := f.filterServices(svcs, filter)
+	serviceIDs, svcs := f.filterServices(ctx, svcs, filter)
 	return serviceIDs, svcs, nil
 }
 
@@ -490,7 +490,7 @@ func (f *Facade) GetChildServices(ctx datastore.Context, parentServiceID string)
 		glog.Errorf("Could not get child services of %s: %s", parentServiceID, err)
 		return nil, err
 	}
-	_, svcs = f.filterServices(svcs, NoFilter)
+	_, svcs = f.filterServices(ctx, svcs, NoServiceFilter)
 	return svcs, nil
 }
 
@@ -531,14 +531,88 @@ func (f *Facade) GetServicePath(ctx datastore.Context, serviceID string) (string
 			return svc.ID, path.Join(svc.DeploymentID, svc.ID), nil
 		}
 
-		t, p, err := getParent(svc.ParentServiceID)
+		t, p, err := getParentPath(svc.ParentServiceID)
 		if err != nil {
 			return "", "", nil
 		} else {
 			return t, path.Join(p, svc.ID), nil
 		}
 	}
-	return getParent(serviceID)
+	return getParentPath(serviceID)
+}
+
+// GetServiceStates returns all the service states for a given service id.
+func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
+	glog.V(2).Infof("Facade.GetServiceStates: %s", serviceID)
+	store := f.serviceStore
+
+	svc, err := store.Get(ctx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not find service %s: %s", serviceID, err)
+		return nil, err
+	}
+	var states []servicestate.ServiceState
+	if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
+		return nil, err
+	}
+	return states, err
+}
+
+// WaitService waits for service(s) to reach a particular desired state within
+// the designated timeout.
+func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error {
+	// error out if the desired state is invalid
+	if dstate.String() == "unknown" {
+		return fmt.Errorf("desired state unknown")
+	}
+
+	// waitstatus is the return result for the awaiting service
+	type waitstatus struct {
+		ServiceID string
+		Err       error
+	}
+
+	cancel := make(chan interface{})
+	processing := make(map[string]struct{})
+	done := make(chan waitstatus)
+
+	defer close(cancel)
+	for _, serviceID := range serviceIDs {
+		// spawn a goroutine to wait for each particular service
+		svc, err := f.GetService(ctx, serviceID)
+		if err != nil {
+			glog.Errorf("Error while getting service %s: %s", serviceID, err)
+			return err
+		}
+		processing[svc.ID] = struct{}{}
+		go func(s *service.Service) {
+			err := zkAPI(f).WaitService(s, dstate, cancel)
+			// this blocks until we pass a waitstatus object into the channel or we get a signal to cancel
+			select {
+			case done <- waitstatus{s.ID, err}:
+			case <-cancel:
+			}
+			glog.V(1).Infof("Finished waiting for %s (%s) to %s: %s", s.Name, s.ID, dstate, err)
+		}(svc)
+	}
+
+	timeoutC := time.After(timeout)
+	for len(processing) > 0 {
+		// wait for all the services to return within the desired timeout
+		select {
+		case result := <-done:
+			delete(processing, result.ServiceID)
+			if result.Err != nil {
+				glog.Errorf("Error while waiting for service %s to %s: %s", result.ServiceID, dstate, result.Err)
+				return result.Err
+			}
+		case <-timeoutC:
+			return fmt.Errorf("timeout")
+		}
+	}
+
+	return nil
 }
 
 /* Business logic */
@@ -546,7 +620,7 @@ func (f *Facade) GetServicePath(ctx datastore.Context, serviceID string) (string
 // canEditService checks the pool id of a service and verifies whether it can
 // added or modified.
 func (f *Facade) canEditService(ctx datastore.Context, poolID string) error {
-	x, err := f.getRemoteSecret(ctx, poolID)
+	x, err := f.getPoolSecret(ctx, poolID)
 	if err != nil {
 		glog.Errorf("Could not verify resource pool %s: %s", poolID, err)
 		return err
@@ -565,7 +639,7 @@ func (f *Facade) canEditService(ctx datastore.Context, poolID string) error {
 			return ErrPoolNotExists
 		}
 	} else {
-		if p, err := f.GetGovernedPool(ctx, svc.PoolID); err != nil {
+		if p, err := f.GetGovernedPool(ctx, poolID); err != nil {
 			return err
 		} else if p != nil {
 			return ErrGovPoolExists
@@ -585,7 +659,7 @@ func (f *Facade) canStartService(ctx datastore.Context, serviceID string, autoLa
 
 		// make sure the applicable endpoints have address assingnments
 		for _, ep := range svc.Endpoints {
-			if ep.IsConfigurable() && ep.AddressAssignment.IPAddress == "" {
+			if ep.IsConfigurable() && ep.AddressAssignment.IPAddr == "" {
 				glog.Errorf("Endpoint %s on service %s (%s) is missing an address assignment", ep.Name, svc.Name, svc.ID)
 				return ErrMissingAddrAssign
 			}
@@ -611,15 +685,15 @@ func (f *Facade) validateServicePath(ctx datastore.Context, oldService, newServi
 
 	if newService.ParentServiceID != oldService.ParentServiceID {
 		if newService.ParentServiceID == "" {
-			glog.Errorf("Child service %s (%s) cannot become a tenant", svc.Name, svc.ID, err)
+			glog.Errorf("Child service %s (%s) cannot become a tenant", newService.Name, newService.ID)
 			return ErrNoParent
 		} else if oldService.ParentServiceID == "" {
-			glog.Errorf("Tenant service %s (%s) cannot become a child", svc.Name, svc.ID, err)
+			glog.Errorf("Tenant service %s (%s) cannot become a child", newService.Name, newService.ID)
 			return ErrNoChild
 		}
 	}
 
-	if newService.ParentServiceID != oldService.ParentServiceID || newService.Name != svc.Name {
+	if newService.ParentServiceID != oldService.ParentServiceID || newService.Name != oldService.Name {
 		if svc, err := f.GetChildService(ctx, newService.ParentServiceID, newService.Name); err != nil {
 			glog.Errorf("Could not verify service path for %s (%s): %s", newService.Name, newService.ID, err)
 			return err
@@ -654,17 +728,16 @@ func (f *Facade) validateServiceEndpoints(ctx datastore.Context, oldService, new
 		return ErrDupEndpoints
 	}
 
-	tenantID := svc.ID
+	tenantID := newService.ID
 	if newService.ParentServiceID != "" {
 		var err error
 		if tenantID, err = f.GetTenantID(ctx, newService.ParentServiceID); err != nil {
-			glog.Errorf("Could not find the tenant of service %s (%s): %s", svc.Name, svc.ID, err)
+			glog.Errorf("Could not find the tenant of service %s (%s): %s", newService.Name, newService.ID, err)
 			return err
 		}
 	}
 
 	if _, svcs, err := f.GetServicesByTenant(ctx, tenantID, func(svc *service.Service) bool {
-		return
 		// skip the current service
 		if svc.ID != newService.ID {
 			return check(svc)
@@ -681,10 +754,10 @@ func (f *Facade) validateServiceEndpoints(ctx datastore.Context, oldService, new
 
 // updateService updates a service in the datastore and sets attributes on the
 // service.
-func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migrate bool) error {
+func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
 	store := f.serviceStore
 
-	currentService, err := store.Get(ctx, svc)
+	currentService, err := store.Get(ctx, svc.ID)
 	if err != nil {
 		glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
@@ -703,7 +776,8 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migr
 	// set immutable values
 	svc.DeploymentID = currentService.DeploymentID
 	svc.OriginalConfigs = currentService.OriginalConfigs
-	config, svc.ConfigFiles = svc.ConfigFiles, nil
+	config := svc.ConfigFiles
+	svc.ConfigFiles = nil
 	svc.CreatedAt = currentService.CreatedAt
 
 	// clear address assignments
@@ -736,16 +810,9 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migr
 
 	// update the service configs
 	if config != nil {
-		if migrate {
-			if err := f.migrateServiceConfigs(ctx, svc, config); err != nil {
-				glog.Errorf("Could not migrate configs for service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
-			}
-		} else {
-			if err := f.updateServiceConfigs(ctx, svc, config); err != nil {
-				glog.Errorf("Could not update configs for service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
-			}
+		if err := f.updateServiceConfigs(ctx, *svc, config); err != nil {
+			glog.Errorf("Could not update configs for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
 		}
 	}
 
@@ -762,7 +829,7 @@ func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migr
 // setServiceData updates the service object with its linked data.
 func (f *Facade) setServiceData(ctx datastore.Context, svc *service.Service) {
 	// set the address assignment
-	if err := f.setAddressAssignment(ctx, svc); err != nil {
+	if err := f.setAddrAssignment(ctx, svc); err != nil {
 		glog.Warningf("Could not set service %s (%s) with its address assignment: %s", svc.Name, svc.ID, err)
 	}
 	// set the service configs
@@ -792,13 +859,13 @@ func (f *Facade) walkServices(ctx datastore.Context, serviceID string, traverse 
 
 // filterServices filters out non-matching service data
 func (f *Facade) filterServices(ctx datastore.Context, allSvcs []service.Service, filter FilterService) ([]string, []service.Service) {
-	serviceIDs := make([]string, len(svcs))
+	serviceIDs := make([]string, len(allSvcs))
 	var svcs []service.Service
 	for i := range svcs {
 		svc := svcs[i]
 		serviceIDs[i] = svc.ID
 		if filter(&svc) {
-			f.setServiceData(&svc)
+			f.setServiceData(ctx, &svc)
 			svcs = append(svcs, svc)
 		}
 	}

@@ -34,8 +34,8 @@ func (f *Facade) setServiceConfigs(ctx datastore.Context, svc *service.Service) 
 	}
 
 	// trim the deployment id and get the current configs
-	servicePath = strings.TrimPrefix(svc.DeploymentID)
-	confs, err := f.getServiceConfigs(tenantID, servicePath)
+	servicePath = strings.TrimPrefix(servicePath, svc.DeploymentID)
+	confs, err := f.getServiceConfigs(ctx, tenantID, servicePath)
 	if err != nil {
 		glog.Errorf("Could not get configs for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
@@ -44,7 +44,7 @@ func (f *Facade) setServiceConfigs(ctx datastore.Context, svc *service.Service) 
 	// fill out the configs
 	ogconfs := svc.OriginalConfigs
 	for name, conf := range confs {
-		ogconfs[name] = conf
+		ogconfs[name] = conf.ConfFile
 	}
 	svc.ConfigFiles = ogconfs
 	return nil
@@ -73,42 +73,54 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, svc service.Service
 	if err := f.setServiceConfigs(ctx, &svc); err != nil {
 		glog.Errorf("Could not get the current configs for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
+	} else if reflect.DeepEqual(confs, svc.ConfigFiles) {
+		return nil
 	}
 
 	// look for file differences
-	if !reflect.DeepEqual(confs, svc.ConfigFiles) {
-		tenantID, servicePath, err := f.GetServicePath(ctx, svc.ID)
+	tenantID, servicePath, err := f.GetServicePath(ctx, svc.ID)
+	if err != nil {
+		glog.Errorf("Could not look up path to service %s (%s): %s", svc.ID, svc.Name, err)
+		return err
+	}
+	servicePath = strings.TrimPrefix(servicePath, svc.DeploymentID)
+
+	// add/update conf files
+	for name, newconf := range confs {
+		// create the conf object to write to the db
+		svcconf, err := serviceconfigfile.New(tenantID, servicePath, newconf)
 		if err != nil {
-			glog.Errorf("Could not look up path to service %s (%s): %s", svc.ID, svc.Name, err)
+			glog.Errorf("Could not create config file %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
 			return err
 		}
 
-		// add/update conf files
-		for name, newconf := range confs {
-			if conf, ok := svc.ConfigFiles[name]; ok {
-				if !reflect.DeepEqual(newconf, conf) {
-					newconf.ID = conf.ID
-					if err := store.Put(ctx, svcconfigfile.Key(newconf.ID), newconf); err != nil {
-						glog.Errorf("Could not update conf %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
-						return err
-					}
-				}
-				delete(svc.ConfigFiles, name)
+		// does this file exist?
+		if conf, ok := svc.ConfigFiles[name]; ok {
+			delete(svc.ConfigFiles, name)
+			if reflect.DeepEqual(newconf, conf) {
+				continue
 			} else {
-				var err error
-				if newconf, err = serviceconfigfile.New(tenantID, servicePath, newconf); err != nil {
-					glog.Errorf("Could not create config file %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
-					return err
-				} else if err = store.Put(ctx, svcconfigfile.Key(newconf.ID), newconf); err != nil {
-					glog.Errorf("Could not create config file %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
-					return err
+				// look up the file id
+				if id, err := store.GetFileID(ctx, tenantID, servicePath, name); err != nil {
+					glog.Warningf("Could not look up file %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
+				} else if id != "" {
+					svcconf.ID = id
 				}
 			}
 		}
 
-		// delete/revert missing files
-		for _, conf := range svc.ConfigFiles {
-			store.Delete(ctx, serviceconfigfile.Key(conf.ID))
+		// write the data
+		if err := store.Put(ctx, serviceconfigfile.Key(svcconf.ID), svcconf); err != nil {
+			glog.Warningf("Could not update conf %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
+		}
+	}
+
+	// delete/revert missing files
+	for name := range svc.ConfigFiles {
+		if id, err := store.GetFileID(ctx, tenantID, servicePath, name); err != nil {
+			glog.Warningf("Could not look up file %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
+		} else if err := store.Delete(ctx, serviceconfigfile.Key(id)); err != nil {
+			glog.Warningf("Could not delete conf %s for service %s (%s): %s", name, svc.Name, svc.ID, err)
 		}
 	}
 	return nil

@@ -291,7 +291,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		return *s, err
 	}
 	findChildService := func(parentID, serviceName string) (service.Service, error) {
-		s, err := f.FindChildService(ctx, parentID, serviceName)
+		s, err := f.GetChildService(ctx, parentID, serviceName)
 		if err != nil {
 			return service.Service{}, err
 		}
@@ -330,7 +330,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 			return "", err
 		}
 	} else {
-		if err := f.AddService(ctx, *newsvc); err != nil {
+		if err := f.AddService(ctx, *newsvc, true); err != nil {
 			glog.Errorf("Could not add service %s (%s) at %s: %s", newsvc.Name, newsvc.ID, parentServiceID, err)
 			return "", err
 		}

@@ -57,7 +57,7 @@ func (f *Facade) AddGovernedPool(ctx datastore.Context, poolID string, msg strin
 	}
 
 	// verify the pool does not have any services
-	if svcs, err := f.GetServicesByPool(ctx, poolID); err != nil {
+	if _, svcs, err := f.GetServicesByPool(ctx, poolID, NoServiceFilter); err != nil {
 		glog.Errorf("Could not look up services for %s: %s", poolID, err)
 		return err
 	} else if svccount := len(svcs); svccount > 0 {

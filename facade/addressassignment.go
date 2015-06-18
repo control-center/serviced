@@ -142,60 +142,57 @@ func (f *Facade) RemoveAddrAssignmentsByService(ctx datastore.Context, serviceID
 			return err
 		}
 	}
-
-	// stop the service if it is running
-	f.StopService(ctx, serviceID, false)
 	return nil
 }
 
-// RemoveAddrAssignmentsByIP deletes all the address assignments per ip address
-func (f *Facade) RemoveAddrAssignmentsByIP(ctx datastore.Context, ipAddr string) error {
+// RemoveAddrAssignmentsByIP deletes all the address assignments per ip
+// address.  Returns the list of affected services.
+func (f *Facade) RemoveAddrAssignmentsByIP(ctx datastore.Context, ipAddr string) ([]string, error) {
 	glog.V(2).Infof("Facade.RemoveAddrAssignmentsByIP: %s", ipAddr)
 	assignments, err := f.GetAddrAssignmentsByIP(ctx, ipAddr)
 	if err != nil {
 		glog.Errorf("Could not look up address assignment for ip %s: %s", ipAddr, err)
-		return err
+		return nil, err
 	}
 	// TODO: this should be transactional
-	serviceIDs := make(map[string]struct{})
+	serviceIDMap := make(map[string]struct{})
 	for _, assign := range assignments {
 		if err := f.removeAddrAssignment(ctx, assign.ID); err != nil {
 			glog.Errorf("Could not remove address assignments for ip %s: %s", ipAddr, err)
-			return err
+			return nil, err
 		}
-		serviceIDs[assign.ServiceID] = struct{}{}
+		serviceIDMap[assign.ServiceID] = struct{}{}
 	}
-
-	// stop all affected services
-	for serviceID := range serviceIDs {
-		f.StopService(ctx, serviceID, false)
+	var serviceIDs []string
+	for serviceID := range serviceIDMap {
+		serviceIDs = append(serviceIDs, serviceID)
 	}
-	return nil
+	return serviceIDs, nil
 }
 
 // RemoveAddrAssignmentsByHost deletes all the address assignments per host id.
-func (f *Facade) RemoveAddrAssignmentsByHost(ctx datastore.Context, hostID string) error {
+// Returns the list of affected services.
+func (f *Facade) RemoveAddrAssignmentsByHost(ctx datastore.Context, hostID string) ([]string, error) {
 	glog.V(2).Infof("Facade.RemoveAddrAssignmentsByHost: %s", hostID)
 	assignments, err := f.GetAddrAssignmentsByHost(ctx, hostID)
 	if err != nil {
 		glog.Errorf("Could not look up address assignment for host %s: %s", hostID, err)
-		return err
+		return nil, err
 	}
 	// TODO: this should be transactional
-	serviceIDs := make(map[string]struct{})
+	serviceIDMap := make(map[string]struct{})
 	for _, assign := range assignments {
 		if err := f.removeAddrAssignment(ctx, assign.ID); err != nil {
 			glog.Errorf("Could not remove address assignments for host id %s: %s", hostID, err)
-			return err
+			return nil, err
 		}
-		serviceIDs[assign.ServiceID] = struct{}{}
+		serviceIDMap[assign.ServiceID] = struct{}{}
 	}
-
-	// stop all affected services
-	for serviceID := range serviceIDs {
-		f.StopService(ctx, serviceID, false)
+	var serviceIDs []string
+	for serviceID := range serviceIDMap {
+		serviceIDs = append(serviceIDs, serviceID)
 	}
-	return nil
+	return serviceIDs, nil
 }
 
 // AssignIPs assigns ips to a service and its children.
@@ -507,26 +504,35 @@ func (f *Facade) setAddrAssignment(ctx datastore.Context, svc *service.Service) 
 		return err
 	}
 
+	ipaddr := ""
 	ips := make(map[string]struct{})
 	assignmap := make(map[string]aa.AddressAssignment)
 
 	for _, assign := range assignments {
 		ips[assign.IPAddr] = struct{}{}
+		ipaddr = assign.IPAddr
 		assignmap[assign.EndpointName] = assign
 	}
 
 	if ipcount := len(ips); ipcount == 1 {
-		for i := range svc.Endpoints {
-			ep := &svc.Endpoints[i]
-			if ep.IsConfigurable() {
-				if assign, ok := assignmap[ep.Name]; ok {
-					if assign.Port == ep.AddressConfig.Port {
-						ep.AddressAssignment = assign
-						delete(assignmap, ep.Name)
+		// check if the ip is available.  if not, delete all the assignments
+		if hasIP, err := f.HasIP(ctx, svc.PoolID, ipaddr); err != nil {
+			glog.Errorf("Could not find ip %s in pool %s", ipaddr, svc.PoolID)
+			return err
+		} else if hasIP {
+			for i := range svc.Endpoints {
+				ep := &svc.Endpoints[i]
+				if ep.IsConfigurable() {
+					if assign, ok := assignmap[ep.Name]; ok {
+						if assign.Port == ep.AddressConfig.Port {
+							ep.AddressAssignment = assign
+							delete(assignmap, ep.Name)
+						}
 					}
 				}
 			}
 		}
+
 	} else if ipcount > 1 {
 		glog.Warningf("Found multiple ips for service %s (%s); removing all address assignments")
 	}

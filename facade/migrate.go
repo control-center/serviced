@@ -21,7 +21,6 @@ import (
 	"os"
 	"os/exec"
 	"path"
-	"reflect"
 	"strings"
 	"time"
 
@@ -30,7 +29,6 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
@@ -43,21 +41,6 @@ const (
 	// The well-known path within the service's docker image of the directory which contains the service's migration script
 	EMBEDDED_MIGRATION_DIRECTORY = "/opt/serviced/migration"
 )
-
-func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
-	svcs := make([]*service.Service, 0, 1)
-
-	err := f.walkServices(ctx, serviceID, true, func(childService *service.Service) error {
-		svcs = append(svcs, childService)
-		return nil
-	})
-
-	if err != nil {
-		return nil, fmt.Errorf("error assembling list of services: %s", err)
-	}
-
-	return svcs, nil
-}
 
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
 func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrationScriptRequest) error {
@@ -77,7 +60,7 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 		return err
 	}
 
-	svcs, err2 := f.GetServiceList(ctx, svc.ID)
+	_, svcs, err2 := f.GetServicesByTenant(ctx, svc.ID, NoServiceFilter)
 	if err2 != nil {
 		return err2
 	}
@@ -179,7 +162,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 			if err = f.stopServiceForUpdate(ctx, *svc); err != nil {
 				return err
 			}
-			if err = f.updateService(ctx, svc, true); err != nil {
+			if err = f.updateService(ctx, svc); err != nil {
 				return err
 			}
 		}
@@ -338,103 +321,6 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 	return nil
 }
 
-func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *service.Service) error {
-	if reflect.DeepEqual(oldSvc.OriginalConfigs, newSvc.OriginalConfigs) {
-		return nil
-	}
-
-	tenantID, servicePath, err := f.GetServicePath(ctx, newSvc.ID)
-	if err != nil {
-		return err
-	}
-	servicePath = strings.TrimPrefix(servicePath, newSvc.DeploymentID)
-
-	// addedConfs = anything in new, but not old (new config needs to be added)
-	// deletedConfs = anything in old, but not new (old config needs to be removed)
-	// sharedConfs = anything in both old and new versions of the service(retain existing config as is)
-	addedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	for key, newConf := range newSvc.OriginalConfigs {
-		if _, found := oldSvc.OriginalConfigs[key]; !found {
-			configFile, err := serviceconfigfile.New(tenantID, servicePath, newConf)
-			if err != nil {
-				return err
-			}
-			addedConfs[key] = configFile
-		}
-	}
-
-	deletedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	sharedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	for key, oldConf := range oldSvc.OriginalConfigs {
-		configFile, err := serviceconfigfile.New(tenantID, servicePath, oldConf)
-		if err != nil {
-			return err
-		}
-		if _, found := newSvc.OriginalConfigs[key]; !found {
-			deletedConfs[key] = configFile
-		} else {
-			sharedConfs[key] = configFile
-		}
-	}
-
-	existingConfs, err := f.getServiceConfigs(ctx, tenantID, servicePath)
-	if err != nil {
-		return err
-	}
-
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: new configurations: %d %v\n", len(addedConfs), addedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleted configurations: %d %v\n", len(deletedConfs), deletedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: sharedConfs configurations: %d %v\n", len(sharedConfs), sharedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: existing, customized configurations: %d %v\n", len(existingConfs), existingConfs)
-
-	configStore := serviceconfigfile.NewStore()
-
-	// sanity check - nothing in the added list should be part of the current customizations
-	for _, conf := range addedConfs {
-		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: new configuration %s found in config store", newSvc.ID, existing.ConfFile.Filename)
-		}
-	}
-
-	// remove shared configurations from the list of existing configs
-	for _, conf := range sharedConfs {
-		if _, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: keep unchanged config %s", newSvc.ID, conf.ConfFile.Filename)
-			delete(existingConfs, conf.ConfFile.Filename)
-		} else {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: unchanged configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
-		}
-	}
-
-	// sanity check - At this point, deletedConfs and existingConfs should have the same set of filenames
-	for _, conf := range deletedConfs {
-		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, conf.ConfFile.Filename)
-			delete(existingConfs, conf.ConfFile.Filename)
-			err = configStore.Delete(ctx, serviceconfigfile.Key(existing.ID))
-			if err != nil {
-				glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to delete config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
-				return err
-			}
-		} else {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: obsolete configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
-		}
-	}
-
-	// If things are working normally, existingConfs should be empty at this point, but
-	//	just in case it's not, delete any remaining configurations
-	for _, conf := range existingConfs {
-		glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, conf.ConfFile.Filename)
-		err = configStore.Delete(ctx, serviceconfigfile.Key(conf.ID))
-		if err != nil {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to delete config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
 // Creates a temporary directory to hold files related to service migration
 func createTempMigrationDir(serviceID string) (string, error) {
 	tmpParentDir := utils.TempDir("service-migration")
@@ -454,7 +340,7 @@ func createTempMigrationDir(serviceID string) (string, error) {
 }
 
 // Write out the service definition as a JSON file for use as input to the service migration
-func (f *Facade) createServiceMigrationInputFile(tmpDir string, svcs []*service.Service) (string, error) {
+func (f *Facade) createServiceMigrationInputFile(tmpDir string, svcs []service.Service) (string, error) {
 	inputFileName := path.Join(tmpDir, "input.json")
 	jsonServices, err := json.MarshalIndent(svcs, " ", "  ")
 	if err != nil {
