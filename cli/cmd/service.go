@@ -168,7 +168,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/logstash-forwarder", "path to the logstash-forwarder binary"},
 					cli.StringFlag{"forwarder-config", "/etc/logstash-forwarder.conf", "path to the logstash-forwarder config file"},
 					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
-					cli.BoolTFlag{"mux", "enable port multiplexing"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 					cli.StringFlag{"endpoint", api.GetGateway(rpcPort), "serviced endpoint address"},
@@ -875,7 +874,6 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	args := ctx.Args()
 	options := api.ControllerOptions{
 		MuxPort:                 ctx.GlobalInt("muxport"),
-		Mux:                     ctx.GlobalBool("mux"),
 		TLS:                     true,
 		KeyPEMFile:              ctx.GlobalString("keyfile"),
 		CertPEMFile:             ctx.GlobalString("certfile"),
