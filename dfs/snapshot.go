@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/facade"
 	"github.com/zenoss/glog"
 )
 
@@ -52,7 +51,7 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 	}
 
 	// Pause all running services for that tenant
-	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID, facade.NoServiceFilter)
+	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID)
 	if err != nil {
 		glog.Errorf("Could not get all services: %s", err)
 		return "", err
@@ -126,7 +125,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		return err
 	}
 
-	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID, facade.NoServiceFilter)
+	_, svcs, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID)
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
@@ -348,7 +347,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	}
 
 	// map service id to service
-	_, current, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID, facade.NoServiceFilter)
+	_, current, err := dfs.facade.GetServicesByTenant(dfs.datastoreGet(), tenantID)
 	if err != nil {
 		glog.Errorf("Could not get services: %s", err)
 		return err

@@ -20,14 +20,10 @@ import (
 
 // GetServiceAddressAssignments fills in all AddressAssignments for the specified serviced id.
 func (this *ControlPlaneDao) GetServiceAddressAssignments(serviceID string, assignments *[]addressassignment.AddressAssignment) error {
-	err := this.facade.GetServiceAddressAssignments(datastore.Get(), serviceID, assignments)
+	var err error
+	*assignments, err = this.facade.GetAddrAssignmentsByService(datastore.Get(), serviceID)
 	if assignments == nil {
 		*assignments = make([]addressassignment.AddressAssignment, 0)
 	}
 	return err
-}
-
-// RemoveAddressAssignemnt Removes an AddressAssignment by id
-func (this *ControlPlaneDao) RemoveAddressAssignment(id string, _ *struct{}) error {
-	return this.facade.RemoveAddressAssignment(datastore.Get(), id)
 }

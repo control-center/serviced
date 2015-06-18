@@ -67,9 +67,6 @@ func FilterServiceByName(nameRegex string) (FilterService, error) {
 	}, nil
 }
 
-// NoServiceFilter does not filter any services
-var NoServiceFilter = func(*service.Service) bool { return true }
-
 /* CRUD */
 
 // AddService creates a new local service.  Retuns an error if the service
@@ -104,7 +101,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 		glog.Errorf("Could not verify service path for %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	} else if s != nil {
-		glog.Errorf("Found service %s (%s) at %s", svc.Name, svc.ID, svc.ParentServiceID, ErrServicePathExists)
+		glog.Errorf("Found service %s (%s) at %s: %s", svc.Name, svc.ID, svc.ParentServiceID, ErrServicePathExists)
 		return ErrServicePathExists
 	}
 
@@ -385,7 +382,7 @@ func (f *Facade) GetChildService(ctx datastore.Context, parentServiceID, childNa
 }
 
 // GetAllServices returns all the services.
-func (f *Facade) GetAllServices(ctx datastore.Context, filter FilterService) ([]string, []service.Service, error) {
+func (f *Facade) GetAllServices(ctx datastore.Context, filters ...FilterService) ([]string, []service.Service, error) {
 	glog.V(2).Infof("Facade.GetAllServices")
 	store := f.serviceStore
 
@@ -394,13 +391,13 @@ func (f *Facade) GetAllServices(ctx datastore.Context, filter FilterService) ([]
 		glog.Errorf("Error trying to look up all services: %s", err)
 		return nil, nil, err
 	}
-	serviceIDs, svcs := f.filterServices(ctx, svcs, filter)
+	serviceIDs, svcs := f.filterServices(ctx, svcs, filters)
 	return serviceIDs, svcs, nil
 }
 
 // GetServicesByPool returns all the services that reside in a particular
 // resource pool.
-func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string, filter FilterService) ([]string, []service.Service, error) {
+func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string, filters ...FilterService) ([]string, []service.Service, error) {
 	glog.V(2).Infof("Facade.GetServicesByPool: %s", poolID)
 	store := f.serviceStore
 
@@ -409,12 +406,12 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string, filter 
 		glog.Errorf("Error trying to look up services for pool %s: %s", poolID, err)
 		return nil, nil, err
 	}
-	serviceIDs, svcs := f.filterServices(ctx, svcs, filter)
+	serviceIDs, svcs := f.filterServices(ctx, svcs, filters)
 	return serviceIDs, svcs, nil
 }
 
 // GetServicesByTenant returns all services under a particular tenant.
-func (f *Facade) GetServicesByTenant(ctx datastore.Context, tenantID string, filter FilterService) ([]string, []service.Service, error) {
+func (f *Facade) GetServicesByTenant(ctx datastore.Context, tenantID string, filters ...FilterService) ([]string, []service.Service, error) {
 	glog.V(2).Infof("Facade.GetServicesByTenant: %s", tenantID)
 	store := f.serviceStore
 
@@ -452,12 +449,12 @@ func (f *Facade) GetServicesByTenant(ctx datastore.Context, tenantID string, fil
 		return nil, nil, err
 	}
 	svcs = append(svcs, children...)
-	serviceIDs, svcs := f.filterServices(ctx, svcs, filter)
+	serviceIDs, svcs := f.filterServices(ctx, svcs, filters)
 	return serviceIDs, svcs, nil
 }
 
 // GetServicesByDeployment returns all services for a particular deployment.
-func (f *Facade) GetServicesByDeployment(ctx datastore.Context, deploymentID string, filter FilterService) ([]string, []service.Service, error) {
+func (f *Facade) GetServicesByDeployment(ctx datastore.Context, deploymentID string, filters ...FilterService) ([]string, []service.Service, error) {
 	glog.V(2).Infof("Facade.GetServicesByDeployment: %s", deploymentID)
 	store := f.serviceStore
 
@@ -466,13 +463,13 @@ func (f *Facade) GetServicesByDeployment(ctx datastore.Context, deploymentID str
 		glog.Errorf("Could not look up services by deployment %s: %s", deploymentID, err)
 		return nil, nil, err
 	}
-	serviceIDs, svcs := f.filterServices(ctx, svcs, filter)
+	serviceIDs, svcs := f.filterServices(ctx, svcs, filters)
 	return serviceIDs, svcs, nil
 }
 
 // GetTaggedServices looks up a group of services by tags identified by
 // name=value pairs.
-func (f *Facade) GetTaggedServices(ctx datastore.Context, tags []string, filter FilterService) ([]string, []service.Service, error) {
+func (f *Facade) GetTaggedServices(ctx datastore.Context, tags []string, filters ...FilterService) ([]string, []service.Service, error) {
 	glog.V(2).Infof("Facade.GetTaggedServices: %s", tags)
 	store := f.serviceStore
 
@@ -481,7 +478,7 @@ func (f *Facade) GetTaggedServices(ctx datastore.Context, tags []string, filter 
 		glog.Errorf("Could not look up services by tags %s: %s", tags, err)
 		return nil, nil, err
 	}
-	serviceIDs, svcs := f.filterServices(ctx, svcs, filter)
+	serviceIDs, svcs := f.filterServices(ctx, svcs, filters)
 	return serviceIDs, svcs, nil
 }
 
@@ -495,7 +492,7 @@ func (f *Facade) GetChildServices(ctx datastore.Context, parentServiceID string)
 		glog.Errorf("Could not get child services of %s: %s", parentServiceID, err)
 		return nil, err
 	}
-	_, svcs = f.filterServices(ctx, svcs, NoServiceFilter)
+	_, svcs = f.filterServices(ctx, svcs, []FilterService{})
 	return svcs, nil
 }
 
@@ -574,6 +571,17 @@ func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID stri
 		return nil, err
 	}
 	return svc.HealthChecks, nil
+}
+
+// GetPoolForService returns the poolID for a particular service.
+func (f *Facade) GetPoolForService(ctx datastore.Context, serviceID string) (string, error) {
+	glog.V(3).Infof("Facade.GetPoolForService: %s", serviceID)
+	store := f.serviceStore
+	svc, err := store.Get(ctx, serviceID)
+	if err != nil {
+		return "", err
+	}
+	return svc.PoolID, nil
 }
 
 // WaitService waits for service(s) to reach a particular desired state within
@@ -875,13 +883,20 @@ func (f *Facade) walkServices(ctx datastore.Context, serviceID string, traverse 
 }
 
 // filterServices filters out non-matching service data
-func (f *Facade) filterServices(ctx datastore.Context, allSvcs []service.Service, filter FilterService) ([]string, []service.Service) {
+func (f *Facade) filterServices(ctx datastore.Context, allSvcs []service.Service, filters []FilterService) ([]string, []service.Service) {
 	serviceIDs := make([]string, len(allSvcs))
 	var svcs []service.Service
 	for i := range svcs {
 		svc := svcs[i]
 		serviceIDs[i] = svc.ID
-		if filter(&svc) {
+
+		skip := false
+		for _, filter := range filters {
+			if skip = !filter(&svc); skip {
+				break
+			}
+		}
+		if !skip {
 			f.setServiceData(ctx, &svc)
 			svcs = append(svcs, svc)
 		}

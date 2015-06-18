@@ -57,10 +57,6 @@ func (s *ControlClient) Close() (err error) {
 	return s.rpcClient.Close()
 }
 
-func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response)
-}
-
 func (s *ControlClient) GetServices(request dao.ServiceRequest, replyServices *[]service.Service) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServices", request, replyServices)
 }

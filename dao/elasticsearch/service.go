@@ -14,15 +14,18 @@
 package elasticsearch
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/facade"
 	"github.com/zenoss/glog"
 )
 
 // AddService add a service. Return error if service already exists
 func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) error {
-	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
+	if err := this.facade.AddService(datastore.Get(), svc, false, true); err != nil {
 		return err
 	}
 
@@ -54,7 +57,7 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 
 //
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
-	if err := this.facade.UpdateService(datastore.Get(), svc); err != nil {
+	if err := this.facade.UpdateService(datastore.Get(), svc, false); err != nil {
 		return err
 	}
 
@@ -89,16 +92,9 @@ func (this *ControlPlaneDao) MigrateServices(request dao.ServiceMigrationRequest
 }
 
 func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]service.Service) error {
-	if svcs, err := this.facade.GetServiceList(datastore.Get(), serviceID); err != nil {
-		return err
-	} else {
-		var out []service.Service
-		for _, svc := range svcs {
-			out = append(out, *svc)
-		}
-		*services = out
-		return nil
-	}
+	var err error
+	_, *services, err = this.facade.GetServicesByTenant(datastore.Get(), serviceID)
+	return err
 }
 
 //
@@ -122,17 +118,30 @@ func (this *ControlPlaneDao) GetService(id string, myService *service.Service) e
 
 // Get the services (can filter by name and/or tenantID)
 func (this *ControlPlaneDao) GetServices(request dao.ServiceRequest, services *[]service.Service) error {
-	if svcs, err := this.facade.GetServices(datastore.Get(), request); err == nil {
-		*services = svcs
-		return nil
-	} else {
-		return err
+	var filters []facade.FilterService
+	var err error
+	if request.UpdatedSince != 0 {
+		filters = append(filters, facade.FilterServiceSince(time.Now().Add(-request.UpdatedSince)))
 	}
+	if request.NameRegex != "" {
+		if filter, err := facade.FilterServiceByName(request.NameRegex); err != nil {
+			return err
+		} else {
+			filters = append(filters, filter)
+		}
+	}
+
+	if request.TenantID == "" {
+		_, *services, err = this.facade.GetServicesByTenant(datastore.Get(), request.TenantID, filters...)
+	} else {
+		_, *services, err = this.facade.GetAllServices(datastore.Get(), filters...)
+	}
+	return err
 }
 
 //
 func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, service *service.Service) error {
-	svc, err := this.facade.FindChildService(datastore.Get(), request.ServiceID, request.ChildName)
+	svc, err := this.facade.GetChildService(datastore.Get(), request.ServiceID, request.ChildName)
 	if err != nil {
 		return err
 	}
@@ -147,12 +156,33 @@ func (this *ControlPlaneDao) FindChildService(request dao.FindChildRequest, serv
 
 // Get tagged services (can also filter by name and/or tenantID)
 func (this *ControlPlaneDao) GetTaggedServices(request dao.ServiceRequest, services *[]service.Service) error {
-	if svcs, err := this.facade.GetTaggedServices(datastore.Get(), request); err == nil {
-		*services = svcs
-		return nil
-	} else {
-		return err
+	var filters []facade.FilterService
+	var err error
+
+	if request.UpdatedSince != 0 {
+		filters = append(filters, facade.FilterServiceSince(time.Now().Add(-request.UpdatedSince)))
 	}
+	if request.NameRegex != "" {
+		if filter, err := facade.FilterServiceByName(request.NameRegex); err != nil {
+			return err
+		} else {
+			filters = append(filters, filter)
+		}
+	}
+	if request.TenantID != "" {
+		filter := func(svc *service.Service) bool {
+			tenantID, _ := this.facade.GetTenantID(datastore.Get(), svc.ID)
+			return tenantID == request.TenantID
+		}
+		filters = append(filters, filter)
+	}
+
+	if request.Tags != nil && len(request.Tags) > 0 {
+		_, *services, err = this.facade.GetServicesByTenant(datastore.Get(), request.TenantID, filters...)
+	} else {
+		_, *services, err = this.facade.GetAllServices(datastore.Get(), filters...)
+	}
+	return err
 }
 
 // The tenant id is the root service uuid. Walk the service tree to root to find the tenant id.
@@ -165,31 +195,21 @@ func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) err
 	}
 }
 
-// Get a service endpoint.
-func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]dao.ApplicationEndpoint) (err error) {
-	if result, err := this.facade.GetServiceEndpoints(datastore.Get(), serviceID); err == nil {
-		*response = result
-		return nil
-	} else {
-		return err
-	}
-}
-
 // start the provided service
 func (this *ControlPlaneDao) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
-	*affected, err = this.facade.StartService(datastore.Get(), request)
+	*affected, err = this.facade.StartService(datastore.Get(), request.ServiceID, request.AutoLaunch)
 	return err
 }
 
 // restart the provided service
 func (this *ControlPlaneDao) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
-	*affected, err = this.facade.RestartService(datastore.Get(), request)
+	*affected, err = this.facade.RestartService(datastore.Get(), request.ServiceID, request.AutoLaunch)
 	return err
 }
 
 // stop the provided service
 func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {
-	*affected, err = this.facade.StopService(datastore.Get(), request)
+	*affected, err = this.facade.StopService(datastore.Get(), request.ServiceID, request.AutoLaunch)
 	return err
 }
 
@@ -200,7 +220,7 @@ func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *stru
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
-	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
+	return this.facade.AssignIPs(datastore.Get(), assignmentRequest.ServiceID, assignmentRequest.IPAddress)
 }
 
 // Create the tenant volume

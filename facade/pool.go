@@ -274,7 +274,7 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return fmt.Errorf("cannot delete pool %s: found %d hosts", id, count)
 	}
 
-	if _, svcs, err := f.GetServicesByPool(ctx, id, NoServiceFilter); err != nil {
+	if _, svcs, err := f.GetServicesByPool(ctx, id); err != nil {
 		return fmt.Errorf("could not verify services in pool %s: %s", id, err)
 	} else if count := len(svcs); count > 0 {
 		return fmt.Errorf("cannot delete pool %s: found %d services", id, count)

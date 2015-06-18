@@ -69,7 +69,7 @@ func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
 
 func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildService {
 	return func(svcID, childName string) (service.Service, error) {
-		svc, err := f.FindChildService(ctx, svcID, childName)
+		svc, err := f.GetChildService(ctx, svcID, childName)
 		if err != nil {
 			return service.Service{}, err
 		} else if svc == nil {

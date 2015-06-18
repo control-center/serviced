@@ -50,7 +50,7 @@ func (f *Facade) GetHosts(poolID string) ([]host.Host, error) {
 // GetServices returns services for a particular poolID.
 // Implements LocalSyncDatastore, RemoteSyncInterface
 func (f *Facade) GetServices(poolID string) ([]service.Service, error) {
-	_, svcs, err := f.facade.GetServicesByPool(f.ctx, poolID, facade.NoServiceFilter)
+	_, svcs, err := f.facade.GetServicesByPool(f.ctx, poolID)
 	return svcs, err
 }
 

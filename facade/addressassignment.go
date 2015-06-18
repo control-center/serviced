@@ -323,7 +323,7 @@ func (f *Facade) GetAddrAssignmentByServiceEndpoint(ctx datastore.Context, servi
 	store := aa.NewStore()
 	assign, err := store.FindAssignmentByServiceEndpoint(ctx, serviceID, endpoint)
 	if err != nil {
-		glog.Errorf("Could not look up address assignment with service %s and endpoint %s: %s", serviceID, endpoint)
+		glog.Errorf("Could not look up address assignment with service %s and endpoint %s: %s", serviceID, endpoint, err)
 		return nil, err
 	}
 	return assign, nil

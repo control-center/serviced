@@ -32,9 +32,9 @@ type FacadeInterface interface {
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
 
-	GetAllServices(ctx datastore.Context, filter FilterService) ([]string, []service.Service, error)
+	GetAllServices(ctx datastore.Context, filters ...FilterService) ([]string, []service.Service, error)
 
-	GetServicesByTenant(ctx datastore.Context, tenantID string, filter FilterService) ([]string, []service.Service, error)
+	GetServicesByTenant(ctx datastore.Context, tenantID string, filter ...FilterService) ([]string, []service.Service, error)
 
 	GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error)
 

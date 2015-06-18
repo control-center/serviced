@@ -159,9 +159,6 @@ type ControlPlane interface {
 	// Get services with the given tag(s)
 	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
-	// Find all service endpoint matches
-	GetServiceEndpoints(serviceId string, response *map[string][]ApplicationEndpoint) error
-
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
 

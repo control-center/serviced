@@ -68,7 +68,7 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 		return err
 	}
 
-	_, svcs, err2 := f.GetServicesByTenant(ctx, svc.ID, NoServiceFilter)
+	_, svcs, err2 := f.GetServicesByTenant(ctx, svc.ID)
 	if err2 != nil {
 		return err2
 	}
