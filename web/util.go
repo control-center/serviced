@@ -16,11 +16,12 @@ package web
 import (
 	"flag"
 	"fmt"
-	"github.com/zenoss/go-json-rest"
 	"net/http"
 	"os"
 	"path"
 	"runtime"
+
+	"github.com/zenoss/go-json-rest"
 )
 
 var webroot string
@@ -127,7 +128,7 @@ func favIcon(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-			staticRoot()+"/ico/favicon.png")
+		staticRoot()+"/ico/favicon.png")
 }
 
 /*
@@ -141,10 +142,22 @@ func licenses(w *rest.ResponseWriter, r *rest.Request) {
 }
 
 /*
- * Serves content from static/
+ * Serves content from static/* which does NOT require authentication
  */
 func staticData(w *rest.ResponseWriter, r *rest.Request) {
 	fileToServe := path.Join(staticRoot(), r.PathParam("resource"))
+	http.ServeFile(
+		w.ResponseWriter,
+		r.Request,
+		fileToServe)
+}
+
+/*
+ * Serves content from static/logview/* which DOES require authentication
+ */
+// func getProtectedLogViewData(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+func getProtectedLogViewData(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext) {
+	fileToServe := path.Join(staticRoot(), "logview", r.PathParam("resource"))
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
