@@ -28,7 +28,7 @@ import (
 
 // The FacadeInterface is the API for a Facade
 type FacadeInterface interface {
-	AddService(ctx datastore.Context, svc service.Service, assignIP bool) error
+	AddService(ctx datastore.Context, svc service.Service, isRemote, assignIP bool) error
 
 	GetService(ctx datastore.Context, id string) (*service.Service, error)
 
@@ -50,7 +50,7 @@ type FacadeInterface interface {
 
 	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
 
-	UpdateService(ctx datastore.Context, svc service.Service) error
+	UpdateService(ctx datastore.Context, svc service.Service, isRemote bool) error
 
 	WaitService(ctx datastore.Context, dstate service.DesiredState, timeout time.Duration, serviceIDs ...string) error
 

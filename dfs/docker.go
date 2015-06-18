@@ -73,7 +73,7 @@ func (dfs *DistributedFilesystem) ResetRegistry() error {
 
 		imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
 		svc.ImageID = imageID.String()
-		if err := dfs.facade.UpdateService(dfs.datastoreGet(), svc); err != nil {
+		if err := dfs.facade.UpdateService(dfs.datastoreGet(), svc, false); err != nil {
 			glog.Errorf("Could not update service %s (%s) with image %s", svc.Name, svc.ID, svc.ImageID)
 			return err
 		}

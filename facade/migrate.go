@@ -160,7 +160,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 
 		// Add the added services.
 		for _, svc := range request.Added {
-			if err = f.AddService(ctx, *svc, true); err != nil {
+			if err = f.AddService(ctx, *svc, false, true); err != nil {
 				return err
 			}
 		}
@@ -170,7 +170,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 			if err = f.stopServiceForUpdate(ctx, *svc); err != nil {
 				return err
 			}
-			if err = f.updateService(ctx, svc); err != nil {
+			if err = f.UpdateService(ctx, *svc, false); err != nil {
 				return err
 			}
 		}

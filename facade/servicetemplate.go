@@ -320,7 +320,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		if overwrite {
 			newsvc.ID = svc.ID
 			newsvc.CreatedAt = svc.CreatedAt
-			if err := f.UpdateService(ctx, *newsvc); err != nil {
+			if err := f.UpdateService(ctx, *newsvc, false); err != nil {
 				glog.Errorf("Could not overwrite service %s (%s): %s", newsvc.Name, newsvc.ID, err)
 				return "", err
 			}
@@ -330,7 +330,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 			return "", err
 		}
 	} else {
-		if err := f.AddService(ctx, *newsvc, true); err != nil {
+		if err := f.AddService(ctx, *newsvc, false, true); err != nil {
 			glog.Errorf("Could not add service %s (%s) at %s: %s", newsvc.Name, newsvc.ID, parentServiceID, err)
 			return "", err
 		}

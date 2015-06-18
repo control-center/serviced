@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
 
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -73,7 +74,7 @@ var NoServiceFilter = func(*service.Service) bool { return true }
 
 // AddService creates a new local service.  Retuns an error if the service
 // already exists
-func (f *Facade) AddService(ctx datastore.Context, svc service.Service, autoAssignIPs bool) error {
+func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote bool, autoAssignIPs bool) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore
 
@@ -91,9 +92,11 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, autoAssi
 	}
 
 	// verify that the service can be added
-	if err := f.canEditService(ctx, svc.PoolID); err != nil {
-		glog.Errorf("Can not add service %s (%s) to pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
-		return err
+	if isRemote {
+		if err := f.canEditService(ctx, svc.PoolID); err != nil {
+			glog.Errorf("Can not add service %s (%s) to pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
+			return err
+		}
 	}
 
 	// verify the service can be added to the specified path
@@ -159,13 +162,15 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, autoAssi
 
 // UpdateService updates a local service.  Returns an error if the service
 // does not exist.
-func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
+func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service, isRemote bool) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 
 	// verify that the service can be added
-	if err := f.canEditService(ctx, svc.PoolID); err != nil {
-		glog.Errorf("Can not add service %s (%s) to pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
-		return err
+	if isRemote {
+		if err := f.canEditService(ctx, svc.PoolID); err != nil {
+			glog.Errorf("Can not add service %s (%s) to pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
+			return err
+		}
 	}
 
 	// update the service
@@ -557,6 +562,18 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]se
 		return nil, err
 	}
 	return states, err
+}
+
+// GetHealthChecksForService returns all health checks for a particular
+// service.
+func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]domain.HealthCheck, error) {
+	glog.V(3).Infof("Facade.GetHealthChecksForService: %s", serviceID)
+	store := f.serviceStore
+	svc, err := store.Get(ctx, serviceID)
+	if err != nil {
+		return nil, err
+	}
+	return svc.HealthChecks, nil
 }
 
 // WaitService waits for service(s) to reach a particular desired state within
