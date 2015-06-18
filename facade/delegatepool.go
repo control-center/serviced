@@ -25,6 +25,7 @@ import (
 var (
 	ErrRemotePoolExists = errors.New("facade: remote pool exists")
 	ErrGovPoolExists    = errors.New("facade: governed pool exists")
+	ErrGovPoolNotExists = errors.New("facade: governed pool does not exist")
 	ErrPoolHasServices  = errors.New("facade: resource pool has services")
 )
 

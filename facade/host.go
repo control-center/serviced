@@ -14,6 +14,8 @@
 package facade
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -33,6 +35,11 @@ const (
 	afterHostAdd     = afterEvent("AfterHostAdd")
 	beforeHostDelete = beforeEvent("BeforeHostDelete")
 	afterHostDelete  = afterEvent("AfterHostDelete")
+)
+
+var (
+	ErrHostNotExists = errors.New("host does not exist")
+	ErrHostNotInPool = errors.New("host not found in pool")
 )
 
 //---------------------------------------------------------------------------
