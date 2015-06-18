@@ -200,6 +200,11 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 	}
 	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
+		// All proxied requests should be authenticated first
+		if !loginOK(r) {
+			restUnauthorized(w)
+			return
+		}
 		proxy := node.NewReverseProxy(path, targetURL)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
 	}
