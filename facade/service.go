@@ -146,6 +146,14 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 		return err
 	}
 
+	// update the service configs
+	if configs != nil {
+		if err := f.updateServiceConfigs(ctx, svc, configs); err != nil {
+			glog.Errorf("Could not update configs for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+	}
+
 	// set the address assignment
 	if autoAssignIPs {
 		if err := f.AssignIPs(ctx, svc.ID, ipaddress); err != nil {
@@ -153,7 +161,6 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 		}
 	}
 
-	svc.ConfigFiles = configs
 	if err := f.updateService(ctx, &svc); err != nil {
 		defer store.Delete(ctx, svc.ID)
 		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
