@@ -33,14 +33,18 @@ var (
 	ErrMissingAddrAssign = errors.New("facade: service endpoint is missing an address assignment")
 )
 
+// IPInfo is contains information about the ip being assigned to a service.
 type IPInfo struct {
 	IP     string
 	Type   string
 	HostID string
 }
 
+// Ports is  a lookup for all the ports on a service.
 type Ports map[uint16]struct{}
 
+// getPorts returns all the ports for a list of endpoints.  Returns an error
+// when duplicate ports are found.
 func getPorts(endpoints []service.ServiceEndpoint) (Ports, error) {
 	ports := make(map[uint16]struct{})
 	for _, ep := range endpoints {
@@ -55,6 +59,7 @@ func getPorts(endpoints []service.ServiceEndpoint) (Ports, error) {
 	return Ports(ports), nil
 }
 
+// List returns an array of port values
 func (p Ports) List() []uint16 {
 	ports := make([]uint16, 0)
 	for port := range p {
@@ -63,6 +68,8 @@ func (p Ports) List() []uint16 {
 	return ports
 }
 
+// GetIP returns the remaining ports that do not have an associated address
+// assignment.
 func (p Ports) GetIP(assignments []aa.AddressAssignment) (string, []uint16) {
 	ipaddr := ""
 	allports := p.List()
@@ -77,6 +84,8 @@ func (p Ports) GetIP(assignments []aa.AddressAssignment) (string, []uint16) {
 	return ipaddr, p.List()
 }
 
+// SetIP returns the remaining ports that aren't affiliated with the given ip
+// address.
 func (p Ports) SetIP(ipaddr string, assignments []aa.AddressAssignment) []uint16 {
 	for _, a := range assignments {
 		if a.IPAddr == ipaddr {
