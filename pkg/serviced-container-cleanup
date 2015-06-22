@@ -21,10 +21,10 @@ fi
 
 if [ -n "$(df --type=btrfs $DOCKER_LIB 2>/dev/null)" ]; then
     for LAYER in $(comm -23 <(ls $DOCKER_LIB/btrfs/subvolumes | grep -v '\init' | sort | uniq) <(cat <(docker images --no-trunc -qa) <(docker ps --no-trunc -qa) | sort | uniq)); do
-        btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/$LAYER &>/dev/null
-        btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/$LAYER-init &>/dev/null
-        rm -rf $DOCKER_LIB/volumes/$LAYER
-        rm -rf $DOCKER_LIB/containers/$LAYER
+        btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/"$LAYER" &>/dev/null
+        btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/"$LAYER"-init &>/dev/null
+        rm -rf $DOCKER_LIB/volumes/"$LAYER"
+        rm -rf $DOCKER_LIB/containers/"$LAYER"
     done
 else
     echo "$DOCKER_LIB is not a btrfs filesystem. Skipping." >&2
