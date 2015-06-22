@@ -13,10 +13,13 @@
 # See the License for the specific language governing permissions and          
 # limitations under the License. 
 
-DOCKER_LIB_default=/var/lib/docker
-: ${DOCKER_LIB=${DOCKER_LIB_default}}
+if [ $# -eq 0 ]; then
+    DOCKER_LIB="/var/lib/docker"
+else
+    DOCKER_LIB="$1"
+fi
 
-if [[ `df --output=fstype $DOCKER_LIB | tail -1 | grep btrfs` ]]; then
+if [ -n "$(df --type=btrfs $DOCKER_LIB 2>/dev/null)" ]; then
     for LAYER in $(comm -23 <(ls $DOCKER_LIB/btrfs/subvolumes | grep -v '\init' | sort | uniq) <(cat <(docker images --no-trunc -qa) <(docker ps --no-trunc -qa) | sort | uniq)); do
         btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/$LAYER &>/dev/null
         btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/$LAYER-init &>/dev/null
@@ -24,6 +27,5 @@ if [[ `df --output=fstype $DOCKER_LIB | tail -1 | grep btrfs` ]]; then
         rm -rf $DOCKER_LIB/containers/$LAYER
     done
 else
-    echo $DOCKER_LIB is not btrfs
-    exit 0
+    echo "$DOCKER_LIB is not a btrfs filesystem. Skipping." >&2
 fi
