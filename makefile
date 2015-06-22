@@ -245,6 +245,7 @@ $(_DESTDIR)$(sysconfdir)/cron.hourly_TARGETS       = pkg/cron.hourly:serviced
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/etc_TARGETS                  += pkg/logrotate-docker.conf:logrotate-docker.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
 $(_DESTDIR)$(prefix)/doc_TARGETS                  += doc/licenses.html:.
