@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -22,7 +22,6 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
-	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
@@ -123,6 +122,7 @@ func New(driver api.API, config ConfigReader) *ServicedCli {
 	c.initMetric()
 	c.initDocker()
 	c.initScript()
+	c.initServer()
 
 	return c
 }
@@ -136,6 +136,13 @@ func (c *ServicedCli) Run(args []string) {
 
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
+	// DEBUG: KWW: Remove
+	fmt.Println("--- ctx.Args ---")
+	for _, ctxarg := range ctx.Args() {
+		fmt.Println(ctxarg)
+	}
+	fmt.Println("----------------")
+
 	options := api.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
 		NFSClient:            ctx.GlobalString("nfs-client"),
@@ -203,17 +210,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		return err
 	}
 
-	if options.Master {
-		fmt.Println("This master has been configured to be in pool: " + options.MasterPoolID)
-	}
-
-	// Start server mode
-	if (options.Master || options.Agent) && len(ctx.Args()) == 0 {
-		rpcutils.RPC_CLIENT_SIZE = options.MaxRPCClients
-		c.driver.StartServer()
-		return fmt.Errorf("running server mode")
-	}
-
 	return nil
 }
 
@@ -268,7 +264,7 @@ func setLogging(ctx *cli.Context) error {
 	}
 
 	// Listen for SIGUSR1 and, when received, toggle the log level between
-	// 0 and 2.  If the log level is anything but 0, we set it to 0, and on
+	// 0 and 2.	 If the log level is anything but 0, we set it to 0, and on
 	// subsequent signals, set it to 2.
 	go func() {
 		signalChan := make(chan os.Signal, 1)

@@ -44,7 +44,15 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: could not read default configs: %s\n", err)
 	}
-	cmd.New(api.New(), config).Run(os.Args)
+
+	// DEBUG: KWW: Restore original code
+	//cmd.New(api.New(), config).Run(os.Args)
+	mycmd := cmd.New(api.New(), config)
+	fmt.Println("--- os.Args ---")
+	for _, osarg := range os.Args {
+		fmt.Println(osarg)
+	}
+	mycmd.Run(os.Args)
 }
 
 func getConfigs(args []string) (*cmd.EnvironConfigReader, error) {
