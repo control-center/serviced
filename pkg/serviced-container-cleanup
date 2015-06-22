@@ -17,7 +17,7 @@ DOCKER_LIB_default=/var/lib/docker
 : ${DOCKER_LIB=${DOCKER_LIB_default}}
 
 if [[ `df --output=fstype $DOCKER_LIB | tail -1 | grep btrfs` ]]; then
-    for LAYER in $(comm -23 <(ls $DOCKER_LIB/btrfs/subvolumes | grep -v '\init' | sort | uniq) <(cat <(docker images --no-trunc -qa) <(docker ps --no-trunc -q) | sort | uniq)); do
+    for LAYER in $(comm -23 <(ls $DOCKER_LIB/btrfs/subvolumes | grep -v '\init' | sort | uniq) <(cat <(docker images --no-trunc -qa) <(docker ps --no-trunc -qa) | sort | uniq)); do
         btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/$LAYER &>/dev/null
         btrfs subvolume delete $DOCKER_LIB/btrfs/subvolumes/$LAYER-init &>/dev/null
         rm -rf $DOCKER_LIB/volumes/$LAYER

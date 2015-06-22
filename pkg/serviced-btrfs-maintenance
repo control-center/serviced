@@ -13,13 +13,16 @@
 # See the License for the specific language governing permissions and           
 # limitations under the License. 
 
-BTRFS_BALANCE_default="/opt/serviced/var /opt/serviced/var/volumes /var/lib/docker"
-: ${BTRFS_BALANCE=${BTRFS_BALANCE_default}}
+if [ $# -eq 0 ]; then
+    TO_BALANCE="/opt/serviced/var /opt/serviced/var/volumes /var/lib/docker"
+else
+    TO_BALANCE="$@"
+fi
 
-for DISK in $BTRFS_BALANCE; do
-    if [[ `df --output=fstype $DISK | tail -1 | grep btrfs` ]]; then
+for DISK in $TO_BALANCE; do
+    if [ -n "$(df --type=btrfs $DISK 2>/dev/null)" ]; then
         btrfs balance start $DISK
     else
-        echo $DISK is not btrfs
+        echo "$DISK is not a btrfs filesystem. Skipping." >&2
     fi
 done
