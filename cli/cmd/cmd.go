@@ -136,13 +136,6 @@ func (c *ServicedCli) Run(args []string) {
 
 // cmdInit starts the server if no subcommands are called
 func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
-	// DEBUG: KWW: Remove
-	fmt.Println("--- ctx.Args ---")
-	for _, ctxarg := range ctx.Args() {
-		fmt.Println(ctxarg)
-	}
-	fmt.Println("----------------")
-
 	options := api.Options{
 		DockerRegistry:       ctx.GlobalString("docker-registry"),
 		NFSClient:            ctx.GlobalString("nfs-client"),
