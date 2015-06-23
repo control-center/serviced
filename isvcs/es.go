@@ -63,7 +63,7 @@ func init() {
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
 			Configuration: make(map[string]interface{}),
 			HealthChecks:  healthChecks,
-			HostNetwork:   true,
+			HostNetwork:   false,
 		},
 	)
 	if err != nil {
@@ -100,6 +100,7 @@ func init() {
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
 			Configuration: make(map[string]interface{}),
 			HealthChecks:  healthChecks,
+			HostNetwork:   false,
 		},
 	)
 	if err != nil {
