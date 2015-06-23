@@ -73,7 +73,7 @@
             });
         };
 
-        utils.updateLanguage($scope, $cookies, $translate);
+        utils.updateLanguage($scope);
 
         var helpMap = {
             '/static/partials/login.html': 'login.html',
