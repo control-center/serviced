@@ -241,8 +241,72 @@
         };
 
         $scope.clickRunningApp = function(app, status) {
-            utils.setServiceState($scope, app, status);
-        }
+
+            // if this service has children and startup command, ask the user
+            // if we should start service + children, or just service
+            if(app.children && app.children.length && app.model.Startup){
+                var children = app.children || [],
+                    childCount = 0;
+
+                // count number of descendent services that will start
+                childCount = children.reduce(function countTheKids(acc, service){
+
+                    // if manual service, do not increment and
+                    // do not count children
+                    if(service.Launch === "manual"){
+                        return acc;
+                    }
+
+                    acc++;
+
+                    // if no children, return
+                    if(!service.children){
+                        return acc;
+
+                    // else, count children
+                    } else {
+                        return service.children.reduce(countTheKids, acc);
+                    }
+                }, 0);
+
+                $modalService.create({
+                    template: ["<h4>"+ $translate.instant("choose_services_"+ status) +"</h4><ul>",
+                        "<li>"+ $translate.instant(status +"_service_name", {name: "<strong>"+app.name+"</strong>"}) +"</li>",
+                        "<li>"+ $translate.instant(status +"_service_name_and_children", {name: "<strong>"+app.name+"</strong>", count: "<strong>"+childCount+"</strong>"}) +"</li></ul>"
+                    ].join(""),
+                    model: $scope,
+                    title: $translate.instant(status +"_service"),
+                    actions: [
+                        {
+                            role: "cancel"
+                        },{
+                            role: "ok",
+                            classes: " ",
+                            label: $translate.instant(status +"_service"),
+                            action: function(){
+                                // the arg here explicitly prevents child services
+                                // from being started
+                                app[status](true);
+                                this.close();
+                            }
+                        },{
+                            role: "ok",
+                            label: $translate.instant(status +"_service_and_children", {count: childCount}),
+                            action: function(){
+                                app[status]();
+                                this.close();
+                            }
+                        }
+                    ]
+                });
+
+            // this service has no children or no startup command,
+            // so start it the usual way
+            } else {
+                $scope.clickRunning(app, status);
+            }
+
+        };
 
         $scope.clickEditContext = function() {
             //set editor options for context editing
