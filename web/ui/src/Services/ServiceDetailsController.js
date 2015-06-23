@@ -242,7 +242,7 @@
 
         $scope.clickRunningApp = function(app, status) {
             utils.setServiceState($scope, app, status);
-        }
+        };
 
         $scope.clickEditContext = function() {
             //set editor options for context editing
