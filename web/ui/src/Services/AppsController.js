@@ -169,6 +169,10 @@
             });
         };
 
+        $scope.clickRunningApp = function(service, status) {
+            utils.setServiceState($scope, service, status);
+        }
+
         $scope.modal_deleteTemplate = function(templateID){
             $modalService.create({
                 template: $translate.instant("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
