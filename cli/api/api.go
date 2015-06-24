@@ -114,6 +114,7 @@ func GetOptionsMasterPoolID() string {
 	return options.MasterPoolID
 }
 
+// GetOptionsMaxRPCClients returns the max RPC clients setting from options
 func GetOptionsMaxRPCClients() int {
 	return options.MaxRPCClients
 }
