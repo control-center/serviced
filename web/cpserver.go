@@ -192,7 +192,7 @@ func (sc *ServiceConfig) ServeUI() {
 
 var methods = []string{"GET", "POST", "PUT", "DELETE"}
 
-func routeToInternalServiceProxy(path string, target string, routes []rest.Route) []rest.Route {
+func routeToInternalServiceProxy(path string, target string, requiresAuth bool, routes []rest.Route) []rest.Route {
 	targetURL, err := url.Parse(target)
 	if err != nil {
 		glog.Errorf("Unable to parse proxy target URL: %s", target)
@@ -200,6 +200,11 @@ func routeToInternalServiceProxy(path string, target string, routes []rest.Route
 	}
 	// Wrap the normal http.Handler in a rest.handlerFunc
 	handlerFunc := func(w *rest.ResponseWriter, r *rest.Request) {
+		// All proxied requests should be authenticated first
+		if requiresAuth && !loginOK(r) {
+			restUnauthorized(w)
+			return
+		}
 		proxy := node.NewReverseProxy(path, targetURL)
 		proxy.ServeHTTP(w.ResponseWriter, r.Request)
 	}
