@@ -115,8 +115,13 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 	// Hardcoding these target URLs for now.
 	// TODO: When internal services are allowed to run on other hosts, look that up.
-	routes = routeToInternalServiceProxy("/api/controlplane/elastic", "http://127.0.0.1:9100/", routes)
-	routes = routeToInternalServiceProxy("/metrics", "http://127.0.0.1:8888/", routes)
+	// All API calls require authentication
+	routes = routeToInternalServiceProxy("/api/controlplane/elastic", "http://127.0.0.1:9100/", true, routes)
+	routes = routeToInternalServiceProxy("/metrics/api", "http://127.0.0.1:8888/api", true, routes)
+
+	// Allow static assets for metrics data to be loaded without authentication since they are
+	// included in index.html by default.
+	routes = routeToInternalServiceProxy("/metrics/static", "http://127.0.0.1:8888/static", false, routes)
 
 	return routes
 }
