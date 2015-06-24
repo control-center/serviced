@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -97,6 +97,25 @@ func GetOptionsRPCEndpoint() string {
 // GetOptionsRPCPort returns the serviced RPC port from options
 func GetOptionsRPCPort() string {
 	return options.RPCPort
+}
+
+// GetOptionsMaster returns the master mode setting from options
+func GetOptionsMaster() bool {
+	return options.Master
+}
+
+// GetOptionsAgent returns the agent mode setting from options
+func GetOptionsAgent() bool {
+	return options.Agent
+}
+
+// GetOptionsMasterPoolID returns the master pool ID from options
+func GetOptionsMasterPoolID() string {
+	return options.MasterPoolID
+}
+
+func GetOptionsMaxRPCClients() int {
+	return options.MaxRPCClients
 }
 
 type api struct {

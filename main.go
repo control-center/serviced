@@ -44,6 +44,7 @@ func main() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "WARNING: could not read default configs: %s\n", err)
 	}
+
 	cmd.New(api.New(), config).Run(os.Args)
 }
 

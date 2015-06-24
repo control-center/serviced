@@ -3,7 +3,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+//	   http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -75,10 +75,10 @@ func (t APITest) StartServer() error {
 }
 
 func ExampleServicedCLI_CmdInit_logging() {
-	InitAPITest("serviced", "--logtostderr", "--alsologtostderr", "--master")
-	InitAPITest("serviced", "--logstashurl", "127.0.0.1", "-v", "4", "--agent")
-	InitAPITest("serviced", "--stderrthreshold", "2", "--vmodule", "a=1,b=2,c=3", "--master", "--agent")
-	InitAPITest("serviced", "--log_backtrace_at", "file.go:123", "--master", "--agent")
+	InitAPITest("serviced", "--logtostderr", "--alsologtostderr", "--master", "server")
+	InitAPITest("serviced", "--logstashurl", "127.0.0.1", "-v", "4", "--agent", "server")
+	InitAPITest("serviced", "--stderrthreshold", "2", "--vmodule", "a=1,b=2,c=3", "--master", "--agent", "server")
+	InitAPITest("serviced", "--log_backtrace_at", "file.go:123", "--master", "--agent", "server")
 
 	// Output:
 	// This master has been configured to be in pool: default
@@ -91,9 +91,9 @@ func ExampleServicedCLI_CmdInit_logging() {
 }
 
 func ExampleServicedCLI_CmdInit_logerr() {
-	InitAPITest("serviced", "--master", "--stderrthreshold", "abc")
-	InitAPITest("serviced", "--agent", "--vmodule", "abc")
-	InitAPITest("serviced", "--master", "--log_backtrace_at", "abc")
+	InitAPITest("serviced", "--master", "--stderrthreshold", "abc", "server")
+	InitAPITest("serviced", "--agent", "--vmodule", "abc", "server")
+	InitAPITest("serviced", "--master", "--log_backtrace_at", "abc", "server")
 
 	// Output:
 	// strconv.ParseInt: parsing "abc": invalid syntax

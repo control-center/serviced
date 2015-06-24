@@ -8,7 +8,7 @@ Environment=SERVICED_HOME=/opt/serviced SERVICED_MASTER=1 SERVICED_AGENT=1 TZ=UT
 EnvironmentFile=/etc/default/serviced
 WorkingDirectory=/opt/serviced
 ExecStartPre=/opt/serviced/bin/serviced-systemd.sh pre-start
-ExecStart=/opt/serviced/bin/serviced
+ExecStart=/opt/serviced/bin/serviced server
 ExecReload=/bin/pkill --signal SIGHUP -f /opt/serviced/bin/serviced
 ExecStopPost=/opt/serviced/bin/serviced-systemd.sh post-stop
 TimeoutStopSec=60

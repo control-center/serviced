@@ -36,7 +36,7 @@ script
     fi
 
     cd $SERVICED_HOME 
-    exec ./bin/serviced $SERVICED_OPTS
+    exec ./bin/serviced $SERVICED_OPTS server
 
 end script
 
