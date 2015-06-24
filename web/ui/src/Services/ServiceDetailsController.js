@@ -241,7 +241,7 @@
         };
 
         $scope.clickRunningApp = function(app, status) {
-            utils.setServiceState($scope, app, status);
+            utils.setServiceState($scope, app, status, $modalService, $translate);
         };
 
         $scope.clickEditContext = function() {

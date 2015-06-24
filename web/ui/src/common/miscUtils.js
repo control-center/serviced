@@ -6,8 +6,8 @@
     "use strict";
 
     angular.module("miscUtils", [])
-    .factory("miscUtils", [ "$parse", "$modalService", "$translate", "$cookies",
-    function($parse, $modalService, $translate, $cookies){
+    .factory("miscUtils", [ "$parse",
+    function($parse){
 
         var utils = {
 
@@ -55,7 +55,7 @@
                 return mode;
             },
 
-            updateLanguage: function($scope) {
+            updateLanguage: function($scope, $cookies, $translate){
                 var ln = 'en_US';
                 if ($cookies.Language === undefined) {
 
@@ -157,7 +157,7 @@
                 };
             },
 
-            setServiceState: function($scope, app, status) {
+            setServiceState: function($scope, app, status, $modalService, $translate){
                 // if this service has children and startup command, ask the user
                 // if we should start service + children, or just service
                 if(app.children && app.children.length && app.model.Startup){

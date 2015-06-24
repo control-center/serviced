@@ -170,7 +170,7 @@
         };
 
         $scope.clickRunningApp = function(service, status) {
-            utils.setServiceState($scope, service, status);
+            utils.setServiceState($scope, service, status, $modalService, $translate);
         };
 
         $scope.modal_deleteTemplate = function(templateID){
