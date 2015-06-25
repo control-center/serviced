@@ -17,7 +17,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -164,9 +163,6 @@ type ControlPlane interface {
 
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
-
-	// Get the IP addresses assigned to an service
-	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
 
 	//---------------------------------------------------------------------------
 	//ServiceState CRUD

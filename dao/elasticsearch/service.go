@@ -177,19 +177,19 @@ func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map
 
 // start the provided service
 func (this *ControlPlaneDao) StartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
-	*affected, err = this.facade.StartService(datastore.Get(), request)
+	*affected, err = this.facade.StartService(datastore.Get(), request.ServiceID, request.AutoLaunch)
 	return err
 }
 
 // restart the provided service
 func (this *ControlPlaneDao) RestartService(request dao.ScheduleServiceRequest, affected *int) (err error) {
-	*affected, err = this.facade.RestartService(datastore.Get(), request)
+	*affected, err = this.facade.RestartService(datastore.Get(), request.ServiceID, request.AutoLaunch)
 	return err
 }
 
 // stop the provided service
 func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, affected *int) (err error) {
-	*affected, err = this.facade.StopService(datastore.Get(), request)
+	*affected, err = this.facade.StopService(datastore.Get(), request.ServiceID, request.AutoLaunch)
 	return err
 }
 
@@ -200,7 +200,7 @@ func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *stru
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
 func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
-	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
+	return this.facade.AssignIPs(datastore.Get(), assignmentRequest.ServiceID, assignmentRequest.IPAddress)
 }
 
 // Create the tenant volume

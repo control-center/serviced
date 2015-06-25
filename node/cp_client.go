@@ -21,7 +21,6 @@ package node
 import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -115,10 +114,6 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 
 func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil)
-}
-
-func (s *ControlClient) GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetServiceAddressAssignments", serviceID, addresses)
 }
 
 func (s *ControlClient) GetServiceLogs(serviceId string, logs *string) error {

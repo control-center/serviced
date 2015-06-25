@@ -64,10 +64,8 @@ func (ft *FacadeTest) Test_UpdateResourcePool(t *C) {
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
 	result.CreatedAt = myPool.CreatedAt
 	result.UpdatedAt = myPool.UpdatedAt
-	if !myPool.Equals(result) {
-		t.Errorf("%+v != %+v", myPool, result)
-		t.Fail()
-	}
+	result.DatabaseVersion = myPool.DatabaseVersion
+	t.Assert(result, DeepEquals, myPool)
 }
 
 func (ft *FacadeTest) Test_GetResourcePool(t *C) {

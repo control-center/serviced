@@ -14,8 +14,9 @@
 package facade
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/commons/docker"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
@@ -33,6 +34,11 @@ const (
 	afterHostAdd     = afterEvent("AfterHostAdd")
 	beforeHostDelete = beforeEvent("BeforeHostDelete")
 	afterHostDelete  = afterEvent("AfterHostDelete")
+)
+
+var (
+	ErrHostNotExists = errors.New("host does not exist")
+	ErrHostNotInPool = errors.New("host not found in pool")
 )
 
 //---------------------------------------------------------------------------
@@ -174,12 +180,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 
 	// update address assignments
 	for _, svc := range services {
-		request := dao.AssignmentRequest{
-			ServiceID:      svc.ID,
-			IPAddress:      "",
-			AutoAssignment: true,
-		}
-		if err = f.AssignIPs(ctx, request); err != nil {
+		if err = f.AssignIPs(ctx, svc.ID, ""); err != nil {
 			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
 		}
 	}

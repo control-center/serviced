@@ -400,7 +400,7 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 			}
 
 			// restore the address assignments
-			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), svc); err != nil {
+			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), &svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 

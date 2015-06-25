@@ -44,7 +44,7 @@ type FacadeInterface interface {
 
 	RemoveService(ctx datastore.Context, id string) error
 
-	RestoreIPs(ctx datastore.Context, svc service.Service) error
+	RestoreIPs(ctx datastore.Context, svc *service.Service) error
 
 	ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error)
 
