@@ -1,7 +1,7 @@
 @login
 Feature: User login
   As a Control Center user
-  I want to see the if login works
+  I want to see if the login works
 
   Scenario: Successful login
     When I am on the login page
