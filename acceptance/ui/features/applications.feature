@@ -30,39 +30,38 @@ Feature: Application Management
       And I click the Services Map button
     Then I should not see "Deployment ID"
 
-  @login-required
+  @run @login-required
   Scenario: Sort applications by name
     When I am on the applications page
-      And I sort by "Application"
-    Then I should see "Internal Services"
-      And I should see "N/A"
+      And I sort by "Application" in ascending order
+    Then the "Application" column should be sorted in ascending order
 
-  @login-required
+  @run @login-required
   Scenario: Sort applications by status
     When I am on the applications page
-      And I sort by "Status"
-    Then I should see "N/A"
+      And I sort by "Status" in descending order
+    Then the "Status" column should be sorted in descending order
 
-  @login-required
+  @run @login-required
   Scenario: Sort applications by deployment ID
     When I am on the applications page
-      And I sort by "Deployment ID"
-    Then I should see "Internal"
+      And I sort by "Deployment ID" in descending order
+    Then the "Deployment ID" column should be sorted in descending order
 
-  @login-required
+  @run @login-required
   Scenario: Sort applications templates by name
     When I am on the applications page
-      And I sort by "Application Template"
-    Then I should see "Zenoss.core"
+      And I sort by "Application Template" in ascending order
+    Then the "Application Template" column should be sorted in ascending order
 
-  @login-required
+  @run @login-required
   Scenario: Sort application templates by ID
     When I am on the applications page
-      And I sort by "ID"
-    Then I should see "Zenoss Core"
+      And I sort by "ID" in descending order
+    Then the "ID" column should be sorted in descending order
 
-  @login-required
+  @run @login-required
   Scenario: Sort application templates by description
     When I am on the applications page
-      And I sort by "Description"
-    Then I should see "Zenoss Core"
+      And I sort by "Description" in ascending order
+    Then the "Description" column should be sorted in ascending order

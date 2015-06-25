@@ -12,8 +12,18 @@ When (/^I click "([^"]*)"$/) do |text|
   click_link_or_button(text)
 end
 
-When (/^I sort by "([^"]*)"$/) do |category|
-    page.find("[class^='header  sortable']", :text => /\A#{category}\z/).click()
+When (/^I sort by "([^"]*)" in ascending order$/) do |category|
+  categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
+  while categoryLink[:class] != 'header  sortable sort-asc' do
+    categoryLink.click()
+  end
+end
+
+When (/^I sort by "([^"]*)" in descending order$/) do |category|
+  categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
+  while categoryLink[:class] != 'header  sortable sort-desc' do
+    categoryLink.click()
+  end
 end
 
 Then /^I should see "(.*?)"$/ do |text|
@@ -36,23 +46,24 @@ Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, category|
 end
 
 Then (/^the "([^"]*)" column should be sorted in ascending order$/) do |category|
-  Capybara.match=:first
-  unsorted = Array.new
-  while page.all("[ng-repeat='host in $data']").size != 0 do
-    unsorted << page.find("td[data-title-text='#{category}']").text
-  end
-  sorted = unsorted.sort
-  sort == unsort
-  Capybara.match=:smart
+  sortColumn(category, true)
 end
 
 Then (/^the "([^"]*)" column should be sorted in descending order$/) do |category|
-  Capybara.match=:first
-  unsorted = Array.new
-  while page.all("[ng-repeat='host in $data']").size != 0 do
-    unsorted << page.find("td[data-title-text='#{category}']").text
+  sortColumn(category, false)
+end
+
+
+def sortColumn(category, order)
+  list = page.all("td[data-title-text='#{category}']")
+  for i in 0..(list.size - 1)
+    puts list[i].text
   end
-  sorted = (unsorted.sort {|x,y| y <=> x})
-  sort == unsort
-  Capybara.match=:smart
+  for i in 0..(list.size - 2)
+    if order
+      list[i].text.should <= list[i+1].text
+    else
+      list[i].text.should >= list[i+1].text
+    end
+  end
 end
