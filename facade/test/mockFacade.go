@@ -81,7 +81,7 @@ func (mf *MockFacade) RemoveService(ctx datastore.Context, id string) error {
 	return mf.Mock.Called(ctx, id).Error(0)
 }
 
-func (mf *MockFacade) RestoreIPs(ctx datastore.Context, svc service.Service) error {
+func (mf *MockFacade) RestoreIPs(ctx datastore.Context, svc *service.Service) error {
 	return mf.Mock.Called(ctx, svc).Error(0)
 }
 
