@@ -211,7 +211,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	for i, sd := range template.Services {
 		glog.Infof("Deploying application %s to %s", sd.Name, deploymentID)
 		var err error
-		if tenantIDs[i], err = f.deployService(ctx, "", "", deploymentID, poolID, false, sd); err != nil {
+		if tenantIDs[i], err = f.deployServiceWithDeploymentID(ctx, "", "", deploymentID, poolID, false, sd); err != nil {
 			glog.Errorf("Could not deploy application %s to %s: %s", sd.Name, deploymentID, err)
 			return nil, err
 		}
@@ -220,31 +220,61 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	return tenantIDs, nil
 }
 
+func (f *Facade) validateServiceForDeployment(ctx datastore.Context, poolID, parentID string, svcDef servicedefinition.ServiceDefinition) error {
+
+	// Make sure the parent exists.
+	parent, err := f.serviceStore.Get(ctx, parentID)
+	if err != nil {
+		glog.Errorf("Could not get parent service %s", parentID)
+		return err
+	}
+
+	// Make sure we can build the service definition into a service.
+	_, err = service.BuildService(svcDef, parentID, poolID, int(service.SVCStop), parent.DeploymentID)
+	if err != nil {
+		glog.Errorf("Could not create service: %s", err)
+		return err
+	}
+
+	// Do some pool validation
+	if poolID != "" {
+		if pool, err := f.GetResourcePool(ctx, poolID); err != nil {
+			glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
+			return err
+		} else if pool == nil {
+			err := fmt.Errorf("pool not found")
+			glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+	if err := f.validateServiceForDeployment(ctx, poolID, parentID, svcDef); err != nil {
+		return "", err
+	}
+	id, err := f.deployService(ctx, poolID, parentID, overwrite, svcDef)
+	if err != nil {
+		return "", err
+	}
+	return id, nil
+}
+
 // DeployService converts a service definition to a service and deploys it under
 // a specific service.  If the overwrite option is enabled, existing services
 // with the same name will be overwritten, otherwise services may only be added.
-func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
-	store := f.serviceStore
-
+func (f *Facade) deployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
 	// get the parent service
-	svc, err := store.Get(ctx, parentID)
+	svc, err := f.serviceStore.Get(ctx, parentID)
 	if err != nil {
 		glog.Errorf("Could not get parent service %s: %s", parentID, err)
 		return "", err
 	}
 
 	// Do some pool validation
-	if poolID != "" {
-		// check the pool ID
-		if pool, err := f.GetResourcePool(ctx, poolID); err != nil {
-			glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
-			return "", err
-		} else if pool == nil {
-			err := fmt.Errorf("pool not found")
-			glog.Errorf("Could not look up resource pool %s: %s", poolID, err)
-			return "", err
-		}
-	} else {
+	if poolID == "" {
 		// If the poolID is not specified, default to use the parent service's poolID
 		poolID = svc.PoolID // I am going to assume that the pool on the parent service is correct
 	}
@@ -270,10 +300,10 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 		return "", err
 	}
 
-	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef)
+	return f.deployServiceWithDeploymentID(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef)
 }
 
-func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+func (f *Facade) deployServiceWithDeploymentID(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
 	// create the new service object
 	newsvc, err := service.BuildService(svcDef, parentServiceID, poolID, int(service.SVCStop), deploymentID)
 	if err != nil {
@@ -338,7 +368,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 
 	// walk child services
 	for _, sd := range svcDef.Services {
-		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd); err != nil {
+		if _, err := f.deployServiceWithDeploymentID(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd); err != nil {
 			glog.Errorf("Error while trying to deploy %s at %s (%s): %s", sd.Name, newsvc.Name, newsvc.ID, err)
 			return newsvc.ID, err
 		}

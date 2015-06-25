@@ -15,19 +15,15 @@ package facade
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
-	"strings"
-	"time"
 
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
@@ -128,31 +124,27 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 
 	// Validate the modified services.
 	for _, svc := range request.Modified {
-		if err = f.verifyServiceForUpdate(ctx, svc, nil); err != nil {
+		if err = f.validateServiceForUpdating(ctx, svc); err != nil {
 			return err
 		}
 	}
 
-	// Make required mutations to the added services.
 	for _, svc := range request.Added {
-		svc.ID, err = utils.NewUUID36()
+		if err = f.validateServiceForAdding(ctx, *svc); err != nil {
+			return err
+		}
+	}
+
+	for _, req := range request.Deploy {
+
+		parent, err := f.serviceStore.Get(ctx, req.ParentID)
 		if err != nil {
 			return err
 		}
-		now := time.Now()
-		svc.CreatedAt = now
-		svc.UpdatedAt = now
-		for _, ep := range svc.Endpoints {
-			ep.AddressAssignment = addressassignment.AddressAssignment{}
+
+		if err = f.validateServiceForDeployment(ctx, parent.PoolID, req.ParentID, req.Service); err != nil {
+			return err
 		}
-	}
-
-	if err = f.validateAddedMigrationServices(ctx, request.Added); err != nil {
-		return err
-	}
-
-	if err = f.validateServiceDeploymentRequests(ctx, request.Deploy); err != nil {
-		return err
 	}
 
 	// If this isn't a dry run, make the changes.
@@ -182,7 +174,7 @@ func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigra
 				glog.Errorf("Could not get parent service %s", request.ParentID)
 				return err
 			}
-			_, err = f.DeployService(ctx, parent.PoolID, request.ParentID, false, request.Service)
+			_, err = f.deployService(ctx, parent.PoolID, request.ParentID, false, request.Service)
 			if err != nil {
 				glog.Errorf("Could not deploy service definition: %+v", request.Service)
 				return err
@@ -210,121 +202,6 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 				}
 			}
 		}
-	}
-	return nil
-}
-
-func (f *Facade) validateServiceDeploymentRequests(ctx datastore.Context, requests []*dao.ServiceDeploymentRequest) error {
-	for _, request := range requests {
-
-		// Make sure the parent exists.
-		parent, err := f.serviceStore.Get(ctx, request.ParentID)
-		if err != nil {
-			glog.Errorf("Could not get parent service %s", request.ParentID)
-			return err
-		}
-
-		// Make sure we can build the service definition into a service.
-		_, err = service.BuildService(request.Service, request.ParentID, parent.PoolID, int(service.SVCStop), parent.DeploymentID)
-		if err != nil {
-			glog.Errorf("Could not create service: %s", err)
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (f *Facade) validateAddedMigrationServices(ctx datastore.Context, addedSvcs []*service.Service) error {
-
-	// Create a list of all endpoint Application names.
-	existing, err := f.serviceStore.GetServices(ctx)
-	if err != nil {
-		return err
-	}
-	apps := map[string]bool{}
-	for _, svc := range existing {
-		for _, ep := range svc.Endpoints {
-			if ep.Purpose == "export" {
-				apps[ep.Application] = true
-			}
-		}
-	}
-
-	// Perform the validation.
-	for _, svc := range addedSvcs {
-
-		// verify the service with name and parent does not collide with another existing service
-		if s, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-			return err
-		} else if s != nil {
-			if s.ID != svc.ID {
-				return fmt.Errorf("ValidationError: Duplicate name detected for service %s found at %s", svc.Name, svc.ParentServiceID)
-			}
-		}
-
-		// Make sure no endpoint apps are duplicated.
-		for _, ep := range svc.Endpoints {
-			if ep.Purpose == "export" {
-				if _, ok := apps[ep.Application]; ok {
-					return fmt.Errorf("ValidationError: Duplicate Application detected for endpoint %s found for service %s id %s", ep.Name, svc.Name, svc.ID)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-// Verify that the svc is valid for update.
-// Should be called for all updated (edited), and migrated services.
-// This method is only responsible for validation.
-func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Service, oldSvc **service.Service) error {
-	glog.V(2).Infof("Facade:verifyServiceForUpdate: service ID %+v", svc.ID)
-
-	id := strings.TrimSpace(svc.ID)
-	if id == "" {
-		return errors.New("empty Service.ID not allowed")
-	}
-	svc.ID = id
-
-	svcStore := f.serviceStore
-	currentSvc, err := svcStore.Get(ctx, svc.ID)
-	if err != nil {
-		return err
-	}
-
-	err = svc.ValidEntity()
-	if err != nil {
-		return err
-	}
-
-	// verify the service with name and parent does not collide with another existing service
-	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
-		return err
-	} else if s != nil {
-		if s.ID != svc.ID {
-			err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
-			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
-			return err
-		}
-	}
-
-	// Primary service validation
-	if err := svc.ValidEntity(); err != nil {
-		return err
-	}
-
-	// make sure that the tenant ID and path are valid
-	_, _, err = f.GetServicePath(ctx, svc.ID)
-	if err != nil {
-		return err
-	}
-
-	if oldSvc != nil {
-		*oldSvc = currentSvc
 	}
 	return nil
 }

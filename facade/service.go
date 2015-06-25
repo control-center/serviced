@@ -69,10 +69,7 @@ func FilterServiceByName(nameRegex string) (FilterService, error) {
 
 /* CRUD */
 
-// AddService creates a new local service.  Retuns an error if the service
-// already exists
-func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote bool, autoAssignIPs bool) error {
-	glog.V(2).Infof("Facade.AddService: %+v", svc)
+func (f *Facade) validateServiceForAdding(ctx datastore.Context, svc service.Service) error {
 	store := f.serviceStore
 
 	// check if the service exists
@@ -88,6 +85,19 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 		}
 	}
 
+	// verify the service can be added to the specified path
+	if s, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
+		glog.Errorf("Could not verify service path for %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	} else if s != nil {
+		glog.Errorf("Found service %s (%s) at %s: %s", svc.Name, svc.ID, svc.ParentServiceID, ErrServicePathExists)
+		return ErrServicePathExists
+	}
+
+	return nil
+}
+
+func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote bool, autoAssignIPs bool) error {
 	// verify that the service can be added
 	if !isRemote {
 		if err := f.canEditService(ctx, svc.PoolID); err != nil {
@@ -101,14 +111,19 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 		}
 	}
 
-	// verify the service can be added to the specified path
-	if s, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-		glog.Errorf("Could not verify service path for %s (%s): %s", svc.Name, svc.ID, err)
+	if err := f.validateServiceForAdding(ctx, svc); err != nil {
 		return err
-	} else if s != nil {
-		glog.Errorf("Found service %s (%s) at %s: %s", svc.Name, svc.ID, svc.ParentServiceID, ErrServicePathExists)
-		return ErrServicePathExists
+	} else if err := f.addService(ctx, svc, isRemote, autoAssignIPs); err != nil {
+		return err
 	}
+	return nil
+}
+
+// addService creates a new local service.  Retuns an error if the service
+// already exists
+func (f *Facade) addService(ctx datastore.Context, svc service.Service, isRemote bool, autoAssignIPs bool) error {
+	glog.V(2).Infof("Facade.AddService: %+v", svc)
+	store := f.serviceStore
 
 	// Compare the incoming config files to see if there are modifications from
 	// the original.  If there are, we need to perform an update to add those
@@ -161,7 +176,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 		}
 	}
 
-	if err := f.updateService(ctx, &svc); err != nil {
+	if err := f.validateAndUpdateService(ctx, &svc); err != nil {
 		defer store.Delete(ctx, svc.ID)
 		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
@@ -172,7 +187,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, isRemote
 // UpdateService updates a local service.  Returns an error if the service
 // does not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service, isRemote bool) error {
-	glog.V(2).Infof("Facade.AddService: %+v", svc)
+	glog.V(2).Infof("Facade.UpdateService: %+v", svc)
 
 	// verify that the service can be updated
 	if !isRemote {
@@ -188,7 +203,7 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service, isRem
 	}
 
 	// update the service
-	if err := f.updateService(ctx, &svc); err != nil {
+	if err := f.validateAndUpdateService(ctx, &svc); err != nil {
 		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -266,7 +281,7 @@ func (f *Facade) SyncRemoteService(ctx datastore.Context, svc service.Service) e
 	svc.PoolID = gp.PoolID
 
 	// update the service
-	if err := f.updateService(ctx, &svc); err != nil {
+	if err := f.validateAndUpdateService(ctx, &svc); err != nil {
 		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
@@ -809,24 +824,41 @@ func (f *Facade) validateServiceEndpoints(ctx datastore.Context, oldService, new
 	return nil
 }
 
-// updateService updates a service in the datastore and sets attributes on the
-// service.
-func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
-	store := f.serviceStore
+func (f *Facade) validateServiceForUpdating(ctx datastore.Context, svc *service.Service) error {
 
+	store := f.serviceStore
 	currentService, err := store.Get(ctx, svc.ID)
 	if err != nil {
 		glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
-
-	/* validation */
-
 	if err := f.validateServicePath(ctx, currentService, svc); err != nil {
 		glog.Errorf("Could not validate service path for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	} else if err := f.validateServiceEndpoints(ctx, currentService, svc); err != nil {
 		glog.Errorf("Could not validate service endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	return nil
+}
+
+func (f *Facade) validateAndUpdateService(ctx datastore.Context, svc *service.Service) error {
+	if err := f.validateServiceForUpdating(ctx, svc); err != nil {
+		return err
+	} else if err := f.updateService(ctx, svc); err != nil {
+		return err
+	}
+	return nil
+}
+
+// updateService updates a service in the datastore and sets attributes on the
+// service.
+func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
+
+	store := f.serviceStore
+	currentService, err := store.Get(ctx, svc.ID)
+	if err != nil {
+		glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
 
