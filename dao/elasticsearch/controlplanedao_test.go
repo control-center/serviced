@@ -27,7 +27,6 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
-	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -1024,21 +1023,12 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		t.Errorf("AssignIPs failed: %v", err)
 	}
 
-	assignments := []addressassignment.AddressAssignment{}
-	err = dt.Dao.GetServiceAddressAssignments(testService.ID, &assignments)
+	assignments, err := dt.Dao.facade.GetAddrAssignmentsByService(datastore.Get(), testService.ID)
 	if err != nil {
 		t.Errorf("GetServiceAddressAssignments failed: %v", err)
 	}
 	if len(assignments) != 1 {
 		t.Errorf("Expected 1 AddressAssignment but found %d", len(assignments))
-	}
-}
-
-func (dt *DaoTest) TestRemoveAddressAssignment(t *C) {
-	//test removing address when not present
-	err := dt.Dao.RemoveAddressAssignment("fake", nil)
-	if err == nil {
-		t.Errorf("Expected error removing address %v", err)
 	}
 }
 
