@@ -222,7 +222,6 @@
                     $scope.clickRunning(app, status);
                 }
             }
-
         };
 
         return utils;
