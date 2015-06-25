@@ -107,10 +107,10 @@ func (f *Facade) addAddrAssignment(ctx datastore.Context, assign aa.AddressAssig
 		return ErrAddrAssignExists
 	}
 	if a, err := f.GetAddrAssignmentByIPPort(ctx, assign.IPAddr, assign.Port); err != nil {
-		glog.Errorf("Could not look up address assignment at %s:%s: %s", assign.IPAddr, assign.Port, err)
+		glog.Errorf("Could not look up address assignment at %s:%d: %s", assign.IPAddr, assign.Port, err)
 		return err
 	} else if a != nil {
-		glog.Errorf("Found address assignment at %s:%s", assign.IPAddr, assign.Port)
+		glog.Errorf("Found address assignment at %s:%d", assign.IPAddr, assign.Port)
 		return ErrAddrAssignExists
 	}
 
