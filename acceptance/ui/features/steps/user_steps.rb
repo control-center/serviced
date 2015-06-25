@@ -6,7 +6,7 @@ When (/^I clear my messages$/) do
   page.find("[ng-click='clearMessages()']").click()
 end
 
-When (/^I click on an unread message$/) do
+When (/^I click on an unread message$/) do    # clicks on the first unread message
   Capybara.match=:first
   page.find("[class='message unreadMessage ng-scope']").click()
   Capybara.match=:smart

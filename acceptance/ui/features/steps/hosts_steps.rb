@@ -2,6 +2,18 @@ When(/^I am on the hosts page$/) do
     visitHostsPage()
 end
 
+When(/^I fill in the Host Name field with the default host name$/) do
+    fillInDefaultHostAndPort()
+end
+
+When(/^I fill in the Resource Pool field with the default resource pool$/) do
+    fillInDefaultResourcePool()
+end
+
+When(/^I fill in the RAM Commitment field with the default RAM commitment$/) do
+    fillInDefaultRAMCommitment()
+end
+
 When(/^I fill in the Host Name field with "(.*?)"$/) do |hostName|
     @hosts_page.hostName_input.set hostName
 end
@@ -16,6 +28,18 @@ end
 
 When /^I click the Add-Host button$/ do
     clickAddHostButton()
+end
+
+Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|
+  list = page.all("[ng-if$='host.active']")
+  for i in 0..(list.size - 2)
+    if order == "top"
+       # assuming ! (bad ng-scope) before - (down ng-scope) before + (good ng-scope)
+      list[i][:class] <= list[i + 1][:class]
+    else
+      list[i][:class] >= list[i + 1][:class]    # assuming + before - before !
+    end
+  end
 end
 
 Then /^I should see the Add Host dialog$/ do
@@ -33,20 +57,6 @@ end
 Then /^I should see the RAM Commitment field$/ do
     @hosts_page.ramCommitment_input.visible?
 end
-
-
-=begin
-Then /^The hosts should be sorted by "(.*?)"$/ do |sort|
-    page.find("[class^='header  sortable']", :text => /\A#{category}\z/).click()
-    page.body.index(new_comment.text).should < page.body.index(old_comment.text)
-end
-=end
-
-=begin
-bad !host.resourcesGood() 3->31.37, e->0
-ng-binding ng-hide 3->3s
-ng-binding e->31.37 shown, no hide
-=end
 
 
 def visitHostsPage()

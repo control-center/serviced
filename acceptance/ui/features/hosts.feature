@@ -33,8 +33,8 @@ Feature: Host Management
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with "bogushost"
-      And I fill in the Resource Pool field with "default"
-      And I fill in the RAM Commitment field with "50%"
+      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request"
@@ -45,8 +45,8 @@ Feature: Host Management
   Scenario: Add an invalid host with an invalid Resource Pool field
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with "172.17.42.1:4979"
-      And I fill in the RAM Commitment field with "50%"
+      And I fill in the Host Name field with the default host name
+      And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request"
@@ -57,8 +57,8 @@ Feature: Host Management
   Scenario: Add an invalid host with an invalid RAM Commitment field
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with "172.17.42.1:4979"
-      And I fill in the Resource Pool field with "default"
+      And I fill in the Host Name field with the default host name
+      And I fill in the Resource Pool field with the default resource pool
       And I fill in the RAM Commitment field with "invalidentry"
       And I click "Add Host"
     Then I should see "Error"
@@ -70,9 +70,9 @@ Feature: Host Management
   Scenario: Fill in the hosts dialog and cancel
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with "172.17.42.1:4979"
-      And I fill in the Resource Pool field with "default"
-      And I fill in the RAM Commitment field with "50%"
+      And I fill in the Host Name field with the default host name
+      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Cancel"
     Then I should see "No Data Found"
       And I should see "Showing 0 Results"
@@ -82,9 +82,9 @@ Feature: Host Management
   Scenario: Add an valid host
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with "172.17.42.1:4979"
-      And I fill in the Resource Pool field with "default"
-      And I fill in the RAM Commitment field with "50%"
+      And I fill in the Host Name field with the default host name
+      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Add Host"
     Then I should see "Success"
       And I should see "roei-dev" in the "Name" column
@@ -96,11 +96,14 @@ Feature: Host Management
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with "vagrant:4979"
-      And I fill in the Resource Pool field with "pool"
-      And I fill in the RAM Commitment field with "15%"
+      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the RAM Commitment field with "0%"
       And I click "Add Host"
     Then I should see "Success"
       And I should see "roei-dev" in the "Name" column
+      And I should see "default" in the "Research Pool" column
+      And I should see "vagrant" in the "Name" column
+      And I should see "default" in the "Research Pool" column
       And I should see "Showing 2 Results"
 
   @login-required
@@ -115,7 +118,19 @@ Feature: Host Management
       And I sort by "Name" in descending order
     Then the "Name" column should be sorted in descending order
 
-  @run @login-required
+  @login-required
+  Scenario: Test ascending status sort
+    When I am on the hosts page
+      And I sort by "Active" in ascending order
+    Then the "Active" column should be sorted with active hosts on the bottom
+
+  @login-required
+  Scenario: Test descending status sort
+    When I am on the hosts page
+      And I sort by "Active" in descending order
+    Then the "Active" column should be sorted with active hosts on top
+
+  @login-required
   Scenario: Test descending resource pool sort
     When I am on the hosts page
       And I sort by "Resource Pool" in descending order
@@ -133,7 +148,7 @@ Feature: Host Management
       And I sort by "Memory" in descending order
     Then the "Memory" column should be sorted in descending order
 
-  @run @login-required
+  @login-required
   Scenario: Test ascending memory sort
     When I am on the hosts page
       And I sort by "Memory" in ascending order
@@ -195,50 +210,6 @@ Feature: Host Management
     Then I should see "Removed host"
       And I should see "No Data Found"
       And I should see "Showing 0 Results"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by name
-    When I am on the hosts page
-      And I sort by "Name"
-    Then I should see "roei-dev"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by active status
-    When I am on the hosts page
-      And I sort by "Active"
-    Then I should see "roei-dev"
-      And I should see "Showing 1 Result"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by resource pool
-    When I am on the hosts page
-      And I sort by "Resource Pool"
-    Then I should see "default"
-      And I should see "Name"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by memory
-    When I am on the hosts page
-      And I sort by "Memory"
-    Then I should see "default"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by CPU cores
-    When I am on the hosts page
-      And I sort by "CPU Cores"
-    Then I should see "default"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by kernel version
-    When I am on the hosts page
-      And I sort by "Kernel Version"
-    Then I should see "default"
-
-  @login-required @defaultHostPage
-  Scenario: Sort hosts by CC release
-    When I am on the hosts page
-      And I sort by "CC Release"
-    Then I should see "default"
 
   @login-required
   Scenario: View Hosts Map
