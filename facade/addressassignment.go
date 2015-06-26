@@ -483,6 +483,18 @@ func (f *Facade) getManualAssignment(ctx datastore.Context, poolID string, ipAdd
 		}
 	}
 
+	// check the virtual ips
+	if pool, err := f.GetResourcePool(ctx, poolID); err != nil {
+		glog.Errorf("Error looking up pool %s: %s", poolID, err)
+		return nil, err
+	} else {
+		for _, vip := range pool.VirtualIPs {
+			if vip.IP == ipAddress {
+				return &IPInfo{vip.IP, commons.VIRTUAL, ""}, nil
+			}
+		}
+	}
+
 	// check the static ips
 	if host, err := f.GetHostByIP(ctx, ipAddress); err != nil {
 		glog.Errorf("Error looking up host with IP %s: %s", ipAddress, err)
@@ -497,18 +509,6 @@ func (f *Facade) getManualAssignment(ctx datastore.Context, poolID string, ipAdd
 		for _, hostIP := range host.IPs {
 			if hostIP.IPAddress == ipAddress {
 				return &IPInfo{hostIP.IPAddress, commons.STATIC, hostIP.HostID}, nil
-			}
-		}
-	}
-
-	// check the virtual ips
-	if pool, err := f.GetResourcePool(ctx, poolID); err != nil {
-		glog.Errorf("Error looking up pool %s: %s", poolID, err)
-		return nil, err
-	} else {
-		for _, vip := range pool.VirtualIPs {
-			if vip.IP == ipAddress {
-				return &IPInfo{vip.IP, commons.VIRTUAL, ""}, nil
 			}
 		}
 	}
