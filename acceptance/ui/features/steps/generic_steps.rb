@@ -10,6 +10,12 @@ When (/^I click "([^"]*)"$/) do |text|
   click_link_or_button(text)
 end
 
+When (/^I remove "([^"]*)"$/) do |name|
+  within("tr[class='ng-scope']", :text => name) do
+    click_link_or_button("Delete")
+  end
+end
+
 When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, sortOrder|
   # class for sortable column headers
   categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)

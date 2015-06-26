@@ -201,10 +201,10 @@ Feature: Host Management
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
 
-  @login-required @defaultHostPage
+  @run @login-required @defaultHostPage
   Scenario: Remove a host
     When I am on the hosts page
-      And I click "Delete"
+      And I remove "roei-dev"
     Then I should see "This action will permanently delete the host"
     When I click "Remove Host"
     Then I should see "Removed host"
