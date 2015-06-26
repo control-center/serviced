@@ -17,6 +17,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/migrate"
 	"github.com/zenoss/glog"
 )
 
@@ -65,7 +66,7 @@ func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) err
 //
 func (this *ControlPlaneDao) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) error {
 	glog.V(2).Infof("ControlPlaneDao.RunMigrationScript: start migration for service id %+v", request.ServiceID)
-	if err := this.facade.RunMigrationScript(datastore.Get(), request); err != nil {
+	if err := migrate.RunMigrationScript(datastore.Get(), this.facade, request); err != nil {
 		glog.Errorf("ControlPlaneDao.RunMigrationScript: migration failed for id %+v: %s", request.ServiceID, err)
 		return err
 	}
