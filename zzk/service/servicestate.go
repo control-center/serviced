@@ -64,17 +64,6 @@ func GetServiceStates(conn client.Connection, serviceIDs ...string) (states []se
 	return states, nil
 }
 
-// UpdateServiceState updates a particular service state
-func UpdateServiceState(conn client.Connection, state *servicestate.ServiceState) error {
-	var node ServiceStateNode
-	path := servicepath(state.ServiceID, state.ID)
-	if err := conn.Get(path, &node); err != nil {
-		return err
-	}
-	node.ServiceState = state
-	return conn.Set(path, &node)
-}
-
 // wait waits for an individual service state to reach its desired state
 func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateID string, dstate service.DesiredState) error {
 	for {
