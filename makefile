@@ -248,7 +248,6 @@ $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-set-version:serviced-set-version
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-cleanup:serviced-container-cleanup
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usage:serviced-container-usage
-$(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-btrfs-maintenance:serviced-btrfs-maintenance
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced
 $(_DESTDIR)$(prefix)/doc_TARGETS                   = doc/copyright:.
 $(_DESTDIR)$(prefix)/doc_TARGETS                  += doc/licenses.html:.
