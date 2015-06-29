@@ -1470,7 +1470,11 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *ser
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
 	newSvc.OriginalConfigs = oldSvc.OriginalConfigs
 
-	if !reflect.DeepEqual(oldSvc.OriginalConfigs, newSvc.ConfigFiles) {
+	if err := f.fillServiceConfigs(ctx, oldSvc); err != nil {
+		return err
+	}
+
+	if !reflect.DeepEqual(oldSvc.ConfigFiles, newSvc.ConfigFiles) {
 		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *newSvc)
 		if err != nil {
 			return err
