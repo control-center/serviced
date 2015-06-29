@@ -16,6 +16,12 @@ When (/^I remove "([^"]*)"$/) do |name|
   end
 end
 
+When(/^I select "(.*?)"$/) do |name|
+  within("tr[class='clickable ng-scope']", :text => name) do
+    page.find("input[type='radio']").click()
+  end
+end
+
 When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, sortOrder|
   # class for sortable column headers
   categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
@@ -58,13 +64,21 @@ end
 
 
 def sortColumn(category, order)
-  #list = page.all("td[data-title-text='#{category}']")
-  list = page.all("td[sortable='#{category}']")
+  list = page.all("td[data-title-text='#{category}']")
   for i in 0..(list.size - 2)
-    if order
-      list[i].text.should <= list[i + 1].text
+    if category == "Created" || category == "Last Modified"
+      if order
+        DateTime.parse(list[i].text).should <= DateTime.parse(list[i + 1].text)
+      else
+        DateTime.parse(list[i].text).should >= DateTime.parse(list[i + 1].text)
+      end
     else
-      list[i].text.should >= list[i + 1].text
+      if order
+      # Category sorting ignores case
+        list[i].text.downcase.should <= list[i + 1].text.downcase
+      else
+        list[i].text.downcase.should >= list[i + 1].text.downcase
+      end
     end
   end
 end
