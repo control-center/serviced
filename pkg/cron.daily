@@ -2,4 +2,3 @@
 
 /usr/sbin/logrotate /opt/serviced/etc/logrotate.conf
 /opt/serviced/bin/serviced-container-cleanup
-/opt/serviced/bin/serviced-btrfs-maintenance
