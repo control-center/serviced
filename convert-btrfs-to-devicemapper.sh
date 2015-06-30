@@ -44,15 +44,19 @@ if [ -z "${MOUNT_LINE}" ]; then
 fi
 
 echo IMPORTANT: This script will destroy your current Docker storage directory.
-echo This will cause all Docker images currently on your system to be lost.  By
-echo default, this script will save the internal services image required by Control
-echo Center, requiring approximately 600MB in /tmp.  If you have a connection to the
-echo Internet, you are not required to save this image. Control Center will
-echo automatically download it from Docker Hub on startup.  To avoid saving this
-echo image, cancel and rerun the script with SKIP_ISVCS_DUMP=1. 
+echo This will cause all Docker images currently on your system to be lost.  
+echo 
+echo By default, this script will save the internal services image required by
+echo Control Center, requiring approximately 600MB in /tmp.  If you have
+echo a connection to the Internet, you are not required to save this image. Control
+echo Center will automatically download it from Docker Hub on startup.  To avoid
+echo saving this image, cancel and rerun the script with SKIP_ISVCS_DUMP=1. 
+echo 
 echo If you want to save any other images on your system, please cancel, then do so
 echo using the "docker save" command.
-echo "This script assumes that Control Center, if installed, has been shut down first."
+echo 
+echo If Control Center is not installed and you want to run this script, cancel 
+echo and rerun it with NO_SERVICED=1.
 echo
 confirm || exit 1
 
@@ -62,7 +66,7 @@ DOCKER_DISK=$(echo "${MOUNT_LINE}" | awk {'print $1'})
 log /var/lib/docker is using ${DOCKER_DISK}
 
 ISVCS_DUMP_FILE="/tmp/isvcs-$(head -c 10 /dev/urandom | md5sum | awk {'print $1'}).tgz"
-if [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
+if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     # Get an isvcs image
     log Preparing to extract serviced internal services image
     ISVCS_IMAGE="$(serviced version | grep IsvcsImage | awk {'print $2'})"
@@ -78,6 +82,12 @@ if [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     # Dump the image
     log "Saving the internal services image"
     docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE} || fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
+fi
+
+if [[ $NO_SERVICED -ne 1 ]]; then
+    # Ensure Control Center is shut down
+    log Stopping Control Center
+    ${CTL_CMD} stop serviced || fail Unable to stop Control Center
 fi
 
 # Ensure Docker is shut down
@@ -116,9 +126,12 @@ log Starting Docker
 ${CTL_CMD} start docker || fail Unable to start Docker
 
 # Reload the image, if it exists
-if [[ ${SKIP_ISVCS_DUMP} -ne 1 ]] && [ -f "${ISVCS_DUMP_FILE}" ]; then
+if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]] && [ -f "${ISVCS_DUMP_FILE}" ]; then
     log Loading internal services image
     cat "${ISVCS_DUMP_FILE}" | gunzip - | docker load || fail Unable to load internal services image
 fi
 
-log Converted Docker to use devicemapper storage backend. Please start Control Center at your leisure.
+log Converted Docker to use devicemapper storage backend. 
+if [[ ${NO_SERVICED} -ne 1 ]]; then
+    log Please start Control Center at your leisure.
+fi
