@@ -7,7 +7,7 @@ When /^I click the add Resource Pool button$/ do
 end
 
 When(/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
-    @pools_page.poolName_input.set resourcePool
+    fillInResourcePoolField(resourcePool)
 end
 
 When(/^I fill in the Description field with "(.*?)"$/) do |description|
@@ -36,4 +36,8 @@ end
 
 def clickAddPoolButton()
     @pools_page.addPool_button.click()
+end
+
+def fillInResourcePoolField(name)
+    @pools_page.poolName_input.set name
 end
