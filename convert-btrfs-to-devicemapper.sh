@@ -11,6 +11,18 @@ log () {
     echo " *  $@" >&2
 }
 
+confirm () {
+    read -r -p "${1:-Are you sure? [y/N]} " response
+    case $response in
+        [yY][eE][sS]|[yY]) 
+            true
+            ;;
+        *)
+            false
+            ;;
+    esac
+}
+
 # Verify we have root permission.
 if [[ $EUID -ne 0 ]]; then
    fail This script must be run as root
@@ -30,6 +42,18 @@ MOUNT_LINE="$(mount -t btrfs | grep /var/lib/docker)"
 if [ -z "${MOUNT_LINE}" ]; then
     fail /var/lib/docker is not a separate Btrfs partition.
 fi
+
+echo IMPORTANT: This script will destroy your current Docker storage directory.
+echo This will cause all Docker images currently on your system to be lost.  By
+echo default, this script will save the internal services image required by Control
+echo Center, requiring approximately 600MB in /tmp.  If you have a connection to the
+echo Internet, you are not required to save this image. Control Center will
+echo automatically download it from Docker Hub on startup.  To avoid saving this
+echo image, cancel and rerun the script with SKIP_ISVCS_DUMP=1. 
+echo If you want to save any other images on your system, please cancel, then do so
+echo using the "docker save" command.
+confirm || exit 1
+
 
 # Get the device being used for /var/lib/docker
 DOCKER_DISK=$(echo "${MOUNT_LINE}" | awk {'print $1'})
