@@ -15,7 +15,6 @@ debug=false
 runAsRoot=false
 DRIVER_NAME=selenium
 TIMEOUT=10
-# CUCUMBER_OPTS="--tags @run"
 
 #
 # The features/steps in this example assumes github as the default application

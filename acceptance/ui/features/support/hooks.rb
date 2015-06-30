@@ -7,18 +7,3 @@ Before('@login-required') do
   fillInDefaultPassword()
   clickSignInButton()
 end
-
-Before('@emptyHostsPage') do
-  visitHostsPage()
-  removeAllHosts()
-end
-
-Before ('@defaultHostPage') do
-  visitHostsPage()
-  removeAllHosts()
-  clickAddHostButton()
-  fillInDefaultHostAndPort()
-  fillInDefaultResourcePool()
-  fillInDefaultRAMCommitment()
-  click_link_or_button("Add Host")
-end

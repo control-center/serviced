@@ -10,6 +10,10 @@ When (/^I click "([^"]*)"$/) do |text|
   click_link_or_button(text)
 end
 
+When /^I close the dialog$/ do
+  closeDialog()
+end
+
 When (/^I remove "([^"]*)"$/) do |name|
   within("tr[class='ng-scope']", :text => name) do
     click_link_or_button("Delete")
@@ -62,9 +66,20 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
   end
 end
 
+Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
+  checkRows(row, true)
+end
+
+Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
+  checkRows(row, false)
+end
+
 
 def sortColumn(category, order)
   list = page.all("td[data-title-text='#{category}']")
+  for i in 0..(list.size - 1)
+    puts list[i].text
+  end
   for i in 0..(list.size - 2)
     if category == "Created" || category == "Last Modified"
       if order
@@ -81,4 +96,19 @@ def sortColumn(category, order)
       end
     end
   end
+end
+
+def checkRows(row, present)
+  found = false
+  entries = page.all("tr[ng-repeat$='in $data']")
+  for i in 0..(entries.size - 1)
+    within(entries[i]) do
+      found = true if has_text?(row)
+    end
+  end
+  found.should == present
+end
+
+def closeDialog()
+  page.find("button[class^='close glyphicon']").click()
 end
