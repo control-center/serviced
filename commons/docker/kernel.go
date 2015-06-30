@@ -19,8 +19,8 @@ import (
 	"strings"
 	"time"
 
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 const (
@@ -87,16 +87,16 @@ var (
 		make(chan oneventreq),
 	}
 	dockerevents = []string{
-		dockerclient.Create,
-		dockerclient.Delete,
-		dockerclient.Destroy,
-		dockerclient.Die,
-		dockerclient.Export,
-		dockerclient.Kill,
-		dockerclient.Restart,
-		dockerclient.Start,
-		dockerclient.Stop,
-		dockerclient.Untag,
+		Create,
+		Delete,
+		Destroy,
+		Die,
+		Export,
+		Kill,
+		Restart,
+		Start,
+		Stop,
+		Untag,
 	}
 	done = make(chan struct{})
 )
@@ -199,7 +199,7 @@ func routeEventsToKernel(dc ClientInterface) {
 		panic(fmt.Sprintf("can't monitor Docker events: %v", err))
 	}
 
-	s, err := em.Subscribe(dockerclient.AllThingsDocker)
+	s, err := em.Subscribe(AllThingsDocker)
 	if err != nil {
 		panic(fmt.Sprintf("can't subscribe to Docker events: %v", err))
 	}
@@ -209,7 +209,7 @@ func routeEventsToKernel(dc ClientInterface) {
 	}
 }
 
-func eventToKernel(e dockerclient.Event) error {
+func eventToKernel(e *dockerclient.APIEvents) error {
 	glog.V(2).Infof("sending %+v to kernel", e)
 	ec := make(chan error)
 
@@ -218,7 +218,7 @@ func eventToKernel(e dockerclient.Event) error {
 		struct {
 			id    string
 			event string
-		}{e["id"].(string), e["status"].(string)},
+		}{e.ID, e.Status},
 	}
 
 	select {

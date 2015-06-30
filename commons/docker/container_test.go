@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	dockerclient "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 func TestContainerCommit(t *testing.T) {
@@ -103,39 +103,6 @@ func TestOnContainerStart(t *testing.T) {
 
 	if !ctr.IsRunning() {
 		t.Fatal("expected container to be running")
-	}
-
-	ctr.Kill()
-	ctr.Delete(true)
-}
-
-func TestOnContainerCreated(t *testing.T) {
-	cs := make(chan string)
-
-	OnContainerCreated(Wildcard, func(id string) {
-		cs <- id
-	})
-	defer CancelOnContainerCreated(Wildcard)
-
-	cd := &ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
-			},
-		},
-		dockerclient.HostConfig{},
-	}
-
-	ctr, err := NewContainer(cd, false, 600*time.Second, nil, nil)
-	if err != nil {
-		t.Fatal("can't create container: ", err)
-	}
-
-	select {
-	case <-cs:
-	case <-time.After(10 * time.Second):
-		t.Fatal("Timed out waiting for event")
 	}
 
 	ctr.Kill()

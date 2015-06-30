@@ -14,7 +14,7 @@
 package layer
 
 import (
-	"github.com/zenoss/go-dockerclient"
+	"github.com/fsouza/go-dockerclient"
 
 	"fmt"
 	"io"

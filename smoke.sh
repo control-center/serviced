@@ -92,7 +92,7 @@ start_service() {
 
 stop_service() {
     ${SERVICED} service stop ${SERVICE_ID}
-    sleep 10 
+    sleep 10
     [[ "0" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }

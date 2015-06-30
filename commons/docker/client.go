@@ -14,9 +14,7 @@
 package docker
 
 import (
-	"io"
-
-	dockerclient "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 // The function used to get an instance of ClientInterface
@@ -49,9 +47,9 @@ type ClientInterface interface {
 
 	ImportImage(opts dockerclient.ImportImageOptions) error
 
-	SaveImages(opts dockerclient.SaveImageOptions) error
+	ExportImages(opts dockerclient.ExportImagesOptions) error
 
-	LoadImages(inputStream io.Reader) error
+	LoadImage(opts dockerclient.LoadImageOptions) error
 
 	InspectContainer(id string) (*dockerclient.Container, error)
 
@@ -61,9 +59,9 @@ type ClientInterface interface {
 
 	ListContainers(opts dockerclient.ListContainersOptions) ([]dockerclient.APIContainers, error)
 
-	ListImages(all bool) ([]dockerclient.APIImages, error)
+	ListImages(opts dockerclient.ListImagesOptions) ([]dockerclient.APIImages, error)
 
-	MonitorEvents() (dockerclient.EventMonitor, error)
+	MonitorEvents() (EventMonitor, error)
 
 	PullImage(opts dockerclient.PullImageOptions, auth dockerclient.AuthConfiguration) error
 
@@ -115,12 +113,12 @@ func (c *Client) ImportImage(opts dockerclient.ImportImageOptions) error {
 	return c.dc.ImportImage(opts)
 }
 
-func (c *Client) SaveImages(opts dockerclient.SaveImageOptions) error {
-	return c.dc.SaveImages(opts)
+func (c *Client) ExportImages(opts dockerclient.ExportImagesOptions) error {
+	return c.dc.ExportImages(opts)
 }
 
-func (c *Client) LoadImages(inputStream io.Reader) error {
-	return c.dc.LoadImages(inputStream)
+func (c *Client) LoadImage(opts dockerclient.LoadImageOptions) error {
+	return c.dc.LoadImage(opts)
 }
 
 func (c *Client) InspectContainer(id string) (*dockerclient.Container, error) {
@@ -135,12 +133,12 @@ func (c *Client) ListContainers(opts dockerclient.ListContainersOptions) ([]dock
 	return c.dc.ListContainers(opts)
 }
 
-func (c *Client) ListImages(all bool) ([]dockerclient.APIImages, error) {
-	return c.dc.ListImages(all)
+func (c *Client) ListImages(opts dockerclient.ListImagesOptions) ([]dockerclient.APIImages, error) {
+	return c.dc.ListImages(opts)
 }
 
-func (c *Client) MonitorEvents() (dockerclient.EventMonitor, error) {
-	return c.dc.MonitorEvents()
+func (c *Client) MonitorEvents() (EventMonitor, error) {
+	return c.monitorEvents()
 }
 
 func (c *Client) PullImage(opts dockerclient.PullImageOptions, auth dockerclient.AuthConfiguration) error {

@@ -23,8 +23,8 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 var DEFAULT_REGISTRY = "localhost:5000"
@@ -45,18 +45,18 @@ type ContainerDefinition struct {
 type ContainerActionFunc func(id string)
 
 // Strings identifying the Docker lifecycle events.
-const (
-	Create  = dockerclient.Create
-	Delete  = dockerclient.Delete
-	Destroy = dockerclient.Destroy
-	Die     = dockerclient.Die
-	Export  = dockerclient.Export
-	Kill    = dockerclient.Kill
-	Restart = dockerclient.Restart
-	Start   = dockerclient.Start
-	Stop    = dockerclient.Stop
-	Untag   = dockerclient.Untag
-)
+// const (
+// 	Create  = dockerclient.Create
+// 	Delete  = dockerclient.Delete
+// 	Destroy = dockerclient.Destroy
+// 	Die     = dockerclient.Die
+// 	Export  = dockerclient.Export
+// 	Kill    = dockerclient.Kill
+// 	Restart = dockerclient.Restart
+// 	Start   = dockerclient.Start
+// 	Stop    = dockerclient.Stop
+// 	Untag   = dockerclient.Untag
+// )
 
 // Container subsystem error types
 var (
@@ -137,7 +137,7 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 
 		sc := make(chan struct{})
 
-		ss.Handle(Start, func(e dockerclient.Event) error {
+		ss.Handle(Start, func(e *dockerclient.APIEvents) error {
 			if args.startaction != nil {
 				args.startaction(ctr.ID)
 			}
@@ -431,19 +431,6 @@ func (c *Container) Wait(timeout time.Duration) (int, error) {
 	return -127, ErrRequestTimeout
 }
 
-// OnContainerCreated associates a containter action with the specified container. The action will be triggered when
-// that container is created; since we can't know before it's created what a containers id will be the only really
-// useful id is docker.Wildcard which will cause the action to be triggered for every container docker creates.
-func OnContainerCreated(id string, action ContainerActionFunc) error {
-	return onContainerEvent(dockerclient.Create, id, action)
-}
-
-// CancelOnContainerCreated cancels any OnContainerCreated action associated with the specified id - docker.Wildcard is
-// the only id that really makes sense.
-func CancelOnContainerCreated(id string) error {
-	return cancelOnContainerEvent(dockerclient.Create, id)
-}
-
 // Image represents a Docker image
 type Image struct {
 	UUID string
@@ -456,7 +443,8 @@ func Images() ([]*Image, error) {
 	if err != nil {
 		return nil, err
 	}
-	imgs, err := dc.ListImages(false)
+	opts := dockerclient.ListImagesOptions{All: false}
+	imgs, err := dc.ListImages(opts)
 	if err != nil {
 		return nil, err
 	}
@@ -595,7 +583,7 @@ func SaveImages(outfile *os.File, repotags ...string) error {
 	if err != nil {
 		return err
 	}
-	return dc.SaveImages(dockerclient.SaveImageOptions{Names: repotags, OutputStream: outfile})
+	return dc.ExportImages(dockerclient.ExportImagesOptions{Names: repotags, OutputStream: outfile})
 }
 
 func (img *Image) Save(outfile *os.File) error {
@@ -615,7 +603,8 @@ func LoadImages(filename string) error {
 	}
 	defer f.Close()
 
-	return dc.LoadImages(f)
+	opts := dockerclient.LoadImageOptions{InputStream: f}
+	return dc.LoadImage(opts)
 }
 
 func ImageHistory(uuid string) ([]*dockerclient.Image, error) {

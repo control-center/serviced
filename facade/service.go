@@ -35,7 +35,7 @@ import (
 
 	"github.com/control-center/serviced/utils"
 
-	dockerclient "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 const (
