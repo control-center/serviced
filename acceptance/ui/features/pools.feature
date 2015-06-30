@@ -31,7 +31,17 @@ Feature: Resource Pool Management
       And I fill in the Description field with "none"
       And I click "Add Resource Pool"
     Then I should see "Adding pool failed"
-      And I should see "Description:"
+      And I should see "Internal Server Error: facade: resource pool exists"
+
+  @login-required
+  Scenario: Add a resource pool without specifying a name
+    When I am on the resource pool page
+      And I click the add Resource Pool button
+      And I fill in the Resource Pool name field with ""
+      And I fill in the Description field with "none"
+      And I click "Add Resource Pool"
+    Then I should see "Adding pool failed"
+      And I should see "Internal Server Error: empty Kind id"
 
   @login-required
   Scenario: Add a resource pool
@@ -42,7 +52,7 @@ Feature: Resource Pool Management
       And I click "Add Resource Pool"
     Then I should see "Added new Pool"
       And I should see "Added resource pool"
-      And I should not see "Description:"
+      And I should see an entry for "test" in the table
 
   @login-required
   Scenario: Delete a resource pool
@@ -51,6 +61,7 @@ Feature: Resource Pool Management
     Then I should see "This action will permanently delete the resource pool"
     When I click "Remove Pool"
     Then I should see "Removed Pool"
+      And I should not see an entry for "test" in the table
 
   @login-required
   Scenario: Sort resource pools by ascending name
@@ -65,25 +76,25 @@ Feature: Resource Pool Management
     Then the "Resource Pool" column should be sorted in descending order
 
   @login-required
-  Scenario: Sort resource pools by ascending name
+  Scenario: Sort resource pools by ascending number of CPU cores
     When I am on the resource pool page
       And I sort by "CPU Cores" in ascending order
     Then the "CPU Cores" column should be sorted in ascending order
 
   @login-required
-  Scenario: Sort resource pools by descending name
+  Scenario: Sort resource pools by descending number of CPU cores
     When I am on the resource pool page
       And I sort by "CPU Cores" in descending order
     Then the "CPU Cores" column should be sorted in descending order
 
   @login-required
-  Scenario: Sort resource pools by descending name
+  Scenario: Sort resource pools by descending memory usage
     When I am on the resource pool page
       And I sort by "Memory Usage" in descending order
     Then the "Memory Usage" column should be sorted in descending order
 
   @login-required
-  Scenario: Sort resource pools by ascending name
+  Scenario: Sort resource pools by ascending memory usage
     When I am on the resource pool page
       And I sort by "Memory Usage" in ascending order
     Then the "Memory Usage" column should be sorted in ascending order
