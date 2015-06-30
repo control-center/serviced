@@ -71,7 +71,7 @@ if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     log Preparing to extract serviced internal services image
     ISVCS_IMAGE="$(serviced version | grep IsvcsImage | awk {'print $2'})"
     [ -z "${ISVCS_IMAGE}" ] && fail "Unable to determine which image to save. Is serviced installed properly?"
-    log "Services image to be saved is ${ISVCS_IMAGE}"
+    log "Services image used by Control Center is ${ISVCS_IMAGE}"
 
     # Make sure Docker is running
     docker ps &>/dev/null
@@ -79,11 +79,16 @@ if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
         log Starting Docker
         ${CTL_CMD} start docker || fail Unable to start Docker
     fi
-    # Dump the image
-    log "Saving the internal services image"
-    docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE}
-    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
-        fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
+    # See if the image even exists
+    if [ -n "$(docker images -q ${ISVCS_IMAGE})" ]; then
+        # Dump the image
+        log "Saving the internal services image"
+        docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE}
+        if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+            fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
+        fi
+    else
+        log Skipping internal services image save as it is not present
     fi
 fi
 
