@@ -266,12 +266,12 @@ func (conn *TestConnection) Set(p string, node Node) error {
 	}
 
 	// only update if something actually changed
+	conn.lock.Lock()
 	if bytes.Compare(conn.nodes[p], data) != 0 {
-		conn.lock.Lock()
 		conn.nodes[p] = data
-		conn.lock.Unlock()
 		conn.updatewatch(p, EventNodeDataChanged)
 	}
+	conn.lock.Unlock()
 	return nil
 }
 
