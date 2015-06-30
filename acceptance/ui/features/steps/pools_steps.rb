@@ -3,7 +3,7 @@ When(/^I am on the resource pool page$/) do
 end
 
 When /^I click the add Resource Pool button$/ do
-    @pools_page.addPool_button.click()
+    clickAddPoolButton()
 end
 
 When(/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
@@ -32,4 +32,8 @@ def visitPoolsPage()
         click_link("Resource Pools")
     end
     expect(@pools_page).to be_displayed
+end
+
+def clickAddPoolButton()
+    @pools_page.addPool_button.click()
 end
