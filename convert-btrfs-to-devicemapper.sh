@@ -87,7 +87,7 @@ if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     fi
 fi
 
-if [[ $NO_SERVICED -ne 1 ]]; then
+if [[ ${NO_SERVICED} -ne 1 ]]; then
     # Ensure Control Center is shut down
     log Stopping Control Center
     ${CTL_CMD} stop serviced || fail Unable to stop Control Center
