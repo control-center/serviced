@@ -255,18 +255,15 @@ func (conn *TestConnection) Set(p string, node Node) error {
 	if err := conn.checkpath(&p); err != nil {
 		return err
 	}
-
+	conn.lock.Lock()
 	if _, ok := conn.nodes[p]; !ok {
 		return ErrNoNode
 	}
-
 	data, err := json.Marshal(node)
 	if err != nil {
 		return err
 	}
-
 	// only update if something actually changed
-	conn.lock.Lock()
 	if bytes.Compare(conn.nodes[p], data) != 0 {
 		conn.nodes[p] = data
 		conn.updatewatch(p, EventNodeDataChanged)
