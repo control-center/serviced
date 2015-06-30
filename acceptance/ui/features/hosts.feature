@@ -4,8 +4,9 @@ Feature: Host Management
   As a CC admin user
   I want to manage hosts
 
-  @login-required @emptyHostsPage
+  @login-required
   Scenario: View empty Hosts page
+    Given there are no hosts defined
     When I am on the hosts page
     Then I should see "Hosts Map"
       And I should see "Name"
@@ -13,8 +14,7 @@ Feature: Host Management
       And I should see "Resource Pool"
       And I should see "Memory"
       And I should see "RAM Commitment"
-      And I should see "No Data Found"
-      And I should see "Showing 0 Results"
+      And I should see an empty Hosts page
 
   @login-required
   Scenario: View Add Host dialog
@@ -28,8 +28,9 @@ Feature: Host Management
       And I should see "RAM Commitment"
       And I should see the RAM Commitment field
 
-  @login-required @emptyHostsPage
+  @login-required
   Scenario: Add an invalid host with an invalid name
+    Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with "bogushost"
@@ -38,23 +39,37 @@ Feature: Host Management
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request"
-      And I should see "No Data Found"
-      And I should see "Showing 0 Results"
+      And the Host and port field should be flagged as invalid
+      And I should see an empty Hosts page
 
-  @login-required @emptyHostsPage
+  @login-required
+  Scenario: Add an invalid host with an invalid port
+    Given there are no hosts defined
+    When I am on the hosts page
+      And I click the Add-Host button
+      And I fill in the Host Name field with "172.17.42.1:9999"
+      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the RAM Commitment field with the default RAM commitment
+      And I click "Add Host"
+    Then I should see "Error"
+      And I should see "Internal Server Error: dial tcp 172.17.42.1:9999: connection refused"
+      And I should see an empty Hosts page
+
+  @login-required
   Scenario: Add an invalid host with an invalid Resource Pool field
+    Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with the default host name
       And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request"
-      And I should see "No Data Found"
-      And I should see "Showing 0 Results"
+      And I should see "Bad Request: empty poolid not allowed"
+      And I should see an empty Hosts page
 
-  @login-required @emptyHostsPage
+  @login-required
   Scenario: Add an invalid host with an invalid RAM Commitment field
+    Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with the default host name
@@ -62,24 +77,24 @@ Feature: Host Management
       And I fill in the RAM Commitment field with "invalidentry"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request"
-      And I should see "No Data Found"
-      And I should see "Showing 0 Results"
+      And I should see "Bad Request: Parsing percentage for 'invalidentry'"
+      And I should see an empty Hosts page
 
-  @login-required @emptyHostsPage
+  @login-required
   Scenario: Fill in the hosts dialog and cancel
+    Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with the default host name
       And I fill in the Resource Pool field with the default resource pool
       And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Cancel"
-    Then I should see "No Data Found"
-      And I should see "Showing 0 Results"
+    Then I should see an empty Hosts page
       And I should not see "Success"
 
-  @login-required @emptyHostsPage
+  @login-required
   Scenario: Add an valid host
+    Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with the default host name
@@ -91,13 +106,14 @@ Feature: Host Management
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 1 Result"
 
-  @login-required @defaultHostPage
+  @login-required
   Scenario: Add another valid host
+    Given only the default host is defined
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with "vagrant:4979"
       And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with "0%"
+      And I fill in the RAM Commitment field with "10%"
       And I click "Add Host"
     Then I should see "Success"
       And I should see "roei-dev" in the "Name" column
@@ -190,26 +206,27 @@ Feature: Host Management
       And I sort by "CC Release" in descending order
     Then the "CC Release" column should be sorted in descending order
 
-  @login-required @defaultHostPage
+  @login-required
   Scenario: Add a duplicate host
+    Given only the default host is defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with "172.17.42.1:4979"
-      And I fill in the Resource Pool field with "default"
-      And I fill in the RAM Commitment field with "50%"
+      And I fill in the Host Name field with the default host name
+      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
 
-  @run @login-required @defaultHostPage
+  @login-required
   Scenario: Remove a host
+    Given only the default host is defined
     When I am on the hosts page
       And I remove "roei-dev"
     Then I should see "This action will permanently delete the host"
     When I click "Remove Host"
     Then I should see "Removed host"
-      And I should see "No Data Found"
-      And I should see "Showing 0 Results"
+      And I should see an empty Hosts page
 
   @login-required
   Scenario: View Hosts Map
