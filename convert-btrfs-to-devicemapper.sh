@@ -84,7 +84,7 @@ if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE} || fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
 fi
 
-if [[ $NO_SERVICED -ne 1 ]]; then
+if [[ ${NO_SERVICED} -ne 1 ]]; then
     # Ensure Control Center is shut down
     log Stopping Control Center
     ${CTL_CMD} stop serviced || fail Unable to stop Control Center
