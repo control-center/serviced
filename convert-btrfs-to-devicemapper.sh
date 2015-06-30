@@ -52,6 +52,8 @@ echo automatically download it from Docker Hub on startup.  To avoid saving this
 echo image, cancel and rerun the script with SKIP_ISVCS_DUMP=1. 
 echo If you want to save any other images on your system, please cancel, then do so
 echo using the "docker save" command.
+echo "This script assumes that Control Center, if installed, has been shut down first."
+echo
 confirm || exit 1
 
 
@@ -78,10 +80,6 @@ if [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     log "Saving the internal services image"
     docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE} || fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
 fi
-
-# Ensure serviced is shut down
-log Stopping Control Center
-${CTL_CMD} stop serviced || fail Unable to stop Control Center
 
 # Ensure Docker is shut down
 log Stopping Docker
