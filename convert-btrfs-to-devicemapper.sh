@@ -63,7 +63,6 @@ log /var/lib/docker is using ${DOCKER_DISK}
 
 ISVCS_DUMP_FILE="/tmp/isvcs-$(head -c 10 /dev/urandom | md5sum | awk {'print $1'}).tgz"
 if [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
-
     # Get an isvcs image
     log Preparing to extract serviced internal services image
     ISVCS_IMAGE="$(serviced version | grep IsvcsImage | awk {'print $2'})"
