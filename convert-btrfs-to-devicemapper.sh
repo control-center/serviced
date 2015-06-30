@@ -81,7 +81,10 @@ if [[ ${NO_SERVICED} -ne 1 ]] && [[ ${SKIP_ISVCS_DUMP} -ne 1 ]]; then
     fi
     # Dump the image
     log "Saving the internal services image"
-    docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE} || fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
+    docker save ${ISVCS_IMAGE} | gzip -9 > ${ISVCS_DUMP_FILE}
+    if [[ ${PIPESTATUS[0]} -ne 0 ]]; then
+        fail "Unable to save isvcs image. To ignore, rerun this script with SKIP_ISVCS_DUMP=1"
+    fi
 fi
 
 if [[ $NO_SERVICED -ne 1 ]]; then
