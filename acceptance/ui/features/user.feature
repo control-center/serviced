@@ -11,19 +11,22 @@ Feature: User Details
       And I should see "Messages"
       And I should see "Clear"
 
-  @login-required @defaultHostPage
+  @login-required
   Scenario: View all messages
+    Given I have messages
     When I view user details
     Then I should see my messages
 
-  @login-required @defaultHostPage
+  @login-required
   Scenario: Mark messages as read
+    Given I have messages
     When I view user details
-      And I click on an unread message
-    Then I should see a checkmark
+      And I click on the unread message "resource pool exists"
+    Then I should see that the "resource pool exists" message is marked as read
 
-  @login-required @defaultHostPage
+  @login-required
   Scenario: Clear messages
+    Given I have messages
     When I view user details
       And I clear my messages
     Then I should not see any messages
@@ -34,7 +37,12 @@ Feature: User Details
       And I switch the language to Spanish
     Then I should see "Usuario"
       And I should see "Mensajes"
+      And I should see "Borrar"
+    When I close the dialog
+    Then I should see "Apps Instaladas"
+      And I should see "Grupo de Recursos"
       And I should see "Servidores"
+      And I should see "Registros"
 
   @login-required
   Scenario: Switch language to English
@@ -42,4 +50,9 @@ Feature: User Details
       And I switch the language to English
     Then I should see "Username"
       And I should see "Messages"
+      And I should see "Clear"
+    When I close the dialog
+    Then I should see "Applications"
+      And I should see "Resource Pools"
       And I should see "Hosts"
+      And I should see "Logs"
