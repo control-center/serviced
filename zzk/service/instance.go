@@ -88,7 +88,6 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
-	defer rmInstanceLock(conn, stateID)
 	defer lock.Unlock()
 	glog.V(2).Infof("Acquired lock for instance %s", stateID)
 	// Remove the node on the service
@@ -184,7 +183,7 @@ func UpdateServiceState(conn client.Connection, state *ss.ServiceState) error {
 // StopServiceInstance stops a host state instance
 func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
 	return updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
-		glog.V(0).Infof("Stopping service instance via %s host %s", stateID, hostID)
+		glog.V(2).Infof("Stopping service instance via %s host %s", stateID, hostID)
 		hsdata.DesiredState = int(service.SVCStop)
 	})
 }

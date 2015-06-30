@@ -449,7 +449,7 @@ func TestServiceListener_sync(t *testing.T) {
 		var state servicestate.ServiceState
 		if err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
 			t.Fatalf("Error while getting %s: %s", hs.ServiceStateID, err)
-		} else if err := removeInstance(conn, &state); err != nil {
+		} else if err := removeInstance(conn, state.ServiceID, state.HostID, state.ID); err != nil {
 			t.Fatalf("Error while deleting %s: %s", hs.ServiceStateID, err)
 		}
 	}

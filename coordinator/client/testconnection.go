@@ -275,9 +275,20 @@ func (conn *TestConnection) Set(p string, node Node) error {
 	return nil
 }
 
+type TestLock struct {
+}
+
+func (l TestLock) Lock() error {
+	return nil
+}
+
+func (l TestLock) Unlock() error {
+	return nil
+}
+
 // NewLock implements Connection.NewLock
 func (conn *TestConnection) NewLock(path string) Lock {
-	return nil
+	return TestLock{}
 }
 
 // NewLeader implements Connection.NewLeader

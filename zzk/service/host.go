@@ -143,41 +143,42 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var processDone <-chan struct{}
-	var ss *servicestate.ServiceState
-	hpath := l.GetPath(stateID)
 
-	defer func() {
-		defer rmInstanceLock(l.conn, stateID)
-		if ss != nil {
-			glog.V(0).Infof("Stopping service instance %s on host %s", stateID, l.hostID)
-			l.stopInstance(processDone, ss)
-		} else if err := l.conn.Delete(hpath); err != nil {
-			glog.Errorf("Could not delete state %s on host %s: %s", stateID, l.hostID, err)
-		}
-	}()
-
+	defer rmInstanceLock(l.conn, stateID)
 	for {
-		var hs HostState
-		hsEvt, err := l.conn.GetW(hpath, &hs)
-		if err != nil {
-			glog.Errorf("Could not load host instance %s: %s", stateID, err)
+		// Get info about the host state and the service state
+		lock := newInstanceLock(l.conn, stateID)
+		if err := lock.Lock(); err != nil {
+			glog.Errorf("Could not lock service instance %s on host %s: %s", stateID, l.hostID, err)
 			return
 		}
-		spath := servicepath(hs.ServiceID, hs.ServiceStateID)
-		var state servicestate.ServiceState
-		ssEvt, err := l.conn.GetW(spath, &ServiceStateNode{ServiceState: &state})
-		if err != nil {
-			glog.Errorf("Could not load service state %s for service %s: %s", hs.ServiceStateID, hs.ServiceID, err)
-			return
-		}
-		ss = &state
 
+		var hs HostState
+		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs)
+		if err != nil {
+			glog.Errorf("Could not load host instance %s on host %s: %s", stateID, l.hostID, err)
+			lock.Unlock()
+			return
+		}
+		var ss servicestate.ServiceState
+		ssEvt, err := l.conn.GetW(servicepath(hs.ServiceID, stateID), &ServiceStateNode{ServiceState: &ss})
+		if err != nil {
+			glog.Errorf("Could not load service state %s for service %s on host %s: %s", stateID, hs.ServiceID, l.hostID, err)
+			lock.Unlock()
+			removeInstance(l.conn, hs.ServiceID, l.hostID, stateID)
+			return
+		}
+		lock.Unlock()
+
+		// Get the service
 		var svc service.Service
 		if err := l.conn.Get(servicepath(hs.ServiceID), &ServiceNode{Service: &svc}); err != nil {
-			glog.Errorf("Could not load service %s for service state %s: %s", hs.ServiceID, hs.ServiceStateID, err)
+			glog.Errorf("Could not load service %s for service instance %s on host %s: %s", hs.ServiceID, stateID, l.hostID, err)
+			l.stopInstance(processDone, &ss)
 			return
 		}
 
+		// Process the desired state
 		glog.V(2).Infof("Processing %s (%s); Desired State: %d", svc.Name, svc.ID, hs.DesiredState)
 		switch service.DesiredState(hs.DesiredState) {
 		case service.SVCRun:
@@ -185,32 +186,37 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if !ss.IsRunning() {
 				// process has stopped
 				glog.Infof("Starting a new instance for %s (%s): %s", svc.Name, svc.ID, stateID)
-				if processDone, err = l.startInstance(&svc, ss); err != nil {
+				if processDone, err = l.startInstance(&svc, &ss); err != nil {
 					glog.Errorf("Could not start service instance %s for service %s on host %s: %s", hs.ServiceStateID, hs.ServiceID, hs.HostID, err)
+					l.stopInstance(processDone, &ss)
 					return
 				}
 			} else if processDone == nil {
 				glog.Infof("Attaching to instance %s for %s (%s) via %s", stateID, svc.Name, svc.ID, ss.DockerID)
-				if processDone, err = l.attachInstance(&svc, ss); err != nil {
+				if processDone, err = l.attachInstance(&svc, &ss); err != nil {
 					glog.Errorf("Could not start service instance %s for service %s on host %s: %s", hs.ServiceStateID, hs.ServiceID, hs.HostID, err)
+					l.stopInstance(processDone, &ss)
 					return
 				}
 			}
 			if ss.IsPaused() {
 				glog.Infof("Resuming paused instance %s for service %s (%s)", stateID, svc.Name, svc.ID)
-				if err := l.resumeInstance(&svc, ss); err != nil {
+				if err := l.resumeInstance(&svc, &ss); err != nil {
 					glog.Errorf("Could not resume paused instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+					l.stopInstance(processDone, &ss)
 					return
 				}
 			}
 		case service.SVCPause:
 			if !ss.IsPaused() {
-				if err := l.pauseInstance(&svc, ss); err != nil {
+				if err := l.pauseInstance(&svc, &ss); err != nil {
 					glog.Errorf("Could not pause instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
+					l.stopInstance(processDone, &ss)
 					return
 				}
 			}
 		case service.SVCStop:
+			l.stopInstance(processDone, &ss)
 			return
 		default:
 			glog.V(2).Infof("Unhandled state (%d) of instance %s for service %s (%s)", hs.DesiredState, stateID, svc.Name, svc.ID, err)
@@ -222,15 +228,18 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		case e := <-hsEvt:
 			glog.V(3).Infof("Host instance %s for service %s (%s) received an event: %+v", stateID, svc.Name, svc.ID, e)
 			if e.Type == client.EventNodeDeleted {
+				l.stopInstance(processDone, &ss)
 				return
 			}
 		case e := <-ssEvt:
 			glog.V(3).Infof("Service instance %s for service %s (%s) received an event: %+v", stateID, svc.Name, svc.ID, e)
 			if e.Type == client.EventNodeDeleted {
+				l.stopInstance(processDone, &ss)
 				return
 			}
 		case <-shutdown:
 			glog.V(2).Infof("Host instance %s for service %s (%s) received signal to shutdown", stateID, svc.Name, svc.ID)
+			l.stopInstance(processDone, &ss)
 			return
 		}
 	}

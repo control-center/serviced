@@ -180,7 +180,7 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
 			c.Assert(state.IsRunning(), Equals, false)
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -312,7 +312,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -408,7 +408,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -438,7 +438,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_AttachAndDelete(c *C) {
 
 	c.Logf("Removing the instance to verify shutdown")
 	time.Sleep(zzk.ZKTestTimeout)
-	err = removeInstance(conn, node.ServiceState)
+	err = removeInstance(conn, node.ServiceState.ServiceID, node.ServiceState.HostID, node.ServiceState.ID)
 
 	select {
 	case <-done:
@@ -488,7 +488,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)
@@ -554,7 +554,7 @@ func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)

@@ -193,7 +193,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 func (l *ServiceListener) clean(rss *[]dao.RunningService) error {
 	var outRSS []dao.RunningService
 	for _, rs := range *rss {
-		if exists, err := l.conn.Exists(hostpath(rs.HostID, rs.ID)); err != nil {
+		if exists, err := l.conn.Exists(hostpath(rs.HostID, rs.ID)); err != nil && err != client.ErrNoNode {
 			glog.Errorf("Could not look up service instance %s for service %s (%s) on host %s: %s", rs.ID, rs.Name, rs.ServiceID, rs.HostID, err)
 			return err
 		} else if !exists {
@@ -202,6 +202,7 @@ func (l *ServiceListener) clean(rss *[]dao.RunningService) error {
 				glog.Errorf("Could not delete service instance %s for %s (%s): %s", rs.ID, rs.Name, rs.ServiceID, err)
 				return err
 			}
+			rmInstanceLock(l.conn, rs.ID)
 		} else {
 			outRSS = append(outRSS, rs)
 		}
