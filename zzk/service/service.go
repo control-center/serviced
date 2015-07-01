@@ -193,19 +193,20 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 func (l *ServiceListener) clean(rss *[]dao.RunningService) error {
 	var outRSS []dao.RunningService
 	for _, rs := range *rss {
-		var hs HostState
-		if err := l.conn.Get(hostpath(rs.HostID, rs.ID), &hs); err == client.ErrNoNode {
-			glog.Warningf("Service instance %s for %s (%s) not scheduled on host %s: removing", rs.ID, rs.Name, rs.ServiceID, rs.HostID)
-			if err := l.conn.Delete(servicepath(rs.ServiceID, rs.ID)); err != nil {
+		if exists, err := l.conn.Exists(hostpath(rs.HostID, rs.ID)); err != nil && err != client.ErrNoNode {
+			glog.Errorf("Could not look up service instance %s for service %s (%s) on host %s: %s", rs.ID, rs.Name, rs.ServiceID, rs.HostID, err)
+			return err
+		} else if !exists {
+			glog.Warningf("Service instance %s for %s (%s) not scheduled on host %s, removing...", rs.ID, rs.Name, rs.ServiceID, rs.HostID)
+			if err := removeInstance(l.conn, rs.ServiceID, rs.HostID, rs.ID); err != nil {
 				glog.Errorf("Could not delete service instance %s for %s (%s): %s", rs.ID, rs.Name, rs.ServiceID, err)
 				return err
 			}
-			continue
-		} else if err != nil {
-			glog.Errorf("Could not look up service instance %s for %s (%s) on host %s: %s", rs.ID, rs.Name, rs.ServiceID, rs.HostID, err)
-			return err
+			// clean up the parent of the lock
+			rmInstanceLock(l.conn, rs.ID)
+		} else {
+			outRSS = append(outRSS, rs)
 		}
-		outRSS = append(outRSS, rs)
 	}
 	*rss = outRSS
 	return nil
@@ -323,7 +324,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 
 			state.HostIP = host.IPAddr
 			state.InstanceID = instanceID
-			if err := addInstance(l.conn, state); err != nil {
+			if err := addInstance(l.conn, *state); err != nil {
 				glog.Warningf("Could not add service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 				return false
 			}
@@ -346,6 +347,8 @@ func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
+			removeInstance(l.conn, state.ServiceID, state.HostID, state.ID)
+			rmInstanceLock(l.conn, state.ID)
 			continue
 		}
 		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
