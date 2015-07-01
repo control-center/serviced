@@ -202,6 +202,7 @@ func (l *ServiceListener) clean(rss *[]dao.RunningService) error {
 				glog.Errorf("Could not delete service instance %s for %s (%s): %s", rs.ID, rs.Name, rs.ServiceID, err)
 				return err
 			}
+			// clean up the parent of the lock
 			rmInstanceLock(l.conn, rs.ID)
 		} else {
 			outRSS = append(outRSS, rs)
