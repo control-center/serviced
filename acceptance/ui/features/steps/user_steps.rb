@@ -1,6 +1,7 @@
 Given (/^I have messages$/) do
+    @user_page = User.new
     unreadCount = true
-    within("button[ng-click='modalUserDetails()']") do
+    within(@user_page.navbar.userDetails) do
         unreadCount = has_text? 0
     end
     if unreadCount
@@ -55,7 +56,6 @@ Then /^I should see that the "(.*?)" message is marked as read$/ do |title|
 end
 
 def viewUserDetails()
-    within(".navbar-collapse") do
-        page.find("[ng-click='modalUserDetails()']").click()
-    end
+    @user_page = User.new
+    @user_page.navbar.userDetails.click()
 end

@@ -95,9 +95,7 @@ def visitHostsPage()
     #                even though the same syntax works on FF
     # @hosts_page.load
     # expect(@hosts_page).to be_displayed
-    within(".navbar-collapse") do
-            click_link("Hosts")
-    end
+    @hosts_page.navbar.hosts.click()
     expect(@hosts_page).to be_displayed
 end
 

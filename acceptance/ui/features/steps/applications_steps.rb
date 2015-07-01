@@ -51,8 +51,6 @@ end
 
 def visitApplicationsPage()
     @applications_page = Applications.new
-    within(".navbar-collapse") do
-            click_link("Applications")
-    end
+    @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
 end
