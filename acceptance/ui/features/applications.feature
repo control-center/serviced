@@ -14,7 +14,7 @@ Feature: Application Management
       And I should see "Description"
       And I should see "Services Map"
 
-  @run @login-required
+  @login-required
   Scenario: View services map
     When I am on the applications page
       And I click the Services Map button
@@ -26,48 +26,6 @@ Feature: Application Management
       And I click the Add-Application Template button
     Then I should see "Add Application Template"
       And I should see "Application Template File:"
-      And I should see "No file chosen"
-
-  @login-required
-  Scenario: Add an application
-    When I am on the applications page
-      And I click the Add-Application button
-    Then I should see "Deployment Wizard"
-      And I should see "Select the application to install:"
-    When I select "Zenoss.core"
-      And I click "Next"
-    Then I should see "Select the resource pool to install to:"
-    When I select "default"
-      And I click "Next"
-    Then I should see "Zenoss.core has been configured for resource pool default"
-    When I fill in the Deployment ID field with "Hbase"
-      And I click "Deploy"
-    Then I should see "Pulling images"
-      And I should see "this may take awhile"
-      And I should see "Application deployed"
-
-  @login-required @emptyHostsPage
-  Scenario: Add an application when no hosts have been added
-    When I am on the applications page
-      And I click the Add-Application button
-    Then I should see "Deployment Wizard"
-      And I should see "Add Host"
-    When I fill in the Host and port field with "roei-dev:4979"
-      And I fill in the Resource Pool ID field with "default"
-      And I fill in the "RAM Commitment" field with "25%"
-      And I click "Next"
-    Then I should see "Select the application to install:"
-    When I select "Zenoss.core"
-      And I click "Next"
-    Then I should see "Select the resource pool to install to:"
-    When I select "default"
-      And I click "Next"
-    Then I should see "Zenoss.core has been configured for resource pool default"
-    When I fill in the Deployment ID field with "HBase"
-      And I click "Deploy"
-    Then I should see "Pulling images"
-      And I should see "this may take awhile"
-      And I should see "Application deployed"
 
   @login-required
   Scenario: Sort applications by ascending name
@@ -140,22 +98,3 @@ Feature: Application Management
     When I am on the applications page
       And I sort by "Description" in descending order
     Then the "Description" column should be sorted in descending order
-
-  @login-required
-  Scenario: Remove an Application Template
-    When I am on the applications page
-      And I remove "Zenoss.core" from the Application Templates list
-    Then I should see "Remove Template"
-      And I should see "This action will permanently delete the template"
-    When I click "Remove Template"
-    Then I should see "Removed Template"
-
-  @login-required
-  Scenario: Remove an application
-    When I am on the applications page
-      And I remove "Zenoss.core" from the Applications list
-    Then I should see "Remove Application"
-      And I should see "This action will permanently delete the running application"
-    When I click "Remove Application"
-    Then I should see "Removed App"
-      And I should not see "HBase"

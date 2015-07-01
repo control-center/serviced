@@ -76,10 +76,7 @@ end
 
 
 def sortColumn(category, order)
-  list = page.all("td[data-title-text='#{category}']")
-  for i in 0..(list.size - 1)
-    puts list[i].text
-  end
+  list = page.all("td[data-title-text='#{category}'][sortable^='']")
   for i in 0..(list.size - 2)
     if category == "Created" || category == "Last Modified"
       if order
