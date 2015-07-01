@@ -207,6 +207,7 @@ func (l *ServiceListener) clean(rss *[]dao.RunningService) error {
 			outRSS = append(outRSS, rs)
 		}
 	}
+	*rss = outRSS
 	return nil
 }
 
@@ -345,6 +346,8 @@ func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
+			removeInstance(l.conn, state.ServiceID, state.HostID, state.ID)
+			rmInstanceLock(l.conn, state.ID)
 			continue
 		}
 		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)

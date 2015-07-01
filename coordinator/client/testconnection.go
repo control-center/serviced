@@ -238,8 +238,8 @@ func (conn *TestConnection) Get(p string, node Node) error {
 		return err
 	}
 
-	conn.lock.RLock()
-	defer conn.lock.RUnlock()
+	conn.lock.Lock()
+	defer conn.lock.Unlock()
 	if data, ok := conn.nodes[p]; !ok {
 		return ErrNoNode
 	} else if data == nil {

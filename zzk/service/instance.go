@@ -145,7 +145,6 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 		glog.Errorf("Could not update instance %s for service %s: %s", stateID, serviceID, err)
 		return err
 	}
-	glog.V(2).Infof("Releasing lock for instance %s", stateID)
 	return nil
 }
 

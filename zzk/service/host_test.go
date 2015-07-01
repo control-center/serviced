@@ -230,7 +230,7 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 }
 
 func (t *ZZKTest) TestHostStateListener_Listen_BadState(c *C) {
-	conn, err := zzk.GetLocalConnection("/base")
+	conn, err := zzk.GetLocalConnection("/base_badstate")
 	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
@@ -523,7 +523,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_Shutdown(c *C) {
 }
 
 func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
-	conn, err := zzk.GetLocalConnection("/base")
+	conn, err := zzk.GetLocalConnection("/base_pauseANDresume")
 	c.Assert(err, IsNil)
 
 	handler := new(TestHostStateHandler).init()
@@ -568,12 +568,18 @@ func (t *ZZKTest) TestHostStateListener_pauseANDresume(c *C) {
 	var node ServiceStateNode
 	err = conn.Get(servicepath(svc.ID, stateID), &node)
 	c.Assert(err, IsNil)
-
 	err = handler.StartService(&svc, node.ServiceState, func(_ string) {})
+	c.Assert(err, IsNil)
+	err = conn.Set(servicepath(node.ServiceID, node.ID), &node)
 	c.Assert(err, IsNil)
 	err = listener.pauseInstance(&svc, node.ServiceState)
 	c.Assert(err, IsNil)
+	err = conn.Get(servicepath(node.ServiceID, node.ID), &node)
+	c.Assert(err, IsNil)
 	c.Assert(node.IsPaused(), Equals, true)
 	err = listener.resumeInstance(&svc, node.ServiceState)
+	c.Assert(err, IsNil)
+	err = conn.Get(servicepath(node.ServiceID, node.ID), &node)
+	c.Assert(err, IsNil)
 	c.Assert(node.IsPaused(), Equals, false)
 }
