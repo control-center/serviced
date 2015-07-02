@@ -21,8 +21,8 @@ Feature: User Details
   Scenario: Mark messages as read
     Given I have messages
     When I view user details
-      And I click on the unread message "resource pool exists"
-    Then I should see that the "resource pool exists" message is marked as read
+      And I click on the first unread message
+    Then I should see that the first unread message is marked as read
 
   @login-required
   Scenario: Clear messages

@@ -116,10 +116,11 @@ Feature: Host Management
       And I fill in the RAM Commitment field with "10%"
       And I click "Add Host"
     Then I should see "Success"
+      And I should see an entry for "vagrant" in the table
       And I should see "roei-dev" in the "Name" column
-      And I should see "default" in the "Research Pool" column
+      And I should see "default" in the "Resource Pool" column
       And I should see "vagrant" in the "Name" column
-      And I should see "default" in the "Research Pool" column
+      And I should see "default" in the "Resource Pool" column
       And I should see "Showing 2 Results"
 
   @login-required

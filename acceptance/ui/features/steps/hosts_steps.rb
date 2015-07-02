@@ -50,7 +50,7 @@ When /^I click the Add-Host button$/ do
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|
-    list = page.all("[ng-if$='host.active']")
+    list = @hosts_page.active_icons
     for i in 0..(list.size - 2)
         if order == "top"
              # assuming + (good ng-scope) before - (down ng-scope) before ! (bad ng-scope)
@@ -62,7 +62,7 @@ Then (/^the "Active" column should be sorted with active hosts on (top|the botto
 end
 
 Then /^I should see the Add Host dialog$/ do
-    @hosts_page.assert_selector '.modal-content'                # class for dialog box
+    @hosts_page.addHost_dialog.visible?
 end
 
 Then /^I should see the Host and port field$/ do
@@ -78,7 +78,7 @@ Then /^I should see the RAM Commitment field$/ do
 end
 
 Then /^I should see an empty Hosts page$/ do
-    @hosts_page.assert_no_selector("[ng-repeat='host in $data']")
+    expect(@hosts_page).to have_no_host_entry
     @hosts_page.assert_text("Showing 0 Results")
     @hosts_page.assert_text("No Data Found")
 end
@@ -118,7 +118,7 @@ end
 def removeAllHosts()
     defaultMatch = Capybara.match
     Capybara.match=:first
-    while @hosts_page.all("[ng-repeat='host in $data']").size != 0 do
+    while @hosts_page.host_entries.size != 0 do
         click_link_or_button("Delete")
         click_link_or_button("Remove Host")
     end
