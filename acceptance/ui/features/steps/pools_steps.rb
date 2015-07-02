@@ -28,9 +28,7 @@ end
 
 def visitPoolsPage()
     @pools_page = Pools.new
-    within(".navbar-collapse") do
-        click_link("Resource Pools")
-    end
+    @pools_page.navbar.resourcePools.click()
     expect(@pools_page).to be_displayed
 end
 

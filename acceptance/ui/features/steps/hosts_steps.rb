@@ -3,18 +3,18 @@ DEFAULT_POOL = "default"
 DEFAULT_COMMITMENT = "50%"
 
 Given(/^there are no hosts defined$/) do
-  visitHostsPage()
-  removeAllHosts()
+    visitHostsPage()
+    removeAllHosts()
 end
 
 Given(/^only the default host is defined$/) do
-  visitHostsPage()
-  removeAllHosts()
-  clickAddHostButton()
-  fillInHostAndPort(DEFAULT_HOST)
-  fillInResourcePool(DEFAULT_POOL)
-  fillInRAMCommitment(DEFAULT_COMMITMENT)
-  click_link_or_button("Add Host")
+    visitHostsPage()
+    removeAllHosts()
+    clickAddHostButton()
+    fillInHostAndPort(DEFAULT_HOST)
+    fillInResourcePool(DEFAULT_POOL)
+    fillInRAMCommitment(DEFAULT_COMMITMENT)
+    click_link_or_button("Add Host")
 end
 
 When(/^I am on the hosts page$/) do
@@ -50,19 +50,19 @@ When /^I click the Add-Host button$/ do
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|
-  list = page.all("[ng-if$='host.active']")
-  for i in 0..(list.size - 2)
-    if order == "top"
-       # assuming + (good ng-scope) before - (down ng-scope) before ! (bad ng-scope)
-      list[i][:class].should >= list[i + 1][:class]
-    else
-      list[i][:class].should <= list[i + 1][:class]    # assuming ! before - before +
+    list = page.all("[ng-if$='host.active']")
+    for i in 0..(list.size - 2)
+        if order == "top"
+             # assuming + (good ng-scope) before - (down ng-scope) before ! (bad ng-scope)
+            list[i][:class].should >= list[i + 1][:class]
+        else
+            list[i][:class].should <= list[i + 1][:class]        # assuming ! before - before +
+        end
     end
-  end
 end
 
 Then /^I should see the Add Host dialog$/ do
-    @hosts_page.assert_selector '.modal-content'        # class for dialog box
+    @hosts_page.assert_selector '.modal-content'                # class for dialog box
 end
 
 Then /^I should see the Host and port field$/ do
@@ -92,12 +92,10 @@ def visitHostsPage()
     @hosts_page = Hosts.new
     #
     # FIXME: For some reason the following load fails on Chrome for this page,
-    #        even though the same syntax works on FF
+    #                even though the same syntax works on FF
     # @hosts_page.load
     # expect(@hosts_page).to be_displayed
-    within(".navbar-collapse") do
-        click_link("Hosts")
-    end
+    @hosts_page.navbar.hosts.click()
     expect(@hosts_page).to be_displayed
 end
 
@@ -121,8 +119,8 @@ def removeAllHosts()
     defaultMatch = Capybara.match
     Capybara.match=:first
     while @hosts_page.all("[ng-repeat='host in $data']").size != 0 do
-      click_link_or_button("Delete")
-      click_link_or_button("Remove Host")
+        click_link_or_button("Delete")
+        click_link_or_button("Remove Host")
     end
     Capybara.match = defaultMatch
 end
