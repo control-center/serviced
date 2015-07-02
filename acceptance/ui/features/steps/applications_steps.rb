@@ -12,6 +12,7 @@ end
 
 When(/^I click the Services Map button$/) do
     @applications_page.servicesMap_button.click()
+    @servicesMap_page = ServicesMap.new
 end
 
 When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
@@ -19,20 +20,20 @@ When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
 end
 
 When(/^I remove "(.*?)" from the Applications list$/) do |name|
-    within("table[data-config='servicesTable']", :text => name) do
+    within(@applications_page.services_table, :text => name) do
         click_link_or_button("Delete")
     end
 end
 
 When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
-    within("table[data-config='templatesTable']", :text => name) do
+    within(@applications_page.templates_table, :text => name) do
         click_link_or_button("Delete")
     end
 end
 
 
 Then /^the "Status" column should be sorted with active applications on (top|the bottom)$/ do |order|
-    list = page.all("[data-status$='service.status']")
+    list = @applications_page.status_icons
     for i in 0..(list.size - 2)
         if order == "top"
             # assuming - (ng-isolate-scope down) before + (ng-isolate-scope good)
@@ -44,7 +45,7 @@ Then /^the "Status" column should be sorted with active applications on (top|the
 end
 
 Then (/^I should see "([^"]*)" in the Services Map$/) do |node|
-    within("svg") do
+    within(@servicesMap_page.map) do
         assert_text(node)
     end
 end
