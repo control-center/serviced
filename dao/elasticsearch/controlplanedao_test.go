@@ -161,7 +161,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		},
 	}
 	err := dt.Dao.AddService(svc, &id)
-	t.Assert(err, NotNil)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 
 	// test 2: success
 	svc.Endpoints = []service.ServiceEndpoint{
@@ -176,7 +177,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
 	}
 	err = dt.Dao.UpdateService(svc, &unused)
-	t.Assert(err, NotNil)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 
 	// test 4: add child service with dup ep
 	svc2 := service.Service{
@@ -191,7 +193,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		},
 	}
 	err = dt.Dao.AddService(svc2, &id)
-	t.Assert(err, NotNil)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 
 	// test 5: add child success
 	svc2.Endpoints = []service.ServiceEndpoint{
@@ -206,7 +209,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
 	}
 	err = dt.Dao.UpdateService(svc, &unused)
-	t.Assert(err, NotNil)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 
 	// test 7: update parent service success
 	svc.Endpoints = []service.ServiceEndpoint{
@@ -222,7 +226,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
 	}
 	err = dt.Dao.UpdateService(svc2, &unused)
-	t.Assert(err, NotNil)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 
 	// test 9: update child service success
 	svc2.Endpoints = []service.ServiceEndpoint{
