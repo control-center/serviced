@@ -55,7 +55,11 @@ end
 Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
     # attribute that includes name of column of all table cells
     list = page.all("td[data-title-text='#{column}']")
-    list.include?(:text => text)
+    hasEntry = false
+    for i in 0..(list.size - 1)
+        hasEntry = true if list[i].text == text
+    end
+    expect(hasEntry).to be true
 end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
