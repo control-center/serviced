@@ -1383,6 +1383,11 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 	}
 	svc.ID = id
 
+	// Primary service validation
+	if err := svc.ValidEntity(); err != nil {
+		return err
+	}
+
 	svcStore := f.serviceStore
 	currentSvc, err := svcStore.Get(ctx, svc.ID)
 	if err != nil {
@@ -1404,11 +1409,6 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 	// verify that the service endpoints are unique per the tenant
 	if err := f.validateServiceEndpoints(ctx, svc); err != nil {
 		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
-	}
-
-	// Primary service validation
-	if err := svc.ValidEntity(); err != nil {
 		return err
 	}
 
