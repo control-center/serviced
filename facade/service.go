@@ -389,7 +389,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 	return svc, nil
 }
 
-//
+// GetServices looks up all services.  Can filter by tenant ID, name (regular expression), and/or update time.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
@@ -420,7 +420,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		if request.(dao.ServiceRequest).NameRegex != "" {
 			services, err = filterByNameRegex(request.(dao.ServiceRequest).NameRegex, services)
 			if err != nil {
-				glog.Error("Facade.GetTaggedServices: err=", err)
+				glog.Error("Facade.GetServices: err=", err)
 				return nil, err
 			}
 		}
@@ -429,7 +429,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		if request.(dao.ServiceRequest).TenantID != "" {
 			services, err = f.filterByTenantID(ctx, request.(dao.ServiceRequest).TenantID, services)
 			if err != nil {
-				glog.Error("Facade.GetTaggedServices: err=", err)
+				glog.Error("Facade.GetServices: err=", err)
 				return nil, err
 			}
 		}
@@ -437,7 +437,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		return services, nil
 	default:
 		err := fmt.Errorf("Bad request type %v: %+v", v, request)
-		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
+		glog.V(2).Info("Facade.GetServices: err=", err)
 		return nil, err
 	}
 }
@@ -457,7 +457,7 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]serv
 	return results, nil
 }
 
-//
+// GetTaggedServices looks up all services with the specified tags.	 Can filter by tenant ID and/or name (regular expression).
 func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetTaggedServices")
 
@@ -524,7 +524,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 
 // Get a service endpoint.
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]dao.ApplicationEndpoint, error) {
-	// TODO: this function is obsolete.  Remove it.
+	// TODO: this function is obsolete.	 Remove it.
 	result := make(map[string][]dao.ApplicationEndpoint)
 	return result, fmt.Errorf("facade.GetServiceEndpoints is obsolete - do not use it")
 }
@@ -990,7 +990,7 @@ func (f *Facade) filterByTenantID(ctx datastore.Context, matchTenantID string, s
 		}
 
 		if localTenantID == matchTenantID {
-			glog.V(5).Infof("    Keeping service ID: %v (tenant ID: %v)", service.ID, localTenantID)
+			glog.V(5).Infof("	 Keeping service ID: %v (tenant ID: %v)", service.ID, localTenantID)
 			matches = append(matches, service)
 		}
 	}
@@ -1008,7 +1008,7 @@ func filterByNameRegex(nmregex string, services []service.Service) ([]service.Se
 	matches := []service.Service{}
 	for _, service := range services {
 		if r.MatchString(service.Name) {
-			glog.V(5).Infof("    Keeping service ID: %v (service name: %v)", service.ID, service.Name)
+			glog.V(5).Infof("	 Keeping service ID: %v (service name: %v)", service.ID, service.Name)
 			matches = append(matches, service)
 		}
 	}
