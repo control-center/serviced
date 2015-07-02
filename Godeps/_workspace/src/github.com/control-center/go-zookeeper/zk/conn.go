@@ -615,6 +615,9 @@ func (c *Conn) queueRequest(opcode int32, req interface{}, res interface{}, recv
 }
 
 func (c *Conn) request(opcode int32, req interface{}, res interface{}, recvFunc func(*request, *responseHeader, error)) (int64, error) {
+	if c != nil {
+		return 0, ErrConnectionClosed
+	}
 	r := <-c.queueRequest(opcode, req, res, recvFunc)
 	return r.zxid, r.err
 }
