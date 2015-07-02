@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/validation"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
@@ -65,6 +66,12 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	} else if s != nil {
 		err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
 		glog.Errorf("Cannot create service %s: %s", svc.Name, err)
+		return err
+	}
+
+	// verify that the service endpoints are unique per the tenant
+	if err := f.validateServiceEndpoints(ctx, &svc); err != nil {
+		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
 
@@ -1317,6 +1324,40 @@ func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfigura
 	return zkAPI(f).UpdateService(svc)
 }
 
+// validateServiceEndpoints traverses the service tree and checks for duplicate
+// endpoints
+func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Service) error {
+	epValidator := service.NewServiceEndpointValidator()
+	vErr := validation.NewValidationError()
+
+	epValidator.IsValid(vErr, svc)
+	if vErr.HasError() {
+		glog.Errorf("Service %s (%s) has duplicate endpoints: %s", svc.Name, svc.ID, vErr)
+		return vErr
+	}
+
+	tenantID, err := f.GetTenantID(ctx, svc.ID)
+	if err != nil {
+		glog.Errorf("Could not look up tenant id for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+
+	if err := f.walkServices(ctx, tenantID, true, func(s *service.Service) error {
+		// we can skip this service because we already checked it above
+		if s.ID != svc.ID {
+			epValidator.IsValid(vErr, s)
+		}
+		return nil
+	}); err != nil {
+		glog.Errorf("Could not walk service tree of %s (%s) with tenant %s: %s", svc.Name, svc.ID, tenantID, err)
+		return err
+	}
+	if vErr.HasError() {
+		return vErr
+	}
+	return nil
+}
+
 // Verify that the svc is valid for update.
 // Should be called for all updated (edited), and migrated services.
 // This method is only responsible for validation.
@@ -1335,11 +1376,6 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 		return err
 	}
 
-	err = svc.ValidEntity()
-	if err != nil {
-		return err
-	}
-
 	// verify the service with name and parent does not collide with another existing service
 	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
 		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
@@ -1350,6 +1386,12 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
 			return err
 		}
+	}
+
+	// verify that the service endpoints are unique per the tenant
+	if err := f.validateServiceEndpoints(ctx, svc); err != nil {
+		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
 	}
 
 	// Primary service validation
