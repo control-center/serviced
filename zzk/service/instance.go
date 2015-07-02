@@ -86,6 +86,7 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 // removeInstance removes the service state and host instances
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
+	defer rmInstanceLock(conn, stateID)
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)

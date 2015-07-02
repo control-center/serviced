@@ -144,7 +144,6 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var processDone <-chan struct{}
 
-	defer rmInstanceLock(l.conn, stateID)
 	// Let's have exclusive access to this node
 	lock := newInstanceLock(l.conn, stateID)
 	if err := lock.Lock(); err != nil {
