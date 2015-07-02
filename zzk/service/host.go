@@ -144,7 +144,6 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var processDone <-chan struct{}
 
-	defer rmInstanceLock(l.conn, stateID)
 	// Let's have exclusive access to this node
 	lock := newInstanceLock(l.conn, stateID)
 	if err := lock.Lock(); err != nil {
@@ -178,7 +177,6 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			return
 		}
 		// Get the ServiceState instance
-		var ss servicestate.ServiceState
 		ssEvt, err := l.conn.GetW(servicepath(hs.ServiceID, stateID), &ServiceStateNode{ServiceState: &ss})
 		if err != nil {
 			glog.Errorf("Could not load service state %s for service %s on host %s: %s", stateID, hs.ServiceID, l.hostID, err)

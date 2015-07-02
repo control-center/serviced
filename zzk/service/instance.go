@@ -14,6 +14,7 @@
 package service
 
 import (
+	"errors"
 	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -25,6 +26,8 @@ import (
 const (
 	zkInstanceLock = "/locks/instances"
 )
+
+var ErrLockNotFound = errors.New("lock not found")
 
 // newInstanceLock sets up a new zk instance lock for a given service state id
 func newInstanceLock(conn client.Connection, stateID string) client.Lock {
@@ -83,6 +86,7 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 // removeInstance removes the service state and host instances
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
+	defer rmInstanceLock(conn, stateID)
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
@@ -113,6 +117,15 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 // updateInstance updates the service state and host instances
 func updateInstance(conn client.Connection, hostID, stateID string, mutate func(*HostState, *ss.ServiceState)) error {
 	glog.V(2).Infof("Updating instance %s", stateID)
+	// do not lock if parent lock does not exist
+	if exists, err := conn.Exists(path.Join(zkInstanceLock, stateID)); err != nil && err != client.ErrNoNode {
+		glog.Errorf("Could not check for lock on instance %s: %s", stateID, err)
+		return err
+	} else if !exists {
+		glog.Errorf("Lock not found for instance %s", stateID)
+		return ErrLockNotFound
+	}
+
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s on host %s: %s", stateID, hostID, err)
