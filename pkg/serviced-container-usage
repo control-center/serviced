@@ -16,6 +16,7 @@
 import sys
 import glob
 import argparse
+import json
 import os.path
 import subprocess
 import operator
@@ -42,6 +43,23 @@ def under_docker(*args):
     return os.path.join(DOCKER_LIB, *args)
 
 
+def dmsetup(*args):
+    """
+    Utility function to run a Docker subcommand and return its output.
+    """
+    cmd = ["dmsetup"]
+    cmd.extend(args)
+    return subprocess.check_output(cmd, stderr=DEVNULL)
+
+def docker(*args):
+    """
+    Utility function to run a Docker subcommand and return its output.
+    """
+    cmd = ["docker"]
+    cmd.extend(args)
+    return subprocess.check_output(cmd, stderr=DEVNULL)
+
+
 def btrfs(*args):
     """
     Utility function to run a btrfs subcommand and return its output.
@@ -59,8 +77,8 @@ class Container(object):
         self._id = id_
         self.subvol_id = None
         self._log_file_size = 0
-        self.btrfs_total = 0
-        self.btrfs_exclusive = 0
+        self.disk_total = 0
+        self.disk_exclusive = 0
 
     def in_container_dir(self, *args):
         return under_docker("containers", self._id, *args)
@@ -90,7 +108,7 @@ class Container(object):
         """
         Exists for sorting purposes.
         """
-        return self.btrfs_exclusive
+        return self.disk_exclusive
 
     @property
     def total(self):
@@ -105,6 +123,7 @@ class ContainerInfo(object):
     def __init__(self):
         self._containers = {}
         self._containers_by_subvol = {}
+        self._image_sizes = {}
 
     def _populate_containers(self, historical=False):
         """
@@ -121,7 +140,7 @@ class ContainerInfo(object):
             s = s.strip()
             self._containers[s] = Container(s)
 
-    def _populate_subvolume_info(self):
+    def _btrfs_populate_subvolume_info(self):
         """
         Populates Containers in our internal map with subvolume ids.
         """
@@ -136,22 +155,51 @@ class ContainerInfo(object):
                 container.subvol_id = subvol_id
                 self._containers_by_subvol[subvol_id] = container
 
-    def _populate_qgroup_sizes(self):
+    def _btrfs_populate_qgroup_sizes(self):
         try:
             for line in btrfs("qgroup", "show", under_docker("btrfs", "subvolumes")).splitlines():
                 args = [x for x in line.split() if x]
                 subvol_id = args[0].split('/')[-1]
                 container = self._containers_by_subvol.get(subvol_id)
                 if container is not None:
-                    container.btrfs_total = int(args[1])
-                    container.btrfs_exclusive = int(args[2])
+                    container.disk_total = int(args[1])
+                    container.disk_exclusive = int(args[2])
         except subprocess.CalledProcessError:
             fail("Unable to retrieve btrfs container sizes.")
 
+    def _dm_populate_disk(self):
+        dm_disks = {}
+        for line in dmsetup("status").splitlines():
+            if not line.startswith('docker') or 'thin-pool' in line:
+                continue
+            device, _, _, _, sectors, _ = line.strip().split()
+            id_ = device.split('-')[-1].strip(':')
+            dm_disks[id_] = int(sectors) * 512
+        for container in self._containers.itervalues():
+            image_id = docker("inspect", "--format", '{{.Image}}', container._id).strip()
+            image_size = self._image_sizes.get(image_id)
+            if image_size is None:
+                image_size = json.loads(docker("inspect", "--format", "{{json .VirtualSize}}", image_id))
+                self._image_sizes[image_id] = image_size
+            container_size = dm_disks.get(container._id)
+            container.disk_total = int(container_size)
+            container.disk_exclusive = int(container_size - image_size)
+
+    def get_storage(self):
+        for line in docker("info").splitlines():
+            if line.startswith("Storage Driver"):
+                return line.split()[-1]
+
     def populate(self, historical=False):
         self._populate_containers(historical)
-        self._populate_subvolume_info()
-        self._populate_qgroup_sizes()
+        storage_driver = self.get_storage()
+        if storage_driver == "btrfs":
+            self._btrfs_populate_subvolume_info()
+            self._btrfs_populate_qgroup_sizes()
+        elif storage_driver == "devicemapper":
+            self._dm_populate_disk()
+        else:
+            fail("Unknown Docker storage driver")
 
     def sorted(self, sortfunc, reverse=False):
         return sorted(self._containers.itervalues(), key=sortfunc, reverse=reverse)
