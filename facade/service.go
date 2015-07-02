@@ -1336,10 +1336,23 @@ func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Se
 		return vErr
 	}
 
-	tenantID, err := f.GetTenantID(ctx, svc.ID)
-	if err != nil {
-		glog.Errorf("Could not look up tenant id for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
+	var tenantID string
+	if svc.ParentServiceID == "" {
+		// this service is a tenant so we don't have to traverse its tree if
+		// it is a new service
+		if _, err := f.serviceStore.Get(ctx, svc.ID); datastore.IsErrNoSuchEntity(err) {
+			return nil
+		} else if err != nil {
+			glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+		tenantID = svc.ID
+	} else {
+		var err error
+		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
+			glog.Errorf("Could not look up tenantID for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
 	}
 
 	if err := f.walkServices(ctx, tenantID, true, func(s *service.Service) error {
