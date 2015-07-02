@@ -19,39 +19,39 @@ When(/^I view user details$/) do
 end
 
 When (/^I clear my messages$/) do
-    page.find("[ng-click='clearMessages()']").click()
+    @user_page.clearMessages_button.click()
 end
 
-When (/^I click on the unread message "(.*?)"$/) do |title|
+When (/^I click on the first unread message$/) do
     defaultMatch = Capybara.match
     Capybara.match=:first
-    page.find("[class='message unreadMessage ng-scope']", :text => title).click()
+    @user_page.unreadMessage.click()
     Capybara.match = defaultMatch
 end
 
 When (/^I switch the language to English$/) do
-    page.find("input[value='en_US']").click()
+    @user_page.english_button.click()
 end
 
 When (/^I switch the language to Spanish$/) do
-    page.find("input[value='es_US']").click()
+    @user_page.spanish_button.click()
 end
 
 Then /^I should see my messages$/ do
-    page.assert_selector("[ng-repeat='message in messages.messages track by message.id']")
+    defaultMatch = Capybara.match
+    Capybara.match=:first
+    expect(@user_page.message.visible?).to be true
+    Capybara.match = defaultMatch
 end
 
 Then /^I should not see any messages$/ do
-    page.assert_no_selector("[ng-repeat='message in messages.messages track by message.id']")
+    expect(@user_page.has_selector?("div[class^='message ']")).to be false
 end
 
-Then /^I should see that the "(.*?)" message is marked as read$/ do |title|
+Then /^I should see that the first unread message is marked as read$/ do
     defaultMatch = Capybara.match
     Capybara.match=:first
-    within("ul[class='well list-group']") do
-        message = page.find("[class^='message']", :text => title)
-        expect(message[:class]).to include("message readMessage ng-scope")
-    end
+    expect(@user_page.message[:class]).to include("message readMessage ng-scope")
     Capybara.match = defaultMatch
 end
 
