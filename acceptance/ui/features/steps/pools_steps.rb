@@ -1,3 +1,15 @@
+Given /^that multiple research pools have been added$/ do
+    visitPoolsPage()
+    if @pools_page.has_text?("Showing 0 Results") || @pools_page.has_text?("Showing 1 Result")
+        clickAddPoolButton()
+        fillInResourcePoolField("Test Pool 1")
+        click_link_or_button("Add Resource Pool")
+        clickAddPoolButton()
+        fillInResourcePoolField("Test Pool 2")
+        click_link_or_button("Add Resource Pool")
+    end
+end
+
 When(/^I am on the resource pool page$/) do
     visitPoolsPage()
 end
