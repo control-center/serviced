@@ -144,11 +144,8 @@ func (l *HostRegistryListener) unregister(hostID string) {
 	}
 
 	for _, rs := range rss {
-		if err := l.conn.Delete(hostpath(rs.HostID, rs.ID)); err != nil {
-			glog.Warningf("Could not delete service instance %s on host %s", rs.ID, rs.HostID)
-		}
-		if err := l.conn.Delete(servicepath(rs.ServiceID, rs.ID)); err != nil {
-			glog.Warningf("Could not delete service instance %s for service %s", rs.ID, rs.ServiceID)
+		if err := removeInstance(l.conn, rs.ServiceID, rs.HostID, rs.ID); err != nil {
+			glog.Warningf("Could not remove service instance %s of service %s on host %s: %s", rs.ID, rs.ServiceID, rs.HostID, err)
 		}
 	}
 	return
@@ -248,7 +245,12 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 		return err
 	}
 	for _, stateID := range nodes {
-		if err := StopServiceInstance(conn, hostID, stateID); err != nil {
+		var hs HostState
+		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
+			glog.Errorf("Could not get host instance %s: %s", stateID, err)
+			return err
+		} else if err := StopServiceInstance(conn, hs.ServiceID, hs.HostID, hs.ServiceStateID); err != nil {
+			glog.Errorf("Could not stop service instance %s: %s", hs.ServiceStateID, err)
 			return err
 		}
 	}

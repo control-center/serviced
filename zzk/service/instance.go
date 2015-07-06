@@ -41,7 +41,7 @@ func rmInstanceLock(conn client.Connection, stateID string) error {
 
 // addInstance creates a new service state and host instance
 func addInstance(conn client.Connection, state ss.ServiceState) error {
-	glog.V(2).Infof("Adding instance %+v", state)
+	glog.V(0).Infof("Adding instance %+v", state)
 	// check the object
 	if err := state.ValidEntity(); err != nil {
 		glog.Errorf("Could not validate service state %+v: %s", state, err)
@@ -52,47 +52,55 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
 		return err
 	}
+	glog.V(0).Infof("Acquired lock for instance %s", state.ID)
 	defer lock.Unlock()
-	glog.V(2).Infof("Acquired lock for instance %s", state.ID)
+
+	var err error
+	defer func() {
+		if err != nil {
+			conn.Delete(hostpath(state.HostID, state.ID))
+			conn.Delete(servicepath(state.ServiceID, state.ID))
+			rmInstanceLock(conn, state.ID)
+		}
+	}()
+
 	// Create node on the service
 	spath := servicepath(state.ServiceID, state.ID)
 	snode := &ServiceStateNode{ServiceState: &state}
-	if err := conn.Create(spath, snode); err != nil {
+	if err = conn.Create(spath, snode); err != nil {
 		glog.Errorf("Could not create service state %s for service %s: %s", state.ID, state.ServiceID, err)
 		return err
-	} else if err := conn.Set(spath, snode); err != nil {
-		defer conn.Delete(spath)
+	} else if err = conn.Set(spath, snode); err != nil {
 		glog.Errorf("Could not set service state %s for node %+v: %s", state.ID, snode, err)
 		return err
 	}
+
 	// Create node on the host
 	hpath := hostpath(state.HostID, state.ID)
 	hnode := NewHostState(&state)
-	glog.V(2).Infof("Host node: %+v", hnode)
-	if err := conn.Create(hpath, hnode); err != nil {
-		defer conn.Delete(spath)
+	glog.V(0).Infof("Host node: %+v", hnode)
+	if err = conn.Create(hpath, hnode); err != nil {
 		glog.Errorf("Could not create host state %s for host %s: %s", state.ID, state.HostID, err)
 		return err
-	} else if err := conn.Set(hpath, hnode); err != nil {
-		defer conn.Delete(spath)
-		defer conn.Delete(hpath)
+	} else if err = conn.Set(hpath, hnode); err != nil {
 		glog.Errorf("Could not set host state %s for node %+v: %s", state.ID, hnode, err)
 		return err
 	}
-	glog.V(2).Infof("Releasing lock for instance %s", state.ID)
+
+	glog.V(0).Infof("Releasing lock for instance %s", state.ID)
 	return nil
 }
 
 // removeInstance removes the service state and host instances
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
-	defer rmInstanceLock(conn, stateID)
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
 	defer lock.Unlock()
+	defer rmInstanceLock(conn, stateID)
 	glog.V(2).Infof("Acquired lock for instance %s", stateID)
 	// Remove the node on the service
 	spath := servicepath(serviceID, stateID)
@@ -158,6 +166,7 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 		glog.Errorf("Could not update instance %s for service %s: %s", stateID, serviceID, err)
 		return err
 	}
+	glog.V(2).Infof("Releasing lock for instance %s", stateID)
 	return nil
 }
 
@@ -193,9 +202,15 @@ func UpdateServiceState(conn client.Connection, state *ss.ServiceState) error {
 }
 
 // StopServiceInstance stops a host state instance
-func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
-	return updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
+func StopServiceInstance(conn client.Connection, serviceID, hostID, stateID string) error {
+	err := updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
 		glog.V(2).Infof("Stopping service instance via %s host %s", stateID, hostID)
 		hsdata.DesiredState = int(service.SVCStop)
 	})
+	if err != nil {
+		glog.Errorf("Could not stop service instance %s on host %s: removing", stateID, hostID)
+		removeInstance(conn, serviceID, hostID, stateID)
+		return err
+	}
+	return nil
 }

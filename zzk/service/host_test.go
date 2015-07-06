@@ -223,7 +223,7 @@ func (t *ZZKTest) TestHostStateListener_Listen(c *C) {
 
 	// Stop states
 	for _, stateID := range stateIDs {
-		err = StopServiceInstance(conn, "test-host-1", stateID)
+		err = StopServiceInstance(conn, svc.ID, "test-host-1", stateID)
 		c.Assert(err, IsNil)
 	}
 	wait(svc.ID, service.SVCStop)
@@ -369,7 +369,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 	c.Assert(node1.Started.Unix(), Equals, node2.Started.Unix())
 
 	c.Logf("Stopping service instance")
-	err = StopServiceInstance(conn, "test-host-1", stateID)
+	err = StopServiceInstance(conn, svc.ID, "test-host-1", stateID)
 	wait(svc.ID, service.SVCStop)
 }
 
