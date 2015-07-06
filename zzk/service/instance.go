@@ -202,15 +202,9 @@ func UpdateServiceState(conn client.Connection, state *ss.ServiceState) error {
 }
 
 // StopServiceInstance stops a host state instance
-func StopServiceInstance(conn client.Connection, serviceID, hostID, stateID string) error {
-	err := updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
+func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
+	return updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
 		glog.V(2).Infof("Stopping service instance via %s host %s", stateID, hostID)
 		hsdata.DesiredState = int(service.SVCStop)
 	})
-	if err != nil {
-		glog.Errorf("Could not stop service instance %s on host %s: removing", stateID, hostID)
-		removeInstance(conn, serviceID, hostID, stateID)
-		return err
-	}
-	return nil
 }

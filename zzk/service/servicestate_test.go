@@ -119,7 +119,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 
 	c.Log("Desired state is STOP")
 	for _, state := range stateIDs {
-		err := StopServiceInstance(conn, svc.ID, "test-host-1", state)
+		err := StopServiceInstance(conn, "test-host-1", state)
 		c.Assert(err, IsNil)
 	}
 	statusmap, err = GetServiceStatus(conn, svc.ID)

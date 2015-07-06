@@ -245,12 +245,8 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 		return err
 	}
 	for _, stateID := range nodes {
-		var hs HostState
-		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
-			glog.Errorf("Could not get host instance %s: %s", stateID, err)
-			return err
-		} else if err := StopServiceInstance(conn, hs.ServiceID, hs.HostID, hs.ServiceStateID); err != nil {
-			glog.Errorf("Could not stop service instance %s: %s", hs.ServiceStateID, err)
+		if err := StopServiceInstance(conn, hostID, stateID); err != nil {
+			glog.Errorf("Could not stop service instance %s: %s", stateID, err)
 			return err
 		}
 	}

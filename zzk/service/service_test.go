@@ -63,6 +63,7 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 
 	// wait for instance to start
 	getInstance := func(serviceID string) string {
+		var instanceID string
 		var svc service.Service
 		err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc})
 		c.Assert(err, IsNil)
@@ -71,45 +72,48 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 		for {
 			stateIDs, ev, err := conn.ChildrenW(servicepath(serviceID))
 			c.Assert(err, IsNil)
-			if len(stateIDs) < 1 {
+			if len(stateIDs) != 1 {
 				select {
 				case <-ev:
 				case <-timeout:
 					c.Fatalf("Wait time exceeded timeout!")
 				}
 			} else {
-				return stateIDs[0]
+				instanceID = stateIDs[0]
+				if err = updateInstance(conn, "test-host-1", instanceID, func(_ *HostState, _ *servicestate.ServiceState) {}); err == nil {
+					return instanceID
+				}
 			}
 		}
 	}
 
 	instanceID := getInstance(svc.ID)
 
-	lock := newInstanceLock(conn, instanceID)
-	err = lock.Lock()
-	c.Assert(err, IsNil)
-	defer lock.Unlock()
-	var ss servicestate.ServiceState
-	err = conn.Get(servicepath(svc.ID, instanceID), &ServiceStateNode{ServiceState: &ss})
-	c.Assert(err, IsNil)
-	var hs HostState
-	err = conn.Get(hostpath(ss.HostID, ss.ID), &hs)
-	c.Assert(err, IsNil)
-	lock.Unlock()
-
 	// delete the host path
-	err = conn.Delete(hostpath(ss.HostID, ss.ID))
+	err = conn.Delete(hostpath("test-host-1", instanceID))
 	c.Assert(err, IsNil)
 
 	// stop the service instance
-	err = StopServiceInstance(conn, ss.ServiceID, ss.HostID, ss.ID)
-	c.Assert(err, Equals, client.ErrNoNode)
-	exists, err := conn.Exists(servicepath(ss.ServiceID, ss.ID))
-	if err != nil {
-		c.Assert(err, Equals, client.ErrNoNode)
-	}
-	c.Assert(exists, Equals, false)
-	c.Assert(getInstance(svc.ID), Not(Equals), instanceID)
+	err = StopService(conn, svc.ID)
+	c.Assert(err, Equals, nil)
+
+	// make sure the node is deleted
+	func() {
+		timeout := time.After(time.Minute)
+		for {
+			stateIDs, ev, err := conn.ChildrenW(servicepath(svc.ID))
+			c.Assert(err, IsNil)
+			if len(stateIDs) > 0 {
+				select {
+				case <-ev:
+				case <-timeout:
+					c.Fatalf("Wait exceeded timeout!")
+				}
+			} else {
+				return
+			}
+		}
+	}()
 	close(shutdown)
 	<-done
 }

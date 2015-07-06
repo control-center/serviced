@@ -343,8 +343,9 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 
 func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
-		if err := StopServiceInstance(l.conn, state.ServiceID, state.HostID, state.ID); err != nil {
+		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Service instance %s (%s) from service %s won't die: %s", state.ID, state.Name, state.ServiceID, err)
+			removeInstance(l.conn, state.ServiceID, state.HostID, state.ID)
 			continue
 		}
 		glog.V(2).Infof("Stopping service instance %s (%s) for service %s on host %s", state.ID, state.Name, state.ServiceID, state.HostID)
