@@ -4,7 +4,9 @@ Feature: Application Management
   As a CC admin user
   I want to manage applications
 
-  @login-required
+  Background:
+    Given that the admin user is logged in
+
   Scenario: View default applications page
     When I am on the applications page
     Then I should see "Application Template"
@@ -14,13 +16,11 @@ Feature: Application Management
       And I should see "Description"
       And I should see "Services Map"
 
-  @login-required
   Scenario: View services map
     When I am on the applications page
       And I click the Services Map button
     Then I should see "Internal Services" in the Services Map
 
-  @login-required
   Scenario: View application template dialog
     When I am on the applications page
       And I click the Add-Application Template button

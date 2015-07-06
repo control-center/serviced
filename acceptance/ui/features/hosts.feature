@@ -4,7 +4,9 @@ Feature: Host Management
   As a CC admin user
   I want to manage hosts
 
-  @login-required
+  Background:
+    Given that the admin user is logged in
+
   Scenario: View empty Hosts page
     Given there are no hosts defined
     When I am on the hosts page
@@ -16,7 +18,6 @@ Feature: Host Management
       And I should see "RAM Commitment"
       And I should see an empty Hosts page
 
-  @login-required
   Scenario: View Add Host dialog
     When I am on the hosts page
       And I click the Add-Host button
@@ -28,7 +29,6 @@ Feature: Host Management
       And I should see "RAM Commitment"
       And I should see the RAM Commitment field
 
-  @login-required
   Scenario: Add an invalid host with an invalid name
     Given there are no hosts defined
     When I am on the hosts page
@@ -42,7 +42,6 @@ Feature: Host Management
       And the Host and port field should be flagged as invalid
       And I should see an empty Hosts page
 
-  @login-required
   Scenario: Add an invalid host with an invalid port
     Given there are no hosts defined
     When I am on the hosts page
@@ -55,7 +54,6 @@ Feature: Host Management
       And I should see "Internal Server Error: dial tcp 172.17.42.1:9999: connection refused"
       And I should see an empty Hosts page
 
-  @login-required
   Scenario: Add an invalid host with an invalid Resource Pool field
     Given there are no hosts defined
     When I am on the hosts page
@@ -67,7 +65,6 @@ Feature: Host Management
       And I should see "Bad Request: empty poolid not allowed"
       And I should see an empty Hosts page
 
-  @login-required
   Scenario: Add an invalid host with an invalid RAM Commitment field
     Given there are no hosts defined
     When I am on the hosts page
@@ -80,7 +77,6 @@ Feature: Host Management
       And I should see "Bad Request: Parsing percentage for 'invalidentry'"
       And I should see an empty Hosts page
 
-  @login-required
   Scenario: Fill in the hosts dialog and cancel
     Given there are no hosts defined
     When I am on the hosts page
@@ -92,7 +88,7 @@ Feature: Host Management
     Then I should see an empty Hosts page
       And I should not see "Success"
 
-  @login-required
+  @clean_hosts
   Scenario: Add an valid host
     Given there are no hosts defined
     When I am on the hosts page
@@ -105,8 +101,8 @@ Feature: Host Management
       And I should see "roei-dev" in the "Name" column
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 1 Result"
-
-  @login-required
+  
+  @clean_hosts
   Scenario: Add another valid host
     Given only the default host is defined
     When I am on the hosts page
@@ -123,7 +119,7 @@ Feature: Host Management
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 2 Results"
 
-  @login-required
+  @clean_hosts
   Scenario: Add a duplicate host
     Given only the default host is defined
     When I am on the hosts page
@@ -135,7 +131,6 @@ Feature: Host Management
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
 
-  @login-required
   Scenario: Remove a host
     Given only the default host is defined
     When I am on the hosts page
@@ -145,7 +140,6 @@ Feature: Host Management
     Then I should see "Removed host"
       And I should see an empty Hosts page
 
-  @login-required
   Scenario: View Hosts Map
     When I am on the hosts page
       And I click "Hosts Map"

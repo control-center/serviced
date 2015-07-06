@@ -6,16 +6,10 @@ Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
     if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
         removeAllHosts()
-        clickAddHostButton()
-        fillInHostAndPort(DEFAULT_HOST)
-        fillInResourcePool(DEFAULT_POOL)
-        fillInRAMCommitment(DEFAULT_COMMITMENT)
-        click_link_or_button("Add Host")
-        clickAddHostButton()
-        fillInHostAndPort("vagrant:4979")
-        fillInResourcePool("default")
-        fillInRAMCommitment("15%")
-        click_link_or_button("Add Host")
+        addHost(DEFAULT_HOST, DEFAULT_POOL, DEFAULT_COMMITMENT)
+        addHost("vagrant:4979", DEFAULT_POOL, "15%")
+        checkRows("roei-dev", true)
+        checkRows("vagrant", true)
     end
 end
 
@@ -27,11 +21,7 @@ end
 Given(/^only the default host is defined$/) do
     visitHostsPage()
     removeAllHosts()
-    clickAddHostButton()
-    fillInHostAndPort(DEFAULT_HOST)
-    fillInResourcePool(DEFAULT_POOL)
-    fillInRAMCommitment(DEFAULT_COMMITMENT)
-    click_link_or_button("Add Host")
+    addHost(DEFAULT_HOST, DEFAULT_POOL, DEFAULT_COMMITMENT)
 end
 
 When(/^I am on the hosts page$/) do
@@ -134,10 +124,18 @@ end
 
 def removeAllHosts()
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     while @hosts_page.host_entries.size != 0 do
         click_link_or_button("Delete")
         click_link_or_button("Remove Host")
     end
     Capybara.match = defaultMatch
+end
+
+def addHost(name, pool, commitment)
+    clickAddHostButton()
+    fillInHostAndPort(name)
+    fillInResourcePool(pool)
+    fillInRAMCommitment(commitment)
+    click_link_or_button("Add Host")
 end

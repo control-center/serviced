@@ -10,4 +10,5 @@ class Pools < SitePrism::Page
     element :addPool_button, "[ng-click='modalAddPool()']"
     element :poolName_input, "input[name='new_pool_name']"
     element :description_input, "input[name='new_pool_description']"
+    elements :pool_entries, "[ng-repeat='pool in $data']"
 end
