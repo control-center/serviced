@@ -1,4 +1,4 @@
-Given /^that multiple research pools have been added$/ do
+Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
     if @pools_page.has_text?("Showing 0 Results") || @pools_page.has_text?("Showing 1 Result")
         clickAddPoolButton()

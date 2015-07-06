@@ -5,7 +5,7 @@ Feature: Resource Pool Sorting
   I want to sort resource pools according to various attributes
 
   Background:
-    Given that multiple research pools have been added
+    Given that multiple resource pools have been added
 
   @login-required
   Scenario: Sort resource pools by ascending name
