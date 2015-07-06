@@ -4,7 +4,9 @@ Feature: Resource Pool Management
   As a CC admin user
   I want to manage resource pools
 
-  @login-required
+  Background:
+    Given that the admin user is logged in
+
   Scenario: View default resource pools page
     When I am on the resource pool page
     Then I should see "Resource Pools"
@@ -13,7 +15,6 @@ Feature: Resource Pool Management
       And I should see "Created"
       And I should see "Last Modified"
 
-  @login-required
   Scenario: View Add Resource Pool dialog
     When I am on the resource pool page
       And I click the add Resource Pool button
@@ -23,7 +24,6 @@ Feature: Resource Pool Management
       And I should see "Description: "
       And I should see the Description field
 
-  @login-required
   Scenario: Add a resource pool with a duplicate name
     When I am on the resource pool page
       And I click the add Resource Pool button
@@ -33,7 +33,6 @@ Feature: Resource Pool Management
     Then I should see "Adding pool failed"
       And I should see "Internal Server Error: facade: resource pool exists"
 
-  @login-required
   Scenario: Add a resource pool without specifying a name
     When I am on the resource pool page
       And I click the add Resource Pool button
@@ -43,7 +42,6 @@ Feature: Resource Pool Management
     Then I should see "Adding pool failed"
       And I should see "Internal Server Error: empty Kind id"
 
-  @login-required
   Scenario: Add a resource pool
     When I am on the resource pool page
       And I click the add Resource Pool button
@@ -54,7 +52,6 @@ Feature: Resource Pool Management
       And I should see "Added resource pool"
       And I should see an entry for "test" in the table
 
-  @login-required
   Scenario: Delete a resource pool
     When I am on the resource pool page
       And I remove "test"

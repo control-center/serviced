@@ -1,9 +1,8 @@
-@user
+@user @login-required
 Feature: User Details
   As a Control Center user
   I want to manage user details
 
-  @login-required
   Scenario: View user details
     When I view user details
     Then I should see "User Details"
@@ -11,27 +10,23 @@ Feature: User Details
       And I should see "Messages"
       And I should see "Clear"
 
-  @login-required
   Scenario: View all messages
     Given I have messages
     When I view user details
     Then I should see my messages
 
-  @login-required
   Scenario: Mark messages as read
     Given I have messages
     When I view user details
       And I click on the first unread message
     Then I should see that the first unread message is marked as read
 
-  @login-required
   Scenario: Clear messages
     Given I have messages
     When I view user details
       And I clear my messages
     Then I should not see any messages
 
-  @login-required
   Scenario: Switch language to Spanish
     When I view user details
       And I switch the language to Spanish
@@ -44,7 +39,6 @@ Feature: User Details
       And I should see "Servidores"
       And I should see "Registros"
 
-  @login-required
   Scenario: Switch language to English
     When I view user details
       And I switch the language to English
