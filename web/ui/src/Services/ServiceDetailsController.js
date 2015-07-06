@@ -72,7 +72,7 @@
                 ],
                 validate: function(){
                     var name = $scope.vhosts.add.name;
-                    
+
                     // if no name
                     if(!name || !name.length){
                         this.createNotification("Unabled to add Virtual Host", "Missing name").error();
@@ -84,7 +84,7 @@
                         this.createNotification("Unable to add Virtual Host", "No available application and service").error();
                         return false;
                     }
-                    
+
                     // if name already exists
                     for (var i in $scope.vhosts.data) {
                         if (name === $scope.vhosts.data[i].Name) {
@@ -491,7 +491,7 @@
                 $scope.services.subservices = $scope.services.current.descendents;
                 $scope.vhosts.data = $scope.services.current.hosts;
                 $scope.ips.data = $scope.services.current.addresses;
-                
+
                 // update instances
                 $scope.services.current.getServiceInstances();
 
@@ -552,7 +552,7 @@
 
             // clone service for editing
             $scope.editableService = angular.copy($scope.services.current.model);
-            
+
             $modalService.create({
                 templateUrl: "edit-service.html",
                 model: $scope,
@@ -587,7 +587,7 @@
                     if($scope.editableService.InstanceLimits.Min > $scope.editableService.Instances || $scope.editableService.Instances === undefined){
                         return false;
                     }
-                    
+
                     return true;
                 }
             });
@@ -635,7 +635,7 @@
                 },
                 // instead of watching for a change, always
                 // reload at a specified interval
-                watch: (function(){
+                watchExpression: (function(){
                     var last = new Date().getTime(),
                         now,
                         interval = 1000;

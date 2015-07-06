@@ -115,7 +115,7 @@
                 sorting: {
                     id: "asc"
                 },
-                watch: function(){
+                watchExpression: function(){
                     // if poolsFactory updates, update view
                     return poolsFactory.lastUpdate;
                 }

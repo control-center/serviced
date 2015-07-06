@@ -89,7 +89,7 @@
                     // TODO - create a "defaultSort" property and use
                     // it to compose the `sorting` config option
                     config().counts = config().counts || [];
-                    config().watch = config().watch || function(){ return data(); };
+                    config().watchExpression = config().watchExpression || function(){ return data(); };
 
                     timezone = jstz.determine().name();
 
@@ -195,7 +195,7 @@
                     toggleNoData(false);
 
                     // watch data for changes
-                    $scope.$watch(config().watch, function(){
+                    $scope.$watch(config().watchExpression, function(){
                         $scope[tableID].reload();
                     });
 
