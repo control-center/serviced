@@ -17,3 +17,13 @@ After('@clean_pools') do
     visitPoolsPage()
     removeAllAddedPools()
 end
+
+After('@clean_templates') do
+    visitApplicationsPage()
+    removeAllTemplates()
+end
+
+After('@clean_services') do
+    visitApplicationsPage()
+    removeAllAddedServices()
+end

@@ -69,3 +69,27 @@ def visitApplicationsPage()
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
 end
+
+def removeAllTemplates()
+    defaultMatch = Capybara.match
+    Capybara.match=:first
+    while @applications_page.template_entries.size != 0 do
+        within(@applications_page.templates_table) do
+            click_link_or_button("Delete")
+        end
+        click_link_or_button("Remove Template")
+    end
+    Capybara.match = defaultMatch
+end
+
+def removeAllAddedServices()
+    defaultMatch = Capybara.match
+    Capybara.match=:first
+    while @applications_page.service_entries.size != 1 do
+        within(@applications_page.services_table) do
+            click_link_or_button("Delete")
+        end
+        click_link_or_button("Remove Application")
+    end
+    Capybara.match = defaultMatch
+end
