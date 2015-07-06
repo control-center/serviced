@@ -72,7 +72,7 @@ end
 
 def removeAllTemplates()
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     while @applications_page.template_entries.size != 0 do
         within(@applications_page.templates_table) do
             click_link_or_button("Delete")
@@ -84,7 +84,7 @@ end
 
 def removeAllAddedServices()
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     while @applications_page.service_entries.size != 1 do
         within(@applications_page.services_table) do
             click_link_or_button("Delete")

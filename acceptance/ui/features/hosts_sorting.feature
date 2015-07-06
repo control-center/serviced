@@ -1,5 +1,5 @@
-@hosts-sorting @clean_hosts
-Feature: Host Management
+@hosts_sorting @clean_hosts
+Feature: Host Sorting
   In order to use Control Center
   As a CC admin user
   I want to sort hosts according to various attributes

@@ -87,7 +87,8 @@ Feature: Host Management
       And I click "Cancel"
     Then I should see an empty Hosts page
       And I should not see "Success"
- @clean_hosts
+
+  @clean_hosts
   Scenario: Add an valid host
     Given there are no hosts defined
     When I am on the hosts page
@@ -100,7 +101,8 @@ Feature: Host Management
       And I should see "roei-dev" in the "Name" column
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 1 Result"
- @clean_hosts
+  
+  @clean_hosts
   Scenario: Add another valid host
     Given only the default host is defined
     When I am on the hosts page
@@ -117,6 +119,7 @@ Feature: Host Management
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 2 Results"
 
+  @clean_hosts
   Scenario: Add a duplicate host
     Given only the default host is defined
     When I am on the hosts page

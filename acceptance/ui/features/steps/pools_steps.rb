@@ -4,6 +4,8 @@ Given /^that multiple resource pools have been added$/ do
         clickAddPoolButton()
         fillInResourcePoolField("Test Pool")
         click_link_or_button("Add Resource Pool")
+        checkRows("default", true)
+        checkRows("Test Pool", true)
     end
 end
 
@@ -51,7 +53,7 @@ end
 
 def removeAllAddedPools()
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     sortColumn("Created", "descending")
     while @pools_page.pool_entries.size != 1 do
         click_link_or_button("Delete")

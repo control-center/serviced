@@ -24,7 +24,7 @@ end
 
 When (/^I click on the first unread message$/) do
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     @user_page.unreadMessage.click()
     Capybara.match = defaultMatch
 end
@@ -44,7 +44,7 @@ end
 
 Then /^I should see my messages$/ do
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     expect(@user_page.message.visible?).to be true
     Capybara.match = defaultMatch
 end
@@ -55,7 +55,7 @@ end
 
 Then /^I should see that the first unread message is marked as read$/ do
     defaultMatch = Capybara.match
-    Capybara.match=:first
+    Capybara.match = :first
     expect(@user_page.message[:class]).to include("message readMessage ng-scope")
     Capybara.match = defaultMatch
 end

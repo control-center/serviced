@@ -1,4 +1,4 @@
-@pools-sorting @clean_pools
+@pools_sorting @clean_pools
 Feature: Resource Pool Sorting
   In order to use Control Center
   As a CC admin user

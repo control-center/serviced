@@ -1,4 +1,4 @@
-@apps-sorting @clean_services @clean_templates
+@apps_sorting @clean_services @clean_templates
 Feature: Application Sorting
   In order to use Control Center
   As a CC admin user
