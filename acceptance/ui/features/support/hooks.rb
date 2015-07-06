@@ -7,3 +7,8 @@ Before('@login-required') do
     fillInDefaultPassword()
     clickSignInButton()
 end
+
+After('@clean_hosts') do
+    visitHostsPage()
+    removeAllHosts()
+end

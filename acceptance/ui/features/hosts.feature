@@ -92,7 +92,7 @@ Feature: Host Management
     Then I should see an empty Hosts page
       And I should not see "Success"
 
-  @login-required
+  @login-required @clean_hosts
   Scenario: Add an valid host
     Given there are no hosts defined
     When I am on the hosts page
@@ -106,7 +106,7 @@ Feature: Host Management
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 1 Result"
 
-  @login-required
+  @login-required @clean_hosts
   Scenario: Add another valid host
     Given only the default host is defined
     When I am on the hosts page
