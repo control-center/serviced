@@ -25,9 +25,20 @@ import (
 
 const (
 	zkInstanceLock = "/locks/instances"
+	zkStateLock    = "/locks/states" // per-service lock
 )
 
 var ErrLockNotFound = errors.New("lock not found")
+
+// newStateLock sets up the zk state lock for a given service id
+func newStateLock(conn client.Connection, serviceID string) client.Lock {
+	return conn.NewLock(path.Join(zkStateLock, serviceID))
+}
+
+// rmStateLock removes a zk state lock parent
+func rmStateLock(conn client.Connection, serviceID string) error {
+	return conn.Delete(path.Join(zkStateLock, serviceID))
+}
 
 // newInstanceLock sets up a new zk instance lock for a given service state id
 func newInstanceLock(conn client.Connection, stateID string) client.Lock {
@@ -47,6 +58,16 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		glog.Errorf("Could not validate service state %+v: %s", state, err)
 		return err
 	}
+
+	// CC-1050: we need to trigger the scheduler in case we only have a
+	// partial create.
+	svclock := newStateLock(conn, state.ServiceID)
+	if err := svclock.Lock(); err != nil {
+		glog.Errorf("Could not set lock on service %s: %s", state.ServiceID, err)
+		return err
+	}
+	defer svclock.Unlock()
+
 	lock := newInstanceLock(conn, state.ID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
@@ -94,6 +115,16 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 // removeInstance removes the service state and host instances
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
+
+	// CC-1050: we need to trigger the scheduler in case we only have a
+	// partial delete.
+	svclock := newStateLock(conn, serviceID)
+	if err := svclock.Lock(); err != nil {
+		glog.Errorf("Could not set lock on service %s: %s", serviceID, err)
+		return err
+	}
+	defer svclock.Unlock()
+
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)

@@ -92,28 +92,7 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 	// delete the host path
 	err = conn.Delete(hostpath("test-host-1", instanceID))
 	c.Assert(err, IsNil)
-
-	// stop the service instance
-	err = StopService(conn, svc.ID)
-	c.Assert(err, Equals, nil)
-
-	// make sure the node is deleted
-	func() {
-		timeout := time.After(time.Minute)
-		for {
-			stateIDs, ev, err := conn.ChildrenW(servicepath(svc.ID))
-			c.Assert(err, IsNil)
-			if len(stateIDs) > 0 {
-				select {
-				case <-ev:
-				case <-timeout:
-					c.Fatalf("Wait exceeded timeout!")
-				}
-			} else {
-				return
-			}
-		}
-	}()
+	c.Assert(getInstance(svc.ID), Not(Equals), instanceID)
 	close(shutdown)
 	<-done
 }

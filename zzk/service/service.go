@@ -107,17 +107,31 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
+	// CC-1050: create the lock path for the service
+	slockpath := path.Join(zkStateLock, serviceID)
+	l.conn.CreateDir(slockpath)
+	defer l.conn.Delete(slockpath)
+
 	for {
 		var retry <-chan time.Time
+		var err error
 
-		var lockEvent <-chan client.Event
-		if exists, err := zzk.PathExists(l.conn, zkServiceLock); err != nil {
+		// set up the global lock
+		var glock <-chan client.Event
+		if exists, err := l.conn.Exists(zkServiceLock); err != nil && err != client.ErrNoNode {
 			glog.Errorf("Could not monitor service lock: %s", err)
 			return
-		} else if !exists {
-			// pass
-		} else if _, lockEvent, err = l.conn.ChildrenW(zkServiceLock); err != nil {
-			glog.Errorf("Could not monitor service lock: %s", err)
+		} else if exists {
+			if _, glock, err = l.conn.ChildrenW(zkServiceLock); err != nil {
+				glog.Errorf("Could not monitor service lock: %s", err)
+				return
+			}
+		}
+
+		// CC-1050: set up the service lock
+		var slock <-chan client.Event
+		if _, slock, err = l.conn.ChildrenW(slockpath); err != nil {
+			glog.Errorf("Could not monitor state lock for service %s; %s", serviceID, err)
 			return
 		}
 
@@ -163,9 +177,12 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		glog.V(2).Infof("Service %s (%s) waiting for event", svc.Name, svc.ID)
 
 		select {
-		case <-lockEvent:
+		case <-glock:
 			// passthrough
-			glog.V(3).Infof("Receieved a lock event, resyncing")
+			glog.V(3).Infof("Receieved a global lock event, resyncing")
+		case <-slock:
+			// passthrough
+			glog.V(3).Infof("Receieved a service lock event, resyncing")
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
