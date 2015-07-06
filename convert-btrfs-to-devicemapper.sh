@@ -58,6 +58,10 @@ echo
 echo If Control Center is not installed and you want to run this script, cancel 
 echo and rerun it with NO_SERVICED=1.
 echo
+echo WARNING: If you are running this on a single-host system \(i.e., with 
+echo SERVICED_REGISTRY=0\), this WILL destroy your current state. Cancel and save 
+echo all images using the "docker save" command before continuing.
+echo
 confirm || exit 1
 
 
