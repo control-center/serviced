@@ -7,7 +7,7 @@ Feature: User Details
   Scenario: View user details
     When I view user details
     Then I should see "User Details"
-      And I should see "Username: zenoss"
+      And I should see the name of the current user
       And I should see "Messages"
       And I should see "Clear"
 

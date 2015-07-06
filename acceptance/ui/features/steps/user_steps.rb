@@ -37,6 +37,11 @@ When (/^I switch the language to Spanish$/) do
     @user_page.spanish_button.click()
 end
 
+Then /^I should see the name of the current user$/ do
+    name = applicationUserID()
+    expect(@user_page).to have_content "Username: #{name}"
+end
+
 Then /^I should see my messages$/ do
     defaultMatch = Capybara.match
     Capybara.match=:first
