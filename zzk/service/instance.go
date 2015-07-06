@@ -25,9 +25,20 @@ import (
 
 const (
 	zkInstanceLock = "/locks/instances"
+	zkStateLock    = "/locks/states" // per-service lock
 )
 
 var ErrLockNotFound = errors.New("lock not found")
+
+// newStateLock sets up the zk state lock for a given service id
+func newStateLock(conn client.Connection, serviceID string) client.Lock {
+	return conn.NewLock(path.Join(zkStateLock, serviceID))
+}
+
+// rmStateLock removes a zk state lock parent
+func rmStateLock(conn client.Connection, serviceID string) error {
+	return conn.Delete(path.Join(zkStateLock, serviceID))
+}
 
 // newInstanceLock sets up a new zk instance lock for a given service state id
 func newInstanceLock(conn client.Connection, stateID string) client.Lock {
@@ -47,38 +58,56 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		glog.Errorf("Could not validate service state %+v: %s", state, err)
 		return err
 	}
+
+	// CC-1050: we need to trigger the scheduler in case we only have a
+	// partial create.
+	svclock := newStateLock(conn, state.ServiceID)
+	if err := svclock.Lock(); err != nil {
+		glog.Errorf("Could not set lock on service %s: %s", state.ServiceID, err)
+		return err
+	}
+	defer svclock.Unlock()
+
 	lock := newInstanceLock(conn, state.ID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
 		return err
 	}
-	defer lock.Unlock()
 	glog.V(2).Infof("Acquired lock for instance %s", state.ID)
+	defer lock.Unlock()
+
+	var err error
+	defer func() {
+		if err != nil {
+			conn.Delete(hostpath(state.HostID, state.ID))
+			conn.Delete(servicepath(state.ServiceID, state.ID))
+			rmInstanceLock(conn, state.ID)
+		}
+	}()
+
 	// Create node on the service
 	spath := servicepath(state.ServiceID, state.ID)
 	snode := &ServiceStateNode{ServiceState: &state}
-	if err := conn.Create(spath, snode); err != nil {
+	if err = conn.Create(spath, snode); err != nil {
 		glog.Errorf("Could not create service state %s for service %s: %s", state.ID, state.ServiceID, err)
 		return err
-	} else if err := conn.Set(spath, snode); err != nil {
-		defer conn.Delete(spath)
+	} else if err = conn.Set(spath, snode); err != nil {
 		glog.Errorf("Could not set service state %s for node %+v: %s", state.ID, snode, err)
 		return err
 	}
+
 	// Create node on the host
 	hpath := hostpath(state.HostID, state.ID)
 	hnode := NewHostState(&state)
 	glog.V(2).Infof("Host node: %+v", hnode)
-	if err := conn.Create(hpath, hnode); err != nil {
-		defer conn.Delete(spath)
+	if err = conn.Create(hpath, hnode); err != nil {
 		glog.Errorf("Could not create host state %s for host %s: %s", state.ID, state.HostID, err)
 		return err
-	} else if err := conn.Set(hpath, hnode); err != nil {
-		defer conn.Delete(spath)
-		defer conn.Delete(hpath)
+	} else if err = conn.Set(hpath, hnode); err != nil {
 		glog.Errorf("Could not set host state %s for node %+v: %s", state.ID, hnode, err)
 		return err
 	}
+
 	glog.V(2).Infof("Releasing lock for instance %s", state.ID)
 	return nil
 }
@@ -86,13 +115,23 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 // removeInstance removes the service state and host instances
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
-	defer rmInstanceLock(conn, stateID)
+
+	// CC-1050: we need to trigger the scheduler in case we only have a
+	// partial delete.
+	svclock := newStateLock(conn, serviceID)
+	if err := svclock.Lock(); err != nil {
+		glog.Errorf("Could not set lock on service %s: %s", serviceID, err)
+		return err
+	}
+	defer svclock.Unlock()
+
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
 	defer lock.Unlock()
+	defer rmInstanceLock(conn, stateID)
 	glog.V(2).Infof("Acquired lock for instance %s", stateID)
 	// Remove the node on the service
 	spath := servicepath(serviceID, stateID)
@@ -158,6 +197,7 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 		glog.Errorf("Could not update instance %s for service %s: %s", stateID, serviceID, err)
 		return err
 	}
+	glog.V(2).Infof("Releasing lock for instance %s", stateID)
 	return nil
 }
 

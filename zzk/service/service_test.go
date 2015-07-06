@@ -36,6 +36,67 @@ func (handler *TestServiceHandler) SelectHost(svc *service.Service) (*host.Host,
 	return handler.Host, handler.Err
 }
 
+func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
+	conn, err := zzk.GetLocalConnection("/TestServiceListener_NoHostState")
+	c.Assert(err, IsNil)
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+
+	shutdown := make(chan interface{})
+	done := make(chan interface{})
+	listener := NewServiceListener(handler)
+	go func() {
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+		close(done)
+	}()
+
+	err = conn.CreateDir(servicepath())
+	c.Assert(err, IsNil)
+	err = conn.CreateDir(hostpath())
+	c.Assert(err, IsNil)
+	svc := service.Service{
+		ID:           "test-service-1",
+		DesiredState: int(service.SVCRun),
+		Instances:    1,
+	}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// wait for instance to start
+	getInstance := func(serviceID string) string {
+		var instanceID string
+		var svc service.Service
+		err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc})
+		c.Assert(err, IsNil)
+
+		timeout := time.After(time.Minute)
+		for {
+			stateIDs, ev, err := conn.ChildrenW(servicepath(serviceID))
+			c.Assert(err, IsNil)
+			if len(stateIDs) != 1 {
+				select {
+				case <-ev:
+				case <-timeout:
+					c.Fatalf("Wait time exceeded timeout!")
+				}
+			} else {
+				instanceID = stateIDs[0]
+				if err = updateInstance(conn, "test-host-1", instanceID, func(_ *HostState, _ *servicestate.ServiceState) {}); err == nil {
+					return instanceID
+				}
+			}
+		}
+	}
+
+	instanceID := getInstance(svc.ID)
+
+	// delete the host path
+	err = conn.Delete(hostpath("test-host-1", instanceID))
+	c.Assert(err, IsNil)
+	c.Assert(getInstance(svc.ID), Not(Equals), instanceID)
+	close(shutdown)
+	<-done
+}
+
 func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 	conn, err := zzk.GetLocalConnection("/base")
 	c.Assert(err, IsNil)
