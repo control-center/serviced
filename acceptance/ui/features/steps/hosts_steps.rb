@@ -2,6 +2,23 @@ DEFAULT_HOST = "172.17.42.1:4979"
 DEFAULT_POOL = "default"
 DEFAULT_COMMITMENT = "50%"
 
+Given(/^that multiple hosts have been added$/) do
+    visitHostsPage()
+    if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
+        removeAllHosts()
+        clickAddHostButton()
+        fillInHostAndPort(DEFAULT_HOST)
+        fillInResourcePool(DEFAULT_POOL)
+        fillInRAMCommitment(DEFAULT_COMMITMENT)
+        click_link_or_button("Add Host")
+        clickAddHostButton()
+        fillInHostAndPort("vagrant:4979")
+        fillInResourcePool("default")
+        fillInRAMCommitment("15%")
+        click_link_or_button("Add Host")
+    end
+end
+
 Given(/^there are no hosts defined$/) do
     visitHostsPage()
     removeAllHosts()

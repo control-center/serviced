@@ -1,3 +1,17 @@
+Given /^that multiple applications and application templates have been added$/ do
+    visitApplicationsPage()
+    within(@applications_page.services_table) do
+        if has_text?("Showing 1 Result")
+            # add application
+        end
+    end
+    within(@applications_page.templates_table) do
+        if has_text?("Showing 0 Results") || has_text?("Showing 1 Result")
+            # add application templates
+        end
+    end
+end
+
 When(/^I am on the applications page$/) do
     visitApplicationsPage()
 end
