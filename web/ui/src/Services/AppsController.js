@@ -293,7 +293,7 @@
 
                     return orderedData;
                 },
-                watch: function(){
+                watchExpression: function(){
                     // TODO - check $scope.deployingServices as well
                     return servicesFactory.lastUpdate;
                 }
