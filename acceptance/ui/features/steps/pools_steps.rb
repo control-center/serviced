@@ -1,11 +1,8 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
-    if @pools_page.has_text?("Showing 0 Results") || @pools_page.has_text?("Showing 1 Result")
+    if @pools_page.has_text?("Showing 1 Result")
         clickAddPoolButton()
-        fillInResourcePoolField("Test Pool 1")
-        click_link_or_button("Add Resource Pool")
-        clickAddPoolButton()
-        fillInResourcePoolField("Test Pool 2")
+        fillInResourcePoolField("Test Pool")
         click_link_or_button("Add Resource Pool")
     end
 end
@@ -50,4 +47,15 @@ end
 
 def fillInResourcePoolField(name)
     @pools_page.poolName_input.set name
+end
+
+def removeAllAddedPools()
+    defaultMatch = Capybara.match
+    Capybara.match=:first
+    sortColumn("Created", "descending")
+    while @pools_page.pool_entries.size != 1 do
+        click_link_or_button("Delete")
+        click_link_or_button("Remove Pool")
+    end
+    Capybara.match = defaultMatch
 end

@@ -1,3 +1,10 @@
+Given (/^that the admin user is logged in$/) do
+    visitLoginPage()
+    fillInDefaultUserID()
+    fillInDefaultPassword()
+    clickSignInButton()
+end
+
 When (/^I fill in "([^"]*)" with "([^"]*)"$/) do |element, text|
     fill_in element, with: text
 end
@@ -26,18 +33,8 @@ When(/^I select "(.*?)"$/) do |name|
     end
 end
 
-When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, sortOrder|
-    # class for sortable column headers
-    categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
-    if sortOrder == "ascending"
-        order = 'header  sortable sort-asc'
-    else
-        order = 'header  sortable sort-desc'
-    end
-    # click until column header shows ascending/descending
-    while categoryLink[:class] != order do
-        categoryLink.click()
-    end
+When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
+    sortColumn(category, order)
 end
 
 Then /^I should see "(.*?)"$/ do |text|
@@ -64,9 +61,9 @@ end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
     if order == "ascending"
-        sortColumn(category, true)
+        assertSortedColumn(category, true)
     else
-        sortColumn(category, false)
+        assertSortedColumn(category, false)
     end
 end
 
@@ -79,7 +76,7 @@ Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
 end
 
 
-def sortColumn(category, order)
+def assertSortedColumn(category, order)
     list = page.all("td[data-title-text='#{category}'][sortable^='']")
     for i in 0..(list.size - 2)
         if category == "Created" || category == "Last Modified"
@@ -112,4 +109,17 @@ end
 
 def closeDialog()
     page.find("button[class^='close glyphicon']").click()
+end
+
+def sortColumn(category, sortOrder)
+    categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
+    if sortOrder == "ascending"
+        order = 'header  sortable sort-asc'
+    else
+        order = 'header  sortable sort-desc'
+    end
+    # click until column header shows ascending/descending
+    while categoryLink[:class] != order do
+        categoryLink.click()
+    end
 end

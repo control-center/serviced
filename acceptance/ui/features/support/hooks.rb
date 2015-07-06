@@ -12,3 +12,8 @@ After('@clean_hosts') do
     visitHostsPage()
     removeAllHosts()
 end
+
+After('@clean_pools') do
+    visitPoolsPage()
+    removeAllAddedPools()
+end
