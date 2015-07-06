@@ -41,7 +41,7 @@ func rmInstanceLock(conn client.Connection, stateID string) error {
 
 // addInstance creates a new service state and host instance
 func addInstance(conn client.Connection, state ss.ServiceState) error {
-	glog.V(0).Infof("Adding instance %+v", state)
+	glog.V(2).Infof("Adding instance %+v", state)
 	// check the object
 	if err := state.ValidEntity(); err != nil {
 		glog.Errorf("Could not validate service state %+v: %s", state, err)
@@ -52,7 +52,7 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
 		return err
 	}
-	glog.V(0).Infof("Acquired lock for instance %s", state.ID)
+	glog.V(2).Infof("Acquired lock for instance %s", state.ID)
 	defer lock.Unlock()
 
 	var err error
@@ -78,7 +78,7 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 	// Create node on the host
 	hpath := hostpath(state.HostID, state.ID)
 	hnode := NewHostState(&state)
-	glog.V(0).Infof("Host node: %+v", hnode)
+	glog.V(2).Infof("Host node: %+v", hnode)
 	if err = conn.Create(hpath, hnode); err != nil {
 		glog.Errorf("Could not create host state %s for host %s: %s", state.ID, state.HostID, err)
 		return err
@@ -87,7 +87,7 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		return err
 	}
 
-	glog.V(0).Infof("Releasing lock for instance %s", state.ID)
+	glog.V(2).Infof("Releasing lock for instance %s", state.ID)
 	return nil
 }
 
