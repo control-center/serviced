@@ -98,7 +98,7 @@ Feature: Host Management
       And I fill in the RAM Commitment field with the default RAM commitment
       And I click "Add Host"
     Then I should see "Success"
-      And I should see "roei-dev" in the "Name" column
+      And I should see "table://hosts/defaultHost/name" in the "Name" column
       And I should see "default" in the "Resource Pool" column
       And I should see "Showing 1 Result"
   
@@ -107,16 +107,16 @@ Feature: Host Management
     Given only the default host is defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with "vagrant:4979"
-      And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with "10%"
+      And I fill in the Host Name field with "table://hosts/host2/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/host2/pool"
+      And I fill in the RAM Commitment field with "table://hosts/host2/commitment"
       And I click "Add Host"
     Then I should see "Success"
-      And I should see an entry for "vagrant" in the table
-      And I should see "roei-dev" in the "Name" column
-      And I should see "default" in the "Resource Pool" column
-      And I should see "vagrant" in the "Name" column
-      And I should see "default" in the "Resource Pool" column
+      And I should see an entry for "table://hosts/host2/name" in the table
+      And I should see "table://hosts/defaultHost/name" in the "Name" column
+      And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
+      And I should see "table://hosts/host2/name" in the "Name" column
+      And I should see "table://hosts/host2/pool" in the "Resource Pool" column
       And I should see "Showing 2 Results"
 
   @clean_hosts
@@ -134,7 +134,7 @@ Feature: Host Management
   Scenario: Remove a host
     Given only the default host is defined
     When I am on the hosts page
-      And I remove "roei-dev"
+      And I remove "table://hosts/defaultHost/name"
     Then I should see "This action will permanently delete the host"
     When I click "Remove Host"
     Then I should see "Removed host"

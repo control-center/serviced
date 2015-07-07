@@ -47,6 +47,18 @@ Capybara.save_and_open_page_path = output_dir + "/screenshots"
 FileUtils.mkdir_p(Capybara.save_and_open_page_path)
 printf "Using output directory=%s\n", output_dir
 
+dataset_dir = File.join(ENV["DATASET_DIR"], ENV["DATASET"])
+if dataset_dir.nil? || dataset_dir.empty?
+    printf "ERROR: DATASET_DIR is not defined; check cucumber.yml"
+    exit 1
+end
+#ENV["HOSTS"] = File.read(File.join(dataset_dir, "hosts.json"))
+#puts ENV["HOSTS"]
+ENV["DATASET_FILES"] = dataset_dir
+
+printf "Using dataset directory=%s\n", ENV["DATASET_DIR"]
+printf "Using dataset=%s\n", ENV["DATASET"]
+
 timeout_override = ENV["CAPYBARA_TIMEOUT"]
 if timeout_override && timeout_override.length > 0
     Capybara.default_wait_time = timeout_override.to_i

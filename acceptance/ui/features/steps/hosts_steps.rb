@@ -1,15 +1,18 @@
-DEFAULT_HOST = "172.17.42.1:4979"
-DEFAULT_POOL = "default"
-DEFAULT_COMMITMENT = "50%"
+DEFAULT_HOST = getTableValue("table://hosts/defaultHost/nameAndPort")
+DEFAULT_POOL = getTableValue("table://hosts/defaultHost/pool")
+DEFAULT_COMMITMENT = getTableValue("table://hosts/defaultHost/commitment")
 
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
     if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
         removeAllHosts()
         addHost(DEFAULT_HOST, DEFAULT_POOL, DEFAULT_COMMITMENT)
-        addHost("vagrant:4979", DEFAULT_POOL, "15%")
-        checkRows("roei-dev", true)
-        checkRows("vagrant", true)
+        secondName = getTableValue("table://hosts/host2/nameAndPort")
+        secondPool = getTableValue("table://hosts/host2/pool")
+        secondCommitment = getTableValue("table://hosts/host2/commitment")
+        addHost(secondName, secondPool, secondCommitment)
+        step "I should see an entry for 'table://hosts/defaultHost/name' in the table"
+        step "I should see an entry for 'table://hosts/host2/name' in the table"
     end
 end
 
@@ -40,15 +43,18 @@ When(/^I fill in the RAM Commitment field with the default RAM commitment$/) do
     fillInRAMCommitment(DEFAULT_COMMITMENT)
 end
 
-When(/^I fill in the Host Name field with "(.*?)"$/) do |hostName|
+When(/^I fill in the Host Name field with "(.*?)"$/) do |valueOrTableUrl|
+    hostName = getTableValue(valueOrTableUrl)
     fillInHostAndPort(hostName)
 end
 
-When(/^I fill in the Resource Pool field with "(.*?)"$/) do |resourcePool|
-    fillInResourcePool(resourcePool)
+When(/^I fill in the Resource Pool field with "(.*?)"$/) do |valueOrTableUrl|
+    resourcePool = getTableValue(valueOrTableUrl)
+    fillInHostAndPort(resourcePool)
 end
 
-When(/^I fill in the RAM Commitment field with "(.*?)"$/) do |ramCommitment|
+When(/^I fill in the RAM Commitment field with "(.*?)"$/) do |valueOrTableUrl|
+    ramCommitment = getTableValue(valueOrTableUrl)
     fillInRAMCommitment(ramCommitment)
 end
 

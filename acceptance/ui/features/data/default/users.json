@@ -1,0 +1,9 @@
+{
+  "users": 
+  {
+    "defaultUser": {
+      "name": "zenoss",
+      "password": "zenoss"
+    }
+  }
+}

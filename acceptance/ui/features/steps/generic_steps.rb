@@ -6,15 +6,16 @@ Given (/^that the admin user is logged in$/) do
 end
 
 When (/^I fill in "([^"]*)" with "([^"]*)"$/) do |element, text|
+    text = getTableValue(text)
     fill_in element, with: text
 end
 
 When (/^I fill in the "([^"]*)" field with "(.*?)"$/) do |field, text|
-    find(field).set(text)
+    find(field).set(getTableValue(text))
 end
 
 When (/^I click "([^"]*)"$/) do |text|
-    click_link_or_button(text)
+    click_link_or_button(getTableValue(text))
 end
 
 When /^I close the dialog$/ do
@@ -22,6 +23,7 @@ When /^I close the dialog$/ do
 end
 
 When (/^I remove "([^"]*)"$/) do |name|
+    name = getTableValue(name)
     within("tr[class='ng-scope']", :text => name) do
         click_link_or_button("Delete")
     end
@@ -38,11 +40,11 @@ When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
 end
 
 Then /^I should see "(.*?)"$/ do |text|
-    expect(page).to have_content text
+    expect(page).to have_content getTableValue(text)
 end
 
 Then /^I should not see "(.*?)"$/ do |text|
-    expect(page).to have_no_content text
+    expect(page).to have_no_content getTableValue(text)
 end
 
 Then (/^I should see the "([^"]*)"$/) do |element|
@@ -54,7 +56,7 @@ Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
     list = page.all("td[data-title-text='#{column}']")
     hasEntry = false
     for i in 0..(list.size - 1)
-        hasEntry = true if list[i].text == text
+        hasEntry = true if list[i].text == getTableValue(text)
     end
     expect(hasEntry).to be true
 end
@@ -68,11 +70,11 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
 end
 
 Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(row, true)
+    checkRows(getTableValue(row), true)
 end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(row, false)
+    checkRows(getTableValue(row), false)
 end
 
 
@@ -121,5 +123,26 @@ def sortColumn(category, sortOrder)
     # click until column header shows ascending/descending
     while categoryLink[:class] != order do
         categoryLink.click()
+    end
+end
+
+def getTableValue(valueOrTableUrl)
+    if valueOrTableUrl.start_with?("table://") == false
+        return valueOrTableUrl
+    end
+    parsedUrl = valueOrTableUrl.split(/\W+/)
+    tableType = parsedUrl[1]
+    fileName = tableType + ".json"
+    tableName = parsedUrl[2]
+    propertyName = parsedUrl[3]
+    if tableType.nil?
+        raise(ArgumentError.new('Invalid table type'))
+    elsif tableName.nil?
+        raise(ArgumentError.new('Invalid table name'))
+    elsif propertyName.nil?
+        raise(ArgumentError.new('Invalid property name'))
+    else
+        table = JSON.parse(File.read(File.join(ENV["DATASET_FILES"], fileName)))
+        return table[tableType][tableName][propertyName]
     end
 end

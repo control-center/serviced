@@ -12,6 +12,6 @@
 # 2. One of the reporters that converts the JSON report to a pretty HTML report is available
 #    as a Jenkins plugin. See https://github.com/masterthought/cucumber-reporting
 #
-default: OUTPUT_DIR=./output --format pretty --format json --out ./output/report.json
+default: DATASET_DIR=./features/data OUTPUT_DIR=./output --format pretty --format json --out ./output/report.json
 
-default-html: OUTPUT_DIR=./output --format pretty --format html --out ./output/features_report.html
+default-html: DATASET_DIR=./features/data OUTPUT_DIR=./output --format pretty --format html --out ./output/features_report.html
