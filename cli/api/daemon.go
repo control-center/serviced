@@ -86,6 +86,7 @@ type daemon struct {
 	cpDao            dao.ControlPlane
 	dsDriver         datastore.Driver
 	dsContext        datastore.Context
+	networkDriver    storage.StorageDriver
 	facade           *facade.Facade
 	hostID           string
 	zClient          *coordclient.Client
@@ -351,6 +352,43 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 
+	agentIP := options.OutboundIP
+	if agentIP == "" {
+		var err error
+		agentIP, err = utils.GetIPAddress()
+		if err != nil {
+			glog.Fatalf("Failed to acquire ip address: %s", err)
+		}
+	}
+
+	// This is storage related
+	rpcPort := "0"
+	parts := strings.Split(options.Listen, ":")
+	if len(parts) > 1 {
+		rpcPort = parts[1]
+	}
+
+	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
+	if err != nil {
+		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		return err
+	}
+
+	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
+		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
+		return err
+	}
+
+	volumesPath := path.Join(options.VarPath, "volumes")
+	if d.networkDriver, err = nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+		return err
+	} else {
+		d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, volumesPath)
+		if err != nil {
+			return err
+		}
+	}
+
 	localClient, err := d.initZK(options.Zookeepers)
 	if err != nil {
 		glog.Errorf("failed to create a local coordclient: %v", err)
@@ -386,44 +424,6 @@ func (d *daemon) startMaster() error {
 
 	d.initWeb()
 	d.addTemplates()
-
-	agentIP := options.OutboundIP
-	if agentIP == "" {
-		var err error
-		agentIP, err = utils.GetIPAddress()
-		if err != nil {
-			glog.Fatalf("Failed to acquire ip address: %s", err)
-		}
-	}
-
-	// This is storage related
-	rpcPort := "0"
-	parts := strings.Split(options.Listen, ":")
-	if len(parts) > 1 {
-		rpcPort = parts[1]
-	}
-
-	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
-	if err != nil {
-		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
-		return err
-	}
-
-	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
-		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
-		return err
-	}
-
-	volumesPath := path.Join(options.VarPath, "volumes")
-	if nfsDriver, err := nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
-		return err
-	} else {
-		d.storageHandler, err = storage.NewServer(nfsDriver, thisHost, volumesPath)
-		if err != nil {
-			return err
-		}
-	}
-
 	d.startScheduler()
 
 	return nil
@@ -745,7 +745,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	if err != nil {
 		return nil, err
 	}
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, rpcPortInt, dfsTimeout, dockerRegistry)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, d.networkDriver, options.VarPath, options.FSType, rpcPortInt, dfsTimeout, dockerRegistry)
 }
 
 func (d *daemon) initWeb() {

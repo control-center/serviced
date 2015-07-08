@@ -24,6 +24,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs"
@@ -131,7 +132,7 @@ func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDa
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, networkDriver storage.StorageDriver, varpath, fsType string, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -151,7 +152,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fs
 		return nil, err
 	}
 
-	dfs, err := dfs.NewDistributedFilesystem(fsType, varpath, dockerRegistry, facade, maxdfstimeout)
+	dfs, err := dfs.NewDistributedFilesystem(fsType, varpath, dockerRegistry, networkDriver, facade, maxdfstimeout)
 	if err != nil {
 		return nil, err
 	}
