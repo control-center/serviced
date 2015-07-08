@@ -103,7 +103,7 @@ func stopImpl() error {
 	}
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		fmt.Errorf("%s: %s", err, string(output))
+		return fmt.Errorf("%s: %s", err, string(output))
 	}
 	glog.Infof("stopped nfs server: %s", string(output))
 	return nil
