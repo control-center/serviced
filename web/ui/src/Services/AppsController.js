@@ -169,6 +169,10 @@
             });
         };
 
+        $scope.clickRunningApp = function(service, status) {
+            utils.setServiceState($scope, service, status, $modalService, $translate);
+        };
+
         $scope.modal_deleteTemplate = function(templateID){
             $modalService.create({
                 template: $translate.instant("template_remove_confirm") + "<strong>"+ templateID +"</strong>",
@@ -289,7 +293,7 @@
 
                     return orderedData;
                 },
-                watch: function(){
+                watchExpression: function(){
                     // TODO - check $scope.deployingServices as well
                     return servicesFactory.lastUpdate;
                 }

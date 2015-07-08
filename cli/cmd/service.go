@@ -1362,13 +1362,16 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	svc, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	if snapshot, err := c.driver.AddSnapshot(svc.ID, description); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")
+		c.exit(1)
 	} else {
 		fmt.Println(snapshot)
 	}
