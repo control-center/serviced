@@ -31,7 +31,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -1011,12 +1010,14 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	uuid, _ := utils.NewUUID62()
+
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
 		Username:         ctx.GlobalString("user"),
 		Args:             argv,
-		SaveAs:           dfs.NewLabel(svc.ID),
+		SaveAs:           uuid,
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
