@@ -389,7 +389,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 	return svc, nil
 }
 
-// GetServices looks up all services.  Can filter by tenant ID, name (regular expression), and/or update time.
+// GetServices looks up all services. Allows filtering by tenant ID, name (regular expression), and/or update time.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
@@ -457,7 +457,7 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]serv
 	return results, nil
 }
 
-// GetTaggedServices looks up all services with the specified tags.	 Can filter by tenant ID and/or name (regular expression).
+// GetTaggedServices looks up all services with the specified tags. Allows filtering by tenant ID and/or name (regular expression).
 func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetTaggedServices")
 
