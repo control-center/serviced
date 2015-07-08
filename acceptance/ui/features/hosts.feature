@@ -34,8 +34,8 @@ Feature: Host Management
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with "bogushost"
-      And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with the default RAM commitment
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request"
@@ -47,8 +47,8 @@ Feature: Host Management
     When I am on the hosts page
       And I click the Add-Host button
       And I fill in the Host Name field with "172.17.42.1:9999"
-      And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with the default RAM commitment
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: dial tcp 172.17.42.1:9999: connection refused"
@@ -58,8 +58,8 @@ Feature: Host Management
     Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with the default host name
-      And I fill in the RAM Commitment field with the default RAM commitment
+      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Bad Request: empty poolid not allowed"
@@ -69,8 +69,8 @@ Feature: Host Management
     Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with the default host name
-      And I fill in the Resource Pool field with the default resource pool
+      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
       And I fill in the RAM Commitment field with "invalidentry"
       And I click "Add Host"
     Then I should see "Error"
@@ -81,9 +81,9 @@ Feature: Host Management
     Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with the default host name
-      And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with the default RAM commitment
+      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Cancel"
     Then I should see an empty Hosts page
       And I should not see "Success"
@@ -93,13 +93,13 @@ Feature: Host Management
     Given there are no hosts defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with the default host name
-      And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with the default RAM commitment
+      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Success"
       And I should see "table://hosts/defaultHost/name" in the "Name" column
-      And I should see "default" in the "Resource Pool" column
+      And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
       And I should see "Showing 1 Result"
   
   @clean_hosts
@@ -124,9 +124,9 @@ Feature: Host Management
     Given only the default host is defined
     When I am on the hosts page
       And I click the Add-Host button
-      And I fill in the Host Name field with the default host name
-      And I fill in the Resource Pool field with the default resource pool
-      And I fill in the RAM Commitment field with the default RAM commitment
+      And I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"

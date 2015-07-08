@@ -1,60 +1,39 @@
-DEFAULT_HOST = getTableValue("table://hosts/defaultHost/nameAndPort")
-DEFAULT_POOL = getTableValue("table://hosts/defaultHost/pool")
-DEFAULT_COMMITMENT = getTableValue("table://hosts/defaultHost/commitment")
-
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
     if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
-        removeAllHosts()
-        addHost(DEFAULT_HOST, DEFAULT_POOL, DEFAULT_COMMITMENT)
-        secondName = getTableValue("table://hosts/host2/nameAndPort")
-        secondPool = getTableValue("table://hosts/host2/pool")
-        secondCommitment = getTableValue("table://hosts/host2/commitment")
-        addHost(secondName, secondPool, secondCommitment)
-        step "I should see an entry for 'table://hosts/defaultHost/name' in the table"
-        step "I should see an entry for 'table://hosts/host2/name' in the table"
+        removeAllEntries()
+        addDefaultHost()
+        addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
+            "table://hosts/host2/commitment")
+        checkRows("table://hosts/defaultHost/name", true)
+        checkRows("table://hosts/host2/name", true)
     end
 end
 
 Given(/^there are no hosts defined$/) do
     visitHostsPage()
-    removeAllHosts()
+    removeAllEntries()
 end
 
 Given(/^only the default host is defined$/) do
     visitHostsPage()
-    removeAllHosts()
-    addHost(DEFAULT_HOST, DEFAULT_POOL, DEFAULT_COMMITMENT)
+    removeAllEntries()
+    addDefaultHost()
 end
 
 When(/^I am on the hosts page$/) do
     visitHostsPage()
 end
 
-When(/^I fill in the Host Name field with the default host name$/) do
-    fillInHostAndPort(DEFAULT_HOST)
-end
-
-When(/^I fill in the Resource Pool field with the default resource pool$/) do
-    fillInResourcePool(DEFAULT_POOL)
-end
-
-When(/^I fill in the RAM Commitment field with the default RAM commitment$/) do
-    fillInRAMCommitment(DEFAULT_COMMITMENT)
-end
-
-When(/^I fill in the Host Name field with "(.*?)"$/) do |valueOrTableUrl|
-    hostName = getTableValue(valueOrTableUrl)
+When(/^I fill in the Host Name field with "(.*?)"$/) do |hostName|
     fillInHostAndPort(hostName)
 end
 
-When(/^I fill in the Resource Pool field with "(.*?)"$/) do |valueOrTableUrl|
-    resourcePool = getTableValue(valueOrTableUrl)
-    fillInHostAndPort(resourcePool)
+When(/^I fill in the Resource Pool field with "(.*?)"$/) do |resourcePool|
+    fillInResourcePool(resourcePool)
 end
 
-When(/^I fill in the RAM Commitment field with "(.*?)"$/) do |valueOrTableUrl|
-    ramCommitment = getTableValue(valueOrTableUrl)
+When(/^I fill in the RAM Commitment field with "(.*?)"$/) do |ramCommitment|
     fillInRAMCommitment(ramCommitment)
 end
 
@@ -113,29 +92,19 @@ def visitHostsPage()
 end
 
 def fillInHostAndPort(host)
-    @hosts_page.hostName_input.set host
+    @hosts_page.hostName_input.set getTableValue(host)
 end
 
 def fillInResourcePool(pool)
-    @hosts_page.resourcePool_input.select pool
+    @hosts_page.resourcePool_input.select getTableValue(pool)
 end
 
 def fillInRAMCommitment(commitment)
-    @hosts_page.ramCommitment_input.set commitment
+    @hosts_page.ramCommitment_input.set getTableValue(commitment)
 end
 
 def clickAddHostButton()
     @hosts_page.addHost_button.click
-end
-
-def removeAllHosts()
-    defaultMatch = Capybara.match
-    Capybara.match = :first
-    while @hosts_page.host_entries.size != 0 do
-        click_link_or_button("Delete")
-        click_link_or_button("Remove Host")
-    end
-    Capybara.match = defaultMatch
 end
 
 def addHost(name, pool, commitment)
@@ -144,4 +113,9 @@ def addHost(name, pool, commitment)
     fillInResourcePool(pool)
     fillInRAMCommitment(commitment)
     click_link_or_button("Add Host")
+end
+
+def addDefaultHost()
+    addHost("table://hosts/defaultHost/nameAndPort", \
+        "table://hosts/defaultHost/pool", "table://hosts/defaultHost/commitment")
 end
