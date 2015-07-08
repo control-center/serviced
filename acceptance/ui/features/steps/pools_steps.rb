@@ -1,11 +1,12 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
+    if @pools_page.has_text?("Showing 0 Results")
+        addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
+        checkRows("table://pools/defaultPool/name", true)
+    end
     if @pools_page.has_text?("Showing 1 Result")
-        clickAddPoolButton()
-        fillInResourcePoolField("Test Pool")
-        click_link_or_button("Add Resource Pool")
-        checkRows("default", true)
-        checkRows("Test Pool", true)
+        addPool("table://pools/pool2/name", "table://pools/pool2/description")
+        checkRows("table://pools/pool2/name", true)
     end
 end
 
@@ -22,7 +23,7 @@ When(/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
 end
 
 When(/^I fill in the Description field with "(.*?)"$/) do |description|
-    @pools_page.description_input.set description
+    fillInDescriptionField(description)
 end
 
 Then /^I should see the add Resource Pool button$/ do
@@ -48,16 +49,16 @@ def clickAddPoolButton()
 end
 
 def fillInResourcePoolField(name)
-    @pools_page.poolName_input.set name
+    @pools_page.poolName_input.set getTableValue(name)
 end
 
-def removeAllAddedPools()
-    defaultMatch = Capybara.match
-    Capybara.match = :first
-    sortColumn("Created", "descending")
-    while @pools_page.pool_entries.size != 1 do
-        click_link_or_button("Delete")
-        click_link_or_button("Remove Pool")
-    end
-    Capybara.match = defaultMatch
+def fillInDescriptionField(description)
+    @pools_page.description_input.set getTableValue(description)
+end
+
+def addPool(name, description)
+    clickAddPoolButton()
+    fillInResourcePoolField(name)
+    fillInDescriptionField(description)
+    click_link_or_button("Add Resource Pool")
 end
