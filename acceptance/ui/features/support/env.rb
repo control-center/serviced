@@ -48,12 +48,10 @@ FileUtils.mkdir_p(Capybara.save_and_open_page_path)
 printf "Using output directory=%s\n", output_dir
 
 dataset_dir = File.join(ENV["DATASET_DIR"], ENV["DATASET"])
-if dataset_dir.nil? || dataset_dir.empty?
-    printf "ERROR: DATASET_DIR is not defined; check cucumber.yml"
+if !Dir.exists?(dataset_dir) || Dir.entries(dataset_dir).size <= 2
+    printf "ERROR: DATASET_DIR is not defined; check cucumber.yml\n"
     exit 1
 end
-#ENV["HOSTS"] = File.read(File.join(dataset_dir, "hosts.json"))
-#puts ENV["HOSTS"]
 ENV["DATASET_FILES"] = dataset_dir
 
 printf "Using dataset directory=%s\n", ENV["DATASET_DIR"]

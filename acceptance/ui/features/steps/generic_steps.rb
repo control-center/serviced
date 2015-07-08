@@ -6,8 +6,8 @@ Given (/^that the admin user is logged in$/) do
 end
 
 When (/^I fill in "([^"]*)" with "([^"]*)"$/) do |element, text|
-    text = getTableValue(text)
-    fill_in element, with: text
+    entry = getTableValue(text)
+    fill_in element, with: entry
 end
 
 When (/^I fill in the "([^"]*)" field with "(.*?)"$/) do |field, text|
@@ -23,14 +23,15 @@ When /^I close the dialog$/ do
 end
 
 When (/^I remove "([^"]*)"$/) do |name|
-    name = getTableValue(name)
-    within("tr[class='ng-scope']", :text => name) do
+    entry = getTableValue(name)
+    within("tr[class='ng-scope']", :text => entry) do
         click_link_or_button("Delete")
     end
 end
 
 When(/^I select "(.*?)"$/) do |name|
-    within("tr[class='clickable ng-scope']", :text => name) do
+    entry = getTableValue(name)
+    within("tr[class='clickable ng-scope']", :text => entry) do
         page.find("input[type='radio']").click()
     end
 end
@@ -52,13 +53,11 @@ Then (/^I should see the "([^"]*)"$/) do |element|
 end
 
 Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    # attribute that includes name of column of all table cells
-    list = page.all("td[data-title-text='#{column}']")
-    hasEntry = false
-    for i in 0..(list.size - 1)
-        hasEntry = true if list[i].text == getTableValue(text)
-    end
-    expect(hasEntry).to be true
+    checkColumn(text, column, true)
+end
+
+Then (/^I should not see "(.*?)" in the "([^"]*)" column$/) do |text, column|
+    checkColumn(text, column, false)
 end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
@@ -70,11 +69,11 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
 end
 
 Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(getTableValue(row), true)
+    checkRows(row, true)
 end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(getTableValue(row), false)
+    checkRows(row, false)
 end
 
 
@@ -100,13 +99,25 @@ end
 
 def checkRows(row, present)
     found = false
+    name = getTableValue(row)
     entries = page.all("tr[ng-repeat$='in $data']")
     for i in 0..(entries.size - 1)
         within(entries[i]) do
-            found = true if has_text?(row)
+            found = true if has_text?(name)
         end
     end
     found.should == present
+end
+
+def checkColumn(text, column, present)
+    # attribute that includes name of column of all table cells
+    list = page.all("td[data-title-text='#{column}']")
+    cell = getTableValue(text)
+    hasEntry = false
+    for i in 0..(list.size - 1)
+        hasEntry = true if list[i].text == cell
+    end
+    hasEntry.should == present
 end
 
 def closeDialog()
@@ -126,23 +137,36 @@ def sortColumn(category, sortOrder)
     end
 end
 
+def removeAllEntries()
+    entries = page.all("[ng-repeat$='in $data']")
+    for i in 0..(entries.size - 1)
+        within(entries[i]) do
+            click_link_or_button("Delete")
+        end
+        click_link_or_button("Remove")
+    end
+end
+
 def getTableValue(valueOrTableUrl)
     if valueOrTableUrl.start_with?("table://") == false
         return valueOrTableUrl
     end
     parsedUrl = valueOrTableUrl.split(/\W+/)
     tableType = parsedUrl[1]
-    fileName = tableType + ".json"
+    fileName = File.join(ENV["DATASET_FILES"], tableType + ".json")
     tableName = parsedUrl[2]
     propertyName = parsedUrl[3]
-    if tableType.nil?
+    if !File.exist?(fileName)
+        raise(ArgumentError.new('Invalid file'))
+    end
+    table = JSON.parse(File.read(fileName))
+    if table[tableType].nil?
         raise(ArgumentError.new('Invalid table type'))
-    elsif tableName.nil?
+    elsif table[tableType][tableName].nil?
         raise(ArgumentError.new('Invalid table name'))
-    elsif propertyName.nil?
+    elsif table[tableType][tableName][propertyName].nil?
         raise(ArgumentError.new('Invalid property name'))
     else
-        table = JSON.parse(File.read(File.join(ENV["DATASET_FILES"], fileName)))
         return table[tableType][tableName][propertyName]
     end
 end
