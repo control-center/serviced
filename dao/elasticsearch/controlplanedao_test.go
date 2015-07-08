@@ -57,6 +57,30 @@ var version datastore.VersionedEntity
 
 var err error
 
+// MockStorageDriver is an interface that mock the storage subsystem
+type MockStorageDriver struct {
+	exportPath string
+}
+
+func (m MockStorageDriver) ExportPath() string {
+	return m.exportPath
+}
+
+func (m MockStorageDriver) SetClients(clients ...string) {
+}
+
+func (m MockStorageDriver) Sync() error {
+	return nil
+}
+
+func (m MockStorageDriver) Restart() error {
+	return nil
+}
+
+func (m MockStorageDriver) Stop() error {
+	return nil
+}
+
 // This plumbs gocheck into testing
 func Test(t *testing.T) {
 	TestingT(t)
@@ -108,7 +132,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		c.Fatalf("could not get zk connection %v", err)
 	}
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", 4979, time.Minute*5, "localhost:5000")
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {

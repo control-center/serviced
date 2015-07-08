@@ -185,10 +185,20 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		return err
 	}
 
-	// rollback the dfs
-	glog.V(0).Infof("Performing rollback for %s (%s) using %s", tenant.Name, tenant.ID, snapshotID)
-	if err := snapshotVolume.Rollback(snapshotID); err != nil {
-		glog.Errorf("Error while trying to roll back to %s: %s", snapshotID, err)
+	err = func() error {
+		if err := dfs.networkDriver.Stop(); err != nil {
+			glog.Warningf("Could not stop network driver: %s", err)
+		}
+		defer dfs.networkDriver.Restart()
+		// rollback the dfs
+		glog.V(0).Infof("Performing rollback for %s (%s) using %s", tenant.Name, tenant.ID, snapshotID)
+		if err := snapshotVolume.Rollback(snapshotID); err != nil {
+			glog.Errorf("Error while trying to roll back to %s: %s", snapshotID, err)
+			return err
+		}
+		return nil
+	}()
+	if err != nil {
 		return err
 	}
 
@@ -308,8 +318,19 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 		glog.Errorf("Could not find the volume for service %s: %s", tenantID, err)
 		return err
 	}
-	if err := snapshotVolume.Unmount(); err != nil {
-		glog.Errorf("Could not unmount volume for service %s: %s", tenantID, err)
+
+	err = func() error {
+		if err := dfs.networkDriver.Stop(); err != nil {
+			glog.Warningf("Could not stop network driver: %s", err)
+		}
+		defer dfs.networkDriver.Restart()
+		if err := snapshotVolume.Unmount(); err != nil {
+			glog.Errorf("Could not unmount volume for service %s: %s", tenantID, err)
+			return err
+		}
+		return nil
+	}()
+	if err != nil {
 		return err
 	}
 
