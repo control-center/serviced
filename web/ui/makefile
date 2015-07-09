@@ -11,8 +11,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION := $(shell cat ../../VERSION)
-
 UID = $(shell id -u)
 GID = $(shell id -g)
 PWD = $(shell pwd)
@@ -28,13 +26,17 @@ docker_working_DIR = /mnt
 default: build
 
 .PHONY: build
-build: npmInstall $(controlplane_JS)
+build: $(controlplane_JS)
 
 #
-# If you have NPM installed locally, this step will refresh the NPM dependencies.
+# If you have NPM installed locally, you can run this step manually to
+# refresh the NPM dependencies. If you have new dependencies to add to the
+# regular build, check the read for details on how to refresh those
+# dependencies in the build image.
+#
 # If you are using the serviced-build image to build the UI AND you need
 # to refresh the NPM dependencies, then run the following commands:
-# 'make buildDockerImage;make pushDockerImage' to
+# 'make buildServicedBuildImage;make pushServicedBuildImage' to
 # rebuild and publish zenoss/serviced-build with the NPM dependencies.
 #
 npmInstall:
@@ -51,7 +53,7 @@ $(controlplane_JS): src/*.js src/**/*.js
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build:$(VERSION) \
+		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
 	fi
 
@@ -64,7 +66,7 @@ test: build
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build:$(VERSION) \
+		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
 

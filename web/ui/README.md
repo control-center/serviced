@@ -91,8 +91,8 @@ Docker image to include your changes so everyone who does NOT have node.js insta
 
 ```
 $ cd ../..
-$ make buildDockerImage
-$ make pushDockerImage
+$ make buildServicedBuildImage
+$ make pushServicedBuildImage
 ```
 
 ## Rebuilding thirdparty.js
