@@ -70,6 +70,7 @@ type API interface {
 
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]dao.RunningService, error)
+	StopRunningService(string, string) error
 	Attach(AttachConfig) error
 	Action(AttachConfig) error
 

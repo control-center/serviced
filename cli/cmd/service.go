@@ -817,16 +817,33 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
+	if !isInstanceID(args[0]) {
+		svc, err := c.searchForService(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
 
-	if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Printf("Restarting %d service(s)\n", affected)
+		}
 	} else {
-		fmt.Printf("Restarting %d service(s)\n", affected)
+		runningSvc, err := c.searchForRunningService(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		glog.Infof("KWW: name=%s id=%s hostId=%s serviceId=%s instanceId=%d\n", runningSvc.Name, runningSvc.ID, // DEBUG: KWW:
+			runningSvc.HostID, runningSvc.ServiceID, runningSvc.InstanceID) // DEBUG: KWW:
+
+		if err := c.driver.StopRunningService(runningSvc.HostID, runningSvc.ID); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Printf("Restarting service\n")
+		}
 	}
 }
 
@@ -1263,7 +1280,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		}
 	}
 
-	return fmt.Errorf("serviced service attach")
+	return fmt.Errorf("serviced service action")
 }
 
 // serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }
