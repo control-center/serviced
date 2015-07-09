@@ -524,7 +524,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 
 // Get a service endpoint.
 func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceId string) (map[string][]dao.ApplicationEndpoint, error) {
-	// TODO: this function is obsolete.	 Remove it.
+	// TODO: this function is obsolete.  Remove it.
 	result := make(map[string][]dao.ApplicationEndpoint)
 	return result, fmt.Errorf("facade.GetServiceEndpoints is obsolete - do not use it")
 }
@@ -990,7 +990,7 @@ func (f *Facade) filterByTenantID(ctx datastore.Context, matchTenantID string, s
 		}
 
 		if localTenantID == matchTenantID {
-			glog.V(5).Infof("	 Keeping service ID: %v (tenant ID: %v)", service.ID, localTenantID)
+			glog.V(5).Infof("    Keeping service ID: %v (tenant ID: %v)", service.ID, localTenantID)
 			matches = append(matches, service)
 		}
 	}
@@ -1008,7 +1008,7 @@ func filterByNameRegex(nmregex string, services []service.Service) ([]service.Se
 	matches := []service.Service{}
 	for _, service := range services {
 		if r.MatchString(service.Name) {
-			glog.V(5).Infof("	 Keeping service ID: %v (service name: %v)", service.ID, service.Name)
+			glog.V(5).Infof("    Keeping service ID: %v (service name: %v)", service.ID, service.Name)
 			matches = append(matches, service)
 		}
 	}
