@@ -474,10 +474,6 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	return nil
 }
 
-func NewLabel(tenantID string) string {
-	return fmt.Sprintf("%s_%s", tenantID, time.Now().UTC().Format(timeFormat))
-}
-
 func parseLabel(snapshotID string) (string, string, error) {
 	parts := strings.SplitN(snapshotID, "_", 2)
 	if len(parts) < 2 {
