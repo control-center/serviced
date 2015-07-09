@@ -27,6 +27,20 @@ import (
 	"strings"
 )
 
+// IsLoopbackError is an error type for IP addresses that are loopback.
+type IsLoopbackError string
+
+func (err IsLoopbackError) Error() string {
+	return fmt.Sprintf("IP %s is a loopback address", string(err))
+}
+
+// InvalidIPAddress is an error for Invalid IPs
+type InvalidIPAddress string
+
+func (err InvalidIPAddress) Error() string {
+	return fmt.Sprintf("IP %s is not a valid address", string(err))
+}
+
 // currentHost creates a Host object of the reprsenting the host where this method is invoked. The passed in poolID is
 // used as the resource pool in the result.
 func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) {
@@ -111,41 +125,35 @@ func parseOSKernelData(data string) (string, string) {
 }
 
 // getIPResources does the actual work of determining the IPs on the host. Parameters are the IPs to filter on
-func getIPResources(hostID string, ipaddress ...string) ([]HostIPResource, error) {
+func getIPResources(hostID string, hostIP string, staticIPs ...string) ([]HostIPResource, error) {
 
 	//make a map of all ipaddresses to interface
-	ips, err := getInterfaceMap()
+	ifacemap, err := getInterfaceMap()
 	if err != nil {
-		return []HostIPResource{}, err
+		return nil, err
 	}
-	keys := make([]string, len(ips))
-	i := 0
-	for key, _ := range ips {
-		keys[i] = key
-		i += 1
-	}
-	glog.V(4).Infof("localIPs: %v", keys)
+	glog.V(3).Infof("Interfaces on this host %s: %+v", hostID, ifacemap)
 
-	glog.V(4).Infof("Interfaces on this host %v", ips)
-
-	hostIPResources := make([]HostIPResource, 0)
-
-	for _, ipaddr := range ipaddress {
-		glog.Infof("looking for '%s'", ipaddr)
-		iface, found := ips[ipaddr]
-		if !found {
-			return []HostIPResource{}, fmt.Errorf("IP address %v not valid for this host", ipaddr)
+	ips := append(staticIPs, hostIP)
+	hostIPResources := make([]HostIPResource, len(ips))
+	for i, ip := range ips {
+		glog.Infof("Checking IP '%s'", ip)
+		if iface, ok := ifacemap[ip]; ok {
+			if isLoopBack(ip) {
+				return nil, IsLoopbackError(ip)
+			}
+			hostIPResource := HostIPResource{
+				HostID:        hostID,
+				IPAddress:     ip,
+				InterfaceName: iface.Name,
+				MACAddress:    iface.HardwareAddr.String(),
+			}
+			hostIPResources[i] = hostIPResource
+		} else {
+			return nil, InvalidIPAddress(ip)
 		}
-		if isLoopBack(ipaddr) {
-			return []HostIPResource{}, fmt.Errorf("loopback address %v cannot be used as an IP Resource", ipaddr)
-		}
-		hostIP := HostIPResource{}
-		hostIP.HostID = hostID
-		hostIP.IPAddress = ipaddr
-		hostIP.InterfaceName = iface.Name
-		hostIP.MACAddress = iface.HardwareAddr.String()
-		hostIPResources = append(hostIPResources, hostIP)
 	}
+
 	return hostIPResources, nil
 }
 
