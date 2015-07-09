@@ -175,7 +175,7 @@ BUILD_VERSION = v$(VERSION)-1
 # It should not be run as part for the regular local build process, or the
 # regular Jenkins build process.
 #
-buildServicedBuildImage: docker_ok
+buildServicedBuildImage: docker_ok buildServicedBuildImage_ok
 	cp web/ui/package.json build
 	cp web/ui/npm-shrinkwrap.json build
 	docker build -t zenoss/serviced-build:$(BUILD_VERSION) build
@@ -188,6 +188,22 @@ buildServicedBuildImage: docker_ok
 #
 pushServicedBuildImage: docker_ok
 	docker push zenoss/serviced-build:$(BUILD_VERSION)
+
+buildServicedBuildImage_ok:
+ifndef forceDockerBuild
+	@echo "Checking to see if zenoss/serviced-build:$(BUILD_VERSION) exists"
+	@if docker images | grep zenoss/serviced-build | grep $(BUILD_VERSION) >/dev/null; then \
+		echo "ERROR: zenoss/serviced-build:$(BUILD_VERSION) already exists"; \
+		echo "       To replace it, use"; \
+		echo "       make forceDockerBuild=true buildServicedBuildImage"; \
+		exit 1; \
+	else \
+		echo "Verified zenoss/serviced-build:$(BUILD_VERSION) does NOT exist"; \
+	fi
+else
+	@echo "Skipping check to see if zenoss/serviced-build:$(BUILD_VERSION) exists"
+	@echo "Replacing zenoss/serviced-build:$(BUILD_VERSION) (if it already exists)";
+endif
 
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
