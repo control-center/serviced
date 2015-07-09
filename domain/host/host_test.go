@@ -113,7 +113,7 @@ func Test_BuildInvalid(t *testing.T) {
 	}
 
 	_, err = Build("127.0.0.1", "65535", "poolid", "", empty...)
-	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
+	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 

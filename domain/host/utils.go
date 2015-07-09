@@ -62,10 +62,10 @@ func currentHost(ip string, rpcPort int, poolID string) (host *Host, err error) 
 
 	if ip != "" {
 		if !ipExists(ip) {
-			return nil, fmt.Errorf("requested IP %v is not available on host", ip)
+			return nil, InvalidIPAddress(ip)
 		}
 		if isLoopBack(ip) {
-			return nil, fmt.Errorf("loopback address %s cannot be used to register a host", ip)
+			return nil, IsLoopbackError(ip)
 		}
 
 		host.IPAddr = ip
