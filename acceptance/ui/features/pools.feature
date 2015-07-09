@@ -27,8 +27,8 @@ Feature: Resource Pool Management
   Scenario: Add a resource pool with a duplicate name
     When I am on the resource pool page
       And I click the add Resource Pool button
-      And I fill in the Resource Pool name field with "default"
-      And I fill in the Description field with "none"
+      And I fill in the Resource Pool name field with "table://pools/defaultPool/name"
+      And I fill in the Description field with "table://pools/defaultPool/description"
       And I click "Add Resource Pool"
     Then I should see "Adding pool failed"
       And I should see "Internal Server Error: facade: resource pool exists"
@@ -45,17 +45,17 @@ Feature: Resource Pool Management
   Scenario: Add a resource pool
     When I am on the resource pool page
       And I click the add Resource Pool button
-      And I fill in the Resource Pool name field with "test"
-      And I fill in the Description field with "test"
+      And I fill in the Resource Pool name field with "table://pools/pool2/name"
+      And I fill in the Description field with "table://pools/pool2/description"
       And I click "Add Resource Pool"
     Then I should see "Added new Pool"
       And I should see "Added resource pool"
-      And I should see an entry for "test" in the table
+      And I should see an entry for "table://pools/pool2/name" in the table
 
   Scenario: Delete a resource pool
     When I am on the resource pool page
-      And I remove "test"
+      And I remove "table://pools/pool2/name"
     Then I should see "This action will permanently delete the resource pool"
     When I click "Remove Pool"
     Then I should see "Removed Pool"
-      And I should not see an entry for "test" in the table
+      And I should not see an entry for "table://pools/pool2/name" in the table

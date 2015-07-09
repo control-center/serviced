@@ -10,12 +10,12 @@ end
 
 After('@clean_hosts') do
     visitHostsPage()
-    removeAllHosts()
+    removeAllEntries()
 end
 
 After('@clean_pools') do
     visitPoolsPage()
-    removeAllAddedPools()
+    removeAllEntries()
 end
 
 After('@clean_templates') do
