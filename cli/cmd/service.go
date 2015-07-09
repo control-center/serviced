@@ -836,9 +836,6 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 			return
 		}
 
-		glog.Infof("KWW: name=%s id=%s hostId=%s serviceId=%s instanceId=%d\n", runningSvc.Name, runningSvc.ID, // DEBUG: KWW:
-			runningSvc.HostID, runningSvc.ServiceID, runningSvc.InstanceID) // DEBUG: KWW:
-
 		if err := c.driver.StopRunningService(runningSvc.HostID, runningSvc.ID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
