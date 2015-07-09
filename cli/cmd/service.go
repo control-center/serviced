@@ -839,7 +839,7 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		if err := c.driver.StopRunningService(runningSvc.HostID, runningSvc.ID); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		} else {
-			fmt.Printf("Restarting service\n")
+			fmt.Printf("Restarting 1 service(s)\n")
 		}
 	}
 }
