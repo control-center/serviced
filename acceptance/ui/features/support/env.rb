@@ -12,6 +12,40 @@ require 'capybara/poltergeist'
 require 'selenium-webdriver'
 require 'capybara-screenshot/cucumber'
 
+def combineAllDataFiles(dir)
+    data = "{"
+    Dir.foreach(dir) do |file|
+        next if file == '.' || file == '..'
+        begin
+            original = File.read(File.join(dir, file))
+        rescue => err
+            printf "ERROR: Dataset file %s could not be read: %s\n", file, err.message
+            exit 1
+        end
+        data << removeWhitespaceAndOuterBrackets(original)
+        data << ",\n\n"
+    end
+    data = data.rstrip.chop
+    data << "\n}"
+    return data
+end
+
+def removeWhitespaceAndOuterBrackets(text)
+    text = text.strip
+    text = (text[1..-2]).rstrip
+    return text
+end
+
+def parseJson(data)
+    begin
+        data = JSON.parse(data)
+    rescue => err
+        printf "ERROR: Dataset file could not be parsed: %s\n", err.message
+        exit 1
+    end
+    return data
+end
+
 #
 # Set defaults
 Capybara.default_wait_time = 10
@@ -53,29 +87,8 @@ if !Dir.exists?(dataset_dir) || Dir.entries(dataset_dir).size <= 2
     exit 1
 end
 
-data = "{"
-Dir.foreach(dataset_dir) do |file|
-    next if file == '.' || file == '..'
-    begin
-        original = File.read(File.join(dataset_dir, file))
-    rescue
-        printf "ERROR: Dataset file could not be read\n"
-        exit 1
-    end
-    original = original.strip
-    original = (original[1..-2]).rstrip
-    data << original
-    data << ",\n\n"
-end
-data = data.rstrip.chop
-data << "\n}"
-begin
-    data = JSON.parse(data)
-rescue
-    printf "ERROR: Dataset files could not be parsed\n"
-    exit 1
-end
-PARSED_DATA = data
+data = combineAllDataFiles(dataset_dir)
+PARSED_DATA = parseJson(data)
 
 printf "Using dataset directory=%s\n", ENV["DATASET_DIR"]
 printf "Using dataset=%s\n", ENV["DATASET"]
@@ -131,5 +144,3 @@ end
 Capybara::Screenshot.register_driver(:selenium_chrome) do |driver, path|
     driver.browser.save_screenshot(path)
 end
-
-
