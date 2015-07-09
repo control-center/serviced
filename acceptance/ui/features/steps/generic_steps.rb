@@ -152,21 +152,20 @@ def getTableValue(valueOrTableUrl)
         return valueOrTableUrl
     end
     parsedUrl = valueOrTableUrl.split(/\W+/)
+    if parsedUrl.size != 4
+        raise(ArgumentError.new('Invalid URL'))
+    end
+
     tableType = parsedUrl[1]
-    fileName = File.join(ENV["DATASET_FILES"], tableType + ".json")
     tableName = parsedUrl[2]
     propertyName = parsedUrl[3]
-    if !File.exist?(fileName)
-        raise(ArgumentError.new('Invalid file'))
-    end
-    table = JSON.parse(File.read(fileName))
-    if table[tableType].nil?
+    if PARSED_DATA[tableType].nil?
         raise(ArgumentError.new('Invalid table type'))
-    elsif table[tableType][tableName].nil?
+    elsif PARSED_DATA[tableType][tableName].nil?
         raise(ArgumentError.new('Invalid table name'))
-    elsif table[tableType][tableName][propertyName].nil?
+    elsif PARSED_DATA[tableType][tableName][propertyName].nil?
         raise(ArgumentError.new('Invalid property name'))
     else
-        return table[tableType][tableName][propertyName]
+        return PARSED_DATA[tableType][tableName][propertyName]
     end
 end

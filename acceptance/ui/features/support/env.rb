@@ -52,7 +52,30 @@ if !Dir.exists?(dataset_dir) || Dir.entries(dataset_dir).size <= 2
     printf "ERROR: DATASET_DIR is not defined; check cucumber.yml\n"
     exit 1
 end
-ENV["DATASET_FILES"] = dataset_dir
+
+data = "{"
+Dir.foreach(dataset_dir) do |file|
+    next if file == '.' || file == '..'
+    begin
+        original = File.read(File.join(dataset_dir, file))
+    rescue
+        printf "ERROR: Dataset file could not be read\n"
+        exit 1
+    end
+    original = original.strip
+    original = (original[1..-2]).rstrip
+    data << original
+    data << ",\n\n"
+end
+data = data.rstrip.chop
+data << "\n}"
+begin
+    data = JSON.parse(data)
+rescue
+    printf "ERROR: Dataset files could not be parsed\n"
+    exit 1
+end
+PARSED_DATA = data
 
 printf "Using dataset directory=%s\n", ENV["DATASET_DIR"]
 printf "Using dataset=%s\n", ENV["DATASET"]

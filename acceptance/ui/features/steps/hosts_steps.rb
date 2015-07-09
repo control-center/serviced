@@ -117,5 +117,6 @@ end
 
 def addDefaultHost()
     addHost("table://hosts/defaultHost/nameAndPort", \
-        "table://hosts/defaultHost/pool", "table://hosts/defaultHost/commitment")
+        "table://hosts/defaultHost/pool", \
+        "table://hosts/defaultHost/commitment")
 end
