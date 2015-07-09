@@ -139,13 +139,8 @@ func Build(ip string, rpcport string, poolid string, memory string, ipAddrs ...s
 	if err != nil {
 		return nil, err
 	}
-
-	if len(ipAddrs) == 0 {
-		// use the default IP of the host if specific IPs have not been requested
-		ipAddrs = append(ipAddrs, host.IPAddr)
-	}
-	glog.Infof("building with ipsAddrs: %v [%d]", ipAddrs, len(ipAddrs))
-	hostIPs, err := getIPResources(host.ID, ipAddrs...)
+	glog.Infof("Building host %s (%s) with ipsAddrs: %v [%d]", host.ID, host.IPAddr, ipAddrs, len(ipAddrs))
+	hostIPs, err := getIPResources(host.ID, host.IPAddr, ipAddrs...)
 	if err != nil {
 		return nil, err
 	}

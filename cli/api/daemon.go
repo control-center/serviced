@@ -354,12 +354,7 @@ func (d *daemon) startMaster() error {
 	}
 
 	// This is storage related
-	rpcPort := "0"
-	parts := strings.Split(options.Listen, ":")
-	if len(parts) > 1 {
-		rpcPort = parts[1]
-	}
-
+	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
 	if err != nil {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
@@ -491,13 +486,8 @@ func (d *daemon) startAgent() error {
 		}
 	}
 
-	rpcPort := "0"
-	parts := strings.Split(options.Listen, ":")
-	if len(parts) > 1 {
-		rpcPort = parts[1]
-	}
-
-	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "")
+	rpcPort := strings.TrimLeft(options.Listen, ":")
+	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "", options.StaticIPs...)
 	if err != nil {
 		panic(err)
 	}
