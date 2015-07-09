@@ -143,7 +143,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "restart",
 				Usage:        "Restarts a service",
-				Description:  "serviced service restart SERVICEID",
+				Description:  "serviced service restart { SERVICEID | INSTANCEID }",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRestart,
 				Flags: []cli.Flag{
