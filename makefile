@@ -118,7 +118,7 @@ build_isvcs:
 
 .PHONY: build_js
 build_js:
-	cd web/ui && make BUILD_VERSION=$(BUILD_VERSION) build
+	cd web/ui && make build
 
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
@@ -168,6 +168,7 @@ serviced: FORCE
 # BUILD_VERSION is the version of the serviced-build docker image
 #
 BUILD_VERSION = v$(VERSION)-1
+export BUILD_VERSION
 
 #
 # This target is used to rebuild the zenoss/serviced-build image.
@@ -461,7 +462,7 @@ docker_ok:
 
 .PHONY: clean_js
 clean_js:
-	cd web/ui && make BUILD_VERSION=$(BUILD_VERSION) clean
+	cd web/ui && make clean
 
 .PHONY: clean_serviced
 clean_serviced: $(GODEP)
