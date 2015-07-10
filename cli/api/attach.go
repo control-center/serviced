@@ -41,6 +41,21 @@ func (a *api) GetRunningServices() ([]dao.RunningService, error) {
 	return rss, nil
 }
 
+// StopRunningService halts the specifed running service container
+func (a *api) StopRunningService(hostID string, serviceStateID string) error {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
+	var unused int
+	if err := client.StopRunningInstance(dao.HostServiceRequest{HostID: hostID, ServiceStateID: serviceStateID}, &unused); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // Attach runs an arbitrary shell command in a running service container
 func (a *api) Attach(config AttachConfig) error {
 	if hostID, err := utils.HostID(); err != nil {
