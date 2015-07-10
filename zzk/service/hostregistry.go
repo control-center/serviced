@@ -15,7 +15,6 @@ package service
 
 import (
 	"errors"
-	"fmt"
 	"path"
 	"time"
 
@@ -91,7 +90,8 @@ func InitHostRegistry(conn client.Connection) error {
 		}
 		return err
 	case <-time.After(5 * time.Second):
-		return fmt.Errorf("Could not create %s within 5 seconds", path)
+		glog.Errorf("Unable to create host registry directory: %s", path)
+		return zzk.ErrBadConn
 	}
 }
 
