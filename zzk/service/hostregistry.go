@@ -15,6 +15,7 @@ package service
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"time"
 
@@ -78,21 +79,19 @@ type HostRegistryListener struct {
 
 // InitHostRegistry initializes the host registry
 func InitHostRegistry(conn client.Connection) error {
-	for {
-		done := make(chan error, 1)
-		go func() {
-			done <- conn.CreateDir(hostregpath())
-		}()
-		select {
-		case err := <-done:
-			if err == client.ErrNodeExists {
-				return nil
-			}
-			return err
-		case <-time.After(5 * time.Second):
-			glog.Errorf("Could not create host registry directory within 5 seconds. Retrying.")
-			continue
+	done := make(chan error, 1)
+	path := hostregpath()
+	go func() {
+		done <- conn.CreateDir(path)
+	}()
+	select {
+	case err := <-done:
+		if err == client.ErrNodeExists {
+			return nil
 		}
+		return err
+	case <-time.After(5 * time.Second):
+		return fmt.Errorf("Could not create %s within 5 seconds", path)
 	}
 }
 
