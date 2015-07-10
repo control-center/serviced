@@ -57,6 +57,30 @@ var version datastore.VersionedEntity
 
 var err error
 
+// MockStorageDriver is an interface that mock the storage subsystem
+type MockStorageDriver struct {
+	exportPath string
+}
+
+func (m MockStorageDriver) ExportPath() string {
+	return m.exportPath
+}
+
+func (m MockStorageDriver) SetClients(clients ...string) {
+}
+
+func (m MockStorageDriver) Sync() error {
+	return nil
+}
+
+func (m MockStorageDriver) Restart() error {
+	return nil
+}
+
+func (m MockStorageDriver) Stop() error {
+	return nil
+}
+
 // This plumbs gocheck into testing
 func Test(t *testing.T) {
 	TestingT(t)
@@ -108,7 +132,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		c.Fatalf("could not get zk connection %v", err)
 	}
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", 4979, time.Minute*5, "localhost:5000")
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -143,6 +167,99 @@ func (dt *DaoTest) SetUpTest(c *C) {
 func (dt *DaoTest) TearDownSuite(c *C) {
 	isvcs.Mgr.Stop()
 	dt.FacadeTest.TearDownSuite(c)
+}
+
+func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
+	var id string
+
+	// test 1: add tenant with dup ep
+	svc := service.Service{
+		ID:           "test_tenant",
+		Name:         "test_tenant",
+		PoolID:       "default",
+		Launch:       "auto",
+		DeploymentID: "deployment_id",
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		},
+	}
+	err := dt.Dao.AddService(svc, &id)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+
+	// test 2: success
+	svc.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+	}
+	err = dt.Dao.AddService(svc, &id)
+	t.Assert(err, IsNil)
+
+	// test 3: update service with dup ep
+	svc.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+	}
+	err = dt.Dao.UpdateService(svc, &unused)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+
+	// test 4: add child service with dup ep
+	svc2 := service.Service{
+		ID:              "test_service_1",
+		Name:            "test_service_1",
+		ParentServiceID: svc.ID,
+		PoolID:          svc.PoolID,
+		Launch:          svc.Launch,
+		DeploymentID:    svc.DeploymentID,
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		},
+	}
+	err = dt.Dao.AddService(svc2, &id)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+
+	// test 5: add child success
+	svc2.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+	}
+	err = dt.Dao.AddService(svc2, &id)
+	t.Assert(err, IsNil)
+
+	// test 6: update parent service with dup id on child
+	svc.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+	}
+	err = dt.Dao.UpdateService(svc, &unused)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+
+	// test 7: update parent service success
+	svc.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"}},
+	}
+	err = dt.Dao.UpdateService(svc, &unused)
+	t.Assert(err, IsNil)
+
+	// test 8: update child service with dup id on parent
+	svc2.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+	}
+	err = dt.Dao.UpdateService(svc2, &unused)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+
+	// test 9: update child service success
+	svc2.Endpoints = []service.ServiceEndpoint{
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}},
+	}
+	err = dt.Dao.UpdateService(svc2, &unused)
+	t.Assert(err, IsNil)
 }
 
 func (dt *DaoTest) TestDao_NewService(t *C) {

@@ -26,7 +26,8 @@
           }],
           "Runs": {
             "exit0": "date",
-            "exit1": "date; exit 42"
+            "exit1": "date; exit 42",
+            "sleepy60": "sleep 60"
           },
           "Snapshot": {
             "Pause": "echo pause",

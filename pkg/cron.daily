@@ -1,3 +1,4 @@
 #!/bin/sh
 
 /usr/sbin/logrotate /opt/serviced/etc/logrotate.conf
+/opt/serviced/bin/serviced-container-cleanup

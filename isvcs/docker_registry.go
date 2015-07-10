@@ -42,7 +42,7 @@ func init() {
 		HostIpOverride: "", // docker registry should always be open
 		HostPort:       registryPort,
 	}
-	command := `DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced exec docker-registry`
+	command := `SETTINGS_FLAVOR=serviced exec /opt/registry/registry /opt/registry/registry-config.yml`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
 			Name:         "docker-registry",

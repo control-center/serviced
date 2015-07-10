@@ -63,3 +63,8 @@ migration/tests/out.json
 
 build/package.json
 build/npm-shrinkwrap.json
+acceptance/dockerImage/build/reporter.jar
+
+acceptance/dockerImage/reporter/dependency-reduced-pom.xml
+acceptance/dockerImage/reporter/target
+acceptance/ui/output

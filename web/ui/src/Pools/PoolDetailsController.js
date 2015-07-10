@@ -142,7 +142,7 @@
                 sorting: {
                     IP: "asc"
                 },
-                watch: function(){
+                watchExpression: function(){
                     // if poolsFactory updates, update view
                     return poolsFactory.lastUpdate;
                 }
@@ -152,7 +152,7 @@
                 sorting: {
                     name: "asc"
                 },
-                watch: function(){
+                watchExpression: function(){
                     return hostsFactory.lastUpdate;
                 }
             };

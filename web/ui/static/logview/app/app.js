@@ -74,13 +74,14 @@ function (angular, $, _, appLevelRequire) {
 
     $httpProvider.interceptors.push(['$location', function($location) {
       return {
-        responseError: function(resp) {
-          if (resp.status === 0) {
-            console.log("redirecting");
-            $location.path('/connectionFailed');
-            console.log(resp);
+          responseError: function(resp) {
+              if (resp.status === 401) {
+                  console.error('You don\'t appear to be logged in.');
+                  var servicedUrl = window.location.href.slice(0,window.location.href.indexOf("/static/logview"))
+                  var loginUrl = servicedUrl + "/#/login"
+                  window.top.location.href = loginUrl;
+              }
           }
-        }
       };
     }]);
 

@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/validation"
 
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
@@ -65,6 +66,12 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	} else if s != nil {
 		err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
 		glog.Errorf("Cannot create service %s: %s", svc.Name, err)
+		return err
+	}
+
+	// verify that the service endpoints are unique per the tenant
+	if err := f.validateServiceEndpoints(ctx, &svc); err != nil {
+		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
 
@@ -389,7 +396,7 @@ func (f *Facade) GetService(ctx datastore.Context, id string) (*service.Service,
 	return svc, nil
 }
 
-//
+// GetServices looks up all services. Allows filtering by tenant ID, name (regular expression), and/or update time.
 func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetServices")
 	store := f.serviceStore
@@ -420,7 +427,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		if request.(dao.ServiceRequest).NameRegex != "" {
 			services, err = filterByNameRegex(request.(dao.ServiceRequest).NameRegex, services)
 			if err != nil {
-				glog.Error("Facade.GetTaggedServices: err=", err)
+				glog.Error("Facade.GetServices: err=", err)
 				return nil, err
 			}
 		}
@@ -429,7 +436,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		if request.(dao.ServiceRequest).TenantID != "" {
 			services, err = f.filterByTenantID(ctx, request.(dao.ServiceRequest).TenantID, services)
 			if err != nil {
-				glog.Error("Facade.GetTaggedServices: err=", err)
+				glog.Error("Facade.GetServices: err=", err)
 				return nil, err
 			}
 		}
@@ -437,7 +444,7 @@ func (f *Facade) GetServices(ctx datastore.Context, request dao.EntityRequest) (
 		return services, nil
 	default:
 		err := fmt.Errorf("Bad request type %v: %+v", v, request)
-		glog.V(2).Info("Facade.GetTaggedServices: err=", err)
+		glog.V(2).Info("Facade.GetServices: err=", err)
 		return nil, err
 	}
 }
@@ -457,7 +464,7 @@ func (f *Facade) GetServicesByPool(ctx datastore.Context, poolID string) ([]serv
 	return results, nil
 }
 
-//
+// GetTaggedServices looks up all services with the specified tags. Allows filtering by tenant ID and/or name (regular expression).
 func (f *Facade) GetTaggedServices(ctx datastore.Context, request dao.EntityRequest) ([]service.Service, error) {
 	glog.V(3).Infof("Facade.GetTaggedServices")
 
@@ -1317,6 +1324,53 @@ func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfigura
 	return zkAPI(f).UpdateService(svc)
 }
 
+// validateServiceEndpoints traverses the service tree and checks for duplicate
+// endpoints
+func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Service) error {
+	epValidator := service.NewServiceEndpointValidator()
+	vErr := validation.NewValidationError()
+
+	epValidator.IsValid(vErr, svc)
+	if vErr.HasError() {
+		glog.Errorf("Service %s (%s) has duplicate endpoints: %s", svc.Name, svc.ID, vErr)
+		return vErr
+	}
+
+	var tenantID string
+	if svc.ParentServiceID == "" {
+		// this service is a tenant so we don't have to traverse its tree if
+		// it is a new service
+		if _, err := f.serviceStore.Get(ctx, svc.ID); datastore.IsErrNoSuchEntity(err) {
+			return nil
+		} else if err != nil {
+			glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+		tenantID = svc.ID
+	} else {
+		var err error
+		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
+			glog.Errorf("Could not look up tenantID for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+	}
+
+	if err := f.walkServices(ctx, tenantID, true, func(s *service.Service) error {
+		// we can skip this service because we already checked it above
+		if s.ID != svc.ID {
+			epValidator.IsValid(vErr, s)
+		}
+		return nil
+	}); err != nil {
+		glog.Errorf("Could not walk service tree of %s (%s) with tenant %s: %s", svc.Name, svc.ID, tenantID, err)
+		return err
+	}
+	if vErr.HasError() {
+		return vErr
+	}
+	return nil
+}
+
 // Verify that the svc is valid for update.
 // Should be called for all updated (edited), and migrated services.
 // This method is only responsible for validation.
@@ -1329,13 +1383,13 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 	}
 	svc.ID = id
 
-	svcStore := f.serviceStore
-	currentSvc, err := svcStore.Get(ctx, svc.ID)
-	if err != nil {
+	// Primary service validation
+	if err := svc.ValidEntity(); err != nil {
 		return err
 	}
 
-	err = svc.ValidEntity()
+	svcStore := f.serviceStore
+	currentSvc, err := svcStore.Get(ctx, svc.ID)
 	if err != nil {
 		return err
 	}
@@ -1352,8 +1406,9 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 		}
 	}
 
-	// Primary service validation
-	if err := svc.ValidEntity(); err != nil {
+	// verify that the service endpoints are unique per the tenant
+	if err := f.validateServiceEndpoints(ctx, svc); err != nil {
+		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
 
@@ -1470,7 +1525,11 @@ func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *ser
 	//For now always make sure originalConfigs stay the same, essentially they are immutable
 	newSvc.OriginalConfigs = oldSvc.OriginalConfigs
 
-	if !reflect.DeepEqual(oldSvc.OriginalConfigs, newSvc.ConfigFiles) {
+	if err := f.fillServiceConfigs(ctx, oldSvc); err != nil {
+		return err
+	}
+
+	if !reflect.DeepEqual(oldSvc.ConfigFiles, newSvc.ConfigFiles) {
 		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *newSvc)
 		if err != nil {
 			return err

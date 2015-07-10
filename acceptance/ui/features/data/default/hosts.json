@@ -1,0 +1,18 @@
+{
+  "hosts": 
+  {
+    "defaultHost": {
+      "nameAndPort": "roei-dev:4979",
+      "name": "roei-dev",
+      "pool": "default",
+      "commitment": "50%"
+    },
+
+    "host2": {
+      "nameAndPort": "vagrant:4979",
+      "name": "vagrant",
+      "pool": "default",
+      "commitment": "25%"
+    }
+  }
+}

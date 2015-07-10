@@ -17,12 +17,13 @@ import (
 	"fmt"
 	"path"
 
+	"strconv"
+	"time"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/zenoss/glog"
-	"strconv"
-	"time"
 )
 
 // Server manages the exporting of a file system to clients.
@@ -39,6 +40,7 @@ type StorageDriver interface {
 	SetClients(clients ...string)
 	Sync() error
 	Restart() error
+	Stop() error
 }
 
 // NewServer returns a Server object to manage the exported file system

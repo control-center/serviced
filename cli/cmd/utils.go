@@ -20,6 +20,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"syscall"
 
@@ -110,4 +111,15 @@ func openEditor(data []byte, name, editor string) (reader io.Reader, err error) 
 	}
 
 	return reader, nil
+}
+
+// isInstanceID determines whether a service ID specifies an individual instance
+func isInstanceID(serviceID string) bool {
+	slash := strings.LastIndexAny(serviceID, "/")
+	if slash >= 0 && slash < len(serviceID)-1 {
+		if isInstance, _ := regexp.MatchString("^[0-9]+$", serviceID[slash+1:]); isInstance {
+			return true
+		}
+	}
+	return false
 }

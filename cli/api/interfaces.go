@@ -70,12 +70,13 @@ type API interface {
 
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]dao.RunningService, error)
+	StopRunningService(string, string) error
 	Attach(AttachConfig) error
 	Action(AttachConfig) error
 
 	// Shell
 	StartShell(ShellConfig) error
-	RunShell(ShellConfig) (int, error)
+	RunShell(ShellConfig, chan struct{}) (int, error)
 
 	// Snapshots
 	GetSnapshots() ([]dao.SnapshotInfo, error)
