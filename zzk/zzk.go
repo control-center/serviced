@@ -29,6 +29,7 @@ const retryLimit = 2
 var (
 	ErrTimeout  = errors.New("connection timeout")
 	ErrShutdown = errors.New("listener shutdown")
+	ErrBadConn  = errors.New("bad connection")
 )
 
 // HostLeader is the node to store leader information for a host
