@@ -16,6 +16,7 @@ package service
 import (
 	"errors"
 	"path"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
@@ -77,11 +78,22 @@ type HostRegistryListener struct {
 
 // InitHostRegistry initializes the host registry
 func InitHostRegistry(conn client.Connection) error {
-	err := conn.CreateDir(hostregpath())
-	if err == client.ErrNodeExists {
-		return nil
+	for {
+		done := make(chan error, 1)
+		go func() {
+			done <- conn.CreateDir(hostregpath())
+		}()
+		select {
+		case err := <-done:
+			if err == client.ErrNodeExists {
+				return nil
+			}
+			return err
+		case <-time.After(5 * time.Second):
+			glog.Errorf("Could not create host registry directory within 5 seconds. Retrying.")
+			continue
+		}
 	}
-	return err
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
