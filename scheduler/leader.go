@@ -46,7 +46,10 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 
 	// creates a listener for the host registry
 	if err := zkservice.InitHostRegistry(conn); err != nil {
-		glog.Errorf("Could not initialize host registry for pool %s: %s", err)
+		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
+		if err == zzk.ErrBadConn {
+			conn.Close()
+		}
 		return
 	}
 	hostRegistry := zkservice.NewHostRegistryListener()
