@@ -159,25 +159,66 @@ docker_SRC = github.com/docker/docker
 FORCE:
 
 serviced: $(GODEP)
-serviced: FORCE 
+serviced: FORCE
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
+#
+# BUILD_VERSION is the version of the serviced-build docker image
+#
+BUILD_VERSION = v$(VERSION)-1
+export BUILD_VERSION
+
+#
+# This target is used to rebuild the zenoss/serviced-build image.
+# It is intended to be run manually whenever the contents of the build image change.
+# It should not be run as part for the regular local build process, or the
+# regular Jenkins build process.
+#
+buildServicedBuildImage: docker_ok buildServicedBuildImage_ok
+	cp web/ui/package.json build
+	cp web/ui/npm-shrinkwrap.json build
+	docker build -t zenoss/serviced-build:$(BUILD_VERSION) build
+
+#
+# This target is used to push the zenoss/serviced-build image to docker hub.
+# It is intended to be run manually whenever the contents of the build image change.
+# It should not be run as part for the regular local build process, or the
+# regular Jenkins build process.
+#
+pushServicedBuildImage: docker_ok
+	docker push zenoss/serviced-build:$(BUILD_VERSION)
+
+buildServicedBuildImage_ok:
+ifndef forceDockerBuild
+	@echo "Checking to see if zenoss/serviced-build:$(BUILD_VERSION) exists"
+	@if docker images | grep zenoss/serviced-build | grep $(BUILD_VERSION) >/dev/null; then \
+		echo "ERROR: zenoss/serviced-build:$(BUILD_VERSION) already exists"; \
+		echo "       To replace it, use"; \
+		echo "       make forceDockerBuild=true buildServicedBuildImage"; \
+		exit 1; \
+	else \
+		echo "Verified zenoss/serviced-build:$(BUILD_VERSION) does NOT exist"; \
+	fi
+else
+	@echo "Skipping check to see if zenoss/serviced-build:$(BUILD_VERSION) exists"
+	@echo "Replacing zenoss/serviced-build:$(BUILD_VERSION) (if it already exists)";
+endif
+
 .PHONY: docker_build
 pkg_build_tmp = pkg/build/tmp
 docker_build: docker_ok
-	docker build -t zenoss/serviced-build:$(VERSION) build
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	if [ ! -d "$(pkg_build_tmp)" ];then \
 		mkdir -p $(pkg_build_tmp) ;\
 	fi
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	-v `pwd`/$(pkg_build_tmp):/tmp \
-	-t zenoss/serviced-build:$(VERSION) \
+	-t zenoss/serviced-build:$(BUILD_VERSION) \
 	make GOPATH=$(docker_GOPATH) IN_DOCKER=1 build
 
 # Make the installed godep primitive (under $GOPATH/bin/godep)
@@ -378,17 +419,16 @@ docker_buildandpackage: docker_ok
 	if [ -z "$$RELEASE_PHASE" -a -z "$$BUILD_NUMBER" ]; then \
         exit 1 ;\
     fi
-	docker build -t zenoss/serviced-build:$(VERSION) build
 	docker run --rm \
 	-v `pwd`:/go/src/github.com/control-center/serviced \
-	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 	if [ ! -d "$(pkg_build_tmp)" ];then \
 		mkdir -p $(pkg_build_tmp) ;\
 	fi
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
 	-v `pwd`/$(pkg_build_tmp):/tmp \
-	-t zenoss/serviced-build:$(VERSION) make \
+	-t zenoss/serviced-build:$(BUILD_VERSION) make \
 		IN_DOCKER=1 \
 		INSTALL_TEMPLATES=$(INSTALL_TEMPLATES) \
 		GOPATH=$(docker_GOPATH) \
@@ -452,7 +492,7 @@ clean: clean_js clean_pkg clean_dao clean_serviced
 docker_clean_pkg:
 	docker run --rm \
 	-v `pwd`:$(docker_serviced_SRC) \
-	zenoss/serviced-build:$(VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
+	zenoss/serviced-build:$(BUILD_VERSION) /bin/bash -c "cd $(docker_serviced_pkg_SRC) && make GOPATH=$(docker_GOPATH) clean"
 
 .PHONY: docker_clean
 docker_clean: docker_clean_pkg

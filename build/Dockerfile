@@ -51,4 +51,10 @@ RUN	apt-get update -qq && apt-get install -y -q rpm
 RUN	apt-get update -qq && apt-get install -y -q mercurial bzr
 RUN apt-get update -qq && apt-get install -y -q libdevmapper-dev libsqlite3-dev
 
+# Cache the NPM packages within the docker image
+RUN mkdir -p /npm-cache/serviced/node_modules
+ADD package.json /npm-cache/serviced/package.json
+ADD npm-shrinkwrap.json /npm-cache/serviced/npm-shrinkwrap.json
+RUN cd /npm-cache/serviced; npm install
+
 WORKDIR	/go/src/github.com/control-center/serviced
