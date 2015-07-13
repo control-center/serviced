@@ -113,12 +113,12 @@ func Test_BuildInvalid(t *testing.T) {
 	}
 
 	_, err = Build("127.0.0.1", "65535", "poolid", "", empty...)
-	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
+	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 
 	_, err = Build("", "65535", "poolid", "", "127.0.0.1")
-	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
+	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 
@@ -162,7 +162,7 @@ func Test_Build(t *testing.T) {
 func Test_getIPResources(t *testing.T) {
 
 	ips, err := getIPResources("dummy_hostId", "123")
-	if err == nil || err.Error() != "IP address 123 not valid for this host" {
+	if _, ok := err.(InvalidIPAddress); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 	if len(ips) != 0 {
@@ -170,7 +170,7 @@ func Test_getIPResources(t *testing.T) {
 	}
 
 	ips, err = getIPResources("dummy_hostId", "127.0.0.1")
-	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used as an IP Resource" {
+	if _, ok := err.(IsLoopbackError); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 	if len(ips) != 0 {

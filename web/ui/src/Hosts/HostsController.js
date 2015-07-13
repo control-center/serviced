@@ -117,7 +117,7 @@
                 sorting: {
                     name: "asc"
                 },
-                watch: function(){
+                watchExpression: function(){
                     return hostsFactory.lastUpdate;
                 }
             };

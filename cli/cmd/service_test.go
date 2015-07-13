@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 )
@@ -34,10 +35,12 @@ const (
 )
 
 var DefaultServiceAPITest = ServiceAPITest{
-	errs:      make(map[string]error, 10),
-	services:  DefaultTestServices,
-	pools:     DefaultTestPools,
-	snapshots: DefaultTestSnapshots,
+	errs:            make(map[string]error, 10),
+	services:        DefaultTestServices,
+	runningServices: DefaultTestRunningServices,
+	pools:           DefaultTestPools,
+	hosts:           DefaultTestHosts,
+	snapshots:       DefaultTestSnapshots,
 }
 
 var DefaultTestServices = []service.Service{
@@ -81,19 +84,67 @@ var DefaultTestServices = []service.Service{
 	},
 }
 
+var DefaultTestRunningServices = []dao.RunningService{
+	{
+		ID:              "abcdefg",
+		ServiceID:       "test-service-2",
+		HostID:          "test-host-id-1",
+		DockerID:        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		Name:            "Zope",
+		Startup:         "startup command 2",
+		Instances:       1,
+		ImageID:         "quay.io/zenossinc/tenantid2-core5x",
+		PoolID:          "default",
+		DesiredState:    int(service.SVCRun),
+		InstanceID:      0,
+		ParentServiceID: "test-service-1",
+	},
+	{
+		ID:              "hijklmn",
+		ServiceID:       "test-service-3",
+		HostID:          "test-host-id-2",
+		DockerID:        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		Name:            "zencommand",
+		Startup:         "startup command 3",
+		Instances:       2,
+		ImageID:         "quay.io/zenossinc/tenantid1-opentsdb",
+		PoolID:          "remote",
+		DesiredState:    int(service.SVCRun),
+		InstanceID:      0,
+		ParentServiceID: "test-service-2",
+	},
+	{
+		ID:              "opqrstu",
+		ServiceID:       "test-service-3",
+		HostID:          "test-host-id-2",
+		DockerID:        "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+		Name:            "zencommand",
+		Startup:         "startup command 3",
+		Instances:       2,
+		ImageID:         "quay.io/zenossinc/tenantid1-opentsdb",
+		PoolID:          "remote",
+		DesiredState:    int(service.SVCRun),
+		InstanceID:      1,
+		ParentServiceID: "test-service-2",
+	},
+}
+
 var (
-	ErrNoServiceFound = errors.New("no service found")
-	ErrInvalidService = errors.New("invalid service")
-	ErrCmdNotFound    = errors.New("command not found")
-	ErrStub           = errors.New("stub for facade failed")
+	ErrNoServiceFound        = errors.New("no service found")
+	ErrNoRunningServiceFound = errors.New("no matches found")
+	ErrInvalidService        = errors.New("invalid service")
+	ErrCmdNotFound           = errors.New("command not found")
+	ErrStub                  = errors.New("stub for facade failed")
 )
 
 type ServiceAPITest struct {
 	api.API
-	errs      map[string]error
-	services  []service.Service
-	pools     []pool.ResourcePool
-	snapshots []dao.SnapshotInfo
+	errs            map[string]error
+	services        []service.Service
+	runningServices []dao.RunningService
+	pools           []pool.ResourcePool
+	hosts           []host.Host
+	snapshots       []dao.SnapshotInfo
 }
 
 func InitServiceAPITest(args ...string) {
@@ -109,11 +160,25 @@ func (t ServiceAPITest) GetServices() ([]service.Service, error) {
 	return t.services, nil
 }
 
+func (t ServiceAPITest) GetRunningServices() ([]dao.RunningService, error) {
+	if t.errs["GetRunningServices"] != nil {
+		return nil, t.errs["GetRunningServices"]
+	}
+	return t.runningServices, nil
+}
+
 func (t ServiceAPITest) GetResourcePools() ([]pool.ResourcePool, error) {
 	if t.errs["GetResourcePools"] != nil {
 		return nil, t.errs["GetResourcePools"]
 	}
 	return t.pools, nil
+}
+
+func (t ServiceAPITest) GetHosts() ([]host.Host, error) {
+	if t.errs["GetHosts"] != nil {
+		return nil, t.errs["GetHosts"]
+	}
+	return t.hosts, nil
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
@@ -213,6 +278,16 @@ func (t ServiceAPITest) StopService(cfg api.SchedulerConfig) (int, error) {
 	}
 
 	return 1, nil
+}
+
+func (t ServiceAPITest) StopRunningService(hostID string, serviceStateID string) error {
+	for _, rs := range t.runningServices {
+		if rs.HostID == hostID && rs.ID == serviceStateID {
+			return nil
+		}
+	}
+
+	return ErrNoRunningServiceFound
 }
 
 func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
@@ -672,7 +747,7 @@ func ExampleServicedCLI_CmdServiceRestart_usage() {
 	//    command restart [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced service restart SERVICEID
+	//    serviced service restart { SERVICEID | INSTANCEID }
 	//
 	// OPTIONS:
 	//    --auto-launch	Recursively schedules child services
@@ -688,16 +763,24 @@ func ExampleServicedCLI_CmdServiceRestart_fail() {
 }
 
 func ExampleServicedCLI_CmdServiceRestart_err() {
-	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-0")
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-0")    // Non-existant service
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-3/4")  // Non-existant instance
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-3/a")  // Non-numeric instance number
+	pipeStderr(InitServiceAPITest, "serviced", "service", "restart", "test-service-3/0b") // Non-numeric instance number
 
 	// Output:
+	// service not found
+	// no matches found
+	// service not found
 	// service not found
 }
 
 func ExampleServicedCLI_CmdServiceRestart() {
 	InitServiceAPITest("serviced", "service", "restart", "test-service-2")
+	InitServiceAPITest("serviced", "service", "restart", "test-service-3/1") // Specific instance
 
 	// Output:
+	// Restarting 1 service(s)
 	// Restarting 1 service(s)
 }
 

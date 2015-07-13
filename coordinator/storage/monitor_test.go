@@ -45,6 +45,10 @@ func (m *MockStorageDriver) Restart() error {
 	return nil
 }
 
+func (m *MockStorageDriver) Stop() error {
+	return nil
+}
+
 func TestMonitorVolume(t *testing.T) {
 	// create temporary proc dir
 	tmpPath, err := ioutil.TempDir("", "storage")

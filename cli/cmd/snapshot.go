@@ -156,8 +156,10 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 	description := ctx.String("description")
 	if snapshot, err := c.driver.AddSnapshot(ctx.Args().First(), description); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")
+		c.exit(1)
 	} else {
 		fmt.Println(snapshot)
 	}
@@ -210,6 +212,7 @@ func (c *ServicedCli) cmdSnapshotRollback(ctx *cli.Context) {
 
 	if err := c.driver.Rollback(args[0], ctx.Bool("force-restart")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else {
 		fmt.Println(args[0])
 	}

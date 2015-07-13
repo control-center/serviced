@@ -72,7 +72,7 @@ func (t *ZZKTest) TestHostRegistryListener_Listen(c *C) {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
 
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
@@ -192,7 +192,7 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
 
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
@@ -335,7 +335,7 @@ func (t *ZZKTest) TestHostRegistryListener_unregister(c *C) {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
 
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)

@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/volume"
@@ -42,6 +43,7 @@ type DistributedFilesystem struct {
 	getServiceVolume ServiceVolumeGetter
 	facade           facade.FacadeInterface
 	timeout          time.Duration
+	networkDriver    storage.StorageDriver
 
 	// locking
 	mutex sync.Mutex
@@ -51,7 +53,7 @@ type DistributedFilesystem struct {
 	logger *logger
 }
 
-func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade facade.FacadeInterface, timeout time.Duration) (*DistributedFilesystem, error) {
+func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade facade.FacadeInterface, timeout time.Duration, networkDriver storage.StorageDriver) (*DistributedFilesystem, error) {
 	host, port, err := parseRegistry(dockerRegistry)
 	if err != nil {
 		return nil, err
@@ -72,7 +74,9 @@ func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade fac
 		timeout:          timeout,
 		lock:             lock,
 		datastoreGet:     datastore.Get,
-		getServiceVolume: serviceVolumeGet}, nil
+		getServiceVolume: serviceVolumeGet,
+		networkDriver:    networkDriver,
+	}, nil
 }
 
 func (dfs *DistributedFilesystem) Lock() error {

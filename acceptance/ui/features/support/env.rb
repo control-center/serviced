@@ -12,6 +12,40 @@ require 'capybara/poltergeist'
 require 'selenium-webdriver'
 require 'capybara-screenshot/cucumber'
 
+def combineAllDataFiles(dir)
+    data = "{"
+    Dir.foreach(dir) do |file|
+        next if file == '.' || file == '..'
+        begin
+            original = File.read(File.join(dir, file))
+        rescue => err
+            printf "ERROR: Dataset file %s could not be read: %s\n", file, err.message
+            exit 1
+        end
+        data << removeWhitespaceAndOuterBrackets(original)
+        data << ",\n\n"
+    end
+    data = data.rstrip.chop
+    data << "\n}"
+    return data
+end
+
+def removeWhitespaceAndOuterBrackets(text)
+    text = text.strip
+    text = (text[1..-2]).rstrip
+    return text
+end
+
+def parseJson(data)
+    begin
+        data = JSON.parse(data)
+    rescue => err
+        printf "ERROR: Dataset file could not be parsed: %s\n", err.message
+        exit 1
+    end
+    return data
+end
+
 #
 # Set defaults
 Capybara.default_wait_time = 10
@@ -46,6 +80,18 @@ end
 Capybara.save_and_open_page_path = output_dir + "/screenshots"
 FileUtils.mkdir_p(Capybara.save_and_open_page_path)
 printf "Using output directory=%s\n", output_dir
+
+dataset_dir = File.join(ENV["DATASET_DIR"], ENV["DATASET"])
+if !Dir.exists?(dataset_dir) || Dir.entries(dataset_dir).size <= 2
+    printf "ERROR: DATASET_DIR is not defined; check cucumber.yml\n"
+    exit 1
+end
+
+data = combineAllDataFiles(dataset_dir)
+PARSED_DATA = parseJson(data)
+
+printf "Using dataset directory=%s\n", ENV["DATASET_DIR"]
+printf "Using dataset=%s\n", ENV["DATASET"]
 
 timeout_override = ENV["CAPYBARA_TIMEOUT"]
 if timeout_override && timeout_override.length > 0
@@ -98,5 +144,3 @@ end
 Capybara::Screenshot.register_driver(:selenium_chrome) do |driver, path|
     driver.browser.save_screenshot(path)
 end
-
-

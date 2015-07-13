@@ -31,7 +31,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
@@ -143,7 +142,7 @@ func (c *ServicedCli) initService() {
 			}, {
 				Name:         "restart",
 				Usage:        "Restarts a service",
-				Description:  "serviced service restart SERVICEID",
+				Description:  "serviced service restart { SERVICEID | INSTANCEID }",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceRestart,
 				Flags: []cli.Flag{
@@ -168,7 +167,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/logstash-forwarder", "path to the logstash-forwarder binary"},
 					cli.StringFlag{"forwarder-config", "/etc/logstash-forwarder.conf", "path to the logstash-forwarder config file"},
 					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
-					cli.BoolTFlag{"mux", "enable port multiplexing"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
 					cli.StringFlag{"endpoint", api.GetGateway(rpcPort), "serviced endpoint address"},
@@ -817,16 +815,30 @@ func (c *ServicedCli) cmdServiceRestart(ctx *cli.Context) {
 		return
 	}
 
-	svc, err := c.searchForService(args[0])
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return
-	}
+	if !isInstanceID(args[0]) {
+		svc, err := c.searchForService(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
 
-	if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		if affected, err := c.driver.RestartService(api.SchedulerConfig{svc.ID, ctx.Bool("auto-launch")}); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Printf("Restarting %d service(s)\n", affected)
+		}
 	} else {
-		fmt.Printf("Restarting %d service(s)\n", affected)
+		runningSvc, err := c.searchForRunningService(args[0])
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		}
+
+		if err := c.driver.StopRunningService(runningSvc.HostID, runningSvc.ID); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+		} else {
+			fmt.Printf("Restarting 1 service(s)\n")
+		}
 	}
 }
 
@@ -875,7 +887,6 @@ func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
 	args := ctx.Args()
 	options := api.ControllerOptions{
 		MuxPort:                 ctx.GlobalInt("muxport"),
-		Mux:                     ctx.GlobalBool("mux"),
 		TLS:                     true,
 		KeyPEMFile:              ctx.GlobalString("keyfile"),
 		CertPEMFile:             ctx.GlobalString("certfile"),
@@ -1011,12 +1022,14 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
+	uuid, _ := utils.NewUUID62()
+
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
 		Username:         ctx.GlobalString("user"),
 		Args:             argv,
-		SaveAs:           dfs.NewLabel(svc.ID),
+		SaveAs:           uuid,
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
 		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
@@ -1263,7 +1276,7 @@ func (c *ServicedCli) cmdServiceAction(ctx *cli.Context) error {
 		}
 	}
 
-	return fmt.Errorf("serviced service attach")
+	return fmt.Errorf("serviced service action")
 }
 
 // serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }
@@ -1364,13 +1377,16 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	svc, err := c.searchForService(ctx.Args().First())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 		return
 	}
 
 	if snapshot, err := c.driver.AddSnapshot(svc.ID, description); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		c.exit(1)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")
+		c.exit(1)
 	} else {
 		fmt.Println(snapshot)
 	}

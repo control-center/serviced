@@ -15,6 +15,7 @@ debug=false
 runAsRoot=false
 DRIVER_NAME=selenium
 TIMEOUT=10
+DATASET=default
 
 #
 # The features/steps in this example assumes github as the default application
@@ -38,6 +39,9 @@ while (( "$#" )); do
     elif [ "$1" == "-t" ]; then
         TIMEOUT="${2}"
         shift 2
+    elif [ "$1" == "--dataset" ]; then
+        DATASET="${2}"
+        shift 2
     elif [ "$1" == "--root" ]; then
         runAsRoot=true
         shift 1
@@ -52,16 +56,17 @@ while (( "$#" )); do
         echo "       [-d driverName] [-t timeout] [--root] [-i] [-h]"
         echo ""
         echo "where"
-        echo "    -u userid       a valid github user id (required)"
-        echo "    -p password     the password for userid (required)"
-        echo "    -a url          the URL of the application"
-        echo "    -d driverName   identifies the Capybara driver to use"
-        echo "                    (e.g. selenium, selenium_chrome or poltergeist)"
-        echo "    -t timeout      identifies the Capybara timeout to use (in seconds)"
-        echo "    --root          run the tests as root in the docker container"
-        echo "    -i              interactive mode. Starts a bash shell with all of the same"
-        echo "                    env vars but doesn't run anything"
-        echo "    -h              print this usage statement and exit"
+        echo "    -u userid             a valid github user id (required)"
+        echo "    -p password           the password for userid (required)"
+        echo "    -a url                the URL of the application"
+        echo "    -d driverName         identifies the Capybara driver to use"
+        echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
+        echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
+        echo "    --dataset setName     identifies the dataset to use"
+        echo "    --root                run the tests as root in the docker container"
+        echo "    -i                    interactive mode. Starts a bash shell with all of the same"
+        echo "                          env vars but doesn't run anything"
+        echo "    -h                    print this usage statement and exit"
         exit 1
     fi
 
@@ -112,6 +117,7 @@ docker run --rm --name ui_acceptance \
     -e CALLER_GID=${CALLER_GID} \
     -e CAPYBARA_DRIVER=${DRIVER_NAME} \
     -e CAPYBARA_TIMEOUT=${TIMEOUT} \
+    -e DATASET=${DATASET} \
     -e APPLICATION_URL=${APPLICATION_URL} \
     -e APPLICATION_USERID=${APPLICATION_USERID} \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
