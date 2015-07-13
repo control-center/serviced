@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"sort"
 	"strings"
 	"syscall"
 	"text/template"
@@ -49,6 +50,8 @@ func (c *ServicedCli) initService() {
 			defaultMetricsForwarderPort = ":" + hostParts[1]
 		}
 	}
+
+	rpcPort := configInt("RPC_PORT", defaultRPCPort)
 
 	c.app.Commands = append(c.app.Commands, cli.Command{
 		Name:        "service",
@@ -154,7 +157,7 @@ func (c *ServicedCli) initService() {
 					cli.BoolTFlag{"mux", "enable port multiplexing"},
 					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
 					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-					cli.StringFlag{"endpoint", api.GetGateway(defaultRPCPort), "serviced endpoint address"},
+					cli.StringFlag{"endpoint", api.GetGateway(rpcPort), "serviced endpoint address"},
 					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
 					cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
 					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
@@ -173,7 +176,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"saveas, s", "", "saves the service instance with the given name"},
 					cli.BoolFlag{"interactive, i", "runs the service instance as a tty"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 				},
 			}, {
 				Name:         "run",
@@ -188,7 +190,6 @@ func (c *ServicedCli) initService() {
 					cli.StringFlag{"logstash-idle-flush-time", "100ms", "time duration for logstash to flush log messages"},
 					cli.StringFlag{"logstash-settle-time", "5s", "time duration to wait for logstash to flush log messages before closing"},
 					cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: HOST_PATH[,CONTAINER_PATH]"},
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
 					cli.StringFlag{"user", "", "container username used to run command"},
 				},
 			}, {
@@ -197,9 +198,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service attach { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE } [COMMAND]",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceAttach,
-				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-				},
 			}, {
 				Name:         "action",
 				Usage:        "Run a predefined action in a running service container",
@@ -212,9 +210,6 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service logs { SERVICEID | SERVICENAME | DOCKERID | POOL/...PARENTNAME.../SERVICENAME/INSTANCE }",
 				BashComplete: c.printServicesFirst,
 				Before:       c.cmdServiceLogs,
-				Flags: []cli.Flag{
-					cli.StringFlag{"endpoint", configEnv("ENDPOINT", getLocalAgentIP()), "endpoint for remote serviced (example.com:4979)"},
-				},
 			}, {
 				Name:         "list-snapshots",
 				Usage:        "Lists the snapshots for a service",
@@ -402,12 +397,17 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 		return &services[0], nil
 	}
 
-	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "SERVICEID", "DEPID", "POOL/PATH")
+	t := NewTable("NAME,SERVICEID,DEPID,POOL/PATH")
+	t.Padding = 6
 	for _, row := range services {
-		matches.printrow(row.Name, row.ID, row.DeploymentID, path.Join(row.PoolID, pathmap[row.ID]))
+		t.AddRow(map[string]interface{}{
+			"NAME":      row.Name,
+			"SERVICEID": row.ID,
+			"DEPID":     row.DeploymentID,
+			"POOL/PATH": path.Join(row.PoolID, pathmap[row.ID]),
+		})
 	}
-	matches.flush()
+	t.Print()
 	return nil, fmt.Errorf("multiple results found; select one from list")
 }
 
@@ -547,17 +547,35 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	}
 
 	cmdSetTreeCharset(ctx)
-
 	childMap[""] = top
-	tableService := newtable(0, 8, 2)
-	tableService.printrow("NAME", "ID", "STATUS", "UPTIME", "HOST", "IN_SYNC", "DOCKER_ID")
-	tableService.formattree(childMap, "", func(id string) (row []interface{}) {
-		s := lines[id]
-		return append(row, s["Name"], s["ID"], s["Status"], s["Uptime"], s["Hostname"], s["InSync"], s["DockerID"])
-	}, func(row []interface{}) string {
-		return strings.ToLower(row[1].(string))
-	})
-	tableService.flush()
+	t := NewTable("NAME,ID,STATUS,UPTIME,HOST,IN_SYNC,DOCKER_ID")
+
+	var addRows func(string)
+	addRows = func(root string) {
+		rowids := childMap[root]
+		if len(rowids) > 0 {
+			sort.Strings(rowids)
+			t.IndentRow()
+			defer t.DedentRow()
+			for _, rowid := range rowids {
+				row := lines[rowid]
+				t.AddRow(map[string]interface{}{
+					"NAME":      row["Name"],
+					"ID":        row["ID"],
+					"STATUS":    row["Status"],
+					"UPTIME":    row["Uptime"],
+					"HOST":      row["Hostname"],
+					"IN_SYNC":   row["InSync"],
+					"DOCKER_ID": row["DockerID"],
+				})
+				addRows(row["ID"])
+			}
+		}
+	}
+	addRows("")
+	t.Padding = 6
+	t.Print()
+
 	return
 }
 
@@ -614,23 +632,42 @@ func (c *ServicedCli) cmdServiceList(ctx *cli.Context) {
 		cmdSetTreeCharset(ctx)
 
 		servicemap := api.NewServiceMap(services)
-		tableService := newtable(0, 8, 2)
-		tableService.printrow("NAME", "SERVICEID", "INST", "IMAGEID", "POOL", "DSTATE", "LAUNCH", "DEPID")
-		tableService.formattree(servicemap.Tree(), "", func(id string) (row []interface{}) {
-			s := servicemap.Get(id)
-			// truncate the image ID
-			var imageID string
-			if strings.TrimSpace(s.ImageID) != "" {
-				id := strings.SplitN(s.ImageID, "/", 3)
-				id[0] = "..."
-				id[1] = id[1][:7] + "..."
-				imageID = strings.Join(id, "/")
+		t := NewTable("NAME,SERVICEID,INST,IMAGEID,POOL,DSTATE,LAUNCH,DEPID")
+
+		var addRows func(string)
+		addRows = func(root string) {
+			rowids := servicemap.Tree()[root]
+			if len(rowids) > 0 {
+				sort.Strings(rowids)
+				t.IndentRow()
+				defer t.DedentRow()
+				for _, rowid := range rowids {
+					row := servicemap.Get(rowid)
+					// truncate the image id
+					var imageID string
+					if strings.TrimSpace(row.ImageID) != "" {
+						id := strings.SplitN(row.ImageID, "/", 3)
+						id[0] = "..."
+						id[1] = id[1][:7] + "..."
+						imageID = strings.Join(id, "/")
+					}
+					t.AddRow(map[string]interface{}{
+						"NAME":      row.Name,
+						"SERVICEID": row.ID,
+						"INST":      row.Instances,
+						"IMAGEID":   imageID,
+						"POOL":      row.PoolID,
+						"DSTATE":    row.DesiredState,
+						"LAUNCH":    row.Launch,
+						"DEPID":     row.DeploymentID,
+					})
+					addRows(row.ID)
+				}
 			}
-			return append(row, s.Name, s.ID, s.Instances, imageID, s.PoolID, s.DesiredState, s.Launch, s.DeploymentID)
-		}, func(row []interface{}) string {
-			return row[1].(string)
-		})
-		tableService.flush()
+		}
+		addRows("")
+		t.Padding = 6
+		t.Print()
 	} else {
 		tmpl, err := template.New("template").Parse(ctx.String("format"))
 		if err != nil {
@@ -953,7 +990,6 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
-	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -961,7 +997,7 @@ func (c *ServicedCli) cmdServiceShell(ctx *cli.Context) error {
 		SaveAs:           ctx.GlobalString("saveas"),
 		IsTTY:            isTTY,
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: "localhost" + agentPort,
+		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
 	}
 
 	if err := c.driver.StartShell(config); err != nil {
@@ -1014,7 +1050,6 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		argv = args[2:]
 	}
 
-	agentPort := configEnv("RPC_PORT", fmt.Sprintf(":%d", defaultRPCPort))
 	config := api.ShellConfig{
 		ServiceID:        svc.ID,
 		Command:          command,
@@ -1023,7 +1058,7 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 		SaveAs:           dfs.NewLabel(svc.ID),
 		IsTTY:            ctx.GlobalBool("interactive"),
 		Mounts:           ctx.GlobalStringSlice("mount"),
-		ServicedEndpoint: "localhost" + agentPort,
+		ServicedEndpoint: fmt.Sprintf("localhost:%s", api.GetOptionsRPCPort()),
 		LogToStderr:      ctx.GlobalBool("logtostderr"),
 	}
 
@@ -1137,8 +1172,8 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return &states[0], nil
 	}
 
-	matches := newtable(0, 8, 2)
-	matches.printrow("NAME", "ID", "HOST", "HOSTIP", "DOCKERID", "POOL/PATH")
+	t := NewTable("NAME,ID,HOST,HOSTIP,DOCKERID,POOL/PATH")
+	t.Padding = 6
 	for _, row := range states {
 		svcid := row.ServiceID
 		name := row.Name
@@ -1146,9 +1181,17 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 			svcid = fmt.Sprintf("%s/%d", row.ServiceID, row.InstanceID)
 			name = fmt.Sprintf("%s/%d", row.Name, row.InstanceID)
 		}
-		matches.printrow(name, svcid, hostmap[row.HostID].Name, hostmap[row.HostID].IPAddr, row.DockerID[0:12], path.Join(row.PoolID, pathmap[row.ID]))
+
+		t.AddRow(map[string]interface{}{
+			"NAME":      name,
+			"ID":        svcid,
+			"HOST":      hostmap[row.HostID].Name,
+			"HOSTIP":    hostmap[row.HostID].IPAddr,
+			"DOCKERID":  row.DockerID[0:12],
+			"POOL/PATH": path.Join(row.PoolID, pathmap[row.ID]),
+		})
 	}
-	matches.flush()
+	t.Print()
 	return nil, fmt.Errorf("multiple results found; specify unique item from list")
 }
 
@@ -1186,8 +1229,7 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 			hostmap[host.ID] = host
 		}
 
-		endpointArg := ctx.GlobalString("endpoint")
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "attach", args[0]}
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
 		if len(args) > 1 {
 			cmd = append(cmd, args[1:]...)
 		}
@@ -1297,8 +1339,7 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 			hostmap[host.ID] = host
 		}
 
-		endpointArg := ctx.GlobalString("endpoint")
-		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", endpointArg, "service", "logs", args[0]}
+		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
 		if len(args) > 1 {
 			cmd = append(cmd, args[1:]...)
 		}

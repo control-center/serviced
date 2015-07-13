@@ -21,6 +21,7 @@ package isvcs
 import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
 	"github.com/rcrowley/go-metrics"
@@ -38,6 +39,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -56,7 +58,7 @@ var (
 type ExitError int
 
 func (err ExitError) Error() string {
-	return fmt.Sprintf("isvc: service receieved exit code %d", int(err))
+	return fmt.Sprintf("isvc: service received exit code %d", int(err))
 }
 
 type action int
@@ -67,9 +69,43 @@ const (
 	restart
 )
 
+const DEFAULT_HEALTHCHECK_NAME = "running"
+
+const DEFAULT_HEALTHCHECK_INTERVAL = time.Duration(30) * time.Second
+const DEFAULT_HEALTHCHECK_TIMEOUT = time.Duration(10) * time.Second
+
+const WAIT_FOR_INITIAL_HEALTHCHECK = time.Duration(2) * time.Minute
+
 type actionrequest struct {
 	action   action
 	response chan error
+}
+
+// portBinding defines how a port in the container is bound to port on the master host.
+// The port number in the container and the port exposed on the master host are always
+// same, but the IP on the master host can vary.
+//
+// HostIp - use blank or "0.0.0.0" to bind to a port that will be public on the master host IP;
+//          use "127.0.0.1" to bind to a port that will be restricted to "localhost" on the master host
+// HostIpOverride - if not blank, assumed to be an environment variable containing a value that
+//          overrides HostIp. The naming convention for the env var should be
+//               SERVICED_ISVC_<NAME>_PORT_<NUMBER>_HOSTIP
+//          where <NAME> is the name if the isvc (e.g. "opentsdb")
+//                <PORT> is the port number to be overriden (e.g. 12181)
+// HostPort - the port number on the master host to bind to.
+type portBinding struct {
+	HostIp         string
+	HostIpOverride string
+	HostPort       uint16
+}
+
+// HealthCheckFunction- A function to verify the service is healthy
+type HealthCheckFunction func(halt <-chan struct{}) error
+
+type healthCheckDefinition struct {
+	healthCheck HealthCheckFunction
+	Interval    time.Duration // The interval at which to execute the script.
+	Timeout     time.Duration // A timeout in which to complete the health check.
 }
 
 type IServiceDefinition struct {
@@ -78,19 +114,25 @@ type IServiceDefinition struct {
 	Tag           string                             // the service's docker repository tag
 	Command       func() string                      // the command to run in the container
 	Volumes       map[string]string                  // volumes to bind mount to the container
-	Ports         []uint16                           // ports to expose to the host
-	HealthCheck   func() error                       // A function to verify the service is healthy
+	PortBindings  []portBinding                      // defines how ports are exposed on the host
+	HealthChecks  map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
 	Configuration map[string]interface{}             // service specific configuration
 	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
 	PostStart     func(*IService) error              // A function to run after the initial start of the service
 	HostNetwork   bool                               // enables host network in the container
+	Links         []string                           // List of links to other containers in the form of <name>:<alias>
+	StartGroup    uint16                             // Start up group number
 }
 
 type IService struct {
 	IServiceDefinition
-	exited  <-chan int
-	root    string
-	actions chan actionrequest
+	exited         <-chan int
+	root           string
+	actions        chan actionrequest
+	startTime      time.Time
+	restartCount   int
+	lock           *sync.RWMutex
+	healthStatuses map[string]*domain.HealthCheckStatus
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
@@ -102,7 +144,30 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	svc := IService{sd, nil, "", make(chan actionrequest)}
+	svc := IService{sd, nil, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil}
+	if len(svc.HealthChecks) > 0 {
+		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
+		for name, healthCheckDefinition := range svc.HealthChecks {
+			svc.healthStatuses[name] = &domain.HealthCheckStatus{
+				Name:      name,
+				Status:    "unknown",
+				Interval:  healthCheckDefinition.Interval.Seconds(),
+				Timestamp: 0,
+				StartedAt: 0,
+			}
+		}
+	} else {
+		name := DEFAULT_HEALTHCHECK_NAME
+		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, 1)
+		svc.healthStatuses[name] = &domain.HealthCheckStatus{
+			Name:      name,
+			Status:    "unknown",
+			Interval:  0,
+			Timestamp: 0,
+			StartedAt: 0,
+		}
+	}
+
 	envPerService[sd.Name] = make(map[string]string)
 	go svc.run()
 
@@ -181,20 +246,45 @@ func (svc *IService) create() (*docker.Container, error) {
 	config.Image = commons.JoinRepoTag(svc.Repo, svc.Tag)
 	config.Cmd = []string{"/bin/sh", "-c", svc.Command()}
 
-	// set the host network (if enabled)
+	// NOTE: USE WITH CARE!
+	// Enabling host networking for an isvc may expose ports
+	// of the isvcs to access outside of the serviced host, potentially
+	// compromising security.
 	if svc.HostNetwork {
 		cd.NetworkMode = "host"
+		glog.Warningf("Host networking enabled for isvc %s", svc.Name)
 	}
 
 	// attach all exported ports
-	if svc.Ports != nil && len(svc.Ports) > 0 {
+	if svc.PortBindings != nil && len(svc.PortBindings) > 0 {
 		config.ExposedPorts = make(map[dockerclient.Port]struct{})
 		cd.PortBindings = make(map[dockerclient.Port][]dockerclient.PortBinding)
-		for _, portno := range svc.Ports {
-			port := dockerclient.Port(fmt.Sprintf("%d", portno))
+		for _, binding := range svc.PortBindings {
+			port := dockerclient.Port(fmt.Sprintf("%d", binding.HostPort))
 			config.ExposedPorts[port] = struct{}{}
-			cd.PortBindings[port] = append(cd.PortBindings[port], dockerclient.PortBinding{HostPort: fmt.Sprintf("%d", portno)})
+			portBinding := dockerclient.PortBinding{
+				HostIp:   getHostIp(binding),
+				HostPort: port.Port(),
+			}
+
+			cd.PortBindings[port] = append(cd.PortBindings[port], portBinding)
 		}
+	}
+	glog.V(1).Infof("Bindings for %s = %v", svc.Name, cd.PortBindings)
+
+	// copy any links to other isvcs
+	if svc.Links != nil && len(svc.Links) > 0 {
+		// To use a link, the source container must be instantiated already, so
+		//    the service using a link can't be in the first start group.
+		//
+		// FIXME: Other sanity checks we could add - make sure that the source
+		//        container is not in the same group or a later group
+		if svc.StartGroup == 0 {
+			glog.Fatalf("isvc %s can not use docker Links with StartGroup=0", svc.Name)
+		}
+		cd.Links = make([]string, len(svc.Links))
+		copy(cd.Links, svc.Links)
+		glog.V(1).Infof("Links for %s = %v", svc.Name, cd.Links)
 	}
 
 	// attach all exported volumes
@@ -261,6 +351,7 @@ func (svc *IService) attach() (*docker.Container, error) {
 func (svc *IService) start() (<-chan int, error) {
 	ctr, err := svc.attach()
 	if err != nil {
+		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}
 
@@ -270,17 +361,22 @@ func (svc *IService) start() (<-chan int, error) {
 
 	// start the container
 	if err := ctr.Start(10 * time.Second); err != nil && err != docker.ErrAlreadyStarted {
+		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}
 
-	// perform healthcheck
+	// perform an initial healthcheck to verify that the service started successfully
 	select {
-	case err := <-svc.healthcheck():
+	case err := <-svc.startupHealthcheck():
 		if err != nil {
+			glog.Errorf("Healthcheck for %s failed: %s", svc.Name, err)
 			svc.stop()
 			return nil, err
 		}
+		svc.startTime = time.Now()
 	case rc := <-notify:
+		glog.Errorf("isvc %s exited on startup, rc=%d", svc.Name, rc)
+		svc.setStoppedHealthStatus(ExitError(rc))
 		return nil, ExitError(rc)
 	}
 
@@ -290,12 +386,18 @@ func (svc *IService) start() (<-chan int, error) {
 func (svc *IService) stop() error {
 	ctr, err := docker.FindContainer(svc.name())
 	if err == docker.ErrNoSuchContainer {
+		svc.setStoppedHealthStatus(nil)
 		return nil
 	} else if err != nil {
+		glog.Errorf("Could not get isvc container %s", svc.Name)
+		svc.setStoppedHealthStatus(err)
 		return err
 	}
 
-	return ctr.Stop(45 * time.Second)
+	glog.Warningf("Stopping isvc container %s", svc.name())
+	err = ctr.Stop(45 * time.Second)
+	svc.setStoppedHealthStatus(err)
+	return err
 }
 
 func (svc *IService) remove(notify chan<- int) {
@@ -335,6 +437,7 @@ func (svc *IService) run() {
 	var err error
 	var collecting bool
 	haltStats := make(chan struct{})
+	haltHealthChecks := make(chan struct{})
 
 	for {
 		select {
@@ -349,6 +452,9 @@ func (svc *IService) run() {
 
 				if collecting {
 					haltStats <- struct{}{}
+					if len(svc.HealthChecks) > 0 {
+						haltHealthChecks <- struct{}{}
+					}
 					collecting = false
 				}
 
@@ -358,7 +464,8 @@ func (svc *IService) run() {
 				}
 
 				if rc := <-svc.exited; rc != 0 {
-					glog.Warningf("isvc %s receieved exit code %d", svc.Name, rc)
+					svc.setStoppedHealthStatus(ExitError(rc))
+					glog.Errorf("isvc %s received exit code %d", svc.Name, rc)
 				}
 				svc.exited = nil
 				req.response <- nil
@@ -376,12 +483,23 @@ func (svc *IService) run() {
 
 				if !collecting {
 					go svc.stats(haltStats)
+					go svc.doHealthChecks(haltHealthChecks)
 					collecting = true
 				}
+
 				req.response <- nil
 			case restart:
 				glog.Infof("Restarting isvc %s", svc.Name)
 				if svc.exited != nil {
+
+					if collecting {
+						haltStats <- struct{}{}
+						if len(svc.HealthChecks) > 0 {
+							haltHealthChecks <- struct{}{}
+						}
+						collecting = false
+					}
+
 					if err := svc.stop(); err != nil {
 						req.response <- err
 						continue
@@ -392,15 +510,59 @@ func (svc *IService) run() {
 					req.response <- err
 					continue
 				}
+
+				if !collecting {
+					go svc.stats(haltStats)
+					go svc.doHealthChecks(haltHealthChecks)
+					collecting = true
+				}
 				req.response <- nil
 			}
 		case rc := <-svc.exited:
-			glog.Errorf("isvc %s unexpectedly receieved exit code %d", svc.Name, rc)
-			if svc.exited, err = svc.start(); err != nil {
-				glog.Errorf("Error restarting isvc %s: %s")
+			svc.setStoppedHealthStatus(ExitError(rc))
+			glog.Errorf("isvc %s exited unexpectedly; rc=%d", svc.Name, rc)
+
+			stopService := svc.isFlapping()
+			if !stopService {
+				glog.Infof("Restarting isvc %s ", svc.Name)
+				if svc.exited, err = svc.start(); err != nil {
+					glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
+					stopService = true
+				}
+			}
+
+			if stopService {
+				if collecting {
+					haltStats <- struct{}{}
+					if len(svc.HealthChecks) > 0 {
+						haltHealthChecks <- struct{}{}
+					}
+					collecting = false
+				}
+				glog.Errorf("isvc %s not restarted; failed too many times", svc.Name)
+				svc.stop()
+				svc.exited = nil
 			}
 		}
 	}
+}
+
+// isFlapping returns true if the service is flapping (starting/stopping repeatedly).
+//
+// A service is considered flappping, if has been running for less than 60 seconds
+// in 3 consecutive calls to this function.
+func (svc *IService) isFlapping() bool {
+	const MINIMUM_VIABLE_LIFESPAN = 60
+	const FLAPPING_THRESHOLD = 3
+
+	upTime := time.Since(svc.startTime)
+	if upTime.Seconds() < MINIMUM_VIABLE_LIFESPAN {
+		svc.restartCount += 1
+	} else {
+		svc.restartCount = 0
+	}
+
+	return svc.restartCount >= FLAPPING_THRESHOLD
 }
 
 func (svc *IService) checkvolumes(ctr *docker.Container) bool {
@@ -437,16 +599,144 @@ func (svc *IService) checkvolumes(ctr *docker.Container) bool {
 	return true
 }
 
-func (svc *IService) healthcheck() <-chan error {
+// startupHealthcheck runs the default healthchecks (if any) and the return the result.
+// If the healthcheck fails, then this method will sleep 1 second, and then
+// repeat the healthcheck, continuing that sleep/retry pattern until
+// the healthcheck succeeds or 2 minutes has elapsed.
+//
+// An error is returned if the no healtchecks succeed in the 2 minute interval,
+// otherwise nil is returned
+func (svc *IService) startupHealthcheck() <-chan error {
 	err := make(chan error, 1)
 	go func() {
-		if svc.HealthCheck != nil {
-			err <- svc.HealthCheck()
+		var result error
+		if len(svc.HealthChecks) > 0 {
+			checkDefinition, found := svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]
+			if !found {
+				glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+				err <- nil
+				return
+			}
+
+			startCheck := time.Now()
+			for {
+				currentTime := time.Now()
+				result = svc.runCheckOrTimeout(checkDefinition)
+				svc.setHealthStatus(result, currentTime.Unix())
+				if result == nil || time.Since(startCheck).Seconds() > WAIT_FOR_INITIAL_HEALTHCHECK.Seconds() {
+					break
+				}
+
+				glog.Infof("waiting for %s to start, checking health status again in 1 second", svc.Name)
+				time.Sleep(time.Second)
+			}
+			err <- result
 		} else {
+			svc.setHealthStatus(nil, time.Now().Unix())
 			err <- nil
 		}
 	}()
 	return err
+}
+
+func (svc *IService) runCheckOrTimeout(checkDefinition healthCheckDefinition) error {
+	finished := make(chan error, 1)
+	halt := make(chan struct{}, 1)
+
+	go func() {
+		finished <- checkDefinition.healthCheck(halt)
+	}()
+
+	var result error
+	select {
+	case err := <-finished:
+		result = err
+	case <-time.After(checkDefinition.Timeout):
+		glog.Errorf("healthcheck timed out for %s", svc.Name)
+		result = fmt.Errorf("healthcheck timed out")
+		halt <- struct{}{}
+	}
+	return result
+}
+
+func (svc *IService) doHealthChecks(halt <-chan struct{}) {
+
+	if len(svc.HealthChecks) == 0 {
+		return
+	}
+
+	var found bool
+	var checkDefinition healthCheckDefinition
+	if checkDefinition, found = svc.HealthChecks[DEFAULT_HEALTHCHECK_NAME]; !found {
+		glog.Warningf("Default healthcheck %q not found for isvc %s", DEFAULT_HEALTHCHECK_NAME, svc.Name)
+		return
+	}
+
+	timer := time.Tick(checkDefinition.Interval)
+	for {
+		select {
+		case <-halt:
+			glog.Infof("Stopped healthchecks for %s", svc.Name)
+			return
+
+		case currentTime := <-timer:
+			err := svc.runCheckOrTimeout(checkDefinition)
+			svc.setHealthStatus(err, currentTime.Unix())
+			if err != nil {
+				glog.Errorf("Healthcheck for isvc %s failed: %s", svc.Name, err)
+			}
+		}
+	}
+}
+
+func (svc *IService) setHealthStatus(result error, currentTime int64) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		if result == nil {
+			if healthStatus.Status != "passed" && healthStatus.Status != "unknown" {
+				glog.Infof("Health status for %s returned to 'passed'", svc.Name)
+			}
+			healthStatus.Status = "passed"
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Status = "failed"
+			healthStatus.Failure = result.Error()
+		}
+		healthStatus.Timestamp = currentTime
+		if healthStatus.StartedAt == 0 {
+			healthStatus.StartedAt = currentTime
+		}
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
+}
+
+func (svc *IService) setStoppedHealthStatus(stopResult error) {
+	if len(svc.healthStatuses) == 0 {
+		return
+	}
+
+	svc.lock.Lock()
+	defer svc.lock.Unlock()
+
+	if healthStatus, found := svc.healthStatuses[DEFAULT_HEALTHCHECK_NAME]; found {
+		healthStatus.Status = "stopped"
+		if stopResult == nil {
+			healthStatus.Failure = ""
+		} else {
+			healthStatus.Failure = stopResult.Error()
+		}
+		healthStatus.Timestamp = time.Now().Unix()
+		healthStatus.StartedAt = 0
+	} else {
+		glog.Errorf("isvc %s does have the default health check %s", svc.Name, DEFAULT_HEALTHCHECK_NAME)
+	}
 }
 
 type containerStat struct {
@@ -463,6 +753,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 	for {
 		select {
 		case <-halt:
+			glog.Infof("stop collecting stats for %s", svc.Name)
 			return
 		case t := <-tc:
 			ctr, err := docker.FindContainer(svc.name())
@@ -507,6 +798,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				glog.Warningf("Error marshalling isvc stats json.")
 				break
 			}
+
 			req, err := http.NewRequest("POST", "http://127.0.0.1:4242/api/put", bytes.NewBuffer(data))
 			if err != nil {
 				glog.Warningf("Error creating isvc stats request.")
@@ -523,4 +815,15 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			}
 		}
 	}
+}
+
+func getHostIp(binding portBinding) string {
+	hostIp := binding.HostIp
+	if binding.HostIpOverride != "" {
+		if override := strings.TrimSpace(os.Getenv(binding.HostIpOverride)); override != "" {
+			hostIp = override
+			glog.Infof("Using HostIp override %s = %v", binding.HostIpOverride, hostIp)
+		}
+	}
+	return hostIp
 }

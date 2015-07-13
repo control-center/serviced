@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,27 +11,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package isvcs
+package api
 
 import (
-	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/dao"
 )
 
-var celery *IService
-
-func init() {
-	var err error
-	command := "supervisord -n -c /opt/celery/etc/supervisor.conf"
-	celery, err = NewIService(
-		IServiceDefinition{
-			Name:         "celery",
-			Repo:         IMAGE_REPO,
-			Tag:          IMAGE_TAG,
-			Command:      func() string { return command },
-			PortBindings: []portBinding{},
-			Volumes:      map[string]string{"celery": "/opt/celery/var"},
-		})
+func (a *api) ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error) {
+	client, err := a.connectDAO()
 	if err != nil {
-		glog.Fatal("Error initializing celery container: %s", err)
+		return nil, err
 	}
+
+	var results []dao.IServiceHealthResult
+	if err := client.ServicedHealthCheck(IServiceNames, &results); err != nil {
+		return nil, err
+	}
+	return results, nil
 }

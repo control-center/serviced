@@ -1,0 +1,41 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import json
+import argparse
+import subprocess
+
+
+DEVNULL = open(os.devnull, 'w')
+
+def get_args():
+    parser = argparse.ArgumentParser("serviced-set-version")
+    parser.add_argument("service", metavar="SERVICE", help="Name of the service whose version you wish to modify.")
+    parser.add_argument("version", metavar="VERSION", help="New version of the service you want to set.")
+    return parser.parse_args()
+
+def main():
+    args = get_args()
+    print >>sys.stderr, "Looking up service %s" % args.service
+    try:
+        svc_json = subprocess.check_output(["serviced", "service", "list", args.service])
+        parsed = json.loads(svc_json)
+    except subprocess.CalledProcessError as e:
+        sys.exit(e.returncode)
+    except ValueError:
+        sys.exit(1)
+    old_version = parsed.get("Version")
+    print >>sys.stderr, "Service %s has version %s" % (args.service, old_version)
+    parsed["Version"] = args.version
+    print >>sys.stderr, "Set new version %s" % args.version
+    print >>sys.stderr, "Saving new version of %s" % args.service
+    try:
+        proc = subprocess.Popen(["serviced", "service", "edit", args.service], stdin=subprocess.PIPE, stdout=DEVNULL)
+        proc.communicate(json.dumps(parsed))
+    except subprocess.CalledProcessError as e:
+        sys.exit(e.returncode)
+
+
+if __name__ == "__main__":
+    main()

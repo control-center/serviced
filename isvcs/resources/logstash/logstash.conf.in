@@ -13,7 +13,7 @@ input {
 }
 
 
-# 
+#
 filter {
 # NOTE the filters are generated from the service definitions
 
@@ -23,7 +23,7 @@ filter {
 output {
 	elasticsearch {
 		protocol => "http"
-		host => "172.17.42.1"
+		host => "elasticsearch"
 		port => 9100
 	}
 }

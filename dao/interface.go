@@ -257,4 +257,7 @@ type ControlPlane interface {
 
 	// BackupStatus monitors the status of a backup or restore
 	BackupStatus(unused int, status *string) error
+
+	// Check the health of control center
+	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
 }

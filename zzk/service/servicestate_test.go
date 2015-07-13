@@ -60,7 +60,7 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 		for i := 0; i < count; i++ {
 			state, err := servicestate.BuildFromService(svc, hostID)
 			c.Assert(err, IsNil)
-			err = addInstance(conn, state)
+			err = addInstance(conn, *state)
 			c.Assert(err, IsNil)
 			_, err = LoadRunningService(conn, state.ServiceID, state.ID)
 			c.Assert(err, IsNil)

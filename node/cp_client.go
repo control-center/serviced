@@ -279,3 +279,7 @@ func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused)
 }
+
+func (s *ControlClient) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
+	return s.rpcClient.Call("ControlPlane.ServicedHealthCheck", IServiceNames, results)
+}

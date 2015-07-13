@@ -27,6 +27,7 @@ import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/validation"
 )
 
 // Function map for evaluating PortTemplate fields
@@ -72,6 +73,17 @@ func (ss ServiceState) Uptime() time.Duration {
 		return time.Since(ss.Started)
 	}
 	return 0
+}
+
+func (ss ServiceState) ValidEntity() error {
+	vErr := validation.NewValidationError()
+	vErr.Add(validation.NotEmpty("ID", ss.ID))
+	vErr.Add(validation.NotEmpty("ServiceID", ss.ServiceID))
+	vErr.Add(validation.NotEmpty("HostID", ss.HostID))
+	if vErr.HasError() {
+		return vErr
+	}
+	return nil
 }
 
 func (ss *ServiceState) evalPortTemplate(portTemplate string) (int, error) {

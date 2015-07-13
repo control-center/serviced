@@ -153,12 +153,14 @@ func (c *ServicedCli) cmdPoolList(ctx *cli.Context) {
 			fmt.Println(string(jsonPool))
 		}
 	} else {
-		tablePool := newtable(0, 8, 2)
-		tablePool.printrow("ID" /*"CORE", "MEM",*/)
+		t := NewTable("ID")
+		t.Padding = 6
 		for _, p := range pools {
-			tablePool.printrow(p.ID /*p.CoreLimit, p.MemoryLimit,*/)
+			t.AddRow(map[string]interface{}{
+				"ID": p.ID,
+			})
 		}
-		tablePool.flush()
+		t.Print()
 	}
 }
 
@@ -246,15 +248,23 @@ func (c *ServicedCli) cmdPoolListIPs(ctx *cli.Context) {
 			fmt.Println(string(jsonPoolIP))
 		}
 	} else {
-		tableIPs := newtable(0, 10, 2)
-		tableIPs.printrow("Interface Name", "IP Address", "Type")
+		t := NewTable("Interface Name,IP Address,Type")
 		for _, ip := range poolIps.HostIPs {
-			tableIPs.printrow(ip.InterfaceName, ip.IPAddress, "static")
+			t.AddRow(map[string]interface{}{
+				"Interface Name": ip.InterfaceName,
+				"IP Address":     ip.IPAddress,
+				"Type":           "static",
+			})
 		}
 		for _, ip := range poolIps.VirtualIPs {
-			tableIPs.printrow("", ip.IP, "virtual")
+			t.AddRow(map[string]interface{}{
+				"Interface Name": "",
+				"IP Address":     ip.IP,
+				"Type":           "virtual",
+			})
 		}
-		tableIPs.flush()
+		t.Padding = 6
+		t.Print()
 	}
 }
 

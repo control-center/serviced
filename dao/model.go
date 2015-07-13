@@ -147,3 +147,10 @@ type BackupFile struct {
 	Mode       os.FileMode `json:"mode"`
 	ModTime    time.Time   `json:"mod_time"`
 }
+
+type IServiceHealthResult struct {
+	ServiceName    string
+	ContainerName  string
+	ContainerID    string
+	HealthStatuses []domain.HealthCheckStatus
+}

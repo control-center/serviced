@@ -60,9 +60,6 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		muxPort:     muxPort,
 	}
 	adminGroup = aGroup
-	if len(cfg.agentPort) == 0 {
-		cfg.agentPort = "127.0.0.1:4979"
-	}
 	return &cfg
 }
 

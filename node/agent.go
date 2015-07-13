@@ -76,6 +76,7 @@ type HostAgent struct {
 	poolID               string
 	master               string               // the connection string to the master agent
 	uiport               string               // the port to the ui (legacy was port 8787, now default 443)
+	rpcport              string               // the rpc port to serviced (default is 4979)
 	hostID               string               // the hostID of the current host
 	dockerDNS            []string             // docker dns addresses
 	varPath              string               // directory to store serviced	 data
@@ -114,6 +115,7 @@ type AgentOptions struct {
 	PoolID               string
 	Master               string
 	UIPort               string
+	RPCPort              string
 	DockerDNS            []string
 	VarPath              string
 	Mount                []string
@@ -134,6 +136,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
+	agent.rpcport = options.RPCPort
 	agent.dockerDNS = options.DockerDNS
 	agent.varPath = options.VarPath
 	agent.mount = options.Mount
@@ -709,6 +712,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_NOREGISTRY=%s", os.Getenv("SERVICED_NOREGISTRY")),
 		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
+		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
 
 	// add dns values to setup

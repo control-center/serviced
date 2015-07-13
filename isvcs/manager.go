@@ -23,6 +23,8 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/glog"
 	dockerclient "github.com/zenoss/go-dockerclient"
 
@@ -30,6 +32,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"sort"
 	"sync"
 )
 
@@ -77,19 +80,21 @@ type managerRequest struct {
 
 // A manager of docker services run in ephemeral containers
 type Manager struct {
-	imagesDir  string              // local directory where images could be loaded from
-	volumesDir string              // local directory where volumes are stored
-	requests   chan managerRequest // the main loops request channel
-	services   map[string]*IService
+	imagesDir   string              // local directory where images could be loaded from
+	volumesDir  string              // local directory where volumes are stored
+	requests    chan managerRequest // the main loops request channel
+	services    map[string]*IService
+	startGroups map[int][]string // map by group number of a list of service names
 }
 
 // Returns a new Manager struct and starts the Manager's main loop()
 func NewManager(imagesDir, volumesDir string) *Manager {
 	manager := &Manager{
-		imagesDir:  imagesDir,
-		volumesDir: volumesDir,
-		requests:   make(chan managerRequest),
-		services:   make(map[string]*IService),
+		imagesDir:   imagesDir,
+		volumesDir:  volumesDir,
+		requests:    make(chan managerRequest),
+		services:    make(map[string]*IService),
+		startGroups: make(map[int][]string),
 	}
 	go manager.loop()
 	return manager
@@ -118,6 +123,44 @@ func (m *Manager) SetConfigurationOption(name, key string, value interface{}) er
 	glog.Infof("setting %s, %s: %s", name, key, value)
 	svc.Configuration[key] = value
 	return nil
+}
+
+// Returns a list of iservice names in sorted order
+func (m *Manager) GetServiceNames() []string {
+	names := make([]string, 0, len(m.services))
+	for name := range m.services {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
+
+func (m *Manager) GetHealthStatus(name string) (dao.IServiceHealthResult, error) {
+	result := dao.IServiceHealthResult{
+		ServiceName:    name,
+		ContainerName:  "",
+		ContainerID:    "",
+		HealthStatuses: make([]domain.HealthCheckStatus, 0),
+	}
+
+	svc, found := m.services[name]
+	if !found {
+		glog.Errorf("Internal service %q not found", name)
+		return dao.IServiceHealthResult{}, fmt.Errorf("could not find isvc %q", name)
+	}
+
+	if ctr, err := docker.FindContainer(svc.name()); err == nil {
+		result.ContainerID = ctr.ID
+	}
+
+	svc.lock.RLock()
+	defer svc.lock.RUnlock()
+
+	result.ContainerName = svc.name()
+	for _, value := range svc.healthStatuses {
+		result.HealthStatuses = append(result.HealthStatuses, *value)
+	}
+	return result, nil
 }
 
 // checks for the existence of all the container images
@@ -178,7 +221,7 @@ func (m *Manager) wipe() error {
 func (m *Manager) loadImages() error {
 	loadedImages := make(map[string]bool)
 	for _, c := range m.services {
-		glog.Infof("Checking isvcs container %+v", c)
+		glog.V(2).Infof("Checking isvcs container %+v", c)
 		if exists, err := m.imageExists(c.Repo, c.Tag); err != nil {
 			return err
 		} else {
@@ -258,6 +301,7 @@ func (m *Manager) loop() {
 			case managerOpExit:
 				request.response <- nil
 				return // this will exit the loop()
+
 			case managerOpStart:
 				var err error
 				once.Do(func() {
@@ -272,66 +316,44 @@ func (m *Manager) loop() {
 					continue
 				}
 
-				// track the number of services that haven't started
-				started := make(chan int)
-				var count int
-				go func() {
-					for s := range started {
-						count += s
-					}
-				}()
-
-				// start services in parallel
-				var wg sync.WaitGroup
-				for name, svc := range m.services {
-					if !svc.IsRunning() {
-						wg.Add(1)
-						go func(svc *IService) {
-							defer wg.Done()
-							started <- 1
-							if err := svc.Start(); err != nil {
-								glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
-								return
-							}
-							started <- -1
-						}(m.services[name])
-					}
+				// Start each group of services in group-number order
+				unstartedServices := 0
+				for _, group := range m.orderedStartGroups() {
+					unstartedServices += m.startServiceGroup(group)
 				}
-				wg.Wait()
-				close(started)
-				if count > 0 {
-					request.response <- StartError(count)
+
+				if unstartedServices > 0 {
+					request.response <- StartError(unstartedServices)
 				} else {
 					request.response <- nil
 				}
+
 			case managerOpStop:
 				// track the number of services that haven't stopped
-				stopped := make(chan int)
-				var count int
-				go func() {
-					for s := range stopped {
-						count += s
-					}
-				}()
+				var noStop = make([]int, len(m.services))
 
 				// stop services in parallel
 				var wg sync.WaitGroup
+				index := 0
 				for name, svc := range m.services {
 					if svc.IsRunning() {
 						wg.Add(1)
-						go func(svc *IService) {
+						go func(svc *IService, i int) {
 							defer wg.Done()
-							stopped <- 1
 							if err := svc.Stop(); err != nil {
 								glog.Errorf("Error stopping isvc %s: %s", svc.Name, err)
+								noStop[i] = 1
 								return
 							}
-							stopped <- -1
-						}(m.services[name])
+						}(m.services[name], index)
 					}
+					index++
 				}
 				wg.Wait()
-				close(stopped)
+				count := 0
+				for _, i := range noStop {
+					count += i
+				}
 				if count > 0 {
 					request.response <- StopError(count)
 				} else {
@@ -343,6 +365,7 @@ func (m *Manager) loop() {
 					request.response <- ErrManagerUnknownArg
 				} else {
 					m.services[svc.Name] = svc
+					m.addServiceToStartGroup(svc)
 					request.response <- nil
 				}
 			case managerOpInit:
@@ -352,6 +375,61 @@ func (m *Manager) loop() {
 			}
 		}
 	}
+}
+
+func (m *Manager) addServiceToStartGroup(svc *IService) {
+	startGroup := int(svc.StartGroup)
+	if m.startGroups[startGroup] == nil {
+		m.startGroups[startGroup] = make([]string, 0)
+	}
+	m.startGroups[startGroup] = append(m.startGroups[startGroup], svc.Name)
+}
+
+// Returns a list of start groups in numeric order (lowest to highest)
+func (m *Manager) orderedStartGroups() []int {
+	result := make([]int, len(m.startGroups))
+	i := 0
+	for key, _ := range m.startGroups {
+		result[i] = int(key)
+		i++
+	}
+	sort.Ints(result)
+	return result
+}
+
+// Start all of the services in the specified start group and wait for all of
+// them to finish. Returns the number of services which failed to start.
+func (m *Manager) startServiceGroup(group int) int {
+	glog.V(1).Infof("Starting isvcs in group %d: %v", group, m.startGroups[group])
+
+	// track the number of services that haven't started
+	var noStart = make([]int, len(m.startGroups[group]))
+
+	// start all of the services for this group in parallel
+	var wg sync.WaitGroup
+	index := 0
+	for _, name := range m.startGroups[group] {
+		svc := m.services[name]
+		if !svc.IsRunning() {
+			wg.Add(1)
+			go func(svc *IService, i int) {
+				defer wg.Done()
+				if err := svc.Start(); err != nil {
+					glog.Errorf("Error starting isvc %s: %s", svc.Name, err)
+					noStart[i] = 1
+					return
+				}
+			}(m.services[name], index)
+		}
+		index++
+	}
+	wg.Wait()
+
+	unstartedServices := 0
+	for _, i := range noStart {
+		unstartedServices += i
+	}
+	return unstartedServices
 }
 
 // makeRequest sends a manager operation request to the *Manager's loop()

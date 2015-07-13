@@ -16,6 +16,7 @@ package service
 import (
 	"errors"
 	"path"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/host"
@@ -77,11 +78,21 @@ type HostRegistryListener struct {
 
 // InitHostRegistry initializes the host registry
 func InitHostRegistry(conn client.Connection) error {
-	err := conn.CreateDir(hostregpath())
-	if err == client.ErrNodeExists {
-		return nil
+	done := make(chan error, 1)
+	path := hostregpath()
+	go func() {
+		done <- conn.CreateDir(path)
+	}()
+	select {
+	case err := <-done:
+		if err == client.ErrNodeExists {
+			return nil
+		}
+		return err
+	case <-time.After(5 * time.Second):
+		glog.Errorf("Unable to create host registry directory: %s", path)
+		return zzk.ErrBadConn
 	}
-	return err
 }
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
@@ -144,11 +155,8 @@ func (l *HostRegistryListener) unregister(hostID string) {
 	}
 
 	for _, rs := range rss {
-		if err := l.conn.Delete(hostpath(rs.HostID, rs.ID)); err != nil {
-			glog.Warningf("Could not delete service instance %s on host %s", rs.ID, rs.HostID)
-		}
-		if err := l.conn.Delete(servicepath(rs.ServiceID, rs.ID)); err != nil {
-			glog.Warningf("Could not delete service instance %s for service %s", rs.ID, rs.ServiceID)
+		if err := removeInstance(l.conn, rs.ServiceID, rs.HostID, rs.ID); err != nil {
+			glog.Warningf("Could not remove service instance %s of service %s on host %s: %s", rs.ID, rs.ServiceID, rs.HostID, err)
 		}
 	}
 	return
@@ -249,6 +257,7 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 	}
 	for _, stateID := range nodes {
 		if err := StopServiceInstance(conn, hostID, stateID); err != nil {
+			glog.Errorf("Could not stop service instance %s: %s", stateID, err)
 			return err
 		}
 	}

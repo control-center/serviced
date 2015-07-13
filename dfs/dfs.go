@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -28,12 +29,13 @@ import (
 )
 
 type DistributedFilesystem struct {
-	fsType     string
-	varpath    string
-	dockerHost string
-	dockerPort int
-	facade     *facade.Facade
-	timeout    time.Duration
+	fsType        string
+	varpath       string
+	dockerHost    string
+	dockerPort    int
+	facade        *facade.Facade
+	timeout       time.Duration
+	networkDriver storage.StorageDriver
 
 	// locking
 	mutex sync.Mutex
@@ -43,7 +45,7 @@ type DistributedFilesystem struct {
 	logger *logger
 }
 
-func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade *facade.Facade, timeout time.Duration) (*DistributedFilesystem, error) {
+func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade *facade.Facade, timeout time.Duration, networkDriver storage.StorageDriver) (*DistributedFilesystem, error) {
 	host, port, err := parseRegistry(dockerRegistry)
 	if err != nil {
 		return nil, err
@@ -55,7 +57,16 @@ func NewDistributedFilesystem(fsType, varpath, dockerRegistry string, facade *fa
 	}
 	lock := zkservice.ServiceLock(conn)
 
-	return &DistributedFilesystem{fsType: fsType, varpath: varpath, dockerHost: host, dockerPort: port, facade: facade, timeout: timeout, lock: lock}, nil
+	return &DistributedFilesystem{
+		fsType:        fsType,
+		varpath:       varpath,
+		dockerHost:    host,
+		dockerPort:    port,
+		facade:        facade,
+		timeout:       timeout,
+		lock:          lock,
+		networkDriver: networkDriver,
+	}, nil
 }
 
 func (dfs *DistributedFilesystem) Lock() error {

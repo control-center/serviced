@@ -22,24 +22,44 @@ import (
 	"github.com/control-center/go-zookeeper/zk"
 	"github.com/zenoss/glog"
 
-	"fmt"
 	"time"
 )
 
+var zookeeperPortBinding = portBinding{
+	HostIp:         "0.0.0.0",
+	HostIpOverride: "", // zookeeper should always be open
+	HostPort:       2181,
+}
+
+var exhibitorPortBinding = portBinding{
+	HostIp:         "127.0.0.1",
+	HostIpOverride: "SERVICED_ISVC_ZOOKEEPER_PORT_12181_HOSTIP",
+	HostPort:       12181,
+}
+
 var Zookeeper = IServiceDefinition{
-	Name:        "zookeeper",
-	Repo:        IMAGE_REPO,
-	Tag:         IMAGE_TAG,
-	Command:     func() string { return "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
-	Ports:       []uint16{2181, 12181},
-	Volumes:     map[string]string{"data": "/tmp"},
-	HealthCheck: zkHealthCheck,
+	Name:         "zookeeper",
+	Repo:         IMAGE_REPO,
+	Tag:          IMAGE_TAG,
+	Command:      func() string { return "/opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
+	PortBindings: []portBinding{zookeeperPortBinding, exhibitorPortBinding},
+	Volumes:      map[string]string{"data": "/tmp"},
 }
 
 var zookeeper *IService
 
 func init() {
 	var err error
+	defaultHealthCheck := healthCheckDefinition{
+		healthCheck: zkHealthCheck,
+		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
+		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
+	}
+
+	Zookeeper.HealthChecks = map[string]healthCheckDefinition{
+		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
+	}
+
 	zookeeper, err = NewIService(Zookeeper)
 	if err != nil {
 		glog.Fatal("Error initializing zookeeper container: %s", err)
@@ -47,12 +67,9 @@ func init() {
 }
 
 // a health check for zookeeper
-func zkHealthCheck() error {
-
-	start := time.Now()
+func zkHealthCheck(halt <-chan struct{}) error {
 	lastError := time.Now()
 	minUptime := time.Second * 2
-	timeout := time.Second * 30
 	zookeepers := []string{"127.0.0.1:2181"}
 
 	for {
@@ -67,11 +84,15 @@ func zkHealthCheck() error {
 		if time.Since(lastError) > minUptime {
 			break
 		}
-		if time.Since(start) > timeout {
-			return fmt.Errorf("Zookeeper did not respond.")
+
+		select {
+		case <-halt:
+			glog.V(1).Infof("Quit healthcheck for zookeeper")
+			return nil
+		default:
+			time.Sleep(time.Second)
 		}
-		time.Sleep(time.Millisecond * 1000)
 	}
-	glog.Info("zookeeper container started, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
+	glog.V(1).Info("zookeeper running, browser at http://localhost:12181/exhibitor/v1/ui/index.html")
 	return nil
 }
