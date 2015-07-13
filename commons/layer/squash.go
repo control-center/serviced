@@ -14,10 +14,10 @@
 package layer
 
 import (
-	"github.com/zenoss/glog"
-	"github.com/zenoss/go-dockerclient"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/circular"
+	"github.com/fsouza/go-dockerclient"
+	"github.com/zenoss/glog"
 
 	"archive/tar"
 	"bufio"

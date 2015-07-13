@@ -25,8 +25,8 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/utils"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 // ShellConfig is the deserialized object from the command-line
@@ -263,7 +263,9 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 		// Delete the container
 
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
-			glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
+			if _, ok := err.(*dockerclient.ContainerNotRunning); !ok {
+				glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
+			}
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
 			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 		}
