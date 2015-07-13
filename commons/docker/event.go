@@ -3,12 +3,11 @@ package docker
 import (
 	"fmt"
 	"io"
-	"log"
 	"sync"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/zenoss/go-dockerclient/utils"
+	"github.com/zenoss/glog"
 )
 
 // AllThingsDocker is a wildcard used to express interest in the Docker
@@ -198,7 +197,7 @@ func (em *clientEventMonitor) dispatch(evt *dockerclient.APIEvents) error {
 			select {
 			case sub.eventChannel <- evt:
 			case <-time.After(time.Second):
-				log.Printf("timeout sending event: %v, %v", evt, sub)
+				glog.V(2).Infof("timeout sending event: %v, %v", evt, sub)
 			}
 		}
 	}
@@ -210,7 +209,7 @@ func (em *clientEventMonitor) dispatch(evt *dockerclient.APIEvents) error {
 				select {
 				case sub.eventChannel <- evt:
 				case <-time.After(time.Second):
-					log.Printf("timeout sending event: %v, %v", evt, sub)
+					glog.V(2).Infof("timeout sending event: %v, %v", evt, sub)
 				}
 			}
 		}
@@ -272,7 +271,7 @@ func (s *Subscription) Cancel() error {
 	select {
 	case <-crc:
 		if err := s.monitor.unsubscribe(s); err != nil {
-			utils.Debugf("could not unsubscribe %v (%v)", s, err)
+			glog.V(2).Infof("could not unsubscribe %v (%v)", s, err)
 		}
 		s.active = false
 		return nil
