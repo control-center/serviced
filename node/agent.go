@@ -724,7 +724,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	if svc.MemoryLimit < 0 {
 		cfg.Memory = 0
 	} else {
-		cfg.Memory = svc.MemoryLimit
+		cfg.Memory = int64(svc.MemoryLimit)
 	}
 
 	if svc.CPUShares < 0 {

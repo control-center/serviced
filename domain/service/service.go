@@ -91,7 +91,7 @@ type Service struct {
 	HealthChecks      map[string]domain.HealthCheck // A health check for the service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile
-	MemoryLimit       int64
+	MemoryLimit       float64
 	CPUShares         int64
 	PIDFile           string
 	datastore.VersionedEntity
