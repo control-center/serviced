@@ -201,6 +201,48 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 	return nil
 }
 
+// removeInstancesOnHost removes all instances for a particular host. Will not
+// delete if the instance cannot be found on the host (for when you have
+// incongruent data).
+func removeInstancesOnHost(conn client.Connection, hostID string) {
+	instances, err := conn.Children(hostpath(hostID))
+	if err != nil {
+		glog.Errorf("Could not look up instances on host %s: %s", hostID, err)
+		return
+	}
+	for _, stateID := range instances {
+		var hs HostState
+		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
+			glog.Warningf("Could not look up host instance %s on host %s: %s", stateID, hostID, err)
+		} else if err := removeInstance(conn, hs.ServiceID, hs.HostID, hs.ServiceStateID); err != nil {
+			glog.Warningf("Could not remove host instance %s on host %s for service %s: %s", hs.ServiceStateID, hs.HostID, hs.ServiceID, err)
+		} else {
+			glog.V(2).Infof("Removed instance %s on host %s for service %s", hs.ServiceStateID, hs.HostID, hs.ServiceID, err)
+		}
+	}
+}
+
+// removeInstancesOnService removes all instances for a particular service. Will
+// not delete if the instance cannot be found on the service (for when you have
+// incongruent data).
+func removeInstancesOnService(conn client.Connection, serviceID string) {
+	instances, err := conn.Children(servicepath(serviceID))
+	if err != nil {
+		glog.Errorf("Could not look up instances on service %s: %s", serviceID, err)
+		return
+	}
+	for _, stateID := range instances {
+		var state ss.ServiceState
+		if err := conn.Get(servicepath(serviceID, stateID), &ServiceStateNode{ServiceState: &state}); err != nil {
+			glog.Warningf("Could not look up service instance %s for service %s: %s", stateID, serviceID, err)
+		} else if err := removeInstance(conn, state.ServiceID, state.HostID, state.ID); err != nil {
+			glog.Warningf("Could not remove service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
+		} else {
+			glog.V(2).Infof("Removed instance %s for service %s on host %s", state.ID, state.ServiceID, state.HostID, err)
+		}
+	}
+}
+
 // pauseInstance pauses a running host state instance
 func pauseInstance(conn client.Connection, hostID, stateID string) error {
 	return updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {

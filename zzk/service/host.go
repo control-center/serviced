@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/coordinator/client"
 	// "github.com/control-center/serviced/health"
 
+	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
@@ -99,34 +100,23 @@ func (l *HostStateListener) GetPath(nodes ...string) string {
 
 // Ready adds an ephemeral node to the host registry
 func (l *HostStateListener) Ready() error {
-	var node HostNode
-	if err := l.conn.Get(l.GetPath(), &node); err != nil {
+	// get the host node
+	var host host.Host
+	if err := l.conn.Get(hostpath(l.hostID), &HostNode{Host: &host}); err != nil {
 		return err
 	}
-
-	// If the registry node is already set, verify that it is still available
+	// register the host or verify that the host is still registered
 	if l.registry != "" {
-		if exists, err := l.conn.Exists(l.registry); err != nil {
+		if exists, err := l.conn.Exists(l.registry); err != nil && err != client.ErrNoNode {
 			return err
 		} else if exists {
 			return nil
 		}
 	}
-
-	// Create an ephemeral node at /registry/host
-	// What you would expect to see from epath is /registry/host/EHOSTID, but
-	// CreateEphemeral returns the full path from the root.  Since these are
-	// pool-based connections, the path from the root is actually
-	// /pools/POOLID/registry/host/EHOSTID
-	epath, err := l.conn.CreateEphemeral(hostregpath(l.hostID), &HostNode{Host: node.Host})
-	if err != nil {
+	var err error
+	if l.registry, err = registerHost(l.conn, &host); err != nil {
 		return err
 	}
-
-	// Parse the ephemeral path to get the relative path from the connection
-	// base. In other words, get the base (EHOSTID) and set the path starting
-	// from /registry/host, instead of from /pools/POOLID/.../EHOSTID
-	l.registry = hostregpath(path.Base(epath))
 	return nil
 }
 
