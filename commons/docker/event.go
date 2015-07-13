@@ -45,9 +45,6 @@ type EventMonitor interface {
 	Close() error
 }
 
-// // Event represents a Docker lifecycle event.
-// type Event map[string]interface{}
-
 // A HandlerFunc is used to receive Docker lifecycle events.
 type HandlerFunc func(e *dockerclient.APIEvents) error
 

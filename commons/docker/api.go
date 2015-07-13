@@ -44,20 +44,6 @@ type ContainerDefinition struct {
 // ContainerActionFunc instances are used to handle container action notifications.
 type ContainerActionFunc func(id string)
 
-// Strings identifying the Docker lifecycle events.
-// const (
-// 	Create  = dockerclient.Create
-// 	Delete  = dockerclient.Delete
-// 	Destroy = dockerclient.Destroy
-// 	Die     = dockerclient.Die
-// 	Export  = dockerclient.Export
-// 	Kill    = dockerclient.Kill
-// 	Restart = dockerclient.Restart
-// 	Start   = dockerclient.Start
-// 	Stop    = dockerclient.Stop
-// 	Untag   = dockerclient.Untag
-// )
-
 // Container subsystem error types
 var (
 	ErrAlreadyStarted  = errors.New("docker: container already started")
