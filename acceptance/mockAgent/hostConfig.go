@@ -20,18 +20,18 @@ import (
 )
 
 type HostConfig struct {
-		Name          string   `json:"name"`
-		RPCPort       int      `json:"rpcPort"`
-		PoolID        string   `json:"pool,omitempty"`
-		Memory        uint64   `json:"memory,omitempty"`
-		HostID        uint16   `json:"hostID,omitempty"`
-		Cores         int      `json:"cores,omitempty"`
-		KernelVersion string   `json:"kernelVersion,omitempty"`
-		KernelRelease string   `json:"kernelRelease,omitempty"`
-		CCRelease     string   `json:"ccRelease,omitempty"`
-		OutboundIP    string   `json:"outboundIP,omitempty"`
-		StaticIPs     []string `json:"staticIPs,omitempty"`
-		Listen        string   `json:"-"`
+	Name          string   `json:"name"`
+	RPCPort       int      `json:"rpcPort"`
+	PoolID        string   `json:"pool,omitempty"`
+	Memory        uint64   `json:"memory,omitempty"`
+	HostID        uint16   `json:"hostID,omitempty"`
+	Cores         int      `json:"cores,omitempty"`
+	KernelVersion string   `json:"kernelVersion,omitempty"`
+	KernelRelease string   `json:"kernelRelease,omitempty"`
+	CCRelease     string   `json:"ccRelease,omitempty"`
+	OutboundIP    string   `json:"outboundIP,omitempty"`
+	StaticIPs     []string `json:"staticIPs,omitempty"`
+	Listen        string   `json:"-"`
 }
 
 func (hostConfig *HostConfig) setDefaults() error {

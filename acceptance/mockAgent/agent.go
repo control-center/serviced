@@ -38,14 +38,14 @@ type Agent struct {
 }
 
 func newAgent(app *cli.App) *Agent {
-	agent := &Agent{
+	agent := &Agent {
 		app: app,
 	}
 
 	agent.app.Name = "mockAgent"
 	agent.app.Usage = "mock implementation of a serviced agent"
 	agent.app.Version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
-	agent.app.Flags = []cli.Flag{
+	agent.app.Flags = []cli.Flag {
 		cli.StringFlag{"host", defaultHostName, "hostid to use"},
 		cli.StringFlag{"config-file", "", "path to config file to use"},
 	}
@@ -101,7 +101,7 @@ func (agent *Agent) readConfiguration() error {
 		err = fmt.Errorf("Unable to read configuration file %q: %v\n", agent.options.ConfigFile, err)
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return err
-	}
+}
 
 	configFile := make(map[string](map[string]HostConfig))
 	if err = json.Unmarshal(file, &configFile); err != nil {
