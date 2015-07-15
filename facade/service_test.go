@@ -14,12 +14,134 @@
 package facade
 
 import (
+	"strings"
+
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
 
 	. "gopkg.in/check.v1"
 )
+
+func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInOneService(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_validateServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		},
+	}
+
+	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
+	t.Assert(err, IsNil)
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInAllServices(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_validateServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		},
+	}
+
+	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
+		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
+		return
+	}
+
+	childSvc := service.Service{
+		ID:              "svc2",
+		ParentServiceID: svc.ID,
+		Name:            "TestFacade_validateServiceEndpoints_child",
+		DeploymentID:    "deployment_id",
+		PoolID:          "pool_id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}},
+		},
+	}
+	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
+		t.Fatalf("Setup failed; could not add svc %s: %s", childSvc.ID, err)
+		return
+	}
+
+	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
+	t.Assert(err, IsNil)
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsInOneService(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_validateServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		},
+	}
+
+	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+}
+
+func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_validateServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		},
+	}
+
+	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
+		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
+		return
+	}
+
+	childSvc := service.Service{
+		ID:              "svc2",
+		ParentServiceID: svc.ID,
+		Name:            "TestFacade_validateServiceEndpoints_child",
+		DeploymentID:    "deployment_id",
+		PoolID:          "pool_id",
+		Launch:          "auto",
+		DesiredState:    int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		},
+	}
+	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
+		t.Fatalf("Setup failed; could not add svc %s: %s", childSvc.ID, err)
+		return
+	}
+
+	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
+	t.Check(err, NotNil)
+	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
+}
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
 	oldSvc, newSvc, err := ft.setupMigrationServices(t, nil)
