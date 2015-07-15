@@ -120,6 +120,10 @@ build_isvcs:
 build_js:
 	cd web/ui && make build
 
+.PHONY: mockAgent
+mockAgent:
+	cd acceptance/mockAgent && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
 	go get $(godep_SRC)
