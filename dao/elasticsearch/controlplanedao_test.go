@@ -683,7 +683,7 @@ clone = copy.deepcopy(svcs[0])
 clone["Name"] = "clone name"
 export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
-clone["DesiredState"] = -2
+clone["Launch"] = "bogusState"
 wrapper = {
 	"Modified": svcs,
 	"Added": [clone],
@@ -705,10 +705,9 @@ exit(0)
 	if err == nil {
 		t.Errorf("Expected error cloning service during migration with incorrect desired state.")
 		t.Fail()
+	} else {
+		t.Assert(err.Error(), Equals, "ValidationError: \n   0 -  string bogusState not in [auto manual]")
 	}
-
-	t.Assert(err.Error(), Equals, "ValidationError: \n   0 -  int -2 not in [1 0 2]")
-
 }
 
 func (dt *DaoTest) TestDao_MigrateServiceWithDryRun(t *C) {

@@ -75,6 +75,10 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 		return err
 	}
 
+	// Always add services in a stopped states so in case auto ip assignment fails,
+	// the scheduler won't spam the log complaining about missing address assignments.
+	svc.DesiredState = int(service.SVCStop)
+
 	// Strip the database version; we already know this is a create
 	svc.DatabaseVersion = 0
 
