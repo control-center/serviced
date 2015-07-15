@@ -14,32 +14,29 @@ package main
 
 import (
 	"fmt"
-	"math"
-	"math/rand"
-	"time"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 )
 
 type HostConfig struct {
-		Name       string   `json:"name"`
-		RPCPort    int      `json:"rpcPort"`
-		PoolID     string   `json:"pool,omitempty"`
-		Memory     string   `json:"memory,omitempty"`
-		HostID     uint16   `json:"hostID,omitempty"`
-		OutboundIP string   `json:"outboundIP,omitempty"`
-		StaticIPs  []string `json:"staticIPs,omitempty"`
-		Listen     string   `json:"-"`
+		Name          string   `json:"name"`
+		RPCPort       int      `json:"rpcPort"`
+		PoolID        string   `json:"pool,omitempty"`
+		Memory        uint64   `json:"memory,omitempty"`
+		HostID        uint16   `json:"hostID,omitempty"`
+		Cores         int      `json:"cores,omitempty"`
+		KernelVersion string   `json:"kernelVersion,omitempty"`
+		KernelRelease string   `json:"kernelRelease,omitempty"`
+		CCRelease     string   `json:"ccRelease,omitempty"`
+		OutboundIP    string   `json:"outboundIP,omitempty"`
+		StaticIPs     []string `json:"staticIPs,omitempty"`
+		Listen        string   `json:"-"`
 }
 
 func (hostConfig *HostConfig) setDefaults() error {
 	if hostConfig.Listen == "" {
 		hostConfig.Listen = fmt.Sprintf(":%d", hostConfig.RPCPort)
-	}
-
-	if hostConfig.HostID == 0 {
-		hostConfig.HostID = randomHostId()
 	}
 
 	if err := validation.ValidHostID(fmt.Sprintf("%d", hostConfig.HostID)); err != nil {
@@ -55,9 +52,4 @@ func (hostConfig *HostConfig) setDefaults() error {
 	}
 
 	return nil
-}
-
-func randomHostId() uint16 {
-	rand.Seed(time.Now().Unix())
-	return uint16(rand.Intn(math.MaxUint16))
 }

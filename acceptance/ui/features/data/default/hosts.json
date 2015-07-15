@@ -5,19 +5,45 @@
       "nameAndPort": "roei-dev:4979",
       "name": "roei-dev",
       "rpcPort": 4979,
-      "hostID": 0,
+      "hostID": 4979,
+      "memory": 33681858560,
       "pool": "default",
       "commitment": "50%",
       "outboundIP": "172.17.42.1"
     },
 
     "host2": {
-      "nameAndPort": "10.87.110.17:4989",
+      "nameAndPort": "10.87.110.17:4982",
       "name": "secondHost",
-      "rpcPort": 4989,
-      "hostID": 0,
+      "rpcPort": 4982,
+      "hostID": 4982,
+      "memory": 10737418240,
+      "cores": 4982,
+      "kernelVersion": "Kernel Version test 2",
+      "kernelRelease": "Kernel Release test 2",
+      "ccRelease": "CC Release test 2",
       "pool": "default",
       "commitment": "25%",
+      "outboundIP": "10.87.110.17"
+    },
+
+    "host3": {
+      "nameAndPort": "10.87.110.17:4983",
+      "name": "thirdHost",
+      "rpcPort": 4983,
+      "hostID": 4983,
+      "pool": "default",
+      "commitment": "35%",
+      "outboundIP": "10.87.110.17"
+    },
+
+    "host4": {
+      "nameAndPort": "10.87.110.17:4984",
+      "name": "fourthHost",
+      "rpcPort": 4984,
+      "hostID": 4984,
+      "pool": "default",
+      "commitment": "99%",
       "outboundIP": "10.87.110.17"
     }
   }

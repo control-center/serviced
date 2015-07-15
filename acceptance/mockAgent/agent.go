@@ -105,7 +105,7 @@ func (agent *Agent) readConfiguration() error {
 
 	configFile := make(map[string](map[string]HostConfig))
 	if err = json.Unmarshal(file, &configFile); err != nil {
-		err = fmt.Errorf("first Unable to parse json from config file %q: %v\n", agent.options.ConfigFile, err)
+		err = fmt.Errorf("Unable to parse json from config file %q: %v\n", agent.options.ConfigFile, err)
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return err
 	}
