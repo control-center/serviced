@@ -4,15 +4,21 @@
     "defaultHost": {
       "nameAndPort": "roei-dev:4979",
       "name": "roei-dev",
+      "rpcPort": 4979,
+      "hostID": 0,
       "pool": "default",
-      "commitment": "50%"
+      "commitment": "50%",
+      "outboundIP": "172.17.42.1"
     },
 
     "host2": {
-      "nameAndPort": "vagrant:4979",
-      "name": "vagrant",
+      "nameAndPort": "10.87.110.17:4989",
+      "name": "secondHost",
+      "rpcPort": 4989,
+      "hostID": 0,
       "pool": "default",
-      "commitment": "25%"
+      "commitment": "25%",
+      "outboundIP": "10.87.110.17"
     }
   }
 }
