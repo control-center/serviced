@@ -65,4 +65,6 @@ acceptance/dockerImage/build/reporter.jar
 acceptance/dockerImage/reporter/dependency-reduced-pom.xml
 acceptance/dockerImage/reporter/target
 acceptance/ui/output
+acceptance/mockAgent/mockAgent
+
 
