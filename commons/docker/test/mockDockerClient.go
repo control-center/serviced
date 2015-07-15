@@ -14,12 +14,10 @@
 package test
 
 import (
-	"io"
-
 	"github.com/control-center/serviced/commons/docker"
 
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/mock"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 // assert the interface
@@ -51,12 +49,12 @@ func (mdc *MockDockerClient) ImportImage(opts dockerclient.ImportImageOptions) e
 	return mdc.Mock.Called(opts).Error(0)
 }
 
-func (mdc *MockDockerClient) SaveImages(opts dockerclient.SaveImageOptions) error {
+func (mdc *MockDockerClient) ExportImages(opts dockerclient.ExportImagesOptions) error {
 	return mdc.Mock.Called(opts).Error(0)
 }
 
-func (mdc *MockDockerClient) LoadImages(infile io.Reader) error {
-	return mdc.Mock.Called(infile).Error(0)
+func (mdc *MockDockerClient) LoadImage(opts dockerclient.LoadImageOptions) error {
+	return mdc.Mock.Called(opts).Error(0)
 }
 
 func (mdc *MockDockerClient) InspectContainer(id string) (*dockerclient.Container, error) {
@@ -74,8 +72,8 @@ func (mdc *MockDockerClient) ListContainers(opts dockerclient.ListContainersOpti
 	return args.Get(0).([]dockerclient.APIContainers), args.Error(1)
 }
 
-func (mdc *MockDockerClient) ListImages(all bool) ([]dockerclient.APIImages, error) {
-	args := mdc.Mock.Called(all)
+func (mdc *MockDockerClient) ListImages(opts dockerclient.ListImagesOptions) ([]dockerclient.APIImages, error) {
+	args := mdc.Mock.Called(opts)
 	var images []dockerclient.APIImages
 	if arg0 := args.Get(0); arg0 != nil {
 		images = arg0.([]dockerclient.APIImages)
@@ -83,9 +81,9 @@ func (mdc *MockDockerClient) ListImages(all bool) ([]dockerclient.APIImages, err
 	return images, args.Error(1)
 }
 
-func (mdc *MockDockerClient) MonitorEvents() (dockerclient.EventMonitor, error) {
+func (mdc *MockDockerClient) MonitorEvents() (docker.EventMonitor, error) {
 	args := mdc.Mock.Called()
-	return args.Get(0).(dockerclient.EventMonitor), args.Error(1)
+	return args.Get(0).(docker.EventMonitor), args.Error(1)
 }
 
 func (mdc *MockDockerClient) PullImage(opts dockerclient.PullImageOptions, auth dockerclient.AuthConfiguration) error {

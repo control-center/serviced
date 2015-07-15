@@ -33,8 +33,8 @@ import (
 	"text/template"
 	"time"
 
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
@@ -471,7 +471,7 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 	for k, v := range ctr.NetworkSettings.Ports {
 		pm := []domain.HostIPAndPort{}
 		for _, pb := range v {
-			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
+			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIP, HostPort: pb.HostPort})
 			state.PortMapping[string(k)] = pm
 		}
 	}
@@ -557,7 +557,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	cfg.Volumes = make(map[string]struct{})
-	bindsMap := make(map[string]string)  // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
+	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
 
 	if err := injectContext(svc, serviceState, client); err != nil {
 		glog.Errorf("Error injecting context: %s", err)
@@ -577,18 +577,17 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 		resourcePath = strings.TrimSpace(resourcePath)
 		containerPath := strings.TrimSpace(volume.ContainerPath)
-		cfg.Volumes[containerPath] = struct {}{}
+		cfg.Volumes[containerPath] = struct{}{}
 		bindsMap[containerPath] = resourcePath
 	}
 
-
-	// mount serviced path 
+	// mount serviced path
 	dir, binary, err := ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return nil, nil, err
 	}
-	
+
 	resourcePath := strings.TrimSpace(dir)
 	containerPath := strings.TrimSpace("/serviced")
 	cfg.Volumes[containerPath] = struct{}{}
@@ -671,11 +670,10 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 	// transfer bindsMap to hcfg.Binds
 	hcfg.Binds = []string{}
-	for containerPath, hostPath := range(bindsMap) {
+	for containerPath, hostPath := range bindsMap {
 		binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
 		hcfg.Binds = append(hcfg.Binds, binding)
 	}
-
 
 	// Get host IP
 	ips, err := utils.GetIPv4Addresses()
@@ -701,7 +699,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	for _, addr := range a.dockerDNS {
 		_addr := strings.TrimSpace(addr)
 		if len(_addr) > 0 {
-			cfg.Dns = append(cfg.Dns, addr)
+			cfg.DNS = append(cfg.DNS, addr)
 		}
 	}
 
@@ -726,13 +724,13 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	if svc.MemoryLimit < 0 {
 		cfg.Memory = 0
 	} else {
-		cfg.Memory = svc.MemoryLimit
+		cfg.Memory = int64(svc.MemoryLimit)
 	}
 
 	if svc.CPUShares < 0 {
-		cfg.CpuShares = 0
+		cfg.CPUShares = 0
 	} else {
-		cfg.CpuShares = svc.CPUShares
+		cfg.CPUShares = svc.CPUShares
 	}
 
 	return cfg, hcfg, nil

@@ -82,7 +82,7 @@
                 sorting: {
                     InterfaceName: "asc"
                 },
-                watch: function(){
+                watchExpression: function(){
                     return hostsFactory.lastUpdate;
                 }
             };
@@ -91,7 +91,7 @@
                 sorting: {
                     name: "asc"
                 },
-                watch: function(){
+                watchExpression: function(){
                     return instancesFactory.lastUpdate;
                 }
             };

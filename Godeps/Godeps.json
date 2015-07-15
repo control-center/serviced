@@ -182,6 +182,10 @@
 			"Rev": "c54fbb67c1f1e68d7d6f8d2ad7c9360404616a41"
 		},
 		{
+			"ImportPath": "github.com/fsouza/go-dockerclient",
+			"Rev": "69eb698fe078e24f52c14cc2f7ba6027ddebfd31"
+		},
+		{
 			"ImportPath": "github.com/googollee/go-socket.io",
 			"Rev": "7a2b443286222187f996ceede5d353469be6853a"
 		},
@@ -249,11 +253,6 @@
 		{
 			"ImportPath": "github.com/zenoss/glog",
 			"Rev": "09a83f7c5c0f425c00cb1e063e9179698579f296"
-		},
-		{
-			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Comment": "0.2.1-206-ge0cf25b",
-			"Rev": "e0cf25bb7828aff2dc9043a5f0b2dac761b5f5b7"
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-json-rest",

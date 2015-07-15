@@ -92,7 +92,7 @@ start_service() {
 
 stop_service() {
     ${SERVICED} service stop ${SERVICE_ID}
-    sleep 10 
+    sleep 10
     [[ "0" == $(serviced service list ${SERVICE_ID} | python -c "import json, sys; print json.load(sys.stdin)['DesiredState']") ]] || return 1
     return 0
 }
@@ -144,6 +144,28 @@ test_snapshot() {
     SNAPSHOT_ID=$(${SERVICED} service snapshot testsvc)
     ${SERVICED} snapshot list | grep -q ${SNAPSHOT_ID}
     return $?
+}
+
+test_snapshot_errs() {
+    # make sure snapshot add returns non-zero code on error
+    ${SERVICED} snapshot add invalid-id &>/dev/null
+    if [[ "$?" == 0 ]]; then
+        return 1
+    fi
+
+    # make sure service snapshot returns non-zero code on error
+    ${SERVICED} service snapshot invalid-id &>/dev/null
+    if [[ "$?" == 0 ]]; then
+        return 1
+    fi
+
+    # make sure snapshot rollback returns non-zero code on error
+    ${SERVICED} snapshot rollback invalid-id &>/dev/null
+    if [[ "$?" == 0 ]]; then
+        return 1
+    fi
+
+    return 0
 }
 
 test_service_shell() {
@@ -212,6 +234,7 @@ retry 10 test_dir_config   && succeed "-CONFIGS- file was successfully injected"
 retry 10 test_attached     && succeed "Attached to container"                    || fail "Unable to attach to container"
 retry 10 test_port_mapped  && succeed "Attached and hit imported port correctly" || fail "Unable to connect to endpoint"
 test_snapshot              && succeed "Created snapshot"                         || fail "Unable to create snapshot"
+test_snapshot_errs         && succeed "Snapshot errs returned expected err code" || fail "Snapshot errs did not return expected err code"
 test_service_shell         && succeed "Service shell ran successfully"           || fail "Unable to run service shell"
 stop_service               && succeed "Stopped service"                          || fail "Unable to stop service"
 # "trap cleanup EXIT", above, will handle cleanup

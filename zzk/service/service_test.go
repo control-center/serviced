@@ -15,7 +15,6 @@ package service
 
 import (
 	"sync"
-	"testing"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -24,6 +23,8 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
+
+	. "gopkg.in/check.v1"
 )
 
 type TestServiceHandler struct {
@@ -35,12 +36,73 @@ func (handler *TestServiceHandler) SelectHost(svc *service.Service) (*host.Host,
 	return handler.Host, handler.Err
 }
 
-func TestServiceListener_Listen(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
+	conn, err := zzk.GetLocalConnection("/TestServiceListener_NoHostState")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 
-	t.Log("Start and stop listener with no services")
+	shutdown := make(chan interface{})
+	done := make(chan interface{})
+	listener := NewServiceListener(handler)
+	go func() {
+		zzk.Listen(shutdown, make(chan error, 1), conn, listener)
+		close(done)
+	}()
+
+	err = conn.CreateDir(servicepath())
+	c.Assert(err, IsNil)
+	err = conn.CreateDir(hostpath())
+	c.Assert(err, IsNil)
+	svc := service.Service{
+		ID:           "test-service-1",
+		DesiredState: int(service.SVCRun),
+		Instances:    1,
+	}
+	err = UpdateService(conn, &svc)
+	c.Assert(err, IsNil)
+
+	// wait for instance to start
+	getInstance := func(serviceID string) string {
+		var instanceID string
+		var svc service.Service
+		err := conn.Get(servicepath(serviceID), &ServiceNode{Service: &svc})
+		c.Assert(err, IsNil)
+
+		timeout := time.After(time.Minute)
+		for {
+			stateIDs, ev, err := conn.ChildrenW(servicepath(serviceID))
+			c.Assert(err, IsNil)
+			if len(stateIDs) != 1 {
+				select {
+				case <-ev:
+				case <-timeout:
+					c.Fatalf("Wait time exceeded timeout!")
+				}
+			} else {
+				instanceID = stateIDs[0]
+				if err = updateInstance(conn, "test-host-1", instanceID, func(_ *HostState, _ *servicestate.ServiceState) {}); err == nil {
+					return instanceID
+				}
+			}
+		}
+	}
+
+	instanceID := getInstance(svc.ID)
+
+	// delete the host path
+	err = conn.Delete(hostpath("test-host-1", instanceID))
+	c.Assert(err, IsNil)
+	c.Assert(getInstance(svc.ID), Not(Equals), instanceID)
+	close(shutdown)
+	<-done
+}
+
+func (t *ZZKTest) TestServiceListener_Listen(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+
+	c.Log("Start and stop listener with no services")
 	shutdown := make(chan interface{})
 	done := make(chan interface{})
 	listener := NewServiceListener(handler)
@@ -50,11 +112,11 @@ func TestServiceListener_Listen(t *testing.T) {
 	}()
 
 	<-time.After(2 * time.Second)
-	t.Log("shutting down listener with no services")
+	c.Log("shutting down listener with no services")
 	close(shutdown)
 	<-done
 
-	t.Log("Start and stop listener with multiple services")
+	c.Log("Start and stop listener with multiple services")
 	shutdown = make(chan interface{})
 	done = make(chan interface{})
 	go func() {
@@ -62,7 +124,7 @@ func TestServiceListener_Listen(t *testing.T) {
 		close(done)
 	}()
 
-	svcs := []*service.Service{
+	svcs := []service.Service{
 		{
 			ID:           "test-service-1",
 			Endpoints:    make([]service.ServiceEndpoint, 1),
@@ -77,16 +139,18 @@ func TestServiceListener_Listen(t *testing.T) {
 	}
 
 	for _, s := range svcs {
-		if err := conn.Create(servicepath(s.ID), &ServiceNode{Service: s}); err != nil {
-			t.Fatalf("Could not create service %s: %s", s.ID, err)
-		}
+		var node ServiceNode
+		err := conn.Create(servicepath(s.ID), &node)
+		c.Assert(err, IsNil)
+		node.Service = &s
+		err = conn.Set(servicepath(s.ID), &node)
 	}
 
 	// wait for instances to start
 	for {
-		if rss, err := LoadRunningServices(conn); err != nil {
-			t.Fatalf("Could not load running services: %s", err)
-		} else if count := len(rss); count < 5 {
+		rss, err := LoadRunningServices(conn)
+		c.Assert(err, IsNil)
+		if count := len(rss); count < 5 {
 			<-time.After(time.Second)
 		} else {
 			break
@@ -94,15 +158,15 @@ func TestServiceListener_Listen(t *testing.T) {
 	}
 
 	// shutdown
-	t.Log("services started, now shutting down")
+	c.Log("services started, now shutting down")
 	close(shutdown)
 	<-done
 
 }
 
-func TestServiceListener_Spawn(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
+	conn, err := zzk.GetLocalConnection("/TestServiceListener_Spawn")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 
 	// Add 1 service
@@ -110,9 +174,8 @@ func TestServiceListener_Spawn(t *testing.T) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Error trying to create %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 
 	var wg sync.WaitGroup
 	shutdown := make(chan interface{})
@@ -126,7 +189,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 	// wait 3 seconds and shutdown
 	<-time.After(3 * time.Second)
-	t.Log("Signaling shutdown for service listener")
+	c.Log("Signaling shutdown for service listener")
 	close(shutdown)
 	wg.Wait()
 
@@ -146,10 +209,7 @@ func TestServiceListener_Spawn(t *testing.T) {
 
 		for {
 			stateIDs, event, err = conn.ChildrenW(servicepath(svc.ID))
-			if err != nil {
-				t.Fatalf("Error looking up service states for %s: %s", svc.ID, err)
-			}
-
+			c.Assert(err, IsNil)
 			if count := len(stateIDs); count == svc.Instances {
 				break
 			}
@@ -157,40 +217,39 @@ func TestServiceListener_Spawn(t *testing.T) {
 		}
 
 		for _, ssID := range stateIDs {
-			hpath := hostpath(handler.Host.ID, ssID)
+			lock := newInstanceLock(conn, ssID)
+			err := lock.Lock()
+			c.Assert(err, IsNil)
+
 			var hs HostState
-			if err := conn.Get(hpath, &hs); err == client.ErrNoNode {
-				// pass
-			} else if err != nil {
-				t.Fatalf("Error looking up instance %s: %s", ssID, err)
-			}
+			hpath := hostpath(handler.Host.ID, ssID)
+			err = conn.Get(hpath, &hs)
+			c.Assert(err, IsNil)
 			if hs.DesiredState == int(service.SVCRun) {
 				count++
 			}
+
+			err = lock.Unlock()
+			c.Assert(err, IsNil)
 		}
 		return count
 	}
 
-	t.Log("Starting service with 2 instances")
+	c.Log("Starting service with 2 instances")
 	svc.Instances = 2
 	svc.DesiredState = int(service.SVCRun)
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not update service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
+	c.Assert(getInstances(), Equals, svc.Instances)
 
-	if count := getInstances(); count != svc.Instances {
-		t.Errorf("Expected %d started instances; actual: %d", svc.Instances, count)
-	}
-
-	t.Log("Pause service")
+	c.Log("Pause service")
 	svc.DesiredState = int(service.SVCPause)
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not pause service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 
 	for {
 		if count := getInstances(); count > 0 {
-			t.Logf("Waiting for %d instances to pause", count)
+			c.Logf("Waiting for %d instances to pause", count)
 			<-time.After(5 * time.Second)
 		} else {
 			break
@@ -198,12 +257,11 @@ func TestServiceListener_Spawn(t *testing.T) {
 	}
 
 	svc.DesiredState = int(service.SVCRun)
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not update service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 	for {
 		if count := getInstances(); count < svc.Instances {
-			t.Logf("Waiting for %d instances to resume", svc.Instances)
+			c.Logf("Waiting for %d instances to resume", svc.Instances)
 			<-time.After(5 * time.Second)
 		} else {
 			break
@@ -211,15 +269,14 @@ func TestServiceListener_Spawn(t *testing.T) {
 	}
 
 	// Stop service
-	t.Log("Stopping service")
+	c.Log("Stopping service")
 	svc.DesiredState = int(service.SVCStop)
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Could not update service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 
 	for {
 		if count := getInstances(); count > 0 {
-			t.Logf("Waiting for %d instances to stop", count)
+			c.Logf("Waiting for %d instances to stop", count)
 			<-time.After(5 * time.Second)
 		} else {
 			break
@@ -227,74 +284,62 @@ func TestServiceListener_Spawn(t *testing.T) {
 	}
 
 	// Remove the service
-	t.Log("Removing service")
-	if err := conn.Delete(servicepath(svc.ID)); err != nil {
-		t.Fatalf("Could not remove service %s at %s", svc.ID, err)
-	}
+	c.Log("Removing service")
+	err = conn.Delete(servicepath(svc.ID))
+	c.Assert(err, IsNil)
 	wg.Wait()
 }
 
-func TestServiceListener_clean(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_clean(c *C) {
+	conn, err := zzk.GetLocalConnection("/base_clean")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 	svc := &service.Service{
 		ID: "test-service-1",
 	}
 	spath := servicepath(svc.ID)
-	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
-		t.Fatalf("Error while creating node %s: %s", spath, err)
-	}
+	err = conn.Create(spath, &ServiceNode{Service: svc})
+	c.Assert(err, IsNil)
+	err = conn.Set(spath, &ServiceNode{Service: svc})
+	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
 
-	t.Log("Starting instances")
+	c.Log("Starting instances")
 	svc.Instances = 2
 	listener.sync(svc, []dao.RunningService{})
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", svc.ID, err)
-	} else if count := len(rss); count != svc.Instances {
-		t.Fatalf("Expected %d instances; Got: %d instances", count, svc.Instances)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, svc.Instances)
 
 	err = listener.clean(&rss)
-	if err != nil {
-		t.Fatalf("Error while cleaning up instances: %s", err)
-	} else if count := len(rss); count != svc.Instances {
-		t.Fatalf("Expected %d instances; Got: %d instances", count, svc.Instances)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, svc.Instances)
 
 	// Delete the host record for the first node
 	id := rss[0].ID
 	err = conn.Delete(hostpath(rss[0].HostID, id))
-	if err != nil {
-		t.Fatalf("Could not delete %s: %s", id, err)
-	}
+	c.Assert(err, IsNil)
 
 	err = listener.clean(&rss)
-	if err != nil {
-		t.Fatalf("Error while cleaning up instances: %s", err)
-	} else if count := len(rss); count == 0 || count == svc.Instances {
-		t.Fatalf("Mismatch on number of instances")
-	}
+	c.Assert(err, IsNil)
+	c.Assert(len(rss), Not(Equals), 0)
+	c.Assert(len(rss), Not(Equals), svc.Instances)
 
 	for _, rs := range rss {
-		if rs.ID == id {
-			t.Errorf("Did not clean node %s: %s", rs.ID, err)
-		}
+		c.Check(rs.ID, Not(Equals), id)
 	}
 
-	if ok, err := conn.Exists(servicepath(svc.ID, id)); err != nil && err != client.ErrNoNode {
-		t.Fatalf("Could not check node %s: %s", servicepath(svc.ID, id), err)
-	} else if ok {
-		t.Errorf("Node exists %s: %s", servicepath(svc.ID, id), err)
+	ok, err := conn.Exists(servicepath(svc.ID, id))
+	if err != nil {
+		c.Assert(err, Equals, client.ErrNoNode)
 	}
+	c.Assert(ok, Equals, false)
 }
 
-func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
+	conn, err := zzk.GetLocalConnection("/base_sync_restartAllOnInstanceChanged")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 	svc := &service.Service{
 		ID:            "test-service-1",
@@ -302,180 +347,149 @@ func TestServiceListener_sync_restartAllOnInstanceChanged(t *testing.T) {
 		ChangeOptions: []string{"restartAllOnInstanceChanged"},
 	}
 	spath := servicepath(svc.ID)
-	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
-		t.Fatalf("Error while creating node %s: %s", spath, err)
-	}
+	err = conn.Create(spath, &ServiceNode{Service: svc})
+	c.Assert(err, IsNil)
+	err = conn.Set(spath, &ServiceNode{Service: svc})
+	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
 
 	// Start 5 instances and verify
-	t.Log("Starting 5 instances")
+	c.Log("Starting 5 instances")
 	svc.Instances = 5
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != svc.Instances {
-		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, svc.Instances)
 
 	// Add three more instances; SHOULD NOT CHANGE UNLESS ALL INSTANCES HAVE
 	// BEEN REMOVED
-	t.Log("Starting 3 more instances")
+	c.Log("Starting 3 more instances")
 	svc.Instances = 8
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != 5 {
-		t.Errorf("MISMATCH: expected %d instances; actual %d", 5, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, 5)
 }
 
-func TestServiceListener_sync(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_sync(c *C) {
+	conn, err := zzk.GetLocalConnection("/base_sync")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 	svc := &service.Service{
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
 	spath := servicepath(svc.ID)
-	if err := conn.Create(spath, &ServiceNode{Service: svc}); err != nil {
-		t.Fatalf("Error while creating node %s: %s", spath, err)
-	}
+	err = conn.Create(spath, &ServiceNode{Service: svc})
+	c.Assert(err, IsNil)
+	err = conn.Set(spath, &ServiceNode{Service: svc})
+	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
 
 	rss, err := LoadRunningServicesByService(conn, svc.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", svc.ID, err)
-	} else if count := len(rss); count > 0 {
-		t.Fatalf("Expected 0 instances; Got: %d", count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, 0)
 
 	// Start 5 instances and verify
-	t.Log("Starting 5 instances")
+	c.Log("Starting 5 instances")
 	svc.Instances = 5
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != svc.Instances {
-		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, svc.Instances)
 
 	usedInstanceID := make(map[int]*servicestate.ServiceState)
 	for _, rs := range rss {
 		var state servicestate.ServiceState
 		spath := servicepath(svc.ID, rs.ID)
-		if err := conn.Get(spath, &ServiceStateNode{ServiceState: &state}); err != nil {
-			t.Fatalf("Error while looking up %s: %s", spath, err)
-		} else if ss, ok := usedInstanceID[state.InstanceID]; ok {
-			t.Errorf("DUPLICATE: found 2 instances with the same id: [%v] [%v]", ss, state)
-		}
+		err = conn.Get(spath, &ServiceStateNode{ServiceState: &state})
+		c.Assert(err, IsNil)
+		_, ok := usedInstanceID[state.InstanceID]
+		c.Assert(ok, Equals, false)
 		usedInstanceID[state.InstanceID] = &state
 
 		var hs HostState
 		hpath := hostpath(handler.Host.ID, rs.ID)
-		if err := conn.Get(hpath, &hs); err != nil {
-			t.Fatalf("Error while looking up %s: %s", hpath, err)
-		} else if hs.DesiredState == int(service.SVCStop) {
-			t.Errorf("Found stopped service at %s", hpath)
-		}
+		err = conn.Get(hpath, &hs)
+		c.Assert(err, IsNil)
+		c.Assert(hs.DesiredState, Not(Equals), int(service.SVCStop))
 	}
 
 	// Start 3 instances and verify
-	t.Log("Adding 3 more instances")
+	c.Log("Adding 3 more instances")
 	svc.Instances = 8
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != svc.Instances {
-		t.Errorf("MISMATCH: expected %d instances; actual %d", svc.Instances, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, svc.Instances)
 
 	usedInstanceID = make(map[int]*servicestate.ServiceState)
 	for _, rs := range rss {
 		var state servicestate.ServiceState
 		spath := servicepath(svc.ID, rs.ID)
-		if err := conn.Get(spath, &ServiceStateNode{ServiceState: &state}); err != nil {
-			t.Fatalf("Error while looking up %s: %s", spath, err)
-		} else if ss, ok := usedInstanceID[state.InstanceID]; ok {
-			t.Errorf("DUPLICATE: found 2 instances with the same id: [%v] [%v]", ss, state)
-		}
+		err := conn.Get(spath, &ServiceStateNode{ServiceState: &state})
+		c.Assert(err, IsNil)
+		_, ok := usedInstanceID[state.InstanceID]
+		c.Assert(ok, Equals, false)
 		usedInstanceID[state.InstanceID] = &state
 
 		var hs HostState
 		hpath := hostpath(handler.Host.ID, rs.ID)
-		if err := conn.Get(hpath, &hs); err != nil {
-			t.Fatalf("Error while looking up %s: %s", hpath, err)
-		} else if hs.DesiredState == int(service.SVCStop) {
-			t.Errorf("Found stopped service at %s", hpath)
-		}
+		err = conn.Get(hpath, &hs)
+		c.Assert(err, IsNil)
+		c.Assert(hs.DesiredState, Not(Equals), int(service.SVCStop))
 	}
 
 	// Stop 4 instances
-	t.Log("Stopping 4 instances")
+	c.Log("Stopping 4 instances")
 	svc.Instances = 4
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != 8 { // Services are scheduled to be stopped, but haven't yet
-		t.Errorf("MISMATCH: expected %d instances; actual: %d", svc.Instances, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, 8)
 
 	var stopped []*HostState
 	for _, rs := range rss {
 		var hs HostState
 		hpath := hostpath(handler.Host.ID, rs.ID)
-		if err := conn.Get(hpath, &hs); err != nil {
-			t.Fatalf("Error while looking up %s: %s", hpath, err)
-		} else if hs.DesiredState == int(service.SVCStop) {
+		err := conn.Get(hpath, &hs)
+		c.Assert(err, IsNil)
+		if hs.DesiredState == int(service.SVCStop) {
 			stopped = append(stopped, &hs)
 		}
 	}
-	if running := len(rss) - len(stopped); svc.Instances != running {
-		t.Errorf("MISMATCH: expected %d running instances; actual %d", svc.Instances, running)
-	}
+	c.Assert(len(rss)-len(stopped), Equals, svc.Instances)
 
 	// Remove 2 stopped instances
-	t.Log("Removing 2 stopped instances")
+	c.Log("Removing 2 stopped instances")
 	for i := 0; i < 2; i++ {
 		hs := stopped[i]
 		var state servicestate.ServiceState
-		if err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state}); err != nil {
-			t.Fatalf("Error while getting %s: %s", hs.ServiceStateID, err)
-		} else if err := removeInstance(conn, &state); err != nil {
-			t.Fatalf("Error while deleting %s: %s", hs.ServiceStateID, err)
-		}
+		err := conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &state})
+		c.Assert(err, IsNil)
+		err = removeInstance(conn, state.ServiceID, state.HostID, state.ID)
+		c.Assert(err, IsNil)
 	}
 
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count < svc.Instances {
-		t.Errorf("MISMATCH: expected AT LEAST %d running instances; actual %d", svc.Instances, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(len(rss) < svc.Instances, Equals, false)
 
 	// Start 1 instance
-	t.Log("Adding 1 more instance")
+	c.Log("Adding 1 more instance")
 	svc.Instances = 5
 	listener.sync(svc, rss)
 	rss, err = LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count < svc.Instances {
-		t.Errorf("MISMATCH: expected AT LEAST %d running instances; actual %d", svc.Instances, count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(len(rss) < svc.Instances, Equals, false)
 }
 
-func TestServiceListener_start(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_start(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 
 	// Add 1 instance for 1 host
@@ -483,9 +497,8 @@ func TestServiceListener_start(t *testing.T) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
@@ -494,79 +507,50 @@ func TestServiceListener_start(t *testing.T) {
 	// Look up service instance
 	var state servicestate.ServiceState
 	children, err := conn.Children(listener.GetPath(svc.ID))
-	if err != nil {
-		t.Fatalf("Error while looking up service instances: %s", err)
-	}
-	if len(children) != 1 {
-		t.Fatalf("Wrong number of instances found in path: %s", listener.GetPath(svc.ID))
-	}
+	c.Assert(err, IsNil)
+	c.Assert(children, HasLen, 1)
 
 	spath := listener.GetPath(svc.ID, children[0])
-	if err := conn.Get(spath, &ServiceStateNode{ServiceState: &state}); err != nil {
-		t.Fatalf("Error while looking up %s: %s", spath, err)
-	}
+	err = conn.Get(spath, &ServiceStateNode{ServiceState: &state})
+	c.Assert(err, IsNil)
 
 	// Look up host state
 	var hs HostState
 	hpath := hostpath(handler.Host.ID, state.ID)
-	if err := conn.Get(hpath, &hs); err != nil {
-		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	}
+	err = conn.Get(hpath, &hs)
+	c.Assert(err, IsNil)
 
 	// Check values
-	if state.ID != children[0] {
-		t.Errorf("MISMATCH: service state id (%s) != nide id (%s): %s", state.ID, children[0], spath)
-	}
-	if state.ServiceID != svc.ID {
-		t.Errorf("MISMATCH: service ids do ot match (%s != %s): %s", state.ServiceID, svc.ID, spath)
-	}
-	if state.HostID != handler.Host.ID {
-		t.Errorf("MISMATCH: host ids do not match (%s != %s): %s", state.HostID, handler.Host.ID, spath)
-	}
-	if state.HostIP != handler.Host.IPAddr {
-		t.Errorf("MISMATCH: host ips do not match (%s != %s): %s", state.HostIP, handler.Host.IPAddr, spath)
-	}
-	if len(state.Endpoints) != len(svc.Endpoints) {
-		t.Errorf("MISMATCH: wrong number of endpoints (%d != %d): %s", len(state.Endpoints), len(svc.Endpoints), spath)
-	}
-
-	if hs.ServiceStateID != state.ID {
-		t.Errorf("MISMATCH: host state id (%s) != node id (%s): %s", hs.ServiceStateID, state.ID, hpath)
-	}
-	if hs.HostID != handler.Host.ID {
-		t.Errorf("MISMATCH: host ids do not match (%s != %s): %s", hs.HostID, handler.Host.ID, hpath)
-	}
-	if hs.ServiceID != svc.ID {
-		t.Errorf("MISMATCH: service ids do not match (%s != %s): %s", hs.ServiceID, svc.ID, hpath)
-	}
-	if hs.DesiredState != int(service.SVCRun) {
-		t.Errorf("MISMATCH: incorrect service state (%d != %d): %s", hs.DesiredState, service.SVCRun, hpath)
-	}
+	c.Check(state.ID, Equals, children[0])
+	c.Check(state.ServiceID, Equals, svc.ID)
+	c.Check(state.HostID, Equals, handler.Host.ID)
+	c.Check(state.HostIP, Equals, handler.Host.IPAddr)
+	c.Check(state.Endpoints, HasLen, len(svc.Endpoints))
+	c.Check(hs.ServiceStateID, Equals, state.ID)
+	c.Check(hs.HostID, Equals, handler.Host.ID)
+	c.Check(hs.ServiceID, Equals, svc.ID)
+	c.Check(hs.DesiredState, Equals, int(service.SVCRun))
 }
 
-func TestServiceListener_pause(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_pause(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 
 	svc := &service.Service{
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
 	listener.start(svc, []int{1})
 
 	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error which looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != 1 {
-		t.Errorf("MISMATCH: expected 1 children; found %d", count)
-	}
+	c.Assert(err, IsNil)
+	c.Check(rss, HasLen, 1)
 
 	// Pause instance
 	listener.pause(rss)
@@ -574,52 +558,43 @@ func TestServiceListener_pause(t *testing.T) {
 	// Verify the state of the instance
 	var hs HostState
 	hpath := hostpath(handler.Host.ID, rss[0].ID)
-	if err := conn.Get(hpath, &hs); err != nil {
-		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	} else if hs.DesiredState != int(service.SVCPause) {
-		t.Errorf("MISMATCH: expected service state paused (%d); actual (%d): %s", service.SVCPause, hs.DesiredState, hpath)
-	}
+	err = conn.Get(hpath, &hs)
+	c.Assert(err, IsNil)
+	c.Check(hs.DesiredState, Equals, int(service.SVCPause))
 }
 
-func TestServiceListener_stop(t *testing.T) {
-	conn := client.NewTestConnection()
-	defer conn.Close()
+func (t *ZZKTest) TestServiceListener_stop(c *C) {
+	conn, err := zzk.GetLocalConnection("/base")
+	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
 
 	svc := &service.Service{
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	if err := UpdateService(conn, svc); err != nil {
-		t.Fatalf("Error while trying to add service %s: %s", svc.ID, err)
-	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
 
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
 	listener.start(svc, []int{1, 2})
 
 	rss, err := LoadRunningServicesByHost(conn, handler.Host.ID)
-	if err != nil {
-		t.Fatalf("Error while looking up %s: %s", handler.Host.ID, err)
-	} else if count := len(rss); count != 2 {
-		t.Errorf("MISMATCH: expected 2 children; found %d", count)
-	}
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, 2)
+
 	// Stop 1 instance
 	listener.stop(rss[:1])
 
 	// Verify the state of the instances
 	var hs HostState
 	hpath := hostpath(handler.Host.ID, rss[0].ID)
-	if err := conn.Get(hpath, &hs); err != nil {
-		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	} else if hs.DesiredState != int(service.SVCStop) {
-		t.Errorf("MISMATCH: expected service stopped (%d); actual (%d): %s", service.SVCStop, hs.DesiredState, hpath)
-	}
+	err = conn.Get(hpath, &hs)
+	c.Assert(err, IsNil)
+	c.Check(hs.DesiredState, Equals, int(service.SVCStop))
 
 	hpath = hostpath(handler.Host.ID, rss[1].ID)
-	if err := conn.Get(hpath, &hs); err != nil {
-		t.Fatalf("Error while looking up %s: %s", hpath, err)
-	} else if hs.DesiredState != int(service.SVCRun) {
-		t.Errorf("MISMATCH: expected service started (%d); actual (%d): %s", service.SVCRun, hs.DesiredState, hpath)
-	}
+	err = conn.Get(hpath, &hs)
+	c.Assert(err, IsNil)
+	c.Check(hs.DesiredState, Equals, int(service.SVCRun))
 }

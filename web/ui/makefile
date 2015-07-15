@@ -11,19 +11,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-VERSION := $(shell cat ../../VERSION)
-
 UID = $(shell id -u)
 GID = $(shell id -g)
 PWD = $(shell pwd)
 
-serviced_build_DOCKERFILE = ../../build
+serviced_build_DOCKERDIR = ../../build
 javascript_BLDDIR   = $(PWD)/build/js
 controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
 
 NODEJS = $(shell which node)
-docker_working_DIR = "/mnt"
-
+docker_working_DIR = /mnt
 
 .PHONY: default
 default: build
@@ -31,33 +28,46 @@ default: build
 .PHONY: build
 build: $(controlplane_JS)
 
+#
+# If you have NPM installed locally, you can run this step manually to
+# refresh the NPM dependencies. If you have new dependencies to add to the
+# regular build, check the read for details on how to refresh those
+# dependencies in the build image.
+#
+# If you are using the serviced-build image to build the UI AND you need
+# to refresh the NPM dependencies, then run the following commands:
+# 'make buildServicedBuildImage;make pushServicedBuildImage' to
+# rebuild and publish zenoss/serviced-build with the NPM dependencies.
+#
+npmInstall:
+	if [ -x "$(NODEJS)" ]; then \
+		./npmLink.sh; \
+		npm install; \
+	fi
+
 $(controlplane_JS): src/*.js src/**/*.js
 	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
 		gulp release; \
 	else \
-		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build:$(VERSION) \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp release\""; \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
 	fi
 
 .PHONY: test
 test: build
 	if [ -x "$(NODEJS)" ]; then \
-		npm install; \
 		gulp test; \
 	else \
-		docker build -t zenoss/serviced-build:$(VERSION) $(serviced_build_DOCKERFILE); \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(shell id -u) \
 		-e GID_X=$(shell id -g) \
-		zenoss/serviced-build:$(VERSION) \
-		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && npm install && gulp test\""; \
+		zenoss/serviced-build:$(BUILD_VERSION) \
+		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
 
 .PHONY: clean

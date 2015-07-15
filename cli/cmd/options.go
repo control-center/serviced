@@ -56,7 +56,7 @@ func getDefaultOptions(config ConfigReader) api.Options {
 		MaxDFSTimeout:        config.IntVal("MAX_DFS_TIMEOUT", 60*5),
 		VirtualAddressSubnet: config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"),
 		MasterPoolID:         config.StringVal("MASTER_POOLID", "default"),
-		LogstashES:           config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:8443", masterIP)),
+		LogstashES:           config.StringVal("LOGSTASH_ES", fmt.Sprintf("%s:9100", masterIP)),
 		LogstashMaxDays:      config.IntVal("LOGSTASH_MAX_DAYS", 14),
 		LogstashMaxSize:      config.IntVal("LOGSTASH_MAX_SIZE", 10),
 		DebugPort:            config.IntVal("DEBUG_PORT", 6006),

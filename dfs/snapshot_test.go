@@ -21,10 +21,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 	"testing"
+	"time"
 
-	. "gopkg.in/check.v1"
 	"github.com/control-center/serviced/commons/docker"
 	dockertest "github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/dao"
@@ -33,14 +32,14 @@ import (
 	facadetest "github.com/control-center/serviced/facade/test"
 	"github.com/control-center/serviced/volume"
 	volumetest "github.com/control-center/serviced/volume/test"
+	dockerclient "github.com/fsouza/go-dockerclient"
+	. "gopkg.in/check.v1"
 
 	"github.com/stretchr/testify/mock"
 )
 
-
 // snapshotTest test type for setting up mocks and other resources needed by these tests
 type snapshotTest struct {
-
 	dfs *DistributedFilesystem
 
 	//  A mock implementatino of FacadeInterface
@@ -53,7 +52,7 @@ type snapshotTest struct {
 	tmpDir string
 
 	// Function used by commons/docker to get an instance of docker.ClientInterface
-	dockerClientGetter docker.DockerClientGetter;
+	dockerClientGetter docker.DockerClientGetter
 }
 
 const (
@@ -67,19 +66,18 @@ func Test(t *testing.T) {
 
 var _ = Suite(&snapshotTest{})
 
-
 func (st *snapshotTest) SetUpTest(c *C) {
 	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
-	st.dfs = &DistributedFilesystem {
-		fsType: "rsync",
-		varpath: "/tmp",
-		dockerHost: "localhost",
-		dockerPort: 5000,
-		facade: st.mockFacade,
-		timeout: time.Minute*5,
-		lock: nil,
-		datastoreGet: st.mock_datastoreGet,
+	st.dfs = &DistributedFilesystem{
+		fsType:           "rsync",
+		varpath:          "/tmp",
+		dockerHost:       "localhost",
+		dockerPort:       5000,
+		facade:           st.mockFacade,
+		timeout:          time.Minute * 5,
+		lock:             nil,
+		datastoreGet:     st.mock_datastoreGet,
 		getServiceVolume: st.mock_getServiceVolume,
 	}
 }
@@ -201,7 +199,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_TagFailed(c *C) {
 
 	mockClient := st.setupMockDockerClient()
 	errorStub := errors.New("errorStub: Tag() failed")
-	mockClient.On("ListImages", false).Return(nil, errorStub)
+	mockClient.On("ListImages", dockerclient.ListImagesOptions{All: false}).Return(nil, errorStub)
 
 	snapshotLabel, err := st.dfs.Snapshot(testTenantID, "description")
 
@@ -227,7 +225,7 @@ func (st *snapshotTest) testSnapshot(c *C, description string) {
 	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string")).Return(nil)
 
 	mockClient := st.setupMockDockerClient()
-	mockClient.On("ListImages", false).Return(nil, nil)
+	mockClient.On("ListImages", dockerclient.ListImagesOptions{All: false}).Return(nil, nil)
 
 	snapshotLabel, err := st.dfs.Snapshot(testTenantID, description)
 
@@ -352,24 +350,24 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_WithEmptyDescriptions(c *C) {
 }
 
 // Mock for datastore.Get()
-func (st *snapshotTest) mock_datastoreGet() (datastore.Context) {
+func (st *snapshotTest) mock_datastoreGet() datastore.Context {
 	return nil // we don't need a datastore.Context to unit-test snapshots
 }
 
 // Mock for volume.Mount()
-func(st *snapshotTest) mock_getServiceVolume(fsType, serviceID, baseDir string) (volume.Volume, error) {
+func (st *snapshotTest) mock_getServiceVolume(fsType, serviceID, baseDir string) (volume.Volume, error) {
 	return st.mountVolumeResponse.volume, st.mountVolumeResponse.err
 }
 
 // A set of values used to mock the response from dfs.mountVolume()
 type mockMountVolumeResponse struct {
 	volume *volumetest.MockVolume
-	err error
+	err    error
 }
 
 // Sets up a simple mock for dfs.GetService() which can used for a variety of test cases
 func (st *snapshotTest) setupSimpleGetService() {
-	service := &service.Service{ID:"test service id"}
+	service := &service.Service{ID: "test service id"}
 	st.mockFacade.
 		On("GetService", st.mock_datastoreGet(), testTenantID).
 		Return(service, nil)
@@ -405,7 +403,7 @@ func (st *snapshotTest) setupMockDockerClient() *dockertest.MockDockerClient {
 	st.dockerClientGetter = func() (docker.ClientInterface, error) {
 		return mockClient, nil
 	}
-	docker.SetDockerClientGetter(st.dockerClientGetter )
+	docker.SetDockerClientGetter(st.dockerClientGetter)
 	return mockClient
 }
 
@@ -433,7 +431,7 @@ func (st *snapshotTest) makeSnapshotDir(c *C, serviceID string) string {
 	return snapshotDir
 }
 
-func (st *snapshotTest) assertServicesJSON(c *C, services []service.Service, servicesFile string)  {
+func (st *snapshotTest) assertServicesJSON(c *C, services []service.Service, servicesFile string) {
 	data, e := ioutil.ReadFile(servicesFile)
 	if e != nil {
 		c.Fatalf("Failed to read services JSON file %s: %s", servicesFile, e)
@@ -469,7 +467,7 @@ func (st *snapshotTest) setupListSnapshots(c *C, snapshotIDs, descriptions []str
 	st.mountVolumeResponse.err = nil
 
 	// Make separate test directories for each snapshot
-	for i, id := range(snapshotIDs) {
+	for i, id := range snapshotIDs {
 		snapshotDir := st.makeSnapshotDir(c, id)
 		mockVol.On("SnapshotPath", id).Return(snapshotDir)
 
@@ -487,9 +485,9 @@ func (st *snapshotTest) assertListSnapshots(
 
 	c.Assert(err, IsNil)
 	c.Assert(len(snapshots), Equals, len(expectedSnapshotIDs))
-	for i, snapshot := range(snapshots) {
+	for i, snapshot := range snapshots {
 		c.Assert(expectedSnapshotIDs[i], Equals, snapshot.SnapshotID)
-		if (expectedDescriptions != nil) {
+		if expectedDescriptions != nil {
 			c.Assert(snapshot.Description, Equals, expectedDescriptions[i])
 		}
 	}

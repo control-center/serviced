@@ -185,6 +185,11 @@ func (c *Server) Restart() error {
 	return nil
 }
 
+// Stop stops the nfs subsystem
+func (c *Server) Stop() error {
+	return stop()
+}
+
 func (c *Server) hostsDeny() error {
 
 	s, err := readFileIfExists(hostDenyDefaults)

@@ -17,7 +17,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 
-	"strings"
 	"testing"
 )
 
@@ -34,7 +33,7 @@ func TestGetInfo(t *testing.T) {
 	request := BuildHostRequest{IP: "", PoolID: "testpool"}
 
 	err = agent.BuildHost(request, h)
-	if err != nil && !strings.Contains(err.Error(), "not valid for this host") {
+	if _, ok := err.(host.InvalidIPAddress); !ok {
 		t.Fatalf("Unexpected error %v", err)
 	}
 	if len(h.IPs) != 0 {
@@ -44,14 +43,14 @@ func TestGetInfo(t *testing.T) {
 	request = BuildHostRequest{IP: "127.0.0.1", PoolID: "testpool"}
 
 	err = agent.BuildHost(request, h)
-	if err == nil || err.Error() != "loopback address 127.0.0.1 cannot be used to register a host" {
+	if _, ok := err.(host.IsLoopbackError); !ok {
 		t.Fatalf("Unexpected error %v", err)
 	}
 
 	request = BuildHostRequest{IP: "", PoolID: "testpool"}
 
 	err = agent.BuildHost(request, h)
-	if err == nil || !strings.Contains(err.Error(), "not valid for this host") {
+	if _, ok := err.(host.InvalidIPAddress); !ok {
 		t.Errorf("Unexpected error %v", err)
 	}
 
