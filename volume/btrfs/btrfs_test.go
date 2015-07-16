@@ -19,19 +19,77 @@ import (
 	"os"
 	"os/exec"
 	"os/user"
+	"path/filepath"
 	"reflect"
+	"syscall"
 	"testing"
 )
 
-var btrfsTestVolumePath = "/var/lib/serviced"
+var btrfsVolumes map[string]string = make(map[string]string)
 
-const btrfsTestVolumePathEnv = "SERVICED_BTRFS_TEST_VOLUME_PATH"
-
-func init() {
-	testVolumePathEnv := os.Getenv(btrfsTestVolumePathEnv)
-	if len(testVolumePathEnv) > 0 {
-		btrfsTestVolumePath = testVolumePathEnv
+// createBtrfsTmpVolume creates a btrfs volume of <size> bytes in a ramdisk,
+// based on a loop device. Returns the path to the mounted filesystem.
+func createBtrfsTmpVolume(t *testing.T, size int64) string {
+	// Make a ramdisk
+	ramdiskDir, err := ioutil.TempDir("", "btrfs-ramdisk-")
+	if err != nil {
+		t.Fatal(err)
 	}
+	if err := os.MkdirAll(ramdiskDir, 0700); err != nil {
+		t.Fatal(err)
+	}
+	if err := syscall.Mount("tmpfs", ramdiskDir, "tmpfs", syscall.MS_MGC_VAL, ""); err != nil {
+		t.Fatal(err)
+	}
+	loopFile := filepath.Join(ramdiskDir, "loop")
+	mountPath := filepath.Join(ramdiskDir, "mnt")
+	if err := os.MkdirAll(mountPath, 0700); err != nil {
+		t.Fatal(err)
+	}
+	// Create a sparse file of <size> bytes to back the loop device
+	file, err := os.OpenFile(loopFile, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if err = file.Truncate(size); err != nil {
+		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		t.Fatal(err)
+	}
+	// Create a btrfs filesystem
+	if err := exec.Command("mkfs.btrfs", loopFile).Run(); err != nil {
+		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		t.Fatal(err)
+	}
+	// Mount the loop device. System calls to get the next available loopback
+	// device are nontrivial, so just shell out, like an animal
+	if err := exec.Command("mount", "-o", "loop", loopFile, mountPath).Run(); err != nil {
+		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
+		t.Fatal(err)
+	}
+	btrfsVolumes[mountPath] = ramdiskDir
+	return mountPath
+}
+
+func cleanupBtrfsTmpVolume(t *testing.T, fsPath string) {
+	var (
+		ramdisk string
+		ok      bool
+	)
+	if ramdisk, ok = btrfsVolumes[fsPath]; !ok {
+		t.Fatal("Tried to clean up a btrfs volume we don't know about")
+	}
+	// First unmount the loop device
+	if err := syscall.Unmount(fsPath, syscall.MNT_DETACH); err != nil {
+		t.Error(err)
+	}
+	// Unmount the ramdisk
+	if err := syscall.Unmount(ramdisk, syscall.MNT_DETACH); err != nil {
+		t.Fatal(err)
+	}
+	// Clean up the mount point
+	os.RemoveAll(ramdisk)
 }
 
 func TestBtrfsVolume(t *testing.T) {
@@ -48,8 +106,11 @@ func TestBtrfsVolume(t *testing.T) {
 		t.Skip("Skipping BTRFS tests because btrfs-tools were not found in the path")
 	}
 
-	t.Logf("Using '%s' as btrfs test volume, use env '%s' to override.",
-		btrfsTestVolumePath, btrfsTestVolumePathEnv)
+	// Create a 64MB btrfs test volume
+	btrfsTestVolumePath := createBtrfsTmpVolume(t, 256*1024*1024)
+	defer cleanupBtrfsTmpVolume(t, btrfsTestVolumePath)
+
+	t.Logf("Using '%s' as btrfs test volume", btrfsTestVolumePath)
 
 	if err := os.MkdirAll(btrfsTestVolumePath, 0775); err != nil {
 		t.Fatalf("Could not create test volume path: %s : %s", btrfsTestVolumePath, err)
@@ -63,7 +124,7 @@ func TestBtrfsVolume(t *testing.T) {
 	if c, err := btrfsd.Mount("unittest", btrfsTestVolumePath); err != nil {
 		t.Fatalf("Could not create volume object :%s", err)
 	} else {
-		testFile := "/var/lib/serviced/unittest/test.txt"
+		testFile := filepath.Join(btrfsTestVolumePath, "unittest", "test.txt")
 		testData := []byte{0, 1, 2, 3, 4, 5, 6, 7, 8, 9}
 		testData2 := []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 
