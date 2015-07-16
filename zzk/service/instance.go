@@ -32,6 +32,9 @@ const (
 )
 
 const (
+	// AlertInitialized indicates that the alerter has been initialized for the
+	// service.
+	AlertInitialized = "INIT"
 	// InstanceAdded describes a service event alert for an instance that was
 	// created.
 	InstanceAdded = "ADD"
@@ -61,6 +64,28 @@ func (alert *ServiceAlert) Version() interface{} {
 // SetVersion implements client.Node
 func (alert *ServiceAlert) SetVersion(version interface{}) {
 	alert.version = version
+}
+
+// setUpAlert sets up the service alerter.
+func setupAlert(conn client.Connection, serviceID string) error {
+	var alert ServiceAlert
+	if err := conn.Create(path.Join(zkServiceAlert, serviceID), &alert); err == nil {
+		alert.Event = AlertInitialized
+		alert.Timestamp = time.Now()
+		if err := conn.Set(path.Join(zkServiceAlert, serviceID), &alert); err != nil {
+			glog.Errorf("Could not set alerter for service %s: %s", serviceID, err)
+			return err
+		}
+	} else if err != client.ErrNodeExists {
+		glog.Errorf("Could not create alerter for service %s: %s", serviceID, err)
+		return err
+	}
+	return nil
+}
+
+// removeAlert cleans up service alerter.
+func removeAlert(conn client.Connection, serviceID string) error {
+	return conn.Delete(path.Join(zkServiceAlert, serviceID))
 }
 
 // alertService sends a notification to a service that one of its service

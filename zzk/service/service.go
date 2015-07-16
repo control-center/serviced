@@ -119,6 +119,12 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
+	// set up the service alerter
+	if err := setupAlert(l.conn, serviceID); err != nil {
+		glog.Errorf("Could not set up alerter for service %s: %s", serviceID, err)
+		return
+	}
+
 	for {
 		var retry <-chan time.Time
 		var err error
@@ -135,9 +141,8 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			}
 		}
 
-		// CC-1050: set up the service alerter
-		var alert ServiceAlert
-		alertEvent, err := l.conn.GetW(path.Join(zkServiceAlert, serviceID), &alert)
+		// CC-1050: watch the service alerter
+		alertEvent, err := l.conn.GetW(path.Join(zkServiceAlert, serviceID), &ServiceAlert{})
 		if err != nil {
 			glog.Errorf("Could not monitor instance alerts for service %s: %s", serviceID, err)
 			return
@@ -188,6 +193,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 				l.stop(rss)
 				return
 			}
+			glog.V(2).Infof("Receieved an alert event for service %s (%s): %v", svc.Name, svc.ID, e)
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
@@ -436,18 +442,11 @@ func UpdateService(conn client.Connection, svc service.Service) error {
 	// already set.  Trust me, I tried.  It was very aggravating.
 	if err := conn.Get(spath, &node); err != nil {
 		if err == client.ErrNoNode {
-			// set up the service alerter
-			var alerter ServiceAlert
-			if err := conn.Create(path.Join(zkServiceAlert, svc.ID), &alerter); err != nil && err != client.ErrNodeExists {
-				glog.Errorf("Could not create alerter for %s: %s", svc.ID, err)
+			// Set up the service alert
+			if err := setupAlert(conn, svc.ID); err != nil {
+				glog.Errorf("Could not set up alert for service %s (%s): %s", svc.Name, svc.ID, err)
 				return err
 			}
-			alerter.Timestamp = time.Now()
-			if err := conn.Set(path.Join(zkServiceAlert, svc.ID), &alerter); err != nil {
-				glog.Errorf("Could not set up alerter for %s: %s", svc.ID, err)
-				return err
-			}
-
 			// Create the service node
 			if err := conn.Create(spath, &node); err != nil {
 				glog.Errorf("Could not create node at %s: %s", spath, err)
@@ -481,8 +480,8 @@ func RemoveService(conn client.Connection, serviceID string) error {
 	} else if instances := len(states); instances > 0 {
 		return fmt.Errorf("service %s has %d running instances", serviceID, instances)
 	}
-
 	// Delete the service
+	defer removeAlert(conn, serviceID)
 	return conn.Delete(servicepath(serviceID))
 }
 
