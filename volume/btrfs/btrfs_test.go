@@ -64,10 +64,7 @@ func createBtrfsTmpVolume(t *testing.T, size int64) string {
 	}
 	// Mount the loop device. System calls to get the next available loopback
 	// device are nontrivial, so just shell out, like an animal
-	cmd := exec.Command("mount", "-o", "loop", loopFile, mountPath)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
+	if err := exec.Command("mount", "-o", "loop", loopFile, mountPath).Run(); err != nil {
 		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
 		t.Fatal(err)
 	}
