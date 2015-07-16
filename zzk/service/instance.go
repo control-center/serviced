@@ -16,6 +16,7 @@ package service
 import (
 	"errors"
 	"path"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
@@ -24,20 +25,63 @@ import (
 )
 
 const (
+	// zkServiceAlert alerts services when instances are added or deleted.
+	zkServiceAlert = "/alerts/services"
+	// zkInstanceLock keeps service instance updates in sync.
 	zkInstanceLock = "/locks/instances"
-	zkStateLock    = "/locks/states" // per-service lock
+)
+
+const (
+	// InstanceAdded describes a service event alert for an instance that was
+	// created.
+	InstanceAdded = "ADD"
+	// InstanceDeleted describes a service event alert for an instance that was
+	// deleted.
+	InstanceDeleted = "DEL"
 )
 
 var ErrLockNotFound = errors.New("lock not found")
 
-// newStateLock sets up the zk state lock for a given service id
-func newStateLock(conn client.Connection, serviceID string) client.Lock {
-	return conn.NewLock(path.Join(zkStateLock, serviceID))
+// ServiceAlert is a alert node for when a service instance is added or
+// deleted.
+type ServiceAlert struct {
+	ServiceID string
+	HostID    string
+	StateID   string
+	Event     string
+	Timestamp time.Time
+	version   interface{}
 }
 
-// rmStateLock removes a zk state lock parent
-func rmStateLock(conn client.Connection, serviceID string) error {
-	return conn.Delete(path.Join(zkStateLock, serviceID))
+// Version implements client.Node
+func (alert *ServiceAlert) Version() interface{} {
+	return alert.version
+}
+
+// SetVersion implements client.Node
+func (alert *ServiceAlert) SetVersion(version interface{}) {
+	alert.version = version
+}
+
+// alertService sends a notification to a service that one of its service
+// instances has been updated.  And will set the value of the last updated
+// instance.
+func alertService(conn client.Connection, serviceID, hostID, stateID, event string) error {
+	var alert ServiceAlert
+	if err := conn.Get(path.Join(zkServiceAlert, serviceID), &alert); err != nil && err != client.ErrEmptyNode {
+		glog.Errorf("Could not find service %s: %s", serviceID, err)
+		return err
+	}
+	alert.ServiceID = serviceID
+	alert.HostID = hostID
+	alert.StateID = stateID
+	alert.Event = event
+	alert.Timestamp = time.Now()
+	if err := conn.Set(path.Join(zkServiceAlert, serviceID), &alert); err != nil {
+		glog.Errorf("Could not alert service %s: %s", serviceID, err)
+		return err
+	}
+	return nil
 }
 
 // newInstanceLock sets up a new zk instance lock for a given service state id
@@ -59,15 +103,6 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		return err
 	}
 
-	// CC-1050: we need to trigger the scheduler in case we only have a
-	// partial create.
-	svclock := newStateLock(conn, state.ServiceID)
-	if err := svclock.Lock(); err != nil {
-		glog.Errorf("Could not set lock on service %s: %s", state.ServiceID, err)
-		return err
-	}
-	defer svclock.Unlock()
-
 	lock := newInstanceLock(conn, state.ID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
@@ -75,6 +110,7 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 	}
 	glog.V(2).Infof("Acquired lock for instance %s", state.ID)
 	defer lock.Unlock()
+	defer alertService(conn, state.ServiceID, state.HostID, state.ID, InstanceAdded)
 
 	var err error
 	defer func() {
@@ -116,21 +152,13 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
 
-	// CC-1050: we need to trigger the scheduler in case we only have a
-	// partial delete.
-	svclock := newStateLock(conn, serviceID)
-	if err := svclock.Lock(); err != nil {
-		glog.Errorf("Could not set lock on service %s: %s", serviceID, err)
-		return err
-	}
-	defer svclock.Unlock()
-
 	lock := newInstanceLock(conn, stateID)
 	if err := lock.Lock(); err != nil {
 		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
 	defer lock.Unlock()
+	defer alertService(conn, serviceID, hostID, stateID, InstanceDeleted)
 	defer rmInstanceLock(conn, stateID)
 	glog.V(2).Infof("Acquired lock for instance %s", stateID)
 	// Remove the node on the service
