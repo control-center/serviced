@@ -243,7 +243,7 @@ func (c *Container) CancelOnEvent(event string) error {
 }
 
 // Commit creates a new Image from the containers changes.
-func (c *Container) Commit(iidstr string) (*Image, error) {
+func (c *Container) Commit(iidstr string, push bool) (*Image, error) {
 	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
@@ -263,7 +263,9 @@ func (c *Container) Commit(iidstr string) (*Image, error) {
 		glog.V(1).Infof("unable to commit container %s: %v", c.ID, err)
 		return nil, err
 	}
-	err = pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
+	if push {
+		err = pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
+	}
 	return &Image{img.ID, *iid}, err
 }
 

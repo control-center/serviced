@@ -131,7 +131,7 @@ func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	}
 
 	// commit the container to the image and tag
-	newImage, err := ctr.Commit(image.ID.BaseName())
+	newImage, err := ctr.Commit(image.ID.BaseName(), true)
 	if err != nil {
 		glog.Errorf("Could not commit %s (%s): %s", dockerID, image.ID, err)
 		return "", err
