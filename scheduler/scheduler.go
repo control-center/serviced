@@ -16,6 +16,7 @@ package scheduler
 import (
 	"sync"
 
+	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
@@ -145,6 +146,22 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 
 	// monitor the resource pool
 	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
+
+	// load all of the images into the registry
+	go func() {
+		images, err := s.facade.GetImages(datastore.Get())
+		if err != nil {
+			glog.Fatalf("Could not get images: %s", err)
+		}
+		for _, imageID := range images {
+			select {
+			case <-_shutdown:
+				return
+			default:
+				docker.PushImage(imageID)
+			}
+		}
+	}()
 
 	// start the storage server
 	wg.Add(1)

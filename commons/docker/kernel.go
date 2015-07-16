@@ -15,8 +15,6 @@ package docker
 
 import (
 	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -25,7 +23,6 @@ import (
 
 const (
 	dockerep         = "unix:///var/run/docker.sock"
-	sdr              = "SERVICED_REGISTRY"
 	maxStartAttempts = 24
 	Wildcard         = "*"
 )
@@ -34,8 +31,6 @@ const (
 	pullop = iota
 	pushop
 )
-
-var useRegistry = false
 
 type request struct {
 	errchan chan error
@@ -104,31 +99,12 @@ var (
 // init starts up the kernel loop that is responsible for handling all the API calls
 // in a goroutine.
 func init() {
-	trues := []string{"1", "true", "t", "yes"}
-	if v := strings.ToLower(os.Getenv(sdr)); v != "" {
-		for _, t := range trues {
-			if v == t {
-				useRegistry = true
-			}
-		}
-	}
-
 	client, err := getDockerClient()
 	if err != nil {
 		panic(fmt.Sprintf("can't create Docker client: %v", err))
 	}
 
 	go kernel(client, done)
-}
-
-// SetUseRegistry sets the value of useRegistry
-func SetUseRegistry(ur bool) {
-	useRegistry = ur
-}
-
-// UseRegistry returns the value of useRegistry
-func UseRegistry() bool {
-	return useRegistry
 }
 
 // kernel is responsible for executing all the Docker client commands.

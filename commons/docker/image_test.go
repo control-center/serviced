@@ -121,8 +121,6 @@ func (s *ImageTestSuite) SetUpSuite(c *C) {
 		}
 	}
 
-	useRegistry = true
-
 	exportcmd := exec.Command("docker", "export", s.regid)
 	stdout, err := exportcmd.StdoutPipe()
 	if err != nil {

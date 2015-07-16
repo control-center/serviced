@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
@@ -98,8 +97,6 @@ type DaoTest struct {
 
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
-	docker.SetUseRegistry(true)
-
 	dt.Port = 9202
 	isvcs.Init()
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")

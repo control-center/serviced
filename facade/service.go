@@ -370,6 +370,24 @@ func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, er
 	return svc.PoolID, nil
 }
 
+// GetImages returns all the images of all the deployed services.
+func (f *Facade) GetImages(ctx datastore.Context) ([]string, error) {
+	store := f.serviceStore
+	svcs, err := store.GetServices(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var imageIDs []string
+	imagemap := make(map[string]struct{})
+	for _, svc := range svcs {
+		if _, ok := imagemap[svc.ImageID]; !ok {
+			imageIDs = append(imageIDs, svc.ImageID)
+			imagemap[svc.ImageID] = struct{}{}
+		}
+	}
+	return imageIDs, nil
+}
+
 func (f *Facade) GetHealthChecksForService(ctx datastore.Context, serviceID string) (map[string]domain.HealthCheck, error) {
 	glog.V(3).Infof("Facade.GetHealthChecksForService: id=%s", serviceID)
 	store := f.serviceStore

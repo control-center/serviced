@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
@@ -108,7 +109,7 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 	}
 
 	// tag all of the images
-	if err := tag(tenantID, DockerLatest, tagID); err != nil {
+	if err := tag(tenantID, docker.DockerLatest, tagID); err != nil {
 		glog.Errorf("Could not tag new snapshot for %s (%s): %s", tenant.Name, tenant.ID, err)
 		return "", err
 	}
@@ -204,7 +205,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 
 	// restore the tags
 	glog.V(0).Infof("Restoring image tags for %s", snapshotID)
-	if err := tag(tenantID, timestamp, DockerLatest); err != nil {
+	if err := tag(tenantID, timestamp, docker.DockerLatest); err != nil {
 		glog.Errorf("Could not restore snapshot tags for %s (%s): %s", tenant.Name, tenant.ID, err)
 		return err
 	}
