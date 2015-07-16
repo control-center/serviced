@@ -63,7 +63,7 @@ func (zk *zkf) UpdateService(service *service.Service) error {
 		return err
 	}
 
-	if err := zkservice.UpdateService(conn, service); err != nil {
+	if err := zkservice.UpdateService(conn, *service); err != nil {
 		return err
 	}
 
