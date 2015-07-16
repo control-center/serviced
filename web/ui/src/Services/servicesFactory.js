@@ -245,7 +245,7 @@
 
         },
 
-        // invalidate all caches. This is needed 
+        // invalidate all caches. This is needed
         // when descendents update
         markDirty: function(){
             this.cache.markAllDirty();
@@ -315,16 +315,19 @@
 
         // start, stop, or restart this service
         start: function(skipChildren){
-            resourcesFactory.startService(this.id, skipChildren);
+            var promise = resourcesFactory.startService(this.id, skipChildren);
             this.desiredState = START;
+            return promise;
         },
         stop: function(skipChildren){
-            resourcesFactory.stopService(this.id, skipChildren);
+            var promise = resourcesFactory.stopService(this.id, skipChildren);
             this.desiredState = STOP;
+            return promise;
         },
         restart: function(skipChildren){
-            resourcesFactory.restartService(this.id, skipChildren);
+            var promise = resourcesFactory.restartService(this.id, skipChildren);
             this.desiredState = RESTART;
+            return promise;
         },
 
         // gets a list of running instances of this service.

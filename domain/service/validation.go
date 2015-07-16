@@ -62,9 +62,6 @@ func (s *Service) ValidEntity() error {
 		}
 	}
 
-	// Validate the service endpoints
-	NewServiceEndpointValidator().IsValid(vErr, s)
-
 	if vErr.HasError() {
 		return vErr
 	}

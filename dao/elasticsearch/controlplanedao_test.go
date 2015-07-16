@@ -172,6 +172,10 @@ func (dt *DaoTest) TearDownSuite(c *C) {
 func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 	var id string
 
+	// These tests were originally added wtih https://github.com/control-center/serviced/pull/1787,
+	// but were skipped for CC 1.1 by https://github.com/control-center/serviced/pull/1811
+	t.Skip("this test needs to be restored once we validate endpoints for service add, update, etc")
+
 	// test 1: add tenant with dup ep
 	svc := service.Service{
 		ID:           "test_tenant",
@@ -683,7 +687,7 @@ clone = copy.deepcopy(svcs[0])
 clone["Name"] = "clone name"
 export = filter(lambda x: x["Purpose"] == "export", clone["Endpoints"])[0]
 export["Application"] = "clone-application"
-clone["DesiredState"] = -2
+clone["Launch"] = "bogusState"
 wrapper = {
 	"Modified": svcs,
 	"Added": [clone],
@@ -705,10 +709,9 @@ exit(0)
 	if err == nil {
 		t.Errorf("Expected error cloning service during migration with incorrect desired state.")
 		t.Fail()
+	} else {
+		t.Assert(err.Error(), Equals, "ValidationError: \n   0 -  string bogusState not in [auto manual]")
 	}
-
-	t.Assert(err.Error(), Equals, "ValidationError: \n   0 -  int -2 not in [1 0 2]")
-
 }
 
 func (dt *DaoTest) TestDao_MigrateServiceWithDryRun(t *C) {

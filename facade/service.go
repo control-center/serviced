@@ -69,11 +69,9 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 		return err
 	}
 
-	// verify that the service endpoints are unique per the tenant
-	if err := f.validateServiceEndpoints(ctx, &svc); err != nil {
-		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
-	}
+	// Always add services in a stopped states so in case auto ip assignment fails,
+	// the scheduler won't spam the log complaining about missing address assignments.
+	svc.DesiredState = int(service.SVCStop)
 
 	// Strip the database version; we already know this is a create
 	svc.DatabaseVersion = 0
@@ -1326,6 +1324,8 @@ func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfigura
 
 // validateServiceEndpoints traverses the service tree and checks for duplicate
 // endpoints
+// WARNING: This code is unused in CC 1.1, but should be added back in CC 1.2
+// (see CC-811 for more information)
 func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Service) error {
 	epValidator := service.NewServiceEndpointValidator()
 	vErr := validation.NewValidationError()
@@ -1404,12 +1404,6 @@ func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Serv
 			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
 			return err
 		}
-	}
-
-	// verify that the service endpoints are unique per the tenant
-	if err := f.validateServiceEndpoints(ctx, svc); err != nil {
-		glog.Errorf("Error validating endpoints for service %s (%s): %s", svc.Name, svc.ID, err)
-		return err
 	}
 
 	// make sure that the tenant ID and path are valid

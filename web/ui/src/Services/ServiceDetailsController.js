@@ -235,13 +235,15 @@
             return {'padding-left': (20*depth) + "px"};
         };
 
-        $scope.clickRunning = function(app, status){
-            app[status]();
+        $scope.clickRunning = function(app, serviceStatus){
+            app[serviceStatus]().error(function(data, status){
+                $notification.create("Unable to " + serviceStatus + " service", data.Detail).error();
+            });
             servicesFactory.updateHealth();
         };
 
-        $scope.clickRunningApp = function(app, status) {
-            utils.setServiceState($scope, app, status, $modalService, $translate);
+        $scope.clickRunningApp = function(app, serviceStatus) {
+            utils.setServiceState($scope, app, serviceStatus, $modalService, $translate);
         };
 
         $scope.clickEditContext = function() {
