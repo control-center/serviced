@@ -50,7 +50,7 @@ func init() {
 			Tag:          IMAGE_TAG,
 			Command:      func() string { return command },
 			PortBindings: []portBinding{dockerPortBinding},
-			Volumes:      map[string]string{"registry": "/tmp/registry"},
+			Volumes:      map[string]string{"registry": "/tmp/registry-dev"},
 			HealthChecks: healthChecks,
 		},
 	)
