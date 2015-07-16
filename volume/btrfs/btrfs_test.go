@@ -84,9 +84,12 @@ func cleanupBtrfsTmpVolume(t *testing.T, fsPath string) {
 	if err := syscall.Unmount(fsPath, syscall.MNT_DETACH); err != nil {
 		t.Error(err)
 	}
+	// Unmount the ramdisk
 	if err := syscall.Unmount(ramdisk, syscall.MNT_DETACH); err != nil {
 		t.Fatal(err)
 	}
+	// Clean up the mount point
+	os.RemoveAll(ramdisk)
 }
 
 func TestBtrfsVolume(t *testing.T) {
