@@ -5,6 +5,7 @@
 package rpcutils
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -22,7 +23,7 @@ func SetDialTimeout(timeout int) {
 
 type Client interface {
 	Close() error
-	Call(serviceMethod string, args interface{}, reply interface{}) error
+	Call(serviceMethod string, args interface{}, reply interface{}, timeout int64) error
 }
 
 // NewReconnectingClient creates a client that reuses the same connection and does not close the underlying connection unless an error occurs.
@@ -60,7 +61,7 @@ func (rc *reconnectingClient) Close() error {
 	return nil
 }
 
-func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout int64) error {
 	// WARNING: Printing to stdout/err here can cause issues with zendev, e.g., your service
 	//          template may not deploy. This problem will go away once we move to using exit codes.
 	rc.RLock()
@@ -79,8 +80,22 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		//get read lock again
 		rc.RLock()
 	}
-	err = rpcClient.Call(serviceMethod, args, reply)
-	rc.RUnlock()
+	if timeout != 0 {
+		c := make(chan error, 1)
+		go func() {
+			c <- rpcClient.Call(serviceMethod, args, reply)
+			rc.RUnlock()
+		}()
+		select {
+		case err = <-c:
+			// do nothing, keep the error.
+		case <-time.After(time.Duration(timeout) * time.Second):
+			err = fmt.Errorf("RPC call to %s timed out after %d seconds.", serviceMethod, timeout)
+		}
+	} else {
+		err = rpcClient.Call(serviceMethod, args, reply)
+		rc.RUnlock()
+	}
 	if err != nil {
 		glog.V(3).Infof("rpc error, resetting cached client: %v", err)
 		rc.Lock()
