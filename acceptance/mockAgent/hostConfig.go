@@ -43,7 +43,7 @@ func (hostConfig *HostConfig) setDefaults() error {
 		return fmt.Errorf("invalid hostid: %d", hostConfig.HostID)
 	}
 
-	if hostConfig.OutboundIP == "" {
+	if hostConfig.OutboundIP == "" || hostConfig.OutboundIP == "%{local_ip}" {
 		var err error
 		hostConfig.OutboundIP, err = utils.GetIPAddress()
 		if err != nil {

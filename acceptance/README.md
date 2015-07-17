@@ -11,8 +11,9 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
   - [How to run](#how-to-run)
     - [Step 1 - Start Control Center](#step-1---start-control-center)
     - [Step 2 - Build the docker image](#step-2---build-the-docker-image)
-    - [Step 3 - Run the test suite](#step-3---run-the-test-suite)
-    - [Step 4 - Review the test results](#step-4---review-the-test-results)
+    - [Step 3 - Run the mock agents](#step-3---run-the-mock-agents)
+    - [Step 4 - Run the test suite](#step-4---run-the-test-suite)
+    - [Step 5 - Review the test results](#step-5---review-the-test-results)
     - [Cucumber Command Line Options](#cucumber-command-line-options)
     - [Environment variables](#environment-variables)
   - [Examples](#examples)
@@ -69,7 +70,19 @@ $ make dockerPush
 If you modify the contents of the image, you should update the version number in that file before
 building/pushing a new image.
 
-### Step 3 - Run the test suite
+### Step 3 - Run the mock agents
+
+The test suite uses mock agents for tests involving hosts. To run the mock agents, use the following command:
+
+```
+$ ./makeMockAgents.sh
+```
+
+This command is not necessary if you do not run the tests involving hosts.
+
+**NOTE:** If you stop and restart the make mock agents scripts while serviced is running, you may see a "Bad Request: connection is shut down" error when you try to add a mock host. Restarting serviced will fix this.
+
+### Step 4 - Run the test suite
 
 Capybara uses different 'drivers' to interface with a web browser.
 The Selenium driver for Capybara is the default, and by default it executes tests againts Firefox.
@@ -96,7 +109,7 @@ $ ./runUIAcceptance.sh -d poltergeist -u <userID> -p <password>
 
 For a full description of the command line options, run `./runUIAcceptance.sh -h`
 
-### Step 4 - Review the test results
+### Step 5 - Review the test results
 
 The output from the tests are written to stdout as the tests execute. Additionally, an HTML report is written to
 `ui/output/feature-overview.html`. If a test case fails, the HTML report will include a screenshot of the browser
@@ -116,6 +129,7 @@ The primary variables used by `runUIAcceptance.sh` are:
  * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
  * **`CAPYBARA_TIMEOUT`** - the timeout, in seconds, that Capybara should wait for a page or element. The default is 10 seconds. You can set this variable with the `-t` command line option for `runUIAcceptance.sh`.
  * **`CUCUMBER_OPTS`** - any of the standard command line options for Cucumber.
+ * **`DATASET`** - the JSON dataset to use as test input. You can set this variable with the `--dataset` command line option for `runUIAcceptance.sh`.
 
 Internally, the script also uses the variables `CALLER_UID` and `CALLER_GID` to capture the current user's UID and GID which are used in the container to create a `cuke` user so that
 files written to `ui/output` will have the proper owner/group information (for OSX, see Known Issues). These two variables should not be overwritten or modified. For an example of how these two variables are used, refer to the [dockerImage/build/makeCukeUser.sh](dockerImage/build/makeCukeUser.sh) script.
@@ -208,9 +222,10 @@ For more discussion of page object model, see
 ## References
 
  * [Docker](http://www.docker.com)
- * [Cucumber - A tool for BDD testing](https://github.com/cucumber/cucumber)
+ * [Cucumber - A tool for BDD testing](https://github.com/cucumber/cucumber/wiki)
  * [The Cucumber Book](https://www.safaribooksonline.com/library/view/the-cucumber-book/9781941222911/) by Aslak Hellesoy, Matt Wynne
  * [Capybara - An Acceptance test framework for web applications](https://github.com/jnicklas/capybara)
+ * [Documentation for Capybara](https://www.rubydoc.info/github/jnicklas/capybara/master)
  * [Application Testing with Capybara](https://www.safaribooksonline.com/library/view/application-testing-with/9781783281251/) by Matthew Robbins
  * [Capybara cheat sheet](https://gist.github.com/zhengjia/428105)
  * [Site Prism - A Page Object Model DSL for Capybara](https://github.com/natritmeyer/site_prism)

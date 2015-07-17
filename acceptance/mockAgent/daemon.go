@@ -72,12 +72,10 @@ func (d *daemon) startRPC() {
 	glog.Infof("Listening on %s", listener.Addr().String())
 	go func() {
 		for {
-			glog.Infof("listening:Accept()")
 			conn, err := listener.Accept()
 			if err != nil {
 				glog.Fatalf("Error accepting connections: %s", err)
 			}
-			glog.Infof("listening:ServeCodec()")
 			go d.rpcServer.ServeCodec(jsonrpc.NewServerCodec(conn))
 		}
 	}()
