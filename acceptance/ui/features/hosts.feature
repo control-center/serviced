@@ -51,7 +51,7 @@ Feature: Host Management
       And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Internal Server Error: dial tcp 172.17.42.1:9999: connection refused"
+      And I should see "Internal Server Error: dial tcp 172.17.42.1:9999"
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid Resource Pool field
@@ -62,7 +62,7 @@ Feature: Host Management
       And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request: empty poolid not allowed"
+      And I should see "Internal Server Error: error verifying pool exists: empty Kind id"
       And I should see an empty Hosts page
 
   Scenario: Add an invalid host with an invalid RAM Commitment field
@@ -74,7 +74,7 @@ Feature: Host Management
       And I fill in the RAM Commitment field with "invalidentry"
       And I click "Add Host"
     Then I should see "Error"
-      And I should see "Bad Request: Parsing percentage for 'invalidentry'"
+      And I should see "Bad Request: Could not parse RAM Commitment: Parsing percentage for 'invalidentry'"
       And I should see an empty Hosts page
 
   Scenario: Fill in the hosts dialog and cancel
@@ -100,6 +100,9 @@ Feature: Host Management
     Then I should see "Success"
       And I should see "table://hosts/defaultHost/name" in the "Name" column
       And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
+      And I should see "table://hosts/defaultHost/memoryGB" in the "Memory" column
+      And I should see "table://hosts/defaultHost/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/defaultHost/cores" in the "CPU Cores" column
       And I should see "Showing 1 Result"
   
   @clean_hosts
@@ -117,6 +120,11 @@ Feature: Host Management
       And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
       And I should see "table://hosts/host2/name" in the "Name" column
       And I should see "table://hosts/host2/pool" in the "Resource Pool" column
+      And I should see "table://hosts/host2/memoryGB" in the "Memory" column
+      And I should see "table://hosts/host2/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/host2/cores" in the "CPU Cores" column
+      And I should see "table://hosts/host2/kernelVersion" in the "Kernel Version" column
+      And I should see "table://hosts/host2/ccRelease" in the "CC Release" column
       And I should see "Showing 2 Results"
 
   @clean_hosts

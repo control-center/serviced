@@ -101,7 +101,7 @@ func (agent *Agent) readConfiguration() error {
 		err = fmt.Errorf("Unable to read configuration file %q: %v\n", agent.options.ConfigFile, err)
 		fmt.Fprintf(os.Stderr, "ERROR: %v\n", err)
 		return err
-}
+	}
 
 	configFile := make(map[string](map[string]HostConfig))
 	if err = json.Unmarshal(file, &configFile); err != nil {

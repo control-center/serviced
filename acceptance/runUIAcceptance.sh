@@ -17,6 +17,8 @@ DRIVER_NAME=selenium
 TIMEOUT=10
 DATASET=default
 
+set -e
+
 #
 # The features/steps in this example assumes github as the default application
 if [ -z "${APPLICATION_URL-}" ]; then
@@ -107,6 +109,8 @@ fi
 HOSTNAME=`hostname -s`
 HOST_IP=`hostname -i`
 
+trap 'docker rm -f ui_acceptance' INT
+
 docker run --rm --name ui_acceptance \
     --add-host=${HOSTNAME}:${HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
@@ -121,6 +125,7 @@ docker run --rm --name ui_acceptance \
     -e APPLICATION_URL=${APPLICATION_URL} \
     -e APPLICATION_USERID=${APPLICATION_USERID} \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
+    -e HOST_IP=${HOST_IP} \
     ${INTERACTIVE_OPTION} \
     -t zenoss/capybara:1.0.0 \
     ${CMD}

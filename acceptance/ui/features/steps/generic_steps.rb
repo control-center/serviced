@@ -78,7 +78,7 @@ end
 
 
 def assertSortedColumn(category, order)
-    list = page.all("td[data-title-text='#{category}'][sortable^='']")
+    list = page.all("td[data-title-text='#{category}'][sortable]")
     for i in 0..(list.size - 2)
         if category == "Created" || category == "Last Modified"
             if order
@@ -115,7 +115,7 @@ def checkColumn(text, column, present)
     cell = getTableValue(text)
     hasEntry = false
     for i in 0..(list.size - 1)
-        hasEntry = true if list[i].text == cell
+        hasEntry = true if list[i].text == cell.to_s
     end
     hasEntry.should == present
 end
@@ -165,6 +165,8 @@ def getTableValue(valueOrTableUrl)
         raise(ArgumentError.new('Invalid table name'))
     elsif PARSED_DATA[tableType][tableName][propertyName].nil?
         raise(ArgumentError.new('Invalid property name'))
+    elsif propertyName == "nameAndPort"
+        return HOST_IP + ":" + PARSED_DATA[tableType][tableName]["rpcPort"].to_s
     else
         return PARSED_DATA[tableType][tableName][propertyName]
     end
