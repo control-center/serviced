@@ -1,7 +1,6 @@
 #!/bin/bash
 
 set -e
-trap 'kill $(jobs -p)' EXIT
 
 cd ..
 make mockAgent
