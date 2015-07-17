@@ -32,10 +32,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const (
-	DockerLatest = "latest"
-)
-
 type imagemeta struct {
 	UUID     string
 	Tags     []string
@@ -135,7 +131,7 @@ func (dfs *DistributedFilesystem) Commit(dockerID string) (string, error) {
 	}
 
 	// commit the container to the image and tag
-	newImage, err := ctr.Commit(image.ID.BaseName())
+	newImage, err := ctr.Commit(image.ID.BaseName(), true)
 	if err != nil {
 		glog.Errorf("Could not commit %s (%s): %s", dockerID, image.ID, err)
 		return "", err
@@ -358,7 +354,7 @@ func getImageTags(templateRepos []string, serviceRepos []string, tags []string) 
 			glog.Errorf("Could not look up repo %s: %s", repo, err)
 			return nil, err
 		}
-		if image.ID.Tag == DockerLatest {
+		if image.ID.Tag == docker.DockerLatest {
 			image.ID.Tag = ""
 		}
 		images := imagemap[image.UUID]
@@ -372,7 +368,7 @@ func getImageTags(templateRepos []string, serviceRepos []string, tags []string) 
 			glog.Errorf("Could not look up repo %s: %s", repo, err)
 			return nil, err
 		}
-		if image.ID.Tag == DockerLatest {
+		if image.ID.Tag == docker.DockerLatest {
 			image.ID.Tag = ""
 		}
 		images := imagemap[image.UUID]

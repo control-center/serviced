@@ -18,10 +18,6 @@
 # Set the the zookeeper ensemble, multiple masters should be comma separated
 # SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
 
-# Set to 1 to have serviced push/pull in to a docker registry
-# instead of only using the local docker index
-# SERVICED_REGISTRY=1
-
 # Set the local docker registry
 # SERVICED_DOCKER_REGISTRY={{SERVICED_MASTER_IP}}:5000
 

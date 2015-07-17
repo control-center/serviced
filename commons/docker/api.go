@@ -27,6 +27,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
+const DockerLatest = "latest"
+
 var DEFAULT_REGISTRY = "localhost:5000"
 
 // Container represents a Docker container.
@@ -83,13 +85,9 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 		return nil, err
 	}
 
-	if useRegistry {
-		if err := PullImage(iid.String()); err != nil {
-			glog.V(2).Infof("Unable to pull image %s: %v", iid.String(), err)
-			if _, err2 := lookupImage(iid.String()); err2 != nil {
-				return nil, err2
-			}
-		}
+	if _, err := FindImage(iid.String(), true); err != nil {
+		glog.Errorf("Could not get image %s: %s", iid.String(), err)
+		return nil, err
 	}
 
 	glog.V(2).Infof("creating container: %#v", *args.containerOptions)
@@ -245,7 +243,7 @@ func (c *Container) CancelOnEvent(event string) error {
 }
 
 // Commit creates a new Image from the containers changes.
-func (c *Container) Commit(iidstr string) (*Image, error) {
+func (c *Container) Commit(iidstr string, push bool) (*Image, error) {
 	dc, err := getDockerClient()
 	if err != nil {
 		return nil, err
@@ -265,11 +263,9 @@ func (c *Container) Commit(iidstr string) (*Image, error) {
 		glog.V(1).Infof("unable to commit container %s: %v", c.ID, err)
 		return nil, err
 	}
-
-	if useRegistry {
+	if push {
 		err = pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 	}
-
 	return &Image{img.ID, *iid}, err
 }
 
@@ -490,12 +486,11 @@ func ImportImage(repotag, filename string) error {
 // TODO: add a FindImageByFilter that returns collections of images
 func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
-	if pull && useRegistry {
-		if err := PullImage(repotag); err != nil {
+	if pull {
+		if err := PullImage(repotag); err != nil && err != ErrNoSuchImage {
 			return nil, err
 		}
 	}
-
 	return lookupImage(repotag)
 }
 
@@ -536,10 +531,7 @@ func (img *Image) Tag(tag string) (*Image, error) {
 		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
 		return nil, err
 	}
-
-	if useRegistry {
-		pushImage(args.repo, args.registry, args.tag)
-	}
+	pushImage(args.repo, args.registry, args.tag)
 
 	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
 	if err != nil {
@@ -691,7 +683,7 @@ func PullImage(repotag string) error {
 	// Suppressing docker output (too chatty)
 	if err := cmd.Run(); err != nil {
 		glog.Errorf("Unable to pull image %s", repotag)
-		return fmt.Errorf("image %s not available", repotag)
+		return ErrNoSuchImage
 	}
 
 	return nil
@@ -704,12 +696,16 @@ func pullImage(repo, registry, tag string) error {
 		return err
 	}
 
-	glog.V(2).Info("pulling image: ", repo)
+	glog.V(0).Infof("Pulling image from repo: %s and registry: %s with tag: %s", repo, registry, tag)
 	opts := dockerclient.PullImageOptions{
 		Repository: repo,
 		Registry:   registry,
 		Tag:        tag,
 	}
+	defer func(stime time.Time) {
+		duration := time.Now().Sub(stime)
+		glog.V(0).Infof("Finished pulling image from repo: %s and registry: %s with tag: %s in %s", repo, registry, tag, duration)
+	}(time.Now())
 
 	// FIXME: Need to populate AuthConfiguration (eventually)
 	err = dc.PullImage(opts, dockerclient.AuthConfiguration{})
@@ -736,20 +732,26 @@ func pushImage(repo, registry, tag string) error {
 		return err
 	}
 
-	glog.V(0).Infof("pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
+	if tag == "" {
+		tag = DockerLatest
+	}
+
+	glog.V(0).Infof("Pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
 	opts := dockerclient.PushImageOptions{
 		Name:     repo,
 		Registry: registry,
 		Tag:      tag,
 	}
+	defer func(stime time.Time) {
+		duration := time.Now().Sub(stime)
+		glog.V(0).Infof("Finished pushing image from repo: %s to registry: %s with tag: %s in %s", repo, registry, tag, duration)
+	}(time.Now())
 
 	// FIXME: Need to populate AuthConfiguration (eventually)
 	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 	if err != nil {
-		glog.V(2).Infof("failed to push %s: %v", repo, err)
+		glog.V(2).Infof("Failed to push %s: %v", repo, err)
 		return err
 	}
-
-	glog.V(0).Infof("finished pushing image from repo: %s to registry: %s with tag: %s", repo, registry, tag)
 	return nil
 }

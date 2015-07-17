@@ -56,7 +56,7 @@ func TestContainerCommit(t *testing.T) {
 		t.Fatal("Timed out waiting for event")
 	}
 
-	_, err = ctr.Commit("testcontainer/commit")
+	_, err = ctr.Commit("testcontainer/commit", false)
 	if err != nil {
 		t.Fatal("can't commit: ", err)
 	}

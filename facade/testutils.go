@@ -14,7 +14,6 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -37,8 +36,6 @@ type FacadeTest struct {
 
 //SetUpSuite sets up test suite
 func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
-	docker.SetUseRegistry(true)
-
 	//set up index and mappings before setting up elastic
 	ft.Index = "controlplane"
 	if ft.Mappings == nil {
