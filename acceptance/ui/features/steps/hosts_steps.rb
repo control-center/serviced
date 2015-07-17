@@ -5,8 +5,11 @@ Given(/^that multiple hosts have been added$/) do
         addDefaultHost()
         addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
             "table://hosts/host2/commitment")
+        addHost("table://hosts/host3/nameAndPort", "table://hosts/host3/pool", \
+            "table://hosts/host3/commitment")
         checkRows("table://hosts/defaultHost/name", true)
         checkRows("table://hosts/host2/name", true)
+        checkRows("table://hosts/host3/name", true)
     end
 end
 

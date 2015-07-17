@@ -100,6 +100,9 @@ Feature: Host Management
     Then I should see "Success"
       And I should see "table://hosts/defaultHost/name" in the "Name" column
       And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
+      And I should see "table://hosts/defaultHost/memoryGB" in the "Memory" column
+      And I should see "table://hosts/defaultHost/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/defaultHost/cores" in the "CPU Cores" column
       And I should see "Showing 1 Result"
   
   @clean_hosts
@@ -117,6 +120,11 @@ Feature: Host Management
       And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
       And I should see "table://hosts/host2/name" in the "Name" column
       And I should see "table://hosts/host2/pool" in the "Resource Pool" column
+      And I should see "table://hosts/host2/memoryGB" in the "Memory" column
+      And I should see "table://hosts/host2/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/host2/cores" in the "CPU Cores" column
+      And I should see "table://hosts/host2/kernelVersion" in the "Kernel Version" column
+      And I should see "table://hosts/host2/ccRelease" in the "CC Release" column
       And I should see "Showing 2 Results"
 
   @clean_hosts
