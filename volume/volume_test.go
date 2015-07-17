@@ -11,107 +11,120 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package volume
+package volume_test
 
 import (
 	"testing"
+
+	. "github.com/control-center/serviced/volume"
 )
 
-type TestDriver struct{}
-
-func (d TestDriver) Mount(volumeName, root string) (Volume, error) {
-	return TestConn{volumeName, root}, nil
-}
-
-func (d TestDriver) List(root string) []string {
-	return nil
-}
-
-type TestConn struct {
-	name string
+type TestDriver struct {
 	root string
 }
 
-func (c TestConn) Name() string {
+func (d TestDriver) Create(volumeName string) (Volume, error) {
+	return TestVolume{volumeName, d.root}, nil
+}
+
+func (d TestDriver) Remove(volumeName string) error {
+	return nil
+}
+
+func (d TestDriver) List() []string {
+	return nil
+}
+
+func (d TestDriver) Root() string {
+	return d.root
+}
+
+func (d TestDriver) Get(volumeName string) (Volume, error) {
+	return d.Create(volumeName)
+}
+
+func (d TestDriver) Release(volumeName string) error {
+	return nil
+}
+
+func (d TestDriver) Exists(volumeName string) bool {
+	return true
+}
+
+func (d TestDriver) Cleanup() error {
+	return nil
+}
+
+type TestVolume struct {
+	name string
+	path string
+}
+
+func (c TestVolume) Name() string {
 	return c.name
 }
 
-func (c TestConn) Path() string {
-	return c.root
+func (c TestVolume) Path() string {
+	return c.path
 }
 
-func (c TestConn) Snapshot(label string) error {
+func (c TestVolume) Snapshot(label string) error {
 	return nil
 }
 
-func (c TestConn) Snapshots() ([]string, error) {
+func (c TestVolume) Snapshots() ([]string, error) {
 	return []string{}, nil
 }
 
-func (c TestConn) RemoveSnapshot(label string) error {
+func (c TestVolume) RemoveSnapshot(label string) error {
 	return nil
 }
 
-func (c TestConn) Rollback(label string) error {
+func (c TestVolume) Rollback(label string) error {
 	return nil
 }
 
-func (c TestConn) Export(label, parent, filename string) error {
+func (c TestVolume) Export(label, parent, filename string) error {
 	return nil
 }
 
-func (c TestConn) Import(label, filename string) error {
-	return nil
-}
-
-func (c TestConn) SnapshotPath(label string) string {
-	return ""
-}
-
-func (c TestConn) Unmount() error {
+func (c TestVolume) Import(label, filename string) error {
 	return nil
 }
 
 func TestNilRegistration(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// expect to recover
-		}
-	}()
+	if err := Register("nilregistration", nil); err == nil {
+		t.Fatal("nil driver registration didn't produce an error")
+	}
+}
 
-	Register("nilregistration", nil)
-	t.Fatal("nil registration didn't panic")
+func newTestDriver(root string) (Driver, error) {
+	return &TestDriver{root}, nil
 }
 
 func TestRedundantRegistration(t *testing.T) {
-	defer func() {
-		if r := recover(); r != nil {
-			// expect to recover
-		}
-	}()
-
-	driver := TestDriver{}
-	Register("redundant", driver)
-	Register("redundant", driver)
-	t.Fatal("redunant registration didn't panic")
+	Register("redundant", newTestDriver)
+	err := Register("redundant", newTestDriver)
+	if err == nil {
+		t.Fatal("Redundant driver registration did not produce an error")
+	}
 }
 
 func TestRegistration(t *testing.T) {
-	Register("registration", TestDriver{})
-	if _, ok := Registered("registration"); !ok {
-		t.Fatal("test driver is not registered")
+	Register("registration", newTestDriver)
+	if _, err := GetDriver("registration", ""); err != nil {
+		t.Fatal("Test driver was not registered")
 	}
 }
 
 func TestUnregistered(t *testing.T) {
-	if _, ok := Registered("unregistered"); ok {
-		t.Fatal("xyzzy should not be registered")
+	if _, err := GetDriver("unregistered", ""); err != ErrDriverNotSupported {
+		t.Fatal("Retrieval of unsupported driver did not produce an error")
 	}
 }
 
 func TestMount(t *testing.T) {
-	driver := TestDriver{}
-	Register("testmount", driver)
+	Register("testmount", newTestDriver)
 	v, err := Mount("testmount", "testmount", "/opt/testmount")
 	switch {
 	case err != nil:
@@ -122,7 +135,7 @@ func TestMount(t *testing.T) {
 }
 
 func TestBadMount(t *testing.T) {
-	if _, err := Mount("badmount", "badmount", "/opt/badmount"); err == nil {
-		t.Fatal("bad mount should not suceed")
+	if _, err := Mount("badmount", "badmount", "/opt/badmount"); err != ErrDriverNotSupported {
+		t.Fatal("bad mount should not succeed")
 	}
 }
