@@ -531,7 +531,7 @@ func (img *Image) Tag(tag string) (*Image, error) {
 		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
 		return nil, err
 	}
-	pushImage(args.repo, args.registry, args.tag)
+	go pushImage(args.repo, args.registry, args.tag)
 
 	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
 	if err != nil {
