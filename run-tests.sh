@@ -22,6 +22,13 @@ function stop_elastic {
 
 stop_elastic
 
+START_TIME=`date --utc +%s`
+godep go test -tags=unit $GOTEST ./...
+UNIT_TEST_RESULT=$?
+END_TIME=`date --utc +%s`
+echo "Unit tests finished in $(($END_TIME - $START_TIME)) seconds"
+
+START_TIME=`date --utc +%s`
 mkdir $ES_TMP
 if [ ! -e /tmp/elasticsearch-$ES_VER.tar.gz ]; then
 	curl https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-$ES_VER.tar.gz > /tmp/elasticsearch-$ES_VER.tar.gz;
@@ -32,9 +39,10 @@ echo "cluster.name: zero" > $ES_DIR/config/elasticsearch.yml
 $ES_DIR/bin/elasticsearch -f -Des.http.port=9202 > $ES_TMP/elastic.log & echo $!>$ES_TMP/pid
 
 BUILD_TAGS="$(bash ${DIR}/build-tags.sh)"
-godep go test -tags="${BUILD_TAGS}" $GOTEST ./...
-RESULT=$?
-
+godep go test -tags="${BUILD_TAGS} integration" $GOTEST ./...
+INTEGRATION_TEST_RESULT=$?
 stop_elastic
+END_TIME=`date --utc +%s`
+echo "Integration tests finished in $(($END_TIME - $START_TIME)) seconds"
 
-exit $RESULT
+exit $(($UNIT_TEST_RESULT + $INTEGRATION_TEST_RESULT))
