@@ -72,13 +72,21 @@ building/pushing a new image.
 
 ### Step 3 - Run the mock agents
 
-The test suite uses mock agents for tests involving hosts. To run the mock agents, use the following command:
+The test suite uses mock agents for tests involving hosts. To build the mock agent, use the following commands:
 
 ```
-$ ./makeMockAgents.sh
+$ zendev cd serviced
+$ make mockAgent
 ```
 
-This command is not necessary if you do not run the tests involving hosts.
+To run the mock agents, use the following commands:
+
+```
+$ cd acceptance
+$ ./startMockAgents.sh
+```
+
+This step is not necessary if you do not run the tests involving hosts.
 
 **NOTE:** If you stop and restart the make mock agents scripts while serviced is running, you may see a "Bad Request: connection is shut down" error when you try to add a mock host. Restarting serviced will fix this.
 
