@@ -137,13 +137,11 @@ func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 
 // List returns a list of btrfs subvolumes at a given root dir
 func (d *BtrfsDriver) List() (result []string) {
-	fmt.Println("Got some root shit", d.root)
 	if raw, err := runcmd(d.sudoer, "subvolume", "list", "-a", d.root); err != nil {
 		glog.Errorf("Could not list subvolumes at: %s", d.root)
 	} else {
 		cleanraw := strings.TrimSpace(string(raw))
 		rows := strings.Split(cleanraw, "\n")
-		fmt.Println("Got some raw shit", rows)
 		for _, row := range rows {
 			if parts := strings.Split(row, "path"); len(parts) != 2 {
 				glog.Errorf("Bad format parsing subvolume row: %s", row)
@@ -216,8 +214,6 @@ func (c *BtrfsVolume) Snapshots() ([]string, error) {
 	}
 
 	var files []os.FileInfo
-	rows := strings.Split(string(output), "\n")
-	fmt.Println("Snapshots rows:", rows)
 	for _, line := range strings.Split(string(output), "\n") {
 		glog.V(0).Infof("line: %s", line)
 		if parts := strings.Split(line, "path"); len(parts) == 2 {
@@ -385,7 +381,6 @@ func (c *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	if snapshots, err := c.Snapshots(); err != nil {
 		return false, fmt.Errorf("could not get current snapshot list: %v", err)
 	} else {
-		fmt.Println("Snapshots:", snapshots)
 		for _, snapLabel := range snapshots {
 			if label == snapLabel {
 				return true, nil

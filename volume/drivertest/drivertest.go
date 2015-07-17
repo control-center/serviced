@@ -149,11 +149,38 @@ func createBase(t *testing.T, driver *Driver, name string) volume.Volume {
 	return volume
 }
 
-func verifyBase(t *testing.T, driver *Driver, vol volume.Volume) {
+func writeExtra(t *testing.T, driver *Driver, vol volume.Volume) {
+	oldmask := syscall.Umask(0)
+	defer syscall.Umask(oldmask)
+	file := path.Join(vol.Path(), "differentfile")
+	if err := ioutil.WriteFile(file, []byte("more data"), 0222|os.ModeSetuid); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func checkBase(t *testing.T, driver *Driver, vol volume.Volume) {
 	subdir := path.Join(vol.Path(), "a subdir")
 	verifyFile(t, subdir, 0705|os.ModeDir|os.ModeSticky, 1, 2)
 
 	file := path.Join(vol.Path(), "a file")
+	verifyFile(t, file, 0222|os.ModeSetuid, 0, 0)
+}
+
+func verifyBase(t *testing.T, driver *Driver, vol volume.Volume) {
+	checkBase(t, driver, vol)
+	fis, err := ioutil.ReadDir(vol.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(fis) != 2 {
+		t.Fatal("Unexpected files in base image")
+	}
+}
+
+func verifyBaseWithExtra(t *testing.T, driver *Driver, vol volume.Volume) {
+	checkBase(t, driver, vol)
+
+	file := path.Join(vol.Path(), "differentfile")
 	verifyFile(t, file, 0222|os.ModeSetuid, 0, 0)
 
 	fis, err := ioutil.ReadDir(vol.Path())
@@ -161,7 +188,7 @@ func verifyBase(t *testing.T, driver *Driver, vol volume.Volume) {
 		t.Fatal(err)
 	}
 
-	if len(fis) != 2 {
+	if len(fis) != 3 {
 		t.Fatal("Unexpected files in base image")
 	}
 
@@ -184,26 +211,32 @@ func DriverTestSnapshots(t *testing.T, drivername, root string) {
 	defer cleanup(t, driver)
 
 	vol := createBase(t, driver, "Base")
+	verifyBase(t, driver, vol)
+
+	// Snapshot with the verified base
 	err := vol.Snapshot("Snap")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	verifyBase(t, driver, vol)
+	// Write another file
+	writeExtra(t, driver, vol)
 
-	file := path.Join(vol.Path(), "differentfile")
-	if err := ioutil.WriteFile(file, []byte("Some other data"), 0222|os.ModeSetuid); err != nil {
-		t.Fatal(err)
-	}
-
+	// Re-snapshot with the extra file
 	if err := vol.Snapshot("Snap2"); err != nil {
 		t.Fatal(err)
 	}
+	// Rollback to the original snapshot and verify the base again
 	if err := vol.Rollback("Snap"); err != nil {
 		t.Fatal(err)
 	}
-
 	verifyBase(t, driver, vol)
+
+	// Rollback to the new snapshot and verify the extra file
+	if err := vol.Rollback("Snap2"); err != nil {
+		t.Fatal(err)
+	}
+	verifyBaseWithExtra(t, driver, vol)
 
 	if err := driver.Remove("Base"); err != nil {
 		t.Fatal(err)
