@@ -1,5 +1,3 @@
-require 'socket'
-
 Given (/^that the admin user is logged in$/) do
     visitLoginPage()
     fillInDefaultUserID()
@@ -81,7 +79,6 @@ end
 
 def assertSortedColumn(category, order)
     list = page.all("td[data-title-text='#{category}'][sortable]")
-    puts list.size
     for i in 0..(list.size - 2)
         if category == "Created" || category == "Last Modified"
             if order

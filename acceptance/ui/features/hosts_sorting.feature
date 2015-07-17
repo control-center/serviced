@@ -7,7 +7,7 @@ Feature: Host Sorting
   Background:
     Given that the admin user is logged in
       And that multiple hosts have been added
-  
+
   Scenario: Test ascending name sort
     When I am on the hosts page
       And I sort by "Name" in ascending order
@@ -37,12 +37,12 @@ Feature: Host Sorting
     When I am on the hosts page
       And I sort by "Resource Pool" in ascending order
     Then the "Resource Pool" column should be sorted in ascending order
-  
+
   Scenario: Test descending memory sort
     When I am on the hosts page
       And I sort by "Memory" in descending order
     Then the "Memory" column should be sorted in descending order
-  
+
   Scenario: Test ascending memory sort
     When I am on the hosts page
       And I sort by "Memory" in ascending order
