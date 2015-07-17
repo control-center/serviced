@@ -68,6 +68,10 @@ func (c TestVolume) Path() string {
 	return c.path
 }
 
+func (v TestVolume) Tenant() string {
+	return ""
+}
+
 func (c TestVolume) Snapshot(label string) error {
 	return nil
 }

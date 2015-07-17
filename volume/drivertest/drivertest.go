@@ -3,6 +3,7 @@ package drivertest
 import (
 	"io/ioutil"
 	"os"
+	"path"
 	"syscall"
 	"testing"
 
@@ -19,13 +20,16 @@ type Driver struct {
 	root string
 }
 
-func newDriver(t *testing.T, name string) *Driver {
-	root, err := ioutil.TempDir("/var/tmp", "serviced-drivertest-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatal(err)
+func newDriver(t *testing.T, name, root string) *Driver {
+	var err error
+	if root == "" {
+		root, err = ioutil.TempDir("", "serviced-drivertest-")
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := os.MkdirAll(root, 0755); err != nil {
+			t.Fatal(err)
+		}
 	}
 	d, err := volume.GetDriver(name, root)
 	if err != nil {
@@ -82,8 +86,10 @@ func verifyFile(t *testing.T, path string, mode os.FileMode, uid, gid uint32) {
 
 }
 
-func DriverTestCreateEmpty(t *testing.T, drivername string) {
-	driver := newDriver(t, drivername)
+// DriverTestCreateEmpty verifies that a driver can create a volume, and that
+// is is empty (and owned by the current user) after creation.
+func DriverTestCreateEmpty(t *testing.T, drivername, root string) {
+	driver := newDriver(t, drivername, root)
 	defer cleanup(t, driver)
 
 	volumeName := "empty"
@@ -98,7 +104,7 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	verifyFile(t, vol.Path(), 0755|os.ModeDir, 0, 0)
+	verifyFile(t, vol.Path(), 0755|os.ModeDir, uint32(os.Getuid()), uint32(os.Getgid()))
 	fis, err := ioutil.ReadDir(vol.Path())
 	if err != nil {
 		t.Fatal(err)
@@ -110,6 +116,96 @@ func DriverTestCreateEmpty(t *testing.T, drivername string) {
 	driver.Release(volumeName)
 
 	if err := driver.Remove(volumeName); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func createBase(t *testing.T, driver *Driver, name string) volume.Volume {
+	// We need to be able to set any perms
+	oldmask := syscall.Umask(0)
+	defer syscall.Umask(oldmask)
+
+	if _, err := driver.Create(name); err != nil {
+		t.Fatal(err)
+	}
+
+	volume, err := driver.Get(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	subdir := path.Join(volume.Path(), "a subdir")
+	if err := os.Mkdir(subdir, 0705|os.ModeSticky); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chown(subdir, 1, 2); err != nil {
+		t.Fatal(err)
+	}
+
+	file := path.Join(volume.Path(), "a file")
+	if err := ioutil.WriteFile(file, []byte("Some data"), 0222|os.ModeSetuid); err != nil {
+		t.Fatal(err)
+	}
+	return volume
+}
+
+func verifyBase(t *testing.T, driver *Driver, vol volume.Volume) {
+	subdir := path.Join(vol.Path(), "a subdir")
+	verifyFile(t, subdir, 0705|os.ModeDir|os.ModeSticky, 1, 2)
+
+	file := path.Join(vol.Path(), "a file")
+	verifyFile(t, file, 0222|os.ModeSetuid, 0, 0)
+
+	fis, err := ioutil.ReadDir(vol.Path())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(fis) != 2 {
+		t.Fatal("Unexpected files in base image")
+	}
+
+}
+
+func DriverTestCreateBase(t *testing.T, drivername, root string) {
+	driver := newDriver(t, drivername, root)
+	defer cleanup(t, driver)
+
+	vol := createBase(t, driver, "Base")
+	verifyBase(t, driver, vol)
+
+	if err := driver.Remove("Base"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func DriverTestSnapshots(t *testing.T, drivername, root string) {
+	driver := newDriver(t, drivername, root)
+	defer cleanup(t, driver)
+
+	vol := createBase(t, driver, "Base")
+	err := vol.Snapshot("Snap")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	verifyBase(t, driver, vol)
+
+	file := path.Join(vol.Path(), "differentfile")
+	if err := ioutil.WriteFile(file, []byte("Some other data"), 0222|os.ModeSetuid); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := vol.Snapshot("Snap2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := vol.Rollback("Snap"); err != nil {
+		t.Fatal(err)
+	}
+
+	verifyBase(t, driver, vol)
+
+	if err := driver.Remove("Base"); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -44,6 +44,7 @@ type RsyncVolume struct {
 	timeout time.Duration
 	name    string
 	path    string
+	tenant  string
 }
 
 func init() {
@@ -65,15 +66,10 @@ func (d *RsyncDriver) Create(volumeName string) (volume.Volume, error) {
 	d.Lock()
 	defer d.Unlock()
 	volumePath := filepath.Join(d.root, volumeName)
-	if err := os.MkdirAll(volumePath, 0775); err != nil {
+	if err := os.MkdirAll(volumePath, 0755); err != nil {
 		return nil, err
 	}
-	volume := &RsyncVolume{
-		timeout: 30 * time.Second,
-		name:    volumeName,
-		path:    volumePath,
-	}
-	return volume, nil
+	return d.Get(volumeName)
 }
 
 func (d *RsyncDriver) Remove(volumeName string) error {
@@ -105,8 +101,20 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 	return nil
 }
 
+func getTenant(from string) string {
+	parts := strings.Split(from, "_")
+	return parts[0]
+}
+
 func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
-	return nil, nil
+	volumePath := filepath.Join(d.root, volumeName)
+	volume := &RsyncVolume{
+		timeout: 30 * time.Second,
+		name:    volumeName,
+		path:    volumePath,
+		tenant:  getTenant(volumeName),
+	}
+	return volume, nil
 }
 
 func (d *RsyncDriver) Release(volumeName string) error {
@@ -129,6 +137,16 @@ func (d *RsyncDriver) List() (result []string) {
 }
 
 func (d *RsyncDriver) Exists(volumeName string) bool {
+	if files, err := ioutil.ReadDir(d.root); err != nil {
+		glog.Errorf("Error trying to read from root directory: %s", d.root)
+		return false
+	} else {
+		for _, fi := range files {
+			if fi.IsDir() && fi.Name() == volumeName {
+				return true
+			}
+		}
+	}
 	return false
 }
 
@@ -145,8 +163,34 @@ func (v *RsyncVolume) Path() string {
 	return v.path
 }
 
+func (v *RsyncVolume) Tenant() string {
+	return v.tenant
+}
+
+func (v *RsyncVolume) getSnapshotPrefix() string {
+	return v.Tenant() + "_"
+}
+
+func (v *RsyncVolume) rawSnapshotLabel(label string) string {
+	prefix := v.getSnapshotPrefix()
+	if !strings.HasPrefix(label, prefix) {
+		return prefix + label
+	}
+	return label
+}
+
+func (v *RsyncVolume) prettySnapshotLabel(rawLabel string) string {
+	return strings.TrimPrefix(rawLabel, v.getSnapshotPrefix())
+}
+
 func (v *RsyncVolume) snapshotPath(label string) string {
-	return filepath.Join(filepath.Dir(v.Path()), label)
+	root := filepath.Dir(v.Path())
+	rawLabel := v.rawSnapshotLabel(label)
+	return filepath.Join(root, rawLabel)
+}
+
+func (v *RsyncVolume) isSnapshot(rawLabel string) bool {
+	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
 // Snapshot performs a writable snapshot on the subvolume
@@ -211,8 +255,8 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 	}
 	var labels []string
 	for _, file := range files {
-		if file.IsDir() && strings.HasPrefix(file.Name(), v.name+"_") {
-			labels = append(labels, file.Name())
+		if file.IsDir() && v.isSnapshot(file.Name()) {
+			labels = append(labels, v.prettySnapshotLabel(file.Name()))
 		}
 	}
 	return labels, nil
@@ -222,14 +266,11 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 func (v *RsyncVolume) RemoveSnapshot(label string) error {
 	v.Lock()
 	defer v.Unlock()
-	parts := strings.Split(label, "_")
-	if len(parts) != 2 {
-		return fmt.Errorf("malformed label: %s", label)
+	dest := v.snapshotPath(label)
+	if exists, _ := volume.IsDir(dest); !exists {
+		return fmt.Errorf("snapshot %s doesn't exist for tenant %s", label, v.tenant)
 	}
-	if parts[0] != v.name {
-		return fmt.Errorf("label %s refers to some other volume", label)
-	}
-	sh := exec.Command("rm", "-Rf", v.snapshotPath(label))
+	sh := exec.Command("rm", "-Rf", dest)
 	glog.V(4).Infof("About to execute: %s", sh)
 	output, err := sh.CombinedOutput()
 	if err != nil {

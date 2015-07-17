@@ -71,3 +71,7 @@ func (mv *MockVolume) Export(label, parent, filename string) error {
 func (mv *MockVolume) Import(label, filename string) error {
 	return mv.Mock.Called(label, filename).Error(0)
 }
+
+func (mv *MockVolume) Tenant() string {
+	return mv.Mock.Called().String(0)
+}

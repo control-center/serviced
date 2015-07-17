@@ -78,6 +78,8 @@ type Volume interface {
 	Export(label, parent, filename string) error
 	// Import imports the exported snapshot at <filename> as <label>
 	Import(label, filename string) error
+	// Tenant returns the base tenant of this volume
+	Tenant() string
 }
 
 func Register(name string, driverInit DriverInit) error {
