@@ -14,17 +14,21 @@
 package volume_test
 
 import (
+	"fmt"
 	"testing"
 
 	. "github.com/control-center/serviced/volume"
 )
 
 type TestDriver struct {
-	root string
+	root    string
+	volumes map[string]*TestVolume
 }
 
 func (d TestDriver) Create(volumeName string) (Volume, error) {
-	return TestVolume{volumeName, d.root}, nil
+	v := TestVolume{volumeName, d.root}
+	d.volumes[volumeName] = &v
+	return v, nil
 }
 
 func (d TestDriver) Remove(volumeName string) error {
@@ -40,7 +44,10 @@ func (d TestDriver) Root() string {
 }
 
 func (d TestDriver) Get(volumeName string) (Volume, error) {
-	return d.Create(volumeName)
+	if !d.Exists(volumeName) {
+		return nil, fmt.Errorf("Volume does not exist")
+	}
+	return d.volumes[volumeName], nil
 }
 
 func (d TestDriver) Release(volumeName string) error {
@@ -48,7 +55,12 @@ func (d TestDriver) Release(volumeName string) error {
 }
 
 func (d TestDriver) Exists(volumeName string) bool {
-	return true
+	for k, _ := range d.volumes {
+		if k == volumeName {
+			return true
+		}
+	}
+	return false
 }
 
 func (d TestDriver) Cleanup() error {
@@ -103,7 +115,10 @@ func TestNilRegistration(t *testing.T) {
 }
 
 func newTestDriver(root string) (Driver, error) {
-	return &TestDriver{root}, nil
+	return &TestDriver{
+		root:    root,
+		volumes: make(map[string]*TestVolume),
+	}, nil
 }
 
 func TestRedundantRegistration(t *testing.T) {
