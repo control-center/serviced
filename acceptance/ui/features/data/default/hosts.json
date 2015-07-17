@@ -2,49 +2,54 @@
   "hosts": 
   {
     "defaultHost": {
-      "nameAndPort": "roei-dev:4979",
-      "name": "roei-dev",
-      "rpcPort": 4979,
-      "hostID": 4979,
-      "memory": 33681858560,
+      "nameAndPort": "%{local_ip}:4981",
+      "name": "defaultHost",
+      "rpcPort": 4981,
+      "hostID": 4981,
+      "memory": 10737418240,
+      "memoryGB": "10.00 GB",
+      "ramGB": "7.50 GB",
+      "cores": 4981,
+      "kernelVersion": "Default Kernel Version Test",
+      "kernelRelease": "Default Kernel Release Test",
+      "ccRelease": "Default CC Release Test",
       "pool": "default",
-      "commitment": "50%",
-      "outboundIP": "172.17.42.1"
+      "commitment": "75%",
+      "outboundIP": "%{local_ip}"
     },
 
     "host2": {
-      "nameAndPort": "10.87.110.17:4982",
+      "nameAndPort": "%{local_ip}:4982",
       "name": "secondHost",
       "rpcPort": 4982,
       "hostID": 4982,
       "memory": 10737418240,
+      "memoryGB": "10.00 GB",
+      "ramGB": "4.80 GB",
       "cores": 4982,
       "kernelVersion": "Kernel Version test 2",
       "kernelRelease": "Kernel Release test 2",
       "ccRelease": "CC Release test 2",
       "pool": "default",
-      "commitment": "25%",
-      "outboundIP": "10.87.110.17"
+      "commitment": "48%",
+      "outboundIP": "%{local_ip}"
     },
 
     "host3": {
-      "nameAndPort": "10.87.110.17:4983",
+      "nameAndPort": "%{local_ip}:4983",
       "name": "thirdHost",
       "rpcPort": 4983,
       "hostID": 4983,
+      "memory":  5368709120,
+      "memoryGB": "5.00 GB",
+      "ramGB": "1.00 GB",
+      "cores": 3,
+      "kernelVersion": "Third Test Kernel Version",
+      "kernelRelease": "Third Test Kernel Release",
+      "ccRelease": "Third Test CC Release",
       "pool": "default",
-      "commitment": "35%",
-      "outboundIP": "10.87.110.17"
-    },
-
-    "host4": {
-      "nameAndPort": "10.87.110.17:4984",
-      "name": "fourthHost",
-      "rpcPort": 4984,
-      "hostID": 4984,
-      "pool": "default",
-      "commitment": "99%",
-      "outboundIP": "10.87.110.17"
+      "commitment": "20%",
+      "outboundIP": "%{local_ip}"
     }
   }
 }

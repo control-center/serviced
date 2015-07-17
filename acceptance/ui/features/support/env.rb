@@ -114,6 +114,9 @@ if driver_override && driver_override.length > 0
 end
 printf "Using driver=%s\n", Capybara.default_driver
 
+HOST_IP = ENV["HOST_IP"]
+printf "Using IP Address=%s\n", HOST_IP
+
 #
 # Register Chrome (Firefox is the selenium default)
 Capybara.register_driver :selenium_chrome do |app|
