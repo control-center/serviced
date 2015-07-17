@@ -25,13 +25,13 @@
       "hostID": 4982,
       "memory": 10737418240,
       "memoryGB": "10.00 GB",
-      "ramGB": "4.80 GB",
+      "ramGB": "5.34 GB",
       "cores": 4982,
       "kernelVersion": "Kernel Version test 2",
       "kernelRelease": "Kernel Release test 2",
       "ccRelease": "CC Release test 2",
       "pool": "default",
-      "commitment": "48%",
+      "commitment": "5737418240",
       "outboundIP": "%{local_ip}"
     },
 
