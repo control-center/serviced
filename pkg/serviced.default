@@ -25,6 +25,9 @@
 # Set the local docker registry
 # SERVICED_DOCKER_REGISTRY={{SERVICED_MASTER_IP}}:5000
 
+# Set the outbound IP that serviced will broadcast on
+# SERVICED_OUTBOUND_IP=10.0.0.29
+
 # Set the static IPs this host can advertize
 # SERVICED_STATIC_IPS=10.0.0.30,10.0.0.31
 
