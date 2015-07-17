@@ -71,6 +71,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		//release read lock and get write lock
 		rc.RUnlock()
 		rc.Lock()
+		// rc.connectAndSet is idempotent, so no concerns about multiple calls.
 		rpcClient, err = rc.connectAndSet()
 		//release write lock
 		rc.Unlock()
@@ -84,7 +85,6 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		c := make(chan error, 1)
 		go func() {
 			c <- rpcClient.Call(serviceMethod, args, reply)
-			rc.RUnlock()
 		}()
 		select {
 		case err = <-c:
@@ -94,8 +94,8 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		}
 	} else {
 		err = rpcClient.Call(serviceMethod, args, reply)
-		rc.RUnlock()
 	}
+	rc.RUnlock()
 	if err != nil {
 		glog.V(3).Infof("rpc error, resetting cached client: %v", err)
 		rc.Lock()
