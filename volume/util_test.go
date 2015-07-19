@@ -17,54 +17,42 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"reflect"
 	"testing"
 	"time"
 
 	. "github.com/control-center/serviced/volume"
+	. "gopkg.in/check.v1"
 )
 
-func TestIsDir(t *testing.T) {
-	root, err := ioutil.TempDir("", "serviced-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+func TestUtils(t *testing.T) { TestingT(t) }
+
+type UtilsSuite struct{}
+
+var _ = Suite(&UtilsSuite{})
+
+func (s *UtilsSuite) TestIsDir(c *C) {
+	root := c.MkDir()
+
 	// Test a directory
-	if ok, err := IsDir(root); err != nil {
-		t.Fatal(err)
-	} else if !ok {
-		t.Fatalf("%s IS a directory", root)
-	}
+	ok, err := IsDir(root)
+	c.Assert(ok, Equals, true)
+	c.Assert(err, IsNil)
+
 	// Test a file
 	file := filepath.Join(root, "afile")
 	ioutil.WriteFile(file, []byte("hi"), 0664)
-	if ok, err := IsDir(file); err == nil {
-		t.Fatal("IsDir didn't error on a file")
-	} else if ok {
-		t.Fatalf("IsDir returned true for a file", root)
-	}
-	// Test a nonexistent path
-	if ok, err := IsDir(root + "/notafile"); err != nil {
-		t.Fatal(err)
-	} else if ok {
-		t.Fatalf("IsDir said something existed that didn't", root)
-	}
+	ok, err = IsDir(file)
+	c.Assert(ok, Equals, false)
+	c.Assert(err, ErrorMatches, ".*is not a directory")
 
+	// Test a nonexistent path
+	ok, err = IsDir(root + "/notafile")
+	c.Assert(ok, Equals, false)
+	c.Assert(err, IsNil)
 }
 
-func TestFileInfoSlice(t *testing.T) {
-	root, err := ioutil.TempDir("", "serviced-test-")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(root, 0755); err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(root)
+func (s *UtilsSuite) TestFileInfoSlice(c *C) {
+	root := c.MkDir()
 
 	var (
 		slice    FileInfoSlice
@@ -92,7 +80,6 @@ func TestFileInfoSlice(t *testing.T) {
 	slice = append(slice, stats[1])
 
 	labels := slice.Labels()
-	if !reflect.DeepEqual(labels, expected) {
-		t.Fatalf("Labels weren't sorted properly: expected %s but got %s", expected, labels)
-	}
+
+	c.Assert(labels, DeepEquals, expected)
 }

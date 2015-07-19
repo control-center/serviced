@@ -93,6 +93,11 @@ func Register(name string, driverInit DriverInit) error {
 	return nil
 }
 
+// Unregister the driver <name>. If it doesn't exist, it's a no-op.
+func Unregister(name string) {
+	delete(drivers, name)
+}
+
 func GetDriver(name, root string) (Driver, error) {
 	if init, exists := drivers[name]; exists {
 		return init(root)

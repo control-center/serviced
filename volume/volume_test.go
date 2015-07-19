@@ -14,147 +14,84 @@
 package volume_test
 
 import (
-	"fmt"
 	"testing"
 
 	. "github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/mocks"
+	. "gopkg.in/check.v1"
 )
 
-type TestDriver struct {
-	root    string
-	volumes map[string]*TestVolume
+func TestDriver(t *testing.T) { TestingT(t) }
+
+type DriverSuite struct {
+	drv *mocks.Driver
+	vol *mocks.Volume
 }
 
-func (d TestDriver) Create(volumeName string) (Volume, error) {
-	v := TestVolume{volumeName, d.root}
-	d.volumes[volumeName] = &v
-	return v, nil
+var (
+	_       = Suite(&DriverSuite{})
+	drvName = "mock"
+)
+
+func (s *DriverSuite) MockInit(ignored string) (Driver, error) {
+	return s.drv, nil
 }
 
-func (d TestDriver) Remove(volumeName string) error {
-	return nil
+func (s *DriverSuite) SetUpTest(c *C) {
+	s.drv = &mocks.Driver{}
+	s.vol = &mocks.Volume{}
+	Register(drvName, s.MockInit)
 }
 
-func (d TestDriver) List() []string {
-	return nil
+func (s *DriverSuite) TearDownTest(c *C) {
+	Unregister(drvName)
 }
 
-func (d TestDriver) Root() string {
-	return d.root
+func (s *DriverSuite) TestNilRegistration(c *C) {
+	err := Register("nilregistration", nil)
+	c.Assert(err, ErrorMatches, "Can't register a nil driver initializer")
 }
 
-func (d TestDriver) Get(volumeName string) (Volume, error) {
-	if !d.Exists(volumeName) {
-		return nil, fmt.Errorf("Volume does not exist")
-	}
-	return d.volumes[volumeName], nil
+func (s *DriverSuite) TestRedundantRegistration(c *C) {
+	err := Register(drvName, s.MockInit)
+	c.Assert(err, ErrorMatches, "Already registered driver mock")
 }
 
-func (d TestDriver) Release(volumeName string) error {
-	return nil
+func (s *DriverSuite) TestRegistration(c *C) {
+	driver, err := GetDriver(drvName, "")
+	c.Assert(err, IsNil)
+	c.Assert(driver, FitsTypeOf, s.drv)
 }
 
-func (d TestDriver) Exists(volumeName string) bool {
-	for k, _ := range d.volumes {
-		if k == volumeName {
-			return true
-		}
-	}
-	return false
+func (s *DriverSuite) TestUnsupported(c *C) {
+	driver, err := GetDriver("unregistered", "")
+	c.Assert(err, ErrorMatches, ErrDriverNotSupported.Error())
+	c.Assert(driver, IsNil)
 }
 
-func (d TestDriver) Cleanup() error {
-	return nil
+func (s *DriverSuite) TestMountWhenDoesNotExist(c *C) {
+	volname := "testvolume"
+	s.drv.On("Exists", volname).Return(false)
+	s.drv.On("Create", volname).Return(s.vol, nil)
+	v, err := Mount(drvName, volname, "")
+	s.drv.AssertExpectations(c)
+	c.Assert(v, Equals, s.vol)
+	c.Assert(err, IsNil)
 }
 
-type TestVolume struct {
-	name string
-	path string
+func (s *DriverSuite) TestMountWhenExists(c *C) {
+	volname := "testvolume"
+	s.drv.On("Exists", volname).Return(true)
+	s.drv.On("Get", volname).Return(s.vol, nil)
+	v, err := Mount(drvName, volname, "")
+	s.drv.AssertExpectations(c)
+	s.drv.AssertNotCalled(c, "Create", volname)
+	c.Assert(v, Equals, s.vol)
+	c.Assert(err, IsNil)
 }
 
-func (c TestVolume) Name() string {
-	return c.name
-}
-
-func (c TestVolume) Path() string {
-	return c.path
-}
-
-func (v TestVolume) Tenant() string {
-	return ""
-}
-
-func (c TestVolume) Snapshot(label string) error {
-	return nil
-}
-
-func (c TestVolume) Snapshots() ([]string, error) {
-	return []string{}, nil
-}
-
-func (c TestVolume) RemoveSnapshot(label string) error {
-	return nil
-}
-
-func (c TestVolume) Rollback(label string) error {
-	return nil
-}
-
-func (c TestVolume) Export(label, parent, filename string) error {
-	return nil
-}
-
-func (c TestVolume) Import(label, filename string) error {
-	return nil
-}
-
-func TestNilRegistration(t *testing.T) {
-	if err := Register("nilregistration", nil); err == nil {
-		t.Fatal("nil driver registration didn't produce an error")
-	}
-}
-
-func newTestDriver(root string) (Driver, error) {
-	return &TestDriver{
-		root:    root,
-		volumes: make(map[string]*TestVolume),
-	}, nil
-}
-
-func TestRedundantRegistration(t *testing.T) {
-	Register("redundant", newTestDriver)
-	err := Register("redundant", newTestDriver)
-	if err == nil {
-		t.Fatal("Redundant driver registration did not produce an error")
-	}
-}
-
-func TestRegistration(t *testing.T) {
-	Register("registration", newTestDriver)
-	if _, err := GetDriver("registration", ""); err != nil {
-		t.Fatal("Test driver was not registered")
-	}
-}
-
-func TestUnregistered(t *testing.T) {
-	if _, err := GetDriver("unregistered", ""); err != ErrDriverNotSupported {
-		t.Fatal("Retrieval of unsupported driver did not produce an error")
-	}
-}
-
-func TestMount(t *testing.T) {
-	Register("testmount", newTestDriver)
-	v, err := Mount("testmount", "testmount", "/opt/testmount")
-	switch {
-	case err != nil:
-		t.Fatalf("Mount failed: %v", err)
-	case v == nil:
-		t.Fatal("nil volume")
-	}
-}
-
-func TestBadMount(t *testing.T) {
-	if _, err := Mount("badmount", "badmount", "/opt/badmount"); err != ErrDriverNotSupported {
-		t.Fatal("bad mount should not succeed")
-	}
+func (s *DriverSuite) TestBadMount(c *C) {
+	v, err := Mount("unregistered", "", "")
+	c.Assert(err, ErrorMatches, ErrDriverNotSupported.Error())
+	c.Assert(v, IsNil)
 }
