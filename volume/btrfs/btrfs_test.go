@@ -120,3 +120,10 @@ func (s *BtrfsSuite) TestBtrfsCreateBase(c *C) {
 func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "btrfs", s.root)
 }
+
+func (s *BtrfsSuite) TestBtrfsExportImport(c *C) {
+	other_root := createBtrfsTmpVolume(c, 32*1024*1024)
+	defer cleanupBtrfsTmpVolume(c, other_root)
+	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root)
+
+}

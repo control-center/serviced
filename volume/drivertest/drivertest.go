@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"syscall"
 
 	"github.com/control-center/serviced/volume"
@@ -205,6 +206,7 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 
 func DriverTestExportImport(c *C, drivername, exportfs, importfs string) {
 	backupdir := c.MkDir()
+	outfile := filepath.Join(backupdir, "backup")
 
 	exportDriver := newDriver(c, drivername, exportfs)
 	defer cleanup(c, exportDriver)
@@ -216,11 +218,11 @@ func DriverTestExportImport(c *C, drivername, exportfs, importfs string) {
 	verifyBaseWithExtra(c, exportDriver, vol)
 	c.Assert(vol.Snapshot("Backup"), IsNil)
 
-	err := vol.Export("Backup", "", backupdir)
+	err := vol.Export("Backup", "", outfile)
 	c.Assert(err, IsNil)
 
 	vol2 := createBase(c, importDriver, "Base")
-	err = vol2.Import("Base_Backup", backupdir)
+	err = vol2.Import("Base_Backup", outfile)
 	c.Assert(err, IsNil)
 
 	c.Assert(vol2.Rollback("Backup"), IsNil)

@@ -154,17 +154,17 @@ func (d *BtrfsDriver) List() (result []string) {
 }
 
 // Name provides the name of the subvolume
-func (c *BtrfsVolume) Name() string {
-	return c.name
+func (v *BtrfsVolume) Name() string {
+	return v.name
 }
 
 // Path provides the full path to the subvolume
-func (c *BtrfsVolume) Path() string {
-	return c.path
+func (v *BtrfsVolume) Path() string {
+	return v.path
 }
 
-func (c *BtrfsVolume) Tenant() string {
-	return c.tenant
+func (v *BtrfsVolume) Tenant() string {
+	return v.tenant
 }
 
 func (v *BtrfsVolume) getSnapshotPrefix() string {
@@ -194,22 +194,22 @@ func (v *BtrfsVolume) isSnapshot(rawLabel string) bool {
 }
 
 // Snapshot performs a readonly snapshot on the subvolume
-func (c *BtrfsVolume) Snapshot(label string) error {
-	c.Lock()
-	defer c.Unlock()
-	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", c.Path(), c.snapshotPath(label))
+func (v *BtrfsVolume) Snapshot(label string) error {
+	v.Lock()
+	defer v.Unlock()
+	_, err := runcmd(v.sudoer, "subvolume", "snapshot", "-r", v.Path(), v.snapshotPath(label))
 	return err
 }
 
 // Snapshots returns the current snapshots on the volume (sorted by date)
-func (c *BtrfsVolume) Snapshots() ([]string, error) {
-	c.Lock()
-	defer c.Unlock()
+func (v *BtrfsVolume) Snapshots() ([]string, error) {
+	v.Lock()
+	defer v.Unlock()
 
-	glog.V(2).Infof("listing snapshots of volume:%v and c.name:%s ", c.path, c.name)
-	output, err := runcmd(c.sudoer, "subvolume", "list", "-s", c.path)
+	glog.V(2).Infof("listing snapshots of volume:%v and v.name:%s ", v.path, v.name)
+	output, err := runcmd(v.sudoer, "subvolume", "list", "-s", v.path)
 	if err != nil {
-		glog.Errorf("Could not list subvolumes of %s: %s", c.path, err)
+		glog.Errorf("Could not list subvolumes of %s: %s", v.path, err)
 		return nil, err
 	}
 
@@ -219,9 +219,9 @@ func (c *BtrfsVolume) Snapshots() ([]string, error) {
 		if parts := strings.Split(line, "path"); len(parts) == 2 {
 			rawLabel := strings.TrimSpace(parts[1])
 			rawLabel = strings.TrimPrefix(rawLabel, "volumes/")
-			if c.isSnapshot(rawLabel) {
-				label := c.prettySnapshotLabel(rawLabel)
-				file, err := os.Stat(filepath.Join(filepath.Dir(c.path), rawLabel))
+			if v.isSnapshot(rawLabel) {
+				label := v.prettySnapshotLabel(rawLabel)
+				file, err := os.Stat(filepath.Join(filepath.Dir(v.path), rawLabel))
 				if err != nil {
 					glog.Errorf("Could not stat snapshot %s: %s", label, err)
 					return nil, err
@@ -234,14 +234,14 @@ func (c *BtrfsVolume) Snapshots() ([]string, error) {
 	labels := volume.FileInfoSlice(files).Labels()
 	result := make([]string, len(labels))
 	for i := 0; i < len(labels); i++ {
-		result[i] = c.prettySnapshotLabel(labels[i])
+		result[i] = v.prettySnapshotLabel(labels[i])
 	}
 	return result, nil
 }
 
 // RemoveSnapshot removes the snapshot with the given label
-func (c *BtrfsVolume) RemoveSnapshot(label string) error {
-	if exists, err := c.snapshotExists(label); err != nil || !exists {
+func (v *BtrfsVolume) RemoveSnapshot(label string) error {
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
 		} else {
@@ -249,9 +249,9 @@ func (c *BtrfsVolume) RemoveSnapshot(label string) error {
 		}
 	}
 
-	c.Lock()
-	defer c.Unlock()
-	_, err := runcmd(c.sudoer, "subvolume", "delete", c.snapshotPath(label))
+	v.Lock()
+	defer v.Unlock()
+	_, err := runcmd(v.sudoer, "subvolume", "delete", v.snapshotPath(label))
 	return err
 }
 
@@ -274,8 +274,8 @@ func getEnvMinDuration(envvar string, def, min int32) time.Duration {
 }
 
 // Rollback rolls back the volume to the given snapshot
-func (c *BtrfsVolume) Rollback(label string) error {
-	if exists, err := c.snapshotExists(label); err != nil || !exists {
+func (v *BtrfsVolume) Rollback(label string) error {
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
 			return err
 		} else {
@@ -283,9 +283,9 @@ func (c *BtrfsVolume) Rollback(label string) error {
 		}
 	}
 
-	c.Lock()
-	defer c.Unlock()
-	vd := filepath.Join(filepath.Dir(c.path), c.name)
+	v.Lock()
+	defer v.Unlock()
+	vd := filepath.Join(filepath.Dir(v.path), v.name)
 	dirp, err := volume.IsDir(vd)
 	if err != nil {
 		return err
@@ -300,7 +300,7 @@ func (c *BtrfsVolume) Rollback(label string) error {
 
 		for {
 			cmd := []string{"subvolume", "delete", vd}
-			output, deleteError := runcmd(c.sudoer, cmd...)
+			output, deleteError := runcmd(v.sudoer, cmd...)
 			if deleteError == nil {
 				break
 			}
@@ -319,8 +319,8 @@ func (c *BtrfsVolume) Rollback(label string) error {
 		}
 	}
 
-	cmd := []string{"subvolume", "snapshot", c.snapshotPath(label), vd}
-	_, err = runcmd(c.sudoer, cmd...)
+	cmd := []string{"subvolume", "snapshot", v.snapshotPath(label), vd}
+	_, err = runcmd(v.sudoer, cmd...)
 	if err != nil {
 		glog.Errorf("rollback of snapshot %s failed for cmd:%s", label, cmd)
 	} else {
@@ -331,54 +331,54 @@ func (c *BtrfsVolume) Rollback(label string) error {
 }
 
 // Export saves a snapshot to an outfile
-func (c *BtrfsVolume) Export(label, parent, outfile string) error {
+func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	if label == "" {
 		return fmt.Errorf("%s: label cannot be empty", DriverName)
-	} else if exists, err := c.snapshotExists(label); err != nil {
+	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if !exists {
 		return fmt.Errorf("%s: snapshot %s not found", DriverName, label)
 	}
 
 	if parent == "" {
-		_, err := runcmd(c.sudoer, "send", c.snapshotPath(label), "-f", outfile)
+		_, err := runcmd(v.sudoer, "send", v.snapshotPath(label), "-f", outfile)
 		return err
-	} else if exists, err := c.snapshotExists(label); err != nil {
+	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if !exists {
 		return fmt.Errorf("%s: snapshot %s not found", DriverName, parent)
 	}
 
-	_, err := runcmd(c.sudoer, "send", c.snapshotPath(label), "-p", parent, "-f", outfile)
+	_, err := runcmd(v.sudoer, "send", v.snapshotPath(label), "-p", parent, "-f", outfile)
 	return err
 }
 
 // Import loads a snapshot from an infile
-func (c *BtrfsVolume) Import(label, infile string) error {
-	if exists, err := c.snapshotExists(label); err != nil {
+func (v *BtrfsVolume) Import(label, infile string) error {
+	if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if exists {
 		return fmt.Errorf("%s: snapshot %s exists", DriverName, label)
 	}
 
 	// create a tmp path to load the volume
-	tmpdir := filepath.Join(c.path, "tmp")
-	runcmd(c.sudoer, "subvolume", "create", tmpdir)
-	defer runcmd(c.sudoer, "subvolume", "delete", tmpdir)
+	tmpdir := filepath.Join(v.path, "tmp")
+	runcmd(v.sudoer, "subvolume", "create", tmpdir)
+	defer runcmd(v.sudoer, "subvolume", "delete", tmpdir)
 
-	if _, err := runcmd(c.sudoer, "receive", tmpdir, "-f", infile); err != nil {
+	if _, err := runcmd(v.sudoer, "receive", tmpdir, "-f", infile); err != nil {
 		return err
 	}
-	defer runcmd(c.sudoer, "subvolume", "delete", filepath.Join(tmpdir, label))
+	defer runcmd(v.sudoer, "subvolume", "delete", filepath.Join(tmpdir, label))
 
-	_, err := runcmd(c.sudoer, "subvolume", "snapshot", "-r", filepath.Join(tmpdir, label), c.path)
+	_, err := runcmd(v.sudoer, "subvolume", "snapshot", "-r", filepath.Join(tmpdir, label), filepath.Dir(v.path))
 	return err
 }
 
 // snapshotExists queries the snapshot existence for the given label
-func (c *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
-	label = c.prettySnapshotLabel(label)
-	if snapshots, err := c.Snapshots(); err != nil {
+func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
+	label = v.prettySnapshotLabel(label)
+	if snapshots, err := v.Snapshots(); err != nil {
 		return false, fmt.Errorf("could not get current snapshot list: %v", err)
 	} else {
 		for _, snapLabel := range snapshots {
