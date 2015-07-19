@@ -24,10 +24,7 @@ type Driver struct {
 func newDriver(c *C, name, root string) *Driver {
 	var err error
 	if root == "" {
-		root, err = ioutil.TempDir("", "serviced-drivertest-")
-		c.Assert(err, IsNil)
-		err = os.MkdirAll(root, 0755)
-		c.Assert(err, IsNil)
+		root = c.MkDir()
 	}
 	d, err := volume.GetDriver(name, root)
 	if err != nil {
@@ -42,7 +39,7 @@ func newDriver(c *C, name, root string) *Driver {
 }
 
 func cleanup(c *C, d *Driver) {
-	c.Assert(d.Cleanup(), IsNil)
+	c.Check(d.Cleanup(), IsNil)
 	os.RemoveAll(d.root)
 }
 
@@ -204,4 +201,28 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 
 	err = driver.Remove("Base")
 	c.Assert(err, IsNil)
+}
+
+func DriverTestExportImport(c *C, drivername, exportfs, importfs string) {
+	backupdir := c.MkDir()
+
+	exportDriver := newDriver(c, drivername, exportfs)
+	defer cleanup(c, exportDriver)
+	importDriver := newDriver(c, drivername, importfs)
+	defer cleanup(c, importDriver)
+
+	vol := createBase(c, exportDriver, "Base")
+	writeExtra(c, exportDriver, vol)
+	verifyBaseWithExtra(c, exportDriver, vol)
+	c.Assert(vol.Snapshot("Backup"), IsNil)
+
+	err := vol.Export("Backup", "", backupdir)
+	c.Assert(err, IsNil)
+
+	vol2 := createBase(c, importDriver, "Base")
+	err = vol2.Import("Base_Backup", backupdir)
+	c.Assert(err, IsNil)
+
+	c.Assert(vol2.Rollback("Backup"), IsNil)
+	verifyBaseWithExtra(c, importDriver, vol2)
 }

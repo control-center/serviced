@@ -321,16 +321,21 @@ func (v *RsyncVolume) Export(label, parent, outdir string) (err error) {
 }
 
 // Import imports a snapshot
-func (v *RsyncVolume) Import(label, indir string) (err error) {
+func (v *RsyncVolume) Import(rawlabel, indir string) (err error) {
 	v.Lock()
 	defer v.Unlock()
-	if exists, err := volume.IsDir(v.snapshotPath(label)); err != nil {
+	path := v.snapshotPath(rawlabel)
+	if exists, err := volume.IsDir(path); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("snapshot %s exists", label)
+		return fmt.Errorf("snapshot %s exists", rawlabel)
 	}
 
-	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, label), v.Path())
+	fmt.Println("indir: ", indir)
+	fmt.Println("backup: ", filepath.Join(indir, rawlabel))
+	fmt.Println("restoreto: ", filepath.Dir(v.Path()))
+
+	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, rawlabel), filepath.Dir(v.Path()))
 	glog.V(4).Infof("About ro execute %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))
