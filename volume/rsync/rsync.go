@@ -249,7 +249,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 func (v *RsyncVolume) Snapshots() ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
-	files, err := ioutil.ReadDir(v.path)
+	files, err := ioutil.ReadDir(filepath.Dir(v.path))
 	if err != nil {
 		return nil, err
 	}

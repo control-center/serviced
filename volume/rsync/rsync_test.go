@@ -16,19 +16,28 @@ package rsync_test
 import (
 	"testing"
 
+	. "gopkg.in/check.v1"
+
 	"github.com/control-center/serviced/volume/drivertest"
 	// Register the rsync driver
 	_ "github.com/control-center/serviced/volume/rsync"
 )
 
-func TestRsyncCreateEmpty(t *testing.T) {
-	drivertest.DriverTestCreateEmpty(t, "rsync", "")
+// Wire in gocheck
+func Test(t *testing.T) { TestingT(t) }
+
+type RsyncSuite struct{}
+
+var _ = Suite(&RsyncSuite{})
+
+func (s *RsyncSuite) TestRsyncCreateEmpty(c *C) {
+	drivertest.DriverTestCreateEmpty(c, "rsync", "")
 }
 
-func TestRsyncCreateBase(t *testing.T) {
-	drivertest.DriverTestCreateBase(t, "rsync", "")
+func (s *RsyncSuite) TestRsyncCreateBase(c *C) {
+	drivertest.DriverTestCreateBase(c, "rsync", "")
 }
 
-func TestRsyncSnapshots(t *testing.T) {
-	drivertest.DriverTestSnapshots(t, "rsync", "")
+func (s *RsyncSuite) TestRsyncSnapshots(c *C) {
+	drivertest.DriverTestSnapshots(c, "rsync", "")
 }
