@@ -63,14 +63,14 @@ func ServiceUse(serviceID string, imageName string, registry string, noOp bool) 
 		return "", err
 	}
 	glog.Infof("tagging image %s to %s ", imageName, newTag)
-	if _, err = tagImage(img, newTag.String()); err != nil {
+	if _, err = tagImage(img, newTag.String(), true); err != nil {
 		glog.Errorf("could not tag image: %s (%v)", imageName, err)
 		return "", err
 	}
 	return newTag.String(), nil
 }
 
-func noOpTagImage(img *Image, tag string) (*Image, error) {
+func noOpTagImage(img *Image, tag string, push bool) (*Image, error) {
 	return nil, nil
 }
 

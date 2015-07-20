@@ -384,7 +384,7 @@ func setImageID(registry, tenantID string, svc *service.Service) error {
 		}
 		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_tagging_image|"+svc.Name)
 		// now tag the image
-		if _, err := image.Tag(imageID); err != nil {
+		if _, err := image.Tag(imageID, true); err != nil {
 			glog.Errorf("Could not add tag %s to image %s: %s", imageID, svc.ImageID, err)
 			return err
 		}

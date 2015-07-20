@@ -506,7 +506,7 @@ func (img *Image) Delete() error {
 }
 
 // Tag tags an image in the local repository
-func (img *Image) Tag(tag string) (*Image, error) {
+func (img *Image) Tag(tag string, push bool) (*Image, error) {
 
 	iid, err := commons.ParseImageID(tag)
 	if err != nil {
@@ -533,7 +533,9 @@ func (img *Image) Tag(tag string) (*Image, error) {
 		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
 		return nil, err
 	}
-	go pushImage(args.repo, args.registry, args.tag)
+	if push {
+		go pushImage(args.repo, args.registry, args.tag)
+	}
 
 	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
 	if err != nil {
@@ -542,8 +544,8 @@ func (img *Image) Tag(tag string) (*Image, error) {
 	return &Image{args.uuid, *iid}, nil
 }
 
-func TagImage(img *Image, tag string) (*Image, error) {
-	return img.Tag(tag)
+func TagImage(img *Image, tag string, push bool) (*Image, error) {
+	return img.Tag(tag, push)
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {
