@@ -180,7 +180,6 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	writeExtra(c, driver, vol)
 
 	// Re-snapshot with the extra file
-
 	err = vol.Snapshot("Snap2")
 	c.Assert(err, IsNil)
 
@@ -199,6 +198,14 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	c.Assert(err, IsNil)
 	c.Assert(arrayContains(snaps, "Snap"), Equals, true)
 	c.Assert(arrayContains(snaps, "Snap2"), Equals, true)
+
+	// Snapshot using an existing label and make sure it errors properly
+	err = vol.Snapshot("Snap")
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotExists.Error())
+
+	// Resnapshot using the raw label and make sure it is equivalent
+	err = vol.Snapshot("Base_Snap")
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotExists.Error())
 
 	err = driver.Remove("Base")
 	c.Assert(err, IsNil)

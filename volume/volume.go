@@ -24,6 +24,7 @@ type DriverInit func(root string) (Driver, error)
 var (
 	drivers               map[string]DriverInit
 	ErrDriverNotSupported = errors.New("driver not supported")
+	ErrSnapshotExists     = errors.New("snapshot exists")
 )
 
 func init() {
@@ -84,6 +85,7 @@ type Volume interface {
 	Tenant() string
 }
 
+// Register registers a driver initializer under <name> so it can be looked up
 func Register(name string, driverInit DriverInit) error {
 	if driverInit == nil {
 		return fmt.Errorf("Can't register a nil driver initializer")
@@ -107,6 +109,8 @@ func GetDriver(name, root string) (Driver, error) {
 	return nil, ErrDriverNotSupported
 }
 
+// Mount loads, mounting if necessary, a volume under a path using a specific
+// driver.
 func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
 	driver, err := GetDriver(driverName, rootDir)
 	if err != nil {

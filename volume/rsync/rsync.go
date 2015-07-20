@@ -206,7 +206,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	dest := v.snapshotPath(label)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
-			return fmt.Errorf("snapshot %s already exists", label)
+			return volume.ErrSnapshotExists
 		}
 		return err
 	}

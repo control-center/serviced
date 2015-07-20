@@ -202,9 +202,15 @@ func (v *BtrfsVolume) isSnapshot(rawLabel string) bool {
 
 // Snapshot performs a readonly snapshot on the subvolume
 func (v *BtrfsVolume) Snapshot(label string) error {
+	path := v.snapshotPath(label)
+	if ok, err := volume.IsDir(path); err != nil {
+		return err
+	} else if ok {
+		return volume.ErrSnapshotExists
+	}
 	v.Lock()
 	defer v.Unlock()
-	_, err := runcmd(v.sudoer, "subvolume", "snapshot", "-r", v.Path(), v.snapshotPath(label))
+	_, err := runcmd(v.sudoer, "subvolume", "snapshot", "-r", v.Path(), path)
 	return err
 }
 
@@ -365,7 +371,7 @@ func (v *BtrfsVolume) Import(label, infile string) error {
 	if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("%s: snapshot %s exists", DriverName, label)
+		return volume.ErrSnapshotExists
 	}
 
 	// create a tmp path to load the volume
