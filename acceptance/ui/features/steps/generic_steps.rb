@@ -53,11 +53,11 @@ Then (/^I should see the "([^"]*)"$/) do |element|
 end
 
 Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    checkColumn(text, column, true)
+    expect(checkColumn(text, column)).to be true
 end
 
 Then (/^I should not see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    checkColumn(text, column, false)
+    expect(checkColumn(text, column)).to be false
 end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
@@ -69,11 +69,11 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
 end
 
 Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(row, true)
+    expect(checkRows(row)).to be true
 end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(row, false)
+    expect(checkRows(row)).to be false
 end
 
 
@@ -92,6 +92,12 @@ def assertSortedColumn(category, order)
             else
                 list[i].text[0..-4].to_f.should >= list[i + 1].text[0..-4].to_f
             end
+        elsif category == "CPU Cores"
+            if order
+                list[i].text.to_i.should <= list[i + 1].text.to_i
+            else
+                list[i].text.to_i.should >= list[i + 1].text.to_i
+            end
         else
             if order
             # Category sorting ignores case
@@ -103,7 +109,7 @@ def assertSortedColumn(category, order)
     end
 end
 
-def checkRows(row, present)
+def checkRows(row)
     found = false
     name = getTableValue(row)
     entries = page.all("tr[ng-repeat$='in $data']")
@@ -112,10 +118,10 @@ def checkRows(row, present)
             found = true if has_text?(name)
         end
     end
-    found.should == present
+    return found
 end
 
-def checkColumn(text, column, present)
+def checkColumn(text, column)
     # attribute that includes name of column of all table cells
     list = page.all("td[data-title-text='#{column}']")
     cell = getTableValue(text)
@@ -123,7 +129,7 @@ def checkColumn(text, column, present)
     for i in 0..(list.size - 1)
         hasEntry = true if list[i].text == cell.to_s
     end
-    hasEntry.should == present
+    return hasEntry
 end
 
 def closeDialog()

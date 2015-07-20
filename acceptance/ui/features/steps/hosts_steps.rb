@@ -7,9 +7,9 @@ Given(/^that multiple hosts have been added$/) do
             "table://hosts/host2/commitment")
         addHost("table://hosts/host3/nameAndPort", "table://hosts/host3/pool", \
             "table://hosts/host3/commitment")
-        checkRows("table://hosts/defaultHost/name", true)
-        checkRows("table://hosts/host2/name", true)
-        checkRows("table://hosts/host3/name", true)
+        expect(checkRows("table://hosts/defaultHost/name")).to be true
+        expect(checkRows("table://hosts/host2/name")).to be true
+        expect(checkRows("table://hosts/host3/name")).to be true
     end
 end
 
