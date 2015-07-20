@@ -10,20 +10,20 @@ end
 
 After('@clean_hosts') do
     visitHostsPage()
-    removeAllEntries()
+    removeAllEntries("host")
 end
 
 After('@clean_pools') do
     visitPoolsPage()
-    removeAllEntries()
+    removeAllEntries("pool")
 end
 
 After('@clean_templates') do
     visitApplicationsPage()
-    removeAllTemplates()
+    removeAllEntries("template")
 end
 
 After('@clean_services') do
     visitApplicationsPage()
-    removeAllAddedServices()
+    removeAllEntries("service")
 end

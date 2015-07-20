@@ -8,7 +8,10 @@ Given (/^I have messages$/) do
         visitPoolsPage()
         clickAddPoolButton()
         click_link_or_button("Add Resource Pool")
-        fillInResourcePoolField("default")
+        fillInResourcePoolField("user page test")
+        click_link_or_button("Add Resource Pool")
+        clickAddPoolButton()
+        fillInResourcePoolField("user page test")
         click_link_or_button("Add Resource Pool")
         closeDialog()
     end

@@ -1,7 +1,7 @@
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
     if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
-        removeAllEntries()
+        removeAllEntries("host")
         addDefaultHost()
         addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
             "table://hosts/host2/commitment")
@@ -15,12 +15,12 @@ end
 
 Given(/^there are no hosts defined$/) do
     visitHostsPage()
-    removeAllEntries()
+    removeAllEntries("host")
 end
 
 Given(/^only the default host is defined$/) do
     visitHostsPage()
-    removeAllEntries()
+    removeAllEntries("host")
     addDefaultHost()
 end
 

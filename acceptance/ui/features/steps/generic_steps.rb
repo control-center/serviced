@@ -137,13 +137,15 @@ def sortColumn(category, sortOrder)
     end
 end
 
-def removeAllEntries()
-    entries = page.all("[ng-repeat$='in $data']")
+def removeAllEntries(category)
+    entries = page.all("[ng-repeat='#{category} in $data']")
     for i in 0..(entries.size - 1)
-        within(entries[i]) do
-            click_link_or_button("Delete")
+        if (entries[i].text.include?("Delete"))
+            within(entries[i]) do
+                click_link_or_button("Delete")
+            end
+            click_link_or_button("Remove")
         end
-        click_link_or_button("Remove")
     end
 end
 

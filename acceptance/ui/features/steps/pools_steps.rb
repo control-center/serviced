@@ -1,10 +1,9 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
-    if @pools_page.has_text?("Showing 0 Results")
+    if @pools_page.has_text?("Showing 0 Results") || @pools_page.has_text?("Showing 1 Result")
+        removeAllEntries("pool")
         addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
         checkRows("table://pools/defaultPool/name", true)
-    end
-    if @pools_page.has_text?("Showing 1 Result")
         addPool("table://pools/pool2/name", "table://pools/pool2/description")
         checkRows("table://pools/pool2/name", true)
     end
