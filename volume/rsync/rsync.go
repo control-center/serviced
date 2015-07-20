@@ -39,6 +39,7 @@ type RsyncDriver struct {
 	root string
 }
 
+// RsyncVolume is an rsync volume
 type RsyncVolume struct {
 	sync.Mutex
 	timeout time.Duration
@@ -52,6 +53,7 @@ func init() {
 	volume.Register(DriverName, Init)
 }
 
+// Rsync driver intialization
 func Init(root string) (volume.Driver, error) {
 	driver := &RsyncDriver{
 		root: root,
@@ -59,10 +61,12 @@ func Init(root string) (volume.Driver, error) {
 	return driver, nil
 }
 
+// Root implements volume.Driver.Root
 func (d *RsyncDriver) Root() string {
 	return d.root
 }
 
+// Create implements volume.Driver.Create
 func (d *RsyncDriver) Create(volumeName string) (volume.Volume, error) {
 	d.Lock()
 	defer d.Unlock()
@@ -73,6 +77,7 @@ func (d *RsyncDriver) Create(volumeName string) (volume.Volume, error) {
 	return d.Get(volumeName)
 }
 
+// Remove implements volume.Driver.Remove
 func (d *RsyncDriver) Remove(volumeName string) error {
 	v, err := d.Get(volumeName)
 	if err != nil {
@@ -107,6 +112,7 @@ func getTenant(from string) string {
 	return parts[0]
 }
 
+// Get implements volume.Driver.Get
 func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
 	volume := &RsyncVolume{
@@ -119,11 +125,13 @@ func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
 	return volume, nil
 }
 
+// Release implements volume.Driver.Release
 func (d *RsyncDriver) Release(volumeName string) error {
 	// rsync volumes are just a directory; nothing to release
 	return nil
 }
 
+// List implements volume.Driver.List
 func (d *RsyncDriver) List() (result []string) {
 	if files, err := ioutil.ReadDir(d.root); err != nil {
 		glog.Errorf("Error trying to read from root directory: %s", d.root)
@@ -138,6 +146,7 @@ func (d *RsyncDriver) List() (result []string) {
 	return
 }
 
+// Exists implements volume.Driver.Exists
 func (d *RsyncDriver) Exists(volumeName string) bool {
 	if files, err := ioutil.ReadDir(d.root); err != nil {
 		glog.Errorf("Error trying to read from root directory: %s", d.root)
@@ -152,27 +161,33 @@ func (d *RsyncDriver) Exists(volumeName string) bool {
 	return false
 }
 
+// Cleanup implements volume.Driver.Cleanup
 func (d *RsyncDriver) Cleanup() error {
 	// Rsync driver has no hold on system resources
 	return nil
 }
 
+// Name implements volume.Volume.Name
 func (v *RsyncVolume) Name() string {
 	return v.name
 }
 
+// Path implements volume.Volume.Path
 func (v *RsyncVolume) Path() string {
 	return v.path
 }
 
+// Driver implements volume.Volume.Driver
 func (v *RsyncVolume) Driver() volume.Driver {
 	return v.driver
 }
 
+// Tenant implements volume.Volume.Tenant
 func (v *RsyncVolume) Tenant() string {
 	return v.tenant
 }
 
+// SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *RsyncVolume) SnapshotMetadataPath(label string) string {
 	// Snapshot metadata is stored with the snapshot for this driver
 	return v.snapshotPath(label)
@@ -182,6 +197,7 @@ func (v *RsyncVolume) getSnapshotPrefix() string {
 	return v.Tenant() + "_"
 }
 
+// rawSnapshotLabel ensures that <label> has the tenant prefix for this volume
 func (v *RsyncVolume) rawSnapshotLabel(label string) string {
 	prefix := v.getSnapshotPrefix()
 	if !strings.HasPrefix(label, prefix) {
@@ -190,21 +206,25 @@ func (v *RsyncVolume) rawSnapshotLabel(label string) string {
 	return label
 }
 
+// prettySnapshotLabel ensures that <label> does not have the tenant prefix for
 func (v *RsyncVolume) prettySnapshotLabel(rawLabel string) string {
 	return strings.TrimPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
+// snapshotPath gets the path to the btrfs subvolume representing the snapshot <label>
 func (v *RsyncVolume) snapshotPath(label string) string {
 	root := v.Driver().Root()
 	rawLabel := v.rawSnapshotLabel(label)
 	return filepath.Join(root, rawLabel)
 }
 
+// isSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
+// with the tenant prefix)
 func (v *RsyncVolume) isSnapshot(rawLabel string) bool {
 	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
-// Snapshot performs a writable snapshot on the subvolume
+// Snapshot implements volume.Volume.Snapshot
 func (v *RsyncVolume) Snapshot(label string) (err error) {
 	v.Lock()
 	defer v.Unlock()
@@ -256,7 +276,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	return err
 }
 
-// Snapshots returns the current snapshots on the volume
+// Snapshots implements volume.Volume.Snapshots
 func (v *RsyncVolume) Snapshots() ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
@@ -273,7 +293,7 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 	return labels, nil
 }
 
-// RemoveSnapshot removes the snapshot with the given label
+// RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *RsyncVolume) RemoveSnapshot(label string) error {
 	v.Lock()
 	defer v.Unlock()
@@ -291,7 +311,7 @@ func (v *RsyncVolume) RemoveSnapshot(label string) error {
 	return nil
 }
 
-// Rollback rolls back the volume to the given snapshot
+// Rollback implements volume.Volume.Rollback
 func (v *RsyncVolume) Rollback(label string) (err error) {
 	v.Lock()
 	defer v.Unlock()
@@ -311,7 +331,7 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 	return nil
 }
 
-// Export copys a snapshot
+// Export implements volume.Volume.Export
 func (v *RsyncVolume) Export(label, parent, outdir string) (err error) {
 	v.Lock()
 	defer v.Unlock()
@@ -331,7 +351,7 @@ func (v *RsyncVolume) Export(label, parent, outdir string) (err error) {
 	return nil
 }
 
-// Import imports a snapshot
+// Import implements volume.Volume.Import
 func (v *RsyncVolume) Import(rawlabel, indir string) (err error) {
 	v.Lock()
 	defer v.Unlock()

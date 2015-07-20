@@ -41,7 +41,7 @@ type BtrfsDriver struct {
 	sync.Mutex
 }
 
-// BtrfsVolume is a connection to a btrfs volume
+// BtrfsVolume is a btrfs volume
 type BtrfsVolume struct {
 	sudoer bool
 	name   string
@@ -55,6 +55,7 @@ func init() {
 	volume.Register(DriverName, Init)
 }
 
+// Btrfs driver initialization
 func Init(root string) (volume.Driver, error) {
 	user, err := user.Current()
 	if err != nil {
@@ -71,12 +72,13 @@ func Init(root string) (volume.Driver, error) {
 	return driver, nil
 }
 
+// Root implements volume.Driver.Root
 func (d *BtrfsDriver) Root() string {
 	return d.root
 }
 
+// Exists implements volume.Driver.Exists
 func (d *BtrfsDriver) Exists(volumeName string) bool {
-	// TODO: More efficient version of this. This is stupid.
 	for _, vol := range d.List() {
 		if vol == volumeName {
 			return true
@@ -85,17 +87,19 @@ func (d *BtrfsDriver) Exists(volumeName string) bool {
 	return false
 }
 
+// Cleanup implements volume.Driver.Cleanup
 func (d *BtrfsDriver) Cleanup() error {
-	// TODO: Implement this. Btrfs definitely hangs on to stuff and needs to unmount.
+	// Btrfs driver has no hold on system resources
 	return nil
 }
 
+// Release implements volume.Driver.Release
 func (d *BtrfsDriver) Release(volumeName string) error {
-	// TODO: Implement this. Btrfs definitely hangs on to stuff and needs to unmount.
+	// Btrfs volumes are essentially just a directory; nothing to release
 	return nil
 }
 
-// Mount creates a new subvolume at given root dir
+// Create implements volume.Driver.Create
 func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 	d.Lock()
 	defer d.Unlock()
@@ -116,6 +120,7 @@ func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 	return d.Get(volumeName)
 }
 
+// Remove implements volume.Driver.Remove
 func (d *BtrfsDriver) Remove(volumeName string) error {
 	return nil
 }
@@ -125,6 +130,7 @@ func getTenant(from string) string {
 	return parts[0]
 }
 
+// Get implements volume.Driver.Get
 func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
 	v := &BtrfsVolume{
@@ -137,7 +143,7 @@ func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 	return v, nil
 }
 
-// List returns a list of btrfs subvolumes at a given root dir
+// List implements volume.Driver.List
 func (d *BtrfsDriver) List() (result []string) {
 	if raw, err := runcmd(d.sudoer, "subvolume", "list", "-a", d.root); err != nil {
 		glog.Errorf("Could not list subvolumes at: %s", d.root)
@@ -155,25 +161,27 @@ func (d *BtrfsDriver) List() (result []string) {
 	return
 }
 
-// Name provides the name of the subvolume
+// Name implements volume.Volume.Name
 func (v *BtrfsVolume) Name() string {
 	return v.name
 }
 
-// Path provides the full path to the subvolume
+// Path implements volume.Volume.Path
 func (v *BtrfsVolume) Path() string {
 	return v.path
 }
 
-// Driver returns the driver managing this volume
+// Driver implements volume.Volume.Driver
 func (v *BtrfsVolume) Driver() volume.Driver {
 	return v.driver
 }
 
+// Tenant implements volume.Volume.Tenant
 func (v *BtrfsVolume) Tenant() string {
 	return v.tenant
 }
 
+// SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *BtrfsVolume) SnapshotMetadataPath(label string) string {
 	// Snapshot metadata is stored with the snapshot for this driver
 	return v.snapshotPath(label)
@@ -183,6 +191,7 @@ func (v *BtrfsVolume) getSnapshotPrefix() string {
 	return v.Tenant() + "_"
 }
 
+// rawSnapshotLabel ensures that <label> has the tenant prefix for this volume
 func (v *BtrfsVolume) rawSnapshotLabel(label string) string {
 	prefix := v.getSnapshotPrefix()
 	if !strings.HasPrefix(label, prefix) {
@@ -191,21 +200,26 @@ func (v *BtrfsVolume) rawSnapshotLabel(label string) string {
 	return label
 }
 
+// prettySnapshotLabel ensures that <label> does not have the tenant prefix for
+// this volume
 func (v *BtrfsVolume) prettySnapshotLabel(rawLabel string) string {
 	return strings.TrimPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
+// snapshotPath gets the path to the btrfs subvolume representing the snapshot <label>
 func (v *BtrfsVolume) snapshotPath(label string) string {
 	root := v.Driver().Root()
 	rawLabel := v.rawSnapshotLabel(label)
 	return filepath.Join(root, rawLabel)
 }
 
+// isSnapshot checks to see if <rawLabel> describes a snapshot (i.e., begins
+// with the tenant prefix)
 func (v *BtrfsVolume) isSnapshot(rawLabel string) bool {
 	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
-// Snapshot performs a readonly snapshot on the subvolume
+// Snapshot implements volume.Volume.Snapshot
 func (v *BtrfsVolume) Snapshot(label string) error {
 	path := v.snapshotPath(label)
 	if ok, err := volume.IsDir(path); err != nil {
@@ -219,7 +233,7 @@ func (v *BtrfsVolume) Snapshot(label string) error {
 	return err
 }
 
-// Snapshots returns the current snapshots on the volume (sorted by date)
+// Snapshots implements volume.Volume.Snapshots
 func (v *BtrfsVolume) Snapshots() ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
@@ -257,7 +271,7 @@ func (v *BtrfsVolume) Snapshots() ([]string, error) {
 	return result, nil
 }
 
-// RemoveSnapshot removes the snapshot with the given label
+// RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *BtrfsVolume) RemoveSnapshot(label string) error {
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
@@ -291,7 +305,7 @@ func getEnvMinDuration(envvar string, def, min int32) time.Duration {
 	return time.Duration(duration) * time.Second
 }
 
-// Rollback rolls back the volume to the given snapshot
+// Rollback implements volume.Volume.Rollback
 func (v *BtrfsVolume) Rollback(label string) error {
 	if exists, err := v.snapshotExists(label); err != nil || !exists {
 		if err != nil {
@@ -348,7 +362,7 @@ func (v *BtrfsVolume) Rollback(label string) error {
 	return err
 }
 
-// Export saves a snapshot to an outfile
+// Export implements volume.Volume.Export
 func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	if label == "" {
 		return fmt.Errorf("%s: label cannot be empty", DriverName)
@@ -371,7 +385,7 @@ func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	return err
 }
 
-// Import loads a snapshot from an infile
+// Import implements volume.Volume.Import
 func (v *BtrfsVolume) Import(label, infile string) error {
 	if exists, err := v.snapshotExists(label); err != nil {
 		return err

@@ -19,6 +19,7 @@ import (
 	"fmt"
 )
 
+// DriverInit represents a function that can initialize a driver.
 type DriverInit func(root string) (Driver, error)
 
 var (
@@ -100,11 +101,18 @@ func Register(name string, driverInit DriverInit) error {
 	return nil
 }
 
+// Registered returns a boolean indicating whether driver <name> has been registered.
+func Registered(name string) bool {
+	_, ok := drivers[name]
+	return ok
+}
+
 // Unregister the driver <name>. If it doesn't exist, it's a no-op.
 func Unregister(name string) {
 	delete(drivers, name)
 }
 
+// GetDriver returns a driver of type <name> initialized to <root>.
 func GetDriver(name, root string) (Driver, error) {
 	if init, exists := drivers[name]; exists {
 		return init(root)

@@ -35,6 +35,7 @@ func IsDir(dirName string) (dir bool, err error) {
 	return true, nil
 }
 
+// FileInfoSlice is a os.FileInfo array sortable by modification time
 type FileInfoSlice []os.FileInfo
 
 func (p FileInfoSlice) Len() int {
@@ -49,6 +50,7 @@ func (p FileInfoSlice) Swap(i, j int) {
 	p[i], p[j] = p[j], p[i]
 }
 
+// Labels will return the names of the files in the slice, sorted by modification time
 func (p FileInfoSlice) Labels() []string {
 	// This would probably be very slightly more efficient with a heap, but the
 	// API would be more complicated
