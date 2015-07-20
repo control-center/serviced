@@ -4,10 +4,7 @@
 
 package rpcutils
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
 var count = 0
 
@@ -26,7 +23,6 @@ func (tc *testClient) Call(serviceMethod string, args interface{}, reply interfa
 
 func factory(addr string) (Client, error) {
 	count = count + 1
-	fmt.Printf("creating %d\n", count)
 	return &testClient{addr, count}, nil
 }
 
