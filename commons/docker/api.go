@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 const DockerLatest = "latest"
 
 var DEFAULT_REGISTRY = "localhost:5000"
+var pushLock sync.Mutex
 
 // Container represents a Docker container.
 type Container struct {
@@ -504,7 +506,7 @@ func (img *Image) Delete() error {
 }
 
 // Tag tags an image in the local repository
-func (img *Image) Tag(tag string) (*Image, error) {
+func (img *Image) Tag(tag string, push bool) (*Image, error) {
 
 	iid, err := commons.ParseImageID(tag)
 	if err != nil {
@@ -531,17 +533,21 @@ func (img *Image) Tag(tag string) (*Image, error) {
 		glog.V(1).Infof("unable to tag image %s: %v", args.repo, err)
 		return nil, err
 	}
-	pushImage(args.repo, args.registry, args.tag)
 
 	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
 	if err != nil {
 		return nil, err
 	}
-	return &Image{args.uuid, *iid}, nil
+
+	if push {
+		err = pushImage(args.repo, args.registry, args.tag)
+	}
+
+	return &Image{args.uuid, *iid}, err
 }
 
-func TagImage(img *Image, tag string) (*Image, error) {
-	return img.Tag(tag)
+func TagImage(img *Image, tag string, push bool) (*Image, error) {
+	return img.Tag(tag, push)
 }
 
 func InspectImage(uuid string) (*dockerclient.Image, error) {
@@ -747,6 +753,8 @@ func pushImage(repo, registry, tag string) error {
 		glog.V(0).Infof("Finished pushing image from repo: %s to registry: %s with tag: %s in %s", repo, registry, tag, duration)
 	}(time.Now())
 
+	pushLock.Lock()
+	defer pushLock.Unlock()
 	// FIXME: Need to populate AuthConfiguration (eventually)
 	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 	if err != nil {

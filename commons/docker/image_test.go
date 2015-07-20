@@ -195,7 +195,7 @@ func (s *ImageTestSuite) TestTagImage(c *C) {
 		c.Fatalf("can't find %s: %v ", rawbase, err)
 	}
 
-	ti, err := img.Tag(basetag)
+	ti, err := img.Tag(basetag, true)
 	if err != nil {
 		c.Fatalf("can't tag %s as %s: %v", rawbase, basetag, err)
 	}
@@ -228,12 +228,12 @@ func (s *ImageTestSuite) TestDoubleTagImage(c *C) {
 		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 
-	bt, err := img.Tag(basetag)
+	bt, err := img.Tag(basetag, true)
 	if err != nil {
 		c.Fatalf("can't tag %s as %s: %v", rawbase, basetag, err)
 	}
 
-	st, err := img.Tag(snaptag)
+	st, err := img.Tag(snaptag, true)
 	if err != nil {
 		c.Fatalf("can't tag %s as %s: %v", bt.ID.String(), snaptag, err)
 	}
@@ -250,7 +250,7 @@ func (s *ImageTestSuite) TestBareTag(c *C) {
 		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 
-	bi, err := img.Tag(bareimg)
+	bi, err := img.Tag(bareimg, true)
 	if err != nil {
 		c.Fatalf("can't tag %s as %s: %v", rawbase, bareimg, err)
 	}
@@ -267,7 +267,7 @@ func (s *ImageTestSuite) TestDeleteImage(c *C) {
 		c.Fatalf("can't find %s: %v", rawbase, err)
 	}
 
-	ti, err := img.Tag(victim)
+	ti, err := img.Tag(victim, true)
 	if err != nil {
 		c.Fatalf("can't tag %s as %s: %v", rawbase, victim, err)
 	}

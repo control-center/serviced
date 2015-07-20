@@ -275,7 +275,7 @@ func (dfs *DistributedFilesystem) registerImages(basename string) error {
 		imageID := image.ID
 		if imageID.BaseName() == basename {
 			imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
-			if t, err := image.Tag(imageID.String()); err != nil {
+			if t, err := image.Tag(imageID.String(), true); err != nil {
 				glog.Errorf("Could not add tag %s to %s: %s", imageID, image.ID, err)
 				return err
 			} else if err := docker.PushImage(t.ID.String()); err != nil {
@@ -326,7 +326,7 @@ func tag(tenantID, oldtag, newtag string) error {
 
 	var tagged []*docker.Image
 	for _, image := range images {
-		t, err := image.Tag(fmt.Sprintf("%s:%s", image.ID.BaseName(), newtag))
+		t, err := image.Tag(fmt.Sprintf("%s:%s", image.ID.BaseName(), newtag), true)
 		if err != nil {
 			glog.Errorf("Error while adding tags; rolling back: %s", err)
 			for _, t := range tagged {
@@ -510,7 +510,7 @@ func loadImage(filename string, uuid string, tags []string) error {
 
 	// tag the remaining images
 	for _, tag := range tags {
-		if _, err := image.Tag(tag); err != nil {
+		if _, err := image.Tag(tag, true); err != nil {
 			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, tag, err)
 			return err
 		}

@@ -52,7 +52,7 @@ func defaultExec(name string, args ...string) error {
 }
 
 func defaultTagImage(image *docker.Image, newTag string) (*docker.Image, error) {
-	return image.Tag(newTag)
+	return image.Tag(newTag, true)
 }
 
 func noOpExec(name string, args ...string) error {
