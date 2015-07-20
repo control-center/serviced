@@ -45,6 +45,7 @@ type RsyncVolume struct {
 	name    string
 	path    string
 	tenant  string
+	driver  volume.Driver
 }
 
 func init() {
@@ -112,6 +113,7 @@ func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
 		timeout: 30 * time.Second,
 		name:    volumeName,
 		path:    volumePath,
+		driver:  d,
 		tenant:  getTenant(volumeName),
 	}
 	return volume, nil
@@ -163,6 +165,10 @@ func (v *RsyncVolume) Path() string {
 	return v.path
 }
 
+func (v *RsyncVolume) Driver() volume.Driver {
+	return v.driver
+}
+
 func (v *RsyncVolume) Tenant() string {
 	return v.tenant
 }
@@ -184,7 +190,7 @@ func (v *RsyncVolume) prettySnapshotLabel(rawLabel string) string {
 }
 
 func (v *RsyncVolume) snapshotPath(label string) string {
-	root := filepath.Dir(v.Path())
+	root := v.Driver().Root()
 	rawLabel := v.rawSnapshotLabel(label)
 	return filepath.Join(root, rawLabel)
 }
@@ -249,7 +255,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 func (v *RsyncVolume) Snapshots() ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
-	files, err := ioutil.ReadDir(filepath.Dir(v.path))
+	files, err := ioutil.ReadDir(v.Driver().Root())
 	if err != nil {
 		return nil, err
 	}
@@ -333,9 +339,9 @@ func (v *RsyncVolume) Import(rawlabel, indir string) (err error) {
 
 	fmt.Println("indir: ", indir)
 	fmt.Println("backup: ", filepath.Join(indir, rawlabel))
-	fmt.Println("restoreto: ", filepath.Dir(v.Path()))
+	fmt.Println("restoreto: ", v.Driver().Root())
 
-	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, rawlabel), filepath.Dir(v.Path()))
+	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, rawlabel), v.Driver().Root())
 	glog.V(4).Infof("About ro execute %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
 		glog.V(2).Infof("Could not perform rsync: %s", string(output))

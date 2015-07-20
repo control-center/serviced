@@ -47,6 +47,7 @@ type BtrfsVolume struct {
 	name   string
 	path   string
 	tenant string
+	driver volume.Driver
 	sync.Mutex
 }
 
@@ -130,6 +131,7 @@ func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 		sudoer: d.sudoer,
 		name:   volumeName,
 		path:   volumePath,
+		driver: d,
 		tenant: getTenant(volumeName),
 	}
 	return v, nil
@@ -163,6 +165,11 @@ func (v *BtrfsVolume) Path() string {
 	return v.path
 }
 
+// Driver returns the driver managing this volume
+func (v *BtrfsVolume) Driver() volume.Driver {
+	return v.driver
+}
+
 func (v *BtrfsVolume) Tenant() string {
 	return v.tenant
 }
@@ -184,7 +191,7 @@ func (v *BtrfsVolume) prettySnapshotLabel(rawLabel string) string {
 }
 
 func (v *BtrfsVolume) snapshotPath(label string) string {
-	root := filepath.Dir(v.Path())
+	root := v.Driver().Root()
 	rawLabel := v.rawSnapshotLabel(label)
 	return filepath.Join(root, rawLabel)
 }
@@ -221,7 +228,7 @@ func (v *BtrfsVolume) Snapshots() ([]string, error) {
 			rawLabel = strings.TrimPrefix(rawLabel, "volumes/")
 			if v.isSnapshot(rawLabel) {
 				label := v.prettySnapshotLabel(rawLabel)
-				file, err := os.Stat(filepath.Join(filepath.Dir(v.path), rawLabel))
+				file, err := os.Stat(filepath.Join(v.Driver().Root(), rawLabel))
 				if err != nil {
 					glog.Errorf("Could not stat snapshot %s: %s", label, err)
 					return nil, err
@@ -285,7 +292,7 @@ func (v *BtrfsVolume) Rollback(label string) error {
 
 	v.Lock()
 	defer v.Unlock()
-	vd := filepath.Join(filepath.Dir(v.path), v.name)
+	vd := filepath.Join(v.Driver().Root(), v.name)
 	dirp, err := volume.IsDir(vd)
 	if err != nil {
 		return err
@@ -371,7 +378,7 @@ func (v *BtrfsVolume) Import(label, infile string) error {
 	}
 	defer runcmd(v.sudoer, "subvolume", "delete", filepath.Join(tmpdir, label))
 
-	_, err := runcmd(v.sudoer, "subvolume", "snapshot", "-r", filepath.Join(tmpdir, label), filepath.Dir(v.path))
+	_, err := runcmd(v.sudoer, "subvolume", "snapshot", "-r", filepath.Join(tmpdir, label), v.Driver().Root())
 	return err
 }
 

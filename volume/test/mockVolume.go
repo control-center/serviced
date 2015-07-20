@@ -34,6 +34,15 @@ func (mv *MockVolume) Path() string {
 	return mv.Mock.Called().String(0)
 }
 
+func (mv *MockVolume) Driver() volume.Driver {
+	args := mv.Mock.Called()
+	var driver volume.Driver
+	if arg0 := args.Get(0); arg0 != nil {
+		driver = arg0.(volume.Driver)
+	}
+	return driver
+}
+
 func (mv *MockVolume) SnapshotPath(label string) string {
 	return mv.Mock.Called(label).String(0)
 }

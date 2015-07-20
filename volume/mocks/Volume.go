@@ -1,5 +1,6 @@
 package mocks
 
+import "github.com/control-center/serviced/volume"
 import "github.com/stretchr/testify/mock"
 
 type Volume struct {
@@ -17,6 +18,13 @@ func (m *Volume) Path() string {
 	ret := m.Called()
 
 	r0 := ret.Get(0).(string)
+
+	return r0
+}
+func (m *Volume) Driver() volume.Driver {
+	ret := m.Called()
+
+	r0 := ret.Get(0).(volume.Driver)
 
 	return r0
 }
