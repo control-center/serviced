@@ -1,12 +1,18 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
-    if @pools_page.has_text?("Showing 0 Results") || @pools_page.has_text?("Showing 1 Result")
-        removeAllEntries("pool")
-        addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
-        checkRows("table://pools/defaultPool/name", true)
+    if @pools_page.pool_entries.size < 2
+        removeAllPools()
+        addDefaultPool()
         addPool("table://pools/pool2/name", "table://pools/pool2/description")
+        checkRows("table://pools/defaultPool/name", true)
         checkRows("table://pools/pool2/name", true)
     end
+end
+
+Given /^that only the default resource pool is defined$/ do
+    visitPoolsPage()
+    removeAllPools()
+    addDefaultPool()
 end
 
 When(/^I am on the resource pool page$/) do
@@ -60,4 +66,18 @@ def addPool(name, description)
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
+end
+
+def addDefaultPool()
+    addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
+end
+
+def removeAllPools()
+    visitHostsPage()
+    removeAllEntries("host")
+    visitApplicationsPage()
+    removeAllEntries("service")
+    removeAllEntries("template")
+    visitPoolsPage()
+    removeAllEntries("pool")
 end

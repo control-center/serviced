@@ -15,7 +15,8 @@ end
 
 After('@clean_pools') do
     visitPoolsPage()
-    removeAllEntries("pool")
+    removeAllPools()
+    addDefaultPool() # default pool must exist or else serviced log gets spammed CC-1105
 end
 
 After('@clean_templates') do
