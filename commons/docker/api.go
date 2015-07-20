@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
+	"sync"
 	"syscall"
 	"time"
 
@@ -30,6 +31,7 @@ import (
 const DockerLatest = "latest"
 
 var DEFAULT_REGISTRY = "localhost:5000"
+var pushLock sync.Mutex
 
 // Container represents a Docker container.
 type Container struct {
@@ -747,6 +749,8 @@ func pushImage(repo, registry, tag string) error {
 		glog.V(0).Infof("Finished pushing image from repo: %s to registry: %s with tag: %s in %s", repo, registry, tag, duration)
 	}(time.Now())
 
+	pushLock.Lock()
+	defer pushLock.Unlock()
 	// FIXME: Need to populate AuthConfiguration (eventually)
 	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
 	if err != nil {
