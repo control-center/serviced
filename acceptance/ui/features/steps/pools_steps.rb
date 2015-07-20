@@ -4,15 +4,16 @@ Given /^that multiple resource pools have been added$/ do
         removeAllPools()
         addDefaultPool()
         addPool("table://pools/pool2/name", "table://pools/pool2/description")
-        checkRows("table://pools/defaultPool/name", true)
-        checkRows("table://pools/pool2/name", true)
+        expect(checkRows("table://pools/defaultPool/name")).to be true
+        expect(checkRows("table://pools/pool2/name")).to be true
     end
 end
 
-Given /^that only the default resource pool is defined$/ do
+Given /^that the default resource pool exists$/ do
     visitPoolsPage()
-    removeAllPools()
-    addDefaultPool()
+    if (checkRows("default") == false)
+        addDefaultPool()
+    end
 end
 
 When(/^I am on the resource pool page$/) do

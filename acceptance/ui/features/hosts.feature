@@ -6,6 +6,7 @@ Feature: Host Management
 
   Background:
     Given that the admin user is logged in
+      And that the default resource pool exists
 
   Scenario: View empty Hosts page
     Given there are no hosts defined
