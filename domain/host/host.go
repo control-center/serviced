@@ -175,6 +175,7 @@ func UpdateHostInfo(h Host) (Host, error) {
 	}
 
 	//update the passed in *copy* so we don't have to deal with new non hardware fields later on
+	h.Name = currentHost.Name
 	h.Memory = currentHost.Memory
 	h.Cores = currentHost.Cores
 	h.KernelRelease = currentHost.KernelRelease
