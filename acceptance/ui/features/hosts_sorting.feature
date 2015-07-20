@@ -1,4 +1,4 @@
-@hosts_sorting @clean_hosts
+@hosts_sorting
 Feature: Host Sorting
   In order to use Control Center
   As a CC admin user
@@ -73,6 +73,7 @@ Feature: Host Sorting
       And I sort by "CC Release" in ascending order
     Then the "CC Release" column should be sorted in ascending order
 
+  @clean_hosts
   Scenario: Test descending CC release sort
     When I am on the hosts page
       And I sort by "CC Release" in descending order
