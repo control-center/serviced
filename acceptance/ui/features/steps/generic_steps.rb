@@ -86,6 +86,12 @@ def assertSortedColumn(category, order)
             else
                 DateTime.parse(list[i].text).should >= DateTime.parse(list[i + 1].text)
             end
+        elsif category == "Memory"
+            if order
+                list[i].text[0..-4].to_f.should <= list[i + 1].text[0..-4].to_f
+            else
+                list[i].text[0..-4].to_f.should >= list[i + 1].text[0..-4].to_f
+            end
         else
             if order
             # Category sorting ignores case

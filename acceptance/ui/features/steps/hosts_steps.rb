@@ -1,6 +1,6 @@
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
-    if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
+    if @hosts_page.host_entries.size < 2
         removeAllEntries("host")
         addDefaultHost()
         addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
