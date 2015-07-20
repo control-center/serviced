@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
 #include <grp.h>
 #include <pwd.h>
 #include <security/pam_appl.h>
@@ -15,6 +16,9 @@
 #define MY_MALLOC(ptr, size) \
             do { ptr = malloc(size); if (0) { fprintf(stderr, "ERROR %s:%d] malloced %p size:%lu for %s\n", __FILE__, __LINE__, ptr, size, #ptr); } } while (0)
 
+#define MY_REALLOC(ptr, size) \
+  do { ptr = realloc(ptr, size); if (0) { fprintf(stderr, "ERROR %s:%d] realloced %p size:%lu for %s\n", __FILE__, __LINE__, ptr, size, #ptr); } } while (0)
+
 #define _CP_MAX_GROUPS 100
 #define _CP_ROOT "root"
 #define _CP_SUCCESS    0
@@ -22,6 +26,8 @@
 #define _CP_FAIL_AUTH  2
 #define _CP_FAIL_ACCT  3
 #define _CP_FAIL_WHEEL 4
+
+static const max_size = 16 * 1024 * 1024;
 
 int conv(int num_msg, 
          const struct pam_message **msg,
@@ -58,11 +64,28 @@ int getUserGID(const char *username, gid_t *pw_gid)
     }
 
     struct passwd *result = 0;
+ RETRY_GETPWNAM_R:
+    errno = 0;
     int retval = getpwnam_r(username, pwd, buffer, pwsize, &result);
     if (retval < 0 || !result) {
+      switch(errno) {
+      case ERANGE:
+        if ((pwsize *2) < pwsize || (pwsize * 2) > max_size) {
+          ERRORF("error: buffer limit reached at 0x%lx.\n", pwsize*2);
+          goto CLEAN_RETURN;
+          break;
+        }
+        pwsize *= 2;
+        // realloc and try again
+        MY_REALLOC(buffer, pwsize * sizeof(char));
+        goto RETRY_GETPWNAM_R;
+        break; // not reachable, thanks to goto. Added for readability/maintainability.
+      default:
         ERRORF("unable to get user info for %s - getpwnam_r returned %d: %s\n",
-            username, retval, strerror(retval));
+               username, retval, strerror(retval));
         goto CLEAN_RETURN;
+        break;
+      }
     }
 
     *pw_gid = pwd->pw_gid;
@@ -73,7 +96,6 @@ CLEAN_RETURN:
     MY_FREE(pwd);
     return foundGID;
 }
-
 
 int isGroupMember(const char *username, const char *group)
 {
@@ -88,13 +110,13 @@ int isGroupMember(const char *username, const char *group)
         goto CLEAN_RETURN;
     }
 
-    MY_MALLOC(buffer, grsize * sizeof(char));
+    MY_REALLOC(buffer, grsize * sizeof(char));
     if (!buffer) {
         ERRORF("unable to allocate space for getgrgid_r buffer to check membership for user:%s in group:%s\n", username, group);
         goto CLEAN_RETURN;
     }
 
-    MY_MALLOC(grp, sizeof(struct group));
+    MY_REALLOC(grp, sizeof(struct group));
     if (!grp) {
         ERRORF("unable to allocate space for getgrgid_r pwd to check membership for user:%s in group:%s\n", username, group);
         goto CLEAN_RETURN;
@@ -120,13 +142,29 @@ int isGroupMember(const char *username, const char *group)
     int i=0;
     for (i=0; i < num_groups; i++) {
         struct group *result = 0;
+    RETRY_GETGRGID_R:
+        errno = 0;
         int retval = getgrgid_r(group_list[i], grp, buffer, grsize, &result);
         if (retval < 0 || !result) {
-            ERRORF("unable to check membership for user:%s in group:%s - getgrgid_r(%d) returned %d: %s\n",
-                username, group, group_list[i], retval, strerror(retval));
+          switch(errno) {
+          case ERANGE:
+            if ((grsize *2) < grsize || (grsize * 2) > max_size) {
+              ERRORF("error: buffer limit reached at 0x%lx.\n", grsize*2);
+              goto CLEAN_RETURN;
+              break;
+            }
+            // realloc and try again
+            grsize *= 2;
+            MY_REALLOC(buffer, grsize * sizeof(char));
+            goto RETRY_GETGRGID_R;
+            break; // not reachable, thanks to goto. Added for readability/maintainability.
+          default:
+            ERRORF("unable to check membership for user:%s in group:%s - getgrgid_r(%d, <grp>, <buffer>, %ld) returned %d: %s\n",
+                   username, group, group_list[i], grsize, retval, strerror(retval));
+            goto CLEAN_RETURN;
             break;
+          }
         }
-
         if (strcmp(group, result->gr_name) == 0 || strcmp(_CP_ROOT, result->gr_name) == 0) {
             found_wheel = 1;
             goto CLEAN_RETURN;
