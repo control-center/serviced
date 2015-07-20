@@ -384,10 +384,12 @@ func setImageID(registry, tenantID string, svc *service.Service) error {
 		}
 		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_tagging_image|"+svc.Name)
 		// now tag the image
-		if _, err := image.Tag(imageID, true); err != nil {
+		if _, err := image.Tag(imageID, false); err != nil {
 			glog.Errorf("Could not add tag %s to image %s: %s", imageID, svc.ImageID, err)
 			return err
 		}
+		// Push the image in the background
+		go docker.PushImage(imageID)
 	}
 	svc.ImageID = imageID
 	return nil

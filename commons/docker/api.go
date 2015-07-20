@@ -534,7 +534,7 @@ func (img *Image) Tag(tag string, push bool) (*Image, error) {
 		return nil, err
 	}
 	if push {
-		go pushImage(args.repo, args.registry, args.tag)
+		pushImage(args.repo, args.registry, args.tag)
 	}
 
 	iid, err = commons.ParseImageID(fmt.Sprintf("%s:%s", args.repo, args.tag))
