@@ -5,6 +5,7 @@
 package rpcutils
 
 import (
+	"fmt"
 	"net"
 	"net/rpc"
 	"net/rpc/jsonrpc"
@@ -22,7 +23,7 @@ func SetDialTimeout(timeout int) {
 
 type Client interface {
 	Close() error
-	Call(serviceMethod string, args interface{}, reply interface{}) error
+	Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64, timewarn bool) error
 }
 
 // NewReconnectingClient creates a client that reuses the same connection and does not close the underlying connection unless an error occurs.
@@ -60,7 +61,7 @@ func (rc *reconnectingClient) Close() error {
 	return nil
 }
 
-func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}) error {
+func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64, timewarn bool) error {
 	// WARNING: Printing to stdout/err here can cause issues with zendev, e.g., your service
 	//          template may not deploy. This problem will go away once we move to using exit codes.
 	rc.RLock()
@@ -70,6 +71,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		//release read lock and get write lock
 		rc.RUnlock()
 		rc.Lock()
+		// rc.connectAndSet is idempotent, so no concerns about multiple calls.
 		rpcClient, err = rc.connectAndSet()
 		//release write lock
 		rc.Unlock()
@@ -79,7 +81,31 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		//get read lock again
 		rc.RLock()
 	}
-	err = rpcClient.Call(serviceMethod, args, reply)
+	if timeout == 0 {
+		timeout = 3153600000 // One hundred years in seconds.
+	}
+	c := make(chan error, 1)
+	go func() {
+		c <- rpcClient.Call(serviceMethod, args, reply)
+	}()
+	start := time.Now()
+Loop:
+	for {
+		select {
+		case err = <-c:
+			if err == nil {
+				glog.V(2).Infof("RPC call %s finished after %ds.", serviceMethod, int(time.Since(start).Seconds()))
+			}
+			break Loop
+		case <-time.After(time.Duration(timeout) * time.Second):
+			err = fmt.Errorf("RPC call to %s timed out after %d seconds.", serviceMethod, timeout)
+			break Loop
+		case <-time.After(10 * time.Second):
+			if timewarn {
+				glog.Warningf("RPC call to %s has taken more than %ds.", serviceMethod, int(time.Since(start).Seconds()))
+			}
+		}
+	}
 	rc.RUnlock()
 	if err != nil {
 		glog.V(3).Infof("rpc error, resetting cached client: %v", err)
