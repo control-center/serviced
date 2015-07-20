@@ -51,6 +51,12 @@ func (mv *MockVolume) Snapshot(label string) error {
 	return mv.Mock.Called(label).Error(0)
 }
 
+func (m *MockVolume) SnapshotMetadataPath(label string) string {
+	ret := m.Called(label)
+	r0 := ret.Get(0).(string)
+	return r0
+}
+
 func (mv *MockVolume) Snapshots() ([]string, error) {
 	args := mv.Mock.Called()
 

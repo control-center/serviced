@@ -70,6 +70,9 @@ type Volume interface {
 	// Snapshot snapshots the current state of this volume and stores it
 	// using the name <label>
 	Snapshot(label string) (err error)
+	// SnapshotMetadataPath returns the path to the directory storing this
+	// snapshot's metadata.
+	SnapshotMetadataPath(label string) string
 	// Snapshots lists all snapshots of this volume
 	Snapshots() ([]string, error)
 	// RemoveSnapshot removes the snapshot with name <label>

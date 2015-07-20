@@ -173,6 +173,11 @@ func (v *RsyncVolume) Tenant() string {
 	return v.tenant
 }
 
+func (v *RsyncVolume) SnapshotMetadataPath(label string) string {
+	// Snapshot metadata is stored with the snapshot for this driver
+	return v.snapshotPath(label)
+}
+
 func (v *RsyncVolume) getSnapshotPrefix() string {
 	return v.Tenant() + "_"
 }

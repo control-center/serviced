@@ -35,6 +35,13 @@ func (m *Volume) Snapshot(label string) error {
 
 	return r0
 }
+func (m *Volume) SnapshotMetadataPath(label string) string {
+	ret := m.Called(label)
+
+	r0 := ret.Get(0).(string)
+
+	return r0
+}
 func (m *Volume) Snapshots() ([]string, error) {
 	ret := m.Called()
 

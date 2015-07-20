@@ -174,6 +174,11 @@ func (v *BtrfsVolume) Tenant() string {
 	return v.tenant
 }
 
+func (v *BtrfsVolume) SnapshotMetadataPath(label string) string {
+	// Snapshot metadata is stored with the snapshot for this driver
+	return v.snapshotPath(label)
+}
+
 func (v *BtrfsVolume) getSnapshotPrefix() string {
 	return v.Tenant() + "_"
 }

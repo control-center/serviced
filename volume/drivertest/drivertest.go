@@ -183,6 +183,12 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	err = vol.Snapshot("Snap2")
 	c.Assert(err, IsNil)
 
+	// Make sure the metadata path exists for the snapshot
+	mdpath := vol.SnapshotMetadataPath("Snap")
+	ok, err := volume.IsDir(mdpath)
+	c.Assert(ok, Equals, true)
+	c.Assert(err, IsNil)
+
 	// Rollback to the original snapshot and verify the base again
 	err = vol.Rollback("Snap")
 	c.Assert(err, IsNil)
