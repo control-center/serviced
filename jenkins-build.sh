@@ -14,8 +14,8 @@ sudo rm /tmp/serviced-test -Rf
 docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 cd gopath/src/github.com/control-center/serviced
 docker images | egrep 'zenoss/ubuntu[ ]+wget' || docker pull zenoss/ubuntu:wget
-sudo make clean test DOCKERCFG=""
-sudo make clean
+sudo GOPATH=$GOPATH make clean test DOCKERCFG=""
+sudo GOPATH=$GOPATH make clean
 docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 sudo rm /tmp/serviced* -Rf
 make
