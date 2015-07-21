@@ -103,6 +103,8 @@ Loop:
 		case <-time.After(10 * time.Second):
 			if timewarn {
 				glog.Warningf("RPC call to %s has taken more than %ds.", serviceMethod, int(time.Since(start).Seconds()))
+			} else {
+				glog.V(2).Infof("RPC call to %s has taken more than %ds.", serviceMethod, int(time.Since(start).Seconds()))
 			}
 		}
 	}

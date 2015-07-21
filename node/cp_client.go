@@ -182,7 +182,7 @@ func (s *ControlClient) GetServiceStatus(serviceID string, statusmap *map[string
 }
 
 func (s *ControlClient) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
-	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantIDs, 0, true)
+	return s.rpcClient.Call("ControlPlane.DeployTemplate", request, tenantIDs, 0, false)
 }
 
 func (s *ControlClient) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, status *string) error {
@@ -254,7 +254,7 @@ func (s *ControlClient) ListBackups(backupDirectory string, backupFiles *[]dao.B
 }
 
 func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) error {
-	return s.rpcClient.Call("ControlPlane.Backup", backupDirectory, backupFilePath, 0, true)
+	return s.rpcClient.Call("ControlPlane.Backup", backupDirectory, backupFilePath, 0, false)
 }
 
 func (s *ControlClient) AsyncBackup(backupDirectory string, backupFilePath *string) error {
@@ -262,7 +262,7 @@ func (s *ControlClient) AsyncBackup(backupDirectory string, backupFilePath *stri
 }
 
 func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused, 0, true)
+	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused, 0, false)
 }
 
 func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {
