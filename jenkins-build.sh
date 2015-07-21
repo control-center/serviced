@@ -12,10 +12,11 @@ sudo umount /exports/serviced_var_volumes || true
 sudo rm /tmp/serviced-root/var/isvcs/* -Rf
 sudo rm /tmp/serviced-test -Rf
 docker ps -a -q | xargs --no-run-if-empty docker rm -fv
-cd gopath/src/github.com/control-center/serviced
 docker images | egrep 'zenoss/ubuntu[ ]+wget' || docker pull zenoss/ubuntu:wget
-make clean
-sudo GOPATH=$GOPATH make test DOCKERCFG=""
+cd $GOPATH/src/github.com/control-center/serviced/volume
+sudo PATH=$PATH GOPATH=$GOPATH godep go test -tags root ./...
+cd $GOPATH/src/github.com/control-center/serviced
+make clean test DOCKERCFG=""
 docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 sudo rm /tmp/serviced* -Rf
 make

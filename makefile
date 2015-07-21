@@ -171,7 +171,7 @@ serviced: FORCE
 #
 # BUILD_VERSION is the version of the serviced-build docker image
 #
-BUILD_VERSION = v$(VERSION)-ian
+BUILD_VERSION = v$(VERSION)-1
 export BUILD_VERSION
 
 #
