@@ -1,19 +1,11 @@
 Given (/^I have messages$/) do
     @user_page = User.new
-    unreadCount = true
-    within(@user_page.navbar.userDetails) do
-        unreadCount = has_text? 0
-    end
-    if unreadCount
-        visitPoolsPage()
-        clickAddPoolButton()
-        click_link_or_button("Add Resource Pool")
-        fillInResourcePoolField("user page test")
-        click_link_or_button("Add Resource Pool")
-        clickAddPoolButton()
-        fillInResourcePoolField("user page test")
-        click_link_or_button("Add Resource Pool")
-        closeDialog()
+    zeroMessages = @user_page.navbar.userDetails.has_text? 0
+    if zeroMessages
+        visitHostsPage()
+        removeAllEntries("host")
+        addDefaultHost()
+        removeAllEntries("host")
     end
 end
 

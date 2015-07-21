@@ -114,9 +114,7 @@ def checkRows(row)
     name = getTableValue(row)
     entries = page.all("tr[ng-repeat$='in $data']")
     for i in 0..(entries.size - 1)
-        within(entries[i]) do
-            found = true if has_text?(name)
-        end
+        found = true if entries[i].has_text?(name)
     end
     return found
 end
