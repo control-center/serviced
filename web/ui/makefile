@@ -15,12 +15,6 @@ UID = $(shell id -u)
 GID = $(shell id -g)
 PWD = $(shell pwd)
 
-ifeq ($(UID),0)
-USER_ARGS = -e UID_X=$(UID) -e GID_X=$(GID)
-else
-USER_ARGS =
-endif
-
 serviced_build_DOCKERDIR = ../../build
 javascript_BLDDIR   = $(PWD)/build/js
 controlplane_JS     = $(javascript_BLDDIR)/controlplane.js
@@ -57,6 +51,8 @@ $(controlplane_JS): src/*.js src/**/*.js
 	else \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
+		-e UID_X=$(UID) \
+		-e GID_X=$(GID) \
 		$(USER_ARGS) \
 		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
@@ -69,7 +65,8 @@ test: build
 	else \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
-		$(USER_ARGS) \
+		-e UID_X=$(UID) \
+		-e GID_X=$(GID) \
 		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi
