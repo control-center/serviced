@@ -51,8 +51,9 @@ $(controlplane_JS): src/*.js src/**/*.js
 	else \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
-		-e UID_X=$(shell id -u) \
-		-e GID_X=$(shell id -g) \
+		-e UID_X=$(UID) \
+		-e GID_X=$(GID) \
+		$(USER_ARGS) \
 		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp release\""; \
 	fi
@@ -64,8 +65,8 @@ test: build
 	else \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
-		-e UID_X=$(shell id -u) \
-		-e GID_X=$(shell id -g) \
+		-e UID_X=$(UID) \
+		-e GID_X=$(GID) \
 		zenoss/serviced-build:$(BUILD_VERSION) \
 		/bin/bash -c "source /root/userdo.sh \"cd $(docker_working_DIR) && ./npmLink.sh && gulp test\""; \
 	fi

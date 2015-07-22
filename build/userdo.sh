@@ -17,11 +17,15 @@ elif [[ -z $GID_X ]]; then
     exit 1
 fi
 
-# create user and group
-groupadd -g "$GID_X" -r "$USERGROUP"
-mkdir -p "$USERHOME"
-useradd -u "$UID_X" -r -g "$USERGROUP" -d "$USERHOME" -s /bin/bash "$USERNAME"
-chown "$USERNAME":"$USERGROUP" "$USERHOME"
+if [[ ${UID_X} -ne 0 ]]; then
+    # create user and group
+    groupadd -g "$GID_X" -r "$USERGROUP"
+    mkdir -p "$USERHOME"
+    useradd -u "$UID_X" -r -g "$USERGROUP" -d "$USERHOME" -s /bin/bash "$USERNAME"
+    chown "$USERNAME":"$USERGROUP" "$USERHOME"
 
-# kick off task as user
-su - "$USERNAME" -c "$*"
+    # kick off task as user
+    su - "$USERNAME" -c "$*" 
+else
+    $*
+fi
