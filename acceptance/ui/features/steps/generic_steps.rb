@@ -161,6 +161,10 @@ def removeAllEntries(category)
     end
 end
 
+# Chrome does not wait for objects to load, so some steps need to sleep
+# until all the elements load
+# For more information:
+# http://www.testrisk.com/2015/05/an-error-for-selenium-chrome-vs-firefox.html
 def waitForPageLoad()
     if Capybara.default_driver == :selenium_chrome
         sleep 2

@@ -14,7 +14,6 @@ end
 Given /^that the default resource pool exists$/ do
     visitPoolsPage()
     hasDefault = checkRows("default")
-    #puts "Check Default Resource Pool: " + hasDefault.to_s
     if (hasDefault == false)
         addDefaultPool()
     end
