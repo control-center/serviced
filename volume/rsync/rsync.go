@@ -287,7 +287,7 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 	var labels []string
 	for _, file := range files {
 		if file.IsDir() && v.isSnapshot(file.Name()) {
-			labels = append(labels, v.prettySnapshotLabel(file.Name()))
+			labels = append(labels, file.Name())
 		}
 	}
 	return labels, nil

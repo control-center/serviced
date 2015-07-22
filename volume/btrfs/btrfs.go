@@ -264,11 +264,7 @@ func (v *BtrfsVolume) Snapshots() ([]string, error) {
 		}
 	}
 	labels := volume.FileInfoSlice(files).Labels()
-	result := make([]string, len(labels))
-	for i := 0; i < len(labels); i++ {
-		result[i] = v.prettySnapshotLabel(labels[i])
-	}
-	return result, nil
+	return labels, nil
 }
 
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
@@ -409,12 +405,13 @@ func (v *BtrfsVolume) Import(label, infile string) error {
 
 // snapshotExists queries the snapshot existence for the given label
 func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
-	label = v.prettySnapshotLabel(label)
+	rlabel := v.rawSnapshotLabel(label)
+	plabel := v.prettySnapshotLabel(label)
 	if snapshots, err := v.Snapshots(); err != nil {
 		return false, fmt.Errorf("could not get current snapshot list: %v", err)
 	} else {
 		for _, snapLabel := range snapshots {
-			if label == snapLabel {
+			if rlabel == snapLabel || plabel == snapLabel {
 				return true, nil
 			}
 		}

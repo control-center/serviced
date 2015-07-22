@@ -186,7 +186,7 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	snaps, err := vol.Snapshots()
 	c.Assert(err, IsNil)
 	fmt.Println(snaps)
-	c.Assert(arrayContains(snaps, "Snap"), Equals, true)
+	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
 
 	// Write another file
 	writeExtra(c, driver, vol)
@@ -214,8 +214,8 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	// Make sure we still have all our snapshots
 	snaps, err = vol.Snapshots()
 	c.Assert(err, IsNil)
-	c.Assert(arrayContains(snaps, "Snap"), Equals, true)
-	c.Assert(arrayContains(snaps, "Snap2"), Equals, true)
+	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
+	c.Assert(arrayContains(snaps, "Base_Snap2"), Equals, true)
 
 	// Snapshot using an existing label and make sure it errors properly
 	err = vol.Snapshot("Snap")
