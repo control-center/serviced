@@ -469,7 +469,7 @@ func (st *snapshotTest) setupListSnapshots(c *C, snapshotIDs, descriptions []str
 	// Make separate test directories for each snapshot
 	for i, id := range snapshotIDs {
 		snapshotDir := st.makeSnapshotDir(c, id)
-		mockVol.On("SnapshotPath", id).Return(snapshotDir)
+		mockVol.On("SnapshotMetadataPath", id).Return(snapshotDir)
 
 		if descriptions != nil {
 			st.writeDescription(c, snapshotDir, descriptions[i])

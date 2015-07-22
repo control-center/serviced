@@ -526,7 +526,7 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 
 	// Load the services
 	var svcs []*service.Service
-	jsonfile := filepath.Join(volume.SnapshotPath(label), serviceJSON)
+	jsonfile := filepath.Join(volume.SnapshotMetadataPath(label), serviceJSON)
 	if err := importJSON(jsonfile, &svcs); err != nil {
 		glog.Errorf("Could not load services from %s: %s", label, err)
 		return err

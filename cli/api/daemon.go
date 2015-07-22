@@ -265,7 +265,7 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("serviced requires docker >= %s", minDockerVersion)
 	}
 
-	if _, ok := volume.Registered(options.FSType); !ok {
+	if !volume.Registered(options.FSType) {
 		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
 

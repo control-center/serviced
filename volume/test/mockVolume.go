@@ -34,12 +34,27 @@ func (mv *MockVolume) Path() string {
 	return mv.Mock.Called().String(0)
 }
 
+func (mv *MockVolume) Driver() volume.Driver {
+	args := mv.Mock.Called()
+	var driver volume.Driver
+	if arg0 := args.Get(0); arg0 != nil {
+		driver = arg0.(volume.Driver)
+	}
+	return driver
+}
+
 func (mv *MockVolume) SnapshotPath(label string) string {
 	return mv.Mock.Called(label).String(0)
 }
 
 func (mv *MockVolume) Snapshot(label string) error {
 	return mv.Mock.Called(label).Error(0)
+}
+
+func (m *MockVolume) SnapshotMetadataPath(label string) string {
+	ret := m.Called(label)
+	r0 := ret.Get(0).(string)
+	return r0
 }
 
 func (mv *MockVolume) Snapshots() ([]string, error) {
@@ -70,4 +85,8 @@ func (mv *MockVolume) Export(label, parent, filename string) error {
 
 func (mv *MockVolume) Import(label, filename string) error {
 	return mv.Mock.Called(label, filename).Error(0)
+}
+
+func (mv *MockVolume) Tenant() string {
+	return mv.Mock.Called().String(0)
 }

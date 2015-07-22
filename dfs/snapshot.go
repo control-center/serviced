@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -212,7 +213,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 
 	// restore services
 	var restore []*service.Service
-	if err := importJSON(filepath.Join(snapshotVolume.SnapshotPath(snapshotID), serviceJSON), &restore); err != nil {
+	if err := importJSON(filepath.Join(snapshotVolume.SnapshotMetadataPath(snapshotID), serviceJSON), &restore); err != nil {
 		glog.Errorf("Could not acquire services from %s: %s", snapshotID, err)
 		return err
 	}
@@ -254,7 +255,7 @@ func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]dao.Snapshot
 	for i, snapshotID := range snapshotIDs {
 		var description string
 		var metadata *SnapshotMetadata
-		if err := importJSON(filepath.Join(snapshotVolume.SnapshotPath(snapshotID), snapshotMeta), &metadata); err != nil {
+		if err := importJSON(filepath.Join(snapshotVolume.SnapshotMetadataPath(snapshotID), snapshotMeta), &metadata); err != nil {
 			description = ""
 		} else {
 			description = metadata.Description
@@ -314,8 +315,11 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 // DeleteSnapshots deletes all snapshots relating to a particular tenantID
 func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	// delete the snapshot subvolume
-	snapshotVolume, err := dfs.GetVolume(tenantID)
+	driver, err := volume.GetDriver(dfs.fsType, dfs.varpath)
 	if err != nil {
+		glog.Errorf("Couldn't load the %s storage driver for %s", dfs.fsType, dfs.varpath)
+	}
+	if !driver.Exists(tenantID) {
 		glog.Errorf("Could not find the volume for service %s: %s", tenantID, err)
 		return err
 	}
@@ -325,8 +329,8 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 			glog.Warningf("Could not stop network driver: %s", err)
 		}
 		defer dfs.networkDriver.Restart()
-		if err := snapshotVolume.Unmount(); err != nil {
-			glog.Errorf("Could not unmount volume for service %s: %s", tenantID, err)
+		if err := driver.Remove(tenantID); err != nil {
+			glog.Errorf("Could not remove volume for service %s: %s", tenantID, err)
 			return err
 		}
 		return nil

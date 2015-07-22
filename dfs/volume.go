@@ -22,7 +22,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-
 func (dfs *DistributedFilesystem) GetVolume(serviceID string) (volume.Volume, error) {
 	return dfs.getServiceVolume(dfs.fsType, dfs.varpath, serviceID)
 }
