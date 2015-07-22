@@ -1,7 +1,9 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
+    waitForPageLoad()
     if @pools_page.pool_entries.size < 2
         removeAllPools()
+        waitForPageLoad()
         addDefaultPool()
         addPool("table://pools/pool2/name", "table://pools/pool2/description")
         expect(checkRows("table://pools/defaultPool/name")).to be true
@@ -11,7 +13,9 @@ end
 
 Given /^that the default resource pool exists$/ do
     visitPoolsPage()
-    if (checkRows("default") == false)
+    hasDefault = checkRows("default")
+    #puts "Check Default Resource Pool: " + hasDefault.to_s
+    if (hasDefault == false)
         addDefaultPool()
     end
 end

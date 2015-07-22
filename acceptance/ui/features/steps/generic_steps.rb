@@ -110,6 +110,7 @@ def assertSortedColumn(category, order)
 end
 
 def checkRows(row)
+    waitForPageLoad()
     found = false
     name = getTableValue(row)
     entries = page.all("tr[ng-repeat$='in $data']")
@@ -148,6 +149,7 @@ def sortColumn(category, sortOrder)
 end
 
 def removeAllEntries(category)
+    waitForPageLoad()
     entries = page.all("[ng-repeat='#{category} in $data']")
     for i in 0..(entries.size - 1)
         if (entries[i].text.include?("Delete"))
@@ -156,6 +158,12 @@ def removeAllEntries(category)
             end
             click_link_or_button("Remove")
         end
+    end
+end
+
+def waitForPageLoad()
+    if Capybara.default_driver == :selenium_chrome
+        sleep 2
     end
 end
 

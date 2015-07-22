@@ -139,6 +139,8 @@ Feature: Host Management
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
+    When I close the dialog
+    Then I should see "Showing 1 Result"
 
   Scenario: Remove a host
     Given only the default host is defined

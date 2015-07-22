@@ -1,5 +1,6 @@
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
+    waitForPageLoad()
     if @hosts_page.host_entries.size < 2
         removeAllEntries("host")
         addDefaultHost()
