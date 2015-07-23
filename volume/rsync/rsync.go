@@ -362,10 +362,6 @@ func (v *RsyncVolume) Import(rawlabel, indir string) (err error) {
 		return fmt.Errorf("snapshot %s exists", rawlabel)
 	}
 
-	fmt.Println("indir: ", indir)
-	fmt.Println("backup: ", filepath.Join(indir, rawlabel))
-	fmt.Println("restoreto: ", v.Driver().Root())
-
 	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, rawlabel), v.Driver().Root())
 	glog.V(4).Infof("About ro execute %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
