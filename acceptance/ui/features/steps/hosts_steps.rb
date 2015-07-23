@@ -4,14 +4,10 @@ Given(/^that multiple hosts have been added$/) do
     if @hosts_page.host_entries.size < 5
         removeAllEntries("host")
         addDefaultHost()
-        addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
-            "table://hosts/host2/commitment")
-        addHost("table://hosts/host3/nameAndPort", "table://hosts/host3/pool", \
-            "table://hosts/host3/commitment")
-        addHost("table://hosts/host4/nameAndPort", "table://hosts/host4/pool", \
-            "table://hosts/host4/commitment")
-        addHost("table://hosts/host5/nameAndPort", "table://hosts/host5/pool", \
-            "table://hosts/host5/commitment")
+        step 'I add the "host2" host'
+        step 'I add the "host3" host'
+        step 'I add the "host4" host'
+        step 'I add the "host5" host'
         expect(checkRows("table://hosts/host3/name")).to be true
         expect(checkRows("table://hosts/host5/name")).to be true
     end
@@ -46,6 +42,18 @@ end
 
 When /^I click the Add-Host button$/ do
     clickAddHostButton()
+end
+
+When /^I click the Hosts Map button$/ do
+    @hosts_page.hostsMap_button.click()
+end
+
+When (/^I add the "(.*?)" host$/) do |host|
+    nameAndPort = "table://hosts/" + host + "/nameAndPort"
+    pool = "table://hosts/" + host + "/pool"
+    commitment = "table://hosts/" + host + "/commitment"
+
+    addHost(nameAndPort, pool, commitment)
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|

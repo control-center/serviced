@@ -136,7 +136,7 @@ end
 
 def checkColumn(text, column)
     # attribute that includes name of column of all table cells
-    list = page.all("td[data-title-text='%{column}']")
+    list = page.all("td[data-title-text='#{column}']")
     cell = getTableValue(text)
     hasEntry = false
     for i in 0..(list.size - 1)
