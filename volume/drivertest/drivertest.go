@@ -80,6 +80,16 @@ func arrayContains(array []string, element string) bool {
 	return false
 }
 
+// filter out the lost+found directory created on ext4 filesystems
+func filterLostAndFound(fis []os.FileInfo) (filtered []os.FileInfo) {
+	for _, fi := range fis {
+		if !fi.IsDir() || fi.Name() != "lost+found" {
+			filtered = append(filtered, fi)
+		}
+	}
+	return
+}
+
 // DriverTestCreateEmpty verifies that a driver can create a volume, and that
 // is is empty (and owned by the current user) after creation.
 func DriverTestCreateEmpty(c *C, drivername, root string) {
@@ -97,6 +107,7 @@ func DriverTestCreateEmpty(c *C, drivername, root string) {
 	verifyFile(c, vol.Path(), 0755|os.ModeDir, uint32(os.Getuid()), uint32(os.Getgid()))
 	fis, err := ioutil.ReadDir(vol.Path())
 	c.Assert(err, IsNil)
+	fis = filterLostAndFound(fis)
 	c.Assert(fis, HasLen, 0)
 
 	driver.Release(volumeName)
@@ -148,6 +159,7 @@ func verifyBase(c *C, driver *Driver, vol volume.Volume) {
 	checkBase(c, driver, vol)
 	fis, err := ioutil.ReadDir(vol.Path())
 	c.Assert(err, IsNil)
+	fis = filterLostAndFound(fis)
 	c.Assert(fis, HasLen, 2)
 }
 
