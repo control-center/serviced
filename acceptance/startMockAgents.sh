@@ -5,6 +5,8 @@ set -e
 echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host defaultHost` &
 echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host2` &
 echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host3` &
+echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host4` &
+echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host5` &
 
 WAIT=0
 while [ $WAIT -lt 5 ]; do

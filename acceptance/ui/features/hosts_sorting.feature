@@ -6,7 +6,7 @@ Feature: Host Sorting
 
   Background:
     Given that the admin user is logged in
-      And that the default resource pool exists
+      And that multiple resource pools have been added
       And that multiple hosts have been added
 
   Scenario: Test ascending name sort
@@ -76,7 +76,7 @@ Feature: Host Sorting
       And I sort by "CC Release" in ascending order
     Then the "CC Release" column should be sorted in ascending order
 
-  @clean_hosts
+  @clean_hosts @clean_pools
   Scenario: Test descending CC release sort
     When I am on the hosts page
       And I sort by "CC Release" in descending order

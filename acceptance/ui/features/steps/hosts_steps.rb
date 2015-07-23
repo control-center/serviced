@@ -1,16 +1,19 @@
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
     waitForPageLoad()
-    if @hosts_page.host_entries.size < 2
+    if @hosts_page.host_entries.size < 5
         removeAllEntries("host")
         addDefaultHost()
         addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
             "table://hosts/host2/commitment")
         addHost("table://hosts/host3/nameAndPort", "table://hosts/host3/pool", \
             "table://hosts/host3/commitment")
-        expect(checkRows("table://hosts/defaultHost/name")).to be true
-        expect(checkRows("table://hosts/host2/name")).to be true
+        addHost("table://hosts/host4/nameAndPort", "table://hosts/host4/pool", \
+            "table://hosts/host4/commitment")
+        addHost("table://hosts/host5/nameAndPort", "table://hosts/host5/pool", \
+            "table://hosts/host5/commitment")
         expect(checkRows("table://hosts/host3/name")).to be true
+        expect(checkRows("table://hosts/host5/name")).to be true
     end
 end
 

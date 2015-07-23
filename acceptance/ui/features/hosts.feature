@@ -129,6 +129,29 @@ Feature: Host Management
       And I should see "Showing 2 Results"
 
   @clean_hosts
+  Scenario: Add a valid host in a non-default Resource Pool
+    Given only the default host is defined
+      And that the "table://hosts/host3/pool" pool exists
+    When I am on the hosts page
+      And I click the Add-Host button
+      And I fill in the Host Name field with "table://hosts/host3/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/host3/pool"
+      And I fill in the RAM Commitment field with "table://hosts/host3/commitment"
+      And I click "Add Host"
+    Then I should see "Success"
+      And I should see an entry for "table://hosts/host3/name" in the table
+      And I should see "table://hosts/defaultHost/name" in the "Name" column
+      And I should see "table://hosts/defaultHost/pool" in the "Resource Pool" column
+      And I should see "table://hosts/host3/name" in the "Name" column
+      And I should see "table://hosts/host3/pool" in the "Resource Pool" column
+      And I should see "table://hosts/host3/memoryGB" in the "Memory" column
+      And I should see "table://hosts/host3/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/host3/cores" in the "CPU Cores" column
+      And I should see "table://hosts/host3/kernelVersion" in the "Kernel Version" column
+      And I should see "table://hosts/host3/ccRelease" in the "CC Release" column
+      And I should see "Showing 2 Results"
+
+  @clean_hosts
   Scenario: Add a duplicate host
     Given only the default host is defined
     When I am on the hosts page
