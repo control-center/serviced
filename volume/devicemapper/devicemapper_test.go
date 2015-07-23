@@ -87,11 +87,11 @@ func (s *DeviceMapperSuite) TestDeviceMapperCreateBase(c *C) {
 	drivertest.DriverTestCreateBase(c, "devicemapper", "")
 }
 
-/*
 func (s *DeviceMapperSuite) TestDeviceMapperSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "devicemapper", "")
 }
 
+/*
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "")
 }

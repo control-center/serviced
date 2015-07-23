@@ -171,6 +171,7 @@ func verifyBaseWithExtra(c *C, driver *Driver, vol volume.Volume) {
 
 	fis, err := ioutil.ReadDir(vol.Path())
 	c.Assert(err, IsNil)
+	fis = filterLostAndFound(fis)
 	c.Assert(fis, HasLen, 3)
 }
 

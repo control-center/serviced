@@ -87,6 +87,21 @@ func (m *SnapshotMetadata) AddSnapshot(snapshot, device string) error {
 	return m.save()
 }
 
+// Remove snapshot info from the metadata. If the snapshot doesn't exist, it's a no-op.
+func (m *SnapshotMetadata) RemoveSnapshot(snapshot string) error {
+	m.Lock()
+	defer m.Unlock()
+	delete(m.snapshotMetadata.Snapshots, snapshot)
+	return m.save()
+}
+
+func (m *SnapshotMetadata) ListSnapshots() (snaps []string) {
+	for snap, _ := range m.snapshotMetadata.Snapshots {
+		snaps = append(snaps, snap)
+	}
+	return snaps
+}
+
 func (m *SnapshotMetadata) LookupSnapshotDevice(snapshot string) (string, error) {
 	m.Lock()
 	defer m.Unlock()
@@ -95,4 +110,9 @@ func (m *SnapshotMetadata) LookupSnapshotDevice(snapshot string) (string, error)
 		return "", fmt.Errorf("no such snapshot: %s", snapshot)
 	}
 	return device, nil
+}
+
+func (m *SnapshotMetadata) SnapshotExists(snapshot string) bool {
+	_, ok := m.snapshotMetadata.Snapshots[snapshot]
+	return ok
 }

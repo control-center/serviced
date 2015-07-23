@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
@@ -33,6 +34,7 @@ type DeviceMapperVolume struct {
 	tenant   string
 	driver   *DeviceMapperDriver
 	Metadata *SnapshotMetadata
+	sync.Mutex
 }
 
 func Init(root string) (volume.Driver, error) {
@@ -223,7 +225,12 @@ func (v *DeviceMapperVolume) SnapshotMetadataPath(label string) string {
 
 // Snapshot implements volume.Volume.Snapshot
 func (v *DeviceMapperVolume) Snapshot(label string) error {
-	// TODO: Implement
+	if v.snapshotExists(label) {
+		return volume.ErrSnapshotExists
+	}
+	label = v.rawSnapshotLabel(label)
+	v.Lock()
+	defer v.Unlock()
 	oldHead := v.volumeDevice()
 	newHead, err := utils.NewUUID62()
 	if err != nil {
@@ -232,25 +239,78 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 	if err := v.driver.DeviceSet.AddDevice(newHead, oldHead); err != nil {
 		return err
 	}
-	return nil
+	// Save the old HEAD as the snapshot
+	if err := v.Metadata.AddSnapshot(label, oldHead); err != nil {
+		return err
+	}
+	// Unmount the current device and mount the new one
+	if err := v.driver.DeviceSet.UnmountDevice(oldHead); err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
+		return err
+	}
+	// Save the new HEAD as the current device
+	return v.Metadata.SetCurrentDevice(newHead)
 }
 
 // Snapshots implements volume.Volume.Snapshots
 func (v *DeviceMapperVolume) Snapshots() ([]string, error) {
-	// TODO: Implement
-	return nil, nil
+	return v.Metadata.ListSnapshots(), nil
 }
 
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
-	// TODO: Implement
+	if !v.snapshotExists(label) {
+		return fmt.Errorf("snapshot %s does not exist", label)
+	}
+	rawLabel := v.rawSnapshotLabel(label)
+	v.Lock()
+	defer v.Unlock()
+	device, err := v.Metadata.LookupSnapshotDevice(rawLabel)
+	if err != nil {
+		return err
+	}
+	// Remove the snapshot info from the metadata
+	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
+		return err
+	}
+	// Delete the device itself
+	if err := v.driver.DeviceSet.DeleteDevice(device); err != nil {
+		return err
+	}
 	return nil
 }
 
 // Rollback implements volume.Volume.Rollback
 func (v *DeviceMapperVolume) Rollback(label string) error {
-	// TODO: Implement
-	return nil
+	if !v.snapshotExists(label) {
+		return fmt.Errorf("snapshot %s does not exist", label)
+	}
+	label = v.rawSnapshotLabel(label)
+	v.Lock()
+	defer v.Unlock()
+	current := v.Metadata.CurrentDevice()
+	device, err := v.Metadata.LookupSnapshotDevice(label)
+	if err != nil {
+		return err
+	}
+	// Make a new device based on the snapshot
+	newHead, err := utils.NewUUID62()
+	if err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.AddDevice(newHead, device); err != nil {
+		return err
+	}
+	// Now unmount the current device and mount the new one
+	if err := v.driver.DeviceSet.UnmountDevice(current); err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
+		return err
+	}
+	return v.Metadata.SetCurrentDevice(newHead)
 }
 
 // Export implements volume.Volume.Export
@@ -267,4 +327,22 @@ func (v *DeviceMapperVolume) Import(label, infile string) error {
 
 func (v *DeviceMapperVolume) volumeDevice() string {
 	return v.Metadata.CurrentDevice()
+}
+
+func (v *DeviceMapperVolume) getSnapshotPrefix() string {
+	return v.Tenant() + "_"
+}
+
+// rawSnapshotLabel ensures that <label> has the tenant prefix for this volume
+func (v *DeviceMapperVolume) rawSnapshotLabel(label string) string {
+	prefix := v.getSnapshotPrefix()
+	if !strings.HasPrefix(label, prefix) {
+		return prefix + label
+	}
+	return label
+}
+
+func (v *DeviceMapperVolume) snapshotExists(label string) bool {
+	label = v.rawSnapshotLabel(label)
+	return v.Metadata.SnapshotExists(label)
 }
