@@ -207,7 +207,7 @@ Feature: Host Management
       And the details for "IP Address" should be "table://hosts/defaultHost/outboundIP"
       And the details for "RAM Commitment" should be "table://hosts/defaultHost/ramGB"
 
-  @clean_hosts @run
+  @clean_hosts
   Scenario: View Host Map
     Given only the default host is defined
     When I am on the hosts page
@@ -216,4 +216,7 @@ Feature: Host Management
     Then I should see "By RAM"
       And I should see "By CPU"
       And I should see "table://hosts/defaultHost/name"
+      And I should see "table://hosts/host2/name"
+    When I click "By CPU"
+    Then I should see "table://hosts/defaultHost/name"
       And I should see "table://hosts/host2/name"
