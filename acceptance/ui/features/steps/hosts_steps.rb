@@ -4,10 +4,10 @@ Given(/^that multiple hosts have been added$/) do
     if @hosts_page.host_entries.size < 5
         removeAllEntries("host")
         addDefaultHost()
-        step 'I add the "host2" host'
-        step 'I add the "host3" host'
-        step 'I add the "host4" host'
-        step 'I add the "host5" host'
+        addHostJson("host2")
+        addHostJson("host3")
+        addHostJson("host4")
+        addHostJson("host5")
         expect(checkRows("table://hosts/host3/name")).to be true
         expect(checkRows("table://hosts/host5/name")).to be true
     end
@@ -49,11 +49,7 @@ When /^I click the Hosts Map button$/ do
 end
 
 When (/^I add the "(.*?)" host$/) do |host|
-    nameAndPort = "table://hosts/" + host + "/nameAndPort"
-    pool = "table://hosts/" + host + "/pool"
-    commitment = "table://hosts/" + host + "/commitment"
-
-    addHost(nameAndPort, pool, commitment)
+    addHostJson(host)
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|
@@ -131,7 +127,13 @@ def addHost(name, pool, commitment)
 end
 
 def addDefaultHost()
-    addHost("table://hosts/defaultHost/nameAndPort", \
-        "table://hosts/defaultHost/pool", \
-        "table://hosts/defaultHost/commitment")
+    addHostJson("defaultHost")
+end
+
+def addHostJson(host)
+    nameAndPort = "table://hosts/" + host + "/nameAndPort"
+    pool = "table://hosts/" + host + "/pool"
+    commitment = "table://hosts/" + host + "/commitment"
+
+    addHost(nameAndPort, pool, commitment)
 end
