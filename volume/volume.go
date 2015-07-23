@@ -23,9 +23,10 @@ import (
 type DriverInit func(root string) (Driver, error)
 
 var (
-	drivers               map[string]DriverInit
-	ErrDriverNotSupported = errors.New("driver not supported")
-	ErrSnapshotExists     = errors.New("snapshot exists")
+	drivers                 map[string]DriverInit
+	ErrDriverNotSupported   = errors.New("driver not supported")
+	ErrSnapshotExists       = errors.New("snapshot exists")
+	ErrSnapshotDoesNotExist = errors.New("snapshot does not exist")
 )
 
 func init() {

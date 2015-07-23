@@ -22,7 +22,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	"github.com/control-center/serviced/volume/drivertest"
-	// Register the btrfs driver
+	// Register the devicemapper driver
 	_ "github.com/control-center/serviced/volume/devicemapper"
 )
 
@@ -91,8 +91,6 @@ func (s *DeviceMapperSuite) TestDeviceMapperSnapshots(c *C) {
 	drivertest.DriverTestSnapshots(c, "devicemapper", "")
 }
 
-/*
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
 	drivertest.DriverTestExportImport(c, "devicemapper", "", "")
 }
-*/

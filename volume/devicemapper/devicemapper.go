@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -195,6 +196,9 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		}
 		d.DeviceSet = deviceSet
 	}
+	if err := os.MkdirAll(d.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
 	return nil
 }
 
@@ -220,7 +224,7 @@ func (v *DeviceMapperVolume) Tenant() string {
 
 // SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *DeviceMapperVolume) SnapshotMetadataPath(label string) string {
-	return filepath.Join(v.driver.MetadataDir(), v.Tenant())
+	return filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label))
 }
 
 // Snapshot implements volume.Volume.Snapshot
@@ -231,12 +235,17 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 	label = v.rawSnapshotLabel(label)
 	v.Lock()
 	defer v.Unlock()
+	// Create a new device based on the current one
 	oldHead := v.volumeDevice()
 	newHead, err := utils.NewUUID62()
 	if err != nil {
 		return err
 	}
 	if err := v.driver.DeviceSet.AddDevice(newHead, oldHead); err != nil {
+		return err
+	}
+	// Create the metadata path
+	if err := os.MkdirAll(v.SnapshotMetadataPath(label), 0755); err != nil {
 		return err
 	}
 	// Save the old HEAD as the snapshot
@@ -314,15 +323,70 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 }
 
 // Export implements volume.Volume.Export
-func (v *DeviceMapperVolume) Export(label, parent, outfile string) error {
-	// TODO: Implement
+func (v *DeviceMapperVolume) Export(label, parent, outdir string) error {
+	if !v.snapshotExists(label) {
+		return volume.ErrSnapshotDoesNotExist
+	}
+	label = v.rawSnapshotLabel(label)
+	mountpoint, err := ioutil.TempDir("", "serviced-export-volume-")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(mountpoint, 0755); err != nil {
+		return err
+	}
+	//defer os.RemoveAll(mountpoint)
+	device, err := v.Metadata.LookupSnapshotDevice(label)
+	if err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label+"_export"); err != nil {
+		return err
+	}
+	defer v.driver.DeviceSet.UnmountDevice(device)
+	rsync := exec.Command("rsync", "-azh", mountpoint+"/", outdir+"/")
+	rsync.Stdout = os.Stdout
+	rsync.Stderr = os.Stderr
+	if err := rsync.Run(); err != nil {
+		glog.V(2).Infof("Could not perform rsync")
+		return err
+	}
 	return nil
 }
 
 // Import implements volume.Volume.Import
-func (v *DeviceMapperVolume) Import(label, infile string) error {
-	// TODO: Implement
-	return nil
+func (v *DeviceMapperVolume) Import(label, indir string) error {
+	if v.snapshotExists(label) {
+		return volume.ErrSnapshotExists
+	}
+	label = v.rawSnapshotLabel(label)
+	mountpoint, err := ioutil.TempDir("", "serviced-import-volume-")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(mountpoint, 0755); err != nil {
+		return err
+	}
+	defer os.RemoveAll(mountpoint)
+	device, err := utils.NewUUID62()
+	if err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.AddDevice(device, ""); err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label+"_import"); err != nil {
+		return err
+	}
+	defer v.driver.DeviceSet.UnmountDevice(device)
+	rsync := exec.Command("rsync", "-azh", indir+"/", mountpoint+"/")
+	rsync.Stdout = os.Stdout
+	rsync.Stderr = os.Stderr
+	if err := rsync.Run(); err != nil {
+		glog.V(2).Infof("Could not perform rsync")
+		return err
+	}
+	return v.Metadata.AddSnapshot(label, device)
 }
 
 func (v *DeviceMapperVolume) volumeDevice() string {
