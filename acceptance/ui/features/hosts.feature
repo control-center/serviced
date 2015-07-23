@@ -180,4 +180,33 @@ Feature: Host Management
     Then I should see "By RAM"
       And I should see "By CPU"
       And I should not see "Active"
-      
+  
+  @clean_hosts
+  Scenario: View Host Details
+    Given only the default host is defined
+    When I am on the hosts page
+      And I view the details of "table://hosts/defaultHost/name"
+    Then I should see "Graphs"
+      And I should see "CPU Usage"
+      And I should see "Load Average"
+      And I should see "Memory Usage"
+      And I should see "Open File Descriptors"
+      And I should see "Memory Major Page Faults"
+      And I should see "Paging"
+      And I should see "IPs"
+      And I should see "Services Instances"
+
+  @clean_hosts
+  Scenario: View default host details
+    Given only the default host is defined
+    When I am on the hosts page
+      And I view the details of "table://hosts/defaultHost/name"
+    Then the details for "Name" should be "table://hosts/defaultHost/hostID"
+      And the details for "Resource Pool" should be "table://hosts/defaultHost/pool"
+      And the details for "Memory" should be "table://hosts/defaultHost/memoryGB"
+      And the details for "CPU Cores" should be "table://hosts/defaultHost/cores"
+      And the details for "Kernel Version" should be "table://hosts/defaultHost/kernelVersion"
+      And the details for "Kernel Release" should be "table://hosts/defaultHost/kernelRelease"
+      And the details for "CC Release" should be "table://hosts/defaultHost/ccRelease"
+      And the details for "IP Address" should be "table://hosts/defaultHost/outboundIP"
+      And the details for "RAM Commitment" should be "table://hosts/defaultHost/ramGB"
