@@ -6,7 +6,7 @@ class User < SitePrism::Page
 
     element :clearMessages_button, "[ng-click='clearMessages()']"
     element :unreadMessage, "[class='message unreadMessage ng-scope']"
-    element :english_button, "input[value='en_US']"
-    element :spanish_button, "input[value='es_US']"
+    element :english_button, "label[class^='btn']", :text => 'English'
+    element :spanish_button, "label[class^='btn']", :text => 'Esp'
     element :message, "[class^='message ']"
 end
