@@ -4,11 +4,10 @@ Given /^that multiple resource pools have been added$/ do
     if @pools_page.pool_entries.size < 4
         removeAllPools()
         waitForPageLoad()
-        #expect(checkRows("default")).to be false
         addDefaultPool()
-        addPool("table://pools/pool2/name", "table://pools/pool2/description")
-        addPool("table://pools/pool3/name", "table://pools/pool3/description")
-        addPool("table://pools/pool4/name", "table://pools/pool4/description")
+        addPoolJson("pool2")
+        addPoolJson("pool3")
+        addPoolJson("pool4")
         expect(checkRows("table://pools/pool2/name")).to be true
         expect(checkRows("table://pools/pool4/name")).to be true
     end
@@ -18,6 +17,14 @@ Given /^that the default resource pool exists$/ do
     visitPoolsPage()
     hasDefault = checkRows("default")
     if (hasDefault == false)
+        addDefaultPool()
+    end
+end
+
+Given /^that only the default resource pool exists$/ do
+    visitPoolsPage()
+    if (!page.has_content?("Showing 1 Result") || !checkRows("default"))
+        removeAllPools()
         addDefaultPool()
     end
 end
@@ -43,6 +50,10 @@ end
 
 When(/^I fill in the Description field with "(.*?)"$/) do |description|
     fillInDescriptionField(description)
+end
+
+When(/^I add the "(.*?)" pool$/) do |pool|
+    addPoolJson(pool)
 end
 
 Then /^I should see the add Resource Pool button$/ do
@@ -80,10 +91,15 @@ def addPool(name, description)
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
+    waitForPageLoad()
 end
 
 def addDefaultPool()
-    addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
+    addPoolJson("defaultPool")
+end
+
+def addPoolJson(pool)
+    addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
 end
 
 def removeAllPools()
