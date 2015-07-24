@@ -52,6 +52,11 @@ func (d *DeviceMapperDriver) Root() string {
 	return d.root
 }
 
+// GetFSType implements volume.Driver.GetFSType
+func (d *DeviceMapperDriver) GetFSType() string {
+	return DriverName
+}
+
 func getTenant(from string) string {
 	parts := strings.Split(from, "_")
 	return parts[0]
