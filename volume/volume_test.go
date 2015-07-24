@@ -44,6 +44,7 @@ func (s *DriverSuite) SetUpTest(c *C) {
 }
 
 func (s *DriverSuite) TearDownTest(c *C) {
+	s.drv.On("GetFSType").Return(drvName)
 	Unregister(drvName)
 }
 

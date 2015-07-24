@@ -77,6 +77,11 @@ func (d *BtrfsDriver) Root() string {
 	return d.root
 }
 
+// GetFSType implements volume.Driver.GetFSType
+func (d *BtrfsDriver) GetFSType() string {
+	return DriverName
+}
+
 // Exists implements volume.Driver.Exists
 func (d *BtrfsDriver) Exists(volumeName string) bool {
 	for _, vol := range d.List() {

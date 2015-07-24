@@ -66,6 +66,11 @@ func (d *RsyncDriver) Root() string {
 	return d.root
 }
 
+// GetFSType implements volume.Driver.GetFSType
+func (d *RsyncDriver) GetFSType() string {
+	return DriverName
+}
+
 // Create implements volume.Driver.Create
 func (d *RsyncDriver) Create(volumeName string) (volume.Volume, error) {
 	d.Lock()

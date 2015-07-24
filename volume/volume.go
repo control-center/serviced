@@ -42,6 +42,8 @@ func init() {
 type Driver interface {
 	// Root returns the filesystem root this driver acts on
 	Root() string
+	// GetFSType returns the string describing the driver
+	GetFSType() string
 	// Create creates a volume with the given name and returns it. The volume
 	// must not exist already.
 	Create(volumeName string) (Volume, error)
@@ -111,18 +113,26 @@ func Registered(name string) bool {
 	return ok
 }
 
-// Unregister the driver <name>. If it doesn't exist, it's a no-op.
+// Unregister the driver init func <name>. If it doesn't exist, it's a no-op.
 func Unregister(name string) {
 	delete(drivers, name)
+	// Also delete any existing drivers using this name
+	for root, drv := range driversByRoot {
+		if drv.GetFSType() == name {
+			delete(driversByRoot, root)
+		}
+	}
 }
 
 // GetDriver returns a driver of type <name> initialized to <root>.
 func GetDriver(name, root string) (Driver, error) {
-	// Return the same driver instance every time for a root path
-	if driver, ok := driversByRoot[root]; ok {
-		return driver, nil
-	}
+	// First make sure it's a driver that exists
 	if init, exists := drivers[name]; exists {
+		// Return the same driver instance every time for a root path
+		if driver, ok := driversByRoot[root]; ok {
+			return driver, nil
+		}
+		// No instance yet, so create one
 		driver, err := init(root)
 		if err != nil {
 			return nil, err

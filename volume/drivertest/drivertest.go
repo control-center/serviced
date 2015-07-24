@@ -96,6 +96,8 @@ func DriverTestCreateEmpty(c *C, drivername, root string) {
 	driver := newDriver(c, drivername, root)
 	defer cleanup(c, driver)
 
+	c.Assert(driver.GetFSType(), Equals, drivername)
+
 	volumeName := "empty"
 
 	_, err := driver.Create(volumeName)

@@ -27,6 +27,13 @@ func (m *Driver) Root() string {
 
 	return r0
 }
+func (m *Driver) GetFSType() string {
+	ret := m.Called()
+
+	r0 := ret.Get(0).(string)
+
+	return r0
+}
 func (m *Driver) Create(volumeName string) (volume.Volume, error) {
 	ret := m.Called(volumeName)
 
