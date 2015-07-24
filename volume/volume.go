@@ -23,7 +23,9 @@ import (
 type DriverInit func(root string) (Driver, error)
 
 var (
-	drivers                 map[string]DriverInit
+	drivers       map[string]DriverInit
+	driversByRoot map[string]Driver
+
 	ErrDriverNotSupported   = errors.New("driver not supported")
 	ErrSnapshotExists       = errors.New("snapshot exists")
 	ErrSnapshotDoesNotExist = errors.New("snapshot does not exist")
@@ -31,6 +33,7 @@ var (
 
 func init() {
 	drivers = make(map[string]DriverInit)
+	driversByRoot = make(map[string]Driver)
 }
 
 // Driver is the basic interface to the filesystem. It is able to create,
@@ -115,8 +118,17 @@ func Unregister(name string) {
 
 // GetDriver returns a driver of type <name> initialized to <root>.
 func GetDriver(name, root string) (Driver, error) {
+	// Return the same driver instance every time for a root path
+	if driver, ok := driversByRoot[root]; ok {
+		return driver, nil
+	}
 	if init, exists := drivers[name]; exists {
-		return init(root)
+		driver, err := init(root)
+		if err != nil {
+			return nil, err
+		}
+		driversByRoot[root] = driver
+		return driver, nil
 	}
 	return nil, ErrDriverNotSupported
 }

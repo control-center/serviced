@@ -38,6 +38,7 @@ type DeviceMapperVolume struct {
 	sync.Mutex
 }
 
+// Init initializes the devicemapper driver
 func Init(root string) (volume.Driver, error) {
 	driver := &DeviceMapperDriver{
 		root: root,
@@ -69,15 +70,18 @@ func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	if err := d.DeviceSet.AddDevice(volumeDevice, ""); err != nil {
 		return nil, err
 	}
+	glog.V(1).Infof("Allocated new device %s", volumeDevice)
 	// Create the mount target directory if it doesn't exist
 	mountpoint := d.volumeDir(volumeName)
 	if err := os.MkdirAll(mountpoint, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
+	glog.V(1).Infof("Ensured existence of mount point %s", mountpoint)
 	md := d.MetadataDir()
 	if err := os.MkdirAll(md, 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
+	glog.V(1).Infof("Ensured existence of metadata dir %s", md)
 	vol, err := d.newVolume(volumeName)
 	if err != nil {
 		return nil, err
@@ -85,10 +89,11 @@ func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	if err := vol.Metadata.SetCurrentDevice(volumeDevice); err != nil {
 		return nil, err
 	}
-	glog.Infof("Mounting device to %s", mountpoint)
+	glog.V(1).Infof("Set current device to %s", volumeDevice)
 	if err := d.DeviceSet.MountDevice(volumeDevice, mountpoint, volumeName); err != nil {
 		return nil, err
 	}
+	glog.V(1).Infof("Mounted device %s to %s", volumeDevice, mountpoint)
 	return vol, nil
 }
 
@@ -242,25 +247,35 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		return err
 	}
 	if err := v.driver.DeviceSet.AddDevice(newHead, oldHead); err != nil {
+		glog.Errorf("Unable to add devicemapper device: %s", err)
 		return err
 	}
 	// Create the metadata path
-	if err := os.MkdirAll(v.SnapshotMetadataPath(label), 0755); err != nil {
-		return err
-	}
-	// Save the old HEAD as the snapshot
-	if err := v.Metadata.AddSnapshot(label, oldHead); err != nil {
+	mdpath := v.SnapshotMetadataPath(label)
+	if err := os.MkdirAll(mdpath, 0755); err != nil {
+		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
 		return err
 	}
 	// Unmount the current device and mount the new one
 	if err := v.driver.DeviceSet.UnmountDevice(oldHead); err != nil {
+		glog.Errorf("Unable to unmount device %s", oldHead)
 		return err
 	}
 	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
+		glog.Errorf("Unable to mount device %s at %s", newHead, v.path)
+		return err
+	}
+	// Save the old HEAD as the snapshot
+	if err := v.Metadata.AddSnapshot(label, oldHead); err != nil {
+		glog.Errorf("Unable to save snapshot metadata: %s", err)
 		return err
 	}
 	// Save the new HEAD as the current device
-	return v.Metadata.SetCurrentDevice(newHead)
+	if err := v.Metadata.SetCurrentDevice(newHead); err != nil {
+		glog.Errorf("Unable to save device metadata: %s", err)
+		return err
+	}
+	return nil
 }
 
 // Snapshots implements volume.Volume.Snapshots
@@ -299,7 +314,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 	label = v.rawSnapshotLabel(label)
 	v.Lock()
 	defer v.Unlock()
-	current := v.Metadata.CurrentDevice()
+	current := v.volumeDevice()
 	device, err := v.Metadata.LookupSnapshotDevice(label)
 	if err != nil {
 		return err
