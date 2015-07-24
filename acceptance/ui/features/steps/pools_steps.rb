@@ -1,13 +1,16 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
     waitForPageLoad()
-    if @pools_page.pool_entries.size < 2
+    if @pools_page.pool_entries.size < 4
         removeAllPools()
         waitForPageLoad()
+        #expect(checkRows("default")).to be false
         addDefaultPool()
         addPool("table://pools/pool2/name", "table://pools/pool2/description")
-        expect(checkRows("table://pools/defaultPool/name")).to be true
+        addPool("table://pools/pool3/name", "table://pools/pool3/description")
+        addPool("table://pools/pool4/name", "table://pools/pool4/description")
         expect(checkRows("table://pools/pool2/name")).to be true
+        expect(checkRows("table://pools/pool4/name")).to be true
     end
 end
 
@@ -16,6 +19,13 @@ Given /^that the default resource pool exists$/ do
     hasDefault = checkRows("default")
     if (hasDefault == false)
         addDefaultPool()
+    end
+end
+
+Given /^that the "(.*?)" pool exists$/ do |pool|
+    visitPoolsPage()
+    if (checkRows(pool) == false)
+        addPool(pool, "added for tests")
     end
 end
 

@@ -40,6 +40,16 @@ When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
     sortColumn(category, order)
 end
 
+When (/^I wait for the page to load$/) do
+    waitForPageLoad()
+end
+
+When (/^I view the details of "(.*?)"$/) do |name|
+    name = getTableValue(name)
+    find("td[ng-click]", :text => /\A#{name}\z/).click()
+    waitForPageLoad()
+end
+
 Then /^I should see "(.*?)"$/ do |text|
     expect(page).to have_content getTableValue(text)
 end
@@ -74,6 +84,10 @@ end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
     expect(checkRows(row)).to be false
+end
+
+Then (/^the details for "(.*?)" should be "(.*?)"$/) do |header, text|
+    expect(checkDetails(text, header)).to be true
 end
 
 
@@ -129,6 +143,15 @@ def checkColumn(text, column)
         hasEntry = true if list[i].text == cell.to_s
     end
     return hasEntry
+end
+
+def checkDetails(detail, header)
+    found = false
+    detail = getTableValue(detail)
+    within(page.find("div[class='vertical-info']", :text => header)) do
+        found = true if page.has_text?(detail)
+    end
+    return found
 end
 
 def closeDialog()
@@ -189,9 +212,11 @@ def getTableValue(valueOrTableUrl)
         raise(ArgumentError.new('Invalid table name'))
     elsif PARSED_DATA[tableType][tableName][propertyName].nil?
         raise(ArgumentError.new('Invalid property name'))
-    elsif propertyName == "nameAndPort"
-        return HOST_IP + ":" + PARSED_DATA[tableType][tableName]["rpcPort"].to_s
     else
-        return PARSED_DATA[tableType][tableName][propertyName]
+        data = PARSED_DATA[tableType][tableName][propertyName]
+        if data.to_s.include? "%{local_ip}"
+            data.sub! "%{local_ip}", HOST_IP
+        end
+        return data
     end
 end
