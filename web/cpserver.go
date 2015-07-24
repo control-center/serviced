@@ -45,12 +45,14 @@ type ServiceConfig struct {
 	hostaliases []string
 	muxTLS      bool
 	muxPort     int
+	certPEMFile string
+	keyPEMFile  string
 }
 
 var defaultHostAlias string
 
 // NewServiceConfig creates a new ServiceConfig
-func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, aGroup string) *ServiceConfig {
+func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases []string, muxTLS bool, muxPort int, aGroup string, certPEMFile string, keyPEMFile string) *ServiceConfig {
 	cfg := ServiceConfig{
 		bindPort:    bindPort,
 		agentPort:   agentPort,
@@ -58,6 +60,8 @@ func NewServiceConfig(bindPort string, agentPort string, stats bool, hostaliases
 		hostaliases: hostaliases,
 		muxTLS:      muxTLS,
 		muxPort:     muxPort,
+		certPEMFile: certPEMFile,
+		keyPEMFile:  keyPEMFile,
 	}
 	adminGroup = aGroup
 	return &cfg
@@ -139,25 +143,34 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	http.Handle("/", r)
 
 	// FIXME: bubble up these errors to the caller
-	certfile, err := proxy.TempCertFile()
-	if err != nil {
-		glog.Fatalf("Could not prepare cert.pem file: %s", err)
+	certFile := sc.certPEMFile
+	if len(certFile) == 0 {
+		tempCertFile, err := proxy.TempCertFile()
+		if err != nil {
+			glog.Fatalf("Could not prepare cert.pem file: %s", err)
+		}
+		certFile = tempCertFile
 	}
-	keyfile, err := proxy.TempKeyFile()
-	if err != nil {
-		glog.Fatalf("Could not prepare key.pem file: %s", err)
+	keyFile := sc.keyPEMFile
+	if len(keyFile) == 0 {
+		tempKeyFile, err := proxy.TempKeyFile()
+		if err != nil {
+			glog.Fatalf("Could not prepare key.pem file: %s", err)
+		}
+		keyFile = tempKeyFile
 	}
+
 	go func() {
 		redirect := func(w http.ResponseWriter, req *http.Request) {
 			http.Redirect(w, req, fmt.Sprintf("https://%s:%s%s", req.Host, sc.bindPort, req.URL), http.StatusMovedPermanently)
 		}
-		err = http.ListenAndServe(":80", http.HandlerFunc(redirect))
+		err := http.ListenAndServe(":80", http.HandlerFunc(redirect))
 		if err != nil {
 			glog.Errorf("could not setup HTTP webserver: %s", err)
 		}
 	}()
 	go func() {
-		err = http.ListenAndServeTLS(sc.bindPort, certfile, keyfile, nil)
+		err := http.ListenAndServeTLS(sc.bindPort, certFile, keyFile, nil)
 		if err != nil {
 			glog.Fatalf("could not setup HTTPS webserver: %s", err)
 		}
