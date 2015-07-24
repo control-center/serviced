@@ -88,20 +88,25 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 		return "", err
 	}
 
+	tagID := time.Now().UTC().Format(timeFormat)
+	label := fmt.Sprintf("%s_%s", tenantID, tagID)
+
+	mdPath := snapshotVolume.SnapshotMetadataPath(label)
+	if err := os.MkdirAll(mdPath, 0755); err != nil {
+		return "", err
+	}
+
 	// dump the service definitions
-	if err := exportJSON(filepath.Join(snapshotVolume.Path(), serviceJSON), svcs); err != nil {
-		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.Path(), err)
+	if err := exportJSON(filepath.Join(mdPath, serviceJSON), svcs); err != nil {
+		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.SnapshotMetadataPath(label), err)
 		return "", err
 	}
 
 	// dump metadata for this snapshot
-	if err := exportJSON(filepath.Join(snapshotVolume.Path(), snapshotMeta), SnapshotMetadata{description}); err != nil {
+	if err := exportJSON(filepath.Join(mdPath, snapshotMeta), SnapshotMetadata{description}); err != nil {
 		glog.Errorf("Could not export %s: %s", snapshotMeta, err)
 		return "", err
 	}
-
-	tagID := time.Now().UTC().Format(timeFormat)
-	label := fmt.Sprintf("%s_%s", tenantID, tagID)
 
 	// add the snapshot to the volume
 	if err := snapshotVolume.Snapshot(label); err != nil {
