@@ -62,7 +62,8 @@ Then (/^I should see the "([^"]*)"$/) do |element|
     find(element).visible?
 end
 
-Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
+Then (/^I should see( the sum of)? "(.*?)" in the "([^"]*)" column$/) do |sum, text, column|
+    text = getSum(text) if sum
     expect(checkColumn(text, column)).to be true
 end
 
@@ -86,10 +87,10 @@ Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
     expect(checkRows(row)).to be false
 end
 
-Then (/^the details for "(.*?)" should be "(.*?)"$/) do |header, text|
+Then (/^the details for "(.*?)" should be( the sum of)? "(.*?)"$/) do |header, sum, text|
+    text = getSum(text) if sum
     expect(checkDetails(text, header)).to be true
 end
-
 
 def assertSortedColumn(category, order)
     list = page.all("td[data-title-text='#{category}'][sortable]")
@@ -123,6 +124,15 @@ def assertSortedColumn(category, order)
     end
 end
 
+def getSum(urls)
+    urlList = urls.split(", ")
+    sum = 0
+    for i in 0..(urlList.size - 1)
+        sum += getTableValue(urlList[i]).to_i
+    end
+    return sum.to_s
+end
+
 def checkRows(row)
     waitForPageLoad()
     found = false
@@ -137,10 +147,10 @@ end
 def checkColumn(text, column)
     # attribute that includes name of column of all table cells
     list = page.all("td[data-title-text='#{column}']")
-    cell = getTableValue(text)
+    cell = getTableValue(text).to_s
     hasEntry = false
     for i in 0..(list.size - 1)
-        hasEntry = true if list[i].text == cell.to_s
+        hasEntry = true if list[i].has_text?(cell)
     end
     return hasEntry
 end
