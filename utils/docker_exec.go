@@ -45,7 +45,7 @@ func RunDockerExec(containerID string, bashcmd []string) ([]byte, error) {
 	thecmd := exec.Command(command[0], command[1:]...)
 	output, err := thecmd.CombinedOutput()
 	if err != nil {
-		glog.V(2).Infof("Error running command:'%s' output: %s  error: %s\n", command, output, err)
+		err = fmt.Errorf("Error running command:'%s' output: %s  error: %s\n", command, output, err)
 		return output, err
 	}
 	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", command, output)
