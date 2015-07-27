@@ -1,4 +1,4 @@
-@hosts_sorting @clean_hosts
+@hosts_sorting
 Feature: Host Sorting
   In order to use Control Center
   As a CC admin user
@@ -6,6 +6,7 @@ Feature: Host Sorting
 
   Background:
     Given that the admin user is logged in
+      And that multiple resource pools have been added
       And that multiple hosts have been added
 
   Scenario: Test ascending name sort
@@ -39,11 +40,13 @@ Feature: Host Sorting
     Then the "Resource Pool" column should be sorted in ascending order
 
   Scenario: Test descending memory sort
+    Given PENDING CC-1107
     When I am on the hosts page
       And I sort by "Memory" in descending order
     Then the "Memory" column should be sorted in descending order
 
   Scenario: Test ascending memory sort
+    Given PENDING CC-1107
     When I am on the hosts page
       And I sort by "Memory" in ascending order
     Then the "Memory" column should be sorted in ascending order
@@ -73,6 +76,7 @@ Feature: Host Sorting
       And I sort by "CC Release" in ascending order
     Then the "CC Release" column should be sorted in ascending order
 
+  @clean_hosts @clean_pools
   Scenario: Test descending CC release sort
     When I am on the hosts page
       And I sort by "CC Release" in descending order

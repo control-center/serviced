@@ -6,6 +6,7 @@ Feature: Host Management
 
   Background:
     Given that the admin user is logged in
+      And that the default resource pool exists
 
   Scenario: View empty Hosts page
     Given there are no hosts defined
@@ -128,6 +129,25 @@ Feature: Host Management
       And I should see "Showing 2 Results"
 
   @clean_hosts
+  Scenario: Add a valid host in a non-default Resource Pool
+    Given that the "table://hosts/host3/pool" pool exists
+    When I am on the hosts page
+      And I click the Add-Host button
+      And I fill in the Host Name field with "table://hosts/host3/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/host3/pool"
+      And I fill in the RAM Commitment field with "table://hosts/host3/commitment"
+      And I click "Add Host"
+    Then I should see "Success"
+      And I should see an entry for "table://hosts/host3/name" in the table
+      And I should see "table://hosts/host3/name" in the "Name" column
+      And I should see "table://hosts/host3/pool" in the "Resource Pool" column
+      And I should see "table://hosts/host3/memoryGB" in the "Memory" column
+      And I should see "table://hosts/host3/ramGB" in the "RAM Commitment" column
+      And I should see "table://hosts/host3/cores" in the "CPU Cores" column
+      And I should see "table://hosts/host3/kernelVersion" in the "Kernel Version" column
+      And I should see "table://hosts/host3/ccRelease" in the "CC Release" column
+
+  @clean_hosts
   Scenario: Add a duplicate host
     Given only the default host is defined
     When I am on the hosts page
@@ -138,6 +158,8 @@ Feature: Host Management
       And I click "Add Host"
     Then I should see "Error"
       And I should see "Internal Server Error: host already exists"
+    When I close the dialog
+    Then I should see "Showing 1 Result"
 
   Scenario: Remove a host
     Given only the default host is defined
@@ -154,4 +176,47 @@ Feature: Host Management
     Then I should see "By RAM"
       And I should see "By CPU"
       And I should not see "Active"
-      
+  
+  @clean_hosts
+  Scenario: View Host Details
+    Given only the default host is defined
+    When I am on the hosts page
+      And I view the details of "table://hosts/defaultHost/name"
+    Then I should see "Graphs"
+      And I should see "CPU Usage"
+      And I should see "Load Average"
+      And I should see "Memory Usage"
+      And I should see "Open File Descriptors"
+      And I should see "Memory Major Page Faults"
+      And I should see "Paging"
+      And I should see "IPs"
+      And I should see "Services Instances"
+
+  @clean_hosts
+  Scenario: View default host details
+    Given only the default host is defined
+    When I am on the hosts page
+      And I view the details of "table://hosts/defaultHost/name"
+    Then the details for "Name" should be "table://hosts/defaultHost/hostID"
+      And the details for "Resource Pool" should be "table://hosts/defaultHost/pool"
+      And the details for "Memory" should be "table://hosts/defaultHost/memoryGB"
+      And the details for "CPU Cores" should be "table://hosts/defaultHost/cores"
+      And the details for "Kernel Version" should be "table://hosts/defaultHost/kernelVersion"
+      And the details for "Kernel Release" should be "table://hosts/defaultHost/kernelRelease"
+      And the details for "CC Release" should be "table://hosts/defaultHost/ccRelease"
+      And the details for "IP Address" should be "table://hosts/defaultHost/outboundIP"
+      And the details for "RAM Commitment" should be "table://hosts/defaultHost/ramGB"
+
+  @clean_hosts
+  Scenario: View Host Map
+    Given only the default host is defined
+    When I am on the hosts page
+      And I add the "host2" host
+      And I click the Hosts Map button
+    Then I should see "By RAM"
+      And I should see "By CPU"
+      And I should see "table://hosts/defaultHost/name"
+      And I should see "table://hosts/host2/name"
+    When I click "By CPU"
+    Then I should see "table://hosts/defaultHost/name"
+      And I should see "table://hosts/host2/name"

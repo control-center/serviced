@@ -14,6 +14,11 @@
     "pool3": {
       "name": "another test",
       "description": "Second Extra Pool"
+    },
+
+    "pool4": {
+      "name": "yet another test",
+      "description": "Third Extra Pool"
     }
   }
 }

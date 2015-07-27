@@ -23,7 +23,7 @@ func SetDialTimeout(timeout int) {
 
 type Client interface {
 	Close() error
-	Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64, timewarn bool) error
+	Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64) error
 }
 
 // NewReconnectingClient creates a client that reuses the same connection and does not close the underlying connection unless an error occurs.
@@ -61,7 +61,7 @@ func (rc *reconnectingClient) Close() error {
 	return nil
 }
 
-func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64, timewarn bool) error {
+func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64) error {
 	// WARNING: Printing to stdout/err here can cause issues with zendev, e.g., your service
 	//          template may not deploy. This problem will go away once we move to using exit codes.
 	rc.RLock()
@@ -101,9 +101,7 @@ Loop:
 			err = fmt.Errorf("RPC call to %s timed out after %d seconds.", serviceMethod, timeout)
 			break Loop
 		case <-time.After(10 * time.Second):
-			if timewarn {
-				glog.Warningf("RPC call to %s has taken more than %ds.", serviceMethod, int(time.Since(start).Seconds()))
-			}
+			glog.V(2).Infof("RPC call to %s has taken more than %ds.", serviceMethod, int(time.Since(start).Seconds()))
 		}
 	}
 	rc.RUnlock()

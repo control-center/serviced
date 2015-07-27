@@ -40,6 +40,16 @@ When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
     sortColumn(category, order)
 end
 
+When (/^I wait for the page to load$/) do
+    waitForPageLoad()
+end
+
+When (/^I view the details of "(.*?)"$/) do |name|
+    name = getTableValue(name)
+    find("td[ng-click]", :text => /\A#{name}\z/).click()
+    waitForPageLoad()
+end
+
 Then /^I should see "(.*?)"$/ do |text|
     expect(page).to have_content getTableValue(text)
 end
@@ -53,11 +63,11 @@ Then (/^I should see the "([^"]*)"$/) do |element|
 end
 
 Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    checkColumn(text, column, true)
+    expect(checkColumn(text, column)).to be true
 end
 
 Then (/^I should not see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    checkColumn(text, column, false)
+    expect(checkColumn(text, column)).to be false
 end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
@@ -69,11 +79,15 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
 end
 
 Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(row, true)
+    expect(checkRows(row)).to be true
 end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
-    checkRows(row, false)
+    expect(checkRows(row)).to be false
+end
+
+Then (/^the details for "(.*?)" should be "(.*?)"$/) do |header, text|
+    expect(checkDetails(text, header)).to be true
 end
 
 
@@ -86,6 +100,18 @@ def assertSortedColumn(category, order)
             else
                 DateTime.parse(list[i].text).should >= DateTime.parse(list[i + 1].text)
             end
+        elsif category == "Memory"
+            if order
+                list[i].text[0..-4].to_f.should <= list[i + 1].text[0..-4].to_f
+            else
+                list[i].text[0..-4].to_f.should >= list[i + 1].text[0..-4].to_f
+            end
+        elsif category == "CPU Cores"
+            if order
+                list[i].text.to_i.should <= list[i + 1].text.to_i
+            else
+                list[i].text.to_i.should >= list[i + 1].text.to_i
+            end
         else
             if order
             # Category sorting ignores case
@@ -97,19 +123,18 @@ def assertSortedColumn(category, order)
     end
 end
 
-def checkRows(row, present)
+def checkRows(row)
+    waitForPageLoad()
     found = false
     name = getTableValue(row)
     entries = page.all("tr[ng-repeat$='in $data']")
     for i in 0..(entries.size - 1)
-        within(entries[i]) do
-            found = true if has_text?(name)
-        end
+        found = true if entries[i].has_text?(name)
     end
-    found.should == present
+    return found
 end
 
-def checkColumn(text, column, present)
+def checkColumn(text, column)
     # attribute that includes name of column of all table cells
     list = page.all("td[data-title-text='#{column}']")
     cell = getTableValue(text)
@@ -117,7 +142,16 @@ def checkColumn(text, column, present)
     for i in 0..(list.size - 1)
         hasEntry = true if list[i].text == cell.to_s
     end
-    hasEntry.should == present
+    return hasEntry
+end
+
+def checkDetails(detail, header)
+    found = false
+    detail = getTableValue(detail)
+    within(page.find("div[class='vertical-info']", :text => header)) do
+        found = true if page.has_text?(detail)
+    end
+    return found
 end
 
 def closeDialog()
@@ -137,13 +171,26 @@ def sortColumn(category, sortOrder)
     end
 end
 
-def removeAllEntries()
-    entries = page.all("[ng-repeat$='in $data']")
+def removeAllEntries(category)
+    waitForPageLoad()
+    entries = page.all("[ng-repeat='#{category} in $data']")
     for i in 0..(entries.size - 1)
-        within(entries[i]) do
-            click_link_or_button("Delete")
+        if (entries[i].text.include?("Delete"))
+            within(entries[i]) do
+                click_link_or_button("Delete")
+            end
+            click_link_or_button("Remove")
         end
-        click_link_or_button("Remove")
+    end
+end
+
+# Chrome does not wait for objects to load, so some steps need to sleep
+# until all the elements load
+# For more information:
+# http://www.testrisk.com/2015/05/an-error-for-selenium-chrome-vs-firefox.html
+def waitForPageLoad()
+    if Capybara.default_driver == :selenium_chrome
+        sleep 2
     end
 end
 
@@ -165,9 +212,11 @@ def getTableValue(valueOrTableUrl)
         raise(ArgumentError.new('Invalid table name'))
     elsif PARSED_DATA[tableType][tableName][propertyName].nil?
         raise(ArgumentError.new('Invalid property name'))
-    elsif propertyName == "nameAndPort"
-        return HOST_IP + ":" + PARSED_DATA[tableType][tableName]["rpcPort"].to_s
     else
-        return PARSED_DATA[tableType][tableName][propertyName]
+        data = PARSED_DATA[tableType][tableName][propertyName]
+        if data.to_s.include? "%{local_ip}"
+            data.sub! "%{local_ip}", HOST_IP
+        end
+        return data
     end
 end
