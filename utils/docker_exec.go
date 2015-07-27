@@ -30,7 +30,7 @@ type DockerExecError struct {
 }
 
 func (err DockerExecError) Error() string {
-	return fmt.Sprintf("Error running command: %s: %s", err.command, err.err)
+	return fmt.Sprintf("Error running command: %s: %s", err.Command, err.ExecErr)
 }
 
 // ExecDockerExec execs the command using docker exec
