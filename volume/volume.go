@@ -16,6 +16,8 @@ package volume
 import (
 	"errors"
 
+	"github.com/zenoss/glog"
+
 	"fmt"
 )
 
@@ -159,4 +161,21 @@ func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
 		return nil, err
 	}
 	return volume, nil
+}
+
+// ShutdownActiveDrivers shuts down all drivers that have been initialized
+func ShutdownActiveDrivers() error {
+	errs := []error{}
+	for _, driver := range driversByRoot {
+		glog.Infof("Shutting down %s driver for %s", driver.GetFSType(), driver.Root())
+		if err := driver.Cleanup(); err != nil {
+			glog.Errorf("Unable to clean up %s driver for %s: %s", driver.GetFSType(), driver.Root(), err)
+			errs = append(errs, err)
+		}
+	}
+	if len(errs) > 0 {
+		// TODO: Something better
+		return fmt.Errorf("Errors unmounting volumes: %s")
+	}
+	return nil
 }
