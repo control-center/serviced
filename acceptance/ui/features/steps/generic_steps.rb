@@ -45,9 +45,7 @@ When (/^I wait for the page to load$/) do
 end
 
 When (/^I view the details of "(.*?)"$/) do |name|
-    name = getTableValue(name)
-    find("td[ng-click]", :text => /\A#{name}\z/).click()
-    waitForPageLoad()
+    viewDetails(name)
 end
 
 Then /^I should see "(.*?)"$/ do |text|
@@ -90,6 +88,12 @@ end
 Then (/^the details for "(.*?)" should be( the sum of)? "(.*?)"$/) do |header, sum, text|
     text = getSum(text) if sum
     expect(checkDetails(text, header)).to be true
+end
+
+def viewDetails(name)
+    name = getTableValue(name)
+    find("td[ng-click]", :text => /\A#{name}\z/).click()
+    waitForPageLoad()
 end
 
 def assertSortedColumn(category, order)

@@ -36,6 +36,29 @@ Given /^that the "(.*?)" pool exists$/ do |pool|
     end
 end
 
+Given (/^that the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
+    visitPoolsPage()
+    if (checkRows(pool) == false)
+        addPool(pool, "added for virtual IP")
+    end
+    viewDetails(pool)
+    if (checkRows("table://virtualips/" + ip + "/ip") == false)
+        addVirtualIpJson(ip)
+    end
+end
+
+Given (/^that the "(.*?)" pool has no virtual IPs$/) do |pool|
+    visitPoolsPage()
+    if (checkRows(pool) == false)
+        addPool(pool, "added for no virtual IPs")
+    else
+        viewDetails(pool)
+        if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
+            removeAllEntries("address")
+        end
+    end
+end
+
 When(/^I am on the resource pool page$/) do
     visitPoolsPage()
 end
@@ -56,6 +79,26 @@ When(/^I add the "(.*?)" pool$/) do |pool|
     addPoolJson(pool)
 end
 
+When /^I click the Add Virtual IP button$/ do
+    clickAddVirtualIpButton()
+end
+
+When /^I add the virtual IP$/ do
+    addVirtualIpButton()
+end
+
+When(/^I fill in the IP field with "(.*?)"$/) do |ip|
+    fillInIpField(ip)
+end
+
+When(/^I fill in the Netmask field with "(.*?)"$/) do |netmask|
+    fillInNetmaskField(netmask)
+end
+
+When(/^I fill in the Interface field with "(.*?)"$/) do |interface|
+    fillInInterfaceField(interface)
+end
+
 Then /^I should see the add Resource Pool button$/ do
     @pools_page.addPool_button.visible?
 end
@@ -66,6 +109,18 @@ end
 
 Then /^I should see the Description field$/ do
     @pools_page.description_input.visible?
+end
+
+Then /^I should see the IP field$/ do
+    @pools_page.ip_input.visible?
+end
+
+Then /^I should see the Netmask field$/ do
+    @pools_page.netmask_input.visible?
+end
+
+Then /^I should see the Interface field$/ do
+    @pools_page.interface_input.visible?
 end
 
 def visitPoolsPage()
@@ -84,6 +139,39 @@ end
 
 def fillInDescriptionField(description)
     @pools_page.description_input.set getTableValue(description)
+end
+
+def clickAddVirtualIpButton()
+    @pools_page.addVirtualIp_button.click()
+end
+
+def fillInIpField(address)
+    @pools_page.ip_input.set getTableValue(address)
+end
+
+def fillInNetmaskField(netmask)
+    @pools_page.netmask_input.set getTableValue(netmask)
+end
+
+def fillInInterfaceField(interface)
+    @pools_page.interface_input.set getTableValue(interface)
+end
+
+def addVirtualIpButton()
+    @pools_page.dialogAddVirtualIp_button.click()
+end
+
+def addVirtualIp(ip, netmask, interface)
+    clickAddVirtualIpButton()
+    fillInIpField(ip)
+    fillInNetmaskField(netmask)
+    fillInInterfaceField(interface)
+    addVirtualIpButton()
+end
+
+def addVirtualIpJson(ip)
+    addVirtualIp("table://virtualips/" + ip + "/ip", "table://virtualips/" + ip + "/netmask",
+        "table://virtualips/" + ip + "/interface")
 end
 
 def addPool(name, description)

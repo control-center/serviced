@@ -44,3 +44,56 @@ Feature: Resource Pool Details
       And I should see "table://hosts/host2/cores" in the "CPU Cores" column
       And I should see "table://hosts/defaultHost/kernelVersion" in the "Kernel Version" column
       And I should see "table://hosts/host2/kernelVersion" in the "Kernel Version" column
+
+  Scenario: View Add Virtual IP dialog
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+      And I click the Add Virtual IP button
+    Then I should see "Add Virtual IP"
+      And I should see the IP field
+      And I should see the Netmask field
+      And I should see the Interface field
+
+  Scenario: Add a virtual IP with an invalid IP address
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "bogusvirtualip"
+      And I fill in the Netmask field with "table://virtualips/ip1/netmask"
+      And I fill in the Interface field with "table://virtualips/ip1/interface"
+      And I add the virtual IP
+    Then I should see "Adding pool virtual ip failed"
+      And I should see "Internal Server Error: invalid IP Address"
+
+  Scenario: Add a virtual IP with an invalid netmask
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "table://virtualips/ip1/ip"
+      And I fill in the Netmask field with "bogusnetmask"
+      And I fill in the Interface field with "table://virtualips/ip1/interface"
+      And I add the virtual IP
+    Then I should see "Adding pool virtual ip failed"
+      And I should see "Internal Server Error: invalid IP Address"
+
+  Scenario: Add a valid virtual IP
+    Given that the "table://pools/defaultPool/name" pool has no virtual IPs
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "table://virtualips/ip1/ip"
+      And I fill in the Netmask field with "table://virtualips/ip1/netmask"
+      And I fill in the Interface field with "table://virtualips/ip1/interface"
+      And I add the virtual IP
+    Then I should see "Added new pool virtual ip"
+      And I should see an entry for "table://virtualips/ip1/ip" in the table
+
+  Scenario: Remove a virtual IP
+    Given that the "ip1" virtual IP is added to the "table://pools/defaultPool/name" pool
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+    Then I should see an entry for "table://virtualips/ip1/ip" in the table
+    When I remove "table://virtualips/ip1/ip"
+    Then I should see "This action will permanently delete the virtual IP"
+    When I click "Remove Virtual IP"
+    Then I should not see an entry for "table://virtualips/ip1/ip" in the table
