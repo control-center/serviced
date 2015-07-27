@@ -25,8 +25,8 @@ import (
 
 // An error type for failed docker exec attempts.
 type DockerExecError struct {
-	command string
-	err error
+	Command string
+	ExecErr error
 }
 
 func (err DockerExecError) Error() string {
