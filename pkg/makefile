@@ -207,6 +207,7 @@ rpm: stage_rpm
 		--after-install rpm/postinstall \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
+		--rpm-pretrans rpm/pretrans \
 		--config-files /etc/default/serviced \
 		.
 
@@ -215,4 +216,3 @@ tgz: stage_tgz
 	tar cvfz /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz -C $(PKGROOT)/ .
 	chown $(DUID):$(DGID) /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz
 	mv /tmp/$(FULL_NAME)-$(GIT_COMMIT).tgz .
-
