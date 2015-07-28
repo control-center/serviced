@@ -31,6 +31,7 @@ end
 
 Given /^that the "(.*?)" pool exists$/ do |pool|
     visitPoolsPage()
+    waitForPageLoad()
     if (checkRows(pool) == false)
         addPool(pool, "added for tests")
     end
@@ -38,10 +39,12 @@ end
 
 Given (/^that the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
     visitPoolsPage()
+    waitForPageLoad()
     if (checkRows(pool) == false)
         addPool(pool, "added for virtual IP")
     end
     viewDetails(pool)
+    waitForPageLoad()
     if (checkRows("table://virtualips/" + ip + "/ip") == false)
         addVirtualIpJson(ip)
     end
@@ -49,11 +52,13 @@ end
 
 Given (/^that the "(.*?)" pool has no virtual IPs$/) do |pool|
     visitPoolsPage()
+    waitForPageLoad()
     if (checkRows(pool) == false)
         addPool(pool, "added for no virtual IPs")
     else
         viewDetails(pool)
-        if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
+        waitForPageLoad()
+        if (page.find("table[data-config='virtualIPsTable']").has_no_text?("No Data Found"))
             removeAllEntries("address")
         end
     end

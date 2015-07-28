@@ -76,6 +76,7 @@ Feature: Resource Pool Details
     Then I should see "Adding pool virtual ip failed"
       And I should see "Internal Server Error: invalid IP Address"
 
+  @clean_virtualips
   Scenario: Add a valid virtual IP
     Given that the "table://pools/defaultPool/name" pool has no virtual IPs
     When I am on the resource pool page
@@ -97,3 +98,30 @@ Feature: Resource Pool Details
     Then I should see "This action will permanently delete the virtual IP"
     When I click "Remove Virtual IP"
     Then I should not see an entry for "table://virtualips/ip1/ip" in the table
+
+  @clean_virtualips
+  Scenario: Add another virtual IP
+    Given that the "ip1" virtual IP is added to the "table://pools/defaultPool/name" pool
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "table://virtualips/ip2/ip"
+      And I fill in the Netmask field with "table://virtualips/ip2/netmask"
+      And I fill in the Interface field with "table://virtualips/ip2/interface"
+      And I add the virtual IP
+    Then I should see "Added new pool virtual ip"
+      And I should see an entry for "table://virtualips/ip1/ip" in the table
+      And I should see an entry for "table://virtualips/ip2/ip" in the table
+
+  @clean_virtualips @clean_pools
+  Scenario: Add a virtual IP to another resource pool
+    Given that the "table://pools/pool2/name" pool exists
+    When I am on the resource pool page
+      And I view the details of "table://pools/pool2/name"
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "table://virtualips/ip2/ip"
+      And I fill in the Netmask field with "table://virtualips/ip2/netmask"
+      And I fill in the Interface field with "table://virtualips/ip2/interface"
+      And I add the virtual IP
+    Then I should see "Added new pool virtual ip"
+      And I should see an entry for "table://virtualips/ip2/ip" in the table
