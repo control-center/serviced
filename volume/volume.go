@@ -17,8 +17,6 @@ import (
 	"errors"
 
 	"github.com/zenoss/glog"
-
-	"fmt"
 )
 
 // DriverInit represents a function that can initialize a driver.
@@ -28,9 +26,14 @@ var (
 	drivers       map[string]DriverInit
 	driversByRoot map[string]Driver
 
+	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
+	ErrDriverExists         = errors.New("driver exists")
 	ErrDriverNotSupported   = errors.New("driver not supported")
 	ErrSnapshotExists       = errors.New("snapshot exists")
 	ErrSnapshotDoesNotExist = errors.New("snapshot does not exist")
+	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
+	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
+	ErrVolumeExists         = errors.New("volume exists")
 )
 
 func init() {
@@ -100,10 +103,10 @@ type Volume interface {
 // Register registers a driver initializer under <name> so it can be looked up
 func Register(name string, driverInit DriverInit) error {
 	if driverInit == nil {
-		return fmt.Errorf("Can't register a nil driver initializer")
+		return ErrInvalidDriverInit
 	}
 	if _, dup := drivers[name]; dup {
-		return fmt.Errorf("Already registered driver %s", name)
+		return ErrDriverExists
 	}
 	drivers[name] = driverInit
 	return nil
@@ -180,8 +183,7 @@ func ShutdownAll() error {
 		}
 	}
 	if len(errs) > 0 {
-		// TODO: Something better
-		return fmt.Errorf("Errors unmounting volumes: %+v", errs)
+		return ErrBadDriverShutdown
 	}
 	return nil
 }

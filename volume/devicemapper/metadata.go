@@ -2,11 +2,18 @@ package devicemapper
 
 import (
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
+
+	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
+)
+
+var (
+	ErrInvalidMetadata = errors.New("invalid metadata")
 )
 
 type snapshotMetadata struct {
@@ -63,7 +70,8 @@ func (m *SnapshotMetadata) save() error {
 	// Exported methods will deal with locking.
 	jsonData, err := json.Marshal(m.snapshotMetadata)
 	if err != nil {
-		return fmt.Errorf("Error encoding metadata to json: %s", err)
+		glog.Errorf("Error encoding metadata to json: %s", err)
+		return ErrInvalidMetadata
 	}
 	return ioutil.WriteFile(m.path, jsonData, 0644)
 }
@@ -107,7 +115,7 @@ func (m *SnapshotMetadata) LookupSnapshotDevice(snapshot string) (string, error)
 	defer m.Unlock()
 	device, ok := m.snapshotMetadata.Snapshots[snapshot]
 	if !ok {
-		return "", fmt.Errorf("no such snapshot: %s", snapshot)
+		return "", volume.ErrSnapshotDoesNotExist
 	}
 	return device, nil
 }

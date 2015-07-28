@@ -1,7 +1,6 @@
 package devicemapper
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -65,7 +64,7 @@ func getTenant(from string) string {
 // Create implements volume.Driver.Create
 func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	if d.Exists(volumeName) {
-		return nil, fmt.Errorf("Volume exists already")
+		return nil, volume.ErrVolumeExists
 	}
 	// Create a new device
 	volumeDevice, err := utils.NewUUID62()
@@ -306,22 +305,25 @@ func (v *DeviceMapperVolume) Snapshots() ([]string, error) {
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 	if !v.snapshotExists(label) {
-		return fmt.Errorf("snapshot %s does not exist", label)
+		return volume.ErrSnapshotDoesNotExist
 	}
 	rawLabel := v.rawSnapshotLabel(label)
 	v.Lock()
 	defer v.Unlock()
 	device, err := v.Metadata.LookupSnapshotDevice(rawLabel)
 	if err != nil {
-		return err
+		glog.Errorf("Error removing snapshot: %v", err)
+		return volume.ErrRemovingSnapshot
 	}
 	// Remove the snapshot info from the metadata
 	if err := v.Metadata.RemoveSnapshot(rawLabel); err != nil {
-		return err
+		glog.Errorf("Error removing snapshot: %v", err)
+		return volume.ErrRemovingSnapshot
 	}
 	// Delete the device itself
 	if err := v.driver.DeviceSet.DeleteDevice(device); err != nil {
-		return err
+		glog.Errorf("Error removing snapshot: %v", err)
+		return volume.ErrRemovingSnapshot
 	}
 	return nil
 }
@@ -329,7 +331,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 // Rollback implements volume.Volume.Rollback
 func (v *DeviceMapperVolume) Rollback(label string) error {
 	if !v.snapshotExists(label) {
-		return fmt.Errorf("snapshot %s does not exist", label)
+		return volume.ErrSnapshotDoesNotExist
 	}
 	label = v.rawSnapshotLabel(label)
 	v.Lock()
