@@ -1,6 +1,5 @@
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
-    waitForPageLoad()
     if @hosts_page.host_entries.size < 5
         removeAllEntries("host")
         addDefaultHost()
@@ -100,6 +99,7 @@ def visitHostsPage()
     # expect(@hosts_page).to be_displayed
     @hosts_page.navbar.hosts.click()
     expect(@hosts_page).to be_displayed
+    waitForPageLoad()
 end
 
 def fillInHostAndPort(host)

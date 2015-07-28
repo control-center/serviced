@@ -1,9 +1,7 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
-    waitForPageLoad()
     if @pools_page.pool_entries.size < 4
         removeAllPools()
-        waitForPageLoad()
         addDefaultPool()
         addPoolJson("pool2")
         addPoolJson("pool3")
@@ -31,7 +29,6 @@ end
 
 Given /^that the "(.*?)" pool exists$/ do |pool|
     visitPoolsPage()
-    waitForPageLoad()
     if (checkRows(pool) == false)
         addPool(pool, "added for tests")
     end
@@ -39,12 +36,10 @@ end
 
 Given (/^that the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
     visitPoolsPage()
-    waitForPageLoad()
     if (checkRows(pool) == false)
         addPool(pool, "added for virtual IP")
     end
     viewDetails(pool)
-    waitForPageLoad()
     if (checkRows("table://virtualips/" + ip + "/ip") == false)
         addVirtualIpJson(ip)
     end
@@ -52,12 +47,10 @@ end
 
 Given (/^that the "(.*?)" pool has no virtual IPs$/) do |pool|
     visitPoolsPage()
-    waitForPageLoad()
     if (checkRows(pool) == false)
         addPool(pool, "added for no virtual IPs")
     else
         viewDetails(pool)
-        waitForPageLoad()
         if (page.find("table[data-config='virtualIPsTable']").has_no_text?("No Data Found"))
             removeAllEntries("address")
         end
@@ -132,6 +125,7 @@ def visitPoolsPage()
     @pools_page = Pools.new
     @pools_page.navbar.resourcePools.click()
     expect(@pools_page).to be_displayed
+    waitForPageLoad()
 end
 
 def clickAddPoolButton()
