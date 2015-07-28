@@ -101,28 +101,28 @@ def assertSortedColumn(category, order)
     for i in 0..(list.size - 2)
         if category == "Created" || category == "Last Modified"
             if order
-                DateTime.parse(list[i].text).should <= DateTime.parse(list[i + 1].text)
+                expect(DateTime.parse(list[i].text)).to be <= DateTime.parse(list[i + 1].text)
             else
-                DateTime.parse(list[i].text).should >= DateTime.parse(list[i + 1].text)
+                expect(DateTime.parse(list[i].text)).to be >= DateTime.parse(list[i + 1].text)
             end
         elsif category == "Memory"
             if order
-                list[i].text[0..-4].to_f.should <= list[i + 1].text[0..-4].to_f
+                expect(list[i].text[0..-4].to_f).to be <= list[i + 1].text[0..-4].to_f
             else
-                list[i].text[0..-4].to_f.should >= list[i + 1].text[0..-4].to_f
+                expect(list[i].text[0..-4].to_f).to be >= list[i + 1].text[0..-4].to_f
             end
         elsif category == "CPU Cores"
             if order
-                list[i].text.to_i.should <= list[i + 1].text.to_i
+                expect(list[i].text.to_i).to be <= list[i + 1].text.to_i
             else
-                list[i].text.to_i.should >= list[i + 1].text.to_i
+                expect(list[i].text.to_i).to be >= list[i + 1].text.to_i
             end
         else
             if order
             # Category sorting ignores case
-                list[i].text.downcase.should <= list[i + 1].text.downcase
+                expect(list[i].text.downcase).to be <= list[i + 1].text.downcase
             else
-                list[i].text.downcase.should >= list[i + 1].text.downcase
+                expect(list[i].text.downcase).to be >= list[i + 1].text.downcase
             end
         end
     end
