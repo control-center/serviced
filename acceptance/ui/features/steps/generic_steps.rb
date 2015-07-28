@@ -141,21 +141,15 @@ def checkRows(row)
     waitForPageLoad()
     found = false
     name = getTableValue(row)
-    entries = page.all("tr[ng-repeat$='in $data']")
-    for i in 0..(entries.size - 1)
-        found = true if entries[i].has_text?(name)
-    end
+    found = page.has_css?("tr[ng-repeat$='in $data']", :text => name)
     return found
 end
 
 def checkColumn(text, column)
     # attribute that includes name of column of all table cells
-    list = page.all("td[data-title-text='#{column}']")
-    cell = getTableValue(text).to_s
     hasEntry = false
-    for i in 0..(list.size - 1)
-        hasEntry = true if list[i].has_text?(cell)
-    end
+    cell = getTableValue(text).to_s
+    hasEntry = true if page.has_css?("tr[ng-repeat$='in $data']", :text => cell)
     return hasEntry
 end
 
@@ -187,14 +181,13 @@ end
 
 def removeAllEntries(category)
     waitForPageLoad()
-    entries = page.all("[ng-repeat='#{category} in $data']")
-    for i in 0..(entries.size - 1)
-        if (entries[i].text.include?("Delete"))
-            within(entries[i]) do
-                click_link_or_button("Delete")
-            end
-            click_link_or_button("Remove")
+    while (page.has_css?("tr[ng-repeat='#{category} in $data']", :text => "Delete")) do
+        entry = page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)
+        within (entry) do
+            click_link_or_button("Delete")
         end
+        click_link_or_button("Remove")
+        waitForPageLoad()
     end
 end
 
