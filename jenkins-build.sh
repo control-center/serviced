@@ -15,7 +15,7 @@ docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 docker images | egrep 'zenoss/ubuntu[ ]+wget' || docker pull zenoss/ubuntu:wget
 go get github.com/tools/godep
 cd $GOPATH/src/github.com/control-center/serviced/volume
-sudo su root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; GOPATH=$GOPATH godep go test -tags=root ./..."
+sudo su root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; GOPATH=$GOPATH godep go test -tags='root daemon' ./..."
 cd $GOPATH/src/github.com/control-center/serviced
 make clean test DOCKERCFG=""
 docker ps -a -q | xargs --no-run-if-empty docker rm -fv
