@@ -1,4 +1,4 @@
-@pools_sorting @clean_pools
+@pools_sorting
 Feature: Resource Pool Sorting
   In order to use Control Center
   As a CC admin user
@@ -53,6 +53,7 @@ Feature: Resource Pool Sorting
       And I sort by "Last Modified" in descending order
     Then the "Last Modified" column should be sorted in descending order
 
+  @clean_pools
   Scenario: Sort resource pools by ascending modification time
     When I am on the resource pool page
       And I sort by "Last Modified" in ascending order

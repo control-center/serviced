@@ -44,7 +44,7 @@ func (c *Client) Close() (err error) {
 // BuildHost creates a Host object from the current host.
 func (c *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 	hostResponse := host.New()
-	if err := c.rpcClient.Call("Agent.BuildHost", request, hostResponse, 0, true); err != nil {
+	if err := c.rpcClient.Call("Agent.BuildHost", request, hostResponse, 0); err != nil {
 		return nil, err
 	}
 	return hostResponse, nil
@@ -53,6 +53,6 @@ func (c *Client) BuildHost(request BuildHostRequest) (*host.Host, error) {
 // GetDockerLogs returns the last 10k worth of logs from the docker container
 func (c *Client) GetDockerLogs(dockerID string) (string, error) {
 	var logs string
-	err := c.rpcClient.Call("Agent.GetDockerLogs", dockerID, &logs, 0, true)
+	err := c.rpcClient.Call("Agent.GetDockerLogs", dockerID, &logs, 0)
 	return logs, err
 }

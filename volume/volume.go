@@ -17,8 +17,6 @@ import (
 	"errors"
 
 	"github.com/zenoss/glog"
-
-	"fmt"
 )
 
 // DriverInit represents a function that can initialize a driver.
@@ -28,9 +26,14 @@ var (
 	drivers       map[string]DriverInit
 	driversByRoot map[string]Driver
 
+	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
+	ErrDriverExists         = errors.New("driver exists")
 	ErrDriverNotSupported   = errors.New("driver not supported")
 	ErrSnapshotExists       = errors.New("snapshot exists")
 	ErrSnapshotDoesNotExist = errors.New("snapshot does not exist")
+	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
+	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
+	ErrVolumeExists         = errors.New("volume exists")
 )
 
 func init() {
@@ -100,10 +103,10 @@ type Volume interface {
 // Register registers a driver initializer under <name> so it can be looked up
 func Register(name string, driverInit DriverInit) error {
 	if driverInit == nil {
-		return fmt.Errorf("Can't register a nil driver initializer")
+		return ErrInvalidDriverInit
 	}
 	if _, dup := drivers[name]; dup {
-		return fmt.Errorf("Already registered driver %s", name)
+		return ErrDriverExists
 	}
 	drivers[name] = driverInit
 	return nil
@@ -148,23 +151,29 @@ func GetDriver(name, root string) (Driver, error) {
 // Mount loads, mounting if necessary, a volume under a path using a specific
 // driver.
 func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
+	glog.V(1).Infof("Mounting volume %s via %s under %s", volumeName, driverName, rootDir)
 	driver, err := GetDriver(driverName, rootDir)
 	if err != nil {
+		glog.Errorf("Error retrieving %s driver: %s", driverName, err)
 		return nil, err
 	}
+	glog.V(2).Infof("Got %s driver for %s", driverName, rootDir)
 	if driver.Exists(volumeName) {
+		glog.V(2).Infof("Volume %s exists; remounting", volumeName)
 		volume, err = driver.Get(volumeName)
 	} else {
+		glog.V(2).Infof("Volume %s does not exist; creating", volumeName)
 		volume, err = driver.Create(volumeName)
 	}
 	if err != nil {
+		glog.Errorf("Error mounting volume: %s", err)
 		return nil, err
 	}
 	return volume, nil
 }
 
-// ShutdownActiveDrivers shuts down all drivers that have been initialized
-func ShutdownActiveDrivers() error {
+// ShutdownAll shuts down all drivers that have been initialized
+func ShutdownAll() error {
 	errs := []error{}
 	for _, driver := range driversByRoot {
 		glog.Infof("Shutting down %s driver for %s", driver.GetFSType(), driver.Root())
@@ -174,8 +183,7 @@ func ShutdownActiveDrivers() error {
 		}
 	}
 	if len(errs) > 0 {
-		// TODO: Something better
-		return fmt.Errorf("Errors unmounting volumes: %s")
+		return ErrBadDriverShutdown
 	}
 	return nil
 }

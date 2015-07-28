@@ -1,26 +1,26 @@
 Given(/^that multiple hosts have been added$/) do
     visitHostsPage()
-    if @hosts_page.has_text?("Showing 0 Results") || @hosts_page.has_text?("Showing 1 Result")
-        removeAllEntries()
+    waitForPageLoad()
+    if @hosts_page.host_entries.size < 5
+        removeAllEntries("host")
         addDefaultHost()
-        addHost("table://hosts/host2/nameAndPort", "table://hosts/host2/pool", \
-            "table://hosts/host2/commitment")
-        addHost("table://hosts/host3/nameAndPort", "table://hosts/host3/pool", \
-            "table://hosts/host3/commitment")
-        checkRows("table://hosts/defaultHost/name", true)
-        checkRows("table://hosts/host2/name", true)
-        checkRows("table://hosts/host3/name", true)
+        addHostJson("host2")
+        addHostJson("host3")
+        addHostJson("host4")
+        addHostJson("host5")
+        expect(checkRows("table://hosts/host3/name")).to be true
+        expect(checkRows("table://hosts/host5/name")).to be true
     end
 end
 
 Given(/^there are no hosts defined$/) do
     visitHostsPage()
-    removeAllEntries()
+    removeAllEntries("host")
 end
 
 Given(/^only the default host is defined$/) do
     visitHostsPage()
-    removeAllEntries()
+    removeAllEntries("host")
     addDefaultHost()
 end
 
@@ -42,6 +42,14 @@ end
 
 When /^I click the Add-Host button$/ do
     clickAddHostButton()
+end
+
+When /^I click the Hosts Map button$/ do
+    @hosts_page.hostsMap_button.click()
+end
+
+When (/^I add the "(.*?)" host$/) do |host|
+    addHostJson(host)
 end
 
 Then (/^the "Active" column should be sorted with active hosts on (top|the bottom)$/) do |order|
@@ -119,7 +127,13 @@ def addHost(name, pool, commitment)
 end
 
 def addDefaultHost()
-    addHost("table://hosts/defaultHost/nameAndPort", \
-        "table://hosts/defaultHost/pool", \
-        "table://hosts/defaultHost/commitment")
+    addHostJson("defaultHost")
+end
+
+def addHostJson(host)
+    nameAndPort = "table://hosts/" + host + "/nameAndPort"
+    pool = "table://hosts/" + host + "/pool"
+    commitment = "table://hosts/" + host + "/commitment"
+
+    addHost(nameAndPort, pool, commitment)
 end

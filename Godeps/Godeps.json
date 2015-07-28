@@ -48,6 +48,11 @@
 			"Rev": "47496519da9664202d900d3635bb840509fa9647"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/daemon/graphdriver",
+			"Comment": "v1.6.0",
+			"Rev": "47496519da9664202d900d3635bb840509fa9647"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/engine",
 			"Comment": "v1.6.0",
 			"Rev": "47496519da9664202d900d3635bb840509fa9647"
@@ -64,6 +69,11 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/common",
+			"Comment": "v1.6.0",
+			"Rev": "47496519da9664202d900d3635bb840509fa9647"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
 			"Comment": "v1.6.0",
 			"Rev": "47496519da9664202d900d3635bb840509fa9647"
 		},
@@ -89,6 +99,11 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/mflag",
+			"Comment": "v1.6.0",
+			"Rev": "47496519da9664202d900d3635bb840509fa9647"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
 			"Comment": "v1.6.0",
 			"Rev": "47496519da9664202d900d3635bb840509fa9647"
 		},
@@ -171,6 +186,11 @@
 			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
 			"Comment": "v1.6.0",
 			"Rev": "47496519da9664202d900d3635bb840509fa9647"
+		},
+		{
+			"ImportPath": "github.com/docker/libcontainer/label",
+			"Comment": "v1.4.0-507-g08cf3be",
+			"Rev": "08cf3beaf05b1403e9501e582918b81da3b3e7c8"
 		},
 		{
 			"ImportPath": "github.com/docker/libcontainer/user",

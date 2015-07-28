@@ -23,6 +23,16 @@ import (
 	"github.com/zenoss/glog"
 )
 
+// An error type for failed docker exec attempts.
+type DockerExecError struct {
+	Command string
+	ExecErr error
+}
+
+func (err DockerExecError) Error() string {
+	return fmt.Sprintf("Error running command: %s: %s", err.Command, err.ExecErr)
+}
+
 // ExecDockerExec execs the command using docker exec
 func ExecDockerExec(containerID string, bashcmd []string) error {
 	command, err := generateDockerExecCommand(containerID, bashcmd, false)
@@ -45,7 +55,7 @@ func RunDockerExec(containerID string, bashcmd []string) ([]byte, error) {
 	thecmd := exec.Command(command[0], command[1:]...)
 	output, err := thecmd.CombinedOutput()
 	if err != nil {
-		glog.Errorf("Error running command:'%s' output: %s  error: %s\n", command, output, err)
+		err = DockerExecError{strings.Join(command, " "), err}
 		return output, err
 	}
 	glog.V(1).Infof("Successfully ran command:'%s' output: %s\n", command, output)

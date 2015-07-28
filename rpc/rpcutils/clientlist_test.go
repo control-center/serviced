@@ -17,7 +17,7 @@ func (tc *testClient) Close() error {
 	return nil
 }
 
-func (tc *testClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64, timewarn bool) error {
+func (tc *testClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout uint64) error {
 	return nil
 }
 

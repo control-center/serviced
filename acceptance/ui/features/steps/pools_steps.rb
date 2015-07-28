@@ -1,12 +1,31 @@
 Given /^that multiple resource pools have been added$/ do
     visitPoolsPage()
-    if @pools_page.has_text?("Showing 0 Results")
-        addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
-        checkRows("table://pools/defaultPool/name", true)
-    end
-    if @pools_page.has_text?("Showing 1 Result")
+    waitForPageLoad()
+    if @pools_page.pool_entries.size < 4
+        removeAllPools()
+        waitForPageLoad()
+        #expect(checkRows("default")).to be false
+        addDefaultPool()
         addPool("table://pools/pool2/name", "table://pools/pool2/description")
-        checkRows("table://pools/pool2/name", true)
+        addPool("table://pools/pool3/name", "table://pools/pool3/description")
+        addPool("table://pools/pool4/name", "table://pools/pool4/description")
+        expect(checkRows("table://pools/pool2/name")).to be true
+        expect(checkRows("table://pools/pool4/name")).to be true
+    end
+end
+
+Given /^that the default resource pool exists$/ do
+    visitPoolsPage()
+    hasDefault = checkRows("default")
+    if (hasDefault == false)
+        addDefaultPool()
+    end
+end
+
+Given /^that the "(.*?)" pool exists$/ do |pool|
+    visitPoolsPage()
+    if (checkRows(pool) == false)
+        addPool(pool, "added for tests")
     end
 end
 
@@ -61,4 +80,18 @@ def addPool(name, description)
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
+end
+
+def addDefaultPool()
+    addPool("table://pools/defaultPool/name", "table://pools/defaultPool/description")
+end
+
+def removeAllPools()
+    visitHostsPage()
+    removeAllEntries("host")
+    visitApplicationsPage()
+    removeAllEntries("service")
+    removeAllEntries("template")
+    visitPoolsPage()
+    removeAllEntries("pool")
 end

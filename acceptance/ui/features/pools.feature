@@ -25,6 +25,7 @@ Feature: Resource Pool Management
       And I should see the Description field
 
   Scenario: Add a resource pool with a duplicate name
+    Given that the default resource pool exists
     When I am on the resource pool page
       And I click the add Resource Pool button
       And I fill in the Resource Pool name field with "table://pools/defaultPool/name"

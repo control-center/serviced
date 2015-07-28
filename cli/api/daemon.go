@@ -309,6 +309,7 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
+	volume.ShutdownAll()
 
 	if options.Master {
 		switch sig {
@@ -321,7 +322,6 @@ func (d *daemon) run() (err error) {
 			d.stopISVCS()
 		}
 	}
-
 	return nil
 }
 
@@ -743,7 +743,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
-	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup)
+	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile)
 	go cpserver.ServeUI()
 	go cpserver.Serve(d.shutdown)
 }
