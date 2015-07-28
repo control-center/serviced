@@ -1,6 +1,7 @@
-%pretrans
-$CCUILIBPATH="/opt/serviced/share/web/static/lib"
-if [[ -L "$CCUILIBPATH" && -d "$CCUILIBPATH" ]]
-then
-    unlink "$CCUILIBPATH"
-fi
+%pretrans -p <lua>
+-- https://fedoraproject.org/wiki/Packaging:Directory_Replacement
+path="/opt/serviced/share/web/static/lib"
+st = posix.stat(path)
+if st and st.type == "link" then
+  os.remove(path)
+end
