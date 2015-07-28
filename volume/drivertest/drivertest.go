@@ -14,7 +14,6 @@
 package drivertest
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
@@ -179,12 +178,21 @@ func verifyBaseWithExtra(c *C, driver *Driver, vol volume.Volume) {
 
 func DriverTestCreateBase(c *C, drivername, root string) {
 	driver := newDriver(c, drivername, root)
+	root = driver.Root()
 	defer cleanup(c, driver)
 
 	vol := createBase(c, driver, "Base")
 	verifyBase(c, driver, vol)
 
-	err := driver.Remove("Base")
+	err := driver.Release(vol.Name())
+	c.Assert(err, IsNil)
+
+	// Remount and make sure everything's ok
+	vol2, err := volume.Mount(drivername, "Base", root)
+	c.Assert(err, IsNil)
+	verifyBase(c, driver, vol2)
+
+	err = driver.Remove("Base")
 	c.Assert(err, IsNil)
 }
 
@@ -201,7 +209,6 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 
 	snaps, err := vol.Snapshots()
 	c.Assert(err, IsNil)
-	fmt.Println(snaps)
 	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
 
 	// Write another file

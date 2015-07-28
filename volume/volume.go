@@ -148,16 +148,22 @@ func GetDriver(name, root string) (Driver, error) {
 // Mount loads, mounting if necessary, a volume under a path using a specific
 // driver.
 func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
+	glog.V(1).Infof("Mounting volume %s via %s under %s", volumeName, driverName, rootDir)
 	driver, err := GetDriver(driverName, rootDir)
 	if err != nil {
+		glog.Errorf("Error retrieving %s driver: %s", driverName, err)
 		return nil, err
 	}
+	glog.V(2).Infof("Got %s driver for %s", driverName, rootDir)
 	if driver.Exists(volumeName) {
+		glog.V(2).Infof("Volume %s exists; remounting", volumeName)
 		volume, err = driver.Get(volumeName)
 	} else {
+		glog.V(2).Infof("Volume %s does not exist; creating", volumeName)
 		volume, err = driver.Create(volumeName)
 	}
 	if err != nil {
+		glog.Errorf("Error mounting volume: %s", err)
 		return nil, err
 	}
 	return volume, nil

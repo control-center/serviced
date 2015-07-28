@@ -120,7 +120,22 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 
 // Get implements volume.Driver.Get
 func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
-	return d.newVolume(volumeName)
+	glog.V(1).Infof("Getting devicemapper volume %s", volumeName)
+	vol, err := d.newVolume(volumeName)
+	if err != nil {
+		glog.Errorf("Error getting devicemapper volume: %s", err)
+		return nil, err
+	}
+	if mounted, _ := devmapper.Mounted(vol.Path()); !mounted {
+		device := vol.Metadata.CurrentDevice()
+		mountpoint := vol.Path()
+		label := vol.Tenant()
+		if err := d.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
+			return nil, err
+		}
+		glog.V(1).Infof("Mounted device %s to %s", device, mountpoint)
+	}
+	return vol, nil
 }
 
 // List implements volume.Driver.List
