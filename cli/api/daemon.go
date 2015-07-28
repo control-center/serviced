@@ -309,6 +309,7 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
+	volume.ShutdownAll()
 
 	if options.Master {
 		switch sig {
@@ -321,7 +322,6 @@ func (d *daemon) run() (err error) {
 			d.stopISVCS()
 		}
 	}
-
 	return nil
 }
 

@@ -163,8 +163,8 @@ func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
 	return volume, nil
 }
 
-// ShutdownActiveDrivers shuts down all drivers that have been initialized
-func ShutdownActiveDrivers() error {
+// ShutdownAll shuts down all drivers that have been initialized
+func ShutdownAll() error {
 	errs := []error{}
 	for _, driver := range driversByRoot {
 		glog.Infof("Shutting down %s driver for %s", driver.GetFSType(), driver.Root())
@@ -175,7 +175,7 @@ func ShutdownActiveDrivers() error {
 	}
 	if len(errs) > 0 {
 		// TODO: Something better
-		return fmt.Errorf("Errors unmounting volumes: %s")
+		return fmt.Errorf("Errors unmounting volumes: %+v", errs)
 	}
 	return nil
 }
