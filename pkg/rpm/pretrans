@@ -1,0 +1,6 @@
+CCUILIBPATH="/opt/serviced/share/web/static/lib"
+if [[ -L "$CCUILIBPATH" && -d "$CCUILIBPATH" ]]
+then
+    unlink "$CCUILIBPATH"
+fi
+

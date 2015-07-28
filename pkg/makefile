@@ -203,6 +203,7 @@ rpm: stage_rpm
 		--after-install rpm/postinstall \
 		--before-remove rpm/preuninstall \
 		--after-remove rpm/postuninstall \
+        --rpm-pretrans rpm/pretrans \
 		--config-files /etc/default/serviced \
 		.
 
