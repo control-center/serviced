@@ -16,6 +16,7 @@ package facade
 import (
 	"strings"
 
+	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
@@ -55,10 +56,10 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInAllServices(t 
 		},
 	}
 
-	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
-		return
-	}
+	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: "pool_id"})
+	t.Assert(err, IsNil)
+	err = ft.Facade.AddService(ft.CTX, svc, false)
+	t.Assert(err, IsNil)
 
 	childSvc := service.Service{
 		ID:              "svc2",
@@ -73,12 +74,12 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInAllServices(t 
 			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}},
 		},
 	}
-	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
+	if err := ft.Facade.AddService(ft.CTX, childSvc, false); err != nil {
 		t.Fatalf("Setup failed; could not add svc %s: %s", childSvc.ID, err)
 		return
 	}
 
-	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
+	err = ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
 	t.Assert(err, IsNil)
 }
 
@@ -114,11 +115,10 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
 		},
 	}
-
-	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", svc.ID, err)
-		return
-	}
+	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: svc.PoolID})
+	t.Assert(err, IsNil)
+	err = ft.Facade.AddService(ft.CTX, svc, false)
+	t.Assert(err, IsNil)
 
 	childSvc := service.Service{
 		ID:              "svc2",
@@ -133,29 +133,26 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
 		},
 	}
-	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
-		t.Fatalf("Setup failed; could not add svc %s: %s", childSvc.ID, err)
-		return
-	}
-
-	err := ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
+	err = ft.Facade.AddService(ft.CTX, childSvc, false)
+	t.Assert(err, IsNil)
+	err = ft.Facade.validateServiceEndpoints(ft.CTX, &svc)
 	t.Check(err, NotNil)
 	t.Check(strings.Contains(err.Error(), "found duplicate endpoint name"), Equals, true)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noConfigs(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, nil)
+	_, newSvc, err := ft.setupMigrationServices(t, nil)
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateServiceConfigs(ft.CTX, oldSvc, newSvc)
+	err = ft.Facade.updateService(ft.CTX, newSvc, true)
 	t.Assert(err, IsNil)
 }
 
 func (ft *FacadeTest) TestFacade_migrateServiceConfigs_noChanges(t *C) {
-	oldSvc, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
+	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateServiceConfigs(ft.CTX, oldSvc, newSvc)
+	err = ft.Facade.updateService(ft.CTX, newSvc, true)
 	t.Assert(err, IsNil)
 }
 
@@ -164,7 +161,7 @@ func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 	_, newSvc, err := ft.setupMigrationServices(t, getOriginalConfigs())
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateService(ft.CTX, newSvc)
+	err = ft.Facade.updateService(ft.CTX, newSvc, true)
 	t.Assert(err, IsNil)
 
 	result, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
@@ -176,7 +173,7 @@ func (ft *FacadeTest) TestFacade_migrateService_withoutUserConfigChanges(t *C) {
 
 	confs, err := ft.getConfigFiles(result)
 	t.Assert(err, IsNil)
-	t.Assert(len(confs), Equals, 0)
+	t.Assert(len(confs), Equals, len(result.ConfigFiles))
 }
 
 // Verify migration of configuration data when the user has changed the config files
@@ -188,7 +185,7 @@ func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
 	newSvc.DatabaseVersion = oldSvc.DatabaseVersion
 	t.Assert(err, IsNil)
 
-	err = ft.Facade.migrateService(ft.CTX, newSvc)
+	err = ft.Facade.updateService(ft.CTX, newSvc, true)
 	t.Assert(err, IsNil)
 
 	result, err := ft.Facade.GetService(ft.CTX, newSvc.ID)
@@ -203,11 +200,7 @@ func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
 
 	confs, err := ft.getConfigFiles(result)
 	t.Assert(err, IsNil)
-	t.Assert(len(confs), Equals, 1)
-	for _, conf := range confs {
-		t.Assert(conf.ConfFile.Filename, Not(Equals), "addedConfig")
-		t.Assert(expectedConfigFiles[conf.ConfFile.Filename], Equals, conf.ConfFile)
-	}
+	t.Assert(len(confs), Equals, len(result.ConfigFiles))
 }
 
 func (ft *FacadeTest) setupMigrationServices(t *C, originalConfigs map[string]servicedefinition.ConfigFile) (*service.Service, *service.Service, error) {
@@ -221,10 +214,10 @@ func (ft *FacadeTest) setupMigrationServices(t *C, originalConfigs map[string]se
 		OriginalConfigs: originalConfigs,
 	}
 
-	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
-		t.Errorf("Setup failed; could not add svc %s: %s", svc.ID, err)
-		return nil, nil, err
-	}
+	err := ft.Facade.AddResourcePool(ft.CTX, &pool.ResourcePool{ID: svc.PoolID})
+	t.Assert(err, IsNil)
+	err = ft.Facade.AddService(ft.CTX, svc, false)
+	t.Assert(err, IsNil)
 
 	oldSvc, err := ft.Facade.GetService(ft.CTX, svc.ID)
 	if err != nil {
@@ -257,7 +250,7 @@ func (ft *FacadeTest) setupConfigCustomizations(svc *service.Service) error {
 		svc.ConfigFiles[filename] = customizedConf
 	}
 
-	err := ft.Facade.updateService(ft.CTX, svc)
+	err := ft.Facade.updateService(ft.CTX, svc, false)
 	if err != nil {
 		return err
 	}
@@ -269,10 +262,11 @@ func (ft *FacadeTest) setupConfigCustomizations(svc *service.Service) error {
 }
 
 func (ft *FacadeTest) getConfigFiles(svc *service.Service) ([]*serviceconfigfile.SvcConfigFile, error) {
-	tenantID, servicePath, err := ft.Facade.getTenantIDAndPath(ft.CTX, *svc)
+	tenantID, servicePath, err := ft.Facade.GetServicePath(ft.CTX, svc.ID)
 	if err != nil {
 		return nil, err
 	}
+	servicePath = strings.TrimPrefix(servicePath, svc.DeploymentID)
 	configStore := serviceconfigfile.NewStore()
 	return configStore.GetConfigFiles(ft.CTX, tenantID, servicePath)
 }

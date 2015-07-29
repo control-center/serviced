@@ -419,14 +419,14 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 				delete(currentServices, serviceID)
 			} else {
 				glog.Infof("Adding service %s (%s)", svc.Name, svc.ID)
-				if err := dfs.facade.AddService(dfs.datastoreGet(), svc); err != nil {
+				if err := dfs.facade.AddService(dfs.datastoreGet(), svc, false); err != nil {
 					glog.Errorf("Could not add service %s: %s", serviceID, err)
 					return err
 				}
 			}
 
 			// restore the address assignments
-			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), svc); err != nil {
+			if err := dfs.facade.RestoreIPs(dfs.datastoreGet(), &svc); err != nil {
 				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
 			}
 

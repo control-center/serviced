@@ -162,7 +162,7 @@ func (f *Facade) DeployTemplateStatus(deploymentID string, status *string) error
 }
 
 //DeployTemplate creates and deployes a service to the pool and returns the tenant id of the newly deployed service
-func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string) ([]string, error) {
+func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID string, deploymentID string, manualAssignIP bool) ([]string, error) {
 	// add an entry for reporting status
 	deployments[deploymentID] = map[string]string{
 		"TemplateID":   templateID,
@@ -211,7 +211,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	for i, sd := range template.Services {
 		glog.Infof("Deploying application %s to %s", sd.Name, deploymentID)
 		var err error
-		if tenantIDs[i], err = f.deployService(ctx, "", "", deploymentID, poolID, false, sd); err != nil {
+		if tenantIDs[i], err = f.deployService(ctx, "", "", deploymentID, poolID, false, sd, manualAssignIP); err != nil {
 			glog.Errorf("Could not deploy application %s to %s: %s", sd.Name, deploymentID, err)
 			return nil, err
 		}
@@ -223,7 +223,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 // DeployService converts a service definition to a service and deploys it under
 // a specific service.  If the overwrite option is enabled, existing services
 // with the same name will be overwritten, otherwise services may only be added.
-func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, overwrite bool, svcDef servicedefinition.ServiceDefinition, manualAssignIP bool) (string, error) {
 	store := f.serviceStore
 
 	// get the parent service
@@ -270,10 +270,10 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 		return "", err
 	}
 
-	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef)
+	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef, manualAssignIP)
 }
 
-func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition) (string, error) {
+func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentServiceID, deploymentID, poolID string, overwrite bool, svcDef servicedefinition.ServiceDefinition, manualAssignIP bool) (string, error) {
 	// create the new service object
 	newsvc, err := service.BuildService(svcDef, parentServiceID, poolID, int(service.SVCStop), deploymentID)
 	if err != nil {
@@ -330,7 +330,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 			return "", err
 		}
 	} else {
-		if err := f.AddService(ctx, *newsvc); err != nil {
+		if err := f.AddService(ctx, *newsvc, manualAssignIP); err != nil {
 			glog.Errorf("Could not add service %s (%s) at %s: %s", newsvc.Name, newsvc.ID, parentServiceID, err)
 			return "", err
 		}
@@ -338,7 +338,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 
 	// walk child services
 	for _, sd := range svcDef.Services {
-		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd); err != nil {
+		if _, err := f.deployService(ctx, tenantID, newsvc.ID, deploymentID, poolID, overwrite, sd, manualAssignIP); err != nil {
 			glog.Errorf("Error while trying to deploy %s at %s (%s): %s", sd.Name, newsvc.Name, newsvc.ID, err)
 			return newsvc.ID, err
 		}

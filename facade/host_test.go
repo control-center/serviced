@@ -149,14 +149,13 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	s1.Endpoints[0].AddressConfig = servicedefinition.AddressResourceConfig{Port: 123, Protocol: "tcp"}
 	aa := addressassignment.AddressAssignment{ID: "id", HostID: h1.ID}
 	s1.Endpoints[0].SetAssignment(aa)
-	err = s.Facade.AddService(s.CTX, *s1)
+	err = s.Facade.AddService(s.CTX, *s1, false)
 	if err != nil {
 		t.Fatalf("Failed to add service %+v: %s", s1, err)
 	}
 	defer s.Facade.RemoveService(s.CTX, s1.ID)
 
-	request := dao.AssignmentRequest{ServiceID: s1.ID, IPAddress: h1.IPAddr, AutoAssignment: false}
-	if err = s.Facade.AssignIPs(s.CTX, request); err != nil {
+	if err = s.Facade.AssignIPs(s.CTX, s1.ID, h1.IPAddr); err != nil {
 		t.Fatalf("Failed assigning ip to service: %s", err)
 	}
 
@@ -189,7 +188,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	}
 
 	ep = services[0].Endpoints[0]
-	if ep.AddressAssignment.IPAddr == h2.IPAddr || ep.AddressAssignment.HostID == h2.ID {
+	if ep.AddressAssignment.IPAddr == h1.IPAddr || ep.AddressAssignment.HostID == h1.ID {
 		t.Fatalf("Incorrect IPAddress and HostID after remove host")
 	}
 }

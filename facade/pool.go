@@ -14,7 +14,6 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -233,10 +232,9 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 	}
 
 	// grab all services that are assigned to that virtual ip
-	query := []string{fmt.Sprintf("Endpoints.AddressAssignment.IPAddr:%s", vip.IP)}
-	services, err := f.GetTaggedServices(ctx, query)
+	serviceIDs, err := f.RemoveAddrAssignmentsByIP(ctx, vip.IP)
 	if err != nil {
-		glog.Errorf("Failed to grab services with endpoints assigned to ip %s: %s", vip.IP, err)
+		glog.Errorf("Could not remove address assignments assigned to ip %s: %s", vip.IP, err)
 		return err
 	}
 
@@ -252,14 +250,9 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 	}
 
 	// update address assignments
-	for _, svc := range services {
-		request := dao.AssignmentRequest{
-			ServiceID:      svc.ID,
-			IPAddress:      "",
-			AutoAssignment: true,
-		}
-		if err = f.AssignIPs(ctx, request); err != nil {
-			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
+	for _, serviceID := range serviceIDs {
+		if err = f.AssignIPs(ctx, serviceID, ""); err != nil {
+			glog.Warningf("Failed assigning another ip to service %s: %s", serviceID, err)
 		}
 	}
 
