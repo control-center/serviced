@@ -8,11 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"os/exec"
 	"path"
-	"reflect"
 	"regexp"
 	"strings"
 	"sync"
@@ -25,7 +23,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
-	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/validation"
 
 	"github.com/control-center/serviced/domain/service"
@@ -47,78 +45,527 @@ const (
 	EMBEDDED_MIGRATION_DIRECTORY = "/opt/serviced/migration"
 )
 
-// AddService adds a service; return error if service already exists
-func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
+var (
+	ErrServiceExists     = errors.New("facade: service exists")
+	ErrServiceNotExists  = errors.New("facade: service does not exist")
+	ErrServicePathExists = errors.New("facade: service already exists at path")
+	ErrServiceRunning    = errors.New("facade: service is running")
+	ErrDStateUnknown     = errors.New("facade: service desired state is unknown")
+)
+
+// ServiceHasInstances is an error that describes the number of running
+// instances for a particular service
+type ServiceHasInstances struct {
+	ServiceID string
+	Instances int
+}
+
+// Error implements error
+func (err ServiceHasInstances) Error() string {
+	return fmt.Sprintf("service %s has %d running instances", err.ServiceID, err.Instances)
+}
+
+// AddService creates a new service; returns an error if the service already
+// exists.
+func (f *Facade) AddService(ctx datastore.Context, svc service.Service, manualAssignIPs bool) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore
 
-	_, err := store.Get(ctx, svc.ID)
-	if err != nil && !datastore.IsErrNoSuchEntity(err) {
-		return err
-	} else if err == nil {
-		return fmt.Errorf("error adding service; %v already exists", svc.ID)
+	// check if the service exists
+	if _, err := store.Get(ctx, svc.ID); !datastore.IsErrNoSuchEntity(err) {
+		if err != nil {
+			glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		} else {
+			glog.Errorf("Could not add service %s (%s): %s", svc.Name, svc.ID, ErrServiceExists)
+			return ErrServiceExists
+		}
 	}
 
-	// verify the service with parent ID does not exist with the given name
-	if s, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
-		return err
-	} else if s != nil {
-		err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
-		glog.Errorf("Cannot create service %s: %s", svc.Name, err)
+	// verify the service can be added
+	if err := f.canEditService(ctx, svc.PoolID); err != nil {
+		glog.Errorf("Cannot add service %s (%s) to resource pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
 		return err
 	}
 
-	// Always add services in a stopped states so in case auto ip assignment fails,
+	// verify the service can be added at the specified path
+	if err := f.validateServicePath(ctx, &svc); err != nil {
+		glog.Errorf("Could not validate path for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+
+	// compare the incoming config files to see if there are modifications from
+	// the original.  If there are, we need to perform an update to add those
+	// modifications to the service.
+	if svc.OriginalConfigs == nil || len(svc.OriginalConfigs) == 0 {
+		if svc.ConfigFiles == nil || len(svc.ConfigFiles) == 0 {
+			svc.OriginalConfigs = make(map[string]servicedefinition.ConfigFile)
+		} else {
+			svc.OriginalConfigs = svc.ConfigFiles
+		}
+	} else {
+		if svc.ConfigFiles == nil || len(svc.ConfigFiles) == 0 {
+			svc.ConfigFiles = svc.OriginalConfigs
+		}
+	}
+
+	// Always add services in a stopped state so in case auto ip assignment fails,
 	// the scheduler won't spam the log complaining about missing address assignments.
 	svc.DesiredState = int(service.SVCStop)
 
 	// Strip the database version; we already know this is a create
 	svc.DatabaseVersion = 0
 
-	// Save a copy for checking configs later
-	svcCopy := svc
+	// set the create/update timestamps
+	now := time.Now()
+	svc.CreatedAt = now
+	svc.UpdatedAt = now
 
-	err = store.Put(ctx, &svc)
-	if err != nil {
-		glog.V(2).Infof("Facade.AddService: %+v", err)
+	// TODO: this should be transactional
+	if err := store.Put(ctx, &svc); err != nil {
+		glog.Errorf("Could not add service %s (%s): %s", svc.Name, svc.ID, err)
 		return err
 	}
-	glog.V(2).Infof("Facade.AddService: id %+v", svc.ID)
-
-	// Compare the incoming config files to see if there are modifications from
-	// the original. If there are, we need to perform an update to add those
-	// modifications to the service.
-	if svcCopy.OriginalConfigs != nil && !reflect.DeepEqual(svcCopy.OriginalConfigs, svcCopy.ConfigFiles) {
-		// Get the current service in order to get the database version. We
-		// don't save this because it won't have any of the updated config
-		// files, among other things.
-		cursvc, err := store.Get(ctx, svc.ID)
-		if err != nil {
-			glog.V(2).Infof("Facade.AddService: %+v", err)
+	// set the address assignment.
+	if !manualAssignIPs {
+		// AssignIPs automatically updates the service
+		if err := f.AssignIPs(ctx, svc.ID, ""); err != nil {
+			glog.Errorf("Could not create an address assignment for service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
 		}
-		svcCopy.DatabaseVersion = cursvc.DatabaseVersion
-
-		for key, _ := range svcCopy.OriginalConfigs {
-			glog.V(2).Infof("Facade.AddService: calling updateService for %s due to OriginalConfigs of %+v", svc.Name, key)
+	} else {
+		// update the service
+		if err := f.updateService(ctx, &svc, false); err != nil {
+			glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
 		}
-		return f.updateService(ctx, &svcCopy)
 	}
-
-	glog.V(2).Infof("Facade.AddService: calling zk.updateService for %s %d ConfigFiles", svc.Name, len(svc.ConfigFiles))
-	return zkAPI(f).UpdateService(&svc)
+	return nil
 }
 
-//
+// UpdateService updates an existing service; returns an error if the service
+// does not exist.
 func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.UpdateService: %+v", svc)
-	err := f.stopServiceForUpdate(ctx, svc)
+	store := f.serviceStore
+	// check if the service exists
+	if _, err := store.Get(ctx, svc.ID); datastore.IsErrNoSuchEntity(err) {
+		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, ErrServiceNotExists)
+		return ErrServiceNotExists
+	} else if err != nil {
+		glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	// verify that the service can be updated
+	if err := f.canEditService(ctx, svc.PoolID); err != nil {
+		glog.Errorf("Could not update service %s (%s) in pool %s: %s", svc.Name, svc.ID, svc.PoolID, err)
+		return err
+	}
+	// update the service
+	if err := f.updateService(ctx, &svc, false); err != nil {
+		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	return nil
+}
+
+// RemoveService removes an existing service.
+func (f *Facade) RemoveService(ctx datastore.Context, serviceID string) error {
+	glog.V(2).Infof("Facade.RemoveService: %s", serviceID)
+	store := f.serviceStore
+	removeService := func(svc *service.Service) error {
+		if svc.DesiredState != int(service.SVCStop) {
+			glog.Errorf("Could not remove service %s (%s): %s", svc.Name, svc.ID, ErrServiceRunning)
+			return ErrServiceRunning
+		}
+		// check if there are any running instances
+		var states []servicestate.ServiceState
+		if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+			glog.Errorf("Could not check service states for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		} else if numstates := len(states); numstates > 0 {
+			err := ServiceHasInstances{svc.ID, numstates}
+			glog.Errorf("Could not remove service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+		// remove address assignments
+		if err := f.RemoveAddrAssignmentsByService(ctx, svc.ID); err != nil {
+			glog.Errorf("Could not remove address assignments from service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+		// delete the service
+		if err := store.Delete(ctx, svc.ID); err != nil {
+			glog.Errorf("Could not remove service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		} else if err := zkAPI(f).RemoveService(svc); err != nil {
+			glog.Errorf("Could not remove service %s (%s) from coordinator: %s", svc.Name, svc.ID, err)
+			return err
+		}
+		return nil
+	}
+	return f.walkServices(ctx, serviceID, true, removeService)
+}
+
+// ScheduleService schedules a service (and optionally its children) by
+// changing the desired state; returns the number of affected services.
+func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, state service.DesiredState) (int, error) {
+	glog.V(2).Infof("Facade.ScheduleService: serviceID=%s, autoLaunch=%s, state=%s", serviceID, autoLaunch, state)
+	if state.String() == "unknown" {
+		return 0, ErrDStateUnknown
+	}
+	affected := 0
+	scheduleService := func(svc *service.Service) error {
+		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
+			return nil
+		} else if svc.DesiredState == int(state) {
+			return nil
+		}
+
+		switch state {
+		case service.SVCRestart:
+			// shutdown all service instances
+			var states []servicestate.ServiceState
+			if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+				return err
+			}
+
+			for _, state := range states {
+				if err := zkAPI(f).StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+					return err
+				}
+			}
+			svc.DesiredState = int(service.SVCRun)
+		default:
+			svc.DesiredState = int(state)
+		}
+
+		if err := f.updateService(ctx, svc, false); err != nil {
+			glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+		affected++
+		return nil
+	}
+
+	if err := f.walkServices(ctx, serviceID, autoLaunch, scheduleService); err != nil {
+		glog.Errorf("Could not scheduled service(s) to start from %s: %s", serviceID, err)
+		return affected, err
+	}
+	return affected, nil
+}
+
+// StartService schedules a service (and optionally its children) to start;
+// returns the number of affected services.
+func (f *Facade) StartService(ctx datastore.Context, serviceID string, autoLaunch bool) (int, error) {
+	glog.V(2).Infof("Facade.StartService: serviceID=%s, autoLaunch=%s", serviceID, autoLaunch)
+	return f.ScheduleService(ctx, serviceID, autoLaunch, service.SVCRun)
+}
+
+// RestartService schedules a service (and optionally its children) to restart;
+// returns the number of affected services.
+func (f *Facade) RestartService(ctx datastore.Context, serviceID string, autoLaunch bool) (int, error) {
+	glog.V(2).Infof("Facade.RestartService: serviceID=%s, autoLaunch=%s", serviceID, autoLaunch)
+	return f.ScheduleService(ctx, serviceID, autoLaunch, service.SVCRestart)
+}
+
+// PauseService schedules a service (and optionally its children) to pause;
+// returns the number of affected services.
+func (f *Facade) PauseService(ctx datastore.Context, serviceID string, autoLaunch bool) (int, error) {
+	glog.V(2).Infof("Facade.PauseService: serviceID=%s, autoLaunch=%s", serviceID, autoLaunch)
+	return f.ScheduleService(ctx, serviceID, autoLaunch, service.SVCPause)
+}
+
+// StopService schedules a service (and optionally its children) to stop;
+// returns the number of affected services.
+func (f *Facade) StopService(ctx datastore.Context, serviceID string, autoLaunch bool) (int, error) {
+	glog.V(2).Infof("Facade.StopService: serviceID=%s, autoLaunch=%s", serviceID, autoLaunch)
+	return f.ScheduleService(ctx, serviceID, autoLaunch, service.SVCStop)
+}
+
+// MigrateServices migrates a collection of services.
+func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
+	glog.V(2).Infof("Facade.MigrateServices: %+v", request)
+	// Do validations
+	for _, svcMod := range request.Modified {
+		if err := f.validateServiceMigrateUpdate(ctx, svcMod); err != nil {
+			return err
+		}
+	}
+	for _, svcAdd := range request.Added {
+		var err error
+		if svcAdd.ID, err = utils.NewUUID36(); err != nil {
+			return err
+		}
+		if err := f.validateServiceMigrateAdd(ctx, svcAdd); err != nil {
+			return err
+		}
+	}
+	for _, deploy := range request.Deploy {
+		if err := f.validateServiceMigrateDeploy(ctx, deploy.PoolID, deploy.ParentID, deploy.Service); err != nil {
+			return err
+		}
+	}
+	// Make changes if this is not a dry-run
+	if !request.DryRun {
+		for _, svcMod := range request.Modified {
+			if err := f.updateService(ctx, svcMod, true); err != nil {
+				return err
+			}
+		}
+		for _, svcAdd := range request.Added {
+			if err := f.AddService(ctx, *svcAdd, true); err != nil {
+				return err
+			}
+		}
+		for _, deploy := range request.Deploy {
+			if _, err := f.DeployService(ctx, deploy.PoolID, deploy.ParentID, false, deploy.Service, true); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// canEditService checks the pool id of a service and verifies whether it can
+// be added or modified.
+func (f *Facade) canEditService(ctx datastore.Context, poolID string) error {
+	if p, err := f.GetResourcePool(ctx, poolID); err != nil {
+		return err
+	} else if p == nil {
+		return ErrPoolNotExists
+	}
+	return nil
+}
+
+// updateService validates fields for service update and then updates the
+// service.
+func (f *Facade) updateService(ctx datastore.Context, svc *service.Service, migrate bool) error {
+	store := f.serviceStore
+	currentService, err := store.Get(ctx, svc.ID)
 	if err != nil {
+		glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	// set immutables
+	svc.DeploymentID = currentService.DeploymentID
+	svc.CreatedAt = currentService.CreatedAt
+	// set the config files
+	var config map[string]servicedefinition.ConfigFile
+	if migrate {
+		svc.ConfigFiles, config = nil, currentService.OriginalConfigs
+	} else {
+		svc.OriginalConfigs, svc.ConfigFiles, config = currentService.OriginalConfigs, nil, svc.ConfigFiles
+	}
+	// clear address assignments from the service
+	for i := range svc.Endpoints {
+		svc.Endpoints[i].RemoveAssignment()
+	}
+	// validate service path
+	if currentService.ParentServiceID != svc.ParentServiceID || currentService.Name != svc.Name {
+		if err := f.validateServicePath(ctx, svc); err != nil {
+			glog.Errorf("Could not validate path for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+	}
+	// update the pool
+	if currentService.PoolID != svc.PoolID {
+		// check and remove address assignments
+		if err := f.RemoveAddrAssignmentsByService(ctx, svc.ID); err != nil {
+			glog.Errorf("Could not remove address assignments for service %s (%s): %s", currentService.Name, currentService.ID, err)
+			return err
+		}
+		// remove the service from the coordinator pool
+		if err := zkAPI(f).RemoveService(currentService); err != nil {
+			// synchronizer will eventually clean this up
+			glog.Warningf("Coordinator: Could not delete service %s (%s) from pool %s: %s", currentService.Name, currentService.ID, currentService.PoolID, err)
+			currentService.DesiredState = int(service.SVCStop)
+			zkAPI(f).UpdateService(currentService)
+		}
+	}
+	// validate services for starting
+	if currentService.DesiredState == int(service.SVCStop) && currentService.DesiredState != svc.DesiredState {
+		if err := f.validateServiceForStarting(ctx, svc); err != nil {
+			glog.Errorf("Could not validate service start for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+	}
+
+	svc.UpdatedAt = time.Now()
+	// TODO: this should be transactional
+	if err := store.Put(ctx, svc); err != nil {
+		glog.Errorf("Could not update service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	// set the service configs
+	if config != nil {
+		if err := f.updateServiceConfigs(ctx, *svc, config, migrate); err != nil {
+			glog.Errorf("Could not update service configs for service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		}
+	}
+	if err := f.setServiceConfigs(ctx, svc); err != nil {
+		glog.Warningf("Could not set the service configs for service %s (%s): %s", svc.Name, svc.ID, err)
+	}
+	// set the address assignments
+	if err := f.setAddrAssignment(ctx, svc); err != nil {
+		glog.Warningf("Could not set the address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
+	}
+	if err := zkAPI(f).UpdateService(svc); err != nil {
+		glog.Errorf("Could not update service %s (%s) via coordinator: %s", svc.Name, svc.ID, err)
+		return err
+	}
+	return nil
+}
+
+// validateServicePath ensures the service is added to a unique path
+func (f *Facade) validateServicePath(ctx datastore.Context, svc *service.Service) error {
+	store := f.serviceStore
+	// verify the service can be added at the specified path
+	if parentID := strings.TrimSpace(svc.ParentServiceID); parentID != "" {
+		if _, err := store.Get(ctx, parentID); err != nil {
+			glog.Errorf("Could not verify the existance of parent %s: %s", svc.ParentServiceID, err)
+			return err
+		}
+	} else if s, err := store.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
+		glog.Errorf("Could not verify service path for %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	} else if s != nil && s.ID != svc.ID {
+		glog.Errorf("Found service %s (%s) at %s: %s", svc.Name, svc.ID, svc.ParentServiceID, ErrServicePathExists)
+		return ErrServicePathExists
+	}
+	return nil
+}
+
+// validateServiceForStarting ensures the service can be allowed to start
+func (f *Facade) validateServiceForStarting(ctx datastore.Context, svc *service.Service) error {
+	// get the address assignments for the service
+	assigns, err := f.GetAddrAssignmentsByService(ctx, svc.ID)
+	if err != nil {
+		glog.Errorf("Could not get address assignments for service %s: %s", svc.ID, err)
+		return err
+	}
+	assignmap := make(map[string]addressassignment.AddressAssignment)
+	for _, a := range assigns {
+		assignmap[a.EndpointName] = a
+	}
+	// validate service for starting
+	for _, endpoint := range svc.Endpoints {
+		// make sure the service has all of its address assignments
+		if endpoint.IsConfigurable() {
+			if _, ok := assignmap[endpoint.Name]; !ok {
+				glog.Errorf("Service %s (%s) missing an address assignment for endpoint %s", svc.Name, svc.ID, endpoint.Name)
+				return MissingAddressAssignment{svc.ID, endpoint.Name}
+			}
+		}
+		// check that vhosts aren't already started elsewhere
+		for _, vh := range endpoint.VHosts {
+			if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// validateServiceMigrateDeploy verifies whether a service definition can be
+// migrated.
+func (f *Facade) validateServiceMigrateDeploy(ctx datastore.Context, poolID, parentID string, svcdef servicedefinition.ServiceDefinition) error {
+	_, parentPath, err := f.GetServicePath(ctx, parentID)
+	if err != nil {
+		glog.Errorf("Could not look up parent service %s: %s", parentID, err)
+		return err
+	}
+	deploymentID := strings.SplitN(parentPath, "/", 2)[0]
+
+	svc, err := service.BuildService(svcdef, parentID, poolID, int(service.SVCStop), deploymentID)
+	if err != nil {
+		glog.Errorf("Could not build service %s: %s", svcdef.Name, err)
+		return err
+	}
+	if err := svc.ValidEntity(); err != nil {
+		glog.Errorf("Service %s of %s is not a valid entity: %s", svcdef.Name, parentPath, err)
+		return err
+	}
+	if err := f.validateServiceMigrateAdd(ctx, svc); err != nil {
+		glog.Errorf("Could not validate deployment of service %s: %s", svcdef.Name, err)
 		return err
 	}
 
-	return f.updateService(ctx, &svc)
+	var validateChildren func(string, *service.Service, servicedefinition.ServiceDefinition) error
+	validateChildren = func(parentPath string, svc *service.Service, sd servicedefinition.ServiceDefinition) error {
+		children := make(map[string]struct{})
+		deploymentPath := path.Join(parentPath, svc.Name)
+
+		for _, sdef := range sd.Services {
+			// build the service and verify that it is valid
+			childSvc, err := service.BuildService(sdef, svc.ID, svc.PoolID, int(service.SVCStop), svc.DeploymentID)
+			if err != nil {
+				glog.Errorf("Could not build service %s of %s: %s", sdef.Name, deploymentPath, err)
+				return err
+			}
+			if err := childSvc.ValidEntity(); err != nil {
+				glog.Errorf("Service %s (at %s) is not a valid entity: %s", sdef.Name, deploymentPath, err)
+				return err
+			}
+			// verify that there are no path collisions
+			if _, ok := children[sd.Name]; ok {
+				glog.Errorf("Could not validate child service %s of %s", sdef.Name, deploymentPath)
+				return ErrServicePathExists
+			} else {
+				children[sd.Name] = struct{}{}
+			}
+			// recursively check this service's child services
+			if err := validateChildren(deploymentPath, childSvc, sdef); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	return validateChildren(parentPath, svc, svcdef)
+}
+
+// validateServiceMigrateAdd verifies whether a new service can be migrated.
+func (f *Facade) validateServiceMigrateAdd(ctx datastore.Context, svc *service.Service) error {
+	store := f.serviceStore
+	if err := svc.ValidEntity(); err != nil {
+		glog.Errorf("Service %s (%s) is not a valid entity: %s", svc.Name, svc.ID, err)
+		return err
+	} else if _, err := store.Get(ctx, svc.ID); !datastore.IsErrNoSuchEntity(err) {
+		if err != nil {
+			glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+			return err
+		} else {
+			glog.Errorf("Could not add service %s (%s): %s", svc.Name, svc.ID, ErrServiceExists)
+			return ErrServiceExists
+		}
+	} else if err := f.canEditService(ctx, svc.PoolID); err != nil {
+		glog.Errorf("Cannot add service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	} else if err := f.validateServicePath(ctx, svc); err != nil {
+		glog.Errorf("Could not validate service path for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	return nil
+}
+
+// validateServiceMigrateUpdate verifies whether an existing service can be
+// migrated
+func (f *Facade) validateServiceMigrateUpdate(ctx datastore.Context, svc *service.Service) error {
+	store := f.serviceStore
+	if err := svc.ValidEntity(); err != nil {
+		glog.Errorf("Service %s (%s) is not a valid entity: %s", svc.Name, svc.ID, err)
+		return err
+	} else if _, err := store.Get(ctx, svc.ID); err != nil {
+		glog.Errorf("Could not look up service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	} else if err := f.canEditService(ctx, svc.PoolID); err != nil {
+		glog.Errorf("Cannot edit service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	} else if err := f.validateServicePath(ctx, svc); err != nil {
+		glog.Errorf("Could not validate service path for service %s (%s): %s", svc.Name, svc.ID, err)
+		return err
+	}
+	return nil
 }
 
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
@@ -192,172 +639,6 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 
 	return err
 
-}
-
-func (f *Facade) MigrateServices(ctx datastore.Context, request dao.ServiceMigrationRequest) error {
-	var err error
-
-	// Validate the modified services.
-	for _, svc := range request.Modified {
-		if err = f.verifyServiceForUpdate(ctx, svc, nil); err != nil {
-			return err
-		}
-	}
-
-	// Make required mutations to the added services.
-	for _, svc := range request.Added {
-		svc.ID, err = utils.NewUUID36()
-		if err != nil {
-			return err
-		}
-		now := time.Now()
-		svc.CreatedAt = now
-		svc.UpdatedAt = now
-		for _, ep := range svc.Endpoints {
-			ep.AddressAssignment = addressassignment.AddressAssignment{}
-		}
-	}
-
-	if err = f.validateAddedMigrationServices(ctx, request.Added); err != nil {
-		return err
-	}
-
-	if err = f.validateServiceDeploymentRequests(ctx, request.Deploy); err != nil {
-		return err
-	}
-
-	// If this isn't a dry run, make the changes.
-	if !request.DryRun {
-
-		// Add the added services.
-		for _, svc := range request.Added {
-			if err = f.AddService(ctx, *svc); err != nil {
-				return err
-			}
-		}
-
-		// Migrate the modified services.
-		for _, svc := range request.Modified {
-			if err = f.stopServiceForUpdate(ctx, *svc); err != nil {
-				return err
-			}
-			if err = f.migrateService(ctx, svc); err != nil {
-				return err
-			}
-		}
-
-		// Deploy the service definitions.
-		for _, request := range request.Deploy {
-			parent, err := f.serviceStore.Get(ctx, request.ParentID)
-			if err != nil {
-				glog.Errorf("Could not get parent service %s", request.ParentID)
-				return err
-			}
-			_, err = f.DeployService(ctx, parent.PoolID, request.ParentID, false, request.Service)
-			if err != nil {
-				glog.Errorf("Could not deploy service definition: %+v", request.Service)
-				return err
-			}
-
-		}
-	}
-
-	return nil
-}
-
-func (f *Facade) validateServiceDeploymentRequests(ctx datastore.Context, requests []*dao.ServiceDeploymentRequest) error {
-	for _, request := range requests {
-
-		// Make sure the parent exists.
-		parent, err := f.serviceStore.Get(ctx, request.ParentID)
-		if err != nil {
-			glog.Errorf("Could not get parent service %s", request.ParentID)
-			return err
-		}
-
-		// Make sure we can build the service definition into a service.
-		_, err = service.BuildService(request.Service, request.ParentID, parent.PoolID, int(service.SVCStop), parent.DeploymentID)
-		if err != nil {
-			glog.Errorf("Could not create service: %s", err)
-			return err
-		}
-
-	}
-
-	return nil
-}
-
-func (f *Facade) validateAddedMigrationServices(ctx datastore.Context, addedSvcs []*service.Service) error {
-
-	// Create a list of all endpoint Application names.
-	existing, err := f.serviceStore.GetServices(ctx)
-	if err != nil {
-		return err
-	}
-	apps := map[string]bool{}
-	for _, svc := range existing {
-		for _, ep := range svc.Endpoints {
-			if ep.Purpose == "export" {
-				apps[ep.Application] = true
-			}
-		}
-	}
-
-	// Perform the validation.
-	for _, svc := range addedSvcs {
-
-		// verify the service with name and parent does not collide with another existing service
-		if s, err := f.serviceStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-			return err
-		} else if s != nil {
-			if s.ID != svc.ID {
-				return fmt.Errorf("ValidationError: Duplicate name detected for service %s found at %s", svc.Name, svc.ParentServiceID)
-			}
-		}
-
-		// Make sure no endpoint apps are duplicated.
-		for _, ep := range svc.Endpoints {
-			if ep.Purpose == "export" {
-				if _, ok := apps[ep.Application]; ok {
-					return fmt.Errorf("ValidationError: Duplicate Application detected for endpoint %s found for service %s id %s", ep.Name, svc.Name, svc.ID)
-				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
-	store := f.serviceStore
-
-	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
-		// remove all address assignments
-		for _, endpoint := range svc.Endpoints {
-			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpoint.Name); err != nil {
-				glog.Errorf("Could not find address assignment %s for service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
-				return err
-			} else if assignment != nil {
-				if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
-					glog.Errorf("Could not remove address assignment %s from service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
-					return err
-				}
-			}
-			endpoint.RemoveAssignment()
-		}
-
-		if err := zkAPI(f).RemoveService(svc); err != nil {
-			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
-			return err
-		}
-
-		if err := store.Delete(ctx, svc.ID); err != nil {
-			glog.Errorf("Error while removing service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-
-		return nil
-	})
 }
 
 func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, error) {
@@ -569,58 +850,6 @@ func (f *Facade) FindChildService(ctx datastore.Context, parentServiceID string,
 	return store.FindChildService(ctx, parentService.DeploymentID, parentService.ID, childName)
 }
 
-// ScheduleService changes a service's desired state and returns the number of affected services
-func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLaunch bool, desiredState service.DesiredState) (int, error) {
-	glog.V(4).Infof("Facade.ScheduleService %s (%s)", serviceID, desiredState)
-
-	if desiredState.String() == "unknown" {
-		return 0, fmt.Errorf("desired state unknown")
-	} else if desiredState != service.SVCStop {
-		if err := f.validateService(ctx, serviceID, autoLaunch); err != nil {
-			glog.Errorf("Facade.ScheduleService validate service result: %s", err)
-			return 0, err
-		}
-	}
-
-	affected := 0
-
-	visitor := func(svc *service.Service) error {
-		if svc.ID != serviceID && svc.Launch == commons.MANUAL {
-			return nil
-		} else if svc.DesiredState == int(desiredState) {
-			return nil
-		}
-
-		switch desiredState {
-		case service.SVCRestart:
-			// shutdown all service instances
-			var states []servicestate.ServiceState
-			if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
-				return err
-			}
-
-			for _, state := range states {
-				if err := zkAPI(f).StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
-					return err
-				}
-			}
-			svc.DesiredState = int(service.SVCRun)
-		default:
-			svc.DesiredState = int(desiredState)
-		}
-
-		if err := f.updateService(ctx, svc); err != nil {
-			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-		affected++
-		return nil
-	}
-
-	err := f.walkServices(ctx, serviceID, autoLaunch, visitor)
-	return affected, err
-}
-
 // GetServiceStates returns all the service states given a service ID
 func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]servicestate.ServiceState, error) {
 	glog.V(4).Infof("Facade.GetServiceStates %s", serviceID)
@@ -697,311 +926,12 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 	return nil
 }
 
-func (f *Facade) StartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRun)
-}
-
-func (f *Facade) RestartService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCRestart)
-}
-
-func (f *Facade) PauseService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCPause)
-}
-
-func (f *Facade) StopService(ctx datastore.Context, request dao.ScheduleServiceRequest) (int, error) {
-	return f.ScheduleService(ctx, request.ServiceID, request.AutoLaunch, service.SVCStop)
-}
-
-type ipinfo struct {
-	IP     string
-	Type   string
-	HostID string
-}
-
-type Ports map[uint16]struct{}
-
-func GetPorts(endpoints []service.ServiceEndpoint) (Ports, error) {
-	ports := make(map[uint16]struct{})
-	for _, endpoint := range endpoints {
-		if endpoint.IsConfigurable() {
-			port := endpoint.AddressConfig.Port
-			if _, ok := ports[port]; ok {
-				return nil, fmt.Errorf("multiple endpoints found at port %d", port)
-			}
-			ports[port] = struct{}{}
-		}
-	}
-	return Ports(ports), nil
-}
-
-func (m Ports) List() (ports []uint16) {
-	for p := range m {
-		ports = append(ports, p)
-	}
-	return
-}
-
-func (f *Facade) RestoreIPs(ctx datastore.Context, svc service.Service) error {
-	for _, ep := range svc.Endpoints {
-		if ep.AddressAssignment.IPAddr != "" {
-			if assign, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, ep.Name); err != nil {
-				glog.Errorf("Could not look up address assignment %s for service %s (%s): %s", ep.Name, svc.Name, svc.ID, err)
-				return err
-			} else if assign == nil || !assign.EqualIP(ep.AddressAssignment) {
-				ip, err := f.getManualAssignment(ctx, svc.PoolID, ep.AddressAssignment.IPAddr, ep.AddressConfig.Port)
-				if err != nil {
-					glog.Warningf("Could not assign ip (%s) to endpoint %s for service %s (%s): %s", ep.AddressAssignment.IPAddr, ep.Name, svc.Name, svc.ID, err)
-					continue
-				}
-
-				assign = &addressassignment.AddressAssignment{
-					AssignmentType: ip.Type,
-					HostID:         ip.HostID,
-					PoolID:         svc.PoolID,
-					IPAddr:         ip.IP,
-					Port:           ep.AddressConfig.Port,
-					ServiceID:      svc.ID,
-					EndpointName:   ep.Name,
-				}
-				if _, err := f.assign(ctx, *assign); err != nil {
-					glog.Errorf("Could not restore address assignment for %s of service %s at %s:%d: %s", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port, err)
-					return err
-				}
-				glog.Infof("Restored address assignment for endpoint %s of service %s at %s:%d", assign.EndpointName, assign.ServiceID, assign.IPAddr, assign.Port)
-			} else {
-				glog.Infof("Endpoint %s for service %s (%s) already assigned; skipping", assign.EndpointName, assign.ServiceID)
-			}
-		}
-	}
-	return nil
-}
-
-func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest) error {
-	visitor := func(svc *service.Service) error {
-		// get all of the ports for the service
-		portmap, err := GetPorts(svc.Endpoints)
-		if err != nil {
-			glog.Errorf("Could not get ports for service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		} else if len(portmap) == 0 {
-			return nil
-		}
-
-		glog.V(1).Infof("Found %+v ports for service %s (%s)", portmap.List(), svc.Name, svc.ID)
-
-		// get all of the address assignments for the service
-		var assignments []addressassignment.AddressAssignment
-		if err := f.GetServiceAddressAssignments(ctx, svc.ID, &assignments); err != nil {
-			glog.Errorf("Could not get address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
-			return err
-		}
-
-		var ip ipinfo
-		if request.AutoAssignment {
-			allports := portmap.List()
-
-			// look at the current address assignments and figure out the current ip
-			var ipaddr string
-			for _, a := range assignments {
-				if ipaddr == "" {
-					ipaddr = a.IPAddr
-				} else if ipaddr != a.IPAddr {
-					ipaddr = ""
-					break
-				}
-				delete(portmap, a.Port)
-			}
-
-			// try to manually assign the remaining endpoints
-			if ipaddr != "" {
-				ip, _ = f.getManualAssignment(ctx, svc.PoolID, ipaddr, portmap.List()...)
-			}
-
-			// if the remaining endpoints cannot be reassigned, find an ip for all endpoints
-			if ip.IP == "" {
-				var err error
-				if ip, err = f.getAutoAssignment(ctx, svc.PoolID, allports...); err != nil {
-					glog.Errorf("Could not get an ip to assign to service %s (%s): %s", svc.Name, svc.ID, err)
-					return err
-				}
-			}
-		} else {
-			// look at the current address assignments and figure out which endpoints need to be reassigned
-			for _, a := range assignments {
-				if a.IPAddr == request.IPAddress {
-					delete(portmap, a.Port)
-				}
-			}
-
-			// try to find an assignment for the remaining endpoints
-			var err error
-			if ip, err = f.getManualAssignment(ctx, svc.PoolID, request.IPAddress, portmap.List()...); err != nil {
-				glog.Errorf("Could not get an ip to assign to service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
-			}
-		}
-
-		// remove the address assignments for all non-matching ips
-		exclude := make(map[string]struct{})
-		for _, assignment := range assignments {
-			if assignment.IPAddr == ip.IP {
-				exclude[assignment.EndpointName] = struct{}{}
-			} else if err := f.RemoveAddressAssignment(ctx, assignment.ID); err != nil {
-				glog.Errorf("Error removing address assignment %s for %s (%s): %s", assignment.EndpointName, svc.Name, svc.ID, err)
-				return err
-			}
-		}
-
-		restart := false
-		for _, endpoint := range svc.Endpoints {
-			if _, ok := exclude[endpoint.Name]; !ok && endpoint.IsConfigurable() {
-				newassign := addressassignment.AddressAssignment{
-					AssignmentType: ip.Type,
-					HostID:         ip.HostID,
-					PoolID:         svc.PoolID,
-					IPAddr:         ip.IP,
-					Port:           endpoint.AddressConfig.Port,
-					ServiceID:      svc.ID,
-					EndpointName:   endpoint.Name,
-				}
-
-				if _, err := f.assign(ctx, newassign); err != nil {
-					glog.Errorf("Error creating address assignment for %s of service %s at %s:%d: %s", newassign.EndpointName, newassign.ServiceID, newassign.IPAddr, newassign.Port, err)
-					return err
-				}
-				glog.Infof("Created address assignment for endpoint %s of service %s at %s:%d", newassign.EndpointName, newassign.ServiceID, newassign.IPAddr, newassign.Port)
-				restart = true
-			}
-		}
-
-		// Restart the service if it is running and new address assignments are made
-		if restart && svc.DesiredState == int(service.SVCRun) {
-			f.RestartService(ctx, dao.ScheduleServiceRequest{svc.ID, false})
-		}
-
-		return nil
-	}
-
-	// traverse all the services
-	return f.walkServices(ctx, request.ServiceID, true, visitor)
-}
-
 func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registry string, noOp bool) (string, error) {
 	result, err := docker.ServiceUse(serviceID, imageName, registry, noOp)
 	if err != nil {
 		return "", err
 	}
 	return result, nil
-}
-
-func (f *Facade) getAutoAssignment(ctx datastore.Context, poolID string, ports ...uint16) (ipinfo, error) {
-	pool, err := f.GetResourcePool(ctx, poolID)
-	if err != nil {
-		glog.Errorf("Error while looking up pool %s: %s", poolID, err)
-		return ipinfo{}, err
-	}
-
-	ignoreips := make(map[string]struct{})
-	for _, port := range ports {
-		// Get all of the address assignments for port
-		assignments, err := f.GetServiceAddressAssignmentsByPort(ctx, port)
-		if err != nil {
-			glog.Errorf("Error while looking up address assignments for port %d: %s", port, err)
-			return ipinfo{}, err
-		}
-
-		// Find out all of the host ips that cannot be used
-		for _, assignment := range assignments {
-			ignoreips[assignment.IPAddr] = struct{}{}
-		}
-	}
-
-	// Filter virtual ips
-	var ips []ipinfo
-	for _, vip := range pool.VirtualIPs {
-		if _, ok := ignoreips[vip.IP]; !ok {
-			ips = append(ips, ipinfo{vip.IP, commons.VIRTUAL, ""})
-		}
-	}
-
-	hosts, err := f.FindHostsInPool(ctx, poolID)
-	if err != nil {
-		glog.Errorf("Error while looking up hosts in pool %s: %s", poolID, err)
-		return ipinfo{}, err
-	}
-	var resources []host.HostIPResource
-	for _, host := range hosts {
-		if host.IPs != nil {
-			resources = append(resources, host.IPs...)
-		}
-	}
-	// Filter static ips
-	for _, hostIP := range resources {
-		if _, ok := ignoreips[hostIP.IPAddress]; !ok {
-			ips = append(ips, ipinfo{hostIP.IPAddress, commons.STATIC, hostIP.HostID})
-		}
-	}
-
-	// Pick an ip
-	total := len(ips)
-	if total == 0 {
-		err := fmt.Errorf("No IPs are available to be assigned")
-		glog.Errorf("Error acquiring IP assignment: %s", err)
-		return ipinfo{}, err
-	}
-
-	rand.Seed(time.Now().UTC().UnixNano())
-	return ips[rand.Intn(total)], nil
-}
-
-func (f *Facade) getManualAssignment(ctx datastore.Context, poolID, ipAddr string, ports ...uint16) (ipinfo, error) {
-	// Check if the assignment is already there
-	for _, port := range ports {
-		if exists, err := f.FindAssignmentByHostPort(ctx, ipAddr, port); err != nil {
-			glog.Errorf("Error while looking for assignment for (%s:%d): %s", ipAddr, port, err)
-			return ipinfo{}, err
-		} else if exists != nil {
-			err := fmt.Errorf("assignment exists for %s:%d", ipAddr, port)
-			glog.Errorf("Assignment found for endpoint %s on service %s: %s", exists.EndpointName, exists.ServiceID, err)
-			return ipinfo{}, err
-		}
-	}
-
-	pool, err := f.GetResourcePool(ctx, poolID)
-	if err != nil {
-		glog.Errorf("Error while looking up pool %s: %s", poolID, err)
-		return ipinfo{}, err
-	}
-
-	for _, vip := range pool.VirtualIPs {
-		if vip.IP == ipAddr {
-			return ipinfo{vip.IP, commons.VIRTUAL, ""}, nil
-		}
-	}
-
-	host, err := f.GetHostByIP(ctx, ipAddr)
-	if err != nil {
-		glog.Errorf("Error while looking for host with IP %s: %s", ipAddr, err)
-		return ipinfo{}, err
-	} else if host == nil {
-		err := fmt.Errorf("host not found")
-		glog.Errorf("Could not find IP %s", ipAddr)
-		return ipinfo{}, err
-	} else if host.PoolID != poolID {
-		err := fmt.Errorf("host not found in pool")
-		glog.Errorf("Host %s (%s) not found in pool %s", host.ID, ipAddr, err)
-		return ipinfo{}, err
-	}
-
-	for _, hostIP := range host.IPs {
-		if hostIP.IPAddress == ipAddr {
-			return ipinfo{hostIP.IPAddress, commons.STATIC, hostIP.HostID}, nil
-		}
-	}
-
-	// this should never happen
-	return ipinfo{}, fmt.Errorf("host IP not found")
 }
 
 func (f *Facade) filterByTenantID(ctx datastore.Context, matchTenantID string, services []service.Service) ([]service.Service, error) {
@@ -1062,6 +992,32 @@ func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 		return results, err
 	}
 	return results, nil
+}
+
+// GetServicePath returns the tenantID and path to a service, starting from the
+// deployment id.
+func (f *Facade) GetServicePath(ctx datastore.Context, serviceID string) (string, string, error) {
+	glog.V(2).Infof("Facade.GetServicePath: %s", serviceID)
+	store := f.serviceStore
+
+	var getParentPath func(string) (string, string, error)
+	getParentPath = func(string) (string, string, error) {
+		svc, err := store.Get(ctx, serviceID)
+		if err != nil {
+			glog.Errorf("Could not look up service %s: %s", serviceID, err)
+			return "", "", err
+		}
+		if svc.ParentServiceID == "" {
+			return svc.ID, path.Join(svc.DeploymentID, svc.ID), nil
+		}
+
+		t, p, err := getParentPath(svc.ParentServiceID)
+		if err != nil {
+			return "", "", err
+		}
+		return t, path.Join(p, svc.ID), nil
+	}
+	return getParentPath(serviceID)
 }
 
 //
@@ -1156,63 +1112,10 @@ func (f *Facade) getServiceTree(serviceId string, servicesList *[]service.Servic
 	return topService
 }
 
-// determine whether the services are ready for deployment
-func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service.Service) error {
-	// ensure all endpoints with AddressConfig have assigned IPs
-	for _, endpoint := range svc.Endpoints {
-		if endpoint.IsConfigurable() {
-			if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpoint.Name); err != nil {
-				glog.Errorf("Error looking up address assignment for endpoint %s of service %s (%s): %s", endpoint.Name, svc.Name, svc.ID, err)
-				return err
-			} else if assignment == nil {
-				return fmt.Errorf("service %s is missing an address assignment", svc.ID)
-			}
-		}
-
-		if len(endpoint.VHosts) > 0 {
-			// TODO: check to see if this vhost is in use by another app
-		}
-	}
-
-	// add additional validation checks to the services
-	return nil
-}
-
-// validate the provided service
-func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLaunch bool) error {
-	//TODO: create map of IPs to ports and ensure that an IP does not have > 1 process listening on the same port
-	visitor := func(svc *service.Service) error {
-		// validate the service is ready to start
-		err := f.validateServicesForStarting(ctx, svc)
-		if err != nil {
-			glog.Errorf("services failed validation for starting")
-			return err
-		}
-		for _, ep := range svc.GetServiceVHosts() {
-			for _, vh := range ep.VHosts {
-				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
-					return err
-				}
-			}
-		}
-		return nil
-	}
-
-	// traverse all the services
-	if err := f.walkServices(ctx, serviceId, autoLaunch, visitor); err != nil {
-		glog.Errorf("unable to walk services for service %s", serviceId)
-		return err
-	}
-
-	return nil
-}
-
 func (f *Facade) fillOutService(ctx datastore.Context, svc *service.Service) error {
-	if err := f.fillServiceAddr(ctx, svc); err != nil {
+	if err := f.setAddrAssignment(ctx, svc); err != nil {
 		return err
-	}
-	if err := f.fillServiceConfigs(ctx, svc); err != nil {
+	} else if err := f.setServiceConfigs(ctx, svc); err != nil {
 		return err
 	}
 	return nil
@@ -1225,119 +1128,6 @@ func (f *Facade) fillOutServices(ctx datastore.Context, svcs []service.Service) 
 		}
 	}
 	return nil
-}
-
-func (f *Facade) fillServiceConfigs(ctx datastore.Context, svc *service.Service) error {
-	glog.V(3).Infof("fillServiceConfigs for %s", svc.ID)
-	tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *svc)
-	if err != nil {
-		return err
-	}
-	glog.V(3).Infof("service %v; tenantid=%s; path=%s", svc.ID, tenantID, servicePath)
-
-	foundConfs, err := getExistingConfigs(ctx, tenantID, servicePath)
-	if err != nil {
-		return err
-	}
-
-	//replace with stored service config only if it is an existing config
-	for name, conf := range foundConfs {
-		if _, found := svc.ConfigFiles[name]; found {
-			svc.ConfigFiles[name] = conf.ConfFile
-		}
-	}
-	return nil
-}
-
-func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) error {
-	store := addressassignment.NewStore()
-
-	for idx := range svc.Endpoints {
-		endpointName := svc.Endpoints[idx].Name
-		if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpointName); err != nil {
-			glog.Errorf("Error searching for address assignments for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
-			return err
-		} else if assignment != nil {
-			// verify the ports match
-			if port := svc.Endpoints[idx].AddressConfig.Port; assignment.Port != port {
-				glog.Infof("Removing address assignment for endpoint %s of service %s (%s)", endpointName, svc.Name, svc.ID)
-				if err := store.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
-					glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
-					return err
-				}
-				svc.Endpoints[idx].RemoveAssignment()
-				continue
-			}
-
-			// verify the ip exists
-			if exists, err := f.HasIP(ctx, svc.PoolID, assignment.IPAddr); err != nil {
-				glog.Errorf("Error validating address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
-				return err
-			} else if !exists {
-				glog.Infof("Removing address assignment for endpoint %s of service %s (%s)", endpointName, svc.Name, svc.ID)
-				if err := store.Delete(ctx, addressassignment.Key(assignment.ID)); err != nil {
-					glog.Errorf("Error removing address assignment for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
-					return err
-				}
-				svc.Endpoints[idx].RemoveAssignment()
-				continue
-			}
-			svc.Endpoints[idx].SetAssignment(*assignment)
-		} else {
-			svc.Endpoints[idx].RemoveAssignment()
-		}
-	}
-	return nil
-}
-
-func (f *Facade) updateService(ctx datastore.Context, svc *service.Service) error {
-	migrateConfiguration := false
-	return f.updateServiceDefinition(ctx, migrateConfiguration, svc)
-}
-
-func (f *Facade) migrateService(ctx datastore.Context, svc *service.Service) error {
-	migrateConfiguration := true
-	return f.updateServiceDefinition(ctx, migrateConfiguration, svc)
-}
-
-// updateService internal method to use when service has been validated
-func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfiguration bool, svc *service.Service) error {
-	var oldSvc *service.Service
-	err := f.verifyServiceForUpdate(ctx, svc, &oldSvc)
-	if err != nil {
-		glog.Errorf("Could not verify service %s: %s", svc.ID, err)
-		return err
-	}
-
-	//add assignment info to service so it is availble in zk
-	f.fillServiceAddr(ctx, svc)
-
-	if migrateConfiguration {
-		err = f.migrateServiceConfigs(ctx, oldSvc, svc)
-	} else {
-		err = f.updateServiceConfigs(ctx, oldSvc, svc)
-	}
-	if err != nil {
-		return err
-	}
-
-	svc.UpdatedAt = time.Now()
-	svcStore := f.serviceStore
-	if err := svcStore.Put(ctx, svc); err != nil {
-		return err
-	}
-
-	// Remove the service from zookeeper if the pool ID has changed
-	if oldSvc.PoolID != svc.PoolID {
-		if err := zkAPI(f).RemoveService(oldSvc); err != nil {
-			// Synchronizer will eventually clean this service up
-			glog.Warningf("ZK: Could not delete service %s (%s) from pool %s: %s", svc.Name, svc.ID, oldSvc.PoolID, err)
-			oldSvc.DesiredState = int(service.SVCStop)
-			zkAPI(f).UpdateService(oldSvc)
-		}
-	}
-
-	return zkAPI(f).UpdateService(svc)
 }
 
 // validateServiceEndpoints traverses the service tree and checks for duplicate
@@ -1389,205 +1179,6 @@ func (f *Facade) validateServiceEndpoints(ctx datastore.Context, svc *service.Se
 	return nil
 }
 
-// Verify that the svc is valid for update.
-// Should be called for all updated (edited), and migrated services.
-// This method is only responsible for validation.
-func (f *Facade) verifyServiceForUpdate(ctx datastore.Context, svc *service.Service, oldSvc **service.Service) error {
-	glog.V(2).Infof("Facade:verifyServiceForUpdate: service ID %+v", svc.ID)
-
-	id := strings.TrimSpace(svc.ID)
-	if id == "" {
-		return errors.New("empty Service.ID not allowed")
-	}
-	svc.ID = id
-
-	// Primary service validation
-	if err := svc.ValidEntity(); err != nil {
-		return err
-	}
-
-	svcStore := f.serviceStore
-	currentSvc, err := svcStore.Get(ctx, svc.ID)
-	if err != nil {
-		return err
-	}
-
-	// verify the service with name and parent does not collide with another existing service
-	if s, err := svcStore.FindChildService(ctx, svc.DeploymentID, svc.ParentServiceID, svc.Name); err != nil {
-		glog.Errorf("Could not verify service path for %s: %s", svc.Name, err)
-		return err
-	} else if s != nil {
-		if s.ID != svc.ID {
-			err := fmt.Errorf("service %s found at %s", svc.Name, svc.ParentServiceID)
-			glog.Errorf("Cannot update service %s: %s", svc.Name, err)
-			return err
-		}
-	}
-
-	// make sure that the tenant ID and path are valid
-	_, _, err = f.getTenantIDAndPath(ctx, *svc)
-	if err != nil {
-		return err
-	}
-
-	if oldSvc != nil {
-		*oldSvc = currentSvc
-	}
-	return nil
-}
-
-func (f *Facade) migrateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *service.Service) error {
-	if reflect.DeepEqual(oldSvc.OriginalConfigs, newSvc.OriginalConfigs) {
-		return nil
-	}
-
-	tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *newSvc)
-	if err != nil {
-		return err
-	}
-
-	// addedConfs = anything in new, but not old (new config needs to be added)
-	// deletedConfs = anything in old, but not new (old config needs to be removed)
-	// sharedConfs = anything in both old and new versions of the service(retain existing config as is)
-	addedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	for key, newConf := range newSvc.OriginalConfigs {
-		if _, found := oldSvc.OriginalConfigs[key]; !found {
-			configFile, err := serviceconfigfile.New(tenantID, servicePath, newConf)
-			if err != nil {
-				return err
-			}
-			addedConfs[key] = configFile
-		}
-	}
-
-	deletedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	sharedConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-	for key, oldConf := range oldSvc.OriginalConfigs {
-		configFile, err := serviceconfigfile.New(tenantID, servicePath, oldConf)
-		if err != nil {
-			return err
-		}
-		if _, found := newSvc.OriginalConfigs[key]; !found {
-			deletedConfs[key] = configFile
-		} else {
-			sharedConfs[key] = configFile
-		}
-	}
-
-	existingConfs, err := getExistingConfigs(ctx, tenantID, servicePath)
-	if err != nil {
-		return err
-	}
-
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: new configurations: %d %v\n", len(addedConfs), addedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleted configurations: %d %v\n", len(deletedConfs), deletedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: sharedConfs configurations: %d %v\n", len(sharedConfs), sharedConfs)
-	glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: existing, customized configurations: %d %v\n", len(existingConfs), existingConfs)
-
-	configStore := serviceconfigfile.NewStore()
-
-	// sanity check - nothing in the added list should be part of the current customizations
-	for _, conf := range addedConfs {
-		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: new configuration %s found in config store", newSvc.ID, existing.ConfFile.Filename)
-		}
-	}
-
-	// remove shared configurations from the list of existing configs
-	for _, conf := range sharedConfs {
-		if _, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: keep unchanged config %s", newSvc.ID, conf.ConfFile.Filename)
-			delete(existingConfs, conf.ConfFile.Filename)
-		} else {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: unchanged configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
-		}
-	}
-
-	// sanity check - At this point, deletedConfs and existingConfs should have the same set of filenames
-	for _, conf := range deletedConfs {
-		if existing, found := existingConfs[conf.ConfFile.Filename]; found {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, conf.ConfFile.Filename)
-			delete(existingConfs, conf.ConfFile.Filename)
-			err = configStore.Delete(ctx, serviceconfigfile.Key(existing.ID))
-			if err != nil {
-				glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to delete config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
-				return err
-			}
-		} else {
-			glog.Warningf("Facade:migrateServiceConfigs: service ID %+v: obsolete configuration %s not found in config store", newSvc.ID, conf.ConfFile.Filename)
-		}
-	}
-
-	// If things are working normally, existingConfs should be empty at this point, but
-	//	just in case it's not, delete any remaining configurations
-	for _, conf := range existingConfs {
-		glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, conf.ConfFile.Filename)
-		err = configStore.Delete(ctx, serviceconfigfile.Key(conf.ID))
-		if err != nil {
-			glog.V(2).Infof("Facade:migrateServiceConfigs: service ID %+v: failed to delete config %s: %s", newSvc.ID, conf.ConfFile.Filename, err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func (f *Facade) updateServiceConfigs(ctx datastore.Context, oldSvc, newSvc *service.Service) error {
-	//Deal with Service Config Files
-	//For now always make sure originalConfigs stay the same, essentially they are immutable
-	newSvc.OriginalConfigs = oldSvc.OriginalConfigs
-
-	if err := f.fillServiceConfigs(ctx, oldSvc); err != nil {
-		return err
-	}
-
-	if !reflect.DeepEqual(oldSvc.ConfigFiles, newSvc.ConfigFiles) {
-		tenantID, servicePath, err := f.getTenantIDAndPath(ctx, *newSvc)
-		if err != nil {
-			return err
-		}
-
-		newConfs := make(map[string]*serviceconfigfile.SvcConfigFile)
-		//config files are different, for each one that is different validate and add to newConfs
-		for key, oldConf := range oldSvc.OriginalConfigs {
-			if conf, found := newSvc.ConfigFiles[key]; found {
-				if !reflect.DeepEqual(oldConf, conf) {
-					newConf, err := serviceconfigfile.New(tenantID, servicePath, conf)
-					if err != nil {
-						return err
-					}
-					newConfs[key] = newConf
-				}
-			}
-		}
-
-		//Get current stored conf files and replace as needed
-		foundConfs, err := getExistingConfigs(ctx, tenantID, servicePath)
-		if err != nil {
-			return err
-		}
-
-		//add or replace stored service config
-		configStore := serviceconfigfile.NewStore()
-		for _, newConf := range newConfs {
-			if existing, found := foundConfs[newConf.ConfFile.Filename]; found {
-				newConf.ID = existing.ID
-				//delete it from stored confs, left overs will be deleted from DB
-				delete(foundConfs, newConf.ConfFile.Filename)
-			}
-			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: updating config %s", newSvc.ID, newConf.ConfFile.Filename)
-			configStore.Put(ctx, serviceconfigfile.Key(newConf.ID), newConf)
-		}
-
-		//remove leftover non-updated stored confs, conf was probably reverted to original or no longer exists
-		for _, confToDelete := range foundConfs {
-			glog.V(2).Infof("Facade:updateServiceConfigs: service ID %+v: deleting config %s", newSvc.ID, confToDelete.ConfFile.Filename)
-			configStore.Delete(ctx, serviceconfigfile.Key(confToDelete.ID))
-		}
-	}
-	return nil
-}
-
 func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*service.Service, error) {
 	svcs := make([]*service.Service, 0, 1)
 
@@ -1601,26 +1192,6 @@ func (f *Facade) GetServiceList(ctx datastore.Context, serviceID string) ([]*ser
 	}
 
 	return svcs, nil
-}
-
-func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service) error {
-	//cannot update service without validating it.
-	if svc.DesiredState != int(service.SVCStop) {
-		if err := f.validateServicesForStarting(ctx, &svc); err != nil {
-			glog.Warningf("Could not validate service %s (%s) for starting: %s", svc.Name, svc.ID, err)
-			svc.DesiredState = int(service.SVCStop)
-		}
-
-		for _, ep := range svc.GetServiceVHosts() {
-			for _, vh := range ep.VHosts {
-				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
-					return err
-				}
-			}
-		}
-	}
-	return nil
 }
 
 func lookUpTenant(svcID string) (string, bool) {

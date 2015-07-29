@@ -60,18 +60,20 @@ type ApplicationEndpoint struct {
 
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {
-	PoolID       string // Pool Id to deploy service into
-	TemplateID   string // Id of template to be deployed
-	DeploymentID string // Unique id of the instance of this template
+	PoolID         string // Pool Id to deploy service into
+	TemplateID     string // Id of template to be deployed
+	DeploymentID   string // Unique id of the instance of this template
+	ManualAssignIP bool   // Determine whether to assign ip on service create
 }
 
 // A request to deploy a service from a service definition
 //  Pool and deployment ids are derived from the parent
 type ServiceDeploymentRequest struct {
-	PoolID    string // PoolID to deploy the service to
-	ParentID  string // ID of parent service
-	Overwrite bool   // Overwrites any existing service
-	Service   servicedefinition.ServiceDefinition
+	PoolID         string // PoolID to deploy the service to
+	ParentID       string // ID of parent service
+	Overwrite      bool   // Overwrites any existing service
+	Service        servicedefinition.ServiceDefinition
+	ManualAssignIP bool // Determine whether to assign ip on service create
 }
 
 // This is created by selecting from service_state and joining to service

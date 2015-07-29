@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain"
 	"github.com/zenoss/elastigo/search"
 )
 
@@ -35,6 +36,34 @@ type Store struct {
 func (s *Store) GetServiceAddressAssignments(ctx datastore.Context, serviceID string) ([]AddressAssignment, error) {
 	q := datastore.NewQuery(ctx)
 	query := search.Query().Term("ServiceID", serviceID)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
+func (s *Store) GetServiceAddressAssignmentsByIP(ctx datastore.Context, ip string) ([]AddressAssignment, error) {
+	if ip = strings.TrimSpace(ip); ip == "" {
+		return nil, domain.EmptyNotAllowed("IP Address")
+	}
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("IPAddr", ip)
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
+}
+
+func (s *Store) GetServiceAddressAssignmentsByHost(ctx datastore.Context, hostID string) ([]AddressAssignment, error) {
+	if hostID = strings.TrimSpace(hostID); hostID == "" {
+		return nil, domain.EmptyNotAllowed("HostID")
+	}
+	q := datastore.NewQuery(ctx)
+	query := search.Query().Term("HostID", hostID)
 	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
 	results, err := q.Execute(search)
 	if err != nil {

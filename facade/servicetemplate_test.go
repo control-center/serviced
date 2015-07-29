@@ -36,7 +36,7 @@ func (ft *FacadeTest) TestDaoValidServiceForStart(t *C) {
 			},
 		},
 	}
-	err := ft.Facade.validateServicesForStarting(datastore.Get(), &testService)
+	err := ft.Facade.validateServiceForStarting(datastore.Get(), &testService)
 	if err != nil {
 		t.Error("Services failed validation for starting: ", err)
 	}
@@ -61,7 +61,7 @@ func (ft *FacadeTest) TestDaoInvalidServiceForStart(t *C) {
 			},
 		},
 	}
-	err := ft.Facade.validateServicesForStarting(datastore.Get(), &testService)
+	err := ft.Facade.validateServiceForStarting(datastore.Get(), &testService)
 	if err == nil {
 		t.Error("Services should have failed validation for starting...")
 	}

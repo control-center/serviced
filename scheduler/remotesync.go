@@ -164,7 +164,7 @@ func (s *scheduler) AddUpdateService(svc *service.Service) error {
 	if sv, err := s.facade.GetService(datastore.Get(), svc.ID); err != nil {
 		return err
 	} else if sv == nil {
-		return s.facade.AddService(datastore.Get(), *svc)
+		return s.facade.AddService(datastore.Get(), *svc, false)
 	}
 
 	return s.facade.UpdateService(datastore.Get(), *svc)

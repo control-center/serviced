@@ -149,14 +149,13 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	s1.Endpoints[0].AddressConfig = servicedefinition.AddressResourceConfig{Port: 123, Protocol: "tcp"}
 	aa := addressassignment.AddressAssignment{ID: "id", HostID: h1.ID}
 	s1.Endpoints[0].SetAssignment(aa)
-	err = s.Facade.AddService(s.CTX, *s1)
+	err = s.Facade.AddService(s.CTX, *s1, false)
 	if err != nil {
 		t.Fatalf("Failed to add service %+v: %s", s1, err)
 	}
 	defer s.Facade.RemoveService(s.CTX, s1.ID)
 
-	request := dao.AssignmentRequest{ServiceID: s1.ID, IPAddress: h1.IPAddr, AutoAssignment: false}
-	if err = s.Facade.AssignIPs(s.CTX, request); err != nil {
+	if err = s.Facade.AssignIPs(s.CTX, s1.ID, h1.IPAddr); err != nil {
 		t.Fatalf("Failed assigning ip to service: %s", err)
 	}
 
