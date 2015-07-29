@@ -32,21 +32,20 @@ func (f *Facade) GetServicePath(ctx datastore.Context, serviceID string) (string
 	store := f.serviceStore
 
 	var getParentPath func(string) (string, string, error)
-	getParentPath = func(string) (string, string, error) {
+	getParentPath = func(serviceID string) (string, string, error) {
 		svc, err := store.Get(ctx, serviceID)
 		if err != nil {
 			glog.Errorf("Could not look up service %s: %s", serviceID, err)
 			return "", "", err
 		}
 		if svc.ParentServiceID == "" {
-			return svc.ID, path.Join(svc.DeploymentID, svc.ID), nil
+			return svc.ID, path.Join(svc.DeploymentID, svc.Name), nil
 		}
-
 		t, p, err := getParentPath(svc.ParentServiceID)
 		if err != nil {
 			return "", "", err
 		}
-		return t, path.Join(p, svc.ID), nil
+		return t, path.Join(p, svc.Name), nil
 	}
 	return getParentPath(serviceID)
 }
