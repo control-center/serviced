@@ -15,7 +15,7 @@ docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 docker images | egrep 'zenoss/ubuntu[ ]+wget' || docker pull zenoss/ubuntu:wget
 go get github.com/tools/godep
 cd $GOPATH/src/github.com/control-center/serviced
-godep restore ./... || true
+# godep restore ./... || true
 bash $GOPATH/src/github.com/docker/docker/hack/make/.go-autogen
 sudo su - root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; cd $PWD/volume; GOPATH=$GOPATH godep go test -tags=\"root daemon\" ./..."
 make clean test DOCKERCFG=""
