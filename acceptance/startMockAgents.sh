@@ -2,10 +2,6 @@
 
 set -e
 
-cd ..
-make -f makefile.mockAgent mockAgent
-cd acceptance
-
 echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host defaultHost` &
 echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host2` &
 echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host3` &
