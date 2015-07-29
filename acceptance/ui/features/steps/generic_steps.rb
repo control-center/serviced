@@ -45,9 +45,7 @@ When (/^I wait for the page to load$/) do
 end
 
 When (/^I view the details of "(.*?)"$/) do |name|
-    name = getTableValue(name)
-    find("td[ng-click]", :text => /\A#{name}\z/).click()
-    waitForPageLoad()
+    viewDetails(name)
 end
 
 Then /^I should see "(.*?)"$/ do |text|
@@ -62,7 +60,8 @@ Then (/^I should see the "([^"]*)"$/) do |element|
     find(element).visible?
 end
 
-Then (/^I should see "(.*?)" in the "([^"]*)" column$/) do |text, column|
+Then (/^I should see( the sum of)? "(.*?)" in the "([^"]*)" column$/) do |sum, text, column|
+    text = getSum(text) if sum
     expect(checkColumn(text, column)).to be true
 end
 
@@ -86,62 +85,71 @@ Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
     expect(checkRows(row)).to be false
 end
 
-Then (/^the details for "(.*?)" should be "(.*?)"$/) do |header, text|
+Then (/^the details for "(.*?)" should be( the sum of)? "(.*?)"$/) do |header, sum, text|
+    text = getSum(text) if sum
     expect(checkDetails(text, header)).to be true
 end
 
+def viewDetails(name)
+    name = getTableValue(name)
+    find("td[ng-click]", :text => /\A#{name}\z/).click()
+    waitForPageLoad()
+end
 
 def assertSortedColumn(category, order)
     list = page.all("td[data-title-text='#{category}'][sortable]")
     for i in 0..(list.size - 2)
         if category == "Created" || category == "Last Modified"
             if order
-                DateTime.parse(list[i].text).should <= DateTime.parse(list[i + 1].text)
+                expect(DateTime.parse(list[i].text)).to be <= DateTime.parse(list[i + 1].text)
             else
-                DateTime.parse(list[i].text).should >= DateTime.parse(list[i + 1].text)
+                expect(DateTime.parse(list[i].text)).to be >= DateTime.parse(list[i + 1].text)
             end
         elsif category == "Memory"
             if order
-                list[i].text[0..-4].to_f.should <= list[i + 1].text[0..-4].to_f
+                expect(list[i].text[0..-4].to_f).to be <= list[i + 1].text[0..-4].to_f
             else
-                list[i].text[0..-4].to_f.should >= list[i + 1].text[0..-4].to_f
+                expect(list[i].text[0..-4].to_f).to be >= list[i + 1].text[0..-4].to_f
             end
         elsif category == "CPU Cores"
             if order
-                list[i].text.to_i.should <= list[i + 1].text.to_i
+                expect(list[i].text.to_i).to be <= list[i + 1].text.to_i
             else
-                list[i].text.to_i.should >= list[i + 1].text.to_i
+                expect(list[i].text.to_i).to be >= list[i + 1].text.to_i
             end
         else
             if order
             # Category sorting ignores case
-                list[i].text.downcase.should <= list[i + 1].text.downcase
+                expect(list[i].text.downcase).to be <= list[i + 1].text.downcase
             else
-                list[i].text.downcase.should >= list[i + 1].text.downcase
+                expect(list[i].text.downcase).to be >= list[i + 1].text.downcase
             end
         end
     end
+end
+
+def getSum(urls)
+    urlList = urls.split(", ")
+    sum = 0
+    for i in 0..(urlList.size - 1)
+        sum += getTableValue(urlList[i]).to_i
+    end
+    return sum.to_s
 end
 
 def checkRows(row)
     waitForPageLoad()
     found = false
     name = getTableValue(row)
-    entries = page.all("tr[ng-repeat$='in $data']")
-    for i in 0..(entries.size - 1)
-        found = true if entries[i].has_text?(name)
-    end
+    found = page.has_css?("tr[ng-repeat$='in $data']", :text => name)
     return found
 end
 
 def checkColumn(text, column)
     # attribute that includes name of column of all table cells
-    list = page.all("td[data-title-text='#{column}']")
-    cell = getTableValue(text)
     hasEntry = false
-    for i in 0..(list.size - 1)
-        hasEntry = true if list[i].text == cell.to_s
-    end
+    cell = getTableValue(text).to_s
+    hasEntry = true if page.has_css?("tr[ng-repeat$='in $data']", :text => cell)
     return hasEntry
 end
 
@@ -173,14 +181,13 @@ end
 
 def removeAllEntries(category)
     waitForPageLoad()
-    entries = page.all("[ng-repeat='#{category} in $data']")
-    for i in 0..(entries.size - 1)
-        if (entries[i].text.include?("Delete"))
-            within(entries[i]) do
-                click_link_or_button("Delete")
-            end
-            click_link_or_button("Remove")
+    while (page.has_css?("tr[ng-repeat='#{category} in $data']", :text => "Delete")) do
+        entry = page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)
+        within (entry) do
+            click_link_or_button("Delete")
         end
+        click_link_or_button("Remove")
+        waitForPageLoad()
     end
 end
 

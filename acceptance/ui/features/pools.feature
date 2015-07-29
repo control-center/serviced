@@ -43,7 +43,9 @@ Feature: Resource Pool Management
     Then I should see "Adding pool failed"
       And I should see "Internal Server Error: empty Kind id"
 
+  @clean_pools
   Scenario: Add a resource pool
+    Given that only the default resource pool exists
     When I am on the resource pool page
       And I click the add Resource Pool button
       And I fill in the Resource Pool name field with "table://pools/pool2/name"
@@ -53,10 +55,22 @@ Feature: Resource Pool Management
       And I should see "Added resource pool"
       And I should see an entry for "table://pools/pool2/name" in the table
 
+  @clean_pools
   Scenario: Delete a resource pool
     When I am on the resource pool page
+      And I add the "pool2" pool
+    Then I should see an entry for "table://pools/pool2/name" in the table
       And I remove "table://pools/pool2/name"
     Then I should see "This action will permanently delete the resource pool"
     When I click "Remove Pool"
     Then I should see "Removed Pool"
       And I should not see an entry for "table://pools/pool2/name" in the table
+
+  @clean_hosts
+  Scenario: Check resource pool data when hosts are added
+    Given only the default host is defined
+    When I am on the hosts page
+      And I add the "host2" host
+      And I am on the resource pool page
+    Then I should see the sum of "table://hosts/defaultHost/cores, table://hosts/host2/cores" in the "CPU Cores" column
+      And I should see the sum of "table://hosts/defaultHost/memoryGB, table://hosts/host2/memoryGB" in the "Memory Usage" column

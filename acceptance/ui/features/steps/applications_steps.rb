@@ -51,9 +51,9 @@ Then /^the "Status" column should be sorted with active applications on (top|the
     for i in 0..(list.size - 2)
         if order == "top"
             # assuming - (ng-isolate-scope down) before + (ng-isolate-scope good)
-            list[i][:class] <= list[i + 1][:class]
+            expect(list[i][:class]).to be <= list[i + 1][:class]
         else
-            list[i][:class] >= list[i + 1][:class]    # assuming + before - before !
+            expect(list[i][:class]).to be >= list[i + 1][:class]    # assuming + before - before !
         end
     end
 end
