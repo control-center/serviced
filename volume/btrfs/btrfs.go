@@ -62,7 +62,7 @@ func Init(root string) (volume.Driver, error) {
 		return nil, err
 	}
 	driver := &BtrfsDriver{
-		sudoer: true,
+		sudoer: false,
 		root:   root,
 	}
 	if user.Uid != "0" {
