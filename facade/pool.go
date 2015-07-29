@@ -252,7 +252,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 	// update address assignments
 	for _, serviceID := range serviceIDs {
 		if err = f.AssignIPs(ctx, serviceID, ""); err != nil {
-			glog.Warningf("Failed assigning another ip to service %s: %s", svc.ID, err)
+			glog.Warningf("Failed assigning another ip to service %s: %s", serviceID, err)
 		}
 	}
 

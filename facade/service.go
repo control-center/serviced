@@ -129,10 +129,11 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service, manualAs
 	// set the address assignment.
 	if !manualAssignIPs {
 		// AssignIPs automatically updates the service
-		if err := f.AssignIPs(ctx, svc.ID, ""); err == nil {
+		if err := f.AssignIPs(ctx, svc.ID, ""); err != nil {
+			glog.Warningf("Could not create an address assignment for service %s (%s): %s", svc.Name, svc.ID, err)
+		} else {
 			return nil
 		}
-		glog.Warningf("Could not create an address assignment for service %s (%s): %s", svc.Name, svc.ID, err)
 	}
 	// update the service
 	if err := f.updateService(ctx, &svc, false); err != nil {
