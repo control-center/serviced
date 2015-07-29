@@ -724,15 +724,12 @@ func pullImage(repo, registry, tag string) error {
 
 // PushImage pushes an image by repotag to local registry, e.g., zenoss/devimg, from the local docker repository
 func PushImage(repotag string) error {
-	return nil
-	/*
-		iid, err := commons.ParseImageID(repotag)
-		if err != nil {
-			return err
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
+		return err
 
-		}
-		return pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
-	*/
+	}
+	return pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 }
 
 func pushImage(repo, registry, tag string) error {
