@@ -125,3 +125,18 @@ Feature: Resource Pool Details
       And I add the virtual IP
     Then I should see "Added new pool virtual ip"
       And I should see an entry for "table://virtualips/ip2/ip" in the table
+
+  @clean_virtualips
+  Scenario: Add a duplicate virtual IP
+    Given that the "ip1" virtual IP is added to the "table://pools/defaultPool/name" pool
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name"
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "table://virtualips/ip1/ip"
+      And I fill in the Netmask field with "table://virtualips/ip1/netmask"
+      And I fill in the Interface field with "table://virtualips/ip1/interface"
+      And I add the virtual IP
+    Then I should see "Adding pool virtual ip failed"
+      And I should see "Internal Server Error: facade: ip exists in resource pool"
+    When I close the dialog
+    Then I should see an entry for "table://virtualips/ip1/ip" in the table
