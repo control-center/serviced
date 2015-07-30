@@ -14,60 +14,42 @@
 package utils
 
 import (
-	"fmt"
-	"net/url"
-	"os"
-
-	"github.com/docker/docker/registry"
 	"github.com/zenoss/glog"
+
+	"github.com/docker/docker/cliconfig"
+	"github.com/docker/docker/registry"
 )
 
-func DockerLogin(username, password, email string) (string, error) {
-
-	u, err := url.Parse(registry.IndexServerAddress())
-	if err != nil {
-		return "", fmt.Errorf("Error: bad URL %s: %s", registry.IndexServerAddress(), err)
-	}
-	endpoint := registry.Endpoint{URL: u, Version: 1, IsSecure: false}
-
-	if username == "" && password == "" && email == "" {
-		// Attempt login with .dockercfg file.
-		configFile, err := registry.LoadConfig(os.Getenv("HOME"))
-		if err != nil {
-			return "", err
-		}
-
-		authconfig, ok := configFile.Configs[registry.IndexServerAddress()]
-		if !ok {
-			glog.Warningf("unable to login to docker.io using credentials in %s/.dockercfg", os.Getenv("HOME"))
-			return "", fmt.Errorf("Error: Unable to login, no data for index server.")
-		}
-		status, err := registry.Login(&authconfig, &endpoint, registry.HTTPRequestFactory(nil))
-		if err != nil {
-			return "", err
-		}
-		return status, nil
-	} else {
-		// Attempt login with this function's auth params.
-		authconfig := registry.AuthConfig{
-			Username:      username,
-			Email:         email,
-			Password:      password,
-			ServerAddress: registry.IndexServerAddress(),
-		}
-		endpoint.IsSecure = true
-		status, err := registry.Login(&authconfig, &endpoint, registry.HTTPRequestFactory(nil))
-		if err != nil {
-			return "", err
-		}
-		return status, nil
-	}
-}
-
 func DockerIsLoggedIn() bool {
-	_, err := DockerLogin("", "", "")
+
+	// Load the user's ~/.docker/config.json file if it exists.
+	configFile, err := cliconfig.Load("")
 	if err != nil {
+		glog.Errorf("Error checking Docker Hub login: %s", err)
 		return false
 	}
-	return true
+
+	// Make sure there is at least one AuthConfig (credential set).
+	if len(configFile.AuthConfigs) < 1 {
+		glog.Errorf("Error checking Docker Hub login: config.json is not populated")
+		return false
+	}
+
+	// Create a registry endpoint to the official registry.
+	endpoint, err := registry.NewEndpoint(&registry.IndexInfo{Official: true}, nil)
+	if err != nil {
+		glog.Errorf("Error checking Docker Hub login: %s", err)
+		return false
+	}
+	
+	// Iterate over AuthConfigs and attempt to login.
+	for _, authConfig := range configFile.AuthConfigs {
+		_, err := registry.Login(&authConfig, endpoint)
+		if err == nil {
+			return true
+		}
+	}
+
+	glog.Errorf("Error checking Docker Hub login: no credentials in config.json succeeded")
+	return false
 }
