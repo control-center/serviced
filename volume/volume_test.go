@@ -44,17 +44,18 @@ func (s *DriverSuite) SetUpTest(c *C) {
 }
 
 func (s *DriverSuite) TearDownTest(c *C) {
+	s.drv.On("GetFSType").Return(drvName)
 	Unregister(drvName)
 }
 
 func (s *DriverSuite) TestNilRegistration(c *C) {
 	err := Register("nilregistration", nil)
-	c.Assert(err, ErrorMatches, "Can't register a nil driver initializer")
+	c.Assert(err, ErrorMatches, ErrInvalidDriverInit.Error())
 }
 
 func (s *DriverSuite) TestRedundantRegistration(c *C) {
 	err := Register(drvName, s.MockInit)
-	c.Assert(err, ErrorMatches, "Already registered driver mock")
+	c.Assert(err, ErrorMatches, ErrDriverExists.Error())
 }
 
 func (s *DriverSuite) TestRegistration(c *C) {

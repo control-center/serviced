@@ -14,9 +14,13 @@
 package volume
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"sort"
+)
+
+var (
+	ErrNotADirectory = errors.New("not a directory")
 )
 
 // IsDir() checks if the given dir is a directory. If any error is encoutered
@@ -29,7 +33,7 @@ func IsDir(dirName string) (dir bool, err error) {
 		return false, err
 	} else {
 		if !lstat.IsDir() {
-			return false, fmt.Errorf("%s is not a directory", dirName)
+			return false, ErrNotADirectory
 		}
 	}
 	return true, nil
