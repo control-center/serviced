@@ -31,7 +31,7 @@ import (
 
 const (
 	snapshotMeta = "snapshot.json"
-	timeFormat   = "20060102-150405"
+	timeFormat   = time.StampMilli
 )
 
 type SnapshotMetadata struct {
