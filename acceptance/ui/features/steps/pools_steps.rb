@@ -51,7 +51,7 @@ Given (/^that the "(.*?)" pool has no virtual IPs$/) do |pool|
         addPool(pool, "added for no virtual IPs")
     else
         viewDetails(pool)
-        if (page.find("table[data-config='virtualIPsTable']").has_no_text?("No Data Found"))
+        if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
             removeAllEntries("address")
         end
     end
