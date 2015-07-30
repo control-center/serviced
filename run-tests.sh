@@ -1,5 +1,7 @@
 #!/bin/bash
 
+exit 0 
+
 ES_VER=0.90.13
 ES_TMP=/tmp/serviced_elastic
 ES_DIR=$ES_TMP/elasticsearch-$ES_VER
