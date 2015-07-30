@@ -215,7 +215,6 @@ func (st *snapshotTest) TestSnapshot_Snapshot_WithDescription(c *C) {
 
 func (st *snapshotTest) TestSnapshot_Snapshot_WithoutDescription(c *C) {
 	emptyDescription := ""
-
 	st.testSnapshot(c, emptyDescription)
 }
 
@@ -393,6 +392,7 @@ func (st *snapshotTest) setupMockSnapshotVolume(c *C, serviceID string) *volumet
 
 	mockVol := &volumetest.MockVolume{}
 	mockVol.On("Path").Return(snapshotDir)
+	mockVol.On("SnapshotMetadataPath", mock.AnythingOfTypeArgument("string")).Return(snapshotDir)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
 	return mockVol
@@ -469,8 +469,8 @@ func (st *snapshotTest) setupListSnapshots(c *C, snapshotIDs, descriptions []str
 	// Make separate test directories for each snapshot
 	for i, id := range snapshotIDs {
 		snapshotDir := st.makeSnapshotDir(c, id)
-		mockVol.On("SnapshotMetadataPath", id).Return(snapshotDir)
 
+		mockVol.On("SnapshotMetadataPath", mock.AnythingOfTypeArgument("string")).Return(snapshotDir).Once()
 		if descriptions != nil {
 			st.writeDescription(c, snapshotDir, descriptions[i])
 		}
