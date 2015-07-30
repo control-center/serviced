@@ -14,7 +14,7 @@ When (/^I fill in the "([^"]*)" field with "(.*?)"$/) do |field, text|
     find(field).set(getTableValue(text))
 end
 
-When (/^I click "([^"]*)"$/) do |text|
+When (/^I click(?:| on) "([^"]*)"$/) do |text|
     click_link_or_button(getTableValue(text))
 end
 
@@ -44,8 +44,12 @@ When (/^I wait for the page to load$/) do
     waitForPageLoad()
 end
 
-When (/^I view the details of "(.*?)"$/) do |name|
+When (/^I view the details (?:for|of) "(.*?)"$/) do |name|
     viewDetails(name)
+end
+
+When (/^I hover over the "(.*?)" graph$/) do |graph|
+    hoverOver(graph)
 end
 
 Then /^I should see "(.*?)"$/ do |text|
@@ -85,15 +89,38 @@ Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
     expect(checkRows(row)).to be false
 end
 
+Then (/^I should see "(.*?)" in the "(.*?)" graph$/) do |text, graph|
+    within(page.find("div[class='zenchartContainer']", :text => graph)) do
+        expect(page).to have_content(getTableValue(text))
+    end
+end
+
+Then (/^I should see "(.*?)" in the hover box$/) do |text|
+    within(page.find("div[class^='nvtooltip']")) do
+        expect(page).to have_content(getTableValue(text))
+    end
+end
+
 Then (/^the details for "(.*?)" should be( the sum of)? "(.*?)"$/) do |header, sum, text|
     text = getSum(text) if sum
     expect(checkDetails(text, header)).to be true
 end
 
+Then (/^"(.*?)" should be active$/) do |entry|
+    expect(checkActive(entry)).to be true
+end
+
+
 def viewDetails(name)
     name = getTableValue(name)
-    find("td[ng-click]", :text => /\A#{name}\z/).click()
+    find("[ng-click]", :text => /\A#{name}\z/).click()
     waitForPageLoad()
+end
+
+def checkActive(entry)
+    within(page.find("tr", :text => entry)) do
+        return page.has_css?("[class*='good']")
+    end
 end
 
 def assertSortedColumn(category, order)
@@ -135,6 +162,10 @@ def getSum(urls)
         sum += getTableValue(urlList[i]).to_i
     end
     return sum.to_s
+end
+
+def hoverOver(graph)
+    page.find("div[class='zenchartContainer']", :text => graph).hover()
 end
 
 def checkRows(row)
