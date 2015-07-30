@@ -20,7 +20,6 @@ package node
 
 import (
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -309,25 +308,18 @@ func getInternalImageIDs(userSpec, imageSpec string) (uid, gid int, err error) {
 // with the registry.
 func createVolumeDir(conn client.Connection, hostPath, containerSpec, imageSpec, userSpec, permissionSpec string) error {
 
-	if false {
-		// use hostpath based filelock
-		lockfile := ".serviced.initializing.lck"
-		lockfileHostPath := path.Join(hostPath, lockfile)
-		if lck, err := utils.LockFile(lockfileHostPath); err != nil {
-			glog.Errorf("DFS volume init unable to lock %s", lockfileHostPath)
-			return err
-		} else {
-			lck.Close()
-			defer os.Remove(lockfileHostPath)
-			glog.V(0).Infof("DFS volume init locked %s", lockfileHostPath)
-		}
-	} else {
-		// use zookeeper lock of basename of hostPath (volume name)
-		zkVolumeInitLock := path.Join("/locks/volumeinit", filepath.Base(hostPath))
-		lock := conn.NewLock(zkVolumeInitLock)
-		lock.Lock()
-		defer lock.Unlock()
+	// use zookeeper lock of basename of hostPath (volume name)
+	zkVolumeInitLock := path.Join("/locks/volumeinit", filepath.Base(hostPath))
+	lock := conn.NewLock(zkVolumeInitLock)
+	if err := lock.Lock(); err != nil {
+		glog.Errorf("Could not acquire lock for %s: %s", zkVolumeInitLock, err)
+		return err
 	}
+	defer func() {
+		if err := lock.Unlock(); err != nil {
+			glog.Errorf("Could not unlock %s: %s", zkVolumeInitLock, err)
+		}
+	}()
 
 	// return if service volume has been initialized
 	dotfileCompatibility := path.Join(hostPath, ".serviced.initialized") // for compatibility with previous versions of serviced
