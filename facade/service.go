@@ -609,6 +609,9 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 			svc.DesiredState = int(desiredState)
 		}
 
+		if err := f.fillServiceConfigs(ctx, svc); err != nil {
+			return err
+		}
 		if err := f.updateService(ctx, svc); err != nil {
 			glog.Errorf("Facade.ScheduleService update service %s (%s): %s", svc.Name, svc.ID, err)
 			return err
