@@ -12,6 +12,11 @@ Given /^that multiple applications and application templates have been added$/ d
     end
 end
 
+Given (/^that Zenoss Core is not added$/) do
+    visitApplicationsPage()
+    removeService("Zenoss.core")
+end
+
 When(/^I am on the applications page$/) do
     visitApplicationsPage()
 end
@@ -26,6 +31,7 @@ end
 
 When(/^I click the Services Map button$/) do
     @applications_page.servicesMap_button.click()
+    waitForPageLoad()
     @servicesMap_page = ServicesMap.new
 end
 
@@ -45,6 +51,9 @@ When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
     end
 end
 
+Then /^I should see that the application has deployed$/ do
+    expect(page).to have_content("App deployed successfully", wait: 120)
+end
 
 Then /^the "Status" column should be sorted with active applications on (top|the bottom)$/ do |order|
     list = @applications_page.status_icons
@@ -68,4 +77,18 @@ def visitApplicationsPage()
     @applications_page = Applications.new
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
+end
+
+def removeService(name)
+    within(@applications_page.services_table, :text => name) do
+        click_link_or_button("Delete")
+    end
+    click_link_or_button("Remove")
+end
+
+def removeTemplate(name)
+    within(@applications_page.templates_table, :text => name) do
+        click_link_or_button("Delete")
+    end
+    click_link_or_button("Remove")
 end

@@ -26,3 +26,46 @@ Feature: Application Management
       And I click the Add-Application Template button
     Then I should see "Add Application Template"
       And I should see "Application Template File:"
+
+  @clean_hosts
+  Scenario: Deploy Zenoss Core
+    Given that Zenoss Core is not added
+      And only the default host is defined
+    When I am on the applications page
+      And I click the Add-Application button
+    Then I should see "Deployment Wizard"
+      And I should see "Select the application to install:"
+    When I select "Zenoss.core"
+      And I click "Next"
+    Then I should see "Select the resource pool to install to:"
+    When I select "default"
+      And I click "Next"
+    Then I should see "Zenoss.core has been configured for resource pool default."
+      And I should see "Deployment ID"
+    When I fill in the Deployment ID field with "test"
+      And I click "Deploy"
+    Then I should see that the application has deployed
+
+  @clean_hosts
+  Scenario: Deploy Zenoss Core and add a host
+    Given that Zenoss Core is not added
+      And there are no hosts defined
+    When I am on the applications page
+      And I click the Add-Application button
+    Then I should see "Deployment Wizard"
+      And I should see "Add Host"
+    When I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
+      And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
+      And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
+      And I click "Next"
+    Then I should see "Select the application to install:"
+    When I select "Zenoss.core"
+      And I click "Next"
+    Then I should see "Select the resource pool to install to:"
+    When I select "default"
+      And I click "Next"
+    Then I should see "Zenoss.core has been configured for resource pool default."
+      And I should see "Deployment ID"
+    When I fill in the Deployment ID field with "test"
+      And I click "Deploy"
+    Then I should see that the application has deployed
