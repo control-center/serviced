@@ -36,10 +36,10 @@ const (
 )
 
 var (
-	ErrBtrfsCommand      = errors.New("error running btrfs command")
-	ErrCreatingSubvolume = errors.New("could not create subvolume")
-	ErrInvalidLabel      = errors.New("invalid label")
-	ErrListingSnapshots  = errors.New("couldn't list snapshots")
+	ErrBtrfsCommand           = errors.New("error running btrfs command")
+	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
+	ErrBtrfsInvalidLabel      = errors.New("invalid label")
+	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
 )
 
 // BtrfsDriver is a driver for the btrfs volume
@@ -120,14 +120,14 @@ func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 	if _, err := runcmd(d.sudoer, "subvolume", "list", rootDir); err != nil {
 		if _, err := runcmd(d.sudoer, "subvolume", "create", rootDir); err != nil {
 			glog.Errorf("Could not create subvolume at: %s", rootDir)
-			return nil, ErrCreatingSubvolume
+			return nil, ErrBtrfsCreatingSubvolume
 		}
 	}
 	vdir := path.Join(rootDir, volumeName)
 	if _, err := runcmd(d.sudoer, "subvolume", "list", vdir); err != nil {
 		if _, err = runcmd(d.sudoer, "subvolume", "create", vdir); err != nil {
 			glog.Errorf("Could not create volume at: %s", vdir)
-			return nil, ErrCreatingSubvolume
+			return nil, ErrBtrfsCreatingSubvolume
 		}
 	}
 	return d.Get(volumeName)
@@ -197,7 +197,7 @@ func (v *BtrfsVolume) Tenant() string {
 // SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *BtrfsVolume) SnapshotMetadataPath(label string) string {
 	// Snapshot metadata is stored with the snapshot for this driver
-	return v.snapshotPath(label)
+	return v.Path()
 }
 
 func (v *BtrfsVolume) getSnapshotPrefix() string {
@@ -379,7 +379,7 @@ func (v *BtrfsVolume) Rollback(label string) error {
 func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	if label == "" {
 		glog.Errorf("%s: label cannot be empty", DriverName)
-		return ErrInvalidLabel
+		return ErrBtrfsInvalidLabel
 	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if !exists {
@@ -427,7 +427,7 @@ func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	plabel := v.prettySnapshotLabel(label)
 	if snapshots, err := v.Snapshots(); err != nil {
 		glog.Errorf("Could not get current snapshot list: %v", err)
-		return false, ErrListingSnapshots
+		return false, ErrBtrfsListingSnapshots
 	} else {
 		for _, snapLabel := range snapshots {
 			if rlabel == snapLabel || plabel == snapLabel {

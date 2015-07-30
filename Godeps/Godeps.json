@@ -68,6 +68,16 @@
 			"Rev": "7c8fca2ddb58c8d2c4fb4df31c242886df7dd257"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/pkg/chrootarchive",
+			"Comment": "v1.6.2",
+			"Rev": "7c8fca2ddb58c8d2c4fb4df31c242886df7dd257"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/reexec",
+			"Comment": "v1.6.2",
+			"Rev": "7c8fca2ddb58c8d2c4fb4df31c242886df7dd257"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/common",
 			"Comment": "v1.6.2",
 			"Rev": "7c8fca2ddb58c8d2c4fb4df31c242886df7dd257"
