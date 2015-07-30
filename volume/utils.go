@@ -16,30 +16,22 @@ package volume
 import (
 	"errors"
 	"os"
-	"os/exec"
 	"sort"
-
-	"github.com/zenoss/glog"
 )
 
 var (
 	ErrNotADirectory = errors.New("not a directory")
 )
 
-// IsDir() checks if the given dir is a directory. If any error is encountered
+// IsDir() checks if the given dir is a directory. If any error is encoutered
 // it is returned and directory is set to false.
 func IsDir(dirName string) (dir bool, err error) {
-	cmd := exec.Command("ls", "-lah", dirName)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	cmd.Run()
 	if lstat, err := os.Lstat(dirName); err != nil {
 		if os.IsNotExist(err) {
 			return false, nil
 		}
 		return false, err
 	} else {
-		glog.V(0).Infof("I got an lstat! %+v", lstat)
 		if !lstat.IsDir() {
 			return false, ErrNotADirectory
 		}

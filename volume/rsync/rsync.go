@@ -200,7 +200,7 @@ func (v *RsyncVolume) Tenant() string {
 // SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *RsyncVolume) SnapshotMetadataPath(label string) string {
 	// Snapshot metadata is stored with the snapshot for this driver
-	return v.snapshotPath(label)
+	return v.Path()
 }
 
 func (v *RsyncVolume) getSnapshotPrefix() string {
@@ -239,7 +239,6 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	v.Lock()
 	defer v.Unlock()
 	dest := v.snapshotPath(label)
-	glog.V(0).Infof("Creating a snapshot at path %s", dest)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
 			glog.Errorf("Snapshot exists: %s", v.rawSnapshotLabel(label))
