@@ -166,7 +166,7 @@
     </div>
 
     <!-- This table has running instances -->
-    <div ng-show="hasCurrentInstances() && !service.current.isIsvc()">
+    <div ng-show="hasCurrentInstances() && !services.current.isIsvc()">
         <h3 translate>running_tbl_instances</h3>
         <table jelly-table data-data="services.current.getServiceInstances()" data-config="instancesTable" class="table">
             <tr ng-repeat="app in $data" data-id="{{app.id}}.{{app.model.InstanceID}}">
