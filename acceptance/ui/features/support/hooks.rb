@@ -28,3 +28,9 @@ After('@clean_services') do
     visitApplicationsPage()
     removeAllEntries("service")
 end
+
+After('@clean_virtualips') do
+    if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
+        removeAllEntries("address")
+    end
+end

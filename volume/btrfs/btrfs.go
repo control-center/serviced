@@ -14,10 +14,11 @@
 package btrfs
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 
-	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
@@ -32,6 +33,13 @@ import (
 const (
 	// DriverName is the name of this btrfs driver implementation
 	DriverName = "btrfs"
+)
+
+var (
+	ErrBtrfsCommand           = errors.New("error running btrfs command")
+	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
+	ErrBtrfsInvalidLabel      = errors.New("invalid label")
+	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
 )
 
 // BtrfsDriver is a driver for the btrfs volume
@@ -77,6 +85,11 @@ func (d *BtrfsDriver) Root() string {
 	return d.root
 }
 
+// GetFSType implements volume.Driver.GetFSType
+func (d *BtrfsDriver) GetFSType() string {
+	return DriverName
+}
+
 // Exists implements volume.Driver.Exists
 func (d *BtrfsDriver) Exists(volumeName string) bool {
 	for _, vol := range d.List() {
@@ -107,14 +120,14 @@ func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 	if _, err := runcmd(d.sudoer, "subvolume", "list", rootDir); err != nil {
 		if _, err := runcmd(d.sudoer, "subvolume", "create", rootDir); err != nil {
 			glog.Errorf("Could not create subvolume at: %s", rootDir)
-			return nil, fmt.Errorf("could not create subvolume: %s (%v)", rootDir, err)
+			return nil, ErrBtrfsCreatingSubvolume
 		}
 	}
 	vdir := path.Join(rootDir, volumeName)
 	if _, err := runcmd(d.sudoer, "subvolume", "list", vdir); err != nil {
 		if _, err = runcmd(d.sudoer, "subvolume", "create", vdir); err != nil {
 			glog.Errorf("Could not create volume at: %s", vdir)
-			return nil, fmt.Errorf("could not create subvolume: %s (%v)", volumeName, err)
+			return nil, ErrBtrfsCreatingSubvolume
 		}
 	}
 	return d.Get(volumeName)
@@ -184,7 +197,7 @@ func (v *BtrfsVolume) Tenant() string {
 // SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *BtrfsVolume) SnapshotMetadataPath(label string) string {
 	// Snapshot metadata is stored with the snapshot for this driver
-	return v.snapshotPath(label)
+	return v.Path()
 }
 
 func (v *BtrfsVolume) getSnapshotPrefix() string {
@@ -273,14 +286,18 @@ func (v *BtrfsVolume) RemoveSnapshot(label string) error {
 		if err != nil {
 			return err
 		} else {
-			return fmt.Errorf("snapshot %s does not exist", label)
+			return volume.ErrSnapshotDoesNotExist
 		}
 	}
 
 	v.Lock()
 	defer v.Unlock()
 	_, err := runcmd(v.sudoer, "subvolume", "delete", v.snapshotPath(label))
-	return err
+	if err != nil {
+		glog.Errorf("could not remove snapshot: %s", err)
+		return volume.ErrRemovingSnapshot
+	}
+	return nil
 }
 
 // getEnvMinDuration returns the time.Duration env var meeting minimum and default duration
@@ -307,7 +324,7 @@ func (v *BtrfsVolume) Rollback(label string) error {
 		if err != nil {
 			return err
 		} else {
-			return fmt.Errorf("snapshot %s does not exist", label)
+			return volume.ErrSnapshotDoesNotExist
 		}
 	}
 
@@ -361,11 +378,12 @@ func (v *BtrfsVolume) Rollback(label string) error {
 // Export implements volume.Volume.Export
 func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	if label == "" {
-		return fmt.Errorf("%s: label cannot be empty", DriverName)
+		glog.Errorf("%s: label cannot be empty", DriverName)
+		return ErrBtrfsInvalidLabel
 	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("%s: snapshot %s not found", DriverName, label)
+		return volume.ErrSnapshotDoesNotExist
 	}
 
 	if parent == "" {
@@ -374,7 +392,7 @@ func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("%s: snapshot %s not found", DriverName, parent)
+		return volume.ErrSnapshotDoesNotExist
 	}
 
 	_, err := runcmd(v.sudoer, "send", v.snapshotPath(label), "-p", parent, "-f", outfile)
@@ -408,7 +426,8 @@ func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	rlabel := v.rawSnapshotLabel(label)
 	plabel := v.prettySnapshotLabel(label)
 	if snapshots, err := v.Snapshots(); err != nil {
-		return false, fmt.Errorf("could not get current snapshot list: %v", err)
+		glog.Errorf("Could not get current snapshot list: %v", err)
+		return false, ErrBtrfsListingSnapshots
 	} else {
 		for _, snapLabel := range snapshots {
 			if rlabel == snapLabel || plabel == snapLabel {
@@ -434,9 +453,8 @@ func runcmd(sudoer bool, args ...string) ([]byte, error) {
 	glog.V(4).Infof("Executing: %v", cmd)
 	output, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
 	if err != nil {
-		e := fmt.Errorf("unable to run cmd:%s  output:%s  error:%s", cmd, string(output), err)
-		glog.V(0).Infof("%s", e)
-		return output, e
+		glog.Errorf("unable to run cmd:%s  output:%s  error:%s", cmd, string(output), err)
+		return output, ErrBtrfsCommand
 	}
 	return output, err
 }

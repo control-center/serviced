@@ -78,6 +78,11 @@
 			"Rev": "786b29d4db80a6175e72b47a794ee044918ba734"
 		},
 		{
+			"ImportPath": "github.com/docker/docker/pkg/devicemapper",
+			"Comment": "v1.7.1",
+			"Rev": "786b29d4db80a6175e72b47a794ee044918ba734"
+		},
+		{
 			"ImportPath": "github.com/docker/docker/pkg/fileutils",
 			"Comment": "v1.7.1",
 			"Rev": "786b29d4db80a6175e72b47a794ee044918ba734"
@@ -104,6 +109,11 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/mflag",
+			"Comment": "v1.7.1",
+			"Rev": "786b29d4db80a6175e72b47a794ee044918ba734"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
 			"Comment": "v1.7.1",
 			"Rev": "786b29d4db80a6175e72b47a794ee044918ba734"
 		},
@@ -183,6 +193,11 @@
 			"Rev": "786b29d4db80a6175e72b47a794ee044918ba734"
 		},
 		{
+			"ImportPath": "github.com/docker/libcontainer/label",
+			"Comment": "v1.4.0-507-g08cf3be",
+			"Rev": "08cf3beaf05b1403e9501e582918b81da3b3e7c8"
+		},
+		{
 			"ImportPath": "github.com/docker/libcontainer/user",
 			"Comment": "v1.4.0-507-g08cf3be",
 			"Rev": "08cf3beaf05b1403e9501e582918b81da3b3e7c8"
@@ -258,7 +273,7 @@
 		},
 		{
 			"ImportPath": "github.com/zenoss/glog",
-			"Rev": "09a83f7c5c0f425c00cb1e063e9179698579f296"
+			"Rev": "fcea23b5c2bb2a51b26840be13d3bdb63ca4e073"
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-json-rest",

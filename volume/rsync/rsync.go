@@ -14,11 +14,12 @@
 package rsync
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -31,6 +32,10 @@ import (
 const (
 	// DriverName is the name of this rsync volume driver implementation
 	DriverName = "rsync"
+)
+
+var (
+	ErrDeletingVolume = errors.New("could not delete volume")
 )
 
 // RsyncDriver is a driver for the rsync volume
@@ -64,6 +69,11 @@ func Init(root string) (volume.Driver, error) {
 // Root implements volume.Driver.Root
 func (d *RsyncDriver) Root() string {
 	return d.root
+}
+
+// GetFSType implements volume.Driver.GetFSType
+func (d *RsyncDriver) GetFSType() string {
+	return DriverName
 }
 
 // Create implements volume.Driver.Create
@@ -101,8 +111,8 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 	glog.V(4).Infof("About to execute: %s", sh)
 	output, err := sh.CombinedOutput()
 	if err != nil {
-		glog.Errorf("could not delete subvolume: %s", string(output))
-		return fmt.Errorf("could not delete subvolume: %s", v.Path())
+		glog.Errorf("could not delete volume: %s", string(output))
+		return ErrDeletingVolume
 	}
 	return nil
 }
@@ -190,7 +200,7 @@ func (v *RsyncVolume) Tenant() string {
 // SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
 func (v *RsyncVolume) SnapshotMetadataPath(label string) string {
 	// Snapshot metadata is stored with the snapshot for this driver
-	return v.snapshotPath(label)
+	return v.Path()
 }
 
 func (v *RsyncVolume) getSnapshotPrefix() string {
@@ -231,6 +241,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	dest := v.snapshotPath(label)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
+			glog.Errorf("Snapshot exists: %s", v.rawSnapshotLabel(label))
 			return volume.ErrSnapshotExists
 		}
 		return err
@@ -299,14 +310,14 @@ func (v *RsyncVolume) RemoveSnapshot(label string) error {
 	defer v.Unlock()
 	dest := v.snapshotPath(label)
 	if exists, _ := volume.IsDir(dest); !exists {
-		return fmt.Errorf("snapshot %s doesn't exist for tenant %s", label, v.tenant)
+		return volume.ErrSnapshotDoesNotExist
 	}
 	sh := exec.Command("rm", "-Rf", dest)
 	glog.V(4).Infof("About to execute: %s", sh)
 	output, err := sh.CombinedOutput()
 	if err != nil {
 		glog.Errorf("could not remove snapshot: %s", string(output))
-		return fmt.Errorf("could not remove snapshot: %s", label)
+		return volume.ErrRemovingSnapshot
 	}
 	return nil
 }
@@ -318,7 +329,7 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 	src := v.snapshotPath(label)
 	if exists, err := volume.IsDir(src); !exists || err != nil {
 		if !exists {
-			return fmt.Errorf("snapshot %s does not exist", label)
+			return volume.ErrSnapshotDoesNotExist
 		}
 		return err
 	}
@@ -339,7 +350,7 @@ func (v *RsyncVolume) Export(label, parent, outdir string) (err error) {
 	if exists, err := volume.IsDir(src); err != nil {
 		return err
 	} else if !exists {
-		return fmt.Errorf("snapshot %s does not exist", label)
+		return volume.ErrSnapshotDoesNotExist
 	}
 
 	rsync := exec.Command("rsync", "-azh", src, outdir)
@@ -359,12 +370,8 @@ func (v *RsyncVolume) Import(rawlabel, indir string) (err error) {
 	if exists, err := volume.IsDir(path); err != nil {
 		return err
 	} else if exists {
-		return fmt.Errorf("snapshot %s exists", rawlabel)
+		return volume.ErrSnapshotExists
 	}
-
-	fmt.Println("indir: ", indir)
-	fmt.Println("backup: ", filepath.Join(indir, rawlabel))
-	fmt.Println("restoreto: ", v.Driver().Root())
 
 	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, rawlabel), v.Driver().Root())
 	glog.V(4).Infof("About ro execute %s", rsync)

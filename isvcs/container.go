@@ -768,7 +768,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 			}
 
 			if cpuacctStat, err := cgroup.ReadCpuacctStat(cgroup.GetCgroupDockerStatsFilePath(ctr.ID, cgroup.Cpuacct)); err != nil {
-				glog.Warningf("Could not read CpuacctStat for isvc %s: %s", svc.Name, err)
+				glog.V(2).Infof("Could not read CpuacctStat for isvc %s: %s", svc.Name, err)
 				break
 			} else {
 				metrics.GetOrRegisterGauge("cgroup.cpuacct.system", registry).Update(cpuacctStat.System)

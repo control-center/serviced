@@ -4,7 +4,6 @@ Given (/^I have messages$/) do
     zeroMessages = @user_page.navbar.userDetails.has_text? 0
     if zeroMessages
         visitHostsPage()
-        waitForPageLoad()
         removeAllEntries("host")
         addDefaultHost()
         removeAllEntries("host")

@@ -48,6 +48,8 @@ import (
 	"github.com/control-center/serviced/volume/btrfs"
 	// Need to do rsync driver initializations
 	_ "github.com/control-center/serviced/volume/rsync"
+	// Need to do devicemapper driver initializations
+	_ "github.com/control-center/serviced/volume/devicemapper"
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
 
@@ -307,6 +309,7 @@ func (d *daemon) run() (err error) {
 	}
 
 	zzk.ShutdownConnections()
+	volume.ShutdownAll()
 
 	if options.Master {
 		switch sig {
@@ -319,7 +322,6 @@ func (d *daemon) run() (err error) {
 			d.stopISVCS()
 		}
 	}
-
 	return nil
 }
 

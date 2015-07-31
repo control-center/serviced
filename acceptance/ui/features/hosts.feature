@@ -128,7 +128,7 @@ Feature: Host Management
       And I should see "table://hosts/host2/ccRelease" in the "CC Release" column
       And I should see "Showing 2 Results"
 
-  @clean_hosts
+  @clean_hosts @clean_pools
   Scenario: Add a valid host in a non-default Resource Pool
     Given that the "table://hosts/host3/pool" pool exists
     When I am on the hosts page

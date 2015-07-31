@@ -96,6 +96,20 @@ func TestInfo(t *testing.T) {
 	}
 }
 
+// Test that Debug works as advertised.
+func TestDebug(t *testing.T) {
+	setFlags()
+	defer logging.swap(logging.newBuffers())
+	Debug("test")
+	// fmt.Println(contents(debugLog))
+	if !contains(debugLog, "D", t) {
+		t.Errorf("Debug has wrong character: %q", contents(debugLog))
+	}
+	if !contains(debugLog, "test", t) {
+		t.Error("Debug failed")
+	}
+}
+
 // Test that the header has the correct format.
 func TestHeader(t *testing.T) {
 	setFlags()

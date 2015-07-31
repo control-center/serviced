@@ -43,7 +43,7 @@ func (s *UtilsSuite) TestIsDir(c *C) {
 	ioutil.WriteFile(file, []byte("hi"), 0664)
 	ok, err = IsDir(file)
 	c.Assert(ok, Equals, false)
-	c.Assert(err, ErrorMatches, ".*is not a directory")
+	c.Assert(err, ErrorMatches, ErrNotADirectory.Error())
 
 	// Test a nonexistent path
 	ok, err = IsDir(root + "/notafile")
@@ -71,7 +71,7 @@ func (s *UtilsSuite) TestFileInfoSlice(c *C) {
 		if fi, err := os.Stat(file); err == nil {
 			stats = append(stats, fi)
 		}
-		time.Sleep(5 * time.Millisecond)
+		time.Sleep(10 * time.Millisecond)
 	}
 
 	// Append the FileInfos in non-sorted order

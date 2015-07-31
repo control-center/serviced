@@ -115,16 +115,18 @@ const (
 	warningLog
 	errorLog
 	fatalLog
-	numSeverity = 4
+	debugLog
+	numSeverity = 5
 )
 
-const severityChar = "IWEF"
+const severityChar = "IWEFD"
 
 var severityName = []string{
 	infoLog:    "INFO",
 	warningLog: "WARNING",
 	errorLog:   "ERROR",
 	fatalLog:   "FATAL",
+	debugLog:   "DEBUG",
 }
 
 // get returns the value of the severity.
@@ -738,6 +740,8 @@ func (l *loggingT) output(s severity, buf *buffer) {
 			stderrstring = "\033[38;5;208m" + stderrstring
 		case infoLog:
 			stderrstring = "\033[94m" + stderrstring
+		case debugLog:
+			stderrstring = "\033[4m" + stderrstring
 		}
 		stderrstring = stderrstring + "\033[0m"
 	}
@@ -755,6 +759,9 @@ func (l *loggingT) output(s severity, buf *buffer) {
 			}
 		}
 		switch s {
+		case debugLog:
+			l.file[debugLog].Write(data)
+			fallthrough
 		case fatalLog:
 			l.file[fatalLog].Write(data)
 			fallthrough
@@ -1043,6 +1050,25 @@ func V(level Level) Verbose {
 	}
 	return Verbose(false)
 }
+
+// Debug logs to the DEBUG log.
+// Arguments are handled in the manner of fmt.Print; a newline is appended if missing.
+func Debug(args ...interface{}) {
+	logging.print(debugLog, args...)
+}
+
+// Debugln logs to the DEBUG log.
+// Arguments are handled in the manner of fmt.Println; a newline is appended if missing.
+func Debugln(args ...interface{}) {
+	logging.println(debugLog, args...)
+}
+
+// Debugf logs to the DEBUG log.
+// Arguments are handled in the manner of fmt.Printf; a newline is appended if missing.
+func Debugf(format string, args ...interface{}) {
+	logging.printf(debugLog, format, args...)
+}
+
 
 // Info is equivalent to the global Info function, guarded by the value of v.
 // See the documentation of V for usage.
