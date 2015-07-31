@@ -683,7 +683,6 @@ func lookupImage(repotag string) (*Image, error) {
 }
 
 func PullImage(repotag string) error {
-	// TODO: figure out a way to pass auth creds to the api
 	cmd := exec.Command("docker", "pull", repotag)
 
 	// Suppressing docker output (too chatty)
@@ -713,8 +712,7 @@ func pullImage(repo, registry, tag string) error {
 		glog.V(0).Infof("Finished pulling image from repo: %s and registry: %s with tag: %s in %s", repo, registry, tag, duration)
 	}(time.Now())
 
-	// FIXME: Need to populate AuthConfiguration (eventually)
-	err = dc.PullImage(opts, dockerclient.AuthConfiguration{})
+	err = dc.PullImage(opts, fetchRegistryCreds(registry))
 	if err != nil {
 		glog.V(2).Infof("failed to pull %s: %v", repo, err)
 		return err
@@ -755,11 +753,38 @@ func pushImage(repo, registry, tag string) error {
 
 	pushLock.Lock()
 	defer pushLock.Unlock()
-	// FIXME: Need to populate AuthConfiguration (eventually)
-	err = dc.PushImage(opts, dockerclient.AuthConfiguration{})
+	err = dc.PushImage(opts, fetchRegistryCreds(registry))
 	if err != nil {
 		glog.V(2).Infof("Failed to push %s: %v", repo, err)
 		return err
 	}
 	return nil
+}
+
+// fetchRegistryCreds retrieves the credentials for the specified registry from the user's Docker config file.
+// An empty or nil 'registry' parameter assumes you want the creds for the default registry (Docker Hub).
+// If the requested creds are not found, an empty AuthConfiguration is returned.
+func fetchRegistryCreds(registry string) (authConfig dockerclient.AuthConfiguration) {
+	authConfig = dockerclient.AuthConfiguration{}
+
+	if len(registry) == 0 {
+		registry = "https://index.docker.io/v1/"
+	}
+	glog.V(1).Infof("Fetching creds for registry %s", registry)
+
+	var authConfigs *dockerclient.AuthConfigurations
+	var err error
+	if authConfigs, err = dockerclient.NewAuthConfigurationsFromDockerCfg(); err != nil {
+		glog.V(1).Infof("Unable to find any docker creds: %s", err)
+		return
+	}
+
+	var ok bool
+	if authConfig, ok = authConfigs.Configs[registry]; !ok {
+		glog.V(1).Infof("No docker creds available for registry %s", registry)
+		return
+	}
+
+	glog.Infof("Found creds for registry %s - %s", registry, authConfig.Email)
+	return
 }
