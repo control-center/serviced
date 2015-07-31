@@ -161,6 +161,8 @@ deb: stage_deb
 		-s dir \
 		-d nfs-kernel-server \
 		-d net-tools \
+		-d libdevmapper \
+		-d libdevmapper-event \
 		-d nfs-common \
 		-d 'lxc-docker-1.6.0' \
 		-d logrotate \
@@ -191,6 +193,10 @@ rpm: stage_rpm
 		-d net-tools \
 		-d util-linux \
 		-d bash-completion \
+		-d device-mapper \
+		-d device-mapper-event \
+		-d device-mapper-event-libs \
+		-d device-mapper-libs \
 		-d 'zenoss-docker = 1.6.0' \
 		-d logrotate \
 		-t rpm \
