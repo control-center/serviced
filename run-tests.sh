@@ -22,12 +22,14 @@ function stop_elastic {
 
 stop_elastic
 
+echo "Running unit tests ..."
 START_TIME=`date --utc +%s`
 godep go test -tags=unit $GOTEST ./...
 UNIT_TEST_RESULT=$?
 END_TIME=`date --utc +%s`
 echo "Unit tests finished in $(($END_TIME - $START_TIME)) seconds"
 
+echo "Running integration tests ..."
 START_TIME=`date --utc +%s`
 mkdir $ES_TMP
 if [ ! -e /tmp/elasticsearch-$ES_VER.tar.gz ]; then
