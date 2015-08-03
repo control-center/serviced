@@ -29,7 +29,7 @@ tar -xf /tmp/elasticsearch-$ES_VER.tar.gz -C $ES_TMP
 echo "cluster.name: zero" > $ES_DIR/config/elasticsearch.yml
 $ES_DIR/bin/elasticsearch -f -Des.http.port=9202 > $ES_TMP/elastic.log & echo $!>$ES_TMP/pid
 
-godep go test -tags="daemon" $GOTEST ./...
+godep go test -tags="daemon libdm_no_deferred_remove" $GOTEST ./...
 RESULT=$?
 
 stop_elastic

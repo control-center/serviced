@@ -19,7 +19,7 @@ DATE := '$(shell date -u)'
 GIT_COMMIT ?= $(shell ./gitstatus.sh)
 GIT_BRANCH ?= $(shell git rev-parse --abbrev-ref HEAD)
 
-GOBUILD_FLAGS ?= -tags "root daemon"
+GOBUILD_FLAGS ?= -tags "root daemon libdm_no_deferred_remove"
 
 # jenkins default, jenkins-${JOB_NAME}-${BUILD_NUMBER}
 BUILD_TAG ?= 0
