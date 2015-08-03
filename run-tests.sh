@@ -1,5 +1,7 @@
 #!/bin/bash
 
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
 ES_VER=0.90.13
 ES_TMP=/tmp/serviced_elastic
 ES_DIR=$ES_TMP/elasticsearch-$ES_VER
@@ -29,7 +31,8 @@ tar -xf /tmp/elasticsearch-$ES_VER.tar.gz -C $ES_TMP
 echo "cluster.name: zero" > $ES_DIR/config/elasticsearch.yml
 $ES_DIR/bin/elasticsearch -f -Des.http.port=9202 > $ES_TMP/elastic.log & echo $!>$ES_TMP/pid
 
-godep go test -tags="daemon libdm_no_deferred_remove" $GOTEST ./...
+BUILD_TAGS="$(bash ${DIR}/build-tags.sh)"
+godep go test -tags="${BUILD_TAGS}" $GOTEST ./...
 RESULT=$?
 
 stop_elastic
