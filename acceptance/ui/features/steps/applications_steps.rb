@@ -1,4 +1,4 @@
-Given /^that multiple applications and application templates have been added$/ do
+Given (/^that multiple applications and application templates have been added$/) do
     visitApplicationsPage()
     within(@applications_page.services_table) do
         if has_text?("Showing 1 Result")
@@ -14,7 +14,23 @@ end
 
 Given (/^that Zenoss Core is not added$/) do
     visitApplicationsPage()
-    removeService("Zenoss.core")
+    exists = true
+    while exists == true do
+        within(@applications_page.services_table) do
+            exists = checkServiceRows("Zenoss.core")
+        end
+        removeEntry("Zenoss.core", "service") if exists
+    end
+end
+
+Given (/^that Zenoss Core with the "(.*?)" Deployment ID is added$/) do |id|
+    visitApplicationsPage()
+    exists = false
+    within(@applications_page.services_table) do
+        exists = checkServiceRows("Zenoss.core") && checkColumn(id, "Deployment ID")
+    end
+    addService("Zenoss.core", "default", id) if !exists
+    refreshPage()
 end
 
 When(/^I am on the applications page$/) do
@@ -36,7 +52,7 @@ When(/^I click the Services Map button$/) do
 end
 
 When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
-    @applications_page.deploymentID_field.set deploymentID
+    fillInDeploymentID(deploymentID)
 end
 
 When(/^I remove "(.*?)" from the Applications list$/) do |name|
@@ -52,7 +68,12 @@ When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
 end
 
 Then /^I should see that the application has deployed$/ do
-    expect(page).to have_content("App deployed successfully", wait: 120)
+    expect(page).to have_content("App deployed successfully", wait: 600)
+    refreshPage() # workaround until apps consistently display on page without refreshing
+end
+
+Then (/^I should see that the application has not been deployed$/) do
+    expect(page).to have_content("App deploy failed")
 end
 
 Then /^the "Status" column should be sorted with active applications on (top|the bottom)$/ do |order|
@@ -73,22 +94,48 @@ Then (/^I should see "([^"]*)" in the Services Map$/) do |node|
     end
 end
 
+Then (/^I should see an entry for "(.*?)" in the Applications table$/) do |entry|
+    expect(checkServiceRows(entry)).to be true
+end
+
+Then (/^I should see an entry for "(.*?)" in the Application Templates table$/) do |entry|
+    expect(checkTemplateRows(entry)).to be false
+end
+
+def checkServiceRows(row)
+    waitForPageLoad()
+    found = false
+    name = getTableValue(row)
+    found = page.has_css?("tr[ng-repeat='service in $data']", :text => name)
+    return found
+end
+
+def checkTemplateRows(row)
+    waitForPageLoad()
+    found = false
+    name = getTableValue(row)
+    found = page.has_css?("tr[ng-repeat='template in $data']", :text => name)
+    return found
+end
+
 def visitApplicationsPage()
     @applications_page = Applications.new
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
+    waitForPageLoad()
 end
 
-def removeService(name)
-    within(@applications_page.services_table, :text => name) do
-        click_link_or_button("Delete")
-    end
-    click_link_or_button("Remove")
+def fillInDeploymentID(id)
+    @applications_page.deploymentID_field.set getTableValue(id)
 end
 
-def removeTemplate(name)
-    within(@applications_page.templates_table, :text => name) do
-        click_link_or_button("Delete")
-    end
-    click_link_or_button("Remove")
+def addService(name, pool, id)
+    @applications_page.addApp_button.click()
+    selectOption(name)
+    click_link_or_button("Next")
+    selectOption(pool)
+    click_link_or_button("Next")
+    fillInDeploymentID(id)
+    click_link_or_button("Deploy")
+    expect(page).to have_content("App deployed successfully", wait: 600)
 end

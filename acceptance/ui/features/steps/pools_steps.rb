@@ -194,7 +194,6 @@ def removeAllPools()
     removeAllEntries("host")
     visitApplicationsPage()
     removeAllEntries("service")
-    removeAllEntries("template")
     visitPoolsPage()
     removeAllEntries("pool")
 end

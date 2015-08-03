@@ -2,7 +2,7 @@
   "pools": 
   {
     "defaultPool": {
-      "name": "test",
+      "name": "default",
       "description": "default pool"
     },
 

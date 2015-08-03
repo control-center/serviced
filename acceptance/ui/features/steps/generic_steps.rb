@@ -30,10 +30,7 @@ When (/^I remove "([^"]*)"$/) do |name|
 end
 
 When(/^I select "(.*?)"$/) do |name|
-    entry = getTableValue(name)
-    within("tr[class='clickable ng-scope']", :text => entry) do
-        page.find("input[type='radio']").click()
-    end
+    selectOption(name)
 end
 
 When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
@@ -210,14 +207,31 @@ def sortColumn(category, sortOrder)
     end
 end
 
+def selectOption(name)
+    entry = getTableValue(name)
+    within("tr[class='clickable ng-scope']", :text => entry) do
+        page.find("input[type='radio']").click()
+    end
+end
+
+def removeEntry(name, category)
+    waitForPageLoad()
+    name = getTableValue(name)
+    within(page.find("tr[ng-repeat='#{category} in $data']", :text => name, match: :first)) do
+        click_link_or_button("Delete")
+    end
+    click_link_or_button("Remove")
+    refreshPage()
+end
+
 def removeAllEntries(category)
     waitForPageLoad()
     while (page.has_css?("tr[ng-repeat='#{category} in $data']", :text => "Delete")) do
-        entry = page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)
-        within (entry) do
+        within(page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)) do
             click_link_or_button("Delete")
         end
         click_link_or_button("Remove")
+        refreshPage() if category == "service"
         waitForPageLoad()
     end
 end
@@ -230,6 +244,10 @@ def waitForPageLoad()
     if Capybara.default_driver == :selenium_chrome
         sleep 2
     end
+end
+
+def refreshPage()
+    page.driver.browser.navigate.refresh
 end
 
 def getTableValue(valueOrTableUrl)

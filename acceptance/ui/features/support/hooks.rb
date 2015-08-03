@@ -21,7 +21,7 @@ end
 
 After('@clean_templates') do
     visitApplicationsPage()
-    removeAllEntries("template")
+    #removeAllEntries("template") until templates can be added back
 end
 
 After('@clean_services') do
