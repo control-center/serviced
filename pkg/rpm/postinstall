@@ -7,3 +7,11 @@ fi
 mkdir -p /var/log/serviced
 chmod 1777 /var/log/serviced
 
+LIBDEVMAPPER="$(ldconfig -p | grep libdevmapper.so.1.02 | awk {'print $4'})"
+if [ -z "${LIBDEVMAPPER}" ]; then
+    exit 0
+fi
+if ! (python -c "import sys; sys.exit(0 if \"${LIBDEVMAPPER}\".endswith('.1') else 1)"); then
+    [ -f "${LIBDEVMAPPER}.1" -o -h "${LIBDEVMAPPER}.1" ] || ln -sf ${LIBDEVMAPPER} ${LIBDEVMAPPER}.1
+    ldconfig
+fi
