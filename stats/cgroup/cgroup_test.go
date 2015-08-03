@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build unit
+
 // Package cgroup provides access to /sys/fs/cgroup metrics.
 
 package cgroup

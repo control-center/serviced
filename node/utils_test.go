@@ -16,6 +16,8 @@
 // and reporting the state and health of those services back to the master
 // serviced.
 
+// +build integration
+
 package node
 
 import (

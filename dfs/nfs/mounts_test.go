@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build unit
+
 package nfs
 
 import (
@@ -70,4 +72,3 @@ func TestParseMounts(t *testing.T) {
 		}
 	}
 }
-
