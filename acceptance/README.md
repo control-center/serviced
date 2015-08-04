@@ -99,21 +99,21 @@ The test suite can be run against any one of several browsers by selecting diffe
 Both of the following commands run the test suite against Firefox:
 
 ```
-$ ./runUIAcceptance.sh -u <userID> -p <password>
+$ ./runUIAcceptance.sh -a <servicedURL> -u <userID> -p <password>
 or
-$ ./runUIAcceptance.sh -d selenium -u <userID> -p <password>
+$ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
 ```
 
 To run the tests against Chrome, use
 
 ```
-$ ./runUIAcceptance.sh -d selenium_chrome -u <userID> -p <password>
+$ ./runUIAcceptance.sh -d selenium_chrome -a <servicedURL> -u <userID> -p <password>
 ```
 
 To run the tests against Poltergeist/Phantomjs, use
 
 ```
-$ ./runUIAcceptance.sh -d poltergeist -u <userID> -p <password>
+$ ./runUIAcceptance.sh -d poltergeist -a <servicedURL> -u <userID> -p <password>
 ```
 
 For a full description of the command line options, run `./runUIAcceptance.sh -h`
@@ -158,7 +158,7 @@ Cucumber supports a feature called tags which can be used in run a subset of tes
 For example, you can run tests for a single tag with a command like:
 
 ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u <userid> -p <password>
+$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password>
 
 ```
 
@@ -176,7 +176,7 @@ Some of the tags defined by this project are:
  To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance the following command will run just the tests for the hosts feature:
 
  ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u yourName@something.com -p yourPasswordHere
+$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere
  ```
 
 For information of these Cucumber feature, see:
@@ -192,7 +192,7 @@ argument as illustrated below:
 
 ```
 $ xhost +
-$ ./runUIAcceptance.sh --debug -u yourName@something.com -p yourPasswordHere
+$ ./runUIAcceptance.sh --debug -a servicedURL -u yourUserID -p yourPasswordHere
 ```
 
 *NOTE:* You only need to execute the command `xhost +` once.

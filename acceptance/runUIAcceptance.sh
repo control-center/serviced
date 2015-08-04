@@ -20,12 +20,6 @@ DATASET=default
 
 set -e
 
-#
-# The features/steps in this example assumes github as the default application
-if [ -z "${APPLICATION_URL-}" ]; then
-    APPLICATION_URL="https://localhost"
-fi
-
 while (( "$#" )); do
     if [ "$1" == "-u" ]; then
         APPLICATION_USERID="${2}"
@@ -58,14 +52,14 @@ while (( "$#" )); do
         if [ "$1" != "-h" ]; then
             echo "ERROR: invalid argument '$1'"
         fi
-        echo "USAGE: runUIAcceptance.sh.sh [-u userid] [-p password] [-a url]"
+        echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
         echo "       [-d driverName] [-t timeout] [--dataset setName]"
         echo "       [--debug] [--root] [-i] [-h]"
         echo ""
         echo "where"
-        echo "    -u userid             a valid github user id (required)"
+        echo "    -a url                the URL of the serviced application"
+        echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
-        echo "    -a url                the URL of the application"
         echo "    -d driverName         identifies the Capybara driver to use"
         echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
@@ -79,6 +73,12 @@ while (( "$#" )); do
     fi
 
 done
+
+if [ -z "${APPLICATION_URL-}" ]; then
+    echo "ERROR: URL undefined. You must either set the environment variable"
+    echo "       APPLICATION_URL, or specify it with the -a command line arg"
+    exit 1
+fi
 
 if [ -z "${APPLICATION_USERID-}" ]; then
     echo "ERROR: userid undefined. You must either set the environment variable"
