@@ -24,7 +24,7 @@ Feature: Application Management
 
   Scenario: View application template dialog
     When I am on the applications page
-      And I click the Add-Application Template button
+      And I click the add Application Template button
     Then I should see "Add Application Template"
       And I should see "Application Template File:"
 
@@ -33,7 +33,7 @@ Feature: Application Management
     Given that Zenoss Core is not added
       And there are no hosts added
     When I am on the applications page
-      And I click the Add-Application button
+      And I click the add Application button
     Then I should see "Add Host"
     When I click "Next"
     Then I should see "Please enter a valid host name"
@@ -58,7 +58,7 @@ Feature: Application Management
     Given that Zenoss Core is not added
       And only the default host is added
     When I am on the applications page
-      And I click the Add-Application button
+      And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
     When I select "Zenoss.core"
@@ -80,7 +80,7 @@ Feature: Application Management
     Given that Zenoss Core is not added
       And there are no hosts added
     When I am on the applications page
-      And I click the Add-Application button
+      And I click the add Application button
     Then I should see "Deployment Wizard"
     When I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
       And I fill in the Resource Pool field with "table://hosts/defaultHost/pool"
@@ -107,7 +107,7 @@ Feature: Application Management
       And that Zenoss Core is not added
       And that the "table://applications/testCore/pool" pool is added
     When I am on the applications page
-      And I click the Add-Application button
+      And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
     When I select "Zenoss.core"
@@ -129,7 +129,7 @@ Feature: Application Management
     Given only the default host is added
       And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
     When I am on the applications page
-      And I click the Add-Application button
+      And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
     When I select "Zenoss.core"
@@ -151,7 +151,7 @@ Feature: Application Management
     Given only the default host is added
       And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
     When I am on the applications page
-      And I click the Add-Application button
+      And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
     When I select "Zenoss.core"

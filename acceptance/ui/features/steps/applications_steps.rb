@@ -37,11 +37,11 @@ When(/^I am on the applications page$/) do
     visitApplicationsPage()
 end
 
-When(/^I click the Add-Application button$/) do
+When(/^I click the add Application button$/) do
     @applications_page.addApp_button.click()
 end
 
-When(/^I click the Add-Application Template button$/) do
+When(/^I click the add Application Template button$/) do
     @applications_page.addAppTemplate_button.click()
 end
 
@@ -105,16 +105,18 @@ end
 def checkServiceRows(row)
     waitForPageLoad()
     found = false
-    name = getTableValue(row)
-    found = page.has_css?("tr[ng-repeat='service in $data']", :text => name)
+    within(@applications_page.services_table) do
+        found = page.has_text?(getTableValue(row))
+    end
     return found
 end
 
 def checkTemplateRows(row)
     waitForPageLoad()
     found = false
-    name = getTableValue(row)
-    found = page.has_css?("tr[ng-repeat='template in $data']", :text => name)
+    within(@applications_page.templates_table) do
+        found = page.has_text?(getTableValue(row))
+    end
     return found
 end
 

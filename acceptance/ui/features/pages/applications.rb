@@ -14,6 +14,4 @@ class Applications < SitePrism::Page
     element :services_table, "table[data-config='servicesTable']"
     element :templates_table, "table[data-config='templatesTable']"
     elements :status_icons, "[data-status$='service.status']"
-    elements :service_entries, "tr[ng-repeat='service in $data']"
-    elements :template_entries, "[ng-repeat='template in $data']"
 end
