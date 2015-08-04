@@ -144,7 +144,10 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		}
 	}()
 
-	if err := exportJSON(filepath.Join(dirpath, meta), &metadata{dfs.fsType}); err != nil {
+	if file, err := os.Create(filepath.Join(dirpath, meta)); err != nil {
+		glog.Errorf("Could not create meta file %s: %s", meta, err)
+		return "", err
+	} else if err := exportJSON(file, &metadata{dfs.fsType}); err != nil {
 		glog.Errorf("Could not export %s: %s", meta, err)
 		return "", err
 	}
@@ -171,7 +174,10 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not get resource pools: %s", err)
 		return "", err
 	}
-	if err := exportJSON(filepath.Join(dirpath, poolJSON), pools); err != nil {
+	if file, err := os.Create(filepath.Join(dirpath, poolJSON)); err != nil {
+		glog.Errorf("Could not create meta file %s: %s", poolJSON, err)
+		return "", err
+	} else if err := exportJSON(file, pools); err != nil {
 		glog.Errorf("Could not export resource pools: %s", err)
 		return "", err
 	}
@@ -184,7 +190,10 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not get hosts: %s", err)
 		return "", err
 	}
-	if err := exportJSON(filepath.Join(dirpath, hostJSON), hosts); err != nil {
+	if file, err := os.Create(filepath.Join(dirpath, hostJSON)); err != nil {
+		glog.Errorf("Could not create meta file %s: %s", hostJSON, err)
+		return "", err
+	} else if err := exportJSON(file, hosts); err != nil {
 		glog.Errorf("Could not export hosts: %s", err)
 		return "", err
 	}
@@ -197,7 +206,10 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not get service templates: %s", err)
 		return "", err
 	}
-	if err := exportJSON(filepath.Join(dirpath, templateJSON), templates); err != nil {
+	if file, err := os.Create(filepath.Join(dirpath, templateJSON)); err != nil {
+		glog.Errorf("Could not create meta file %s: %s", templateJSON, err)
+		return "", err
+	} else if err := exportJSON(file, templates); err != nil {
 		glog.Errorf("Could not export service templates: %s", err)
 		return "", err
 	}
@@ -226,7 +238,11 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 		glog.Errorf("Could not export docker images: %s", err)
 		return "", err
 	}
-	if err := exportJSON(filepath.Join(dirpath, imageJSON), &imageTags); err != nil {
+
+	if file, err := os.Create(filepath.Join(dirpath, imageJSON)); err != nil {
+		glog.Errorf("Could not create meta file %s: %s", imageJSON, err)
+		return "", err
+	} else if err := exportJSON(file, &imageTags); err != nil {
 		glog.Errorf("Could not export images: %s", err)
 		return "", err
 	}
@@ -299,7 +315,10 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	}
 
 	var metadata metadata
-	if err := importJSON(filepath.Join(dirpath, meta), &metadata); err != nil {
+	if file, err := os.Open(filepath.Join(dirpath, meta)); err != nil {
+		glog.Errorf("Could not open meta file %s: %s", meta, err)
+		return err
+	} else if err := importJSON(file, &metadata); err != nil {
 		glog.Errorf("Could not import %s: %s", meta, err)
 		return err
 	} else if metadata.FSType != dfs.fsType {
@@ -309,7 +328,10 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	}
 
 	var pools []pool.ResourcePool
-	if err := importJSON(filepath.Join(dirpath, poolJSON), &pools); err != nil {
+	if file, err := os.Open(filepath.Join(dirpath, poolJSON)); err != nil {
+		glog.Errorf("Could not open meta file %s: %s", poolJSON, err)
+		return err
+	} else if err := importJSON(file, &pools); err != nil {
 		glog.Errorf("Could not read resource pools from %s: %s", filename, err)
 		return err
 	}
@@ -332,7 +354,10 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	dfs.logf("Resource pool load successful")
 
 	var hosts []host.Host
-	if err := importJSON(filepath.Join(dirpath, hostJSON), &hosts); err != nil {
+	if file, err := os.Open(filepath.Join(dirpath, hostJSON)); err != nil {
+		glog.Errorf("Could not open meta file %s: %s", hostJSON, err)
+		return err
+	} else if err := importJSON(file, &hosts); err != nil {
 		glog.Errorf("Could not read hosts from %s: %s", filename, err)
 		return err
 	}
@@ -355,7 +380,10 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	dfs.logf("Static ip load successful")
 
 	var templates map[string]servicetemplate.ServiceTemplate
-	if err := importJSON(filepath.Join(dirpath, templateJSON), &templates); err != nil {
+	if file, err := os.Open(filepath.Join(dirpath, templateJSON)); err != nil {
+		glog.Errorf("Could not open meta file %s: %s", templateJSON, err)
+		return err
+	} else if err := importJSON(file, &templates); err != nil {
 		glog.Errorf("Could not read templates from %s: %s", filename, err)
 		return err
 	}
@@ -385,7 +413,10 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 	// restore docker images
 	dfs.logf("Loading docker images")
 	var images []imagemeta
-	if err := importJSON(filepath.Join(dirpath, imageJSON), &images); err != nil {
+	if file, err := os.Open(filepath.Join(dirpath, imageJSON)); err != nil {
+		glog.Errorf("Could not open meta file %s: %s", imageJSON, err)
+		return err
+	} else if err := importJSON(file, &images); err != nil {
 		glog.Errorf("Could not read images from %s: %s", filename, err)
 		return err
 	}
@@ -526,8 +557,10 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 
 	// Load the services
 	var svcs []*service.Service
-	jsonfile := filepath.Join(volume.SnapshotMetadataPath(label), serviceJSON)
-	if err := importJSON(jsonfile, &svcs); err != nil {
+	if file, err := volume.ReadMetadata(label, serviceJSON); err != nil {
+		glog.Errorf("Could not open meta file %s:%s: %s", label, serviceJSON, err)
+		return err
+	} else if err := importJSON(file, &svcs); err != nil {
 		glog.Errorf("Could not load services from %s: %s", label, err)
 		return err
 	}

@@ -33,7 +33,7 @@ func GetSubvolume(fsType, varpath, serviceID string) (volume.Volume, error) {
 		return nil, err
 	}
 	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, baseDir)
-	return volume.Mount(fsType, serviceID, baseDir)
+	return volume.Mount(serviceID, baseDir)
 }
 
 func serviceVolumeGet(fsType, varpath, serviceID string) (volume.Volume, error) {

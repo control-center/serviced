@@ -16,8 +16,7 @@ package dfs
 import (
 	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
+	"io"
 	"strings"
 	"time"
 
@@ -91,19 +90,20 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 	tagID := time.Now().UTC().Format(timeFormat)
 	label := fmt.Sprintf("%s_%s", tenantID, tagID)
 
-	mdPath := snapshotVolume.SnapshotMetadataPath(label)
-	if err := os.MkdirAll(mdPath, 0755); err != nil {
-		return "", err
-	}
-
 	// dump the service definitions
-	if err := exportJSON(filepath.Join(mdPath, serviceJSON), svcs); err != nil {
-		glog.Errorf("Could not export existing services at %s: %s", snapshotVolume.SnapshotMetadataPath(label), err)
+	if file, err := snapshotVolume.WriteMetadata(label, serviceJSON); err != nil {
+		glog.Errorf("Could not write metadata %s:%s: %s", label, serviceJSON, err)
+		return "", err
+	} else if err := exportJSON(file, svcs); err != nil {
+		glog.Errorf("Could not export existing services at %s: %s", serviceJSON, err)
 		return "", err
 	}
 
 	// dump metadata for this snapshot
-	if err := exportJSON(filepath.Join(mdPath, snapshotMeta), SnapshotMetadata{description}); err != nil {
+	if file, err := snapshotVolume.WriteMetadata(label, snapshotMeta); err != nil {
+		glog.Errorf("Could not write metadata %s:%s: %s", label, snapshotMeta, err)
+		return "", err
+	} else if err := exportJSON(file, SnapshotMetadata{description}); err != nil {
 		glog.Errorf("Could not export %s: %s", snapshotMeta, err)
 		return "", err
 	}
@@ -218,7 +218,10 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 
 	// restore services
 	var restore []*service.Service
-	if err := importJSON(filepath.Join(snapshotVolume.SnapshotMetadataPath(snapshotID), serviceJSON), &restore); err != nil {
+	if file, err := snapshotVolume.ReadMetadata(snapshotID, serviceJSON); err != nil {
+		glog.Errorf("Could not read metadata %s:%s: %s", snapshotID, serviceJSON, err)
+		return err
+	} else if err := importJSON(file, &restore); err != nil {
 		glog.Errorf("Could not acquire services from %s: %s", snapshotID, err)
 		return err
 	}
@@ -260,10 +263,11 @@ func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]dao.Snapshot
 	for i, snapshotID := range snapshotIDs {
 		var description string
 		var metadata *SnapshotMetadata
-		if err := importJSON(filepath.Join(snapshotVolume.SnapshotMetadataPath(snapshotID), snapshotMeta), &metadata); err != nil {
-			description = ""
-		} else {
-			description = metadata.Description
+
+		if file, err := snapshotVolume.ReadMetadata(snapshotID, snapshotMeta); err == nil {
+			if err := importJSON(file, &metadata); err == nil {
+				description = metadata.Description
+			}
 		}
 		snapshots[i] = dao.SnapshotInfo{snapshotID, description}
 	}
@@ -320,7 +324,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 // DeleteSnapshots deletes all snapshots relating to a particular tenantID
 func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	// delete the snapshot subvolume
-	driver, err := volume.GetDriver(dfs.fsType, dfs.varpath)
+	driver, err := volume.GetDriver(dfs.varpath)
 	if err != nil {
 		glog.Errorf("Couldn't load the %s storage driver for %s", dfs.fsType, dfs.varpath)
 	}
@@ -492,46 +496,30 @@ func parseLabel(snapshotID string) (string, string, error) {
 	return parts[0], parts[1], nil
 }
 
-func exportJSON(filename string, v interface{}) error {
-	file, err := os.Create(filename)
-	if err != nil {
-		glog.Errorf("Could not create file at %s: %v", filename, err)
-		return err
-	}
-
+func exportJSON(file io.WriteCloser, v interface{}) error {
 	defer func() {
 		if err := file.Close(); err != nil {
-			glog.Warningf("Error while closing file %s: %s", filename, err)
+			glog.Warningf("Error while closing file handle %+v: %s", file, err)
 		}
 	}()
-
 	encoder := json.NewEncoder(file)
 	if err := encoder.Encode(v); err != nil {
-		glog.Errorf("Could not write JSON data to %s: %s", filename, err)
+		glog.Errorf("Could not write JSON data to file handle %+v: %s", v, err)
 		return err
 	}
-
 	return nil
 }
 
-func importJSON(filename string, v interface{}) error {
-	file, err := os.Open(filename)
-	if err != nil {
-		glog.Errorf("Could not open file at %s: %v", filename, err)
-		return err
-	}
-
+func importJSON(file io.ReadCloser, v interface{}) error {
 	defer func() {
 		if err := file.Close(); err != nil {
-			glog.Warningf("Error while closing file %s: %s", filename, err)
+			glog.Warningf("Error while closing file handle %+v: %s", file, err)
 		}
 	}()
-
 	decoder := json.NewDecoder(file)
 	if err := decoder.Decode(v); err != nil {
-		glog.Errorf("Could not read JSON data from %s: %s", filename, err)
+		glog.Errorf("Could not read JSON data from file handle %+v: %s", file, err)
 		return err
 	}
-
 	return nil
 }
