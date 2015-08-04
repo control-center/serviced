@@ -130,11 +130,14 @@ type IServiceDefinition struct {
 
 type IService struct {
 	IServiceDefinition
-	exited         <-chan int
-	root           string
-	actions        chan actionrequest
-	startTime      time.Time
-	restartCount   int
+	root         string
+	actions      chan actionrequest
+	startTime    time.Time
+	restartCount int
+
+	channelLock *sync.Mutex
+	exited      <-chan int
+
 	lock           *sync.RWMutex
 	healthStatuses map[string]*domain.HealthCheckStatus
 }
@@ -148,7 +151,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	svc := IService{sd, nil, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil}
+	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, &sync.Mutex{}, nil, &sync.RWMutex{}, nil}
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
 		for name, healthCheckDefinition := range svc.HealthChecks {
@@ -184,6 +187,9 @@ func (svc *IService) SetRoot(root string) {
 }
 
 func (svc *IService) IsRunning() bool {
+	svc.channelLock.Lock()
+	defer svc.channelLock.Unlock()
+
 	return svc.exited != nil
 }
 
@@ -235,6 +241,13 @@ func (svc *IService) getResourcePath(p string) string {
 	}
 
 	return filepath.Join(svc.root, svc.Name, p)
+}
+
+func (svc *IService) setExitedChannel(newChan <-chan int) {
+	svc.channelLock.Lock()
+	defer svc.channelLock.Unlock()
+
+	svc.exited = newChan
 }
 
 func (svc *IService) name() string {
@@ -439,6 +452,7 @@ func (svc *IService) remove(notify chan<- int) {
 }
 
 func (svc *IService) run() {
+	var newExited <-chan int
 	var err error
 	var collecting bool
 	haltStats := make(chan struct{})
@@ -450,7 +464,7 @@ func (svc *IService) run() {
 			switch req.action {
 			case stop:
 				glog.Infof("Stopping isvc %s", svc.Name)
-				if svc.exited == nil {
+				if !svc.IsRunning() {
 					req.response <- ErrNotRunning
 					continue
 				}
@@ -472,16 +486,18 @@ func (svc *IService) run() {
 					svc.setStoppedHealthStatus(ExitError(rc))
 					glog.Errorf("isvc %s received exit code %d", svc.Name, rc)
 				}
-				svc.exited = nil
+				svc.setExitedChannel(nil)
 				req.response <- nil
 			case start:
 				glog.Infof("Starting isvc %s", svc.Name)
-				if svc.exited != nil {
+				if svc.IsRunning() {
 					req.response <- ErrRunning
 					continue
 				}
 
-				if svc.exited, err = svc.start(); err != nil {
+				newExited, err = svc.start()
+				svc.setExitedChannel(newExited)
+				if err != nil {
 					req.response <- err
 					continue
 				}
@@ -495,7 +511,7 @@ func (svc *IService) run() {
 				req.response <- nil
 			case restart:
 				glog.Infof("Restarting isvc %s", svc.Name)
-				if svc.exited != nil {
+				if svc.IsRunning() {
 
 					if collecting {
 						haltStats <- struct{}{}
@@ -511,7 +527,9 @@ func (svc *IService) run() {
 					}
 					<-svc.exited
 				}
-				if svc.exited, err = svc.start(); err != nil {
+				newExited, err = svc.start()
+				svc.setExitedChannel(newExited)
+				if err != nil {
 					req.response <- err
 					continue
 				}
@@ -530,7 +548,9 @@ func (svc *IService) run() {
 			stopService := svc.isFlapping()
 			if !stopService {
 				glog.Infof("Restarting isvc %s ", svc.Name)
-				if svc.exited, err = svc.start(); err != nil {
+				newExited, err = svc.start()
+				svc.setExitedChannel(newExited)
+				if err != nil {
 					glog.Errorf("Error restarting isvc %s: %s", svc.Name, err)
 					stopService = true
 				}
@@ -546,7 +566,7 @@ func (svc *IService) run() {
 				}
 				glog.Errorf("isvc %s not restarted; failed too many times", svc.Name)
 				svc.stop()
-				svc.exited = nil
+				svc.setExitedChannel(nil)
 			}
 		}
 	}
