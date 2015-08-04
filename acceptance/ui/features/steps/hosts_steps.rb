@@ -1,4 +1,4 @@
-Given(/^(?:|that )multiple hosts have been added$/) do
+Given (/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
     if @hosts_page.host_entries.size < 5
         removeAllEntries("host")
@@ -12,34 +12,34 @@ Given(/^(?:|that )multiple hosts have been added$/) do
     end
 end
 
-Given(/^(?:|that )there are no hosts defined$/) do
+Given (/^(?:|that )there are no hosts added$/) do
     visitHostsPage()
     removeAllEntries("host")
 end
 
-Given(/^(?:|that )only the default host is defined$/) do
+Given (/^(?:|that )only the default host is added$/) do
     visitHostsPage()
     removeAllEntries("host")
     addDefaultHost()
 end
 
-When(/^I am on the hosts page$/) do
+When (/^I am on the hosts page$/) do
     visitHostsPage()
 end
 
-When(/^I fill in the Host Name field with "(.*?)"$/) do |hostName|
+When (/^I fill in the Host Name field with "(.*?)"$/) do |hostName|
     fillInHostAndPort(hostName)
 end
 
-When(/^I fill in the Resource Pool field with "(.*?)"$/) do |resourcePool|
+When (/^I fill in the Resource Pool field with "(.*?)"$/) do |resourcePool|
     fillInResourcePool(resourcePool)
 end
 
-When(/^I fill in the RAM Commitment field with "(.*?)"$/) do |ramCommitment|
+When (/^I fill in the RAM Commitment field with "(.*?)"$/) do |ramCommitment|
     fillInRAMCommitment(ramCommitment)
 end
 
-When (/^I click the Add-Host button$/) do
+When (/^I click the add Host button$/) do
     clickAddHostButton()
 end
 

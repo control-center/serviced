@@ -67,7 +67,7 @@ When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
     end
 end
 
-Then /^I should see that the application has deployed$/ do
+Then (/^I should see that the application has deployed$/) do
     expect(page).to have_content("App deployed successfully", wait: 600)
     refreshPage() # workaround until apps consistently display on page without refreshing
 end
@@ -76,7 +76,7 @@ Then (/^I should see that the application has not been deployed$/) do
     expect(page).to have_content("App deploy failed")
 end
 
-Then /^the "Status" column should be sorted with active applications on (top|the bottom)$/ do |order|
+Then (/^the "Status" column should be sorted with active applications on (top|the bottom)$/) do |order|
     list = @applications_page.status_icons
     for i in 0..(list.size - 2)
         if order == "top"

@@ -6,7 +6,7 @@ Feature: Application Management
 
   Background:
     Given that the admin user is logged in
-      And that the default resource pool exists
+      And that the default resource pool is added
 
   Scenario: View default applications page
     When I am on the applications page
@@ -31,7 +31,7 @@ Feature: Application Management
   @clean_hosts
   Scenario: Enter invalid input into the application deployment wizard
     Given that Zenoss Core is not added
-      And there are no hosts defined
+      And there are no hosts added
     When I am on the applications page
       And I click the Add-Application button
     Then I should see "Add Host"
@@ -56,7 +56,7 @@ Feature: Application Management
   @clean_hosts @clean_services
   Scenario: Deploy Zenoss Core
     Given that Zenoss Core is not added
-      And only the default host is defined
+      And only the default host is added
     When I am on the applications page
       And I click the Add-Application button
     Then I should see "Deployment Wizard"
@@ -78,7 +78,7 @@ Feature: Application Management
   @clean_hosts @clean_services
   Scenario: Deploy Zenoss Core and add a host
     Given that Zenoss Core is not added
-      And there are no hosts defined
+      And there are no hosts added
     When I am on the applications page
       And I click the Add-Application button
     Then I should see "Deployment Wizard"
@@ -103,9 +103,9 @@ Feature: Application Management
 
   @clean_hosts @clean_services @clean_pools
   Scenario: Deploy Zenoss Core to another resource pool
-    Given only the default host is defined
+    Given only the default host is added
       And that Zenoss Core is not added
-      And that the "table://applications/testCore/pool" pool exists
+      And that the "table://applications/testCore/pool" pool is added
     When I am on the applications page
       And I click the Add-Application button
     Then I should see "Deployment Wizard"
@@ -126,7 +126,7 @@ Feature: Application Management
 
   @clean_hosts @clean_services
   Scenario: Add Zenoss Core with a duplicate Deployment ID
-    Given only the default host is defined
+    Given only the default host is added
       And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
     When I am on the applications page
       And I click the Add-Application button
@@ -148,7 +148,7 @@ Feature: Application Management
 
   @clean_hosts @clean_services
   Scenario: Add Zenoss Core with another Deployment ID
-    Given only the default host is defined
+    Given only the default host is added
       And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
     When I am on the applications page
       And I click the Add-Application button
@@ -170,7 +170,7 @@ Feature: Application Management
 
   @clean_hosts
   Scenario: Remove Zenoss Core
-    Given only the default host is defined
+    Given only the default host is added
       And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
     When I remove "Zenoss.core" from the Applications list
     Then I should see "Remove Application"

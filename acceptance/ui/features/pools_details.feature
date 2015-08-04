@@ -6,7 +6,7 @@ Feature: Resource Pool Details
 
   Background:
     Given that the admin user is logged in
-      And that the default resource pool exists
+      And that the default resource pool is added
 
   Scenario: View resource pool details page
     When I am on the resource pool page
@@ -20,7 +20,7 @@ Feature: Resource Pool Details
 
   @clean_hosts
   Scenario: View default resource pool details
-    Given only the default host is defined
+    Given only the default host is added
     When I am on the hosts page
       And I add the "host2" host
       And I am on the resource pool page
@@ -31,7 +31,7 @@ Feature: Resource Pool Details
 
   @clean_hosts
   Scenario: View host details in the resource pool details
-    Given only the default host is defined
+    Given only the default host is added
     When I am on the hosts page
       And I add the "host2" host
       And I am on the resource pool page
@@ -115,7 +115,7 @@ Feature: Resource Pool Details
 
   @clean_virtualips @clean_pools
   Scenario: Add a virtual IP to another resource pool
-    Given that the "table://pools/pool2/name" pool exists
+    Given that the "table://pools/pool2/name" pool is added
     When I am on the resource pool page
       And I view the details of "table://pools/pool2/name"
       And I click the Add Virtual IP button

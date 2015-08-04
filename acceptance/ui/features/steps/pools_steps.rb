@@ -11,7 +11,7 @@ Given (/^(?:|that )multiple resource pools have been added$/) do
     end
 end
 
-Given (/^(?:|that )the default resource pool exists$/) do
+Given (/^(?:|that )the default resource pool is added$/) do
     visitPoolsPage()
     hasDefault = checkRows("default")
     if (hasDefault == false)
@@ -19,7 +19,7 @@ Given (/^(?:|that )the default resource pool exists$/) do
     end
 end
 
-Given (/^(?:|that )only the default resource pool exists$/) do
+Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
     if (!page.has_content?("Showing 1 Result") || !checkRows("default"))
         removeAllPools()
@@ -27,7 +27,7 @@ Given (/^(?:|that )only the default resource pool exists$/) do
     end
 end
 
-Given (/^(?:|that )the "(.*?)" pool exists$/) do |pool|
+Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
     visitPoolsPage()
     if (checkRows(pool) == false)
         addPool(pool, "added for tests")
@@ -57,7 +57,7 @@ Given (/^(?:|that )the "(.*?)" pool has no virtual IPs$/) do |pool|
     end
 end
 
-When(/^I am on the resource pool page$/) do
+When (/^I am on the resource pool page$/) do
     visitPoolsPage()
 end
 
@@ -65,15 +65,15 @@ When (/^I click the add Resource Pool button$/) do
     clickAddPoolButton()
 end
 
-When(/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
+When (/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
     fillInResourcePoolField(resourcePool)
 end
 
-When(/^I fill in the Description field with "(.*?)"$/) do |description|
+When (/^I fill in the Description field with "(.*?)"$/) do |description|
     fillInDescriptionField(description)
 end
 
-When(/^I add the "(.*?)" pool$/) do |pool|
+When (/^I add the "(.*?)" pool$/) do |pool|
     addPoolJson(pool)
 end
 

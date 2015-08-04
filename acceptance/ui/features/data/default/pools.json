@@ -12,12 +12,12 @@
     },
 
     "pool3": {
-      "name": "third pool",
+      "name": "another test",
       "description": "yet another pool"
     },
 
     "pool4": {
-      "name": "fourth pool",
+      "name": "yet another test",
       "description": "another pool"
     }
   }

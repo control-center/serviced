@@ -29,7 +29,7 @@ When (/^I remove "([^"]*)"$/) do |name|
     end
 end
 
-When(/^I select "(.*?)"$/) do |name|
+When (/^I select "(.*?)"$/) do |name|
     selectOption(name)
 end
 

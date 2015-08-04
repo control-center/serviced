@@ -10,7 +10,7 @@ Given (/^(?:|that )I have messages$/) do
     end
 end
 
-When(/^I view user details$/) do
+When (/^I view user details$/) do
     viewUserDetails()
 end
 
