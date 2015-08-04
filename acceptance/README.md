@@ -20,6 +20,7 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
     - [Running a subset of tests](#running-a-subset-of-tests)
     - [Looking at a failed test case](#looking-at-a-failed-test-case)
     - [Tagging conventions](#tagging-conventions)
+    - [Watching the browser while the tests run](#watching-the-browser-while-the-tests-run)
     - [Mark a test PENDING](#mark-a-test-pending)
     - [Page Object Model](#page-object-model)
   - [TODOs](#todos)
@@ -98,21 +99,21 @@ The test suite can be run against any one of several browsers by selecting diffe
 Both of the following commands run the test suite against Firefox:
 
 ```
-$ ./runUIAcceptance.sh -u <userID> -p <password>
+$ ./runUIAcceptance.sh -a <servicedURL> -u <userID> -p <password>
 or
-$ ./runUIAcceptance.sh -d selenium -u <userID> -p <password>
+$ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
 ```
 
 To run the tests against Chrome, use
 
 ```
-$ ./runUIAcceptance.sh -d selenium_chrome -u <userID> -p <password>
+$ ./runUIAcceptance.sh -d selenium_chrome -a <servicedURL> -u <userID> -p <password>
 ```
 
 To run the tests against Poltergeist/Phantomjs, use
 
 ```
-$ ./runUIAcceptance.sh -d poltergeist -u <userID> -p <password>
+$ ./runUIAcceptance.sh -d poltergeist -a <servicedURL> -u <userID> -p <password>
 ```
 
 For a full description of the command line options, run `./runUIAcceptance.sh -h`
@@ -157,7 +158,7 @@ Cucumber supports a feature called tags which can be used in run a subset of tes
 For example, you can run tests for a single tag with a command like:
 
 ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u <userid> -p <password>
+$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password>
 
 ```
 
@@ -175,13 +176,26 @@ Some of the tags defined by this project are:
  To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance the following command will run just the tests for the hosts feature:
 
  ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u yourName@something.com -p yourPasswordHere`
+$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere
  ```
 
 For information of these Cucumber feature, see:
 
  * [Tags](https://github.com/cucumber/cucumber/wiki/Tags)
  * [Hooks](https://github.com/cucumber/cucumber/wiki/Hooks)
+
+### Watching the browser while the tests run
+Normally, the browser used by the tests is executed within the Docker container using
+the X virtual framebuffer (Xvfb) so nothing is displayed.  For debugging purposes,
+it is often useful to view the browser while the test runs.  To do that, include the `--debug`
+argument as illustrated below:
+
+```
+$ xhost +
+$ ./runUIAcceptance.sh --debug -a servicedURL -u yourUserID -p yourPasswordHere
+```
+
+*NOTE:* You only need to execute the command `xhost +` once.
 
 ### Mark a test PENDING
 When a test is marked `PENDING`, Cucumber will skip it. This is useful for several scenarios, including

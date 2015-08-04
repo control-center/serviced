@@ -12,18 +12,13 @@
 # Set defaults
 #
 debug=false
+interactive=false
 runAsRoot=false
 DRIVER_NAME=selenium
 TIMEOUT=10
 DATASET=default
 
 set -e
-
-#
-# The features/steps in this example assumes github as the default application
-if [ -z "${APPLICATION_URL-}" ]; then
-    APPLICATION_URL="https://localhost"
-fi
 
 while (( "$#" )); do
     if [ "$1" == "-u" ]; then
@@ -44,27 +39,32 @@ while (( "$#" )); do
     elif [ "$1" == "--dataset" ]; then
         DATASET="${2}"
         shift 2
+    elif [ "$1" == "--debug" ]; then
+        debug=true
+        shift 1
     elif [ "$1" == "--root" ]; then
         runAsRoot=true
         shift 1
     elif [ "$1" == "-i" ]; then
-        debug=true
+        interactive=true
         shift 1
     else
         if [ "$1" != "-h" ]; then
             echo "ERROR: invalid argument '$1'"
         fi
-        echo "USAGE: runUIAcceptance.sh.sh [-u userid] [-p password] [-a url]"
-        echo "       [-d driverName] [-t timeout] [--root] [-i] [-h]"
+        echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
+        echo "       [-d driverName] [-t timeout] [--dataset setName]"
+        echo "       [--debug] [--root] [-i] [-h]"
         echo ""
         echo "where"
-        echo "    -u userid             a valid github user id (required)"
+        echo "    -a url                the URL of the serviced application"
+        echo "    -u userid             a valid seviced user id (required)"
         echo "    -p password           the password for userid (required)"
-        echo "    -a url                the URL of the application"
         echo "    -d driverName         identifies the Capybara driver to use"
         echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --dataset setName     identifies the dataset to use"
+        echo "    --debug               opens the browser on the host's DISPLAY"
         echo "    --root                run the tests as root in the docker container"
         echo "    -i                    interactive mode. Starts a bash shell with all of the same"
         echo "                          env vars but doesn't run anything"
@@ -73,6 +73,12 @@ while (( "$#" )); do
     fi
 
 done
+
+if [ -z "${APPLICATION_URL-}" ]; then
+    echo "ERROR: URL undefined. You must either set the environment variable"
+    echo "       APPLICATION_URL, or specify it with the -a command line arg"
+    exit 1
+fi
 
 if [ -z "${APPLICATION_USERID-}" ]; then
     echo "ERROR: userid undefined. You must either set the environment variable"
@@ -95,6 +101,10 @@ CALLER_UID=`id -u`
 CALLER_GID=`id -g`
 
 if [ "$debug" == true ]; then
+    DEBUG_OPTION="-e DISPLAY=unix$DISPLAY"
+fi
+
+if [ "$interactive" == true ]; then
     INTERACTIVE_OPTION="-i"
     CMD="bash"
 elif [ "$runAsRoot" == true ]; then
@@ -114,6 +124,7 @@ trap 'docker rm -f ui_acceptance' INT
 docker run --rm --name ui_acceptance \
     --add-host=${HOSTNAME}:${HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+    ${DEBUG_OPTION} \
     -v /etc/timezone:/etc/timezone:ro \
     -v /etc/localtime:/etc/localtime:ro \
     -v `pwd`/ui:/capybara:rw \
