@@ -135,7 +135,7 @@ type IService struct {
 	startTime    time.Time
 	restartCount int
 
-	channelLock *sync.Mutex
+	channelLock *sync.RWMutex
 	exited      <-chan int
 
 	lock           *sync.RWMutex
@@ -151,7 +151,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, &sync.Mutex{}, nil, &sync.RWMutex{}, nil}
+	svc := IService{sd, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil, &sync.RWMutex{}, nil}
 	if len(svc.HealthChecks) > 0 {
 		svc.healthStatuses = make(map[string]*domain.HealthCheckStatus, len(svc.HealthChecks))
 		for name, healthCheckDefinition := range svc.HealthChecks {
@@ -187,8 +187,8 @@ func (svc *IService) SetRoot(root string) {
 }
 
 func (svc *IService) IsRunning() bool {
-	svc.channelLock.Lock()
-	defer svc.channelLock.Unlock()
+	svc.channelLock.RLock()
+	defer svc.channelLock.RUnlock()
 
 	return svc.exited != nil
 }
