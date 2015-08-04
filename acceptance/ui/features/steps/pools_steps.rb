@@ -1,4 +1,4 @@
-Given /^that multiple resource pools have been added$/ do
+Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
     if @pools_page.pool_entries.size < 4
         removeAllPools()
@@ -11,7 +11,7 @@ Given /^that multiple resource pools have been added$/ do
     end
 end
 
-Given /^that the default resource pool exists$/ do
+Given (/^(?:|that )the default resource pool is added$/) do
     visitPoolsPage()
     hasDefault = checkRows("default")
     if (hasDefault == false)
@@ -19,7 +19,7 @@ Given /^that the default resource pool exists$/ do
     end
 end
 
-Given /^that only the default resource pool exists$/ do
+Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
     if (!page.has_content?("Showing 1 Result") || !checkRows("default"))
         removeAllPools()
@@ -27,14 +27,14 @@ Given /^that only the default resource pool exists$/ do
     end
 end
 
-Given /^that the "(.*?)" pool exists$/ do |pool|
+Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
     visitPoolsPage()
     if (checkRows(pool) == false)
         addPool(pool, "added for tests")
     end
 end
 
-Given (/^that the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
+Given (/^(?:|that )the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
     visitPoolsPage()
     if (checkRows(pool) == false)
         addPool(pool, "added for virtual IP")
@@ -45,7 +45,7 @@ Given (/^that the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, poo
     end
 end
 
-Given (/^that the "(.*?)" pool has no virtual IPs$/) do |pool|
+Given (/^(?:|that )the "(.*?)" pool has no virtual IPs$/) do |pool|
     visitPoolsPage()
     if (checkRows(pool) == false)
         addPool(pool, "added for no virtual IPs")
@@ -57,67 +57,67 @@ Given (/^that the "(.*?)" pool has no virtual IPs$/) do |pool|
     end
 end
 
-When(/^I am on the resource pool page$/) do
+When (/^I am on the resource pool page$/) do
     visitPoolsPage()
 end
 
-When /^I click the add Resource Pool button$/ do
+When (/^I click the add Resource Pool button$/) do
     clickAddPoolButton()
 end
 
-When(/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
+When (/^I fill in the Resource Pool name field with "(.*?)"$/) do |resourcePool|
     fillInResourcePoolField(resourcePool)
 end
 
-When(/^I fill in the Description field with "(.*?)"$/) do |description|
+When (/^I fill in the Description field with "(.*?)"$/) do |description|
     fillInDescriptionField(description)
 end
 
-When(/^I add the "(.*?)" pool$/) do |pool|
+When (/^I add the "(.*?)" pool$/) do |pool|
     addPoolJson(pool)
 end
 
-When /^I click the Add Virtual IP button$/ do
+When (/^I click the Add Virtual IP button$/) do
     clickAddVirtualIpButton()
 end
 
-When /^I add the virtual IP$/ do
+When (/^I add the virtual IP$/) do
     addVirtualIpButton()
 end
 
-When(/^I fill in the IP field with "(.*?)"$/) do |ip|
+When (/^I fill in the IP field with "(.*?)"$/) do |ip|
     fillInIpField(ip)
 end
 
-When(/^I fill in the Netmask field with "(.*?)"$/) do |netmask|
+When (/^I fill in the Netmask field with "(.*?)"$/) do |netmask|
     fillInNetmaskField(netmask)
 end
 
-When(/^I fill in the Interface field with "(.*?)"$/) do |interface|
+When (/^I fill in the Interface field with "(.*?)"$/) do |interface|
     fillInInterfaceField(interface)
 end
 
-Then /^I should see the add Resource Pool button$/ do
+Then (/^I should see the add Resource Pool button$/) do
     @pools_page.addPool_button.visible?
 end
 
-Then /^I should see the Resource Pool name field$/ do
+Then (/^I should see the Resource Pool name field$/) do
     @pools_page.poolName_input.visible?
 end
 
-Then /^I should see the Description field$/ do
+Then (/^I should see the Description field$/) do
     @pools_page.description_input.visible?
 end
 
-Then /^I should see the IP field$/ do
+Then (/^I should see the IP field$/) do
     @pools_page.ip_input.visible?
 end
 
-Then /^I should see the Netmask field$/ do
+Then (/^I should see the Netmask field$/) do
     @pools_page.netmask_input.visible?
 end
 
-Then /^I should see the Interface field$/ do
+Then (/^I should see the Interface field$/) do
     @pools_page.interface_input.visible?
 end
 
@@ -194,7 +194,6 @@ def removeAllPools()
     removeAllEntries("host")
     visitApplicationsPage()
     removeAllEntries("service")
-    removeAllEntries("template")
     visitPoolsPage()
     removeAllEntries("pool")
 end

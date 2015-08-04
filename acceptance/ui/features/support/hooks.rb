@@ -21,7 +21,6 @@ end
 
 After('@clean_templates') do
     visitApplicationsPage()
-    removeAllEntries("template")
 end
 
 After('@clean_services') do

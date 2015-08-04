@@ -25,7 +25,7 @@ end
 #    labeled "Sign in" without ids, so it was impossible to use the more generic
 #    when-I-click step.
 #
-When /^I click the sign-in button$/ do
+When (/^I click the sign-in button$/) do
     clickSignInButton()
 end
 

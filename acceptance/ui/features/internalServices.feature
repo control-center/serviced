@@ -23,8 +23,6 @@ Feature: Internal Services
       And I should see an entry for "Logstash" in the table
       And I should see an entry for "OpenTSDB" in the table
       And I should see an entry for "Zookeeper" in the table
-      And I should see "Instances"
-      And I should see an entry for "Internal Services" in the table
       And I should see "Graphs"
       And I should see "CPU Usage"
       And I should see "Memory Usage"
@@ -48,7 +46,6 @@ Feature: Internal Services
       And "Logstash" should be active
       And "OpenTSDB" should be active
       And "Zookeeper" should be active
-      And "Internal Services" should be active
 
   Scenario: View the CPU Usage graph
     When I am on the applications page
@@ -71,8 +68,7 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "Celery"
-    Then I should see an entry for "Celery" in the table
-      And I should not see an entry for "OpenTSDB" in the table
+    Then I should not see an entry for "OpenTSDB" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
@@ -80,8 +76,7 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "Docker Registry"
-    Then I should see an entry for "Docker Registry" in the table
-      And I should not see an entry for "Elastic Search - Serviced" in the table
+    Then I should not see an entry for "Elastic Search - Serviced" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
@@ -89,8 +84,7 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "Elastic Search - LogStash"
-    Then I should see an entry for "Elastic Search - LogStash" in the table
-      And I should not see an entry for "Celery" in the table
+    Then I should not see an entry for "Celery" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
@@ -98,8 +92,7 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "Elastic Search - Serviced"
-    Then I should see an entry for "Elastic Search - Serviced" in the table
-      And I should not see an entry for "Docker Registry" in the table
+    Then I should not see an entry for "Docker Registry" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
@@ -107,8 +100,7 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "Logstash"
-    Then I should see an entry for "Logstash" in the table
-      And I should not see an entry for "Zookeeper" in the table
+    Then I should not see an entry for "Zookeeper" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
@@ -116,8 +108,7 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "OpenTSDB"
-    Then I should see an entry for "OpenTSDB" in the table
-      And I should not see an entry for "Elastic Search - LogStash" in the table
+    Then I should not see an entry for "Elastic Search - LogStash" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
@@ -125,7 +116,6 @@ Feature: Internal Services
     When I am on the applications page
       And I view the details for "Internal Services"
       And I view the details for "Zookeeper"
-    Then I should see an entry for "ZooKeeper" in the table
-      And I should not see an entry for "Celery" in the table
+    Then I should not see an entry for "Celery" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph

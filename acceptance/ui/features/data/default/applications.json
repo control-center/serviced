@@ -1,0 +1,13 @@
+{
+  "applications": 
+  {
+    "defaultCore": {
+      "id": "test"
+    },
+
+    "testCore": {
+      "pool": "test",
+      "id": "another test"
+    }
+  }
+}

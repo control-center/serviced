@@ -25,7 +25,7 @@ Feature: Resource Pool Management
       And I should see the Description field
 
   Scenario: Add a resource pool with a duplicate name
-    Given that the default resource pool exists
+    Given that the default resource pool is added
     When I am on the resource pool page
       And I click the add Resource Pool button
       And I fill in the Resource Pool name field with "table://pools/defaultPool/name"
@@ -45,7 +45,7 @@ Feature: Resource Pool Management
 
   @clean_pools
   Scenario: Add a resource pool
-    Given that only the default resource pool exists
+    Given that only the default resource pool is added
     When I am on the resource pool page
       And I click the add Resource Pool button
       And I fill in the Resource Pool name field with "table://pools/pool2/name"
@@ -68,7 +68,7 @@ Feature: Resource Pool Management
 
   @clean_hosts
   Scenario: Check resource pool data when hosts are added
-    Given only the default host is defined
+    Given only the default host is added
     When I am on the hosts page
       And I add the "host2" host
       And I am on the resource pool page

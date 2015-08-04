@@ -1,4 +1,4 @@
-Given (/^that the admin user is logged in$/) do
+Given (/^(?:|that )the admin user is logged in$/) do
     visitLoginPage()
     fillInDefaultUserID()
     fillInDefaultPassword()
@@ -14,11 +14,11 @@ When (/^I fill in the "([^"]*)" field with "(.*?)"$/) do |field, text|
     find(field).set(getTableValue(text))
 end
 
-When (/^I click(?:| on) "([^"]*)"$/) do |text|
+When (/^I click (?:|on )"([^"]*)"$/) do |text|
     click_link_or_button(getTableValue(text))
 end
 
-When /^I close the dialog$/ do
+When (/^I close the dialog$/) do
     closeDialog()
 end
 
@@ -29,11 +29,8 @@ When (/^I remove "([^"]*)"$/) do |name|
     end
 end
 
-When(/^I select "(.*?)"$/) do |name|
-    entry = getTableValue(name)
-    within("tr[class='clickable ng-scope']", :text => entry) do
-        page.find("input[type='radio']").click()
-    end
+When (/^I select "(.*?)"$/) do |name|
+    selectOption(name)
 end
 
 When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
@@ -52,11 +49,11 @@ When (/^I hover over the "(.*?)" graph$/) do |graph|
     hoverOver(graph)
 end
 
-Then /^I should see "(.*?)"$/ do |text|
+Then (/^I should see "(.*?)"$/) do |text|
     expect(page).to have_content getTableValue(text)
 end
 
-Then /^I should not see "(.*?)"$/ do |text|
+Then (/^I should not see "(.*?)"$/) do |text|
     expect(page).to have_no_content getTableValue(text)
 end
 
@@ -180,7 +177,7 @@ def checkColumn(text, column)
     # attribute that includes name of column of all table cells
     hasEntry = false
     cell = getTableValue(text).to_s
-    hasEntry = true if page.has_css?("tr[ng-repeat$='in $data']", :text => cell)
+    hasEntry = true if page.has_css?("td[data-title-text='#{column}']", :text => cell)
     return hasEntry
 end
 
@@ -210,14 +207,31 @@ def sortColumn(category, sortOrder)
     end
 end
 
+def selectOption(name)
+    entry = getTableValue(name)
+    within("tr[class='clickable ng-scope']", :text => entry) do
+        page.find("input[type='radio']").click()
+    end
+end
+
+def removeEntry(name, category)
+    waitForPageLoad()
+    name = getTableValue(name)
+    within(page.find("tr[ng-repeat='#{category} in $data']", :text => name, match: :first)) do
+        click_link_or_button("Delete")
+    end
+    click_link_or_button("Remove")
+    refreshPage()
+end
+
 def removeAllEntries(category)
     waitForPageLoad()
     while (page.has_css?("tr[ng-repeat='#{category} in $data']", :text => "Delete")) do
-        entry = page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)
-        within (entry) do
+        within(page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)) do
             click_link_or_button("Delete")
         end
         click_link_or_button("Remove")
+        refreshPage() if category == "service"
         waitForPageLoad()
     end
 end
@@ -230,6 +244,10 @@ def waitForPageLoad()
     if Capybara.default_driver == :selenium_chrome
         sleep 2
     end
+end
+
+def refreshPage()
+    page.driver.browser.navigate.refresh
 end
 
 def getTableValue(valueOrTableUrl)

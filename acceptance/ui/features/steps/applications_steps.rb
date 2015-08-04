@@ -1,4 +1,4 @@
-Given /^that multiple applications and application templates have been added$/ do
+Given (/^(?:|that )multiple applications and application templates have been added$/) do
     visitApplicationsPage()
     within(@applications_page.services_table) do
         if has_text?("Showing 1 Result")
@@ -12,25 +12,42 @@ Given /^that multiple applications and application templates have been added$/ d
     end
 end
 
+Given (/^(?:|that )Zenoss Core is not added$/) do
+    visitApplicationsPage()
+    exists = true
+    while exists == true do
+        exists = checkServiceRows("Zenoss.core")
+        removeEntry("Zenoss.core", "service") if exists
+    end
+end
+
+Given (/^(?:|that )Zenoss Core with the "(.*?)" Deployment ID is added$/) do |id|
+    visitApplicationsPage()
+    exists = checkServiceRows("Zenoss.core") && checkColumn(id, "Deployment ID")
+    addService("Zenoss.core", "default", id) if !exists
+    refreshPage()
+end
+
 When(/^I am on the applications page$/) do
     visitApplicationsPage()
 end
 
-When(/^I click the Add-Application button$/) do
+When(/^I click the add Application button$/) do
     @applications_page.addApp_button.click()
 end
 
-When(/^I click the Add-Application Template button$/) do
+When(/^I click the add Application Template button$/) do
     @applications_page.addAppTemplate_button.click()
 end
 
 When(/^I click the Services Map button$/) do
     @applications_page.servicesMap_button.click()
+    waitForPageLoad()
     @servicesMap_page = ServicesMap.new
 end
 
 When(/^I fill in the Deployment ID field with "(.*?)"$/) do |deploymentID|
-    @applications_page.deploymentID_field.set deploymentID
+    fillInDeploymentID(deploymentID)
 end
 
 When(/^I remove "(.*?)" from the Applications list$/) do |name|
@@ -45,8 +62,16 @@ When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
     end
 end
 
+Then (/^I should see that the application has deployed$/) do
+    expect(page).to have_content("App deployed successfully", wait: 120)
+    refreshPage() # workaround until apps consistently display on page without refreshing
+end
 
-Then /^the "Status" column should be sorted with active applications on (top|the bottom)$/ do |order|
+Then (/^I should see that the application has not been deployed$/) do
+    expect(page).to have_content("App deploy failed")
+end
+
+Then (/^the "Status" column should be sorted with active applications on (top|the bottom)$/) do |order|
     list = @applications_page.status_icons
     for i in 0..(list.size - 2)
         if order == "top"
@@ -64,8 +89,50 @@ Then (/^I should see "([^"]*)" in the Services Map$/) do |node|
     end
 end
 
+Then (/^I should see an entry for "(.*?)" in the Applications table$/) do |entry|
+    expect(checkServiceRows(entry)).to be true
+end
+
+Then (/^I should see an entry for "(.*?)" in the Application Templates table$/) do |entry|
+    expect(checkTemplateRows(entry)).to be true
+end
+
+def checkServiceRows(row)
+    waitForPageLoad()
+    found = false
+    within(@applications_page.services_table) do
+        found = page.has_text?(getTableValue(row))
+    end
+    return found
+end
+
+def checkTemplateRows(row)
+    waitForPageLoad()
+    found = false
+    within(@applications_page.templates_table) do
+        found = page.has_text?(getTableValue(row))
+    end
+    return found
+end
+
 def visitApplicationsPage()
     @applications_page = Applications.new
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
+    waitForPageLoad()
+end
+
+def fillInDeploymentID(id)
+    @applications_page.deploymentID_field.set getTableValue(id)
+end
+
+def addService(name, pool, id)
+    @applications_page.addApp_button.click()
+    selectOption(name)
+    click_link_or_button("Next")
+    selectOption(pool)
+    click_link_or_button("Next")
+    fillInDeploymentID(id)
+    click_link_or_button("Deploy")
+    expect(page).to have_content("App deployed successfully", wait: 120)
 end
