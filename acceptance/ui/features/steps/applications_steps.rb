@@ -16,19 +16,14 @@ Given (/^(?:|that )Zenoss Core is not added$/) do
     visitApplicationsPage()
     exists = true
     while exists == true do
-        within(@applications_page.services_table) do
-            exists = checkServiceRows("Zenoss.core")
-        end
+        exists = checkServiceRows("Zenoss.core")
         removeEntry("Zenoss.core", "service") if exists
     end
 end
 
 Given (/^(?:|that )Zenoss Core with the "(.*?)" Deployment ID is added$/) do |id|
     visitApplicationsPage()
-    exists = false
-    within(@applications_page.services_table) do
-        exists = checkServiceRows("Zenoss.core") && checkColumn(id, "Deployment ID")
-    end
+    exists = checkServiceRows("Zenoss.core") && checkColumn(id, "Deployment ID")
     addService("Zenoss.core", "default", id) if !exists
     refreshPage()
 end
