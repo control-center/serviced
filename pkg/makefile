@@ -161,10 +161,10 @@ deb: stage_deb
 		-s dir \
 		-d nfs-kernel-server \
 		-d net-tools \
-		-d libdevmapper \
-		-d libdevmapper-event \
+		-d libdevmapper1.02.1 \
+		-d libdevmapper-event1.02.1 \
 		-d nfs-common \
-		-d 'lxc-docker-1.7.1' \
+		-d 'docker-engine (= 1.7.1-0~trusty)' \
 		-d logrotate \
 		-t deb \
 		-a x86_64 \
@@ -197,7 +197,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'zenoss-docker = 1.7.1' \
+		-d 'docker-engine = 1.7.1' \
 		-d logrotate \
 		-t rpm \
 		-a x86_64 \
