@@ -164,7 +164,7 @@ deb: stage_deb
 		-d libdevmapper \
 		-d libdevmapper-event \
 		-d nfs-common \
-		-d 'lxc-docker-1.6.0' \
+		-d 'lxc-docker-1.7.1' \
 		-d logrotate \
 		-t deb \
 		-a x86_64 \
@@ -197,7 +197,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'zenoss-docker = 1.6.0' \
+		-d 'zenoss-docker = 1.7.1' \
 		-d logrotate \
 		-t rpm \
 		-a x86_64 \
