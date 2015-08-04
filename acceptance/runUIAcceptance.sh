@@ -12,6 +12,7 @@
 # Set defaults
 #
 debug=false
+interactive=false
 runAsRoot=false
 DRIVER_NAME=selenium
 TIMEOUT=10
@@ -44,18 +45,22 @@ while (( "$#" )); do
     elif [ "$1" == "--dataset" ]; then
         DATASET="${2}"
         shift 2
+    elif [ "$1" == "--debug" ]; then
+        debug=true
+        shift 1
     elif [ "$1" == "--root" ]; then
         runAsRoot=true
         shift 1
     elif [ "$1" == "-i" ]; then
-        debug=true
+        interactive=true
         shift 1
     else
         if [ "$1" != "-h" ]; then
             echo "ERROR: invalid argument '$1'"
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-u userid] [-p password] [-a url]"
-        echo "       [-d driverName] [-t timeout] [--root] [-i] [-h]"
+        echo "       [-d driverName] [-t timeout] [--dataset setName]"
+        echo "       [--debug] [--root] [-i] [-h]"
         echo ""
         echo "where"
         echo "    -u userid             a valid github user id (required)"
@@ -65,6 +70,7 @@ while (( "$#" )); do
         echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
         echo "    --dataset setName     identifies the dataset to use"
+        echo "    --debug               opens the browser on the host's DISPLAY"
         echo "    --root                run the tests as root in the docker container"
         echo "    -i                    interactive mode. Starts a bash shell with all of the same"
         echo "                          env vars but doesn't run anything"
@@ -95,6 +101,10 @@ CALLER_UID=`id -u`
 CALLER_GID=`id -g`
 
 if [ "$debug" == true ]; then
+    DEBUG_OPTION="-e DISPLAY=unix$DISPLAY"
+fi
+
+if [ "$interactive" == true ]; then
     INTERACTIVE_OPTION="-i"
     CMD="bash"
 elif [ "$runAsRoot" == true ]; then
@@ -114,6 +124,7 @@ trap 'docker rm -f ui_acceptance' INT
 docker run --rm --name ui_acceptance \
     --add-host=${HOSTNAME}:${HOST_IP} \
     -v /tmp/.X11-unix:/tmp/.X11-unix:ro \
+    ${DEBUG_OPTION} \
     -v /etc/timezone:/etc/timezone:ro \
     -v /etc/localtime:/etc/localtime:ro \
     -v `pwd`/ui:/capybara:rw \

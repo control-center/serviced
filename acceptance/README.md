@@ -20,6 +20,7 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
     - [Running a subset of tests](#running-a-subset-of-tests)
     - [Looking at a failed test case](#looking-at-a-failed-test-case)
     - [Tagging conventions](#tagging-conventions)
+    - [Watching the browser while the tests run](#watching-the-browser-while-the-tests-run)
     - [Mark a test PENDING](#mark-a-test-pending)
     - [Page Object Model](#page-object-model)
   - [TODOs](#todos)
@@ -175,13 +176,26 @@ Some of the tags defined by this project are:
  To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance the following command will run just the tests for the hosts feature:
 
  ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u yourName@something.com -p yourPasswordHere`
+$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -u yourName@something.com -p yourPasswordHere
  ```
 
 For information of these Cucumber feature, see:
 
  * [Tags](https://github.com/cucumber/cucumber/wiki/Tags)
  * [Hooks](https://github.com/cucumber/cucumber/wiki/Hooks)
+
+### Watching the browser while the tests run
+Normally, the browser used by the tests is executed within the Docker container using
+the X virtual framebuffer (Xvfb) so nothing is displayed.  For debugging purposes,
+it is often useful to view the browser while the test runs.  To do that, include the `--debug`
+argument as illustrated below:
+
+```
+$ xhost +
+$ ./runUIAcceptance.sh --debug -u yourName@something.com -p yourPasswordHere
+```
+
+*NOTE:* You only need to execute the command `xhost +` once.
 
 ### Mark a test PENDING
 When a test is marked `PENDING`, Cucumber will skip it. This is useful for several scenarios, including
