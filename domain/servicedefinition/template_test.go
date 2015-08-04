@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build integration
+
 package servicedefinition
 
 import (
@@ -37,7 +39,7 @@ func init() {
 				ImageID: "ubuntu",
 				ConfigFiles: map[string]ConfigFile{
 					"/loadavg.sh": ConfigFile{Owner: "root:root", Filename: "/loadavg.sh", Permissions: "0775", Content: `#!/bin/bash
- 
+
 interval=1
 
 
@@ -46,7 +48,7 @@ if [ ! -x /usr/bin/curl ]; then
 		echo "Could not install curl"
 		exit 1
 	fi
-	
+
 fi
 echo "posting loadavg at $interval second(s) interval"
 while :
@@ -54,14 +56,14 @@ while :
 	now=` + "`date +%s`" + `
 	value=` + "`cat /proc/loadavg | cut -d ' ' -f 1`" + `
 	data="{\"control\":{\"type\":null,\"value\":null},\"metrics\":[{\"metric\":\"loadavg\",\"timestamp\":$now,\"value\":$value,\"tags\":{\"name\":\"value\"}}]}"
- 
+
 	output=` + "`curl -s -XPOST -H \"Content-Type: application/json\" -d \"$data\" \"$CONTROLPLANE_CONSUMER_URL\"`" + `
- 
+
 	if ! [[ "$output" == *OK* ]]
 	then
 		echo "failure";
 	fi
- 
+
 	sleep $interval
 done
 `},

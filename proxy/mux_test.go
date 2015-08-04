@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build integration
+
 package proxy
 
 import (
@@ -18,8 +20,8 @@ import (
 	"io"
 	"net"
 	"strings"
-	"time"
 	"testing"
+	"time"
 )
 
 type echoListener struct {
@@ -53,7 +55,7 @@ func connectToListener(listener net.Listener) (net.Conn, error) {
 	return net.Dial("tcp", fmt.Sprintf("127.0.0.1:%s", port))
 }
 
-func (e *echoListener) Connect() (net.Conn) {
+func (e *echoListener) Connect() net.Conn {
 	conn, err := connectToListener(e.listener)
 	if err != nil {
 		e.t.Fatalf("could not connect to echo server: %s", err)
