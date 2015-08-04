@@ -15,6 +15,7 @@ package btrfs
 
 import (
 	"errors"
+	"io"
 
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
@@ -64,7 +65,7 @@ func init() {
 }
 
 // Btrfs driver initialization
-func Init(root string) (volume.Driver, error) {
+func Init(root string, _ map[string]string) (volume.Driver, error) {
 	user, err := user.Current()
 	if err != nil {
 		return nil, err
@@ -194,10 +195,20 @@ func (v *BtrfsVolume) Tenant() string {
 	return v.tenant
 }
 
-// SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
-func (v *BtrfsVolume) SnapshotMetadataPath(label string) string {
-	// Snapshot metadata is stored with the snapshot for this driver
-	return v.Path()
+// WriteMetadata writes the metadata info for a snapshot
+func (v *BtrfsVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
+	filePath := filepath.Join(v.Path(), name)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		glog.Errorf("Could not create path for file %s: %s", name, err)
+		return nil, err
+	}
+	return os.Create(filePath)
+}
+
+// ReadMetadata reads the metadata info from a snapshot
+func (v *BtrfsVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
+	filePath := filepath.Join(v.Path(), name)
+	return os.Open(filePath)
 }
 
 func (v *BtrfsVolume) getSnapshotPrefix() string {

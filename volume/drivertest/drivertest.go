@@ -36,19 +36,22 @@ type Driver struct {
 	root string
 }
 
-func newDriver(c *C, name, root string) *Driver {
+func newDriver(c *C, name, root string, options map[string]string) *Driver {
 	var err error
 	if root == "" {
 		root = c.MkDir()
 	}
-	d, err := volume.GetDriver(name, root)
-	if err != nil {
-		c.Logf("drivertest: %v\n", err)
+	if err := volume.InitDriver(name, root, options); err != nil {
+		c.Logf("drivertest: %v", err)
 		if err == volume.ErrDriverNotSupported {
 			c.Skip("Driver not supported")
 		}
 		c.Fatal(err)
 	}
+	d, err := volume.GetDriver(root)
+	c.Assert(err, IsNil)
+	c.Assert(d, NotNil)
+	c.Assert(d.GetFSType(), Equals, name)
 	c.Assert(d.Root(), Equals, root)
 	return &Driver{d, root}
 }
@@ -93,8 +96,8 @@ func filterLostAndFound(fis []os.FileInfo) (filtered []os.FileInfo) {
 
 // DriverTestCreateEmpty verifies that a driver can create a volume, and that
 // is is empty (and owned by the current user) after creation.
-func DriverTestCreateEmpty(c *C, drivername, root string) {
-	driver := newDriver(c, drivername, root)
+func DriverTestCreateEmpty(c *C, drivername, root string, options map[string]string) {
+	driver := newDriver(c, drivername, root, options)
 	defer cleanup(c, driver)
 
 	c.Assert(driver.GetFSType(), Equals, drivername)
@@ -178,8 +181,8 @@ func verifyBaseWithExtra(c *C, driver *Driver, vol volume.Volume) {
 	c.Assert(fis, HasLen, 3)
 }
 
-func DriverTestCreateBase(c *C, drivername, root string) {
-	driver := newDriver(c, drivername, root)
+func DriverTestCreateBase(c *C, drivername, root string, options map[string]string) {
+	driver := newDriver(c, drivername, root, options)
 	root = driver.Root()
 	defer cleanup(c, driver)
 
@@ -190,7 +193,7 @@ func DriverTestCreateBase(c *C, drivername, root string) {
 	c.Assert(err, IsNil)
 
 	// Remount and make sure everything's ok
-	vol2, err := volume.Mount(drivername, "Base", root)
+	vol2, err := volume.Mount("Base", root)
 	c.Assert(err, IsNil)
 	verifyBase(c, driver, vol2)
 
@@ -198,15 +201,26 @@ func DriverTestCreateBase(c *C, drivername, root string) {
 	c.Assert(err, IsNil)
 }
 
-func DriverTestSnapshots(c *C, drivername, root string) {
-	driver := newDriver(c, drivername, root)
+func DriverTestSnapshots(c *C, drivername, root string, options map[string]string) {
+	driver := newDriver(c, drivername, root, options)
 	defer cleanup(c, driver)
 
 	vol := createBase(c, driver, "Base")
 	verifyBase(c, driver, vol)
 
+	// Set some metadata on the snapshot
+	wmetadata := []byte("snap-metadata")
+	wHandle, err := vol.WriteMetadata("Snap", "lost+found/metadata")
+	c.Assert(err, IsNil)
+	c.Assert(wHandle, NotNil)
+	n, err := wHandle.Write(wmetadata)
+	c.Assert(err, IsNil)
+	c.Assert(n, Equals, len(wmetadata))
+	err = wHandle.Close()
+	c.Assert(err, IsNil)
+
 	// Snapshot with the verified base
-	err := vol.Snapshot("Snap")
+	err = vol.Snapshot("Snap")
 	c.Assert(err, IsNil)
 
 	snaps, err := vol.Snapshots()
@@ -221,9 +235,15 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	c.Assert(err, IsNil)
 
 	// Make sure the metadata path exists for the snapshot
-	mdpath := vol.SnapshotMetadataPath("Snap")
-	ok, err := volume.IsDir(mdpath)
-	c.Assert(ok, Equals, true)
+	rmetadata := make([]byte, len(wmetadata))
+	rHandle, err := vol.ReadMetadata("Snap", "lost+found/metadata")
+	c.Assert(err, IsNil)
+	c.Assert(rHandle, NotNil)
+	n, err = rHandle.Read(rmetadata)
+	c.Assert(err, IsNil)
+	c.Assert(n, Equals, len(rmetadata))
+	c.Assert(string(rmetadata), Equals, string(wmetadata))
+	err = rHandle.Close()
 	c.Assert(err, IsNil)
 
 	// Rollback to the original snapshot and verify the base again
@@ -254,13 +274,13 @@ func DriverTestSnapshots(c *C, drivername, root string) {
 	c.Assert(err, IsNil)
 }
 
-func DriverTestExportImport(c *C, drivername, exportfs, importfs string) {
+func DriverTestExportImport(c *C, drivername, exportfs, importfs string, options map[string]string) {
 	backupdir := c.MkDir()
 	outfile := filepath.Join(backupdir, "backup")
 
-	exportDriver := newDriver(c, drivername, exportfs)
+	exportDriver := newDriver(c, drivername, exportfs, options)
 	defer cleanup(c, exportDriver)
-	importDriver := newDriver(c, drivername, importfs)
+	importDriver := newDriver(c, drivername, importfs, options)
 	defer cleanup(c, importDriver)
 
 	vol := createBase(c, exportDriver, "Base")

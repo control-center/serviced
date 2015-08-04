@@ -25,6 +25,10 @@ import (
 	_ "github.com/control-center/serviced/volume/rsync"
 )
 
+var (
+	rsyncOptions map[string]string = make(map[string]string)
+)
+
 // Wire in gocheck
 func Test(t *testing.T) { TestingT(t) }
 
@@ -33,17 +37,17 @@ type RsyncSuite struct{}
 var _ = Suite(&RsyncSuite{})
 
 func (s *RsyncSuite) TestRsyncCreateEmpty(c *C) {
-	drivertest.DriverTestCreateEmpty(c, "rsync", "")
+	drivertest.DriverTestCreateEmpty(c, "rsync", "", rsyncOptions)
 }
 
 func (s *RsyncSuite) TestRsyncCreateBase(c *C) {
-	drivertest.DriverTestCreateBase(c, "rsync", "")
+	drivertest.DriverTestCreateBase(c, "rsync", "", rsyncOptions)
 }
 
 func (s *RsyncSuite) TestRsyncSnapshots(c *C) {
-	drivertest.DriverTestSnapshots(c, "rsync", "")
+	drivertest.DriverTestSnapshots(c, "rsync", "", rsyncOptions)
 }
 
 func (s *RsyncSuite) TestRsyncExportImport(c *C) {
-	drivertest.DriverTestExportImport(c, "rsync", "", "")
+	drivertest.DriverTestExportImport(c, "rsync", "", "", rsyncOptions)
 }

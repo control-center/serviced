@@ -31,11 +31,12 @@ type DriverSuite struct {
 }
 
 var (
-	_       = Suite(&DriverSuite{})
-	drvName = "mock"
+	_          = Suite(&DriverSuite{})
+	drvName    = "mock"
+	drvOptions = make(map[string]string)
 )
 
-func (s *DriverSuite) MockInit(ignored string) (Driver, error) {
+func (s *DriverSuite) MockInit(_ string, _ map[string]string) (Driver, error) {
 	return s.drv, nil
 }
 
@@ -61,14 +62,18 @@ func (s *DriverSuite) TestRedundantRegistration(c *C) {
 }
 
 func (s *DriverSuite) TestRegistration(c *C) {
-	driver, err := GetDriver(drvName, "")
+	err := InitDriver(drvName, "", drvOptions)
+	c.Assert(err, IsNil)
+	driver, err := GetDriver("")
 	c.Assert(err, IsNil)
 	c.Assert(driver, FitsTypeOf, s.drv)
 }
 
 func (s *DriverSuite) TestUnsupported(c *C) {
-	driver, err := GetDriver("unregistered", "")
-	c.Assert(err, ErrorMatches, ErrDriverNotSupported.Error())
+	err := InitDriver("unregistered", "", drvOptions)
+	c.Assert(err, Equals, ErrDriverNotSupported)
+	driver, err := GetDriver("")
+	c.Assert(err, Equals, ErrDriverNotInit)
 	c.Assert(driver, IsNil)
 }
 
@@ -76,7 +81,9 @@ func (s *DriverSuite) TestMountWhenDoesNotExist(c *C) {
 	volname := "testvolume"
 	s.drv.On("Exists", volname).Return(false)
 	s.drv.On("Create", volname).Return(s.vol, nil)
-	v, err := Mount(drvName, volname, "")
+	err := InitDriver(drvName, "", drvOptions)
+	c.Assert(err, IsNil)
+	v, err := Mount(volname, "")
 	s.drv.AssertExpectations(c)
 	c.Assert(v, Equals, s.vol)
 	c.Assert(err, IsNil)
@@ -86,7 +93,9 @@ func (s *DriverSuite) TestMountWhenExists(c *C) {
 	volname := "testvolume"
 	s.drv.On("Exists", volname).Return(true)
 	s.drv.On("Get", volname).Return(s.vol, nil)
-	v, err := Mount(drvName, volname, "")
+	err := InitDriver(drvName, "", drvOptions)
+	c.Assert(err, IsNil)
+	v, err := Mount(volname, "")
 	s.drv.AssertExpectations(c)
 	s.drv.AssertNotCalled(c, "Create", volname)
 	c.Assert(v, Equals, s.vol)
@@ -94,7 +103,9 @@ func (s *DriverSuite) TestMountWhenExists(c *C) {
 }
 
 func (s *DriverSuite) TestBadMount(c *C) {
-	v, err := Mount("unregistered", "", "")
-	c.Assert(err, ErrorMatches, ErrDriverNotSupported.Error())
+	err := InitDriver("unregistered", "", drvOptions)
+	c.Assert(err, Equals, ErrDriverNotSupported)
+	v, err := Mount("", "")
+	c.Assert(err, Equals, ErrDriverNotInit)
 	c.Assert(v, IsNil)
 }

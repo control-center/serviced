@@ -1,6 +1,8 @@
 package devicemapper
 
 import (
+	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -17,6 +19,20 @@ import (
 const (
 	// DriverName is the name of this devicemapper driver implementation
 	DriverName = "devicemapper"
+	// DriverOptionsArgs is the serviced to devicemapper conversion for
+	// additional driver options.
+	DriverOptionsArgs = "SERVICED_DM_ARGS"
+)
+
+var (
+	// DriverOptions is the serviced to devicemapper conversion of driver
+	// options
+	DriverOptions = map[string]string{
+		"SERVICED_DM_THINPOOLDEV":      "dm.thinpooldev",
+		"SERVICED_DM_BASESIZE":         "dm.basesize",
+		"SERVICED_DM_LOOPDATASIZE":     "dm.loopdatasize",
+		"SERVICED_DM_LOOPMETADATASIZE": "dm.loopmetadatasize",
+	}
 )
 
 func init() {
@@ -25,6 +41,7 @@ func init() {
 
 type DeviceMapperDriver struct {
 	root      string
+	options   map[string]string
 	DeviceSet *devmapper.DeviceSet
 }
 
@@ -38,9 +55,10 @@ type DeviceMapperVolume struct {
 }
 
 // Init initializes the devicemapper driver
-func Init(root string) (volume.Driver, error) {
+func Init(root string, options map[string]string) (volume.Driver, error) {
 	driver := &DeviceMapperDriver{
-		root: root,
+		root:    root,
+		options: options,
 	}
 	driver.ensureInitialized()
 	return driver, nil
@@ -206,6 +224,24 @@ func (d *DeviceMapperDriver) MetadataPath(tenant string) string {
 	return filepath.Join(d.MetadataDir(), tenant, "metadata.json")
 }
 
+// parseOptions converts options into a device mapper consumable format
+func (d *DeviceMapperDriver) parseOptions() []string {
+	var options []string
+	for k, v := range DriverOptions {
+		if op, ok := d.options[k]; ok {
+			if op = strings.TrimSpace(op); op != "" {
+				options = append(options, fmt.Sprintf("%s=%s", v, op))
+			}
+		}
+	}
+	if ops, ok := d.options[DriverOptionsArgs]; ok {
+		if ops = strings.TrimSpace(ops); ops != "" {
+			options = append(options, strings.Split(ops, " ")...)
+		}
+	}
+	return options
+}
+
 // ensureInitialized makes sure this driver's root has been set up properly
 // for devicemapper. It is idempotent.
 func (d *DeviceMapperDriver) ensureInitialized() error {
@@ -214,7 +250,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	if d.DeviceSet == nil {
-		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, []string{})
+		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.parseOptions())
 		if err != nil {
 			return err
 		}
@@ -246,9 +282,20 @@ func (v *DeviceMapperVolume) Tenant() string {
 	return v.tenant
 }
 
-// SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
-func (v *DeviceMapperVolume) SnapshotMetadataPath(label string) string {
-	return filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label))
+// WriteMetadata writes the metadata info for a snapshot
+func (v *DeviceMapperVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
+	filePath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label), name)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		glog.Errorf("Could not create path for file %s: %s", name, err)
+		return nil, err
+	}
+	return os.Create(filePath)
+}
+
+// ReadMetadata reads the metadata info from a snapshot
+func (v *DeviceMapperVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
+	filePath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label), name)
+	return os.Open(filePath)
 }
 
 // Snapshot implements volume.Volume.Snapshot
@@ -270,7 +317,7 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		return err
 	}
 	// Create the metadata path
-	mdpath := v.SnapshotMetadataPath(label)
+	mdpath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label))
 	if err := os.MkdirAll(mdpath, 0755); err != nil {
 		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
 		return err

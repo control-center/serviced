@@ -14,6 +14,8 @@
 package test
 
 import (
+	"io"
+
 	"github.com/control-center/serviced/volume"
 
 	"github.com/stretchr/testify/mock"
@@ -49,6 +51,20 @@ func (mv *MockVolume) SnapshotPath(label string) string {
 
 func (mv *MockVolume) Snapshot(label string) error {
 	return mv.Mock.Called(label).Error(0)
+}
+
+func (mv *MockVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
+	ret := mv.Called(label, name)
+	r0 := ret.Get(0).(io.WriteCloser)
+	r1 := ret.Error(1)
+	return r0, r1
+}
+
+func (mv *MockVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
+	ret := mv.Called(label, name)
+	r0 := ret.Get(0).(io.ReadCloser)
+	r1 := ret.Error(1)
+	return r0, r1
 }
 
 func (m *MockVolume) SnapshotMetadataPath(label string) string {
