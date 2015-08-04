@@ -1,4 +1,4 @@
-Given(/^that multiple hosts have been added$/) do
+Given(/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
     if @hosts_page.host_entries.size < 5
         removeAllEntries("host")
@@ -12,12 +12,12 @@ Given(/^that multiple hosts have been added$/) do
     end
 end
 
-Given(/^there are no hosts defined$/) do
+Given(/^(?:|that )there are no hosts defined$/) do
     visitHostsPage()
     removeAllEntries("host")
 end
 
-Given(/^only the default host is defined$/) do
+Given(/^(?:|that )only the default host is defined$/) do
     visitHostsPage()
     removeAllEntries("host")
     addDefaultHost()
@@ -39,11 +39,11 @@ When(/^I fill in the RAM Commitment field with "(.*?)"$/) do |ramCommitment|
     fillInRAMCommitment(ramCommitment)
 end
 
-When /^I click the Add-Host button$/ do
+When (/^I click the Add-Host button$/) do
     clickAddHostButton()
 end
 
-When /^I click the Hosts Map button$/ do
+When (/^I click the Hosts Map button$/) do
     @hosts_page.hostsMap_button.click()
 end
 
@@ -63,23 +63,23 @@ Then (/^the "Active" column should be sorted with active hosts on (top|the botto
     end
 end
 
-Then /^I should see the Add Host dialog$/ do
+Then (/^I should see the Add Host dialog$/) do
     @hosts_page.addHost_dialog.visible?
 end
 
-Then /^I should see the Host and port field$/ do
+Then (/^I should see the Host and port field$/) do
     @hosts_page.hostName_input.visible?
 end
 
-Then /^I should see the Resource Pool ID field$/ do
+Then (/^I should see the Resource Pool ID field$/) do
     @hosts_page.resourcePool_input.visible?
 end
 
-Then /^I should see the RAM Commitment field$/ do
+Then (/^I should see the RAM Commitment field$/) do
     @hosts_page.ramCommitment_input.visible?
 end
 
-Then /^I should see an empty Hosts page$/ do
+Then (/^I should see an empty Hosts page$/) do
     expect(@hosts_page).to have_no_host_entry
     @hosts_page.assert_text("Showing 0 Results")
     @hosts_page.assert_text("No Data Found")

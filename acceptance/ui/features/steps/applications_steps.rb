@@ -1,4 +1,4 @@
-Given (/^that multiple applications and application templates have been added$/) do
+Given (/^(?:|that )multiple applications and application templates have been added$/) do
     visitApplicationsPage()
     within(@applications_page.services_table) do
         if has_text?("Showing 1 Result")
@@ -12,7 +12,7 @@ Given (/^that multiple applications and application templates have been added$/)
     end
 end
 
-Given (/^that Zenoss Core is not added$/) do
+Given (/^(?:|that )Zenoss Core is not added$/) do
     visitApplicationsPage()
     exists = true
     while exists == true do
@@ -23,7 +23,7 @@ Given (/^that Zenoss Core is not added$/) do
     end
 end
 
-Given (/^that Zenoss Core with the "(.*?)" Deployment ID is added$/) do |id|
+Given (/^(?:|that )Zenoss Core with the "(.*?)" Deployment ID is added$/) do |id|
     visitApplicationsPage()
     exists = false
     within(@applications_page.services_table) do

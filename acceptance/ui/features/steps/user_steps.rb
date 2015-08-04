@@ -1,4 +1,4 @@
-Given (/^I have messages$/) do
+Given (/^(?:|that )I have messages$/) do
     @user_page = User.new
     waitForPageLoad()
     zeroMessages = @user_page.navbar.userDetails.has_text? 0
@@ -37,24 +37,24 @@ When (/^I switch the language to Spanish$/) do
     waitForPageLoad()
 end
 
-Then /^I should see the name of the current user$/ do
+Then (/^I should see the name of the current user$/) do
     name = applicationUserID()
     expect(@user_page).to have_content "Username: #{name}"
 end
 
-Then /^I should see my messages$/ do
+Then (/^I should see my messages$/) do
     defaultMatch = Capybara.match
     Capybara.match = :first
     expect(@user_page.message.visible?).to be true
     Capybara.match = defaultMatch
 end
 
-Then /^I should not see any messages$/ do
+Then (/^I should not see any messages$/) do
     waitForPageLoad()
     expect(@user_page.has_selector?("div[class^='message ']")).to be false
 end
 
-Then /^I should see that the first unread message is marked as read$/ do
+Then (/^I should see that the first unread message is marked as read$/) do
     defaultMatch = Capybara.match
     Capybara.match = :first
     waitForPageLoad()

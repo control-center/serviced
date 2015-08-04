@@ -1,4 +1,4 @@
-Given (/^that the admin user is logged in$/) do
+Given (/^(?:|that )the admin user is logged in$/) do
     visitLoginPage()
     fillInDefaultUserID()
     fillInDefaultPassword()
@@ -14,11 +14,11 @@ When (/^I fill in the "([^"]*)" field with "(.*?)"$/) do |field, text|
     find(field).set(getTableValue(text))
 end
 
-When (/^I click(?:| on) "([^"]*)"$/) do |text|
+When (/^I click (?:|on )"([^"]*)"$/) do |text|
     click_link_or_button(getTableValue(text))
 end
 
-When /^I close the dialog$/ do
+When (/^I close the dialog$/) do
     closeDialog()
 end
 
@@ -49,11 +49,11 @@ When (/^I hover over the "(.*?)" graph$/) do |graph|
     hoverOver(graph)
 end
 
-Then /^I should see "(.*?)"$/ do |text|
+Then (/^I should see "(.*?)"$/) do |text|
     expect(page).to have_content getTableValue(text)
 end
 
-Then /^I should not see "(.*?)"$/ do |text|
+Then (/^I should not see "(.*?)"$/) do |text|
     expect(page).to have_no_content getTableValue(text)
 end
 
