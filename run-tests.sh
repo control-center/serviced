@@ -22,9 +22,11 @@ function stop_elastic {
 
 stop_elastic
 
+BUILD_TAGS="$(bash ${DIR}/build-tags.sh)"
+
 echo "Running unit tests ..."
 START_TIME=`date --utc +%s`
-godep go test -tags=unit $GOTEST ./...
+godep go test -tags="${BUILD_TAGS} unit" $GOTEST ./...
 UNIT_TEST_RESULT=$?
 END_TIME=`date --utc +%s`
 echo "Unit tests finished in $(($END_TIME - $START_TIME)) seconds"
@@ -40,7 +42,6 @@ tar -xf /tmp/elasticsearch-$ES_VER.tar.gz -C $ES_TMP
 echo "cluster.name: zero" > $ES_DIR/config/elasticsearch.yml
 $ES_DIR/bin/elasticsearch -f -Des.http.port=9202 > $ES_TMP/elastic.log & echo $!>$ES_TMP/pid
 
-BUILD_TAGS="$(bash ${DIR}/build-tags.sh)"
 godep go test -tags="${BUILD_TAGS} integration" $GOTEST ./...
 INTEGRATION_TEST_RESULT=$?
 stop_elastic
