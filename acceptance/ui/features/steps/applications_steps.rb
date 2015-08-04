@@ -68,7 +68,7 @@ When(/^I remove "(.*?)" from the Application Templates list$/) do |name|
 end
 
 Then (/^I should see that the application has deployed$/) do
-    expect(page).to have_content("App deployed successfully", wait: 600)
+    expect(page).to have_content("App deployed successfully", wait: 120)
     refreshPage() # workaround until apps consistently display on page without refreshing
 end
 
@@ -99,7 +99,7 @@ Then (/^I should see an entry for "(.*?)" in the Applications table$/) do |entry
 end
 
 Then (/^I should see an entry for "(.*?)" in the Application Templates table$/) do |entry|
-    expect(checkTemplateRows(entry)).to be false
+    expect(checkTemplateRows(entry)).to be true
 end
 
 def checkServiceRows(row)
@@ -137,5 +137,5 @@ def addService(name, pool, id)
     click_link_or_button("Next")
     fillInDeploymentID(id)
     click_link_or_button("Deploy")
-    expect(page).to have_content("App deployed successfully", wait: 600)
+    expect(page).to have_content("App deployed successfully", wait: 120)
 end
