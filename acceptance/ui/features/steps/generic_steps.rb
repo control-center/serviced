@@ -177,7 +177,7 @@ def checkColumn(text, column)
     # attribute that includes name of column of all table cells
     hasEntry = false
     cell = getTableValue(text).to_s
-    hasEntry = true if page.has_css?("tr[ng-repeat$='in $data']", :text => cell)
+    hasEntry = true if page.has_css?("td[data-title-text='#{column}']", :text => cell)
     return hasEntry
 end
 
