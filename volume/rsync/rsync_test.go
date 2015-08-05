@@ -26,6 +26,7 @@ import (
 )
 
 var (
+	rsyncArgs    []string          = make([]string, 0)
 	rsyncOptions map[string]string = make(map[string]string)
 )
 
@@ -37,17 +38,17 @@ type RsyncSuite struct{}
 var _ = Suite(&RsyncSuite{})
 
 func (s *RsyncSuite) TestRsyncCreateEmpty(c *C) {
-	drivertest.DriverTestCreateEmpty(c, "rsync", "", rsyncOptions)
+	drivertest.DriverTestCreateEmpty(c, "rsync", "", rsyncArgs, rsyncOptions)
 }
 
 func (s *RsyncSuite) TestRsyncCreateBase(c *C) {
-	drivertest.DriverTestCreateBase(c, "rsync", "", rsyncOptions)
+	drivertest.DriverTestCreateBase(c, "rsync", "", rsyncArgs, rsyncOptions)
 }
 
 func (s *RsyncSuite) TestRsyncSnapshots(c *C) {
-	drivertest.DriverTestSnapshots(c, "rsync", "", rsyncOptions)
+	drivertest.DriverTestSnapshots(c, "rsync", "", rsyncArgs, rsyncOptions)
 }
 
 func (s *RsyncSuite) TestRsyncExportImport(c *C) {
-	drivertest.DriverTestExportImport(c, "rsync", "", "", rsyncOptions)
+	drivertest.DriverTestExportImport(c, "rsync", "", "", rsyncArgs, rsyncOptions)
 }

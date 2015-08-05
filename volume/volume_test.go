@@ -33,17 +33,19 @@ type DriverSuite struct {
 var (
 	_          = Suite(&DriverSuite{})
 	drvName    = "mock"
+	drvOpList  = make([]string, 0)
+	drvArgs    = make([]string, 0)
 	drvOptions = make(map[string]string)
 )
 
-func (s *DriverSuite) MockInit(_ string, _ map[string]string) (Driver, error) {
+func (s *DriverSuite) MockInit(_ string, _ []string, _ map[string]string) (Driver, error) {
 	return s.drv, nil
 }
 
 func (s *DriverSuite) SetUpTest(c *C) {
 	s.drv = &mocks.Driver{}
 	s.vol = &mocks.Volume{}
-	Register(drvName, s.MockInit)
+	Register(drvName, s.MockInit, drvOpList)
 }
 
 func (s *DriverSuite) TearDownTest(c *C) {
@@ -52,17 +54,17 @@ func (s *DriverSuite) TearDownTest(c *C) {
 }
 
 func (s *DriverSuite) TestNilRegistration(c *C) {
-	err := Register("nilregistration", nil)
+	err := Register("nilregistration", nil, []string{})
 	c.Assert(err, ErrorMatches, ErrInvalidDriverInit.Error())
 }
 
 func (s *DriverSuite) TestRedundantRegistration(c *C) {
-	err := Register(drvName, s.MockInit)
+	err := Register(drvName, s.MockInit, drvOpList)
 	c.Assert(err, ErrorMatches, ErrDriverExists.Error())
 }
 
 func (s *DriverSuite) TestRegistration(c *C) {
-	err := InitDriver(drvName, "", drvOptions)
+	err := InitDriver(drvName, "", drvArgs, drvOptions)
 	c.Assert(err, IsNil)
 	driver, err := GetDriver("")
 	c.Assert(err, IsNil)
@@ -70,7 +72,7 @@ func (s *DriverSuite) TestRegistration(c *C) {
 }
 
 func (s *DriverSuite) TestUnsupported(c *C) {
-	err := InitDriver("unregistered", "", drvOptions)
+	err := InitDriver("unregistered", "", drvArgs, drvOptions)
 	c.Assert(err, Equals, ErrDriverNotSupported)
 	driver, err := GetDriver("")
 	c.Assert(err, Equals, ErrDriverNotInit)
@@ -81,7 +83,7 @@ func (s *DriverSuite) TestMountWhenDoesNotExist(c *C) {
 	volname := "testvolume"
 	s.drv.On("Exists", volname).Return(false)
 	s.drv.On("Create", volname).Return(s.vol, nil)
-	err := InitDriver(drvName, "", drvOptions)
+	err := InitDriver(drvName, "", drvArgs, drvOptions)
 	c.Assert(err, IsNil)
 	v, err := Mount(volname, "")
 	s.drv.AssertExpectations(c)
@@ -93,7 +95,7 @@ func (s *DriverSuite) TestMountWhenExists(c *C) {
 	volname := "testvolume"
 	s.drv.On("Exists", volname).Return(true)
 	s.drv.On("Get", volname).Return(s.vol, nil)
-	err := InitDriver(drvName, "", drvOptions)
+	err := InitDriver(drvName, "", drvArgs, drvOptions)
 	c.Assert(err, IsNil)
 	v, err := Mount(volname, "")
 	s.drv.AssertExpectations(c)
@@ -103,7 +105,7 @@ func (s *DriverSuite) TestMountWhenExists(c *C) {
 }
 
 func (s *DriverSuite) TestBadMount(c *C) {
-	err := InitDriver("unregistered", "", drvOptions)
+	err := InitDriver("unregistered", "", drvArgs, drvOptions)
 	c.Assert(err, Equals, ErrDriverNotSupported)
 	v, err := Mount("", "")
 	c.Assert(err, Equals, ErrDriverNotInit)

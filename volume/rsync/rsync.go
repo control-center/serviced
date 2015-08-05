@@ -56,11 +56,11 @@ type RsyncVolume struct {
 }
 
 func init() {
-	volume.Register(DriverName, Init)
+	volume.Register(DriverName, Init, []string{})
 }
 
 // Rsync driver intialization
-func Init(root string, _ map[string]string) (volume.Driver, error) {
+func Init(root string, _ []string, _ map[string]string) (volume.Driver, error) {
 	driver := &RsyncDriver{
 		root: root,
 	}

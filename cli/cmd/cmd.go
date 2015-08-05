@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/validation"
+	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -83,6 +84,7 @@ func New(driver api.API, config ConfigReader) *ServicedCli {
 		cli.StringFlag{"virtual-address-subnet", defaultOps.VirtualAddressSubnet, "/16 subnet for virtual addresses"},
 		cli.StringFlag{"master-pool-id", defaultOps.MasterPoolID, "master's pool ID"},
 		cli.StringFlag{"admin-group", defaultOps.AdminGroup, "system group that can log in to control center"},
+		cli.StringSliceFlag{"storage-opts", convertToStringSlice(defaultOps.StorageArgs), "storage args to initialize filesystem"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", defaultOps.HostStats, "container statistics for host:port"},
@@ -178,12 +180,25 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
+		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
+		StorageOptions:       make(map[string]string),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
 	}
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
+	}
+
+	// set storage options
+	if drvOps, err := volume.GetDriverOptions(options.FSType); err != nil {
+		err := fmt.Errorf("could not get storage options for %s: %s", options.FSType, err)
+		fmt.Fprintln(os.Stderr, err.Error())
+		return err
+	} else {
+		for _, dop := range drvOps {
+			options.StorageOptions[dop] = os.Getenv(dop)
+		}
 	}
 
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {

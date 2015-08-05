@@ -19,29 +19,27 @@ import (
 const (
 	// DriverName is the name of this devicemapper driver implementation
 	DriverName = "devicemapper"
-	// DriverOptionsArgs is the serviced to devicemapper conversion for
-	// additional driver options.
-	DriverOptionsArgs = "SERVICED_DM_ARGS"
 )
 
 var (
-	// DriverOptions is the serviced to devicemapper conversion of driver
-	// options
-	DriverOptions = map[string]string{
-		"SERVICED_DM_THINPOOLDEV":      "dm.thinpooldev",
-		"SERVICED_DM_BASESIZE":         "dm.basesize",
-		"SERVICED_DM_LOOPDATASIZE":     "dm.loopdatasize",
-		"SERVICED_DM_LOOPMETADATASIZE": "dm.loopmetadatasize",
+	// DriverOptions are the serviced device mapper options
+	DriverOptions = []string{
+		"SERVICED_DM_THINPOOLDEV",
+		"SERVICED_DM_BASESIZE",
+		"SERVICED_DM_LOOPDATASIZE",
+		"SERVICED_DM_LOOPMETADATASIZE",
+		"SERVICED_DM_ARGS",
 	}
 )
 
 func init() {
-	volume.Register(DriverName, Init)
+	volume.Register(DriverName, Init, DriverOptions)
 }
 
 type DeviceMapperDriver struct {
 	root      string
 	options   map[string]string
+	args      []string
 	DeviceSet *devmapper.DeviceSet
 }
 
@@ -55,10 +53,11 @@ type DeviceMapperVolume struct {
 }
 
 // Init initializes the devicemapper driver
-func Init(root string, options map[string]string) (volume.Driver, error) {
+func Init(root string, args []string, options map[string]string) (volume.Driver, error) {
 	driver := &DeviceMapperDriver{
 		root:    root,
 		options: options,
+		args:    args,
 	}
 	driver.ensureInitialized()
 	return driver, nil
@@ -227,16 +226,26 @@ func (d *DeviceMapperDriver) MetadataPath(tenant string) string {
 // parseOptions converts options into a device mapper consumable format
 func (d *DeviceMapperDriver) parseOptions() []string {
 	var options []string
-	for k, v := range DriverOptions {
-		if op, ok := d.options[k]; ok {
-			if op = strings.TrimSpace(op); op != "" {
-				options = append(options, fmt.Sprintf("%s=%s", v, op))
+	for _, option := range DriverOptions {
+		if opval, ok := d.options[option]; ok {
+			switch option {
+			case "SERVICED_DM_THINPOOLDEV":
+				options = append(options, fmt.Sprintf("dm.thinpooldev=%s", opval))
+			case "SERVICED_DM_BASESIZE":
+				options = append(options, fmt.Sprintf("dm.basesize=%s", opval))
+			case "SERVICED_DM_LOOPDATASIZE":
+				options = append(options, fmt.Sprintf("dm.loopdatasize=%s", opval))
+			case "SERVICED_DM_LOOPMETADATASIZE":
+				options = append(options, fmt.Sprintf("dm.loopmetadatasize=%s", opval))
+			case "SERVICED_DM_ARGS":
+				if d.args == nil || len(d.args) == 0 {
+					options = append(options, strings.Split(opval, " ")...)
+				} else {
+					options = append(options, d.args...)
+				}
+			default:
+				glog.Errorf("Undefined device mapper option %s", option)
 			}
-		}
-	}
-	if ops, ok := d.options[DriverOptionsArgs]; ok {
-		if ops = strings.TrimSpace(ops); ops != "" {
-			options = append(options, strings.Split(ops, " ")...)
 		}
 	}
 	return options

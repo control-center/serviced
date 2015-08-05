@@ -33,6 +33,18 @@ import (
 	"github.com/zenoss/glog"
 )
 
+func newNopCloser(rw io.ReadWriter) *nopCloser {
+	return &nopCloser{ReadWriter: rw}
+}
+
+type nopCloser struct {
+	io.ReadWriter
+}
+
+func (rw *nopCloser) Close() error {
+	return nil
+}
+
 type log interface {
 	Log(args ...interface{})
 }
@@ -108,28 +120,14 @@ func TestBackup_writeAndReadJsonToAndFromFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	tempFile := filepath.Join(tempDir, "data.json")
-	if e := exportJSON(tempFile, original); e != nil {
-		t.Fatalf("Failed to write data %+v to file %s: %s", original, tempFile, e)
+	buffer := newNopCloser(bytes.NewBuffer([]byte{}))
+	if e := exportJSON(buffer, original); e != nil {
+		t.Fatalf("Could not write data %+v to buffer: %s", original, e)
 	}
-
-	json, e := ioutil.ReadFile(tempFile)
-	if e != nil {
-		t.Fatalf("Failed to read contents of file %s: %s", tempFile, e)
-	}
-
-	expected_json := "{\"a\":[0,1,2],\"b\":[3,4,5],\"c\":[6,7,8],\"d\":[9]}\n"
-	if string(json) != expected_json {
-		t.Errorf("Expected JSON: %s", expected_json)
-		t.Errorf("Actual JSON  : %s", string(json))
-		t.Fatal("Unexpected difference")
-	}
-
 	var retrieved map[string][]int
-	if e := importJSON(tempFile, &retrieved); e != nil {
-		t.Fatalf("Failed to read data from file %s: %s", tempFile, e)
+	if e := importJSON(buffer, &retrieved); e != nil {
+		t.Fatalf("Could not read data from buffer: %s", e)
 	}
-
 	if !reflect.DeepEqual(retrieved, original) {
 		t.Errorf("Expected data: %+v", original)
 		t.Errorf("Actual data  : %+v", retrieved)

@@ -33,6 +33,7 @@ import (
 var (
 	btrfsVolumes map[string]string = make(map[string]string)
 	_                              = Suite(&BtrfsSuite{})
+	btrfsArgs    []string          = []string{}
 	btrfsOptions map[string]string = make(map[string]string)
 )
 
@@ -113,20 +114,20 @@ func (s *BtrfsSuite) TearDownSuite(c *C) {
 }
 
 func (s *BtrfsSuite) TestBtrfsCreateEmpty(c *C) {
-	drivertest.DriverTestCreateEmpty(c, "btrfs", s.root, btrfsOptions)
+	drivertest.DriverTestCreateEmpty(c, "btrfs", s.root, btrfsArgs, btrfsOptions)
 }
 
 func (s *BtrfsSuite) TestBtrfsCreateBase(c *C) {
-	drivertest.DriverTestCreateBase(c, "btrfs", s.root, btrfsOptions)
+	drivertest.DriverTestCreateBase(c, "btrfs", s.root, btrfsArgs, btrfsOptions)
 }
 
 func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
-	drivertest.DriverTestSnapshots(c, "btrfs", s.root, btrfsOptions)
+	drivertest.DriverTestSnapshots(c, "btrfs", s.root, btrfsArgs, btrfsOptions)
 }
 
 func (s *BtrfsSuite) TestBtrfsExportImport(c *C) {
 	other_root := createBtrfsTmpVolume(c, 32*1024*1024)
 	defer cleanupBtrfsTmpVolume(c, other_root)
-	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root, btrfsOptions)
+	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root, btrfsArgs, btrfsOptions)
 
 }

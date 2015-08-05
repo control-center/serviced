@@ -271,6 +271,13 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
 
+	// Initialize the storage driver
+	if volumesPath, err := filepath.Abs(filepath.Join(options.VarPath, "volumes")); err != nil {
+		glog.Fatalf("Could not look up var path %s: %s", options.VarPath, err)
+	} else if err := volume.InitDriver(options.FSType, volumesPath, options.StorageArgs, options.StorageOptions); err != nil {
+		glog.Fatalf("Could not initialize storage driver type=%s root=%s args=%v options=%+v: %s", options.FSType, options.VarPath, options.StorageArgs, options.StorageOptions, err)
+	}
+
 	d.startRPC()
 	d.startDockerRegistryProxy()
 

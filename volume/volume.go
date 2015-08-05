@@ -21,11 +21,12 @@ import (
 )
 
 // DriverInit represents a function that can initialize a driver.
-type DriverInit func(root string, options map[string]string) (Driver, error)
+type DriverInit func(root string, args []string, options map[string]string) (Driver, error)
 
 var (
 	drivers       map[string]DriverInit
 	driversByRoot map[string]Driver
+	driverOptions map[string][]string
 
 	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
 	ErrDriverNotInit        = errors.New("driver not initialized")
@@ -41,6 +42,7 @@ var (
 func init() {
 	drivers = make(map[string]DriverInit)
 	driversByRoot = make(map[string]Driver)
+	driverOptions = make(map[string][]string)
 }
 
 // Driver is the basic interface to the filesystem. It is able to create,
@@ -104,7 +106,7 @@ type Volume interface {
 }
 
 // Register registers a driver initializer under <name> so it can be looked up
-func Register(name string, driverInit DriverInit) error {
+func Register(name string, driverInit DriverInit, options []string) error {
 	if driverInit == nil {
 		return ErrInvalidDriverInit
 	}
@@ -112,6 +114,7 @@ func Register(name string, driverInit DriverInit) error {
 		return ErrDriverExists
 	}
 	drivers[name] = driverInit
+	driverOptions[name] = options
 	return nil
 }
 
@@ -124,6 +127,7 @@ func Registered(name string) bool {
 // Unregister the driver init func <name>. If it doesn't exist, it's a no-op.
 func Unregister(name string) {
 	delete(drivers, name)
+	delete(driverOptions, name)
 	// Also delete any existing drivers using this name
 	for root, drv := range driversByRoot {
 		if drv.GetFSType() == name {
@@ -133,7 +137,7 @@ func Unregister(name string) {
 }
 
 // InitDriver sets up a driver <name> and initializes it to <root>.
-func InitDriver(name, root string, options map[string]string) error {
+func InitDriver(name, root string, args []string, options map[string]string) error {
 	// Make sure it is a driver that exists
 	if init, exists := drivers[name]; exists {
 		// If the driver already exists, return
@@ -141,7 +145,7 @@ func InitDriver(name, root string, options map[string]string) error {
 			return nil
 		}
 		// Create the driver instance
-		driver, err := init(root, options)
+		driver, err := init(root, args, options)
 		if err != nil {
 			return err
 		}
@@ -149,6 +153,14 @@ func InitDriver(name, root string, options map[string]string) error {
 		return nil
 	}
 	return ErrDriverNotSupported
+}
+
+// GetDriverOptions returns the serviced options available for the driver.
+func GetDriverOptions(name string) ([]string, error) {
+	if _, exists := drivers[name]; exists {
+		return driverOptions[name], nil
+	}
+	return nil, ErrDriverNotSupported
 }
 
 // GetDriver returns the driver from path <root>.
