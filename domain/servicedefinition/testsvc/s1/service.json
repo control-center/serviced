@@ -32,5 +32,19 @@
           "Snapshot": {
             "Pause": "echo pause",
             "Resume": "echo resume"
-          }
+          },
+          "Volumes": [{
+            "Owner": "zenoss:zenoss",
+            "Permission": "0777",
+            "ResourcePath": "test1",
+            "ContainerPath": "/test1",
+            "Type": "",
+            "InitContainerPath": "/initFromHere"
+          },{
+            "Owner": "zenoss:zenoss",
+            "Permission": "0777",
+            "ResourcePath": "test2",
+            "ContainerPath": "/test2",
+            "Type": ""
+          }]
 }
