@@ -19,7 +19,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -30,27 +29,17 @@ import (
 	dockertest "github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/dfs/mocks"
 	"github.com/control-center/serviced/domain/service"
 	facadetest "github.com/control-center/serviced/facade/test"
 	"github.com/control-center/serviced/volume"
 	volumetest "github.com/control-center/serviced/volume/mocks"
+	"github.com/control-center/serviced/volume/rsync"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
 
 	"github.com/stretchr/testify/mock"
 )
-
-func newNopCloser(rw io.ReadWriter) *nopCloser {
-	return &nopCloser{ReadWriter: rw}
-}
-
-type nopCloser struct {
-	io.ReadWriter
-}
-
-func (rw *nopCloser) Close() error {
-	return nil
-}
 
 // snapshotTest test type for setting up mocks and other resources needed by these tests
 type snapshotTest struct {
@@ -81,11 +70,14 @@ func Test(t *testing.T) {
 var _ = Suite(&snapshotTest{})
 
 func (st *snapshotTest) SetUpTest(c *C) {
+	st.tmpDir = c.MkDir()
+	err := volume.InitDriver(rsync.DriverName, filepath.Join(st.tmpDir, "volumes"), make([]string, 0), make(map[string]string))
+	c.Assert(err, IsNil)
 	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem{
-		fsType:           "rsync",
-		varpath:          "/tmp",
+		fsType:           rsync.DriverName,
+		varpath:          st.tmpDir,
 		dockerHost:       "localhost",
 		dockerPort:       5000,
 		facade:           st.mockFacade,
@@ -407,11 +399,11 @@ func (st *snapshotTest) setupMockSnapshotVolume(c *C, serviceID string) *volumet
 
 	var metafiles = []string{serviceJSON, snapshotMeta}
 	for _, f := range metafiles {
-		buffer := newNopCloser(bytes.NewBufferString(""))
+		buffer := mocks.NewNopCloser(bytes.NewBufferString(""))
 		mockVol.On("WriteMetadata", mock.AnythingOfTypeArgument("string"), f).Return(buffer, nil)
 		mockVol.On("ReadMetadata", mock.AnythingOfTypeArgument("string"), f).Return(buffer, nil)
 	}
-	mockVol.On("ReadMetadata", mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("string")).Return(&nopCloser{}, errors.New("file not found"))
+	mockVol.On("ReadMetadata", mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("string")).Return(&mocks.NopCloser{}, errors.New("file not found"))
 	return mockVol
 }
 

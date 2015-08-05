@@ -29,21 +29,10 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/dfs/mocks"
 
 	"github.com/zenoss/glog"
 )
-
-func newNopCloser(rw io.ReadWriter) *nopCloser {
-	return &nopCloser{ReadWriter: rw}
-}
-
-type nopCloser struct {
-	io.ReadWriter
-}
-
-func (rw *nopCloser) Close() error {
-	return nil
-}
 
 type log interface {
 	Log(args ...interface{})
@@ -120,7 +109,7 @@ func TestBackup_writeAndReadJsonToAndFromFile(t *testing.T) {
 	}
 	defer os.RemoveAll(tempDir)
 
-	buffer := newNopCloser(bytes.NewBuffer([]byte{}))
+	buffer := mocks.NewNopCloser(bytes.NewBuffer([]byte{}))
 	if e := exportJSON(buffer, original); e != nil {
 		t.Fatalf("Could not write data %+v to buffer: %s", original, e)
 	}
