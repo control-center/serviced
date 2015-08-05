@@ -76,6 +76,13 @@ add_host() {
     return 0
 }
 
+add_template() {
+    TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/dao/testsvc | ${SERVICED} template add)
+    sleep 1
+    [ -z "$(${SERVICED} template list ${TEMPLATE_ID})" ] && return 1
+    return 0
+}
+
 cleanup() {
     echo "Stopping serviced and mockAgent"
     sudo pkill -9 serviced
@@ -99,6 +106,7 @@ add_to_etc_hosts
 
 start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 120 seconds."
 retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
+retry 20 add_template      && succeed "Added template successfully"              || fail "Unable to add template"
 
 # build/start mock agents
 make mockAgent

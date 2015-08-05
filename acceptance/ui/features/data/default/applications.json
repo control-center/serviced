@@ -1,12 +1,21 @@
 {
   "applications": 
   {
-    "defaultCore": {
+    "defaultApp": {
+      "template": "testsvc",
+      "pool": "default",
       "id": "test"
     },
 
-    "testCore": {
+    "app2": {
+      "template": "testsvc",
       "pool": "test",
+      "id": "test"
+    },
+
+    "app3": {
+      "template": "testsvc",
+      "pool": "default",
       "id": "another test"
     }
   }
