@@ -22,12 +22,14 @@ done
 
 set -e
 
+set -x
 cd ${DIR}
-echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host defaultHost` &
-echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host2` &
-echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host3` &
-echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host4` &
-echo `mockAgent/mockAgent --config-file ui/features/data/default/hosts.json --host host5` &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host defaultHost &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host2 &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host3 &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host4 &
+${DIR}/mockAgent/mockAgent --config-file ${DIR}/ui/features/data/default/hosts.json --host host5 &
+set +x
 
 WAIT=0
 while [ $WAIT -lt 5 ]; do
