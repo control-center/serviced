@@ -106,6 +106,23 @@ done
 					Pause:  "echo pause",
 					Resume: "echo resume",
 				},
+				Volumes: []Volume{
+					{
+						Owner:             "zenoss:zenoss",
+						Permission:        "0777",
+						ResourcePath:      "test1",
+						ContainerPath:     "/test1",
+						InitContainerPath: "/initFromHere",
+						Type:              "",
+					}, {
+						Owner:             "zenoss:zenoss",
+						Permission:        "0777",
+						ResourcePath:      "test2",
+						ContainerPath:     "/test2",
+						InitContainerPath: "",
+						Type:              "",
+					},
+				},
 			},
 			ServiceDefinition{
 				Name:    "s2",
@@ -170,6 +187,11 @@ func (a *ServiceDefinition) equals(b *ServiceDefinition) (identical bool, msg st
 		return false, fmt.Sprintf("Number of sub services differ between %s [%d] and %s [%d]",
 			a.Name, len(a.Services), b.Name, len(b.Services))
 	}
+	if len(a.Volumes) != len(b.Volumes) {
+		return false, fmt.Sprintf("Number of volumes differ between %s [%d] and %s [%d]",
+			a.Name, len(a.Volumes), b.Name, len(b.Volumes))
+	}
+
 	sort.Sort(ServiceDefinitionByName(a.Services))
 	sort.Sort(ServiceDefinitionByName(b.Services))
 
