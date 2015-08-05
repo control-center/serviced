@@ -30,7 +30,7 @@ Feature: Application Management
 
   @clean_hosts
   Scenario: Enter invalid input into the application deployment wizard
-    Given that Zenoss Core is not added
+    Given that the "table://applications/defaultApp/template" application is not added
       And there are no hosts added
     When I am on the applications page
       And I click the add Application button
@@ -44,9 +44,9 @@ Feature: Application Management
     Then I should see "Add Host failed"
     When I fill in the Host Name field with "table://hosts/defaultHost/nameAndPort"
       And I click "Next"
-      And I select "Zenoss.core"
+      And I select "table://applications/defaultApp/template"
       And I click "Next"
-      And I select "default"
+      And I select "table://applications/defaultApp/pool"
       And I click "Next"
       And I click "Deploy"
     Then I should see "You must provide a Deployment ID."
@@ -54,30 +54,31 @@ Feature: Application Management
     Then I should not see "Deployment Wizard"
 
   @clean_hosts @clean_services
-  Scenario: Deploy Zenoss Core
-    Given that Zenoss Core is not added
+  Scenario: Deploy an instance of the default template
+    Given that the "table://applications/defaultApp/template" application is not added
       And only the default host is added
     When I am on the applications page
       And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
-    When I select "Zenoss.core"
+    When I select "table://applications/defaultApp/template"
       And I click "Next"
     Then I should see "Select the resource pool to install to:"
-    When I select "default"
+    When I select "table://applications/defaultApp/pool"
       And I click "Next"
-    Then I should see "Zenoss.core has been configured for resource pool default."
+    Then I should see "table://applications/defaultApp/template"
+      And I should see "has been configured"
       And I should see "Deployment ID"
-    When I fill in the Deployment ID field with "table://applications/defaultCore/id"
+    When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
     Then I should see "Pulling image"
       And I should see that the application has deployed
-      And I should see an entry for "Zenoss.core" in the Applications table
+      And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "Showing 2 Results"
 
   @clean_hosts @clean_services
-  Scenario: Deploy Zenoss Core and add a host
-    Given that Zenoss Core is not added
+  Scenario: Deploy an instance of the default template and add a host
+    Given that the "table://applications/defaultApp/template" application is not added
       And there are no hosts added
     When I am on the applications page
       And I click the add Application button
@@ -87,59 +88,63 @@ Feature: Application Management
       And I fill in the RAM Commitment field with "table://hosts/defaultHost/commitment"
       And I click "Next"
     Then I should see "Select the application to install:"
-    When I select "Zenoss.core"
+    When I select "table://applications/defaultApp/template"
       And I click "Next"
     Then I should see "Select the resource pool to install to:"
-    When I select "default"
+    When I select "table://applications/defaultApp/pool"
       And I click "Next"
-    Then I should see "Zenoss.core has been configured for resource pool default."
+    Then I should see "table://applications/defaultApp/template"
+      And I should see "has been configured for resource pool"
+      And I should see "table://applications/defaultApp/pool"
       And I should see "Deployment ID"
-    When I fill in the Deployment ID field with "table://applications/defaultCore/id"
+    When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
     Then I should see "Pulling image"
       And I should see that the application has deployed
-      And I should see an entry for "Zenoss.core" in the Applications table
+      And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "Showing 2 Results"
 
   @clean_hosts @clean_services @clean_pools
-  Scenario: Deploy Zenoss Core to another resource pool
+  Scenario: Deploy an instance of the default template to another resource pool
     Given only the default host is added
-      And that Zenoss Core is not added
-      And that the "table://applications/testCore/pool" pool is added
+      And that the "table://applications/app2/template" application is not added
+      And that the "table://applications/app2/pool" pool is added
     When I am on the applications page
       And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
-    When I select "Zenoss.core"
+    When I select "table://applications/app2/template"
       And I click "Next"
     Then I should see "Select the resource pool to install to:"
-    When I select "table://applications/testCore/pool"
+    When I select "table://applications/app2/pool"
       And I click "Next"
-    Then I should see "Zenoss.core has been configured"
+    Then I should see "table://applications/app2/template"
+      And I should see "has been configured"
       And I should see "Deployment ID"
-    When I fill in the Deployment ID field with "table://applications/testCore/id"
+    When I fill in the Deployment ID field with "table://applications/app2/id"
       And I click "Deploy"
     Then I should see "Pulling image"
       And I should see that the application has deployed
-      And I should see an entry for "Zenoss.core" in the Applications table
+      And I should see an entry for "table://applications/app2/template" in the Applications table
       And I should see "Showing 2 Results"
 
   @clean_hosts @clean_services
-  Scenario: Add Zenoss Core with a duplicate Deployment ID
+  Scenario: Add an instance of the default template with a duplicate Deployment ID
     Given only the default host is added
-      And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
+      And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
     When I am on the applications page
       And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
-    When I select "Zenoss.core"
+    When I select "table://applications/defaultApp/template"
       And I click "Next"
     Then I should see "Select the resource pool to install to:"
-    When I select "default"
+    When I select "table://applications/defaultApp/pool"
       And I click "Next"
-    Then I should see "Zenoss.core has been configured for resource pool default."
+    Then I should see "table://applications/defaultApp/template"
+      And I should see "has been configured for resource pool"
       And I should see "Deployment ID"
-    When I fill in the Deployment ID field with "table://applications/defaultCore/id"
+    When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
     Then I should see that the application has not been deployed
       And I should see "Internal Server Error: deployment ID"
@@ -147,32 +152,33 @@ Feature: Application Management
       And I should see "Showing 2 Results"
 
   @clean_hosts @clean_services
-  Scenario: Add Zenoss Core with another Deployment ID
+  Scenario: Add an instance of the default template with another Deployment ID
     Given only the default host is added
-      And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
+      And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
     When I am on the applications page
       And I click the add Application button
     Then I should see "Deployment Wizard"
       And I should see "Select the application to install:"
-    When I select "Zenoss.core"
+    When I select "table://applications/app3/template"
       And I click "Next"
     Then I should see "Select the resource pool to install to:"
-    When I select "default"
+    When I select "table://applications/app3/pool"
       And I click "Next"
-    Then I should see "Zenoss.core has been configured for resource pool default."
+    Then I should see "table://applications/app3/template"
+      And I should see "has been configured for resource pool"
       And I should see "Deployment ID"
-    When I fill in the Deployment ID field with "table://applications/testCore/id"
+    When I fill in the Deployment ID field with "table://applications/app3/id"
       And I click "Deploy"
     Then I should see "Pulling image"
       And I should see that the application has deployed
-      And I should see an entry for "Zenoss.core" in the Applications table
+      And I should see an entry for "table://applications/app3/template" in the Applications table
       And I should see "Showing 3 Results"
 
   @clean_hosts
-  Scenario: Remove Zenoss Core
+  Scenario: Remove an instance of the default template
     Given only the default host is added
-      And that Zenoss Core with the "table://applications/defaultCore/id" Deployment ID is added
-    When I remove "Zenoss.core" from the Applications list
+      And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
+    When I remove "table://applications/defaultApp/template" from the Applications list
     Then I should see "Remove Application"
       And I should see "This action will permanently delete the running application"
     When I click "Remove Application"

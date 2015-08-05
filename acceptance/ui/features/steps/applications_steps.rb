@@ -12,19 +12,19 @@ Given (/^(?:|that )multiple applications and application templates have been add
     end
 end
 
-Given (/^(?:|that )Zenoss Core is not added$/) do
+Given (/^(?:|that )the "(.*?)" application is not added$/) do |app|
     visitApplicationsPage()
     exists = true
     while exists == true do
-        exists = checkServiceRows("Zenoss.core")
-        removeEntry("Zenoss.core", "service") if exists
+        exists = checkServiceRows(app)
+        removeEntry(app, "service") if exists
     end
 end
 
-Given (/^(?:|that )Zenoss Core with the "(.*?)" Deployment ID is added$/) do |id|
+Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is added$/) do |app, id|
     visitApplicationsPage()
-    exists = checkServiceRows("Zenoss.core") && checkColumn(id, "Deployment ID")
-    addService("Zenoss.core", "default", id) if !exists
+    exists = checkServiceRows(app) && checkColumn(id, "Deployment ID")
+    addService(app, "default", id) if !exists
     refreshPage()
 end
 
