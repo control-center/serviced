@@ -109,6 +109,7 @@ retry 20 add_host          && succeed "Added host successfully"                 
 retry 20 add_template      && succeed "Added template successfully"              || fail "Unable to add template"
 
 # build/start mock agents
+cd ${DIR}
 make mockAgent
 cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
