@@ -14,6 +14,14 @@ SERVICED=${DIR}/serviced
 IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
 HOSTNAME=$(hostname)
 
+#
+# Setup of env vars required to build mockAgent
+gvm use go1.4.2
+go version
+docker version
+export GOPATH=$WORKSPACE/gopath
+export PATH=$GOPATH/bin:$PATH
+
 succeed() {
     echo ===== SUCCESS =====
     echo $@

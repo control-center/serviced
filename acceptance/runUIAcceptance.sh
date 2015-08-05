@@ -117,7 +117,10 @@ else
 fi
 
 HOSTNAME=`hostname -s`
-HOST_IP=`hostname -i`
+
+# Don't depend on 'hostname -i' because some machines (like our Jenkins slaves)
+#   map hostname to 127.0.0.1
+HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
 
 trap 'docker rm -f ui_acceptance' INT
 
