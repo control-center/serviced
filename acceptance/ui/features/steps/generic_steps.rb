@@ -79,11 +79,11 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
 end
 
 Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
-    expect(checkRows(row)).to be true
+    expect(isInRows(row)).to be true
 end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
-    expect(checkRows(row)).to be false
+    expect(isNotInRows(row)).to be true
 end
 
 Then (/^I should see "(.*?)" in the "(.*?)" graph$/) do |text, graph|
@@ -165,11 +165,19 @@ def hoverOver(graph)
     page.find("div[class='zenchartContainer']", :text => graph).hover()
 end
 
-def checkRows(row)
+def isInRows(row)
     waitForPageLoad()
     found = false
     name = getTableValue(row)
     found = page.has_css?("tr[ng-repeat$='in $data']", :text => name)
+    return found
+end
+
+def isNotInRows(row)
+    waitForPageLoad()
+    found = false
+    name = getTableValue(row)
+    found = page.has_no_css?("tr[ng-repeat$='in $data']", :text => name)
     return found
 end
 

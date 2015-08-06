@@ -6,14 +6,14 @@ Given (/^(?:|that )multiple resource pools have been added$/) do
         addPoolJson("pool2")
         addPoolJson("pool3")
         addPoolJson("pool4")
-        expect(checkRows("table://pools/pool2/name")).to be true
-        expect(checkRows("table://pools/pool4/name")).to be true
+        expect(isInRows("table://pools/pool2/name")).to be true
+        expect(isInRows("table://pools/pool4/name")).to be true
     end
 end
 
 Given (/^(?:|that )the default resource pool is added$/) do
     visitPoolsPage()
-    hasDefault = checkRows("default")
+    hasDefault = isInRows("default")
     if (hasDefault == false)
         addDefaultPool()
     end
@@ -21,7 +21,7 @@ end
 
 Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
-    if (!page.has_content?("Showing 1 Result") || !checkRows("default"))
+    if (page.has_no_content?("Showing 1 Result") || isNotInRows("default"))
         removeAllPools()
         addDefaultPool()
     end
@@ -29,25 +29,25 @@ end
 
 Given (/^(?:|that )the "(.*?)" pool is added$/) do |pool|
     visitPoolsPage()
-    if (checkRows(pool) == false)
+    if (isNotInRows(pool))
         addPool(pool, "added for tests")
     end
 end
 
 Given (/^(?:|that )the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip, pool|
     visitPoolsPage()
-    if (checkRows(pool) == false)
+    if (isNotInRows(pool))
         addPool(pool, "added for virtual IP")
     end
     viewDetails(pool)
-    if (checkRows("table://virtualips/" + ip + "/ip") == false)
+    if (isNotInRows("table://virtualips/" + ip + "/ip"))
         addVirtualIpJson(ip)
     end
 end
 
 Given (/^(?:|that )the "(.*?)" pool has no virtual IPs$/) do |pool|
     visitPoolsPage()
-    if (checkRows(pool) == false)
+    if (isNotInRows(pool))
         addPool(pool, "added for no virtual IPs")
     else
         viewDetails(pool)
