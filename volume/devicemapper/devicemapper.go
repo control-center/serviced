@@ -1,7 +1,6 @@
 package devicemapper
 
 import (
-	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -21,25 +20,13 @@ const (
 	DriverName = "devicemapper"
 )
 
-var (
-	// DriverOptions are the serviced device mapper options
-	DriverOptions = []string{
-		"SERVICED_DM_THINPOOLDEV",
-		"SERVICED_DM_BASESIZE",
-		"SERVICED_DM_LOOPDATASIZE",
-		"SERVICED_DM_LOOPMETADATASIZE",
-		"SERVICED_DM_ARGS",
-	}
-)
-
 func init() {
-	volume.Register(DriverName, Init, DriverOptions)
+	volume.Register(DriverName, Init)
 }
 
 type DeviceMapperDriver struct {
 	root      string
-	options   map[string]string
-	args      []string
+	options   []string
 	DeviceSet *devmapper.DeviceSet
 }
 
@@ -53,11 +40,10 @@ type DeviceMapperVolume struct {
 }
 
 // Init initializes the devicemapper driver
-func Init(root string, args []string, options map[string]string) (volume.Driver, error) {
+func Init(root string, options []string) (volume.Driver, error) {
 	driver := &DeviceMapperDriver{
 		root:    root,
 		options: options,
-		args:    args,
 	}
 	driver.ensureInitialized()
 	return driver, nil
@@ -223,34 +209,6 @@ func (d *DeviceMapperDriver) MetadataPath(tenant string) string {
 	return filepath.Join(d.MetadataDir(), tenant, "metadata.json")
 }
 
-// parseOptions converts options into a device mapper consumable format
-func (d *DeviceMapperDriver) parseOptions() []string {
-	var options []string
-	for _, option := range DriverOptions {
-		if opval, ok := d.options[option]; ok {
-			switch option {
-			case "SERVICED_DM_THINPOOLDEV":
-				options = append(options, fmt.Sprintf("dm.thinpooldev=%s", opval))
-			case "SERVICED_DM_BASESIZE":
-				options = append(options, fmt.Sprintf("dm.basesize=%s", opval))
-			case "SERVICED_DM_LOOPDATASIZE":
-				options = append(options, fmt.Sprintf("dm.loopdatasize=%s", opval))
-			case "SERVICED_DM_LOOPMETADATASIZE":
-				options = append(options, fmt.Sprintf("dm.loopmetadatasize=%s", opval))
-			case "SERVICED_DM_ARGS":
-				if d.args == nil || len(d.args) == 0 {
-					options = append(options, strings.Split(opval, " ")...)
-				} else {
-					options = append(options, d.args...)
-				}
-			default:
-				glog.Errorf("Undefined device mapper option %s", option)
-			}
-		}
-	}
-	return options
-}
-
 // ensureInitialized makes sure this driver's root has been set up properly
 // for devicemapper. It is idempotent.
 func (d *DeviceMapperDriver) ensureInitialized() error {
@@ -259,7 +217,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	if d.DeviceSet == nil {
-		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.parseOptions())
+		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options)
 		if err != nil {
 			return err
 		}

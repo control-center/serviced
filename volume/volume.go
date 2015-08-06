@@ -23,12 +23,11 @@ import (
 )
 
 // DriverInit represents a function that can initialize a driver.
-type DriverInit func(root string, args []string, options map[string]string) (Driver, error)
+type DriverInit func(root string, args []string) (Driver, error)
 
 var (
 	drivers       map[string]DriverInit
 	driversByRoot map[string]Driver
-	driverOptions map[string][]string
 
 	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
 	ErrDriverNotInit        = errors.New("driver not initialized")
@@ -47,7 +46,6 @@ var (
 func init() {
 	drivers = make(map[string]DriverInit)
 	driversByRoot = make(map[string]Driver)
-	driverOptions = make(map[string][]string)
 }
 
 // Driver is the basic interface to the filesystem. It is able to create,
@@ -111,7 +109,7 @@ type Volume interface {
 }
 
 // Register registers a driver initializer under <name> so it can be looked up
-func Register(name string, driverInit DriverInit, options []string) error {
+func Register(name string, driverInit DriverInit) error {
 	if driverInit == nil {
 		return ErrInvalidDriverInit
 	}
@@ -119,7 +117,6 @@ func Register(name string, driverInit DriverInit, options []string) error {
 		return ErrDriverExists
 	}
 	drivers[name] = driverInit
-	driverOptions[name] = options
 	return nil
 }
 
@@ -132,7 +129,6 @@ func Registered(name string) bool {
 // Unregister the driver init func <name>. If it doesn't exist, it's a no-op.
 func Unregister(name string) {
 	delete(drivers, name)
-	delete(driverOptions, name)
 	// Also delete any existing drivers using this name
 	for root, drv := range driversByRoot {
 		if drv.GetFSType() == name {
@@ -142,7 +138,7 @@ func Unregister(name string) {
 }
 
 // InitDriver sets up a driver <name> and initializes it to <root>.
-func InitDriver(name, root string, args []string, options map[string]string) error {
+func InitDriver(name, root string, args []string) error {
 	// Make sure it is a driver that exists
 	if init, exists := drivers[name]; exists {
 		// Clean the path
@@ -156,7 +152,7 @@ func InitDriver(name, root string, args []string, options map[string]string) err
 			return ErrPathIsNotAbs
 		}
 		// Create the driver instance
-		driver, err := init(root, args, options)
+		driver, err := init(root, args)
 		if err != nil {
 			return err
 		}
@@ -164,14 +160,6 @@ func InitDriver(name, root string, args []string, options map[string]string) err
 		return nil
 	}
 	return ErrDriverNotSupported
-}
-
-// GetDriverOptions returns the serviced options available for the driver.
-func GetDriverOptions(name string) ([]string, error) {
-	if _, exists := drivers[name]; exists {
-		return driverOptions[name], nil
-	}
-	return nil, ErrDriverNotSupported
 }
 
 // GetDriver returns the driver from path <root>.
@@ -229,19 +217,16 @@ func FindMount(volumePath string) (Volume, error) {
 // driver path at <root>.
 func Mount(volumeName, rootDir string) (volume Volume, err error) {
 	// Make sure the volume can be created from root
-	if rDir, _, err := SplitPath(filepath.Join(rootDir, volumeName)); err != nil {
+	if rDir, vName, err := SplitPath(filepath.Join(rootDir, volumeName)); err != nil {
 		return nil, err
 	} else if rDir != rootDir {
 		glog.Errorf("Cannot mount volume at %s; found root at %s", rootDir, rDir)
 		return nil, ErrBadMount
-	}
-	glog.V(1).Infof("Mounting volume %s via %s", volumeName, rootDir)
-	// make sure the volume isn't already initialized as a driver
-	if driver, _ := GetDriver(filepath.Join(rootDir, volumeName)); driver != nil {
-		glog.Errorf("Volume %s at %s is a driver", volumeName, rootDir)
+	} else if vName == "" {
+		glog.Errorf("Volume '%s' at %s is a driver", volumeName, rootDir)
 		return nil, ErrPathIsDriver
 	}
-	// look up the driver from the root path
+	glog.V(1).Infof("Mounting volume %s via %s", volumeName, rootDir)
 	driver, err := GetDriver(rootDir)
 	if err != nil {
 		glog.Errorf("Could not get driver from root %s: %s", rootDir, err)

@@ -61,11 +61,11 @@ type BtrfsVolume struct {
 }
 
 func init() {
-	volume.Register(DriverName, Init, []string{})
+	volume.Register(DriverName, Init)
 }
 
 // Btrfs driver initialization
-func Init(root string, _ []string, _ map[string]string) (volume.Driver, error) {
+func Init(root string, _ []string) (volume.Driver, error) {
 	user, err := user.Current()
 	if err != nil {
 		return nil, err

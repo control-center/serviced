@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/validation"
-	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -181,7 +180,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
 		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
-		StorageOptions:       make(map[string]string),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -189,18 +187,9 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
 	}
-
-	// set storage options
-	if drvOps, err := volume.GetDriverOptions(options.FSType); err != nil {
-		err := fmt.Errorf("could not get storage options for %s: %s", options.FSType, err)
-		fmt.Fprintln(os.Stderr, err.Error())
-		return err
-	} else {
-		for _, dop := range drvOps {
-			options.StorageOptions[dop] = os.Getenv(dop)
-		}
+	if len(options.StorageArgs) == 0 {
+		options.StorageArgs = getDefaultStorageOptions(options.FSType)
 	}
-
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
