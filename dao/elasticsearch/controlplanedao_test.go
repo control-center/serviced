@@ -38,9 +38,8 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
-	_ "github.com/control-center/serviced/volume"
-	_ "github.com/control-center/serviced/volume/btrfs"
-	_ "github.com/control-center/serviced/volume/rsync"
+	volume "github.com/control-center/serviced/volume"
+	rsync "github.com/control-center/serviced/volume/rsync"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
@@ -131,7 +130,11 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 		c.Fatalf("could not get zk connection %v", err)
 	}
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "/tmp", "rsync", 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
+	tmpdir := c.MkDir()
+	err = volume.InitDriver(rsync.DriverName, tmpdir, []string{})
+	c.Assert(err, IsNil)
+
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, rsync.DriverName, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
