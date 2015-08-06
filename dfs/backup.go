@@ -33,6 +33,7 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -50,7 +51,7 @@ const (
 )
 
 type metadata struct {
-	FSType string
+	FSType volume.DriverType
 }
 
 // ListBackups lists all the backups in a given directory

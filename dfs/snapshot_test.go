@@ -356,7 +356,7 @@ func (st *snapshotTest) mock_datastoreGet() datastore.Context {
 }
 
 // Mock for volume.Mount()
-func (st *snapshotTest) mock_getServiceVolume(fsType, serviceID, baseDir string) (volume.Volume, error) {
+func (st *snapshotTest) mock_getServiceVolume(fsType volume.DriverType, serviceID, baseDir string) (volume.Volume, error) {
 	return st.mountVolumeResponse.volume, st.mountVolumeResponse.err
 }
 

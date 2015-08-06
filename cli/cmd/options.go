@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume"
 )
 
 func getDefaultOptions(config ConfigReader) api.Options {
@@ -46,7 +47,7 @@ func getDefaultOptions(config ConfigReader) api.Options {
 		StatsPeriod:          config.IntVal("STATS_PERIOD", 10),
 		MCUsername:           "scott",
 		MCPasswd:             "tiger",
-		FSType:               config.StringVal("FS_TYPE", "rsync"),
+		FSType:               volume.DriverType(config.StringVal("FS_TYPE", "rsync")),
 		ESStartupTimeout:     getDefaultESStartupTimeout(config.IntVal("ES_STARTUP_TIMEOUT", 600)),
 		HostAliases:          config.StringSlice("VHOST_ALIASES", []string{}),
 		Verbosity:            config.IntVal("LOG_LEVEL", 0),
