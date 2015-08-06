@@ -1,6 +1,7 @@
 package devicemapper
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -25,6 +26,7 @@ func init() {
 
 type DeviceMapperDriver struct {
 	root      string
+	options   []string
 	DeviceSet *devmapper.DeviceSet
 }
 
@@ -38,9 +40,10 @@ type DeviceMapperVolume struct {
 }
 
 // Init initializes the devicemapper driver
-func Init(root string) (volume.Driver, error) {
+func Init(root string, options []string) (volume.Driver, error) {
 	driver := &DeviceMapperDriver{
-		root: root,
+		root:    root,
+		options: options,
 	}
 	driver.ensureInitialized()
 	return driver, nil
@@ -214,7 +217,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	if d.DeviceSet == nil {
-		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, []string{})
+		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options)
 		if err != nil {
 			return err
 		}
@@ -246,9 +249,20 @@ func (v *DeviceMapperVolume) Tenant() string {
 	return v.tenant
 }
 
-// SnapshotMetadataPath implements volume.Volume.SnapshotMetadataPath
-func (v *DeviceMapperVolume) SnapshotMetadataPath(label string) string {
-	return filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label))
+// WriteMetadata writes the metadata info for a snapshot
+func (v *DeviceMapperVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
+	filePath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label), name)
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+		glog.Errorf("Could not create path for file %s: %s", name, err)
+		return nil, err
+	}
+	return os.Create(filePath)
+}
+
+// ReadMetadata reads the metadata info from a snapshot
+func (v *DeviceMapperVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
+	filePath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label), name)
+	return os.Open(filePath)
 }
 
 // Snapshot implements volume.Volume.Snapshot
@@ -270,7 +284,7 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		return err
 	}
 	// Create the metadata path
-	mdpath := v.SnapshotMetadataPath(label)
+	mdpath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label))
 	if err := os.MkdirAll(mdpath, 0755); err != nil {
 		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
 		return err

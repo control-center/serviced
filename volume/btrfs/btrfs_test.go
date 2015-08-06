@@ -33,6 +33,7 @@ import (
 var (
 	btrfsVolumes map[string]string = make(map[string]string)
 	_                              = Suite(&BtrfsSuite{})
+	btrfsArgs    []string          = []string{}
 )
 
 // Wire in gocheck
@@ -112,20 +113,19 @@ func (s *BtrfsSuite) TearDownSuite(c *C) {
 }
 
 func (s *BtrfsSuite) TestBtrfsCreateEmpty(c *C) {
-	drivertest.DriverTestCreateEmpty(c, "btrfs", s.root)
+	drivertest.DriverTestCreateEmpty(c, "btrfs", s.root, btrfsArgs)
 }
 
 func (s *BtrfsSuite) TestBtrfsCreateBase(c *C) {
-	drivertest.DriverTestCreateBase(c, "btrfs", s.root)
+	drivertest.DriverTestCreateBase(c, "btrfs", s.root, btrfsArgs)
 }
 
 func (s *BtrfsSuite) TestBtrfsSnapshots(c *C) {
-	drivertest.DriverTestSnapshots(c, "btrfs", s.root)
+	drivertest.DriverTestSnapshots(c, "btrfs", s.root, btrfsArgs)
 }
 
 func (s *BtrfsSuite) TestBtrfsExportImport(c *C) {
 	other_root := createBtrfsTmpVolume(c, 32*1024*1024)
 	defer cleanupBtrfsTmpVolume(c, other_root)
-	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root)
-
+	drivertest.DriverTestExportImport(c, "btrfs", s.root, other_root, btrfsArgs)
 }

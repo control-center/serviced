@@ -29,7 +29,8 @@ import (
 )
 
 var (
-	_ = Suite(&DeviceMapperSuite{})
+	_                   = Suite(&DeviceMapperSuite{})
+	devmapArgs []string = make([]string, 0)
 )
 
 func init() {
@@ -82,17 +83,17 @@ func Test(t *testing.T) { TestingT(t) }
 type DeviceMapperSuite struct{}
 
 func (s *DeviceMapperSuite) TestDeviceMapperCreateEmpty(c *C) {
-	drivertest.DriverTestCreateEmpty(c, "devicemapper", "")
+	drivertest.DriverTestCreateEmpty(c, "devicemapper", "", devmapArgs)
 }
 
 func (s *DeviceMapperSuite) TestDeviceMapperCreateBase(c *C) {
-	drivertest.DriverTestCreateBase(c, "devicemapper", "")
+	drivertest.DriverTestCreateBase(c, "devicemapper", "", devmapArgs)
 }
 
 func (s *DeviceMapperSuite) TestDeviceMapperSnapshots(c *C) {
-	drivertest.DriverTestSnapshots(c, "devicemapper", "")
+	drivertest.DriverTestSnapshots(c, "devicemapper", "", devmapArgs)
 }
 
 func (s *DeviceMapperSuite) TestDeviceMapperExportImport(c *C) {
-	drivertest.DriverTestExportImport(c, "devicemapper", "", "")
+	drivertest.DriverTestExportImport(c, "devicemapper", "", "", devmapArgs)
 }

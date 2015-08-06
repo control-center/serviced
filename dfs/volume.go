@@ -15,7 +15,6 @@ package dfs
 
 import (
 	"errors"
-	"path"
 	"path/filepath"
 
 	"github.com/control-center/serviced/volume"
@@ -28,12 +27,8 @@ func (dfs *DistributedFilesystem) GetVolume(serviceID string) (volume.Volume, er
 
 // GetSubvolume gets the path of the *local* volume on the host
 func GetSubvolume(fsType, varpath, serviceID string) (volume.Volume, error) {
-	baseDir, err := filepath.Abs(path.Join(varpath, "volumes"))
-	if err != nil {
-		return nil, err
-	}
-	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, baseDir)
-	return volume.Mount(fsType, serviceID, baseDir)
+	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, varpath)
+	return volume.FindMount(filepath.Join(varpath, "volumes", serviceID))
 }
 
 func serviceVolumeGet(fsType, varpath, serviceID string) (volume.Volume, error) {

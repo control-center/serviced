@@ -16,13 +16,12 @@
 package dfs
 
 import (
-	"encoding/json"
+	"bytes"
 	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 	"time"
 
@@ -30,10 +29,12 @@ import (
 	dockertest "github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/dfs/mocks"
 	"github.com/control-center/serviced/domain/service"
 	facadetest "github.com/control-center/serviced/facade/test"
 	"github.com/control-center/serviced/volume"
-	volumetest "github.com/control-center/serviced/volume/test"
+	volumetest "github.com/control-center/serviced/volume/mocks"
+	"github.com/control-center/serviced/volume/rsync"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
 
@@ -69,11 +70,14 @@ func Test(t *testing.T) {
 var _ = Suite(&snapshotTest{})
 
 func (st *snapshotTest) SetUpTest(c *C) {
+	st.tmpDir = c.MkDir()
+	err := volume.InitDriver(rsync.DriverName, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
+	c.Assert(err, IsNil)
 	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem{
-		fsType:           "rsync",
-		varpath:          "/tmp",
+		fsType:           rsync.DriverName,
+		varpath:          st.tmpDir,
 		dockerHost:       "localhost",
 		dockerPort:       5000,
 		facade:           st.mockFacade,
@@ -172,7 +176,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_WaitForPauseFails(c *C) {
 func (st *snapshotTest) TestSnapshot_Snapshot_VolumeNotFound(c *C) {
 	st.setupWaitForServicesToBePaused(nil)
 	errorStub := errors.New("errorStub: GetVolume() failed")
-	st.mountVolumeResponse.volume = &volumetest.MockVolume{}
+	st.mountVolumeResponse.volume = &volumetest.Volume{}
 	st.mountVolumeResponse.err = errorStub
 
 	snapshotLabel, err := st.dfs.Snapshot(testTenantID, "description")
@@ -202,7 +206,6 @@ func (st *snapshotTest) TestSnapshot_Snapshot_TagFailed(c *C) {
 	mockClient := st.setupMockDockerClient()
 	errorStub := errors.New("errorStub: Tag() failed")
 	mockClient.On("ListImages", dockerclient.ListImagesOptions{All: false}).Return(nil, errorStub)
-
 	snapshotLabel, err := st.dfs.Snapshot(testTenantID, "description")
 
 	c.Assert(snapshotLabel, Equals, "")
@@ -235,11 +238,8 @@ func (st *snapshotTest) testSnapshot(c *C, description string) {
 	c.Assert(snapshotLabel, Matches, partialLabel)
 	c.Assert(err, IsNil)
 
-	servicesFile := filepath.Join(mockVol.Path(), serviceJSON)
-	st.assertServicesJSON(c, svcs, servicesFile)
-
-	metadataFile := filepath.Join(mockVol.Path(), snapshotMeta)
-	st.assertSnapshotMetadata(c, description, metadataFile)
+	mockVol.AssertCalled(c, "WriteMetadata", snapshotLabel, serviceJSON)
+	mockVol.AssertCalled(c, "WriteMetadata", snapshotLabel, snapshotMeta)
 }
 
 func (st *snapshotTest) TestSnapshot_ListSnapshots_GetServiceFails(c *C) {
@@ -268,7 +268,7 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_ServiceNotFound(c *C) {
 func (st *snapshotTest) TestSnapshot_ListSnapshots_VolumeNotFound(c *C) {
 	st.setupSimpleGetService()
 	errorStub := errors.New("errorStub: GetVolume() failed")
-	st.mountVolumeResponse.volume = &volumetest.MockVolume{}
+	st.mountVolumeResponse.volume = &volumetest.Volume{}
 	st.mountVolumeResponse.err = errorStub
 
 	snapshots, err := st.dfs.ListSnapshots(testTenantID)
@@ -280,7 +280,7 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_VolumeNotFound(c *C) {
 func (st *snapshotTest) TestSnapshot_ListSnapshots_GetVolumeSnapshotsFail(c *C) {
 	st.setupSimpleGetService()
 	errorStub := errors.New("errorStub: Snapshots() failed")
-	mockVol := &volumetest.MockVolume{}
+	mockVol := &volumetest.Volume{}
 	mockVol.On("Snapshots").Return(nil, errorStub)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
@@ -293,7 +293,7 @@ func (st *snapshotTest) TestSnapshot_ListSnapshots_GetVolumeSnapshotsFail(c *C) 
 
 func (st *snapshotTest) TestSnapshot_ListSnapshots_EmptyResult(c *C) {
 	st.setupSimpleGetService()
-	mockVol := &volumetest.MockVolume{}
+	mockVol := &volumetest.Volume{}
 	mockVol.On("Snapshots").Return(nil, nil)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
@@ -362,7 +362,7 @@ func (st *snapshotTest) mock_getServiceVolume(fsType, serviceID, baseDir string)
 
 // A set of values used to mock the response from dfs.mountVolume()
 type mockMountVolumeResponse struct {
-	volume *volumetest.MockVolume
+	volume *volumetest.Volume
 	err    error
 }
 
@@ -389,14 +389,21 @@ func (st *snapshotTest) setupWaitForServicesToBePaused(errorStub error) []servic
 	return stubServices
 }
 
-func (st *snapshotTest) setupMockSnapshotVolume(c *C, serviceID string) *volumetest.MockVolume {
+func (st *snapshotTest) setupMockSnapshotVolume(c *C, serviceID string) *volumetest.Volume {
 	snapshotDir := st.makeSnapshotDir(c, serviceID)
 
-	mockVol := &volumetest.MockVolume{}
+	mockVol := &volumetest.Volume{}
 	mockVol.On("Path").Return(snapshotDir)
-	mockVol.On("SnapshotMetadataPath", mock.AnythingOfTypeArgument("string")).Return(snapshotDir)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
+
+	var metafiles = []string{serviceJSON, snapshotMeta}
+	for _, f := range metafiles {
+		buffer := mocks.NewNopCloser(bytes.NewBufferString(""))
+		mockVol.On("WriteMetadata", mock.AnythingOfTypeArgument("string"), f).Return(buffer, nil)
+		mockVol.On("ReadMetadata", mock.AnythingOfTypeArgument("string"), f).Return(buffer, nil)
+	}
+	mockVol.On("ReadMetadata", mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("string")).Return(&mocks.NopCloser{}, errors.New("file not found"))
 	return mockVol
 }
 
@@ -433,48 +440,23 @@ func (st *snapshotTest) makeSnapshotDir(c *C, serviceID string) string {
 	return snapshotDir
 }
 
-func (st *snapshotTest) assertServicesJSON(c *C, services []service.Service, servicesFile string) {
-	data, e := ioutil.ReadFile(servicesFile)
-	if e != nil {
-		c.Fatalf("Failed to read services JSON file %s: %s", servicesFile, e)
-	}
-
-	svcsJSON, e2 := json.Marshal(services)
-	if e2 != nil {
-		c.Fatalf("Failed to marshall services into JSON: %s", e2)
-	}
-	c.Assert(strings.TrimSpace(string(data)), Equals, string(svcsJSON))
-}
-
-func (st *snapshotTest) assertSnapshotMetadata(c *C, description, metadataFile string) {
-	data, e := ioutil.ReadFile(metadataFile)
-	if e != nil {
-		c.Fatalf("Failed to read metadata file %s: %s", metadataFile, e)
-	}
-
-	metadata := SnapshotMetadata{Description: description}
-	metadataJSON, e2 := json.Marshal(metadata)
-	if e2 != nil {
-		c.Fatalf("Failed to marshall services into JSON: %s", e2)
-	}
-	c.Assert(strings.TrimSpace(string(data)), Equals, string(metadataJSON))
-}
-
 func (st *snapshotTest) setupListSnapshots(c *C, snapshotIDs, descriptions []string) {
 	st.setupSimpleGetService()
 
-	mockVol := &volumetest.MockVolume{}
+	mockVol := &volumetest.Volume{}
 	mockVol.On("Snapshots").Return(snapshotIDs, nil)
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
 
 	// Make separate test directories for each snapshot
 	for i, id := range snapshotIDs {
-		snapshotDir := st.makeSnapshotDir(c, id)
+		st.makeSnapshotDir(c, id)
 
-		mockVol.On("SnapshotMetadataPath", mock.AnythingOfTypeArgument("string")).Return(snapshotDir).Once()
 		if descriptions != nil {
-			st.writeDescription(c, snapshotDir, descriptions[i])
+			jsonbuffer := bytes.NewBufferString(fmt.Sprintf("{ \"description\": %q}\n", descriptions[i]))
+			mockVol.On("ReadMetadata", id, snapshotMeta).Return(ioutil.NopCloser(jsonbuffer), nil)
+		} else {
+			mockVol.On("ReadMetadata", id, snapshotMeta).Return(ioutil.NopCloser(bytes.NewBufferString("")), errors.New("file not found"))
 		}
 	}
 }
@@ -492,14 +474,5 @@ func (st *snapshotTest) assertListSnapshots(
 		if expectedDescriptions != nil {
 			c.Assert(snapshot.Description, Equals, expectedDescriptions[i])
 		}
-	}
-}
-
-// Write the description to the a metadata file in the snapshot directory.
-func (st *snapshotTest) writeDescription(c *C, snapshotDir string, description string) {
-	jsonString := fmt.Sprintf("{ \"description\": %q}\n", description)
-	jsonFile := filepath.Join(snapshotDir, snapshotMeta)
-	if err := ioutil.WriteFile(jsonFile, []byte(jsonString), 0600); err != nil {
-		c.Fatalf("Failed writing file %s: %s", jsonFile, err)
 	}
 }

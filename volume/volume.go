@@ -15,18 +15,22 @@ package volume
 
 import (
 	"errors"
+	"io"
+	"path"
+	"path/filepath"
 
 	"github.com/zenoss/glog"
 )
 
 // DriverInit represents a function that can initialize a driver.
-type DriverInit func(root string) (Driver, error)
+type DriverInit func(root string, args []string) (Driver, error)
 
 var (
 	drivers       map[string]DriverInit
 	driversByRoot map[string]Driver
 
 	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
+	ErrDriverNotInit        = errors.New("driver not initialized")
 	ErrDriverExists         = errors.New("driver exists")
 	ErrDriverNotSupported   = errors.New("driver not supported")
 	ErrSnapshotExists       = errors.New("snapshot exists")
@@ -34,6 +38,9 @@ var (
 	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
 	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
 	ErrVolumeExists         = errors.New("volume exists")
+	ErrPathIsDriver         = errors.New("path is initialized as a driver")
+	ErrPathIsNotAbs         = errors.New("path is not absolute")
+	ErrBadMount             = errors.New("bad mount path")
 )
 
 func init() {
@@ -82,9 +89,10 @@ type Volume interface {
 	// Snapshot snapshots the current state of this volume and stores it
 	// using the name <label>
 	Snapshot(label string) (err error)
-	// SnapshotMetadataPath returns the path to the directory storing this
-	// snapshot's metadata.
-	SnapshotMetadataPath(label string) string
+	// WriteMetadata returns a handle to write metadata to a snapshot
+	WriteMetadata(label, name string) (io.WriteCloser, error)
+	// ReadMetadata returns a handle to read metadata from a snapshot
+	ReadMetadata(label, name string) (io.ReadCloser, error)
 	// Snapshots lists all snapshots of this volume
 	Snapshots() ([]string, error)
 	// RemoveSnapshot removes the snapshot with name <label>
@@ -129,35 +137,102 @@ func Unregister(name string) {
 	}
 }
 
-// GetDriver returns a driver of type <name> initialized to <root>.
-func GetDriver(name, root string) (Driver, error) {
-	// First make sure it's a driver that exists
+// InitDriver sets up a driver <name> and initializes it to <root>.
+func InitDriver(name, root string, args []string) error {
+	// Make sure it is a driver that exists
 	if init, exists := drivers[name]; exists {
-		// Return the same driver instance every time for a root path
-		if driver, ok := driversByRoot[root]; ok {
-			return driver, nil
+		// Clean the path
+		root = filepath.Clean(root)
+		// If the driver already exists, return
+		if _, exists := driversByRoot[root]; exists {
+			return nil
 		}
-		// No instance yet, so create one
-		driver, err := init(root)
+		// Can only add absolute paths
+		if !path.IsAbs(root) {
+			return ErrPathIsNotAbs
+		}
+		// Create the driver instance
+		driver, err := init(root, args)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		driversByRoot[root] = driver
-		return driver, nil
+		return nil
 	}
-	return nil, ErrDriverNotSupported
+	return ErrDriverNotSupported
+}
+
+// GetDriver returns the driver from path <root>.
+func GetDriver(root string) (Driver, error) {
+	driver, ok := driversByRoot[filepath.Clean(root)]
+	if !ok {
+		return nil, ErrDriverNotInit
+	}
+	return driver, nil
+}
+
+// SplitPath splits a path by its driver and respective volume.  Returns
+// error if the driver is not initialized.
+func SplitPath(volumePath string) (string, string, error) {
+	// Validate the path
+	rootDir := filepath.Clean(volumePath)
+	if !filepath.IsAbs(rootDir) {
+		// must be absolute
+		return "", "", ErrPathIsNotAbs
+	}
+	if _, ok := driversByRoot[rootDir]; ok {
+		return volumePath, "", nil
+	}
+	for {
+		rootDir = filepath.Dir(rootDir)
+		if _, ok := driversByRoot[rootDir]; !ok {
+			// continue if the path is not '/'
+			if rootDir == "/" {
+				return "", "", ErrDriverNotInit
+			}
+		} else {
+			// get the name of the volume
+			if volumeName, err := filepath.Rel(rootDir, volumePath); err != nil {
+				glog.Errorf("Unexpected error while looking up relpath of %s from %s: %s", volumePath, rootDir, err)
+				return "", "", err
+			} else {
+				return rootDir, volumeName, nil
+			}
+		}
+	}
+}
+
+// FindMount mounts a path based on the relative location of the nearest driver.
+func FindMount(volumePath string) (Volume, error) {
+	rootDir, volumeName, err := SplitPath(volumePath)
+	if err != nil {
+		return nil, err
+	} else if rootDir == volumePath {
+		return nil, ErrPathIsDriver
+	}
+	return Mount(volumeName, rootDir)
 }
 
 // Mount loads, mounting if necessary, a volume under a path using a specific
-// driver.
-func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
-	glog.V(1).Infof("Mounting volume %s via %s under %s", volumeName, driverName, rootDir)
-	driver, err := GetDriver(driverName, rootDir)
+// driver path at <root>.
+func Mount(volumeName, rootDir string) (volume Volume, err error) {
+	// Make sure the volume can be created from root
+	if rDir, vName, err := SplitPath(filepath.Join(rootDir, volumeName)); err != nil {
+		return nil, err
+	} else if rDir != rootDir {
+		glog.Errorf("Cannot mount volume at %s; found root at %s", rootDir, rDir)
+		return nil, ErrBadMount
+	} else if vName == "" {
+		glog.Errorf("Volume '%s' at %s is a driver", volumeName, rootDir)
+		return nil, ErrPathIsDriver
+	}
+	glog.V(1).Infof("Mounting volume %s via %s", volumeName, rootDir)
+	driver, err := GetDriver(rootDir)
 	if err != nil {
-		glog.Errorf("Error retrieving %s driver: %s", driverName, err)
+		glog.Errorf("Could not get driver from root %s: %s", rootDir, err)
 		return nil, err
 	}
-	glog.V(2).Infof("Got %s driver for %s", driverName, rootDir)
+	glog.V(2).Infof("Got %s driver for %s", driver.GetFSType(), driver.Root())
 	if driver.Exists(volumeName) {
 		glog.V(2).Infof("Volume %s exists; remounting", volumeName)
 		volume, err = driver.Get(volumeName)

@@ -13,7 +13,11 @@
 
 package mocks
 
-import "github.com/control-center/serviced/volume"
+import (
+	"io"
+
+	"github.com/control-center/serviced/volume"
+)
 import "github.com/stretchr/testify/mock"
 
 type Volume struct {
@@ -48,12 +52,21 @@ func (m *Volume) Snapshot(label string) error {
 
 	return r0
 }
-func (m *Volume) SnapshotMetadataPath(label string) string {
-	ret := m.Called(label)
+func (m *Volume) WriteMetadata(label, name string) (io.WriteCloser, error) {
+	ret := m.Called(label, name)
 
-	r0 := ret.Get(0).(string)
+	r0 := ret.Get(0).(io.WriteCloser)
+	r1 := ret.Error(1)
 
-	return r0
+	return r0, r1
+}
+func (m *Volume) ReadMetadata(label, name string) (io.ReadCloser, error) {
+	ret := m.Called(label, name)
+
+	r0 := ret.Get(0).(io.ReadCloser)
+	r1 := ret.Error(1)
+
+	return r0, r1
 }
 func (m *Volume) Snapshots() ([]string, error) {
 	ret := m.Called()

@@ -67,7 +67,6 @@ func getDefaultOptions(config ConfigReader) api.Options {
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
-
 	return options
 }
 
