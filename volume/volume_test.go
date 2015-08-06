@@ -31,9 +31,11 @@ type DriverSuite struct {
 }
 
 var (
-	_       = Suite(&DriverSuite{})
-	drvName = "mock"
-	drvArgs = make([]string, 0)
+	_ = Suite(&DriverSuite{})
+
+	drvArgs                 = make([]string, 0)
+	drvName      DriverType = "mock"
+	unregistered DriverType = "unregistered"
 )
 
 func (s *DriverSuite) MockInit(rootDir string, _ []string) (Driver, error) {
@@ -48,6 +50,7 @@ func (s *DriverSuite) SetUpTest(c *C) {
 }
 
 func (s *DriverSuite) TearDownTest(c *C) {
+	s.drv.On("DriverType").Return(drvName)
 	Unregister(drvName)
 }
 
@@ -70,7 +73,7 @@ func (s *DriverSuite) TestRegistration(c *C) {
 }
 
 func (s *DriverSuite) TestUnsupported(c *C) {
-	err := InitDriver("unregistered", "/", drvArgs)
+	err := InitDriver(unregistered, "/", drvArgs)
 	c.Assert(err, Equals, ErrDriverNotSupported)
 	driver, err := GetDriver("/")
 	c.Assert(err, Equals, ErrDriverNotInit)
@@ -123,7 +126,7 @@ func (s *DriverSuite) TestMountWhenExists(c *C) {
 }
 
 func (s *DriverSuite) TestBadMount(c *C) {
-	err := InitDriver("unregistered", "/", drvArgs)
+	err := InitDriver(unregistered, "/", drvArgs)
 	c.Assert(err, Equals, ErrDriverNotSupported)
 	v, err := Mount("", "/")
 	c.Assert(err, Equals, ErrDriverNotInit)

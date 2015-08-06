@@ -31,11 +31,6 @@ import (
 	"time"
 )
 
-const (
-	// DriverName is the name of this btrfs driver implementation
-	DriverName = "btrfs"
-)
-
 var (
 	ErrBtrfsCommand           = errors.New("error running btrfs command")
 	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
@@ -62,7 +57,7 @@ type BtrfsVolume struct {
 }
 
 func init() {
-	volume.Register(DriverName, Init)
+	volume.Register(volume.DRIVER_BTRFS, Init)
 }
 
 // Btrfs driver initialization
@@ -87,9 +82,9 @@ func (d *BtrfsDriver) Root() string {
 	return d.root
 }
 
-// GetFSType implements volume.Driver.GetFSType
-func (d *BtrfsDriver) GetFSType() string {
-	return DriverName
+// DriverType implements volume.Driver.DriverType
+func (d *BtrfsDriver) DriverType() volume.DriverType {
+	return volume.DRIVER_BTRFS
 }
 
 // Exists implements volume.Driver.Exists
@@ -398,7 +393,7 @@ func (v *BtrfsVolume) Rollback(label string) error {
 // Export implements volume.Volume.Export
 func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	if label == "" {
-		glog.Errorf("%s: label cannot be empty", DriverName)
+		glog.Errorf("%s: label cannot be empty", volume.DRIVER_BTRFS)
 		return ErrBtrfsInvalidLabel
 	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err

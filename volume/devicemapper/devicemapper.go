@@ -15,13 +15,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const (
-	// DriverName is the name of this devicemapper driver implementation
-	DriverName = "devicemapper"
-)
-
 func init() {
-	volume.Register(DriverName, Init)
+	volume.Register(volume.DRIVER_DEVICEMAPPER, Init)
 }
 
 type DeviceMapperDriver struct {
@@ -54,9 +49,9 @@ func (d *DeviceMapperDriver) Root() string {
 	return d.root
 }
 
-// GetFSType implements volume.Driver.GetFSType
-func (d *DeviceMapperDriver) GetFSType() string {
-	return DriverName
+// DriverType implements volume.Driver.DriverType
+func (d *DeviceMapperDriver) DriverType() volume.DriverType {
+	return volume.DRIVER_DEVICEMAPPER
 }
 
 func getTenant(from string) string {

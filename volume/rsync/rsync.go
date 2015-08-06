@@ -30,11 +30,6 @@ import (
 	"time"
 )
 
-const (
-	// DriverName is the name of this rsync volume driver implementation
-	DriverName = "rsync"
-)
-
 var (
 	ErrDeletingVolume = errors.New("could not delete volume")
 	ErrRsyncNotImplemented = errors.New("function not implemented for rsync")
@@ -57,7 +52,7 @@ type RsyncVolume struct {
 }
 
 func init() {
-	volume.Register(DriverName, Init)
+	volume.Register(volume.DRIVER_RSYNC, Init)
 }
 
 // Rsync driver intialization
@@ -73,9 +68,9 @@ func (d *RsyncDriver) Root() string {
 	return d.root
 }
 
-// GetFSType implements volume.Driver.GetFSType
-func (d *RsyncDriver) GetFSType() string {
-	return DriverName
+// DriverType implements volume.Driver.DriverType
+func (d *RsyncDriver) DriverType() volume.DriverType {
+	return volume.DRIVER_RSYNC
 }
 
 // Create implements volume.Driver.Create
