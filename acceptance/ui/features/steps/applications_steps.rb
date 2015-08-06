@@ -23,7 +23,7 @@ end
 
 Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is added$/) do |app, id|
     visitApplicationsPage()
-    exists = checkServiceRows(app) && checkColumn(id, "Deployment ID")
+    exists = checkServiceRows(app) && isInColumn(id, "Deployment ID")
     addService(app, "default", id) if !exists
     refreshPage()
 end

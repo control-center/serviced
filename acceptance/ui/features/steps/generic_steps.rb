@@ -63,11 +63,11 @@ end
 
 Then (/^I should see( the sum of)? "(.*?)" in the "([^"]*)" column$/) do |sum, text, column|
     text = getSum(text) if sum
-    expect(checkColumn(text, column)).to be true
+    expect(isInColumn(text, column)).to be true
 end
 
 Then (/^I should not see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    expect(checkColumn(text, column)).to be false
+    expect(isNotInColumn(text, column)).to be true
 end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
@@ -110,7 +110,7 @@ end
 
 def viewDetails(name)
     name = getTableValue(name)
-    find("[ng-click]", :text => /\A#{name}\z/).click()
+    page.find("[ng-click]", :text => name).click()
     waitForPageLoad()
 end
 
@@ -175,18 +175,26 @@ end
 
 def isNotInRows(row)
     waitForPageLoad()
-    found = false
+    notFound = false
     name = getTableValue(row)
-    found = page.has_no_css?("tr[ng-repeat$='in $data']", :text => name)
-    return found
+    notFound = page.has_no_css?("tr[ng-repeat$='in $data']", :text => name)
+    return notFound
 end
 
-def checkColumn(text, column)
+def isInColumn(text, column)
     # attribute that includes name of column of all table cells
     hasEntry = false
     cell = getTableValue(text).to_s
     hasEntry = true if page.has_css?("td[data-title-text='#{column}']", :text => cell)
     return hasEntry
+end
+
+def isNotInColumn(text, column)
+    # attribute that includes name of column of all table cells
+    hasNoEntry = false
+    cell = getTableValue(text).to_s
+    hasNoEntry = true if page.has_no_css?("td[data-title-text='#{column}']", :text => cell)
+    return hasNoEntry
 end
 
 def checkDetails(detail, header)
