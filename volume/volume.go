@@ -16,6 +16,8 @@ package volume
 import (
 	"errors"
 	"io"
+	"path"
+	"path/filepath"
 
 	"github.com/zenoss/glog"
 )
@@ -37,6 +39,9 @@ var (
 	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
 	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
 	ErrVolumeExists         = errors.New("volume exists")
+	ErrPathIsDriver         = errors.New("path is initialized as a driver")
+	ErrPathIsNotAbs         = errors.New("path is not absolute")
+	ErrBadMount             = errors.New("bad mount path")
 )
 
 func init() {
@@ -140,9 +145,15 @@ func Unregister(name string) {
 func InitDriver(name, root string, args []string, options map[string]string) error {
 	// Make sure it is a driver that exists
 	if init, exists := drivers[name]; exists {
+		// Clean the path
+		root = filepath.Clean(root)
 		// If the driver already exists, return
 		if _, exists := driversByRoot[root]; exists {
 			return nil
+		}
+		// Can only add absolute paths
+		if !path.IsAbs(root) {
+			return ErrPathIsNotAbs
 		}
 		// Create the driver instance
 		driver, err := init(root, args, options)
@@ -165,23 +176,78 @@ func GetDriverOptions(name string) ([]string, error) {
 
 // GetDriver returns the driver from path <root>.
 func GetDriver(root string) (Driver, error) {
-	driver, ok := driversByRoot[root]
+	driver, ok := driversByRoot[filepath.Clean(root)]
 	if !ok {
 		return nil, ErrDriverNotInit
 	}
 	return driver, nil
 }
 
+// SplitPath splits a path by its driver and respective volume.  Returns
+// error if the driver is not initialized.
+func SplitPath(volumePath string) (string, string, error) {
+	// Validate the path
+	rootDir := filepath.Clean(volumePath)
+	if !filepath.IsAbs(rootDir) {
+		// must be absolute
+		return "", "", ErrPathIsNotAbs
+	}
+	if _, ok := driversByRoot[rootDir]; ok {
+		return volumePath, "", nil
+	}
+	for {
+		rootDir = filepath.Dir(rootDir)
+		if _, ok := driversByRoot[rootDir]; !ok {
+			// continue if the path is not '/'
+			if rootDir == "/" {
+				return "", "", ErrDriverNotInit
+			}
+		} else {
+			// get the name of the volume
+			if volumeName, err := filepath.Rel(rootDir, volumePath); err != nil {
+				glog.Errorf("Unexpected error while looking up relpath of %s from %s: %s", volumePath, rootDir, err)
+				return "", "", err
+			} else {
+				return rootDir, volumeName, nil
+			}
+		}
+	}
+}
+
+// FindMount mounts a path based on the relative location of the nearest driver.
+func FindMount(volumePath string) (Volume, error) {
+	rootDir, volumeName, err := SplitPath(volumePath)
+	if err != nil {
+		return nil, err
+	} else if rootDir == volumePath {
+		return nil, ErrPathIsDriver
+	}
+	return Mount(volumeName, rootDir)
+}
+
 // Mount loads, mounting if necessary, a volume under a path using a specific
-// driver.
+// driver path at <root>.
 func Mount(volumeName, rootDir string) (volume Volume, err error) {
-	glog.V(1).Infof("Mounting volume %s under %s", volumeName, rootDir)
+	// Make sure the volume can be created from root
+	if rDir, _, err := SplitPath(filepath.Join(rootDir, volumeName)); err != nil {
+		return nil, err
+	} else if rDir != rootDir {
+		glog.Errorf("Cannot mount volume at %s; found root at %s", rootDir, rDir)
+		return nil, ErrBadMount
+	}
+	glog.V(1).Infof("Mounting volume %s via %s", volumeName, rootDir)
+	// make sure the volume isn't already initialized as a driver
+	if driver, _ := GetDriver(filepath.Join(rootDir, volumeName)); driver != nil {
+		glog.Errorf("Volume %s at %s is a driver", volumeName, rootDir)
+		return nil, ErrPathIsDriver
+	}
+	// look up the driver from the root path
 	driver, err := GetDriver(rootDir)
 	if err != nil {
-		glog.Errorf("Error retrieving driver for %s: %s", volumeName, err)
+		glog.Errorf("Could not get driver from root %s: %s", rootDir, err)
 		return nil, err
 	}
-	glog.V(2).Infof("Got %s driver for %s", driver.GetFSType(), rootDir)
+	glog.V(2).Infof("Got %s driver for %s", driver.GetFSType(), driver.Root())
 	if driver.Exists(volumeName) {
 		glog.V(2).Infof("Volume %s exists; remounting", volumeName)
 		volume, err = driver.Get(volumeName)
