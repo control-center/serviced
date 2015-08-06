@@ -202,6 +202,7 @@ def checkDetails(detail, header)
     detail = getTableValue(detail)
     within(page.find("div[class='vertical-info']", :text => header)) do
         found = true if page.has_text?(detail)
+        expect(page).to have_content(detail)
     end
     return found
 end
