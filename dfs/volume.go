@@ -32,19 +32,20 @@ func GetSubvolume(fsType, varpath, serviceID string) (volume.Volume, error) {
 	if err != nil {
 		return nil, err
 	}
-	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, baseDir)
+	glog.V(2).Infof("Mounting tenantID: %v; baseDir: %v", serviceID, baseDir)
 	return volume.Mount(fsType, serviceID, baseDir)
 }
 
 func serviceVolumeGet(fsType, varpath, serviceID string) (volume.Volume, error) {
-	v, err := GetSubvolume(fsType, varpath, serviceID)
+	w, err := GetSubvolume(fsType, varpath, serviceID)
 	if err != nil {
 		glog.Errorf("Could not acquire subvolume for service %s: %s", serviceID, err)
 		return nil, err
-	} else if v == nil {
+	} else if w == nil {
 		err := errors.New("volume is nil")
 		glog.Errorf("Could not get volume for service %s: %s", serviceID, err)
 		return nil, err
 	}
-	return v, nil
+	return w, nil
 }
+

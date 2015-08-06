@@ -22,6 +22,32 @@ import (
 // DriverInit represents a function that can initialize a driver.
 type DriverInit func(root string) (Driver, error)
 
+type ResizeRequest struct {
+	VolumeName string
+	Size       uint64
+}
+
+type Status struct {            // see Docker - look at their status struct and borrow heavily.
+	Driver                 string
+	DataSpaceAvailable     uint64
+	DataSpaceUsed          uint64
+	DataSpaceTotal         uint64
+	MetadataSpaceAvailable uint64
+	MetadataSpaceUsed      uint64
+	MetadataSpaceTotal     uint64
+	PoolName               string
+	DataFile               string
+	DataLoopback           string
+	MetadataFile           string
+	MetadataLoopback       string
+	SectorSize             uint64
+	UdevSyncSupported      bool
+}
+
+type Statuses struct {
+	StatusMap  map[string]Status
+}
+
 var (
 	drivers       map[string]DriverInit
 	driversByRoot map[string]Driver
@@ -34,6 +60,7 @@ var (
 	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
 	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
 	ErrVolumeExists         = errors.New("volume exists")
+	ErrDriverNotFound       = errors.New("driver not found")
 )
 
 func init() {
@@ -67,6 +94,10 @@ type Driver interface {
 	Exists(volumeName string) bool
 	// Cleanup releases any runtime resources held by the driver itself.
 	Cleanup() error
+	// Status gets the status of the volume
+	Status() (*Status, error)
+	// Resize resizes the volume
+	Resize(request ResizeRequest) error
 }
 
 // Volume maps, in the end, to a directory on the filesystem available to the
@@ -102,6 +133,7 @@ type Volume interface {
 
 // Register registers a driver initializer under <name> so it can be looked up
 func Register(name string, driverInit DriverInit) error {
+	//fmt.Printf("volume.Register(%s, %+v)\n", name, driverInit)
 	if driverInit == nil {
 		return ErrInvalidDriverInit
 	}
@@ -131,6 +163,7 @@ func Unregister(name string) {
 
 // GetDriver returns a driver of type <name> initialized to <root>.
 func GetDriver(name, root string) (Driver, error) {
+	glog.V(2).Infof("volume.GetDriver(%s, %s)", name, root)    // TODO: remove or add V level
 	// First make sure it's a driver that exists
 	if init, exists := drivers[name]; exists {
 		// Return the same driver instance every time for a root path
@@ -151,6 +184,7 @@ func GetDriver(name, root string) (Driver, error) {
 // Mount loads, mounting if necessary, a volume under a path using a specific
 // driver.
 func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
+	glog.V(2).Infof("volume.Mount(%s, %s)", volumeName, rootDir)   // TODO: remove or add V level
 	glog.V(1).Infof("Mounting volume %s via %s under %s", volumeName, driverName, rootDir)
 	driver, err := GetDriver(driverName, rootDir)
 	if err != nil {
@@ -176,7 +210,7 @@ func Mount(driverName, volumeName, rootDir string) (volume Volume, err error) {
 func ShutdownAll() error {
 	errs := []error{}
 	for _, driver := range driversByRoot {
-		glog.Infof("Shutting down %s driver for %s", driver.GetFSType(), driver.Root())
+		glog.V(2).Infof("Shutting down %s driver for %s", driver.GetFSType(), driver.Root())
 		if err := driver.Cleanup(); err != nil {
 			glog.Errorf("Unable to clean up %s driver for %s: %s", driver.GetFSType(), driver.Root(), err)
 			errs = append(errs, err)
@@ -185,5 +219,67 @@ func ShutdownAll() error {
 	if len(errs) > 0 {
 		return ErrBadDriverShutdown
 	}
+	return nil
+}
+
+func GetStatus(volumeNames []string) *Statuses {
+	glog.V(2).Infof("volume.GetStatus(%v)", volumeNames)     // TODO: remove or add V level
+	result := &Statuses{}
+	result.StatusMap = make(map[string]Status)
+	driverMap := getDrivers(volumeNames)
+	for path, driver := range *driverMap {
+		status, err := driver.Status()
+		if err != nil {
+			glog.Warningf("Error getting driver status for path %s: %v", path, err)
+		}
+		result.StatusMap[path] = *status
+	}
+	return result
+}
+
+func Resize(request ResizeRequest) error {
+	driver := lookupDriver(request.VolumeName)
+	if driver != nil {
+		driver.Resize(request)
+	}
+	glog.V(2).Infof("volume.Resize(%+v)", request)
+	return ErrDriverNotFound
+}
+
+func getDrivers(volumeNames [] string) *map[string]Driver {
+	result := make(map[string]Driver)
+	for root, driver := range driversByRoot {
+		if len(volumeNames) == 0 {
+			result[root] = driver
+		} else {
+			for _, volumeName := range volumeNames {
+				if driverMatches(driver, volumeName) {
+					result[volumeName] = driver
+				}
+			}
+		}
+	}
+	return &result
+}
+
+func driverMatches(driver Driver, volumeName string) bool {
+	_, err := driver.Get(volumeName)
+	if err != nil {
+		glog.Warningf("get(%s) failed with error: %v", volumeName, err)     // TODO: remove or add V level
+		return false
+	}
+	return true
+
+}
+
+func lookupDriver(volumeName string) Driver {
+	glog.V(2).Infof("volume.lookupDriver(%s)", volumeName)              // TODO: remove or add V level
+	for _, driver := range driversByRoot {
+		if driverMatches(driver, volumeName) {
+			return driver
+		}
+		return driver
+	}
+	glog.Warningf("volume.lookupDriver(%s): no driver found. Returning nil.", volumeName)     // TODO: remove or add V level
 	return nil
 }

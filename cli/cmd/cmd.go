@@ -123,6 +123,7 @@ func New(driver api.API, config ConfigReader) *ServicedCli {
 	c.initDocker()
 	c.initScript()
 	c.initServer()
+	c.initVolume()
 
 	return c
 }

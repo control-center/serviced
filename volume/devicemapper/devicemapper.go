@@ -225,6 +225,39 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 	return nil
 }
 
+func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
+	glog.Info("devicemapper.Status()")
+	dockerStatus := d.DeviceSet.Status()
+	// convert dockerStatus to our status and return
+	result := &volume.Status{
+		Driver:                 DriverName,
+		DataSpaceAvailable:     dockerStatus.Data.Available,
+		DataSpaceUsed:          dockerStatus.Data.Used,
+		DataSpaceTotal:         dockerStatus.Data.Total,
+		MetadataSpaceAvailable: dockerStatus.Metadata.Available,
+		MetadataSpaceUsed:      dockerStatus.Metadata.Used,
+		MetadataSpaceTotal:     dockerStatus.Metadata.Total,
+		PoolName:               dockerStatus.PoolName,
+		DataFile:               dockerStatus.DataFile,
+		DataLoopback:           dockerStatus.DataLoopback,
+		MetadataFile:           dockerStatus.MetadataFile,
+		MetadataLoopback:       dockerStatus.MetadataLoopback,
+		SectorSize:             dockerStatus.SectorSize,
+		UdevSyncSupported:      dockerStatus.UdevSyncSupported,
+	}
+	return result, nil
+}
+
+// Resize implements volume.Volume.Resize
+func (d *DeviceMapperDriver) Resize(request volume.ResizeRequest) error {
+	glog.Info("devicemapper.Resize()")
+	if err := d.DeviceSet.ResizePool(int64(request.Size)); err != nil {
+		glog.Errorf("Error resizing pool: %v", err)
+		return err
+	}
+	return nil
+}
+
 // Name implements volume.Volume.Name
 func (v *DeviceMapperVolume) Name() string {
 	return v.name
@@ -446,3 +479,4 @@ func (v *DeviceMapperVolume) snapshotExists(label string) bool {
 	label = v.rawSnapshotLabel(label)
 	return v.Metadata.SnapshotExists(label)
 }
+
