@@ -15,12 +15,12 @@ package cmd
 
 import (
 	"github.com/codegangsta/cli"
-	"strings"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 	"fmt"
-	"strconv"
 	"github.com/pivotal-golang/bytefmt"
+	"encoding/json"
+	"os"
 )
 
 // Initializer for serviced pool subcommands
@@ -34,91 +34,35 @@ func (c *ServicedCli) initVolume() {
 				Name:         "status",
 				Usage:        "Provides volume status for specified tenants",
 				Description:  "serviced volume status [TENANT [TENANT ...]]",
-				BashComplete: c.printVolumesAll,
 				Action:       c.cmdVolumeStatus,
+				Flags:  []cli.Flag{
+					cli.BoolFlag{"verbose, v", "Show JSON format"},
+				},
 			},
-			/* {
-				Name:  "resize",
-				Usage: "Resizes a volume",
-				Description:  "serviced volume resize TENANT SIZE",
-				BashComplete: c.printVolumesFirst,
-				Action:       c.cmdVolumeResize,
-			},  */
 		},
 	})
 }
 
-// Bash-completion command that prints a list of available services as the
-// first argument
-func (c *ServicedCli) printVolumesFirst(ctx *cli.Context) {
-	if len(ctx.Args()) > 0 {
-		return
-	}
-	glog.V(2).Infof("%s", strings.Join(c.volumes(), "\n"))   // TODO: remove or add V level
-}
-
-// Bash-completion command that prints a list of available services as all
-// arguments
-func (c *ServicedCli) printVolumesAll(ctx *cli.Context) {
-	glog.V(2).Infof("volume.go: printVolumesAll(%+v).\n", ctx) // TODO: remove or add V level
-	args := ctx.Args()
-	svcs := c.volumes()
-
-	// If arg is a service don't add to the list
-	for _, s := range svcs {
-
-		for _, a := range args {
-			if s == a {
-				goto next
-			}
-		}
-		glog.V(2).Infof("%s",s)   // TODO: remove or add V level
-		next:
-	}
-}
-
-// Returns a list of all the available service IDs
-func (c *ServicedCli) volumes() (data []string) {
-	data = []string {"test1", "test2", "test3"}
-	return
-}
 // serviced volume status
 func (c *ServicedCli) cmdVolumeStatus(ctx *cli.Context) {
-	glog.V(2).Info("cmd.cmdVolumeStatus()")    // TODO: remove or add V level
+	glog.V(2).Info("cmd.cmdVolumeStatus()")
 	args := ctx.Args()
-	glog.V(2).Infof("\tctx.Args() = %+v\n", args) // TODO: remove or add V level
+	glog.V(2).Infof("\tctx.Args() = %+v\n", args)
 
-	//response := &volume.Statuses{}
 	response, err := c.driver.GetVolumeStatus(args)
-	//states, err := c.driver.GetVolumeStatus(args[0])
 	if err != nil {
-		glog.Errorf("error getting volume status: %v", err)     // TODO: remove or add V level
+		glog.Errorf("error getting volume status: %v", err)
 		return
 	}
-	printStatuses(response)
-	return
-}
-
-// serviced volume resize
-func (c *ServicedCli) cmdVolumeResize(ctx *cli.Context) {
-	glog.V(2).Infof("cmdVolumeResize()")      // TODO: remove or add V level
-	args := ctx.Args()
-	glog.V(2).Infof("\tctx.Args() = %+v\n", args) // TODO: remove or add V level
-	volumeName := args[0]
-	newSize, err := strconv.ParseUint(args[1], 10, 64)
-	if err != nil {
-		glog.Errorf("Error parsing argument %s as size: %v", args[1], err)
-		return
+	if ctx.Bool("verbose") {
+		if jsonStatuses, err := json.MarshalIndent(response, " ", "  "); err != nil {
+			fmt.Fprintf(os.Stderr, "failed to marshal volume status list: %s", err)
+		} else {
+			fmt.Println(string(jsonStatuses))
+		}
+	} else {
+		printStatuses(response)
 	}
-
-	response, err := c.driver.ResizeVolume(volumeName, newSize)
-	if err != nil {
-		glog.Errorf("Error resizing volume: %v", err)     // TODO: remove or add V level
-		return
-	}
-
-	fmt.Printf("New status for volume %s", volumeName)
-	printStatus(response)
 	return
 }
 

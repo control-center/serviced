@@ -18,9 +18,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
-//func (a *api) GetVolumeStatus(volumeName string) (map[string]map[string]interface{}, error) {
 func (a *api) GetVolumeStatus(volumeNames []string ) (*volume.Statuses, error) {
-	glog.V(2).Infof("api.GetVolumeStatus(%v)\n", volumeNames)   // TODO: remove or add V level
+	glog.V(2).Infof("api.GetVolumeStatus(%v)\n", volumeNames)
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
@@ -30,21 +29,6 @@ func (a *api) GetVolumeStatus(volumeNames []string ) (*volume.Statuses, error) {
 		glog.Errorf("Error from client.GetVolumeStatus(%v): %v", volumeNames, err)
 		return nil, err
 	}
-	glog.V(2).Infof("api.GetVolumeStatus(): response from client.GetVolumeStatus(): %+v", response)   // TODO: remove or add V level
+	glog.V(2).Infof("api.GetVolumeStatus(): response from client.GetVolumeStatus(): %+v", response)
 	return response, nil
-}
-
-func (a *api) ResizeVolume(tenantid string, size uint64) (*volume.Status, error) {
-	glog.V(2).Infof("api.ResizeVolume(%s)", tenantid)
-	client, err := a.connectMaster()
-	if err != nil {
-		glog.Errorf("Error connecting to Master: %v", err)    // TODO: remove or add V level
-		return nil, err
-	}
-	//var vol volume.Volume
-	status, err := client.ResizeVolume(tenantid, size)
-	if (err != nil) {
-		glog.Errorf("Error resizing volume: %v", err)  // TODO: remove or add V level
-	}
-	return status, err
 }

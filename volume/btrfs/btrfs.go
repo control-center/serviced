@@ -141,17 +141,11 @@ func (d *BtrfsDriver) Remove(volumeName string) error {
 }
 
 func (d *BtrfsDriver) Status() (*volume.Status, error) {
-	glog.Info("btrfs.Status()")
+	glog.V(2).Info("btrfs.Status()")
 	response := &volume.Status{
 		Driver: DriverName,
 	}
 	return response, nil
-}
-
-// Resize implements volume.Volume.Resize
-func (d *BtrfsDriver) Resize(request volume.ResizeRequest) error {
-	glog.Info("btrfs.Resize()")
-	return ErrBtrfsNotImplemented
 }
 
 func getTenant(from string) string {

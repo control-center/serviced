@@ -116,5 +116,4 @@ type API interface {
 
 	// Volumes
 	GetVolumeStatus(volumeNames []string) (*volume.Statuses, error)
-	ResizeVolume(volumeName string, size uint64) (*volume.Status, error)
 }

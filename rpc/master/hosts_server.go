@@ -81,25 +81,12 @@ func (s *Server) FindHostsInPool(poolID string, hostReply *[]host.Host) error {
 
 // GetVolumeStatus gets the volume status
 func (s *Server) GetVolumeStatus(volumeNames []string, reply *volume.Statuses) error {
-	glog.V(2).Infof("[hosts_server.go]master.GetVolumeStatus(%v, %v)\n", volumeNames, reply)     // TODO: remove or add V level
+	glog.V(2).Infof("[hosts_server.go]master.GetVolumeStatus(%v, %v)\n", volumeNames, reply)
 	response := volume.GetStatus(volumeNames)
 	if response == nil {
-		glog.V(2).Infof("\tCall to volume.getStatus failed: (%v). Returning error.", response)   // TODO: remove or add V level
+		glog.V(2).Infof("\tCall to volume.getStatus failed: (%v). Returning error.", response)
 		return errors.New("hosts_server.go host not found")
 	}
 	*reply = *response
-	return nil
-}
-
-//ResizeVolume resizes the given volume to the requested size
-func (c *Server) ResizeVolume(request volume.ResizeRequest, reply *volume.Statuses) error {
-	glog.V(2).Infof("[hosts_client.go]master.ResizeVolume(%+v)", request)  // TODO: remove or add V level
-	err := volume.Resize(request)
-	if err == nil {
-		glog.V(2).Infof("\tCall to volume.getStatus failed: (%v). Returning error.", err)   // TODO: remove or add V level
-		return err
-	}
-	volumeNames := []string{request.VolumeName}
-	c.GetVolumeStatus(volumeNames, reply)
 	return nil
 }

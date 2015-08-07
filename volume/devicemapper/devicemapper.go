@@ -229,7 +229,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 }
 
 func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
-	glog.Info("devicemapper.Status()")
+	glog.V(2).Info("devicemapper.Status()")
 	dockerStatus := d.DeviceSet.Status()
 	// convert dockerStatus to our status and return
 	result := &volume.Status{
@@ -249,16 +249,6 @@ func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
 		UdevSyncSupported:      dockerStatus.UdevSyncSupported,
 	}
 	return result, nil
-}
-
-// Resize implements volume.Volume.Resize
-func (d *DeviceMapperDriver) Resize(request volume.ResizeRequest) error {
-	glog.Info("devicemapper.Resize()")
-	if err := d.DeviceSet.ResizePool(int64(request.Size)); err != nil {
-		glog.Errorf("Error resizing pool: %v", err)
-		return err
-	}
-	return nil
 }
 
 // Name implements volume.Volume.Name

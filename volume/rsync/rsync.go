@@ -120,17 +120,11 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 }
 
 func (d *RsyncDriver) Status() (*volume.Status, error) {
-	glog.Info("rsync.Status()")      // TODO: remove or add V level
+	glog.V(2).Info("rsync.Status()")
 	response := &volume.Status{
 		Driver: DriverName,
 	}
 	return response, nil
-}
-
-// Resize implements volume.Volume.Resize
-func (d *RsyncDriver) Resize(request volume.ResizeRequest) error {
-	glog.Info("rsync.Resize()")
-	return ErrRsyncNotImplemented
 }
 
 func getTenant(from string) string {

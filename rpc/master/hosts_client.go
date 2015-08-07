@@ -72,25 +72,10 @@ func (c *Client) FindHostsInPool(poolID string) ([]host.Host, error) {
 
 //GetVolumeStatus gets status information for the given volume or nil
 func (c *Client) GetVolumeStatus(volumeNames []string) (*volume.Statuses, error) {
-	glog.V(2).Infof("[hosts_client.go]master.GetVolumeStatus(%v)", volumeNames)  // TODO: remove or add V level
+	glog.V(2).Infof("[hosts_client.go]master.GetVolumeStatus(%v)", volumeNames)
 	response := &volume.Statuses{}
 	if err := c.call("GetVolumeStatus", volumeNames, response); err != nil {
-		glog.V(2).Infof("\tcall to GetVolumeStatus returned error: %v", err) // TODO: remove or add V level
-		return nil, err
-	}
-	return response, nil
-}
-
-//ResizeVolume resizes the given volume to the requested size
-func (c *Client) ResizeVolume(volumeName string, size uint64) (*volume.Status, error) {
-	glog.V(2).Infof("[hosts_client.go]master.ResizeVolume(%s, %d)", volumeName, size)  // TODO: remove or add V level
-	response := &volume.Status{}
-	resizeRequest := volume.ResizeRequest{
-		VolumeName:  volumeName,
-		Size:        size,
-	}
-	if err := c.call("ResizeVolume", resizeRequest, response); err != nil {
-		glog.V(2).Infof("\tcall to ResizeVolume returned error: %v", err) // TODO: remove or add V level
+		glog.V(2).Infof("\tcall to GetVolumeStatus returned error: %v", err)
 		return nil, err
 	}
 	return response, nil
