@@ -10,8 +10,8 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
   - [Overview](#overview)
   - [How to run](#how-to-run)
     - [Step 1 - Start Control Center](#step-1---start-control-center)
-    - [Step 2 - Build the docker image](#step-2---build-the-docker-image)
-    - [Step 3 - Run the mock agents](#step-3---run-the-mock-agents)
+    - [Step 2 - Build the docker image (optional)](#step-2---build-the-docker-image)
+    - [Step 3 - Setup the test environment](#step-3---setup-the-test-environment)
     - [Step 4 - Run the test suite](#step-4---run-the-test-suite)
     - [Step 5 - Review the test results](#step-5---review-the-test-results)
     - [Cucumber Command Line Options](#cucumber-command-line-options)
@@ -73,9 +73,10 @@ $ make dockerPush
 If you modify the contents of the image, you should update the version number in that file before
 building/pushing a new image.
 
-### Step 3 - Run the mock agents
+### Step 3 - Setup the test environment
 
-The test suite uses mock agents for tests involving hosts. To build the mock agent, use the following commands:
+#### Start the mock agents
+The test suite uses mock agents for tests involving hosts. The mock agents do not (currently) connect to Zookeeper, nor do they have the ability to mock service executions. Their primary purpose is to provide light-weight mocks for the set of properties for each host (CPU, RAM, Kernel Version, CC version, etc). To build the mock agent, use the following commands:
 
 ```
 $ zendev cd serviced
@@ -92,6 +93,16 @@ $ ./startMockAgents.sh
 This step is not necessary if you do not run tests involving hosts.
 
 **NOTE:** If you stop and restart the start mock agents script while serviced is running, you may see a "Bad Request: connection is shut down" error when you try to add a mock agent. Restarting serviced will fix this.
+
+#### Add the test template
+The Application tests assume that a test template has already been added to the system. To comple and add the test template, use the following commands:
+
+```
+$ zendev cd serviced
+$ serviced template compile dao/testsvc | serviced template add
+```
+
+In the future, this step may be incorporated directly into the Cucumber tests for Applications.
 
 ### Step 4 - Run the test suite
 
