@@ -71,12 +71,12 @@ var _ = Suite(&snapshotTest{})
 
 func (st *snapshotTest) SetUpTest(c *C) {
 	st.tmpDir = c.MkDir()
-	err := volume.InitDriver(volume.DRIVER_RSYNC, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
+	err := volume.InitDriver(volume.DriverRsync, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
 	c.Assert(err, IsNil)
 	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem{
-		fsType:           volume.DRIVER_RSYNC,
+		fsType:           volume.DriverRsync,
 		varpath:          st.tmpDir,
 		dockerHost:       "localhost",
 		dockerPort:       5000,

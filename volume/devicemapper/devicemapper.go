@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	volume.Register(volume.DRIVER_DEVICEMAPPER, Init)
+	volume.Register(volume.DriverDeviceMapper, Init)
 }
 
 type DeviceMapperDriver struct {
@@ -51,7 +51,7 @@ func (d *DeviceMapperDriver) Root() string {
 
 // DriverType implements volume.Driver.DriverType
 func (d *DeviceMapperDriver) DriverType() volume.DriverType {
-	return volume.DRIVER_DEVICEMAPPER
+	return volume.DriverDeviceMapper
 }
 
 func getTenant(from string) string {

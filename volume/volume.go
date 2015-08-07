@@ -60,9 +60,9 @@ type Statuses struct {
 type DriverType string
 
 const (
-	DRIVER_BTRFS        DriverType = "btrfs"
-	DRIVER_RSYNC                   = "rsync"
-	DRIVER_DEVICEMAPPER            = "devicemapper"
+	DriverBtrFS        DriverType = "btrfs"
+	DriverRsync                   = "rsync"
+	DriverDeviceMapper            = "devicemapper"
 )
 
 var (
@@ -275,7 +275,7 @@ func DetectDriverType(root string) (DriverType, error) {
 	}
 	// Check for .devicemapper directory, which unequivocally indicates a devicemapper driver
 	if _, err := os.Stat(filepath.Join(root, ".devicemapper")); os.IsExist(err) {
-		return DRIVER_DEVICEMAPPER, nil
+		return DriverDeviceMapper, nil
 	}
 	// Check if there are any volumes
 	fis, err := ioutil.ReadDir(root)
@@ -319,10 +319,10 @@ func DetectDriverType(root string) (DriverType, error) {
 		}
 		if err := exec.Command(args[0], args[1:]...).Run(); err == nil {
 			// It's btrfs
-			return DRIVER_BTRFS, nil
+			return DriverBtrFS, nil
 		}
 	}
-	return DRIVER_RSYNC, nil
+	return DriverRsync, nil
 }
 
 // Mount loads, mounting if necessary, a volume under a path using a specific
