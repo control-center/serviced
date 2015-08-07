@@ -16,9 +16,14 @@ package volume
 import (
 	"errors"
 	"io"
+	"io/ioutil"
+	"os"
+	"os/exec"
+	"os/user"
 	"path"
 	"path/filepath"
 
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/zenoss/glog"
 )
 
@@ -64,17 +69,20 @@ var (
 	drivers       map[DriverType]DriverInit
 	driversByRoot map[string]Driver
 
-	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
-	ErrDriverNotInit        = errors.New("driver not initialized")
-	ErrDriverExists         = errors.New("driver exists")
-	ErrDriverNotSupported   = errors.New("driver not supported")
-	ErrSnapshotExists       = errors.New("snapshot exists")
-	ErrSnapshotDoesNotExist = errors.New("snapshot does not exist")
-	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
-	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
-	ErrPathIsDriver         = errors.New("path is initialized as a driver")
-	ErrPathIsNotAbs         = errors.New("path is not absolute")
-	ErrBadMount             = errors.New("bad mount path")
+	ErrInvalidDriverInit       = errors.New("invalid driver initializer")
+	ErrDriverNotInit           = errors.New("driver not initialized")
+	ErrDriverAlreadyInit       = errors.New("different driver already initialized")
+	ErrDriverExists            = errors.New("driver exists")
+	ErrDriverNotSupported      = errors.New("driver not supported")
+	ErrSnapshotExists          = errors.New("snapshot exists")
+	ErrSnapshotDoesNotExist    = errors.New("snapshot does not exist")
+	ErrRemovingSnapshot        = errors.New("could not remove snapshot")
+	ErrBadDriverShutdown       = errors.New("unable to shutdown driver")
+	ErrVolumeExists            = errors.New("volume exists")
+	ErrPathIsDriver            = errors.New("path is initialized as a driver")
+	ErrPathIsNotAbs            = errors.New("path is not absolute")
+	ErrBadMount                = errors.New("bad mount path")
+	ErrInsufficientPermissions = errors.New("insufficient permissions to run command")
 )
 
 func init() {
@@ -187,6 +195,13 @@ func InitDriver(name DriverType, root string, args []string) error {
 		if !path.IsAbs(root) {
 			return ErrPathIsNotAbs
 		}
+		// Check for an existing driver initialization that doesn't match
+		if t, err := DetectDriverType(root); err != nil && err != ErrDriverNotInit {
+			return err
+		} else if t != name {
+			glog.Fatalf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
+			return ErrDriverAlreadyInit
+		}
 		// Create the driver instance
 		driver, err := init(root, args)
 		if err != nil {
@@ -247,6 +262,65 @@ func FindMount(volumePath string) (Volume, error) {
 		return nil, ErrPathIsDriver
 	}
 	return Mount(volumeName, rootDir)
+}
+
+func DetectDriverType(root string) (DriverType, error) {
+	// Check to see if the directory even exists. If not, no driver has been initialized.
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return "", ErrDriverNotInit
+		}
+	}
+	// Check for .devicemapper directory, which unequivocally indicates a devicemapper driver
+	if _, err := os.Stat(filepath.Join(root, ".devicemapper")); os.IsExist(err) {
+		return DRIVER_DEVICEMAPPER, nil
+	}
+	// Check if there are any volumes
+	fis, err := ioutil.ReadDir(root)
+	if err != nil {
+		return "", err
+	}
+	var names []string
+	for _, fi := range fis {
+		if fi.Name() != "monitor" {
+			names = append(names, fi.Name())
+		}
+	}
+	if len(names) == 0 {
+		// No volumes, so essentially no driver
+		return "", ErrDriverNotInit
+	}
+	// Check to see if it's a btrfs filesystem
+	magic, err := graphdriver.GetFSMagic(root)
+	if err != nil {
+		return "", err
+	}
+	if magic == graphdriver.FsMagicBtrfs {
+		var sudoer bool
+		user, err := user.Current()
+		if err != nil {
+			return "", err
+		}
+		if user.Uid != "0" {
+			err := exec.Command("sudo", "-n", "btrfs", "help").Run()
+			if err != nil {
+				// Not root. No way to tell if rsync or btrfs.
+				glog.Errorf("Unable to execute btrfs commands, so can't detect driver type")
+				return "", ErrInsufficientPermissions
+			}
+			sudoer = true
+		}
+		// Check one of the volumes to see if it's a subvolume
+		args := []string{"btrfs", "subvolume", "show", filepath.Join(root, names[0])}
+		if sudoer {
+			args = append([]string{"sudo", "-n"}, args...)
+		}
+		if err := exec.Command(args[0], args[1:]...).Run(); err == nil {
+			// It's btrfs
+			return DRIVER_BTRFS, nil
+		}
+	}
+	return DRIVER_RSYNC, nil
 }
 
 // Mount loads, mounting if necessary, a volume under a path using a specific
