@@ -32,14 +32,14 @@ func GetSubvolume(fsType, varpath, serviceID string) (volume.Volume, error) {
 }
 
 func serviceVolumeGet(fsType, varpath, serviceID string) (volume.Volume, error) {
-	v, err := GetSubvolume(fsType, varpath, serviceID)
+	w, err := GetSubvolume(fsType, varpath, serviceID)
 	if err != nil {
 		glog.Errorf("Could not acquire subvolume for service %s: %s", serviceID, err)
 		return nil, err
-	} else if v == nil {
+	} else if w == nil {
 		err := errors.New("volume is nil")
 		glog.Errorf("Could not get volume for service %s: %s", serviceID, err)
 		return nil, err
 	}
-	return v, nil
+	return w, nil
 }

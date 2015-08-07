@@ -67,7 +67,6 @@ func getTenant(from string) string {
 // Create implements volume.Driver.Create
 func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	if d.Exists(volumeName) {
-		return nil, volume.ErrVolumeExists
 	}
 	// Create a new device
 	volumeDevice, err := utils.NewUUID62()
@@ -224,6 +223,39 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		d.DeviceSet = deviceSet
 	}
 	if err := os.MkdirAll(d.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
+		return err
+	}
+	return nil
+}
+
+func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
+	glog.Info("devicemapper.Status()")
+	dockerStatus := d.DeviceSet.Status()
+	// convert dockerStatus to our status and return
+	result := &volume.Status{
+		Driver:                 DriverName,
+		DataSpaceAvailable:     dockerStatus.Data.Available,
+		DataSpaceUsed:          dockerStatus.Data.Used,
+		DataSpaceTotal:         dockerStatus.Data.Total,
+		MetadataSpaceAvailable: dockerStatus.Metadata.Available,
+		MetadataSpaceUsed:      dockerStatus.Metadata.Used,
+		MetadataSpaceTotal:     dockerStatus.Metadata.Total,
+		PoolName:               dockerStatus.PoolName,
+		DataFile:               dockerStatus.DataFile,
+		DataLoopback:           dockerStatus.DataLoopback,
+		MetadataFile:           dockerStatus.MetadataFile,
+		MetadataLoopback:       dockerStatus.MetadataLoopback,
+		SectorSize:             dockerStatus.SectorSize,
+		UdevSyncSupported:      dockerStatus.UdevSyncSupported,
+	}
+	return result, nil
+}
+
+// Resize implements volume.Volume.Resize
+func (d *DeviceMapperDriver) Resize(request volume.ResizeRequest) error {
+	glog.Info("devicemapper.Resize()")
+	if err := d.DeviceSet.ResizePool(int64(request.Size)); err != nil {
+		glog.Errorf("Error resizing pool: %v", err)
 		return err
 	}
 	return nil
