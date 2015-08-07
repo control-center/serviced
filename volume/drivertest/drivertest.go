@@ -51,7 +51,7 @@ func newDriver(c *C, name volume.DriverType, root string, args []string) *Driver
 	d, err := volume.GetDriver(root)
 	c.Assert(err, IsNil)
 	c.Assert(d, NotNil)
-	c.Assert(d.GetFSType(), Equals, name)
+	c.Assert(d.DriverType(), Equals, name)
 	c.Assert(d.Root(), Equals, root)
 	return &Driver{d, root}
 }
