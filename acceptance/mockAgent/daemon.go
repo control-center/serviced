@@ -40,8 +40,8 @@ func newDaemon(hostConfig *HostConfig, rpcServer *rpc.Server) (*daemon, error) {
 	return d, nil
 }
 
-func (d *daemon) run() (err error) {
-	if err := d.hostConfig.setDefaults(); err != nil {
+func (d *daemon) run(address string) (err error) {
+	if err := d.hostConfig.setDefaults(address); err != nil {
 		return fmt.Errorf("unable to initialize host configuration: %v", err)
 	}
 

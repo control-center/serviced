@@ -29,6 +29,7 @@ const defaultHostName = "defaultHost"
 type Options struct {
 	HostName   string
 	ConfigFile string
+	IPAddress  string
 }
 
 type Agent struct {
@@ -48,6 +49,7 @@ func newAgent(app *cli.App) *Agent {
 	agent.app.Flags = []cli.Flag {
 		cli.StringFlag{"host", defaultHostName, "hostid to use"},
 		cli.StringFlag{"config-file", "", "path to config file to use"},
+		cli.StringFlag{"address", "", "IP address to use"},
 	}
 	agent.app.Before = agent.initialize
 	agent.app.Action = agent.startAction
@@ -64,6 +66,7 @@ func (agent *Agent) run(args []string) {
 func (agent *Agent) initialize(ctx *cli.Context) error {
 	agent.options.HostName = ctx.GlobalString("host")
 	agent.options.ConfigFile = ctx.GlobalString("config-file")
+	agent.options.IPAddress = ctx.GlobalString("address")
 	return nil
 }
 
@@ -127,7 +130,7 @@ func (agent *Agent) runDaemon() error {
 		glog.Fatalf("could not create server: %v", err)
 	}
 
-	err = daemon.run()
+	err = daemon.run(agent.options.IPAddress)
 	if err != nil {
 		glog.Fatalf("could not start server: %v", err)
 	}

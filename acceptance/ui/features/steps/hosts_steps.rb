@@ -7,8 +7,8 @@ Given (/^(?:|that )multiple hosts have been added$/) do
         addHostJson("host3")
         addHostJson("host4")
         addHostJson("host5")
-        expect(checkRows("table://hosts/host3/name")).to be true
-        expect(checkRows("table://hosts/host5/name")).to be true
+        expect(isInRows("table://hosts/host3/name")).to be true
+        expect(isInRows("table://hosts/host5/name")).to be true
     end
 end
 
@@ -19,8 +19,10 @@ end
 
 Given (/^(?:|that )only the default host is added$/) do
     visitHostsPage()
-    removeAllEntries("host")
-    addDefaultHost()
+    if (page.has_no_content?("Showing 1 Result") || isNotInRows("table://hosts/defaultHost/name"))
+        removeAllEntries("host")
+        addDefaultHost()
+    end
 end
 
 When (/^I am on the hosts page$/) do

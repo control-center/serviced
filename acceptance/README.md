@@ -3,7 +3,7 @@
 
 The `ui` subdirectory contains UI functional tests which can be executed in a completely automated fashion using [Capybara](https://github.com/jnicklas/capybara) in a [Docker](http://www.docker.com) container.
 
-The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also includes support for [screenshots](https://github.com/mattheworiordan/capybara-screenshot) of failed tests cases
+The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also includes support for [screenshots](https://github.com/mattheworiordan/capybara-screenshot) of failed tests cases.
 
 #Table of Contents
 
@@ -33,8 +33,8 @@ The docker image `zenoss/capybara` contains all of the tools and libraries requi
 
 The subdirectory `ui` is mounted into the docker container under the directory `/capybara`, giving the tools in the container access to all of the cucumber/capybara test files defined in `ui`.
 
-The script `runCucmber.sh` is executed from within docker. It handles any runtime setup (such as starting Xvfb if necessary), and
-then executes cucumber.
+The script `runCucumber.sh` is executed from within docker. It handles any runtime setup (such as starting Xvfb if necessary), and
+then executes Cucumber.
 
 A report of the test execution is written to `ui/output`.
 
@@ -89,15 +89,15 @@ $ cd acceptance
 $ ./startMockAgents.sh
 ```
 
-This step is not necessary if you do not run the tests involving hosts.
+This step is not necessary if you do not run tests involving hosts.
 
-**NOTE:** If you stop and restart the make mock agents scripts while serviced is running, you may see a "Bad Request: connection is shut down" error when you try to add a mock host. Restarting serviced will fix this.
+**NOTE:** If you stop and restart the start mock agents script while serviced is running, you may see a "Bad Request: connection is shut down" error when you try to add a mock agent. Restarting serviced will fix this.
 
 ### Step 4 - Run the test suite
 
 Capybara uses different 'drivers' to interface with a web browser.
 The Selenium driver for Capybara is the default, and by default it executes tests againts Firefox.
-The test suite can be run against any one of several browsers by selecting differnet drivers.
+The test suite can be run against any one of several browsers by selecting different drivers.
 Both of the following commands run the test suite against Firefox:
 
 ```
@@ -150,12 +150,12 @@ For details of how all of these variables are used, see [ui/features/support/env
 For a full list of possible options for Cucumber itself, pass the `--help` option to Cucumber like this:
 
 ```
-$ CUCUMBER_OPTS=--help ./runUIAcceptance.sh
+$ CUCUMBER_OPTS=--help ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password>
 ```
 
 ## Examples
 ### Running a subset of tests
-Cucumber supports a feature called tags which can be used in run a subset of tests.  A full explanation of using tags is beyond the scope of this document; see the Cucumber [documentation](https://github.com/cucumber/cucumber/wiki/Tags) for a full description.
+Cucumber supports a feature called tags which can be used to run a subset of tests.  A full explanation of using tags is beyond the scope of this document; see the Cucumber [documentation](https://github.com/cucumber/cucumber/wiki/Tags) for a full description.
 
 For example, you can run tests for a single tag with a command like:
 
@@ -168,20 +168,20 @@ $ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a <servicedURL> -u <userid
 If a test step fails, the test harness will capture a screenshot. If you have not seen a failed test case already, run the tests with an invalid userid and/or password.  If you open `ui/output/feature-overview.html` with a browser and drill into the details for the login feature, you will see the output in a nicely formatted table. Look for a "Screenshot" link below the error report for the failed step. Clicking on that link should display an image captured at the time of the failure.
 
 ### Tagging conventions
-Cucumber offers a powerful tagging feature that can be used to control which features and/or scenarios are run, as well as enabling custom 'hooks' to run specific blocks of code at different points
+Cucumber offers a powerful tagging feature that can be used to control which features and/or scenarios are run, as well as enabling custom 'hooks' to run specific blocks of code at different points.
 
 Some of the tags defined by this project are:
 
  * feature tags - There is a unique tag on each Feature to allow running single features at a time or in combination. Some of the valid values are `@login`, and `@hosts`
  * login hook - The tag `@login-required` illustrates how to use hook tags to automatically execute some block of code before/after the associated feature/step. In this case, the `@login-required` tag will login the user before each feature/step decorated with the tag (remember that each Scenario executes as a new browser session).
 
- To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance the following command will run just the tests for the hosts feature:
+ To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance, the following command will run just the tests for the hosts feature:
 
  ```
 $ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere
  ```
 
-For information of these Cucumber feature, see:
+For information about this Cucumber feature, see:
 
  * [Tags](https://github.com/cucumber/cucumber/wiki/Tags)
  * [Hooks](https://github.com/cucumber/cucumber/wiki/Hooks)
@@ -218,14 +218,14 @@ The following example illustrates how to mark a test case as PENDING:
 ```
 
 ### Page Object Model
-The combination of Cucmber and Capybara offer huge advantages in terms of being able to write tests using a simple, expressive DSL that describes how to interact with your application's UI.
+The combination of Cucumber and Capybara offer huge advantages in terms of being able to write tests using a simple, expressive DSL that describes how to interact with your application's UI.
 However, as your application and your tests grow, you can easily run into situations where implementation details about a particular page or reusable element are either 'leaking' into Step statements explicitly, or they are constantly repeated across step definitions. For instances, things like the IDs or CSS/Xpath expressions used to identify specific elements on a page can end up being repeated over and over again. When the actual page definition is changed by a developer, then you have to make the same refactor across multiple places in your tests.
 
 A Page Object Model is a DSL for describing for the page itself. Think of it as a secondary DSL "below" the DSL expresssed in the test features. The Page Object Model should encapsulate all of the implementation detail like DOM identifiers, CSS/xpath matching expressions, etc.
 
 These tests use [Site Prism](https://github.com/natritmeyer/site_prism) to implement a Page Object Model.  The various page objects are is defined in the [ui/features/pages](ui/features/pages) directory and used in the step definitions. For instance, the login page is defined in [ui/features/pages/login.rb](ui/features/pages/login.rb), and it is used in [ui/features/steps/login_steps.rb](ui/features/steps/login_steps.rb).
 
-For more discussion of page object model, see
+For more discussion of the Page Object Model, see
 
  * [Testing Page Objects with SitePrism](http://www.sitepoint.com/testing-page-objects-siteprism/)
  * [Keeping It Dry With Page Objects](http://techblog.constantcontact.com/software-development/keeping-it-dry-with-page-objects/)
@@ -249,7 +249,7 @@ For more discussion of page object model, see
  * [Cucumber - A tool for BDD testing](https://github.com/cucumber/cucumber/wiki)
  * [The Cucumber Book](https://www.safaribooksonline.com/library/view/the-cucumber-book/9781941222911/) by Aslak Hellesoy, Matt Wynne
  * [Capybara - An Acceptance test framework for web applications](https://github.com/jnicklas/capybara)
- * [Documentation for Capybara](https://www.rubydoc.info/github/jnicklas/capybara/master)
+ * [Documentation for Capybara](https://www.rubydoc.info/github/jnicklas/capybara/index)
  * [Application Testing with Capybara](https://www.safaribooksonline.com/library/view/application-testing-with/9781783281251/) by Matthew Robbins
  * [Capybara cheat sheet](https://gist.github.com/zhengjia/428105)
  * [Site Prism - A Page Object Model DSL for Capybara](https://github.com/natritmeyer/site_prism)
