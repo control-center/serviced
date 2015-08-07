@@ -327,6 +327,7 @@ func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	driver, err := volume.GetDriver(dfs.varpath)
 	if err != nil {
 		glog.Errorf("Couldn't load the %s storage driver for %s", dfs.fsType, dfs.varpath)
+		return err
 	}
 	if !driver.Exists(tenantID) {
 		glog.Errorf("Could not find the volume for service %s: %s", tenantID, err)
