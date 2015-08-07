@@ -56,10 +56,6 @@ type BtrfsVolume struct {
 	sync.Mutex
 }
 
-func init() {
-	volume.Register(volume.DRIVER_BTRFS, Init)
-}
-
 // Btrfs driver initialization
 func Init(root string, _ []string) (volume.Driver, error) {
 	user, err := user.Current()

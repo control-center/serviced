@@ -18,17 +18,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/control-center/serviced/volume/btrfs"
-	"github.com/control-center/serviced/volume/devicemapper"
-	"github.com/control-center/serviced/volume/rsync"
+	"github.com/control-center/serviced/volume"
 )
 
-func getDefaultStorageOptions(driverName string) []string {
+func getDefaultStorageOptions(driverType volume.DriverType) []string {
 	var options []string
-	switch driverName {
-	case rsync.DriverName:
-	case btrfs.DriverName:
-	case devicemapper.DriverName:
+	switch driverType {
+	case volume.DRIVER_RSYNC:
+	case volume.DRIVER_BTRFS:
+	case volume.DRIVER_DEVICEMAPPER:
 		addStorageOption("SERVICED_DM_THINPOOLDEV", func(v string) {
 			options = append(options, fmt.Sprintf("dm.thinpooldev=%s", v))
 		})

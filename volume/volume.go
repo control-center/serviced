@@ -196,8 +196,10 @@ func InitDriver(name DriverType, root string, args []string) error {
 			return ErrPathIsNotAbs
 		}
 		// Check for an existing driver initialization that doesn't match
-		if t, err := DetectDriverType(root); err != nil && err != ErrDriverNotInit {
-			return err
+		if t, err := DetectDriverType(root); err != nil {
+			if err != ErrDriverNotInit {
+				return err
+			}
 		} else if t != name {
 			glog.Fatalf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
 			return ErrDriverAlreadyInit

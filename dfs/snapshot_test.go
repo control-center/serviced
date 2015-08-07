@@ -34,7 +34,7 @@ import (
 	facadetest "github.com/control-center/serviced/facade/test"
 	"github.com/control-center/serviced/volume"
 	volumetest "github.com/control-center/serviced/volume/mocks"
-	"github.com/control-center/serviced/volume/rsync"
+	_ "github.com/control-center/serviced/volume/rsync"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
 
@@ -71,12 +71,12 @@ var _ = Suite(&snapshotTest{})
 
 func (st *snapshotTest) SetUpTest(c *C) {
 	st.tmpDir = c.MkDir()
-	err := volume.InitDriver(rsync.DriverName, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
+	err := volume.InitDriver(volume.DRIVER_RSYNC, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
 	c.Assert(err, IsNil)
 	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem{
-		fsType:           rsync.DriverName,
+		fsType:           volume.DRIVER_RSYNC,
 		varpath:          st.tmpDir,
 		dockerHost:       "localhost",
 		dockerPort:       5000,
