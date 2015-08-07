@@ -50,8 +50,10 @@ command line argument `-a <url>`. Do not use https://localhost because from
 the perspective of Capybara/Cucumber running inside the container, https://localhost
 refers to the container itself.
 
-### Step 2 - Build the docker image
-To build the docker image containing Cucumber and Capybara, use the following commands:
+### Step 2 - Build the docker image (optional)
+The docker image containing Cucumber and Capybara is available on the Zenoss dockerhub repo as `zenoss/capybara:$(VERSION)`, so you do not need to build it yourself. 
+
+In case you do want/need to build the docker image containing Cucumber and Capybara, use the following commands:
 
 ```
 $ zendev cd serviced
