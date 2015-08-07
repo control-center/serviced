@@ -86,3 +86,12 @@ func (m *Driver) Cleanup() error {
 
 	return r0
 }
+func (m* Driver) Status() (*volume.Status, error) {
+	ret := m.Called()
+
+	r0 := ret.Get(0).(volume.Status)
+	r1 := ret.Error(0)
+
+	return &r0, r1
+}
+
