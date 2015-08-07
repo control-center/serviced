@@ -47,13 +47,11 @@ func (hostConfig *HostConfig) setDefaults(address string) error {
 		var err error
 		if address == "" {
 			hostConfig.OutboundIP, err = utils.GetIPAddress()
-			fmt.Sprintf("No IP Address Provided, Using: %s", hostConfig.OutboundIP)
 			if err != nil {
 				return fmt.Errorf("Failed to acquire ip address: %s", err)
 			}
 		} else {
 			hostConfig.OutboundIP = address
-			fmt.Sprintf("IP Address provided: %s", address)
 		}
 	}
 
