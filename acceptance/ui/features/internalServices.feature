@@ -14,7 +14,7 @@ Feature: Internal Services
 
   Scenario: View Internal Services page
     When I am on the applications page
-      And I view the details for "Internal Services"
+      And I view the details for "Internal Services" in the "Applications" table
     Then I should see "Services"
       And I should see an entry for "Celery" in the table
       And I should see an entry for "Docker Registry" in the table
@@ -29,7 +29,7 @@ Feature: Internal Services
 
   Scenario: View Settings drop-down
     When I am on the applications page
-      And I view the details for "Internal Services"
+      And I view the details for "Internal Services" in the "Applications" table
     Then I should see "Settings"
     When I click on "Settings"
     Then I should see "Range"
@@ -38,7 +38,7 @@ Feature: Internal Services
 
   Scenario: Check that all services are active
     When I am on the applications page
-      And I view the details for "Internal Services"
+      And I view the details for "Internal Services" in the "Applications" table
     Then "Celery" should be active
       And "Docker Registry" should be active
       And "Elastic Search - LogStash" should be active
@@ -49,7 +49,7 @@ Feature: Internal Services
 
   Scenario: View the CPU Usage graph
     When I am on the applications page
-      And I view the details for "Internal Services"
+      And I view the details for "Internal Services" in the "Applications" table
     Then I should see "CPU (System)" in the "CPU Usage" graph
       And I should see "CPU (User)" in the "CPU Usage" graph
       And I should see "Total % Used" in the "CPU Usage" graph
@@ -59,63 +59,63 @@ Feature: Internal Services
 
   Scenario: View the Memory Usage graph
     When I am on the applications page
-      And I view the details for "Internal Services"
+      And I view the details for "Internal Services" in the "Applications" table
     Then I should see "Total bytes" in the "Memory Usage" graph
     When I hover over the "Memory Usage" graph
     Then I should see "Memory Usage" in the hover box
 
   Scenario: View details for the Celery service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "Celery"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Celery" in the "Services" table
     Then I should not see an entry for "OpenTSDB" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Docker Registry service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "Docker Registry"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Docker Registry" in the "Services" table
     Then I should not see an entry for "Elastic Search - Serviced" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Elastic Search - LogStash service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "Elastic Search - LogStash"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Elastic Search - LogStash" in the "Services" table
     Then I should not see an entry for "Celery" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Elastic Search - Serviced service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "Elastic Search - Serviced"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Elastic Search - Serviced" in the "Services" table
     Then I should not see an entry for "Docker Registry" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Logstash service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "Logstash"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Logstash" in the "Services" table
     Then I should not see an entry for "Zookeeper" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the OpenTSDB service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "OpenTSDB"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "OpenTSDB" in the "Services" table
     Then I should not see an entry for "Elastic Search - LogStash" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
 
   Scenario: View details for the Zookeeper service
     When I am on the applications page
-      And I view the details for "Internal Services"
-      And I view the details for "Zookeeper"
+      And I view the details for "Internal Services" in the "Applications" table
+      And I view the details for "Zookeeper" in the "Services" table
     Then I should not see an entry for "Celery" in the table
       And I should see "Total % Used" in the "CPU Usage" graph
       And I should see "Total bytes" in the "Memory Usage" graph
