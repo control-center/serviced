@@ -777,7 +777,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 					glog.V(4).Infof("Health check %s succeeded.", name)
 					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
 				} else {
-					glog.Warningf("Health check %s failed.", name)
+					glog.Warningf("Health check %s failed: %s", name, err)
 					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 				}
 			case <-exitChannel:
