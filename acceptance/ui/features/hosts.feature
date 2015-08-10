@@ -181,7 +181,7 @@ Feature: Host Management
   Scenario: View Host Details
     Given only the default host is added
     When I am on the hosts page
-      And I view the details of "table://hosts/defaultHost/name"
+      And I view the details of "table://hosts/defaultHost/name" in the "Hosts" table
     Then I should see "Graphs"
       And I should see "CPU Usage"
       And I should see "Load Average"
@@ -196,7 +196,7 @@ Feature: Host Management
   Scenario: View default host details
     Given only the default host is added
     When I am on the hosts page
-      And I view the details of "table://hosts/defaultHost/name"
+      And I view the details of "table://hosts/defaultHost/name" in the "Hosts" table
     Then the details for "Name" should be "table://hosts/defaultHost/hostID"
       And the details for "Resource Pool" should be "table://hosts/defaultHost/pool"
       And the details for "Memory" should be "table://hosts/defaultHost/memoryGB"
