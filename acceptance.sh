@@ -7,6 +7,9 @@
 # the environment variables APPLICATION_USERID
 # and APPLICATION_PASSWORD before running this script.
 #
+# Any command line arguments passed to the this script will be
+# passed through to acceptance/runUIAcceptance.sh
+#
 #######################################################
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
@@ -16,9 +19,12 @@ HOSTNAME=$(hostname)
 
 #
 # Setup of env vars required to build mockAgent
+echo ==== ENV INFO =====
 gvm use go1.4.2
 go version
 docker version
+echo ===================
+
 export GOPATH=$WORKSPACE/gopath
 export PATH=$GOPATH/bin:$PATH
 
@@ -84,6 +90,8 @@ add_host() {
     return 0
 }
 
+#
+# FIXME: Should move this into a Cucumber step
 add_template() {
     TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/dao/testsvc | ${SERVICED} template add)
     sleep 1
@@ -123,6 +131,6 @@ cd ${DIR}/acceptance
 sudo GOPATH=${GOPATH} PATH=${PATH} ./startMockAgents.sh --no-wait
 
 # launch cucumber/capybara
-./runUIAcceptance.sh -a https://${HOSTNAME}
+./runUIAcceptance.sh -a https://${HOSTNAME} $*
 
 # "trap cleanup EXIT", above, will handle cleanup
