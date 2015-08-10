@@ -63,11 +63,11 @@ end
 
 Then (/^I should see( the sum of)? "(.*?)" in the "([^"]*)" column$/) do |sum, text, column|
     text = getSum(text) if sum
-    expect(checkColumn(text, column)).to be true
+    expect(isInColumn(text, column)).to be true
 end
 
 Then (/^I should not see "(.*?)" in the "([^"]*)" column$/) do |text, column|
-    expect(checkColumn(text, column)).to be false
+    expect(isNotInColumn(text, column)).to be true
 end
 
 Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, order|
@@ -79,11 +79,11 @@ Then (/^the "([^"]*)" column should be sorted in ([^"]*) order$/) do |category, 
 end
 
 Then (/^I should see an entry for "(.*?)" in the table$/) do |row|
-    expect(checkRows(row)).to be true
+    expect(isInRows(row)).to be true
 end
 
 Then (/^I should not see an entry for "(.*?)" in the table$/) do |row|
-    expect(checkRows(row)).to be false
+    expect(isNotInRows(row)).to be true
 end
 
 Then (/^I should see "(.*?)" in the "(.*?)" graph$/) do |text, graph|
@@ -110,7 +110,7 @@ end
 
 def viewDetails(name)
     name = getTableValue(name)
-    find("[ng-click]", :text => /\A#{name}\z/).click()
+    page.find("[ng-click]", :text => name).click()
     waitForPageLoad()
 end
 
@@ -165,7 +165,7 @@ def hoverOver(graph)
     page.find("div[class='zenchartContainer']", :text => graph).hover()
 end
 
-def checkRows(row)
+def isInRows(row)
     waitForPageLoad()
     found = false
     name = getTableValue(row)
@@ -173,7 +173,15 @@ def checkRows(row)
     return found
 end
 
-def checkColumn(text, column)
+def isNotInRows(row)
+    waitForPageLoad()
+    notFound = false
+    name = getTableValue(row)
+    notFound = page.has_no_css?("tr[ng-repeat$='in $data']", :text => name)
+    return notFound
+end
+
+def isInColumn(text, column)
     # attribute that includes name of column of all table cells
     hasEntry = false
     cell = getTableValue(text).to_s
@@ -181,11 +189,20 @@ def checkColumn(text, column)
     return hasEntry
 end
 
+def isNotInColumn(text, column)
+    # attribute that includes name of column of all table cells
+    hasNoEntry = false
+    cell = getTableValue(text).to_s
+    hasNoEntry = true if page.has_no_css?("td[data-title-text='#{column}']", :text => cell)
+    return hasNoEntry
+end
+
 def checkDetails(detail, header)
     found = false
     detail = getTableValue(detail)
     within(page.find("div[class='vertical-info']", :text => header)) do
         found = true if page.has_text?(detail)
+        expect(page).to have_content(detail)
     end
     return found
 end

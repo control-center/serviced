@@ -71,8 +71,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
-    Then I should see "Pulling image"
-      And I should see that the application has deployed
+    Then I should see that the application has deployed
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "Showing 2 Results"
 
@@ -99,8 +98,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/defaultApp/id"
       And I click "Deploy"
-    Then I should see "Pulling image"
-      And I should see that the application has deployed
+    Then I should see that the application has deployed
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "Showing 2 Results"
 
@@ -123,8 +121,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/app2/id"
       And I click "Deploy"
-    Then I should see "Pulling image"
-      And I should see that the application has deployed
+    Then I should see that the application has deployed
       And I should see an entry for "table://applications/app2/template" in the Applications table
       And I should see "Showing 2 Results"
 
@@ -169,8 +166,7 @@ Feature: Application Management
       And I should see "Deployment ID"
     When I fill in the Deployment ID field with "table://applications/app3/id"
       And I click "Deploy"
-    Then I should see "Pulling image"
-      And I should see that the application has deployed
+    Then I should see that the application has deployed
       And I should see an entry for "table://applications/app3/template" in the Applications table
       And I should see "Showing 3 Results"
 

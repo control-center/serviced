@@ -34,7 +34,7 @@ type HostConfig struct {
 	Listen        string   `json:"-"`
 }
 
-func (hostConfig *HostConfig) setDefaults() error {
+func (hostConfig *HostConfig) setDefaults(address string) error {
 	if hostConfig.Listen == "" {
 		hostConfig.Listen = fmt.Sprintf(":%d", hostConfig.RPCPort)
 	}
@@ -45,9 +45,13 @@ func (hostConfig *HostConfig) setDefaults() error {
 
 	if hostConfig.OutboundIP == "" || hostConfig.OutboundIP == "%{local_ip}" {
 		var err error
-		hostConfig.OutboundIP, err = utils.GetIPAddress()
-		if err != nil {
-			return fmt.Errorf("Failed to acquire ip address: %s", err)
+		if address == "" {
+			hostConfig.OutboundIP, err = utils.GetIPAddress()
+			if err != nil {
+				return fmt.Errorf("Failed to acquire ip address: %s", err)
+			}
+		} else {
+			hostConfig.OutboundIP = address
 		}
 	}
 
