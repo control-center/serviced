@@ -37,12 +37,17 @@ When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
     sortColumn(category, order)
 end
 
-When (/^I wait for the page to load$/) do
-    waitForPageLoad()
-end
+When (/^I view the details (?:for|of) "(.*?)" in the "(.*?)" table$/) do |name, table|
+    type = ""
+    if table == "Applications" || table == "Services"
+        type = "services"
+    elsif table == "Hosts"
+        type = "hosts"
+    elsif table == "Resource Pools"
+        type = "pools"
+    end
 
-When (/^I view the details (?:for|of) "(.*?)"$/) do |name|
-    viewDetails(name)
+    viewDetails(name, type)
 end
 
 When (/^I hover over the "(.*?)" graph$/) do |graph|
@@ -103,20 +108,16 @@ Then (/^the details for "(.*?)" should be( the sum of)? "(.*?)"$/) do |header, s
     expect(checkDetails(text, header)).to be true
 end
 
-Then (/^"(.*?)" should be active$/) do |entry|
-    expect(checkActive(entry)).to be true
-end
 
-
-def viewDetails(name)
+def viewDetails(name, table)
     name = getTableValue(name)
-    page.find("[ng-click]", :text => name).click()
-    waitForPageLoad()
-end
-
-def checkActive(entry)
-    within(page.find("tr", :text => entry)) do
-        return page.has_css?("[class*='good']")
+    within(page.find("table[data-config='#{table}Table']")) do
+        ##totalSleep = 0
+        ##while (has_no_text?("No Data Found") and totalSleep <= Capybara.default_wait_time) do
+        ##    sleep 1
+        ##  totalSleep = totalSleep + 1
+        ##end
+        page.find("[ng-click]", :text => name).click()
     end
 end
 
@@ -166,7 +167,6 @@ def hoverOver(graph)
 end
 
 def isInRows(row)
-    waitForPageLoad()
     found = false
     name = getTableValue(row)
     found = page.has_css?("tr[ng-repeat$='in $data']", :text => name)
@@ -174,7 +174,6 @@ def isInRows(row)
 end
 
 def isNotInRows(row)
-    waitForPageLoad()
     notFound = false
     name = getTableValue(row)
     notFound = page.has_no_css?("tr[ng-repeat$='in $data']", :text => name)
@@ -232,7 +231,6 @@ def selectOption(name)
 end
 
 def removeEntry(name, category)
-    waitForPageLoad()
     name = getTableValue(name)
     within(page.find("tr[ng-repeat='#{category} in $data']", :text => name, match: :first)) do
         click_link_or_button("Delete")
@@ -242,24 +240,15 @@ def removeEntry(name, category)
 end
 
 def removeAllEntries(category)
-    waitForPageLoad()
+    entry = ""
     while (page.has_css?("tr[ng-repeat='#{category} in $data']", :text => "Delete")) do
         within(page.find("tr[ng-repeat='#{category} in $data']", :text => "Delete", match: :first)) do
+            entry = page.text
             click_link_or_button("Delete")
         end
         click_link_or_button("Remove")
         refreshPage() if category == "service"
-        waitForPageLoad()
-    end
-end
-
-# Chrome does not wait for objects to load, so some steps need to sleep
-# until all the elements load
-# For more information:
-# http://www.testrisk.com/2015/05/an-error-for-selenium-chrome-vs-firefox.html
-def waitForPageLoad()
-    if Capybara.default_driver == :selenium_chrome
-        sleep 2
+        expect(page).to have_no_content(entry)
     end
 end
 
