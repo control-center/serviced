@@ -125,7 +125,6 @@ def visitPoolsPage()
     @pools_page = Pools.new
     @pools_page.navbar.resourcePools.click()
     expect(@pools_page).to be_displayed
-    waitForPageLoad()
 end
 
 def clickAddPoolButton()
@@ -178,7 +177,6 @@ def addPool(name, description)
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
-    waitForPageLoad()
 end
 
 def addDefaultPool()

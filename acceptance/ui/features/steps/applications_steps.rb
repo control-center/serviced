@@ -42,7 +42,6 @@ end
 
 When(/^I click the Services Map button$/) do
     @applications_page.servicesMap_button.click()
-    waitForPageLoad()
     @servicesMap_page = ServicesMap.new
 end
 
@@ -97,8 +96,20 @@ Then (/^I should see an entry for "(.*?)" in the Application Templates table$/) 
     expect(checkTemplateRows(entry)).to be true
 end
 
+Then (/^"(.*?)" should be active$/) do |entry|
+    expect(checkActive(entry)).to be true
+end
+
+
+def checkActive(entry)
+    within(page.find("table[data-config='servicesTable']")) do
+        within(page.find("tr", :text => entry)) do
+            return page.has_css?("[class*='good']")
+        end
+    end
+end
+
 def checkServiceRows(row)
-    waitForPageLoad()
     found = false
     within(@applications_page.services_table) do
         found = page.has_text?(getTableValue(row))
@@ -107,7 +118,6 @@ def checkServiceRows(row)
 end
 
 def checkTemplateRows(row)
-    waitForPageLoad()
     found = false
     within(@applications_page.templates_table) do
         found = page.has_text?(getTableValue(row))
@@ -119,7 +129,6 @@ def visitApplicationsPage()
     @applications_page = Applications.new
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
-    waitForPageLoad()
 end
 
 def fillInDeploymentID(id)
