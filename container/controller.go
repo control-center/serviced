@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+	// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -777,7 +777,7 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 					glog.V(4).Infof("Health check %s succeeded.", name)
 					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
 				} else {
-					glog.Warningf("Health check %s failed.", name)
+					glog.Warningf("Health check %s failed: %s", name, err)
 					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 				}
 			case <-exitChannel:
