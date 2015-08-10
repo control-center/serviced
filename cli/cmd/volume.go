@@ -55,11 +55,7 @@ func (c *ServicedCli) cmdVolumeStatus(ctx *cli.Context) {
 		return
 	}
 	if ctx.Bool("verbose") {
-		if jsonStatuses, err := json.MarshalIndent(response, " ", "  "); err != nil {
-			fmt.Fprintf(os.Stderr, "failed to marshal volume status list: %s", err)
-		} else {
-			fmt.Println(string(jsonStatuses))
-		}
+		printStatusesJson(response)
 	} else {
 		printStatuses(response)
 	}
@@ -69,11 +65,19 @@ func (c *ServicedCli) cmdVolumeStatus(ctx *cli.Context) {
 func printStatuses(statuses *volume.Statuses) {
 	for path, status := range statuses.StatusMap {
 		fmt.Printf("Status for volume %s:\n", path)
-		printStatus(&status)
+		printStatusText(&status)
 	}
 }
 
-func printStatus(status *volume.Status) {
+func printStatusesJson(statuses *volume.Statuses) {
+	if jsonStatuses, err := json.MarshalIndent(statuses, " ", "  "); err != nil {
+		fmt.Fprintf(os.Stderr, "failed to marshal volume status list: %s", err)
+	} else {
+		fmt.Println(string(jsonStatuses))
+	}
+}
+
+func printStatusText(status *volume.Status) {
 	fmt.Printf("Driver:                 %s\n", status.Driver)
 	fmt.Printf("PoolName:               %s\n", status.PoolName)
 	fmt.Printf("DataFile:               %s\n", status.DataFile)
