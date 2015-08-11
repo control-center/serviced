@@ -2,6 +2,7 @@
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
 set -e
 set -x
+docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 unset EDITOR # so we don't fail a cli test :\
 gvm use go1.4.2
 go version
