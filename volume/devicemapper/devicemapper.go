@@ -228,7 +228,7 @@ func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
 	dockerStatus := d.DeviceSet.Status()
 	// convert dockerStatus to our status and return
 	result := &volume.Status{
-		Driver:                 DriverName,
+		Driver:                 volume.DriverDeviceMapper,
 		DataSpaceAvailable:     dockerStatus.Data.Available,
 		DataSpaceUsed:          dockerStatus.Data.Used,
 		DataSpaceTotal:         dockerStatus.Data.Total,

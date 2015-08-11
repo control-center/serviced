@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	ErrDeletingVolume = errors.New("could not delete volume")
+	ErrDeletingVolume      = errors.New("could not delete volume")
 	ErrRsyncNotImplemented = errors.New("function not implemented for rsync")
 )
 
@@ -117,7 +117,7 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 func (d *RsyncDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("rsync.Status()")
 	response := &volume.Status{
-		Driver: DriverName,
+		Driver: volume.DriverRsync,
 	}
 	return response, nil
 }

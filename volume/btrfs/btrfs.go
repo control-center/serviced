@@ -134,7 +134,7 @@ func (d *BtrfsDriver) Remove(volumeName string) error {
 func (d *BtrfsDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("btrfs.Status()")
 	response := &volume.Status{
-		Driver: DriverName,
+		Driver: volume.DriverBtrFS,
 	}
 	return response, nil
 }
@@ -469,5 +469,3 @@ func runcmd(sudoer bool, args ...string) ([]byte, error) {
 	}
 	return output, err
 }
-
-

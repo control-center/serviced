@@ -36,7 +36,7 @@ type ResizeRequest struct {
 }
 
 type Status struct { // see Docker - look at their status struct and borrow heavily.
-	Driver                 string
+	Driver                 DriverType
 	DataSpaceAvailable     uint64
 	DataSpaceUsed          uint64
 	DataSpaceTotal         uint64
