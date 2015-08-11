@@ -112,11 +112,6 @@ end
 def viewDetails(name, table)
     name = getTableValue(name)
     within(page.find("table[data-config='#{table}Table']")) do
-        ##totalSleep = 0
-        ##while (has_no_text?("No Data Found") and totalSleep <= Capybara.default_wait_time) do
-        ##    sleep 1
-        ##  totalSleep = totalSleep + 1
-        ##end
         page.find("[ng-click]", :text => name).click()
     end
 end
