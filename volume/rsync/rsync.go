@@ -14,7 +14,10 @@
 package rsync
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"errors"
+	"fmt"
 	"io"
 
 	"github.com/control-center/serviced/utils"
@@ -33,6 +36,7 @@ import (
 var (
 	ErrDeletingVolume      = errors.New("could not delete volume")
 	ErrRsyncNotImplemented = errors.New("function not implemented for rsync")
+	ErrRsyncInvalidLabel   = errors.New("invalid label")
 )
 
 // RsyncDriver is a driver for the rsync volume
@@ -202,7 +206,7 @@ func (v *RsyncVolume) Tenant() string {
 	return v.tenant
 }
 
-// WriteMetadata writes the metadata info for a snapshot
+// WriteMetadata writes the metadata info for a snapshot on the base volume.
 func (v *RsyncVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
 	filePath := filepath.Join(v.Path(), name)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
@@ -212,9 +216,9 @@ func (v *RsyncVolume) WriteMetadata(label, name string) (io.WriteCloser, error) 
 	return os.Create(filePath)
 }
 
-// ReadMetadata reads the metadata info from a snapshot
+// ReadMetadata reads the metadata info from a snapshot.
 func (v *RsyncVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
-	filePath := filepath.Join(v.Path(), name)
+	filePath := filepath.Join(v.snapshotPath(label), name)
 	return os.Open(filePath)
 }
 
@@ -358,40 +362,66 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 }
 
 // Export implements volume.Volume.Export
-func (v *RsyncVolume) Export(label, parent, outdir string) (err error) {
+func (v *RsyncVolume) Export(label, parent string, writer io.Writer) error {
 	v.Lock()
 	defer v.Unlock()
+	if label = strings.TrimSpace(label); label == "" {
+		glog.Errorf("%s: label cannot be empty", volume.DriverTypeRsync)
+		return ErrRsyncInvalidLabel
+	}
 	src := v.snapshotPath(label)
 	if exists, err := volume.IsDir(src); err != nil {
 		return err
 	} else if !exists {
 		return volume.ErrSnapshotDoesNotExist
 	}
-
-	rsync := exec.Command("rsync", "-azh", src, outdir)
-	glog.V(4).Infof("About ro execute %s", rsync)
-	if output, err := rsync.CombinedOutput(); err != nil {
-		glog.V(2).Infof("Could not perform rsync: %s", string(output))
+	gzf := gzip.NewWriter(writer)
+	defer gzf.Close()
+	tarfile := tar.NewWriter(gzf)
+	defer tarfile.Close()
+	if err := volume.ExportDirectory(tarfile, src, label); err != nil {
+		glog.Errorf("Could not export snapshot %s: %s", label, err)
 		return err
 	}
 	return nil
 }
 
 // Import implements volume.Volume.Import
-func (v *RsyncVolume) Import(rawlabel, indir string) (err error) {
+func (v *RsyncVolume) Import(label string, reader io.Reader) error {
 	v.Lock()
 	defer v.Unlock()
-	path := v.snapshotPath(rawlabel)
+	path := v.snapshotPath(label)
 	if exists, err := volume.IsDir(path); err != nil {
 		return err
 	} else if exists {
 		return volume.ErrSnapshotExists
 	}
-
-	rsync := exec.Command("rsync", "-azh", filepath.Join(indir, rawlabel), v.Driver().Root())
-	glog.V(4).Infof("About ro execute %s", rsync)
+	importdir := filepath.Join(v.path, fmt.Sprintf("import-%s", label))
+	if err := os.MkdirAll(importdir, 0755); err != nil {
+		glog.Errorf("Could not create import path for snapshot %s: %s", label, err)
+		return err
+	}
+	defer os.RemoveAll(importdir)
+	err := func() error {
+		gzf, err := gzip.NewReader(reader)
+		if err != nil {
+			return err
+		}
+		defer gzf.Close()
+		tarfile := tar.NewReader(gzf)
+		if err := volume.ImportArchive(tarfile, importdir); err != nil {
+			return err
+		}
+		return nil
+	}()
+	if err != nil {
+		glog.Errorf("Could not import snaphot %s: %s", label, err)
+		return err
+	}
+	rsync := exec.Command("rsync", "-azh", filepath.Join(importdir, label), v.Driver().Root())
+	glog.V(0).Infof("About to execute %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
-		glog.V(2).Infof("Could not perform rsync: %s", string(output))
+		glog.Errorf("Could not rsync [%+v]: %s (%s)", rsync, output, err)
 		return err
 	}
 	return nil

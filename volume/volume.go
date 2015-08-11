@@ -22,6 +22,10 @@ import (
 	"github.com/zenoss/glog"
 )
 
+const (
+	SnapshotMetadataExport = ".snapshot-metadata"
+)
+
 // DriverInit represents a function that can initialize a driver.
 type DriverInit func(root string, args []string) (Driver, error)
 
@@ -64,6 +68,7 @@ var (
 	ErrDriverAlreadyInit       = errors.New("different driver already initialized")
 	ErrDriverExists            = errors.New("driver exists")
 	ErrDriverNotSupported      = errors.New("driver not supported")
+	ErrRemovingVolume          = errors.New("could not remove volume")
 	ErrSnapshotExists          = errors.New("snapshot exists")
 	ErrSnapshotDoesNotExist    = errors.New("snapshot does not exist")
 	ErrRemovingSnapshot        = errors.New("could not remove snapshot")
@@ -135,9 +140,9 @@ type Volume interface {
 	// as <label>
 	Rollback(label string) error
 	// Export exports the snapshot stored as <label> to <filename>
-	Export(label, parent, filename string) error
+	Export(label, parent string, writer io.Writer) error
 	// Import imports the exported snapshot at <filename> as <label>
-	Import(label, filename string) error
+	Import(label string, reader io.Reader) error
 	// Tenant returns the base tenant of this volume
 	Tenant() string
 }

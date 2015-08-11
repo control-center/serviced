@@ -16,10 +16,10 @@
 package drivertest
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path"
-	"path/filepath"
 	"syscall"
 
 	"github.com/control-center/serviced/volume"
@@ -64,14 +64,14 @@ func cleanup(c *C, d *Driver) {
 func verifyFile(c *C, path string, mode os.FileMode, uid, gid uint32) {
 	fi, err := os.Stat(path)
 	c.Assert(err, IsNil)
-	c.Assert(fi.Mode()&os.ModeType, Equals, mode&os.ModeType)
-	c.Assert(fi.Mode()&os.ModePerm, Equals, mode&os.ModePerm)
-	c.Assert(fi.Mode()&os.ModeSticky, Equals, mode&os.ModeSticky)
-	c.Assert(fi.Mode()&os.ModeSetuid, Equals, mode&os.ModeSetuid)
-	c.Assert(fi.Mode()&os.ModeSetgid, Equals, mode&os.ModeSetgid)
+	c.Check(fi.Mode()&os.ModeType, Equals, mode&os.ModeType)
+	c.Check(fi.Mode()&os.ModePerm, Equals, mode&os.ModePerm)
+	c.Check(fi.Mode()&os.ModeSticky, Equals, mode&os.ModeSticky)
+	c.Check(fi.Mode()&os.ModeSetuid, Equals, mode&os.ModeSetuid)
+	c.Check(fi.Mode()&os.ModeSetgid, Equals, mode&os.ModeSetgid)
 	if stat, ok := fi.Sys().(*syscall.Stat_t); ok {
-		c.Assert(stat.Uid, Equals, uid)
-		c.Assert(stat.Gid, Equals, gid)
+		c.Check(stat.Uid, Equals, uid)
+		c.Check(stat.Gid, Equals, gid)
 	}
 }
 
@@ -120,6 +120,7 @@ func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args
 
 	err = driver.Remove(volumeName)
 	c.Assert(err, IsNil)
+	// c.Assert(driver.List(), HasLen, 0)
 }
 
 func createBase(c *C, driver *Driver, name string) volume.Volume {
@@ -199,6 +200,7 @@ func DriverTestCreateBase(c *C, drivername volume.DriverType, root string, args 
 
 	err = driver.Remove("Base")
 	c.Assert(err, IsNil)
+	// c.Assert(driver.List(), HasLen, 0)
 }
 
 func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args []string) {
@@ -272,11 +274,11 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 
 	err = driver.Remove("Base")
 	c.Assert(err, IsNil)
+	//	c.Assert(driver.List(), HasLen, 0)
 }
 
 func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, importfs string, args []string) {
-	backupdir := c.MkDir()
-	outfile := filepath.Join(backupdir, "backup")
+	buffer := new(bytes.Buffer)
 
 	exportDriver := newDriver(c, drivername, exportfs, args)
 	defer cleanup(c, exportDriver)
@@ -286,13 +288,41 @@ func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, import
 	vol := createBase(c, exportDriver, "Base")
 	writeExtra(c, exportDriver, vol)
 	verifyBaseWithExtra(c, exportDriver, vol)
-	c.Assert(vol.Snapshot("Backup"), IsNil)
 
-	err := vol.Export("Backup", "", outfile)
+	// Set some metadata on the snapshot
+	wmetadata := []byte("snap-metadata")
+	wHandle, err := vol.WriteMetadata("Backup", "lost+found/metadata")
+	c.Assert(err, IsNil)
+	c.Assert(wHandle, NotNil)
+	n, err := wHandle.Write(wmetadata)
+	c.Assert(err, IsNil)
+	c.Assert(n, Equals, len(wmetadata))
+	err = wHandle.Close()
 	c.Assert(err, IsNil)
 
+	// Export the snapshot
+	c.Assert(vol.Snapshot("Backup"), IsNil)
+	err = vol.Export("Base_Backup", "", buffer)
+	c.Assert(err, IsNil)
+
+	// Import the snapshot
 	vol2 := createBase(c, importDriver, "Base")
-	err = vol2.Import("Base_Backup", outfile)
+	err = vol2.Import("Base_Backup", buffer)
+	c.Assert(err, IsNil)
+	snapshots, err := vol2.Snapshots()
+	c.Assert(err, IsNil)
+	c.Assert(snapshots, DeepEquals, []string{"Base_Backup"})
+
+	// Make sure the metadata path exists for the snapshot
+	rmetadata := make([]byte, len(wmetadata))
+	rHandle, err := vol2.ReadMetadata("Backup", "lost+found/metadata")
+	c.Assert(err, IsNil)
+	c.Assert(rHandle, NotNil)
+	n, err = rHandle.Read(rmetadata)
+	c.Assert(err, IsNil)
+	c.Assert(n, Equals, len(rmetadata))
+	c.Assert(string(rmetadata), Equals, string(wmetadata))
+	err = rHandle.Close()
 	c.Assert(err, IsNil)
 
 	c.Assert(vol2.Rollback("Backup"), IsNil)

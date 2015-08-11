@@ -76,6 +76,11 @@ func (m *SnapshotMetadata) save() error {
 	return ioutil.WriteFile(m.path, jsonData, 0644)
 }
 
+// remove metadata file
+func (m *SnapshotMetadata) remove() error {
+	return os.RemoveAll(m.path)
+}
+
 // Get the current device for this volume
 func (m *SnapshotMetadata) CurrentDevice() string {
 	return m.snapshotMetadata.CurrentDevice

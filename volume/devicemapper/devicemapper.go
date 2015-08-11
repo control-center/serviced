@@ -1,6 +1,9 @@
 package devicemapper
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -181,6 +184,35 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 
 // Remove implements volume.Driver.Remove
 func (d *DeviceMapperDriver) Remove(volumeName string) error {
+	/*
+		// return nil if the volume does not exist
+		if !d.Exists(volumeName) {
+			return nil
+		}
+		// get the volume
+		v, err := d.newVolume(volumeName)
+		if err != nil {
+			return err
+		}
+		// remove all the snapshots
+		glog.V(1).Infof("Removing snapshots from %s", volumeName)
+		snapshots, err := v.Snapshots()
+		if err != nil {
+			return err
+		}
+		for _, snapshot := range snapshots {
+			if err := v.RemoveSnapshot(snapshot); err != nil {
+				return err
+			}
+		}
+		volumeDevice := v.Metadata.CurrentDevice()
+		glog.V(1).Infof("Removing volume %s (%s)", volumeName, volumeDevice)
+		if err := d.DeviceSet.DeleteDevice(volumeDevice); err != nil {
+			return err
+		} else if err := v.Metadata.remove(); err != nil {
+			return err
+		}
+	*/
 	return nil
 }
 
@@ -301,7 +333,7 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		return err
 	}
 	// Create the metadata path
-	mdpath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label))
+	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 	if err := os.MkdirAll(mdpath, 0755); err != nil {
 		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
 		return err
@@ -354,7 +386,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 	// Delete the device itself
 	if err := v.driver.DeviceSet.DeleteDevice(device); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
-		return volume.ErrRemovingSnapshot
+		return volume.ErrRemovingVolume
 	}
 	return nil
 }
@@ -387,11 +419,14 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
 		return err
 	}
+	if err := v.driver.DeviceSet.DeleteDevice(current); err != nil {
+		glog.Warningf("Error cleaning up device %s: %s", current, err)
+	}
 	return v.Metadata.SetCurrentDevice(newHead)
 }
 
 // Export implements volume.Volume.Export
-func (v *DeviceMapperVolume) Export(label, parent, outdir string) error {
+func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) error {
 	if !v.snapshotExists(label) {
 		return volume.ErrSnapshotDoesNotExist
 	}
@@ -399,43 +434,49 @@ func (v *DeviceMapperVolume) Export(label, parent, outdir string) error {
 	mountpoint, err := ioutil.TempDir("", "serviced-export-volume-")
 	if err != nil {
 		return err
-	}
-	if err := os.MkdirAll(mountpoint, 0755); err != nil {
+	} else if err := os.MkdirAll(mountpoint, 0755); err != nil {
 		return err
 	}
-	//defer os.RemoveAll(mountpoint)
+	defer os.RemoveAll(mountpoint)
 	device, err := v.Metadata.LookupSnapshotDevice(label)
 	if err != nil {
 		return err
-	}
-	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label+"_export"); err != nil {
+	} else if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
 		return err
 	}
 	defer v.driver.DeviceSet.UnmountDevice(device)
-	rsync := exec.Command("rsync", "-azh", mountpoint+"/", outdir+"/")
-	rsync.Stdout = os.Stdout
-	rsync.Stderr = os.Stderr
-	if err := rsync.Run(); err != nil {
-		glog.V(2).Infof("Could not perform rsync")
+	// Set up the file stream
+	gzWriter := gzip.NewWriter(writer)
+	defer gzWriter.Close()
+	tarfile := tar.NewWriter(gzWriter)
+	defer tarfile.Close()
+	// Write metadata
+	mdpath := filepath.Join(v.driver.MetadataDir(), label)
+	if err := volume.ExportDirectory(tarfile, mdpath, volume.SnapshotMetadataExport); err != nil {
+		return err
+	}
+	// Write volume
+	if err := volume.ExportDirectory(tarfile, mountpoint, label); err != nil {
 		return err
 	}
 	return nil
 }
 
 // Import implements volume.Volume.Import
-func (v *DeviceMapperVolume) Import(label, indir string) error {
+func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
+
 	}
 	label = v.rawSnapshotLabel(label)
 	mountpoint, err := ioutil.TempDir("", "serviced-import-volume-")
 	if err != nil {
 		return err
-	}
-	if err := os.MkdirAll(mountpoint, 0755); err != nil {
+	} else if err := os.MkdirAll(mountpoint, 0755); err != nil {
 		return err
 	}
 	defer os.RemoveAll(mountpoint)
+
 	device, err := utils.NewUUID62()
 	if err != nil {
 		return err
@@ -443,15 +484,34 @@ func (v *DeviceMapperVolume) Import(label, indir string) error {
 	if err := v.driver.DeviceSet.AddDevice(device, ""); err != nil {
 		return err
 	}
-	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label+"_import"); err != nil {
+	if err := os.MkdirAll(filepath.Join(mountpoint, label), 0755); err != nil {
+		return err
+	}
+	if err := v.driver.DeviceSet.MountDevice(device, filepath.Join(mountpoint, label), fmt.Sprintf("%s_import", label)); err != nil {
 		return err
 	}
 	defer v.driver.DeviceSet.UnmountDevice(device)
-	rsync := exec.Command("rsync", "-azh", indir+"/", mountpoint+"/")
-	rsync.Stdout = os.Stdout
-	rsync.Stderr = os.Stderr
-	if err := rsync.Run(); err != nil {
-		glog.V(2).Infof("Could not perform rsync")
+	// import the volume
+	err = func() error {
+		gzReader, err := gzip.NewReader(reader)
+		if err != nil {
+			return err
+		}
+		defer gzReader.Close()
+		tarfile := tar.NewReader(gzReader)
+		return volume.ImportArchive(tarfile, mountpoint)
+	}()
+	if err != nil {
+		glog.Errorf("Could not import snapshot %s: %s", label, err)
+		return err
+	}
+	// write the metadata
+	mdSrc, mdDest := filepath.Join(mountpoint, volume.SnapshotMetadataExport)+string(filepath.Separator), filepath.Join(v.driver.MetadataDir(), label)
+	rsyncMetadata := exec.Command("rsync", "-azh", mdSrc, mdDest)
+	rsyncMetadata.Stdout = os.Stdout
+	rsyncMetadata.Stderr = os.Stderr
+	if err := rsyncMetadata.Run(); err != nil {
+		glog.Errorf("Could not rsync metadata for %s: %s", label, err)
 		return err
 	}
 	return v.Metadata.AddSnapshot(label, device)

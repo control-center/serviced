@@ -488,9 +488,16 @@ func (dfs *DistributedFilesystem) saveSnapshots(tenantID, directory string, last
 
 	var parent string
 	for i, snapshot := range snapshots {
-		outfile := filepath.Join(tmpdir, fmt.Sprintf("%s.%d", label, i))
-		if err := volume.Export(label, parent, outfile); err != nil {
-			glog.Errorf("Could not export snapshot %s to %s: %s", label, outfile, err)
+		err := func() error {
+			outfile, err := os.Create(filepath.Join(tmpdir, fmt.Sprintf("%s.%d", label, i)))
+			if err != nil {
+				return err
+			}
+			defer outfile.Close()
+			return volume.Export(label, parent, outfile)
+		}()
+		if err != nil {
+			glog.Errorf("Could not export snapshot %s: %s", label, err)
 			return "", nil, err
 		}
 		parent = snapshot
@@ -544,11 +551,18 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 	var label string
 	for _, snapshot := range snapshots {
 		label = strings.TrimSuffix(snapshot.Name(), filepath.Ext(snapshot.Name()))
-		if err := volume.Import(label, filepath.Join(tmpdir, snapshot.Name())); err != nil {
+		err := func() error {
+			infile, err := os.Open(filepath.Join(tmpdir, snapshot.Name()))
+			if err != nil {
+				return err
+			}
+			defer infile.Close()
+			return volume.Import(label, infile)
+		}
+		if err != nil {
 			glog.Warningf("Could not import snapshot %s: %s", label, err)
 		}
 	}
-
 	defer func() {
 		// delete the snapshot
 		if err := dfs.DeleteSnapshot(label); err != nil {
