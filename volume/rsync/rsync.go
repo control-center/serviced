@@ -52,7 +52,7 @@ type RsyncVolume struct {
 }
 
 func init() {
-	volume.Register(volume.DriverRsync, Init)
+	volume.Register(volume.DriverTypeRsync, Init)
 }
 
 // Rsync driver intialization
@@ -70,7 +70,7 @@ func (d *RsyncDriver) Root() string {
 
 // DriverType implements volume.Driver.DriverType
 func (d *RsyncDriver) DriverType() volume.DriverType {
-	return volume.DriverRsync
+	return volume.DriverTypeRsync
 }
 
 // Create implements volume.Driver.Create
@@ -117,7 +117,7 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 func (d *RsyncDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("rsync.Status()")
 	response := &volume.Status{
-		Driver: volume.DriverRsync,
+		Driver: volume.DriverTypeRsync,
 	}
 	return response, nil
 }

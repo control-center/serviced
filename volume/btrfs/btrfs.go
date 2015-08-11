@@ -80,7 +80,7 @@ func (d *BtrfsDriver) Root() string {
 
 // DriverType implements volume.Driver.DriverType
 func (d *BtrfsDriver) DriverType() volume.DriverType {
-	return volume.DriverBtrFS
+	return volume.DriverTypeBtrFS
 }
 
 // Exists implements volume.Driver.Exists
@@ -134,7 +134,7 @@ func (d *BtrfsDriver) Remove(volumeName string) error {
 func (d *BtrfsDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("btrfs.Status()")
 	response := &volume.Status{
-		Driver: volume.DriverBtrFS,
+		Driver: volume.DriverTypeBtrFS,
 	}
 	return response, nil
 }
@@ -389,7 +389,7 @@ func (v *BtrfsVolume) Rollback(label string) error {
 // Export implements volume.Volume.Export
 func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	if label == "" {
-		glog.Errorf("%s: label cannot be empty", volume.DriverBtrFS)
+		glog.Errorf("%s: label cannot be empty", volume.DriverTypeBtrFS)
 		return ErrBtrfsInvalidLabel
 	} else if exists, err := v.snapshotExists(label); err != nil {
 		return err

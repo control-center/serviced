@@ -30,10 +30,8 @@ import (
 // DriverInit represents a function that can initialize a driver.
 type DriverInit func(root string, args []string) (Driver, error)
 
-type ResizeRequest struct {
-	VolumeName string
-	Size       uint64
-}
+// DriverType represents a driver type.
+type DriverType string
 
 type Status struct { // see Docker - look at their status struct and borrow heavily.
 	Driver                 DriverType
@@ -56,13 +54,10 @@ type Statuses struct {
 	StatusMap map[string]Status
 }
 
-// DriverType represents a driver type.
-type DriverType string
-
 const (
-	DriverBtrFS        DriverType = "btrfs"
-	DriverRsync                   = "rsync"
-	DriverDeviceMapper            = "devicemapper"
+	DriverTypeBtrFS        DriverType = "btrfs"
+	DriverTypeRsync                   = "rsync"
+	DriverTypeDeviceMapper            = "devicemapper"
 )
 
 var (
@@ -275,7 +270,7 @@ func DetectDriverType(root string) (DriverType, error) {
 	}
 	// Check for .devicemapper directory, which unequivocally indicates a devicemapper driver
 	if _, err := os.Stat(filepath.Join(root, ".devicemapper")); os.IsExist(err) {
-		return DriverDeviceMapper, nil
+		return DriverTypeDeviceMapper, nil
 	}
 	// Check if there are any volumes
 	fis, err := ioutil.ReadDir(root)
@@ -319,10 +314,10 @@ func DetectDriverType(root string) (DriverType, error) {
 		}
 		if err := exec.Command(args[0], args[1:]...).Run(); err == nil {
 			// It's btrfs
-			return DriverBtrFS, nil
+			return DriverTypeBtrFS, nil
 		}
 	}
-	return DriverRsync, nil
+	return DriverTypeRsync, nil
 }
 
 // Mount loads, mounting if necessary, a volume under a path using a specific

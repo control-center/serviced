@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	volume.Register(volume.DriverDeviceMapper, Init)
+	volume.Register(volume.DriverTypeDeviceMapper, Init)
 }
 
 type DeviceMapperDriver struct {
@@ -51,7 +51,7 @@ func (d *DeviceMapperDriver) Root() string {
 
 // DriverType implements volume.Driver.DriverType
 func (d *DeviceMapperDriver) DriverType() volume.DriverType {
-	return volume.DriverDeviceMapper
+	return volume.DriverTypeDeviceMapper
 }
 
 func getTenant(from string) string {
@@ -228,7 +228,7 @@ func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
 	dockerStatus := d.DeviceSet.Status()
 	// convert dockerStatus to our status and return
 	result := &volume.Status{
-		Driver:                 volume.DriverDeviceMapper,
+		Driver:                 volume.DriverTypeDeviceMapper,
 		DataSpaceAvailable:     dockerStatus.Data.Available,
 		DataSpaceUsed:          dockerStatus.Data.Used,
 		DataSpaceTotal:         dockerStatus.Data.Total,

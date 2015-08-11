@@ -24,9 +24,9 @@ import (
 func getDefaultStorageOptions(driverType volume.DriverType) []string {
 	var options []string
 	switch driverType {
-	case volume.DriverRsync:
-	case volume.DriverBtrFS:
-	case volume.DriverDeviceMapper:
+	case volume.DriverTypeRsync:
+	case volume.DriverTypeBtrFS:
+	case volume.DriverTypeDeviceMapper:
 		addStorageOption("SERVICED_DM_THINPOOLDEV", func(v string) {
 			options = append(options, fmt.Sprintf("dm.thinpooldev=%s", v))
 		})
