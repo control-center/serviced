@@ -177,15 +177,21 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
 
-	lock := newInstanceLock(conn, stateID)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
+	if exists, err := conn.Exists(path.Join(zkInstanceLock, stateID)); err != nil && err != client.ErrNoNode {
+		glog.Errorf("Could not check for lock on instance %s: %s", stateID, err)
 		return err
+	} else if exists {
+		lock := newInstanceLock(conn, stateID)
+		if err := lock.Lock(); err != nil {
+			glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
+			return err
+		}
+		defer lock.Unlock()
+		defer alertService(conn, serviceID, hostID, stateID, InstanceDeleted)
+		defer rmInstanceLock(conn, stateID)
+		glog.V(2).Infof("Acquired lock for instance %s", stateID)
 	}
-	defer lock.Unlock()
-	defer alertService(conn, serviceID, hostID, stateID, InstanceDeleted)
-	defer rmInstanceLock(conn, stateID)
-	glog.V(2).Infof("Acquired lock for instance %s", stateID)
+	
 	// Remove the node on the service
 	spath := servicepath(serviceID, stateID)
 	if err := conn.Delete(spath); err != nil {
