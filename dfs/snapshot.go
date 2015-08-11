@@ -17,6 +17,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"path"
 	"strings"
 	"time"
 
@@ -324,9 +325,10 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 // DeleteSnapshots deletes all snapshots relating to a particular tenantID
 func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
 	// delete the snapshot subvolume
-	driver, err := volume.GetDriver(dfs.varpath)
+	subVolumePath := path.Join(dfs.varpath, "volumes")
+	driver, err := volume.GetDriver(subVolumePath)
 	if err != nil {
-		glog.Errorf("Couldn't load the %s storage driver for %s", dfs.fsType, dfs.varpath)
+		glog.Errorf("Couldn't load the %s storage driver for %s: %s", dfs.fsType, subVolumePath, err)
 		return err
 	}
 	if !driver.Exists(tenantID) {
