@@ -17,6 +17,7 @@ package elasticsearch
 
 import (
 	"fmt"
+	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -131,7 +132,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	}
 
 	tmpdir := c.MkDir()
-	err = volume.InitDriver(rsync.DriverName, tmpdir, []string{})
+	err = volume.InitDriver(rsync.DriverName, path.Join(tmpdir, "volumes"), []string{})
 	c.Assert(err, IsNil)
 
 	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, rsync.DriverName, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})

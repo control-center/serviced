@@ -24,7 +24,6 @@ import (
 	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -323,14 +322,15 @@ func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
 
 // DeleteSnapshots deletes all snapshots relating to a particular tenantID
 func (dfs *DistributedFilesystem) DeleteSnapshots(tenantID string) error {
-	// delete the snapshot subvolume
-	driver, err := volume.GetDriver(dfs.varpath)
+	volume, err := dfs.GetVolume(tenantID)
 	if err != nil {
-		glog.Errorf("Couldn't load the %s storage driver for %s", dfs.fsType, dfs.varpath)
+		glog.Errorf("Could not find the volume for service %s: %s", tenantID, err)
 		return err
 	}
-	if !driver.Exists(tenantID) {
-		glog.Errorf("Could not find the volume for service %s: %s", tenantID, err)
+
+	driver := volume.Driver()
+	if driver == nil {
+		glog.Errorf("Could not find the driver for tenant %s, volume %s: %s", tenantID, volume.Path(), err)
 		return err
 	}
 
