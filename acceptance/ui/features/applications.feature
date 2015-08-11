@@ -73,7 +73,7 @@ Feature: Application Management
       And I click "Deploy"
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
-      And I should see "Showing 2 Results"
+      And I should see "Showing 2 Results" in the "Applications" table
 
   @clean_hosts @clean_services
   Scenario: Deploy an instance of the default template and add a host
@@ -100,7 +100,7 @@ Feature: Application Management
       And I click "Deploy"
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
-      And I should see "Showing 2 Results"
+      And I should see "Showing 2 Results" in the "Applications" table
 
   @clean_pools @clean_hosts @clean_services
   Scenario: Deploy an instance of the default template to another resource pool
@@ -123,7 +123,7 @@ Feature: Application Management
       And I click "Deploy"
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/app2/template" in the Applications table
-      And I should see "Showing 2 Results"
+      And I should see "Showing 2 Results" in the "Applications" table
 
   @clean_hosts @clean_services
   Scenario: Add an instance of the default template with a duplicate Deployment ID
@@ -146,7 +146,7 @@ Feature: Application Management
     Then I should see that the application has not been deployed
       And I should see "Internal Server Error: deployment ID"
       And I should see "is already in use"
-      And I should see "Showing 2 Results"
+      And I should see "Showing 2 Results" in the "Applications" table
 
   @clean_hosts @clean_services
   Scenario: Add an instance of the default template with another Deployment ID
@@ -168,7 +168,7 @@ Feature: Application Management
       And I click "Deploy"
     Then I should see that the application has deployed
       And I should see an entry for "table://applications/app3/template" in the Applications table
-      And I should see "Showing 3 Results"
+      And I should see "Showing 3 Results" in the "Applications" table
 
   @clean_hosts
   Scenario: Remove an instance of the default template
@@ -179,4 +179,4 @@ Feature: Application Management
       And I should see "This action will permanently delete the running application"
     When I click "Remove Application"
     Then I should see "Removed App"
-      And I should not see "Showing 2 Results"
+      And I should not see "Showing 2 Results" in the "Applications" table
