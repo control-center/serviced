@@ -55,6 +55,7 @@ isvcs/build/*.tar.gz
 web/ui/node_modules
 web/ui/build
 web/ui/test/results
+web/static
 
 *.Godeps_restored
 
