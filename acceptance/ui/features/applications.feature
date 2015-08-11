@@ -1,4 +1,4 @@
-@apps
+@apps @screenshot
 Feature: Application Management
   In order to use Control Center
   As a CC admin user
@@ -102,7 +102,7 @@ Feature: Application Management
       And I should see an entry for "table://applications/defaultApp/template" in the Applications table
       And I should see "Showing 2 Results"
 
-  @clean_hosts @clean_services @clean_pools
+  @clean_pools @clean_hosts @clean_services
   Scenario: Deploy an instance of the default template to another resource pool
     Given only the default host is added
       And that the "table://applications/app2/template" application is not added

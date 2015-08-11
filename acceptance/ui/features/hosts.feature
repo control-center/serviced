@@ -1,4 +1,4 @@
-@hosts
+@hosts @screenshot
 Feature: Host Management
   In order to use Control Center
   As a CC admin user

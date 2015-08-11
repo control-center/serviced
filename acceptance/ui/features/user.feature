@@ -1,4 +1,4 @@
-@user @login-required
+@user @login-required @screenshot
 Feature: User Details
   As a Control Center user
   I want to manage user details

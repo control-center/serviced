@@ -1,4 +1,4 @@
-@pools_details
+@pools_details @screenshot
 Feature: Resource Pool Details
   In order to use Control Center
   As a CC admin user

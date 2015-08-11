@@ -1,4 +1,4 @@
-@internalServices
+@internalServices @screenshot
 Feature: Internal Services
   In order to use Control Center
   As a CC admin user
