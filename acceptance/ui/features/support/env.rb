@@ -147,3 +147,7 @@ end
 Capybara::Screenshot.register_driver(:selenium_chrome) do |driver, path|
     driver.browser.save_screenshot(path)
 end
+
+# Turns off default screenshots (taken after cleanup hooks)
+# so only one screenshot per failure is taken
+Capybara::Screenshot.autosave_on_failure = false

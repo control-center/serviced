@@ -1,4 +1,4 @@
-@login
+@login @screenshot
 Feature: User login
   As a Control Center user
   I want to see if the login works

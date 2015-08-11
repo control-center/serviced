@@ -1,4 +1,4 @@
-@apps_sorting
+@apps_sorting @screenshot
 Feature: Application Sorting
   In order to use Control Center
   As a CC admin user

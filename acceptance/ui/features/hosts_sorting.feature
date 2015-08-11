@@ -1,4 +1,4 @@
-@hosts_sorting
+@hosts_sorting @screenshot
 Feature: Host Sorting
   In order to use Control Center
   As a CC admin user
