@@ -38,16 +38,7 @@ When (/^I sort by "([^"]*)" in ([^"]*) order$/) do |category, order|
 end
 
 When (/^I view the details (?:for|of) "(.*?)" in the "(.*?)" table$/) do |name, table|
-    type = ""
-    if table == "Applications" || table == "Services"
-        type = "services"
-    elsif table == "Hosts"
-        type = "hosts"
-    elsif table == "Resource Pools"
-        type = "pools"
-    end
-
-    viewDetails(name, type)
+    viewDetails(name, getTableType(table))
 end
 
 When (/^I hover over the "(.*?)" graph$/) do |graph|
@@ -108,6 +99,34 @@ Then (/^the details for "(.*?)" should be( the sum of)? "(.*?)"$/) do |header, s
     expect(checkDetails(text, header)).to be true
 end
 
+Then (/^I should see "(.*?)" in the "(.*?)" table$/) do |text, table|
+    table = getTableType(table)
+    within(page.find("table[data-config='#{table}Table']")) do
+        expect(page).to have_content(getTableValue(text))
+    end
+end
+
+Then (/^I should not see "(.*?)" in the "(.*?)" table$/) do |text, table|
+    table = getTableType(table)
+    within(page.find("table[data-config='#{table}Table']")) do
+        expect(page).to have_content(getTableValue(text))
+    end
+end
+
+
+def getTableType(table)
+    type = ""
+    if table == "Applications" || table == "Services"
+        type = "services"
+    elsif table == "Application Templates" || table == "Templates"
+        type = "templates"
+    elsif table == "Hosts"
+        type = "hosts"
+    elsif table == "Resource Pools"
+        type = "pools"
+    end
+    return type
+end
 
 def viewDetails(name, table)
     name = getTableValue(name)
