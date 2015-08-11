@@ -39,7 +39,7 @@ Given (/^(?:|that )the "(.*?)" virtual IP is added to the "(.*?)" pool$/) do |ip
     if (isNotInRows(pool))
         addPool(pool, "added for virtual IP")
     end
-    viewDetails(pool)
+    viewDetails(pool, "pools")
     if (isNotInRows("table://virtualips/" + ip + "/ip"))
         addVirtualIpJson(ip)
     end
@@ -50,7 +50,7 @@ Given (/^(?:|that )the "(.*?)" pool has no virtual IPs$/) do |pool|
     if (isNotInRows(pool))
         addPool(pool, "added for no virtual IPs")
     else
-        viewDetails(pool)
+        viewDetails(pool, "pools")
         if (@pools_page.virtualIps_table.has_no_text?("No Data Found"))
             removeAllEntries("address")
         end
