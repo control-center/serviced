@@ -41,6 +41,7 @@ var (
 	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
 	ErrBtrfsInvalidLabel      = errors.New("invalid label")
 	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
+	ErrBtrfsNotImplemented    = errors.New("function not implemented for Btrfs")
 )
 
 // BtrfsDriver is a driver for the btrfs volume
@@ -137,6 +138,14 @@ func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 // Remove implements volume.Driver.Remove
 func (d *BtrfsDriver) Remove(volumeName string) error {
 	return nil
+}
+
+func (d *BtrfsDriver) Status() (*volume.Status, error) {
+	glog.V(2).Info("btrfs.Status()")
+	response := &volume.Status{
+		Driver: DriverName,
+	}
+	return response, nil
 }
 
 func getTenant(from string) string {
@@ -469,3 +478,5 @@ func runcmd(sudoer bool, args ...string) ([]byte, error) {
 	}
 	return output, err
 }
+
+

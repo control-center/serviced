@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/script"
+	"github.com/control-center/serviced/volume"
 )
 
 // API is the intermediary between the command-line interface and the dao layer
@@ -109,6 +110,10 @@ type API interface {
 	// Metric
 	PostMetric(metricName string, metricValue string) (string, error)
 
+	// Scripts
 	ScriptRun(fileName string, config *script.Config, stopChan chan struct{}) error
 	ScriptParse(fileName string, config *script.Config) error
+
+	// Volumes
+	GetVolumeStatus(volumeNames []string) (*volume.Statuses, error)
 }

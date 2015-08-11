@@ -37,6 +37,7 @@ const (
 
 var (
 	ErrDeletingVolume = errors.New("could not delete volume")
+	ErrRsyncNotImplemented = errors.New("function not implemented for rsync")
 )
 
 // RsyncDriver is a driver for the rsync volume
@@ -116,6 +117,14 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 		return ErrDeletingVolume
 	}
 	return nil
+}
+
+func (d *RsyncDriver) Status() (*volume.Status, error) {
+	glog.V(2).Info("rsync.Status()")
+	response := &volume.Status{
+		Driver: DriverName,
+	}
+	return response, nil
 }
 
 func getTenant(from string) string {

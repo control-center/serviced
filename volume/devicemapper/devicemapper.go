@@ -67,7 +67,6 @@ func getTenant(from string) string {
 // Create implements volume.Driver.Create
 func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	if d.Exists(volumeName) {
-		return nil, volume.ErrVolumeExists
 	}
 	// Create a new device
 	volumeDevice, err := utils.NewUUID62()
@@ -227,6 +226,29 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	return nil
+}
+
+func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
+	glog.V(2).Info("devicemapper.Status()")
+	dockerStatus := d.DeviceSet.Status()
+	// convert dockerStatus to our status and return
+	result := &volume.Status{
+		Driver:                 DriverName,
+		DataSpaceAvailable:     dockerStatus.Data.Available,
+		DataSpaceUsed:          dockerStatus.Data.Used,
+		DataSpaceTotal:         dockerStatus.Data.Total,
+		MetadataSpaceAvailable: dockerStatus.Metadata.Available,
+		MetadataSpaceUsed:      dockerStatus.Metadata.Used,
+		MetadataSpaceTotal:     dockerStatus.Metadata.Total,
+		PoolName:               dockerStatus.PoolName,
+		DataFile:               dockerStatus.DataFile,
+		DataLoopback:           dockerStatus.DataLoopback,
+		MetadataFile:           dockerStatus.MetadataFile,
+		MetadataLoopback:       dockerStatus.MetadataLoopback,
+		SectorSize:             dockerStatus.SectorSize,
+		UdevSyncSupported:      dockerStatus.UdevSyncSupported,
+	}
+	return result, nil
 }
 
 // Name implements volume.Volume.Name
