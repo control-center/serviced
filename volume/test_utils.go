@@ -7,12 +7,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sync"
 	"syscall"
 
 	. "gopkg.in/check.v1"
 )
 
-var btrfsVolumes map[string]string = make(map[string]string)
+var (
+	btrfsVolumes map[string]string = make(map[string]string)
+	volumeLock   sync.Mutex
+)
 
 // createBtrfsTmpVolume creates a btrfs volume of <size> bytes in a ramdisk,
 // based on a loop device. Returns the path to the mounted filesystem.
@@ -50,6 +54,8 @@ func CreateBtrfsTmpVolume(c *C, size int64) string {
 		defer syscall.Unmount(ramdiskDir, syscall.MNT_DETACH)
 		c.Fatal(err)
 	}
+	volumeLock.Lock()
+	defer volumeLock.Unlock()
 	btrfsVolumes[mountPath] = ramdiskDir
 	return mountPath
 }
@@ -59,6 +65,9 @@ func CleanupBtrfsTmpVolume(c *C, fsPath string) {
 		ramdisk string
 		ok      bool
 	)
+	volumeLock.Lock()
+	defer volumeLock.Unlock()
+
 	ramdisk, ok = btrfsVolumes[fsPath]
 	c.Assert(ok, Equals, true)
 
@@ -72,4 +81,7 @@ func CleanupBtrfsTmpVolume(c *C, fsPath string) {
 
 	// Clean up the mount point
 	os.RemoveAll(ramdisk)
+
+	// Remove the reference to the volume from our internal map
+	delete(btrfsVolumes, fsPath)
 }

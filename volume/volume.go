@@ -16,14 +16,9 @@ package volume
 import (
 	"errors"
 	"io"
-	"io/ioutil"
-	"os"
-	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 
-	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/zenoss/glog"
 )
 
@@ -56,8 +51,8 @@ type Statuses struct {
 
 const (
 	DriverTypeBtrFS        DriverType = "btrfs"
-	DriverTypeRsync                   = "rsync"
-	DriverTypeDeviceMapper            = "devicemapper"
+	DriverTypeRsync        DriverType = "rsync"
+	DriverTypeDeviceMapper DriverType = "devicemapper"
 )
 
 var (
@@ -196,7 +191,7 @@ func InitDriver(name DriverType, root string, args []string) error {
 				return err
 			}
 		} else if t != name {
-			glog.Fatalf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
+			glog.Errorf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
 			return ErrDriverAlreadyInit
 		}
 		// Create the driver instance
@@ -261,65 +256,6 @@ func FindMount(volumePath string) (Volume, error) {
 	return Mount(volumeName, rootDir)
 }
 
-func DetectDriverType(root string) (DriverType, error) {
-	// Check to see if the directory even exists. If not, no driver has been initialized.
-	if _, err := os.Stat(root); err != nil {
-		if os.IsNotExist(err) {
-			return "", ErrDriverNotInit
-		}
-	}
-	// Check for .devicemapper directory, which unequivocally indicates a devicemapper driver
-	if _, err := os.Stat(filepath.Join(root, ".devicemapper")); os.IsExist(err) {
-		return DriverTypeDeviceMapper, nil
-	}
-	// Check if there are any volumes
-	fis, err := ioutil.ReadDir(root)
-	if err != nil {
-		return "", err
-	}
-	var names []string
-	for _, fi := range fis {
-		if fi.Name() != "monitor" {
-			names = append(names, fi.Name())
-		}
-	}
-	if len(names) == 0 {
-		// No volumes, so essentially no driver
-		return "", ErrDriverNotInit
-	}
-	// Check to see if it's a btrfs filesystem
-	magic, err := graphdriver.GetFSMagic(root)
-	if err != nil {
-		return "", err
-	}
-	if magic == graphdriver.FsMagicBtrfs {
-		var sudoer bool
-		user, err := user.Current()
-		if err != nil {
-			return "", err
-		}
-		if user.Uid != "0" {
-			err := exec.Command("sudo", "-n", "btrfs", "help").Run()
-			if err != nil {
-				// Not root. No way to tell if rsync or btrfs.
-				glog.Errorf("Unable to execute btrfs commands, so can't detect driver type")
-				return "", ErrInsufficientPermissions
-			}
-			sudoer = true
-		}
-		// Check one of the volumes to see if it's a subvolume
-		args := []string{"btrfs", "subvolume", "show", filepath.Join(root, names[0])}
-		if sudoer {
-			args = append([]string{"sudo", "-n"}, args...)
-		}
-		if err := exec.Command(args[0], args[1:]...).Run(); err == nil {
-			// It's btrfs
-			return DriverTypeBtrFS, nil
-		}
-	}
-	return DriverTypeRsync, nil
-}
-
 // Mount loads, mounting if necessary, a volume under a path using a specific
 // driver path at <root>.
 func Mount(volumeName, rootDir string) (volume Volume, err error) {
@@ -354,13 +290,27 @@ func Mount(volumeName, rootDir string) (volume Volume, err error) {
 	return volume, nil
 }
 
+// ShutdownDriver shuts down an existing driver and removes it from our internal map.
+func ShutdownDriver(rootDir string) error {
+	driver, ok := driversByRoot[rootDir]
+	if !ok {
+		glog.Errorf("Tried to shut down uninitialized driver: %s", rootDir)
+		return ErrDriverNotInit
+	}
+	glog.V(2).Infof("Shutting down %s driver for %s", driver.DriverType(), driver.Root())
+	if err := driver.Cleanup(); err != nil {
+		glog.Errorf("Unable to clean up %s driver for %s: %s", driver.DriverType(), driver.Root(), err)
+		return err
+	}
+	delete(driversByRoot, rootDir)
+	return nil
+}
+
 // ShutdownAll shuts down all drivers that have been initialized
 func ShutdownAll() error {
 	errs := []error{}
-	for _, driver := range driversByRoot {
-		glog.V(2).Infof("Shutting down %s driver for %s", driver.DriverType(), driver.Root())
-		if err := driver.Cleanup(); err != nil {
-			glog.Errorf("Unable to clean up %s driver for %s: %s", driver.DriverType(), driver.Root(), err)
+	for root, _ := range driversByRoot {
+		if err := ShutdownDriver(root); err != nil {
 			errs = append(errs, err)
 		}
 	}
