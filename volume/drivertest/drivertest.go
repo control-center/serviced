@@ -116,8 +116,8 @@ func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args
 	fis = filterLostAndFound(fis)
 	c.Assert(fis, HasLen, 0)
 
-	c.Assert(driver.Remove(volumeName), IsNil)
 	driver.Release(volumeName)
+	c.Assert(driver.Remove(volumeName), IsNil)
 }
 
 func createBase(c *C, driver *Driver, name string) volume.Volume {

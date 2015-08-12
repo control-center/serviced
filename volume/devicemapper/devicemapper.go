@@ -177,7 +177,12 @@ func (d *DeviceMapperDriver) Release(volumeName string) error {
 		return err
 	}
 	device := metadata.CurrentDevice()
-	return d.DeviceSet.UnmountDevice(device)
+	if err := d.DeviceSet.UnmountDevice(device); err != nil {
+		if !strings.HasPrefix(err.Error(), "UnmountDevice: device not-mounted id") {
+			return err
+		}
+	}
+	return nil
 }
 
 // Remove implements volume.Driver.Remove
@@ -201,14 +206,13 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 			return err
 		}
 	}
-	volumeDevice := v.volumeDevice()
-	glog.V(1).Infof("Removing volume %s (%s)", volumeName, volumeDevice)
-	if err := d.DeviceSet.UnmountDevice(volumeDevice); err != nil {
-		glog.Errorf("Could not unmount device %s (%s): %s", volumeName, volumeDevice, err)
+	if err := d.Release(volumeName); err != nil {
 		return err
 	}
-	if err := d.DeviceSet.DeleteDevice(volumeDevice); err != nil {
-		glog.Errorf("Could not delete device %s (%s): %s", volumeName, volumeDevice, err)
+
+	glog.V(1).Infof("Removing volume %s", volumeName)
+	if err := d.DeviceSet.DeleteDevice(v.volumeDevice()); err != nil {
+		glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		return err
 	}
 	if err := v.Metadata.remove(); err != nil {
