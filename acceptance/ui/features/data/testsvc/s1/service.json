@@ -1,0 +1,36 @@
+{
+          "Command": "/usr/bin/python3 -m http.server 8080",
+          "Endpoints": [{
+              "Name": "www",
+              "Application": "www",
+              "PortNumber": 8080,
+              "Protocol": "tcp",
+              "Purpose": "export",
+              "AddressConfig": {
+                              "Port": 1000,
+                              "Protocol": "tcp"
+                          }
+            },{
+              "Name": "websvc",
+              "Application": "websvc",
+              "PortNumber": 9090,
+              "Protocol": "tcp",
+              "Purpose": "import"
+            }
+          ],
+          "ImageID": "zenoss/ubuntu:wget",
+          "Instances": {
+            "min": 1
+          },
+          "ConfigFiles": {
+            "/etc/my.cnf":  { "Owner": "root:root", "Filename": "/etc/my.cnf", "Permissions": "0660", "Content": "\n# SAMPLE config file for mysql\n\n[mysqld]\n\ninnodb_buffer_pool_size = 16G\n\n"}
+          },
+          "LogConfigs":[ {
+            "path": "/tmp/foo",
+            "type": "foo"
+          }],
+          "Snapshot": {
+            "Pause": "echo pause",
+            "Resume": "echo resume"
+          }
+}

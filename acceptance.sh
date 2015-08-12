@@ -93,7 +93,7 @@ add_host() {
 #
 # FIXME: Should move this into a Cucumber step
 add_template() {
-    TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/dao/testsvc | ${SERVICED} template add)
+    TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/acceptance/ui/features/data/testsvc | ${SERVICED} template add)
     sleep 1
     [ -z "$(${SERVICED} template list ${TEMPLATE_ID})" ] && return 1
     return 0
