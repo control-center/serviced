@@ -2,7 +2,6 @@ package devicemapper
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -446,9 +445,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	}
 	defer v.driver.DeviceSet.UnmountDevice(device)
 	// Set up the file stream
-	gzWriter := gzip.NewWriter(writer)
-	defer gzWriter.Close()
-	tarfile := tar.NewWriter(gzWriter)
+	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
@@ -491,17 +488,8 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 		return err
 	}
 	defer v.driver.DeviceSet.UnmountDevice(device)
-	// import the volume
-	err = func() error {
-		gzReader, err := gzip.NewReader(reader)
-		if err != nil {
-			return err
-		}
-		defer gzReader.Close()
-		tarfile := tar.NewReader(gzReader)
-		return volume.ImportArchive(tarfile, mountpoint)
-	}()
-	if err != nil {
+	tarfile := tar.NewReader(reader)
+	if err := volume.ImportArchive(tarfile, mountpoint); err != nil {
 		glog.Errorf("Could not import snapshot %s: %s", label, err)
 		return err
 	}

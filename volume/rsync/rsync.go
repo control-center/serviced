@@ -15,7 +15,6 @@ package rsync
 
 import (
 	"archive/tar"
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -375,9 +374,7 @@ func (v *RsyncVolume) Export(label, parent string, writer io.Writer) error {
 	} else if !exists {
 		return volume.ErrSnapshotDoesNotExist
 	}
-	gzf := gzip.NewWriter(writer)
-	defer gzf.Close()
-	tarfile := tar.NewWriter(gzf)
+	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
 	if err := volume.ExportDirectory(tarfile, src, label); err != nil {
 		glog.Errorf("Could not export snapshot %s: %s", label, err)
@@ -402,19 +399,8 @@ func (v *RsyncVolume) Import(label string, reader io.Reader) error {
 		return err
 	}
 	defer os.RemoveAll(importdir)
-	err := func() error {
-		gzf, err := gzip.NewReader(reader)
-		if err != nil {
-			return err
-		}
-		defer gzf.Close()
-		tarfile := tar.NewReader(gzf)
-		if err := volume.ImportArchive(tarfile, importdir); err != nil {
-			return err
-		}
-		return nil
-	}()
-	if err != nil {
+	tarfile := tar.NewReader(reader)
+	if err := volume.ImportArchive(tarfile, importdir); err != nil {
 		glog.Errorf("Could not import snaphot %s: %s", label, err)
 		return err
 	}

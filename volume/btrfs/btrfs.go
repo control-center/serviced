@@ -14,7 +14,6 @@
 package btrfs
 
 import (
-	"compress/gzip"
 	"errors"
 	"fmt"
 	"io"
@@ -416,9 +415,7 @@ func (v *BtrfsVolume) Export(label, parent string, writer io.Writer) error {
 		return volume.ErrSnapshotDoesNotExist
 	}
 	// TODO: add to tarfile and include metadata
-	gzf := gzip.NewWriter(writer)
-	defer gzf.Close()
-	if err := runBtrfsSend(gzf, v.sudoer, parent, v.snapshotPath(label)); err != nil {
+	if err := runBtrfsSend(writer, v.sudoer, parent, v.snapshotPath(label)); err != nil {
 		glog.Errorf("Could not export snapshot %s: %s", label, err)
 		return err
 	}
@@ -437,16 +434,8 @@ func (v *BtrfsVolume) Import(label string, reader io.Reader) error {
 		glog.Errorf("Could not create import path for snapshot %s: %s", label, err)
 		return err
 	}
-	defer volume.RunBtrFSCmd(v.sudoer, "subvolume", "delete", importdir)
-	err := func() error {
-		gzf, err := gzip.NewReader(reader)
-		if err != nil {
-			return err
-		}
-		defer gzf.Close()
-		return runBtrfsRecv(gzf, v.sudoer, importdir)
-	}()
-	if err != nil {
+	defer runcmd(v.sudoer, "subvolume", "delete", importdir)
+	if err := runBtrfsRecv(reader, v.sudoer, importdir); err != nil {
 		glog.Errorf("Could not import snapshot %s: %s", label, err)
 		return err
 	}
