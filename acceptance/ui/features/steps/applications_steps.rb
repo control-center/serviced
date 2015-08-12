@@ -30,7 +30,7 @@ end
 Given (/^(?:|that )the test template is added$/) do
     visitApplicationsPage()
     exists = checkTemplateRows("testsvc")
-    startAppTemplate(TEMPLATE_DIR) if !exists
+    addTemplate(TEMPLATE_DIR) if !exists
     refreshPage()
 end
 
@@ -150,4 +150,10 @@ def addService(name, pool, id)
     fillInDeploymentID(id)
     click_link_or_button("Deploy")
     expect(page).to have_content("App deployed successfully", wait: 120)
+end
+
+def addTemplate(dir)
+    id = `/capybara/serviced --endpoint #{HOST_IP}:4979 template compile #{dir} | /capybara/serviced --endpoint #{HOST_IP}:4979 template add`
+    `sleep 1`
+    return `[ -z "$(/capybara/serviced template list #{id})" ] && return 1`
 end

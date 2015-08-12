@@ -46,18 +46,6 @@ def parseJson(data)
     return data
 end
 
-def startHost(ip, port, pool)
-    id = `/capybara/serviced --endpoint #{HOST_IP}:4979 host add "#{ip}:#{port}" #{pool}`
-    `sleep 1`
-    return `[ -z "$(/capybara/serviced host list #{id} 2>/dev/null)" ] && return 1`
-end
-
-def startAppTemplate(dir)
-    id = `/capybara/serviced --endpoint #{HOST_IP}:4979 template compile #{dir} | /capybara/serviced --endpoint #{HOST_IP}:4979 template add`
-    `sleep 1`
-    return `[ -z "$(/capybara/serviced template list #{id})" ] && return 1`
-end
-
 #
 # Set defaults
 Capybara.default_wait_time = 10
@@ -136,18 +124,6 @@ printf "Using driver=%s\n", Capybara.default_driver
 
 HOST_IP = ENV["HOST_IP"]
 printf "Using IP Address=%s\n", HOST_IP
-
-puts "Adding default host"
-if startHost(HOST_IP, "4979", "default") == 1
-    puts "Failed to add host"
-    exit 1
-end
-
-puts "Adding default app template"
-if startAppTemplate(template_dir) == 1
-    puts "Failed to add template"
-    exit 1
-end
 
 #
 # Register Chrome (Firefox is the selenium default)
