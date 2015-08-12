@@ -558,9 +558,10 @@ func (dfs *DistributedFilesystem) loadSnapshots(tenantID, infile string) error {
 			}
 			defer infile.Close()
 			return volume.Import(label, infile)
-		}
+		}()
 		if err != nil {
-			glog.Warningf("Could not import snapshot %s: %s", label, err)
+			glog.Errorf("Could not import snapshot %s: %s", label, err)
+			return err
 		}
 	}
 	defer func() {
