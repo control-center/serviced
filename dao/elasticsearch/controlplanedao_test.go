@@ -40,6 +40,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
 	volume "github.com/control-center/serviced/volume"
+	_ "github.com/control-center/serviced/volume/rsync"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
