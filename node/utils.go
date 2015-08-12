@@ -20,6 +20,7 @@ package node
 
 import (
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/zenoss/glog"
 
 	"fmt"
@@ -95,82 +96,25 @@ func ExecPath() (string, string, error) {
 	return filepath.Dir(path), filepath.Base(path), nil
 }
 
-// DockerVersion contains the tuples that describe the version of docker.
-type DockerVersion struct {
-	Client []int
-	Server []int
-}
-
-// equals compares two DockerVersion structs and returns true if they are equal.
-func (a *DockerVersion) equals(b *DockerVersion) bool {
-	if len(a.Client) != len(b.Client) {
-		return false
-	}
-	for i, aI := range a.Client {
-		if aI != b.Client[i] {
-			return false
-		}
-	}
-	if len(a.Server) != len(b.Server) {
-		return false
-	}
-	for i, aI := range a.Server {
-		if aI != b.Server[i] {
-			return false
-		}
-	}
-	return true
-}
-
 // GetDockerVersion returns docker version number.
-func GetDockerVersion() (DockerVersion, error) {
-	cmd := exec.Command("docker", "version")
-	output, err := cmd.Output()
+func GetDockerVersion() ([]int, error) {
+	dc, err := docker.NewClient("")
 	if err != nil {
-		return DockerVersion{}, err
+		return nil, err
 	}
-	return parseDockerVersion(string(output))
-}
-
-// parseDockerVersion parses the output of the 'docker version' commmand and
-// returns a DockerVersion object.
-func parseDockerVersion(output string) (version DockerVersion, err error) {
-
-	for _, line := range strings.Split(output, "\n") {
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) < 2 {
-			continue
-		}
-		if strings.HasPrefix(parts[0], "Client version") {
-			a := strings.SplitN(strings.TrimSpace(parts[1]), "-", 2)
-			b := strings.Split(a[0], ".")
-			version.Client = make([]int, len(b))
-			for i, v := range b {
-				x, err := strconv.Atoi(v)
-				if err != nil {
-					return version, err
-				}
-				version.Client[i] = x
-			}
-		}
-		if strings.HasPrefix(parts[0], "Server version") {
-			a := strings.SplitN(strings.TrimSpace(parts[1]), "-", 2)
-			b := strings.Split(a[0], ".")
-			version.Server = make([]int, len(b))
-			for i, v := range b {
-				x, err := strconv.Atoi(v)
-				if err != nil {
-					return version, err
-				}
-				version.Server[i] = x
-			}
-		}
+	env, err := dc.Version()
+	if err != nil {
+		return nil, err
 	}
-	if len(version.Client) == 0 {
-		return version, fmt.Errorf("no client version found")
-	}
-	if len(version.Server) == 0 {
-		return version, fmt.Errorf("no server version found")
+	versionString := env.Get("Version")
+	versionSplit := strings.Split(versionString, ".")
+	version := make([]int, len(versionSplit))
+	for i, v := range versionSplit {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return nil, err
+		}
+		version[i] = n
 	}
 	return version, nil
 }

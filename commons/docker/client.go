@@ -80,12 +80,15 @@ type ClientInterface interface {
 	TagImage(name string, opts dockerclient.TagImageOptions) error
 
 	WaitContainer(id string) (int, error)
+	
+	Version() (*dockerclient.Env, error)
 }
 
 // assert the interface
 var _ ClientInterface = &Client{}
 
 func NewClient(dockerRegistry string) (ClientInterface, error) {
+	// Why are we passing in and not using dockerRegistry?
 	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		return nil, err
@@ -175,4 +178,8 @@ func (c *Client) TagImage(name string, opts dockerclient.TagImageOptions) error 
 
 func (c *Client) WaitContainer(id string) (int, error) {
 	return c.dc.WaitContainer(id)
+}
+
+func (c *Client) Version() (*dockerclient.Env, error) {
+	return c.dc.Version()
 }

@@ -263,7 +263,7 @@ func (d *daemon) run() (err error) {
 
 	if currentDockerVersion, err := node.GetDockerVersion(); err != nil {
 		glog.Fatalf("Could not get docker version: %s", err)
-	} else if minDockerVersion.Compare(currentDockerVersion.Client) < 0 {
+	} else if minDockerVersion.Compare(currentDockerVersion) < 0 {
 		glog.Fatalf("serviced requires docker >= %s", minDockerVersion)
 	}
 
