@@ -138,9 +138,3 @@ def addHostJson(host)
 
     addHost(nameAndPort, pool, commitment)
 end
-
-def addHostCli(ip, port, pool)
-    id = `/capybara/serviced --endpoint #{HOST_IP}:4979 host add "#{ip}:#{port}" #{pool}`
-    `sleep 1`
-    return `[ -z "$(/capybara/serviced host list #{id} 2>/dev/null)" ] && return 1`
-end
