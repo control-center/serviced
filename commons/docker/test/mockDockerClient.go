@@ -122,3 +122,7 @@ func (mdc *MockDockerClient) WaitContainer(id string) (int, error) {
 	args := mdc.Mock.Called(id)
 	return args.Int(0), args.Error(1)
 }
+
+func (mdc *MockDockerClient) Version() (*dockerclient.Env, error) {
+	return nil, nil
+}

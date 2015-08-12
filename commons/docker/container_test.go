@@ -30,7 +30,7 @@ func TestContainerCommit(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -75,7 +75,7 @@ func TestOnContainerStart(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -116,7 +116,7 @@ func TestOnContainerStop(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -153,7 +153,7 @@ func TestCancelOnEvent(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -194,7 +194,7 @@ func TestRestartContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -244,7 +244,7 @@ func TestListContainers(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -298,7 +298,7 @@ func TestWaitForContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -340,7 +340,7 @@ func TestInspectContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -392,7 +392,7 @@ func TestRepeatedStart(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -433,7 +433,7 @@ func TestNewContainerOnCreatedAndStartedActions(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -492,7 +492,7 @@ func TestNewContainerOnCreatedAction(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -538,7 +538,7 @@ func TestNewContainerOnStartedAction(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -585,7 +585,7 @@ func TestFindContainer(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
@@ -627,7 +627,7 @@ func TestContainerExport(t *testing.T) {
 		dockerclient.CreateContainerOptions{
 			Config: &dockerclient.Config{
 				Image: "ubuntu:latest",
-				Cmd:   []string{"watch", "ls"},
+				Cmd:   []string{"sleep", "3600"},
 			},
 		},
 		dockerclient.HostConfig{},
