@@ -21,8 +21,6 @@ import (
 	"github.com/zenoss/glog"
 
 	"os"
-	"os/exec"
-	"os/user"
 	"path"
 	"path/filepath"
 	"strconv"
@@ -61,17 +59,9 @@ type BtrfsVolume struct {
 
 // Btrfs driver initialization
 func Init(root string, _ []string) (volume.Driver, error) {
-	user, err := user.Current()
-	if err != nil {
-		return nil, err
-	}
 	driver := &BtrfsDriver{
-		sudoer: false,
+		sudoer: volume.IsSudoer(),
 		root:   root,
-	}
-	if user.Uid != "0" {
-		err := exec.Command("sudo", "-n", "btrfs", "help").Run()
-		driver.sudoer = err == nil
 	}
 	return driver, nil
 }
