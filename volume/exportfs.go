@@ -112,42 +112,50 @@ func ImportArchive(tarfile *tar.Reader, path string) error {
 			glog.Errorf("Could not import archive to %s: %s", path, err)
 			return err
 		}
-		filename := filepath.Join(path, header.Name)
-		switch header.Typeflag {
-		case tar.TypeDir:
-			if err := os.MkdirAll(filename, 0755); err != nil {
-				glog.Errorf("Could not create directory at %s: %s", filename, err)
-				return err
-			}
-		case tar.TypeSymlink:
-			if err := os.Symlink(filename, header.Linkname); err != nil {
-				glog.Errorf("Could not create symlink at %s: %s", filename, err)
-				return err
-			}
-		case tar.TypeReg:
-			err := func() error {
-				writer, err := os.Create(filename)
-				if err != nil {
-					glog.Errorf("Could not create file at %s: %s", filename, err)
-					return err
-				}
-				defer writer.Close()
-				if _, err := io.Copy(writer, tarfile); err != nil {
-					glog.Errorf("Could not copy file %s: %s", filename, err)
-					return err
-				}
-				return nil
-			}()
+		if err := ImportArchiveHeader(header, tarfile, path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// ImportArchiveHeader imports a tarfile header to a particular path
+func ImportArchiveHeader(header *tar.Header, reader io.Reader, path string) error {
+	filename := filepath.Join(path, header.Name)
+	switch header.Typeflag {
+	case tar.TypeDir:
+		if err := os.MkdirAll(filename, 0755); err != nil {
+			glog.Errorf("Could not create directory at %s: %s", filename, err)
+			return err
+		}
+	case tar.TypeSymlink:
+		if err := os.Symlink(filename, header.Linkname); err != nil {
+			glog.Errorf("Could not create symlink at %s: %s", filename, err)
+			return err
+		}
+	case tar.TypeReg:
+		err := func() error {
+			writer, err := os.Create(filename)
 			if err != nil {
+				glog.Errorf("Could not create file at %s: %s", filename, err)
 				return err
 			}
+			defer writer.Close()
+			if _, err := io.Copy(writer, reader); err != nil {
+				glog.Errorf("Could not copy file %s: %s", filename, err)
+				return err
+			}
+			return nil
+		}()
+		if err != nil {
+			return err
 		}
-		if err := os.Chown(filename, header.Uid, header.Gid); err != nil {
-			glog.Warningf("Could not change file ownership for %s: %s", filename, err)
-		}
-		if err := os.Chmod(filename, header.FileInfo().Mode()); err != nil {
-			glog.Warningf("Could not set permissions for file %s: %s", filename, err)
-		}
+	}
+	if err := os.Chown(filename, header.Uid, header.Gid); err != nil {
+		glog.Warningf("Could not change file ownership for %s: %s", filename, err)
+	}
+	if err := os.Chmod(filename, header.FileInfo().Mode()); err != nil {
+		glog.Warningf("Could not set permissions for file %s: %s", filename, err)
 	}
 	return nil
 }

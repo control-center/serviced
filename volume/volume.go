@@ -22,10 +22,6 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const (
-	SnapshotMetadataExport = ".snapshot-metadata"
-)
-
 // DriverInit represents a function that can initialize a driver.
 type DriverInit func(root string, args []string) (Driver, error)
 
