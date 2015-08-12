@@ -177,7 +177,7 @@ func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 // List implements volume.Driver.List
 func (d *BtrfsDriver) List() (result []string) {
 	if raw, err := volume.RunBtrFSCmd(d.sudoer, "subvolume", "list", "-a", d.root); err != nil {
-		glog.Errorf("Could not list subvolumes at: %s", d.root)
+		glog.Warningf("Could not list subvolumes at: %s", d.root)
 	} else {
 		cleanraw := strings.TrimSpace(string(raw))
 		rows := strings.Split(cleanraw, "\n")
@@ -434,7 +434,7 @@ func (v *BtrfsVolume) Import(label string, reader io.Reader) error {
 		glog.Errorf("Could not create import path for snapshot %s: %s", label, err)
 		return err
 	}
-	defer runcmd(v.sudoer, "subvolume", "delete", importdir)
+	defer volume.RunBtrFSCmd(v.sudoer, "subvolume", "delete", importdir)
 	if err := runBtrfsRecv(reader, v.sudoer, importdir); err != nil {
 		glog.Errorf("Could not import snapshot %s: %s", label, err)
 		return err
