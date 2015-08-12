@@ -22,7 +22,7 @@ type DockerClientGetter func() (ClientInterface, error)
 
 // The default method used to get a new instance of ClientInterface.
 // The default instance is a thin shim around dockerclient.Client
-var defaultDockerClientGetter DockerClientGetter = func() (ClientInterface, error) { return NewClient(dockerep) }
+var defaultDockerClientGetter DockerClientGetter = func() (ClientInterface, error) { return NewClient() }
 
 var getDockerClient DockerClientGetter = defaultDockerClientGetter
 
@@ -87,8 +87,7 @@ type ClientInterface interface {
 // assert the interface
 var _ ClientInterface = &Client{}
 
-func NewClient(dockerRegistry string) (ClientInterface, error) {
-	// Why are we passing in and not using dockerRegistry?
+func NewClient() (ClientInterface, error) {
 	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		return nil, err

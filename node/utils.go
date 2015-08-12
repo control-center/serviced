@@ -98,7 +98,7 @@ func ExecPath() (string, string, error) {
 
 // GetDockerVersion returns docker version number.
 func GetDockerVersion() ([]int, error) {
-	dc, err := docker.NewClient("")
+	dc, err := docker.NewClient()
 	if err != nil {
 		return nil, err
 	}
