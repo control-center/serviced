@@ -109,7 +109,7 @@ end
 Then (/^I should not see "(.*?)" in the "(.*?)" table$/) do |text, table|
     table = getTableType(table)
     within(page.find("table[data-config='#{table}Table']")) do
-        expect(page).to have_content(getTableValue(text))
+        expect(page).to have_no_content(getTableValue(text))
     end
 end
 

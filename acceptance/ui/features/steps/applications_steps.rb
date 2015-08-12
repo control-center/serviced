@@ -25,6 +25,12 @@ Given (/^(?:|that )the "(.*?)" application with the "(.*?)" Deployment ID is add
     visitApplicationsPage()
     exists = checkServiceRows(app) && isInColumn(id, "Deployment ID")
     addService(app, "default", id) if !exists
+end
+
+Given (/^(?:|that )the test template is added$/) do
+    visitApplicationsPage()
+    exists = checkTemplateRows("testsvc")
+    startAppTemplate(TEMPLATE_DIR) if !exists
     refreshPage()
 end
 
