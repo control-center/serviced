@@ -56,6 +56,9 @@ type ProtoDriver interface {
 	// Status returns a set of key-value pairs which give low
 	// level diagnostic status about this driver.
 	Status() [][2]string
+	// Returns a set of key-value pairs which give low level information
+	// about the image/container driver is managing.
+	GetMetadata(id string) (map[string]string, error)
 	// Cleanup performs necessary tasks to release resources
 	// held by the driver, e.g., unmounting all layered filesystems
 	// known to this driver.
@@ -74,6 +77,7 @@ type Driver interface {
 	// ApplyDiff extracts the changeset from the given diff into the
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
+	// The archive.ArchiveReader must be an uncompressed stream.
 	ApplyDiff(id, parent string, diff archive.ArchiveReader) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
@@ -98,6 +102,7 @@ func GetDriver(name, home string, options []string) (Driver, error) {
 	if initFunc, exists := drivers[name]; exists {
 		return initFunc(filepath.Join(home, name), options)
 	}
+	logrus.Errorf("Failed to GetDriver graph %s %s", name, home)
 	return nil, ErrNotSupported
 }
 
