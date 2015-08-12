@@ -16,7 +16,7 @@ package mocks
 import "github.com/control-center/serviced/volume"
 import "github.com/stretchr/testify/mock"
 
-var DriverName = "mock"
+var DriverName volume.DriverType = "mock"
 
 type Driver struct {
 	mock.Mock
@@ -29,9 +29,10 @@ func (m *Driver) Root() string {
 
 	return r0
 }
-func (m *Driver) GetFSType() string {
+func (m *Driver) DriverType() volume.DriverType {
 	return DriverName
 }
+
 func (m *Driver) Create(volumeName string) (volume.Volume, error) {
 	ret := m.Called(volumeName)
 
@@ -86,7 +87,7 @@ func (m *Driver) Cleanup() error {
 
 	return r0
 }
-func (m* Driver) Status() (*volume.Status, error) {
+func (m *Driver) Status() (*volume.Status, error) {
 	ret := m.Called()
 
 	r0 := ret.Get(0).(volume.Status)
@@ -94,4 +95,3 @@ func (m* Driver) Status() (*volume.Status, error) {
 
 	return &r0, r1
 }
-

@@ -36,7 +36,7 @@ type Driver struct {
 	root string
 }
 
-func newDriver(c *C, name, root string, args []string) *Driver {
+func newDriver(c *C, name volume.DriverType, root string, args []string) *Driver {
 	var err error
 	if root == "" {
 		root = c.MkDir()
@@ -51,7 +51,7 @@ func newDriver(c *C, name, root string, args []string) *Driver {
 	d, err := volume.GetDriver(root)
 	c.Assert(err, IsNil)
 	c.Assert(d, NotNil)
-	c.Assert(d.GetFSType(), Equals, name)
+	c.Assert(d.DriverType(), Equals, name)
 	c.Assert(d.Root(), Equals, root)
 	return &Driver{d, root}
 }
@@ -96,11 +96,11 @@ func filterLostAndFound(fis []os.FileInfo) (filtered []os.FileInfo) {
 
 // DriverTestCreateEmpty verifies that a driver can create a volume, and that
 // is is empty (and owned by the current user) after creation.
-func DriverTestCreateEmpty(c *C, drivername, root string, args []string) {
+func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args []string) {
 	driver := newDriver(c, drivername, root, args)
 	defer cleanup(c, driver)
 
-	c.Assert(driver.GetFSType(), Equals, drivername)
+	c.Assert(driver.DriverType(), Equals, drivername)
 
 	volumeName := "empty"
 
@@ -181,7 +181,7 @@ func verifyBaseWithExtra(c *C, driver *Driver, vol volume.Volume) {
 	c.Assert(fis, HasLen, 3)
 }
 
-func DriverTestCreateBase(c *C, drivername, root string, args []string) {
+func DriverTestCreateBase(c *C, drivername volume.DriverType, root string, args []string) {
 	driver := newDriver(c, drivername, root, args)
 	root = driver.Root()
 	defer cleanup(c, driver)
@@ -201,7 +201,7 @@ func DriverTestCreateBase(c *C, drivername, root string, args []string) {
 	c.Assert(err, IsNil)
 }
 
-func DriverTestSnapshots(c *C, drivername, root string, args []string) {
+func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args []string) {
 	driver := newDriver(c, drivername, root, args)
 	defer cleanup(c, driver)
 
@@ -274,7 +274,7 @@ func DriverTestSnapshots(c *C, drivername, root string, args []string) {
 	c.Assert(err, IsNil)
 }
 
-func DriverTestExportImport(c *C, drivername, exportfs, importfs string, args []string) {
+func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, importfs string, args []string) {
 	backupdir := c.MkDir()
 	outfile := filepath.Join(backupdir, "backup")
 

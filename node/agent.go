@@ -52,6 +52,7 @@ import (
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	zkservice "github.com/control-center/serviced/zzk/service"
@@ -81,7 +82,7 @@ type HostAgent struct {
 	dockerDNS            []string             // docker dns addresses
 	varPath              string               // directory to store serviced	 data
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
-	fsType               string               // driver for container volumes
+	fsType               volume.DriverType    // driver for container volumes
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
 	useTLS               bool // Whether the mux uses TLS
@@ -119,7 +120,7 @@ type AgentOptions struct {
 	DockerDNS            []string
 	VarPath              string
 	Mount                []string
-	FSType               string
+	FSType               volume.DriverType
 	Zookeepers           []string
 	Mux                  *proxy.TCPMux
 	UseTLS               bool
@@ -140,7 +141,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.dockerDNS = options.DockerDNS
 	agent.varPath = options.VarPath
 	agent.mount = options.Mount
-	agent.fsType = "rsync"
+	agent.fsType = volume.DriverTypeRsync
 	agent.mux = options.Mux
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge

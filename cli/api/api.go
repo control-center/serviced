@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/volume"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
@@ -54,7 +55,7 @@ type Options struct {
 	MCPasswd             string
 	Mount                []string
 	ResourcePeriod       int
-	FSType               string
+	FSType               volume.DriverType
 	ESStartupTimeout     int
 	HostAliases          []string
 	Verbosity            int

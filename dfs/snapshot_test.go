@@ -34,7 +34,7 @@ import (
 	facadetest "github.com/control-center/serviced/facade/test"
 	"github.com/control-center/serviced/volume"
 	volumetest "github.com/control-center/serviced/volume/mocks"
-	"github.com/control-center/serviced/volume/rsync"
+	_ "github.com/control-center/serviced/volume/rsync"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
 
@@ -71,12 +71,12 @@ var _ = Suite(&snapshotTest{})
 
 func (st *snapshotTest) SetUpTest(c *C) {
 	st.tmpDir = c.MkDir()
-	err := volume.InitDriver(rsync.DriverName, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
+	err := volume.InitDriver(volume.DriverTypeRsync, filepath.Join(st.tmpDir, "volumes"), make([]string, 0))
 	c.Assert(err, IsNil)
 	st.mockFacade = &facadetest.MockFacade{}
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem{
-		fsType:           rsync.DriverName,
+		fsType:           volume.DriverTypeRsync,
 		varpath:          st.tmpDir,
 		dockerHost:       "localhost",
 		dockerPort:       5000,
@@ -356,7 +356,7 @@ func (st *snapshotTest) mock_datastoreGet() datastore.Context {
 }
 
 // Mock for volume.Mount()
-func (st *snapshotTest) mock_getServiceVolume(fsType, serviceID, baseDir string) (volume.Volume, error) {
+func (st *snapshotTest) mock_getServiceVolume(fsType volume.DriverType, serviceID, baseDir string) (volume.Volume, error) {
 	return st.mountVolumeResponse.volume, st.mountVolumeResponse.err
 }
 

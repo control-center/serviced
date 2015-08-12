@@ -25,13 +25,11 @@ import (
 // DriverInit represents a function that can initialize a driver.
 type DriverInit func(root string, args []string) (Driver, error)
 
-type ResizeRequest struct {
-	VolumeName string
-	Size       uint64
-}
+// DriverType represents a driver type.
+type DriverType string
 
 type Status struct { // see Docker - look at their status struct and borrow heavily.
-	Driver                 string
+	Driver                 DriverType
 	DataSpaceAvailable     uint64
 	DataSpaceUsed          uint64
 	DataSpaceTotal         uint64
@@ -51,25 +49,34 @@ type Statuses struct {
 	StatusMap map[string]Status
 }
 
+const (
+	DriverTypeBtrFS        DriverType = "btrfs"
+	DriverTypeRsync        DriverType = "rsync"
+	DriverTypeDeviceMapper DriverType = "devicemapper"
+)
+
 var (
-	drivers       map[string]DriverInit
+	drivers       map[DriverType]DriverInit
 	driversByRoot map[string]Driver
 
-	ErrInvalidDriverInit    = errors.New("invalid driver initializer")
-	ErrDriverNotInit        = errors.New("driver not initialized")
-	ErrDriverExists         = errors.New("driver exists")
-	ErrDriverNotSupported   = errors.New("driver not supported")
-	ErrSnapshotExists       = errors.New("snapshot exists")
-	ErrSnapshotDoesNotExist = errors.New("snapshot does not exist")
-	ErrRemovingSnapshot     = errors.New("could not remove snapshot")
-	ErrBadDriverShutdown    = errors.New("unable to shutdown driver")
-	ErrPathIsDriver         = errors.New("path is initialized as a driver")
-	ErrPathIsNotAbs         = errors.New("path is not absolute")
-	ErrBadMount             = errors.New("bad mount path")
+	ErrInvalidDriverInit       = errors.New("invalid driver initializer")
+	ErrDriverNotInit           = errors.New("driver not initialized")
+	ErrDriverAlreadyInit       = errors.New("different driver already initialized")
+	ErrDriverExists            = errors.New("driver exists")
+	ErrDriverNotSupported      = errors.New("driver not supported")
+	ErrSnapshotExists          = errors.New("snapshot exists")
+	ErrSnapshotDoesNotExist    = errors.New("snapshot does not exist")
+	ErrRemovingSnapshot        = errors.New("could not remove snapshot")
+	ErrBadDriverShutdown       = errors.New("unable to shutdown driver")
+	ErrVolumeExists            = errors.New("volume exists")
+	ErrPathIsDriver            = errors.New("path is initialized as a driver")
+	ErrPathIsNotAbs            = errors.New("path is not absolute")
+	ErrBadMount                = errors.New("bad mount path")
+	ErrInsufficientPermissions = errors.New("insufficient permissions to run command")
 )
 
 func init() {
-	drivers = make(map[string]DriverInit)
+	drivers = make(map[DriverType]DriverInit)
 	driversByRoot = make(map[string]Driver)
 }
 
@@ -79,8 +86,8 @@ func init() {
 type Driver interface {
 	// Root returns the filesystem root this driver acts on
 	Root() string
-	// GetFSType returns the string describing the driver
-	GetFSType() string
+	// DriverType returns the string describing the driver
+	DriverType() DriverType
 	// Create creates a volume with the given name and returns it. The volume
 	// must not exist already.
 	Create(volumeName string) (Volume, error)
@@ -136,8 +143,7 @@ type Volume interface {
 }
 
 // Register registers a driver initializer under <name> so it can be looked up
-func Register(name string, driverInit DriverInit) error {
-	//fmt.Printf("volume.Register(%s, %+v)\n", name, driverInit)
+func Register(name DriverType, driverInit DriverInit) error {
 	if driverInit == nil {
 		return ErrInvalidDriverInit
 	}
@@ -149,24 +155,24 @@ func Register(name string, driverInit DriverInit) error {
 }
 
 // Registered returns a boolean indicating whether driver <name> has been registered.
-func Registered(name string) bool {
+func Registered(name DriverType) bool {
 	_, ok := drivers[name]
 	return ok
 }
 
 // Unregister the driver init func <name>. If it doesn't exist, it's a no-op.
-func Unregister(name string) {
+func Unregister(name DriverType) {
 	delete(drivers, name)
 	// Also delete any existing drivers using this name
 	for root, drv := range driversByRoot {
-		if drv.GetFSType() == name {
+		if drv.DriverType() == name {
 			delete(driversByRoot, root)
 		}
 	}
 }
 
 // InitDriver sets up a driver <name> and initializes it to <root>.
-func InitDriver(name, root string, args []string) error {
+func InitDriver(name DriverType, root string, args []string) error {
 	// Make sure it is a driver that exists
 	if init, exists := drivers[name]; exists {
 		// Clean the path
@@ -178,6 +184,15 @@ func InitDriver(name, root string, args []string) error {
 		// Can only add absolute paths
 		if !path.IsAbs(root) {
 			return ErrPathIsNotAbs
+		}
+		// Check for an existing driver initialization that doesn't match
+		if t, err := DetectDriverType(root); err != nil {
+			if err != ErrDriverNotInit {
+				return err
+			}
+		} else if t != name {
+			glog.Errorf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
+			return ErrDriverAlreadyInit
 		}
 		// Create the driver instance
 		driver, err := init(root, args)
@@ -260,7 +275,7 @@ func Mount(volumeName, rootDir string) (volume Volume, err error) {
 		glog.Errorf("Could not get driver from root %s: %s", rootDir, err)
 		return nil, err
 	}
-	glog.V(2).Infof("Got %s driver for %s", driver.GetFSType(), driver.Root())
+	glog.V(2).Infof("Got %s driver for %s", driver.DriverType(), driver.Root())
 	if driver.Exists(volumeName) {
 		glog.V(2).Infof("Volume %s exists; remounting", volumeName)
 		volume, err = driver.Get(volumeName)
@@ -275,13 +290,27 @@ func Mount(volumeName, rootDir string) (volume Volume, err error) {
 	return volume, nil
 }
 
+// ShutdownDriver shuts down an existing driver and removes it from our internal map.
+func ShutdownDriver(rootDir string) error {
+	driver, ok := driversByRoot[rootDir]
+	if !ok {
+		glog.Errorf("Tried to shut down uninitialized driver: %s", rootDir)
+		return ErrDriverNotInit
+	}
+	glog.V(2).Infof("Shutting down %s driver for %s", driver.DriverType(), driver.Root())
+	if err := driver.Cleanup(); err != nil {
+		glog.Errorf("Unable to clean up %s driver for %s: %s", driver.DriverType(), driver.Root(), err)
+		return err
+	}
+	delete(driversByRoot, rootDir)
+	return nil
+}
+
 // ShutdownAll shuts down all drivers that have been initialized
 func ShutdownAll() error {
 	errs := []error{}
-	for _, driver := range driversByRoot {
-		glog.V(2).Infof("Shutting down %s driver for %s", driver.GetFSType(), driver.Root())
-		if err := driver.Cleanup(); err != nil {
-			glog.Errorf("Unable to clean up %s driver for %s: %s", driver.GetFSType(), driver.Root(), err)
+	for root, _ := range driversByRoot {
+		if err := ShutdownDriver(root); err != nil {
 			errs = append(errs, err)
 		}
 	}

@@ -17,7 +17,7 @@ docker ps -a -q | xargs --no-run-if-empty docker rm -fv
 docker images | egrep 'zenoss/ubuntu[ ]+wget' || docker pull zenoss/ubuntu:wget
 go get github.com/tools/godep
 cd $GOPATH/src/github.com/control-center/serviced
-BUILD_TAGS="$(sudo bash ${DIR}/build-tags.sh)"
+BUILD_TAGS="$(sudo bash ${DIR}/build-tags.sh) integration"
 sudo su - root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; cd $PWD/volume; GOPATH=$GOPATH godep go test -tags=\"${BUILD_TAGS}\" ./..."
 make clean test DOCKERCFG=""
 docker ps -a -q | xargs --no-run-if-empty docker rm -fv

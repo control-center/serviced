@@ -45,7 +45,7 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 	// Need to do btrfs driver initializations
-	"github.com/control-center/serviced/volume/btrfs"
+	_ "github.com/control-center/serviced/volume/btrfs"
 	// Need to do rsync driver initializations
 	_ "github.com/control-center/serviced/volume/rsync"
 	// Need to do devicemapper driver initializations
@@ -758,8 +758,8 @@ func (d *daemon) initWeb() {
 func (d *daemon) initDFS() error {
 	if options.FSType == "btrfs" {
 		volumesPath := path.Join(options.VarPath, "volumes")
-		if err := btrfs.IsBtrfsFilesystem(volumesPath); err != nil {
-			return fmt.Errorf("volumes path at %s is not a btrfs filesystem\n%s", volumesPath, err)
+		if volume.IsBtrfsFilesystem(volumesPath) {
+			return fmt.Errorf("volumes path at %s is not a btrfs filesystem", volumesPath)
 		}
 	}
 	return nil

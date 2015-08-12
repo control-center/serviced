@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/metrics"
+	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	"github.com/zenoss/elastigo/api"
@@ -49,7 +50,7 @@ type ControlPlaneDao struct {
 	port           int
 	rpcPort        int
 	varpath        string
-	fsType         string
+	fsType         volume.DriverType
 	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
 	dockerRegistry string
@@ -132,7 +133,7 @@ func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDa
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath, fsType string, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string, networkDriver storage.StorageDriver) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath string, fsType volume.DriverType, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string, networkDriver storage.StorageDriver) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 

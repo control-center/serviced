@@ -16,11 +16,16 @@ package volume
 import (
 	"errors"
 	"os"
+	"os/exec"
+	"os/user"
 	"sort"
+
+	"github.com/zenoss/glog"
 )
 
 var (
 	ErrNotADirectory = errors.New("not a directory")
+	ErrBtrfsCommand  = errors.New("error running btrfs command")
 )
 
 // IsDir() checks if the given dir is a directory. If any error is encoutered
@@ -64,4 +69,42 @@ func (p FileInfoSlice) Labels() []string {
 		labels[i] = label.Name()
 	}
 	return labels
+}
+
+func IsRoot() bool {
+	user, err := user.Current()
+	if err != nil {
+		glog.Errorf("Unable to determine current user: %s", err)
+		return false
+	}
+	return user.Uid == "0"
+}
+
+func IsSudoer() bool {
+	if !IsRoot() {
+		err := exec.Command("sudo", "-n", "true").Run()
+		return err == nil
+	}
+	return false
+}
+
+// RunBtrFSCmd runs a btrfs command, optionally using sudo
+func RunBtrFSCmd(sudoer bool, args ...string) ([]byte, error) {
+	cmd := append([]string{"btrfs"}, args...)
+	if sudoer {
+		cmd = append([]string{"sudo", "-n"}, cmd...)
+	}
+	glog.V(4).Infof("Executing: %v", cmd)
+	output, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+	if err != nil {
+		glog.V(1).Infof("unable to run cmd:%s  output:%s  error:%s", cmd, string(output), err)
+		return output, ErrBtrfsCommand
+	}
+	return output, err
+}
+
+// IsBtrfsFilesystem determines whether the path is a btrfs filesystem
+func IsBtrfsFilesystem(path string) bool {
+	_, err := RunBtrFSCmd(false, "filesystem", "df", path)
+	return err == nil
 }

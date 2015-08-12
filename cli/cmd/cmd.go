@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/validation"
+	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
@@ -75,7 +76,7 @@ func New(driver api.API, config ConfigReader) *ServicedCli {
 		// TODO: 1.1
 		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", convertToStringSlice(defaultOps.Mount), "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
-		cli.StringFlag{"fstype", defaultOps.FSType, "driver for underlying file system"},
+		cli.StringFlag{"fstype", string(defaultOps.FSType), "driver for underlying file system"},
 		cli.StringSliceFlag{"alias", convertToStringSlice(defaultOps.HostAliases), "list of aliases for this host, e.g., localhost"},
 		cli.IntFlag{"es-startup-timeout", defaultOps.ESStartupTimeout, "time to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", defaultOps.MaxContainerAge, "maximum age (seconds) of a stopped container before removing"},
@@ -157,7 +158,6 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Zookeepers:           ctx.GlobalStringSlice("zk"),
 		RemoteZookeepers:     ctx.GlobalStringSlice("remote-zk"),
 		Mount:                ctx.GlobalStringSlice("mount"),
-		FSType:               ctx.GlobalString("fstype"),
 		HostAliases:          ctx.GlobalStringSlice("alias"),
 		ESStartupTimeout:     ctx.GlobalInt("es-startup-timeout"),
 		ReportStats:          ctx.GlobalBool("report-stats"),
@@ -188,9 +188,14 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 	if os.Getenv("SERVICED_AGENT") == "1" {
 		options.Agent = true
 	}
+
+	fstype := ctx.GlobalString("fstype")
+	options.FSType = volume.DriverType(fstype)
+
 	if len(options.StorageArgs) == 0 {
 		options.StorageArgs = getDefaultStorageOptions(options.FSType)
 	}
+
 	if err := validation.IsSubnet16(options.VirtualAddressSubnet); err != nil {
 		fmt.Fprintf(os.Stderr, "error validating virtual-address-subnet: %s\n", err)
 		return fmt.Errorf("error validating virtual-address-subnet: %s", err)
