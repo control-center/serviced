@@ -40,7 +40,6 @@ import (
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/utils"
 	volume "github.com/control-center/serviced/volume"
-	rsync "github.com/control-center/serviced/volume/rsync"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
@@ -132,10 +131,10 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	}
 
 	tmpdir := c.MkDir()
-	err = volume.InitDriver(rsync.DriverName, path.Join(tmpdir, "volumes"), []string{})
+	err = volume.InitDriver(volume.DriverTypeRsync, path.Join(tmpdir, "volumes"), []string{})
 	c.Assert(err, IsNil)
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, rsync.DriverName, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, volume.DriverTypeRsync, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
