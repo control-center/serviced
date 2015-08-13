@@ -82,23 +82,6 @@ retry() {
     return ${RESULT}
 }
 
-# Add a host
-add_host() {
-    HOST_ID=$(${SERVICED} host add "${IP}:4979" default)
-    sleep 1
-    [ -z "$(${SERVICED} host list ${HOST_ID} 2>/dev/null)" ] && return 1
-    return 0
-}
-
-#
-# FIXME: Should move this into a Cucumber step
-add_template() {
-    TEMPLATE_ID=$(${SERVICED} template compile ${DIR}/dao/testsvc | ${SERVICED} template add)
-    sleep 1
-    [ -z "$(${SERVICED} template list ${TEMPLATE_ID})" ] && return 1
-    return 0
-}
-
 cleanup() {
     echo "Stopping serviced and mockAgent"
     sudo pkill -9 serviced
@@ -121,8 +104,6 @@ install_prereqs
 add_to_etc_hosts
 
 start_serviced             && succeed "Serviced became leader within timeout"    || fail "serviced failed to become the leader within 120 seconds."
-retry 20 add_host          && succeed "Added host successfully"                  || fail "Unable to add host"
-retry 20 add_template      && succeed "Added template successfully"              || fail "Unable to add template"
 
 # build/start mock agents
 cd ${DIR}

@@ -122,6 +122,8 @@ HOSTNAME=`hostname -s`
 #   map hostname to 127.0.0.1
 HOST_IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
 
+cp -u `pwd`/../serviced `pwd`/ui
+
 trap 'docker rm -f ui_acceptance' INT
 
 docker run --rm --name ui_acceptance \
