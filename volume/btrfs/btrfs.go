@@ -15,7 +15,9 @@ package btrfs
 
 import (
 	"errors"
+	"fmt"
 	"io"
+	"os/exec"
 
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
@@ -121,6 +123,28 @@ func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 
 // Remove implements volume.Driver.Remove
 func (d *BtrfsDriver) Remove(volumeName string) error {
+	d.Lock()
+	defer d.Unlock()
+	if !d.Exists(volumeName) {
+		return nil
+	}
+	v, err := d.Get(volumeName)
+	if err != nil {
+		return err
+	}
+	snapshots, err := v.Snapshots()
+	if err != nil {
+		return err
+	}
+	for _, snapshot := range snapshots {
+		if err := v.RemoveSnapshot(snapshot); err != nil {
+			return err
+		}
+	}
+	if output, err := volume.RunBtrFSCmd(d.sudoer, "subvolume", "delete", v.Path()); err != nil {
+		glog.Errorf("Could not remove volume %s: %s (%s)", v.Name(), output, err)
+		return volume.ErrRemovingVolume
+	}
 	return nil
 }
 
@@ -153,7 +177,7 @@ func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 // List implements volume.Driver.List
 func (d *BtrfsDriver) List() (result []string) {
 	if raw, err := volume.RunBtrFSCmd(d.sudoer, "subvolume", "list", "-a", d.root); err != nil {
-		glog.Errorf("Could not list subvolumes at: %s", d.root)
+		glog.Warningf("Could not list subvolumes at: %s", d.root)
 	} else {
 		cleanraw := strings.TrimSpace(string(raw))
 		rows := strings.Split(cleanraw, "\n")
@@ -188,7 +212,8 @@ func (v *BtrfsVolume) Tenant() string {
 	return v.tenant
 }
 
-// WriteMetadata writes the metadata info for a snapshot
+// WriteMetadata writes the metadata info for a snapshot by writing to the base
+// volume.
 func (v *BtrfsVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
 	filePath := filepath.Join(v.Path(), name)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
@@ -200,7 +225,7 @@ func (v *BtrfsVolume) WriteMetadata(label, name string) (io.WriteCloser, error) 
 
 // ReadMetadata reads the metadata info from a snapshot
 func (v *BtrfsVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
-	filePath := filepath.Join(v.Path(), name)
+	filePath := filepath.Join(v.snapshotPath(label), name)
 	return os.Open(filePath)
 }
 
@@ -380,8 +405,8 @@ func (v *BtrfsVolume) Rollback(label string) error {
 }
 
 // Export implements volume.Volume.Export
-func (v *BtrfsVolume) Export(label, parent, outfile string) error {
-	if label == "" {
+func (v *BtrfsVolume) Export(label, parent string, writer io.Writer) error {
+	if label = strings.TrimSpace(label); label == "" {
 		glog.Errorf("%s: label cannot be empty", volume.DriverTypeBtrFS)
 		return ErrBtrfsInvalidLabel
 	} else if exists, err := v.snapshotExists(label); err != nil {
@@ -389,40 +414,36 @@ func (v *BtrfsVolume) Export(label, parent, outfile string) error {
 	} else if !exists {
 		return volume.ErrSnapshotDoesNotExist
 	}
-
-	if parent == "" {
-		_, err := volume.RunBtrFSCmd(v.sudoer, "send", v.snapshotPath(label), "-f", outfile)
+	// TODO: add to tarfile and include metadata
+	if err := runBtrfsSend(writer, v.sudoer, parent, v.snapshotPath(label)); err != nil {
+		glog.Errorf("Could not export snapshot %s: %s", label, err)
 		return err
-	} else if exists, err := v.snapshotExists(label); err != nil {
-		return err
-	} else if !exists {
-		return volume.ErrSnapshotDoesNotExist
 	}
-
-	_, err := volume.RunBtrFSCmd(v.sudoer, "send", v.snapshotPath(label), "-p", parent, "-f", outfile)
-	return err
+	return nil
 }
 
 // Import implements volume.Volume.Import
-func (v *BtrfsVolume) Import(label, infile string) error {
+func (v *BtrfsVolume) Import(label string, reader io.Reader) error {
 	if exists, err := v.snapshotExists(label); err != nil {
 		return err
 	} else if exists {
 		return volume.ErrSnapshotExists
 	}
-
-	// create a tmp path to load the volume
-	tmpdir := filepath.Join(v.path, "tmp")
-	volume.RunBtrFSCmd(v.sudoer, "subvolume", "create", tmpdir)
-	defer volume.RunBtrFSCmd(v.sudoer, "subvolume", "delete", tmpdir)
-
-	if _, err := volume.RunBtrFSCmd(v.sudoer, "receive", tmpdir, "-f", infile); err != nil {
+	importdir := filepath.Join(v.path, fmt.Sprintf("import-%s", label))
+	if _, err := volume.RunBtrFSCmd(v.sudoer, "subvolume", "create", importdir); err != nil {
+		glog.Errorf("Could not create import path for snapshot %s: %s", label, err)
 		return err
 	}
-	defer volume.RunBtrFSCmd(v.sudoer, "subvolume", "delete", filepath.Join(tmpdir, label))
-
-	_, err := volume.RunBtrFSCmd(v.sudoer, "subvolume", "snapshot", "-r", filepath.Join(tmpdir, label), v.Driver().Root())
-	return err
+	defer volume.RunBtrFSCmd(v.sudoer, "subvolume", "delete", importdir)
+	if err := runBtrfsRecv(reader, v.sudoer, importdir); err != nil {
+		glog.Errorf("Could not import snapshot %s: %s", label, err)
+		return err
+	}
+	defer volume.RunBtrFSCmd(v.sudoer, "subvolume", "delete", filepath.Join(importdir, label))
+	if _, err := volume.RunBtrFSCmd(v.sudoer, "subvolume", "snapshot", "-r", filepath.Join(importdir, label), v.Driver().Root()); err != nil {
+		return err
+	}
+	return nil
 }
 
 // snapshotExists queries the snapshot existence for the given label
@@ -440,4 +461,40 @@ func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 		}
 	}
 	return false, nil
+}
+
+// runBtrfsSend writes a btrfs snapshot to a write handle
+func runBtrfsSend(writer io.Writer, sudoer bool, parentpath, path string) error {
+	cmdArgs := []string{"btrfs", "send", path}
+	if parentpath = strings.TrimSpace(parentpath); parentpath != "" {
+		cmdArgs = append(cmdArgs, "-p", parentpath)
+	}
+	if sudoer {
+		cmdArgs = append([]string{"sudo", "-n"}, cmdArgs...)
+	}
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cmd.Stdout = writer
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		glog.Errorf("Error while running command %+v: %s", cmdArgs, err)
+		return volume.ErrBtrfsCommand
+	}
+	return nil
+}
+
+// runBtrfsRecv reads a btrfs snapshot to a read handle
+func runBtrfsRecv(reader io.Reader, sudoer bool, path string) error {
+	cmdArgs := []string{"btrfs", "receive", path}
+	if sudoer {
+		cmdArgs = append([]string{"sudo", "-n"}, cmdArgs...)
+	}
+	cmd := exec.Command(cmdArgs[0], cmdArgs[1:]...)
+	cmd.Stdin = reader
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		glog.Errorf("Error while running command %+v: %s", cmdArgs, err)
+		return volume.ErrBtrfsCommand
+	}
+	return nil
 }

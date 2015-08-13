@@ -93,15 +93,15 @@ func (m *Volume) Rollback(label string) error {
 
 	return r0
 }
-func (m *Volume) Export(label string, parent string, filename string) error {
-	ret := m.Called(label, parent, filename)
+func (m *Volume) Export(label string, parent string, writer io.Writer) error {
+	ret := m.Called(label, parent, writer)
 
 	r0 := ret.Error(0)
 
 	return r0
 }
-func (m *Volume) Import(label string, filename string) error {
-	ret := m.Called(label, filename)
+func (m *Volume) Import(label string, reader io.Reader) error {
+	ret := m.Called(label, reader)
 
 	r0 := ret.Error(0)
 
