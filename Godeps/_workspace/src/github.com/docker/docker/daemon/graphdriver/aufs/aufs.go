@@ -1,20 +1,22 @@
+// +build linux
+
 /*
 
 aufs driver directory structure
 
-.
-├── layers // Metadata of layers
-│   ├── 1
-│   ├── 2
-│   └── 3
-├── diff  // Content of the layer
-│   ├── 1  // Contains layers that need to be mounted for the id
-│   ├── 2
-│   └── 3
-└── mnt    // Mount points for the rw layers to be mounted
-    ├── 1
-    ├── 2
-    └── 3
+  .
+  ├── layers // Metadata of layers
+  │   ├── 1
+  │   ├── 2
+  │   └── 3
+  ├── diff  // Content of the layer
+  │   ├── 1  // Contains layers that need to be mounted for the id
+  │   ├── 2
+  │   └── 3
+  └── mnt    // Mount points for the rw layers to be mounted
+      ├── 1
+      ├── 2
+      └── 3
 
 */
 
@@ -38,7 +40,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	mountpk "github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/libcontainer/label"
+	"github.com/opencontainers/runc/libcontainer/label"
 )
 
 var (
@@ -158,6 +160,10 @@ func (a *Driver) Status() [][2]string {
 		{"Dirs", fmt.Sprintf("%d", len(ids))},
 		{"Dirperm1 Supported", fmt.Sprintf("%v", useDirperm())},
 	}
+}
+
+func (a *Driver) GetMetadata(id string) (map[string]string, error) {
+	return nil, nil
 }
 
 // Exists returns true if the given id is registered with
@@ -317,7 +323,7 @@ func (a *Driver) Diff(id, parent string) (archive.Archive, error) {
 }
 
 func (a *Driver) applyDiff(id string, diff archive.ArchiveReader) error {
-	return chrootarchive.Untar(diff, path.Join(a.rootPath(), "diff", id), nil)
+	return chrootarchive.UntarUncompressed(diff, path.Join(a.rootPath(), "diff", id), nil)
 }
 
 // DiffSize calculates the changes between the specified id

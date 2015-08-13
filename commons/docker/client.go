@@ -22,7 +22,7 @@ type DockerClientGetter func() (ClientInterface, error)
 
 // The default method used to get a new instance of ClientInterface.
 // The default instance is a thin shim around dockerclient.Client
-var defaultDockerClientGetter DockerClientGetter = func() (ClientInterface, error) { return NewClient(dockerep) }
+var defaultDockerClientGetter DockerClientGetter = func() (ClientInterface, error) { return NewClient() }
 
 var getDockerClient DockerClientGetter = defaultDockerClientGetter
 
@@ -80,12 +80,14 @@ type ClientInterface interface {
 	TagImage(name string, opts dockerclient.TagImageOptions) error
 
 	WaitContainer(id string) (int, error)
+	
+	Version() (*dockerclient.Env, error)
 }
 
 // assert the interface
 var _ ClientInterface = &Client{}
 
-func NewClient(dockerRegistry string) (ClientInterface, error) {
+func NewClient() (ClientInterface, error) {
 	dc, err := dockerclient.NewClient(dockerep)
 	if err != nil {
 		return nil, err
@@ -175,4 +177,8 @@ func (c *Client) TagImage(name string, opts dockerclient.TagImageOptions) error 
 
 func (c *Client) WaitContainer(id string) (int, error) {
 	return c.dc.WaitContainer(id)
+}
+
+func (c *Client) Version() (*dockerclient.Env, error) {
+	return c.dc.Version()
 }

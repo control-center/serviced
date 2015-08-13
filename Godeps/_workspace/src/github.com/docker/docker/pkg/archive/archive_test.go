@@ -695,7 +695,7 @@ func TestTarWithOptions(t *testing.T) {
 		{&TarOptions{ExcludePatterns: []string{"2"}}, 1},
 		{&TarOptions{ExcludePatterns: []string{"1", "folder*"}}, 2},
 		{&TarOptions{IncludeFiles: []string{"1", "1"}}, 2},
-		{&TarOptions{Name: "test", IncludeFiles: []string{"1"}}, 4},
+		{&TarOptions{IncludeFiles: []string{"1"}, RebaseNames: map[string]string{"1": "test"}}, 4},
 	}
 	for _, testCase := range cases {
 		changes, err := tarUntar(t, origin, testCase.opts)
@@ -719,7 +719,7 @@ func TestTypeXGlobalHeaderDoesNotFail(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(tmpDir)
-	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true)
+	err = createTarFile(filepath.Join(tmpDir, "pax_global_header"), tmpDir, &hdr, nil, true, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -873,7 +873,8 @@ func getNlink(path string) (uint64, error) {
 	if !ok {
 		return 0, fmt.Errorf("expected type *syscall.Stat_t, got %t", stat.Sys())
 	}
-	return statT.Nlink, nil
+	// We need this conversion on ARM64
+	return uint64(statT.Nlink), nil
 }
 
 func getInode(path string) (uint64, error) {
