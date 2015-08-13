@@ -39,7 +39,13 @@ if [ ! -e /tmp/elasticsearch-$ES_VER.tar.gz ]; then
 fi
 
 tar -xf /tmp/elasticsearch-$ES_VER.tar.gz -C $ES_TMP
-echo "cluster.name: zero" > $ES_DIR/config/elasticsearch.yml
+
+cat <<EOF > $ES_DIR/config/elasticsearch.yml
+cluster.name: $(head -c32 /dev/urandom | cksum | awk {'print $1'})
+multicast.enabled: false
+discovery.zen.ping.multicast.ping.enabled: false
+EOF
+
 $ES_DIR/bin/elasticsearch -f -Des.http.port=9202 > $ES_TMP/elastic.log & echo $!>$ES_TMP/pid
 
 godep go test -tags="${BUILD_TAGS} integration" $GOTEST ./...
