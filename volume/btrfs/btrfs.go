@@ -463,12 +463,6 @@ func (v *BtrfsVolume) snapshotExists(label string) (exists bool, err error) {
 	return false, nil
 }
 
-// IsBtrfsFilesystem determines whether the path is a btrfs filesystem
-func IsBtrfsFilesystem(thePath string) error {
-	_, err := volume.RunBtrFSCmd(false, "filesystem", "df", thePath)
-	return err
-}
-
 // runBtrfsSend writes a btrfs snapshot to a write handle
 func runBtrfsSend(writer io.Writer, sudoer bool, parentpath, path string) error {
 	cmdArgs := []string{"btrfs", "send", path}
