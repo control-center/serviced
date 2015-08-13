@@ -40,7 +40,6 @@ func getDefaultOptions(config ConfigReader) api.Options {
 		MuxPort:              config.IntVal("MUX_PORT", 22250),
 		KeyPEMFile:           config.StringVal("KEY_FILE", ""),
 		CertPEMFile:          config.StringVal("CERT_FILE", ""),
-		VarPath:              config.StringVal("VARPATH", getDefaultVarPath(config.StringVal("HOME", ""))),
 		Zookeepers:           config.StringSlice("ZK", []string{}),
 		RemoteZookeepers:     []string{},
 		HostStats:            config.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
@@ -68,6 +67,13 @@ func getDefaultOptions(config ConfigReader) api.Options {
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
+
+	// Set the varpath to /tmp if running serviced as just an agent
+	if options.Master {
+		options.VarPath = config.StringVal("VARPATH", getDefaultVarPath(config.StringVal("HOME", "")))
+	} else {
+		options.VarPath = config.StringVal("VARPATH", getDefaultVarPath(""))
+	}
 	return options
 }
 

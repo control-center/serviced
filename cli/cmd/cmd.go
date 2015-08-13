@@ -189,8 +189,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		options.Agent = true
 	}
 
-	fstype := ctx.GlobalString("fstype")
-	options.FSType = volume.DriverType(fstype)
+	if options.Master {
+		fstype := ctx.GlobalString("fstype")
+		options.FSType = volume.DriverType(fstype)
+	} else {
+		options.FSType = volume.DriverTypeRsync
+	}
 
 	if len(options.StorageArgs) == 0 {
 		options.StorageArgs = getDefaultStorageOptions(options.FSType)
