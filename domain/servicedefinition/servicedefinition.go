@@ -66,17 +66,24 @@ type SnapshotCommands struct {
 
 // EndpointDefinition An endpoint that a Service exposes.
 type EndpointDefinition struct {
-	Name                string // Human readable name of the endpoint. Unique per service definition
+	Name                string   // Human readable name of the endpoint. Unique per service definition
 	Purpose             string
 	Protocol            string
 	PortNumber          uint16
-	PortTemplate        string // A template which, if specified, is used to calculate the port number
-	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
+	PortTemplate        string   // A template which, if specified, is used to calculate the port number
+	VirtualAddress      string   // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
 	Application         string
 	ApplicationTemplate string
 	AddressConfig       AddressResourceConfig
-	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
-	// subdomain, i.e "myapplication"  not "myapplication.host.com"
+//	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+								 // subdomain, i.e "myapplication"  not "myapplication.host.com"
+	VHostList           []VHost  // VHost is used to request named vhost(s) for this endpoint.
+}
+
+// VHost is the configuration for an application endpoint that wants an http VHost endpoint provided by Control Center
+type VHost struct{
+	Name string // name of the vhost subdomain subdomain, i.e "myapplication"  not "myapplication.host.com
+	enabled bool // whether the vhost should be enabled or disabled.
 }
 
 // Task A scheduled task
