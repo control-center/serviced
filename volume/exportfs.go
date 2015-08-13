@@ -150,6 +150,9 @@ func ImportArchiveHeader(header *tar.Header, reader io.Reader, path string) erro
 		if err != nil {
 			return err
 		}
+	default:
+		glog.Errorf("Found unxepected file type %s: will not import %s", header.Typeflag, filename)
+		return nil
 	}
 	if err := os.Chown(filename, header.Uid, header.Gid); err != nil {
 		glog.Warningf("Could not change file ownership for %s: %s", filename, err)

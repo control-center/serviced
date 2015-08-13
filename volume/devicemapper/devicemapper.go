@@ -392,7 +392,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 	// Delete the device itself
 	if err := v.driver.DeviceSet.DeleteDevice(device); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
-		return volume.ErrRemovingVolume
+		return volume.ErrRemovingSnapshot
 	}
 	return nil
 }
@@ -440,14 +440,13 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	mountpoint, err := ioutil.TempDir("", "serviced-export-volume-")
 	if err != nil {
 		return err
-	} else if err := os.MkdirAll(mountpoint, 0755); err != nil {
-		return err
 	}
 	defer os.RemoveAll(mountpoint)
 	device, err := v.Metadata.LookupSnapshotDevice(label)
 	if err != nil {
 		return err
-	} else if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
+	}
+	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
 		return err
 	}
 	defer v.driver.DeviceSet.UnmountDevice(device)
@@ -470,14 +469,11 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
-
 	}
 	label = v.rawSnapshotLabel(label)
 	// set up the device
 	mountpoint, err := ioutil.TempDir("", "serviced-import-volume-")
 	if err != nil {
-		return err
-	} else if err := os.MkdirAll(mountpoint, 0755); err != nil {
 		return err
 	}
 	defer os.RemoveAll(mountpoint)
