@@ -49,7 +49,8 @@ Then (/^I should see my messages$/) do
 end
 
 Then (/^I should not see any messages$/) do
-    expect(@user_page.has_no_selector?("div[class^='message ']")).to be true
+    @user_page.wait_until_message_invisible
+    expect(@user_page).to have_no_css("div[class^='message ']")
 end
 
 Then (/^I should see that the first unread message is marked as read$/) do
