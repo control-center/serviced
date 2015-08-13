@@ -377,10 +377,11 @@ func (d *daemon) startMaster() error {
 
 	volumesPath := path.Join(options.VarPath, "volumes")
 	if d.networkDriver, err = nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	} else {
-		d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, volumesPath)
-		if err != nil {
+		if d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, volumesPath); err != nil {
+			glog.Errorf("Could not start network server: %s", err)
 			return err
 		}
 	}
@@ -758,7 +759,7 @@ func (d *daemon) initWeb() {
 func (d *daemon) initDFS() error {
 	if options.FSType == "btrfs" {
 		volumesPath := path.Join(options.VarPath, "volumes")
-		if volume.IsBtrfsFilesystem(volumesPath) {
+		if !volume.IsBtrfsFilesystem(volumesPath) {
 			return fmt.Errorf("volumes path at %s is not a btrfs filesystem", volumesPath)
 		}
 	}
