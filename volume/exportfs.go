@@ -151,7 +151,7 @@ func ImportArchiveHeader(header *tar.Header, reader io.Reader, path string) erro
 			return err
 		}
 	default:
-		glog.Errorf("Found unxepected file type %s: will not import %s", header.Typeflag, filename)
+		glog.Errorf("Found unxepected file type %b: will not import %s", header.Typeflag, filename)
 		return nil
 	}
 	if err := os.Chown(filename, header.Uid, header.Gid); err != nil {
