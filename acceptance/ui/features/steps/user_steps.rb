@@ -14,21 +14,25 @@ When (/^I view user details$/) do
 end
 
 When (/^I clear my messages$/) do
+    @user_page.wait_for_clearMessages_button
     @user_page.clearMessages_button.click()
 end
 
 When (/^I click on the first unread message$/) do
     defaultMatch = Capybara.match
     Capybara.match = :first
+    @user_page.wait_for_unreadMessage
     @user_page.unreadMessage.click()
     Capybara.match = defaultMatch
 end
 
 When (/^I switch the language to English$/) do
+    @user_page.wait_for_english_button
     @user_page.english_button.click()
 end
 
 When (/^I switch the language to Spanish$/) do
+    @user_page.wait_for_spanish_button
     @user_page.spanish_button.click()
 end
 
@@ -45,7 +49,7 @@ Then (/^I should see my messages$/) do
 end
 
 Then (/^I should not see any messages$/) do
-    expect(@user_page.has_selector?("div[class^='message ']")).to be false
+    expect(@user_page.has_no_selector?("div[class^='message ']")).to be true
 end
 
 Then (/^I should see that the first unread message is marked as read$/) do
