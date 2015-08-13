@@ -27,27 +27,28 @@ func getDefaultStorageOptions(driverType volume.DriverType) []string {
 	case volume.DriverTypeRsync:
 	case volume.DriverTypeBtrFS:
 	case volume.DriverTypeDeviceMapper:
-		addStorageOption("SERVICED_DM_THINPOOLDEV", func(v string) {
+		addStorageOption("SERVICED_DM_THINPOOLDEV", "", func(v string) {
 			options = append(options, fmt.Sprintf("dm.thinpooldev=%s", v))
 		})
-		addStorageOption("SERVICED_DM_BASESIZE", func(v string) {
+		addStorageOption("SERVICED_DM_BASESIZE", "100G", func(v string) {
 			options = append(options, fmt.Sprintf("dm.basesize=%s", v))
 		})
-		addStorageOption("SERVICED_DM_LOOPDATASIZE", func(v string) {
+		addStorageOption("SERVICED_DM_LOOPDATASIZE", "", func(v string) {
 			options = append(options, fmt.Sprintf("dm.loopdatasize=%s", v))
 		})
-		addStorageOption("SERVICED_DM_LOOPMETADATASIZE", func(v string) {
+		addStorageOption("SERVICED_DM_LOOPMETADATASIZE", "", func(v string) {
 			options = append(options, fmt.Sprintf("dm.loopmetadatasize=%s", v))
 		})
-		addStorageOption("SERVICED_DM_ARGS", func(v string) {
+		addStorageOption("SERVICED_DM_ARGS", "", func(v string) {
 			options = append(options, strings.Split(v, " ")...)
 		})
 	}
 	return options
 }
 
-func addStorageOption(k string, parse func(v string)) {
-	if v := strings.TrimSpace(os.Getenv(k)); v != "" {
+func addStorageOption(k, dflt string, parse func(v string)) {
+	v := dflt
+	if v = strings.TrimSpace(os.Getenv(k)); v != "" {
 		parse(v)
 	}
 }
