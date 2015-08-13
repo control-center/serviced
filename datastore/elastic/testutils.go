@@ -168,7 +168,9 @@ func newTestCluster(elasticDir string, port uint16) (*testCluster, error) {
 		fmt.Sprintf("-Des.http.port=%v", port),
 	}
 
-	conf := fmt.Sprintf("cluster.name: %v", rand.Int())
+	conf := fmt.Sprintf(`multicast.enabled: false
+discovery.zen.ping.multicast.ping.enabled: false
+cluster.name: %v`, rand.Int())
 	err := ioutil.WriteFile(elasticDir+"/config/elasticsearch.yml", []byte(conf), 0644)
 	if err != nil {
 		return nil, err
