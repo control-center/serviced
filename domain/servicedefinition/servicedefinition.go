@@ -16,10 +16,12 @@ package servicedefinition
 import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 
 	"errors"
 	"strings"
 	"time"
+	"encoding/json"
 )
 
 //ServiceDefinition is the definition of a service hierarchy.
@@ -83,7 +85,7 @@ type EndpointDefinition struct {
 // VHost is the configuration for an application endpoint that wants an http VHost endpoint provided by Control Center
 type VHost struct {
 	Name    string // name of the vhost subdomain subdomain, i.e "myapplication"  not "myapplication.host.com
-	enabled bool   // whether the vhost should be enabled or disabled.
+	Enabled bool   // whether the vhost should be enabled or disabled.
 }
 
 // Task A scheduled task
@@ -162,6 +164,32 @@ func (p *HostPolicy) UnmarshalText(b []byte) error {
 	}
 	return nil
 }
+
+// private for dealing with unmarshal recursion
+type endpointDefinition EndpointDefinition
+// UnmarshalJSON implements the encoding/TextUnmarshaler interface
+
+func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
+	epd := endpointDefinition{}
+	if err := json.Unmarshal(b, &epd); err == nil{
+		*e = EndpointDefinition(epd)
+	}else{
+		return err
+	}
+//	if len(e.VHostList) > 0{
+//		//VHostList is defined, keep it and unset deprecated field if set
+//		e.VHosts = nil
+//		return nil
+//	}
+//	if len(e.VHosts) > 0{
+//		// no VHostsList but vhosts is defined. Convert to VHostsList
+//		glog.V(0).Warn("EndpointDefinition VHosts field is deprecated, see VHostList")
+//		for _, vhost := range e.VHosts{
+//			e.VHostList = append(e.VHostList, VHost{Name:vhost, Enabled:true})
+//		}
+	return nil
+}
+
 
 func (s ServiceDefinition) String() string {
 	return s.Name
