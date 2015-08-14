@@ -35,7 +35,7 @@
                                     poolsFactory.update();
                                 })
                                 .error(data => {
-                                    this.createNotification("Remove Pool failed", data.Detail).error();
+                                    $notification.create("Remove Pool failed", data.Detail).error();
                                 });
 
                             this.close();
