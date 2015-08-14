@@ -1172,7 +1172,7 @@ func (f *Facade) validateServicesForStarting(ctx datastore.Context, svc *service
 			}
 		}
 
-		if len(endpoint.VHosts) > 0 {
+		if len(endpoint.VHostList) > 0 {
 			// TODO: check to see if this vhost is in use by another app
 		}
 	}
@@ -1192,9 +1192,9 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLa
 			return err
 		}
 		for _, ep := range svc.GetServiceVHosts() {
-			for _, vh := range ep.VHosts {
+			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
+				if err := zkAPI(f).CheckRunningVHost(vh.Name, svc.ID); err != nil {
 					return err
 				}
 			}
@@ -1615,9 +1615,9 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 		}
 
 		for _, ep := range svc.GetServiceVHosts() {
-			for _, vh := range ep.VHosts {
+			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh, svc.ID); err != nil {
+				if err := zkAPI(f).CheckRunningVHost(vh.Name, svc.ID); err != nil {
 					return err
 				}
 			}

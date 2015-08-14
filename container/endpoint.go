@@ -202,7 +202,12 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 		if defep.Purpose == "export" {
 
 			exp := export{}
-			exp.vhosts = defep.VHosts
+			if len(defep.VHostList) >0 {
+				exp.vhosts = []string{}
+				for _, vhost := range defep.VHostList {
+					exp.vhosts = append(exp.vhosts, vhost.Name)
+				}
+			}
 			exp.endpointName = defep.Name
 
 			var err error

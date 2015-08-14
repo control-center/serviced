@@ -189,7 +189,13 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 //		}
 	return nil
 }
-
+func (e EndpointDefinition) MarshalJSON() ([]byte, error){
+//	if len(e.VHosts) > 0 {
+//		glog.V(0).Warn("EndpointDefinition VHosts field is deprecated, value will not be marshalled; see VHostList")
+//		e.Vhosts = nil
+//	}
+	return json.Marshal(e)
+}
 
 func (s ServiceDefinition) String() string {
 	return s.Name

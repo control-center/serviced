@@ -274,7 +274,7 @@ func (s *Service) GetServiceVHosts() []ServiceEndpoint {
 
 	if s.Endpoints != nil {
 		for _, ep := range s.Endpoints {
-			if len(ep.VHosts) > 0 {
+			if len(ep.VHostList) > 0 {
 				result = append(result, ep)
 			}
 		}
@@ -294,12 +294,12 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 			if ep.Application == application && ep.Purpose == "export" {
 				_vhostName := strings.ToLower(vhostName)
 				vhosts := make([]string, 0)
-				for _, vhost := range ep.VHosts {
-					if strings.ToLower(vhost) != _vhostName {
+				for _, vhost := range ep.VHostList {
+					if strings.ToLower(vhost.Name) != _vhostName {
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				ep.VHosts = append(vhosts, _vhostName)
+				ep.VHostList = append(vhosts, servicedefinition.VHost{Name:_vhostName})
 				return nil
 			}
 		}
@@ -317,19 +317,19 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 			ep := &s.Endpoints[i]
 
 			if ep.Application == application && ep.Purpose == "export" {
-				if len(ep.VHosts) == 0 {
+				if len(ep.VHostList) == 0 {
 					break
 				}
 
 				_vhostName := strings.ToLower(vhostName)
-				if len(ep.VHosts) == 1 && ep.VHosts[0] == _vhostName {
+				if len(ep.VHostList) == 1 && ep.VHostList[0].Name == _vhostName {
 					return fmt.Errorf("cannot delete last vhost: %s", _vhostName)
 				}
 
 				found := false
-				vhosts := make([]string, 0)
-				for _, vhost := range ep.VHosts {
-					if vhost != _vhostName {
+				vhosts := make([]servicedefinition.VHost, 0)
+				for _, vhost := range ep.VHostList {
+					if vhost.Name != _vhostName {
 						vhosts = append(vhosts, vhost)
 					} else {
 						found = true
@@ -340,7 +340,7 @@ func (s *Service) RemoveVirtualHost(application, vhostName string) error {
 					break
 				}
 
-				ep.VHosts = vhosts
+				ep.VHostList = vhosts
 				return nil
 			}
 		}

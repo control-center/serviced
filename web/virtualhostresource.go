@@ -70,8 +70,8 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		}
 
 		for _, endpoint := range service.Endpoints {
-			for _, host := range endpoint.VHosts {
-				if host == _vhost {
+			for _, host := range endpoint.VHostList {
+				if host.Name == _vhost {
 					glog.Errorf("vhost %s already defined for service: %s", request.VirtualHostName, service.ID)
 					restServerError(w, err)
 					return
@@ -152,6 +152,7 @@ type virtualHost struct {
 	Application     string
 	ServiceName     string
 	ServiceEndpoint string
+	Enabled         bool
 }
 
 // restGetVirtualHosts gets all services, then extracts all vhost information and returns it.
@@ -177,17 +178,18 @@ func restGetVirtualHosts(w *rest.ResponseWriter, r *rest.Request, client *node.C
 		}
 
 		for _, endpoint := range service.Endpoints {
-			if len(endpoint.VHosts) > 0 {
+			if len(endpoint.VHostList) > 0 {
 				parent, _ := serviceTree[service.ParentServiceID]
 				for ; len(parent.ParentServiceID) != 0; parent, _ = serviceTree[parent.ParentServiceID] {
 				}
 
-				for _, vhost := range endpoint.VHosts {
+				for _, vhost := range endpoint.VHostList {
 					vh := virtualHost{
-						Name:            vhost,
+						Name:            vhost.Name,
 						Application:     parent.Name,
 						ServiceName:     service.Name,
 						ServiceEndpoint: endpoint.Application,
+						Enabled:         vhost.Enabled,
 					}
 					vhosts = append(vhosts, vh)
 				}
