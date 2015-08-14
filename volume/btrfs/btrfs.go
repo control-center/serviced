@@ -65,7 +65,7 @@ type BtrfsVolume struct {
 // Btrfs driver initialization
 func Init(root string, _ []string) (volume.Driver, error) {
 	// get the driver object id
-	objectID := "5"
+	objectID := "5" // root driver is always 5 unless it is a subvolume
 	if raw, err := volume.RunBtrFSCmd(volume.IsSudoer(), "subvolume", "show", root); err != nil {
 		glog.Errorf("Could not initialize btrfs driver for %s: %s (%s)", root, raw, err)
 		return nil, volume.ErrBtrfsCommand
