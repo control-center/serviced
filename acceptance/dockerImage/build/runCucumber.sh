@@ -32,5 +32,5 @@ else
 	EXIT=$?
 fi
 
-HOME=/home/cuke su --preserve-environment -c "java -jar /usr/share/reporter/reporter.jar ./output ./output/report.json"
+HOME=/home/cuke su cuke --preserve-environment -c "java -jar /usr/share/reporter/reporter.jar ./output ./output/report.json"
 exit $EXIT
