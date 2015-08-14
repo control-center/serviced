@@ -293,7 +293,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 
 			if ep.Application == application && ep.Purpose == "export" {
 				_vhostName := strings.ToLower(vhostName)
-				vhosts := make([]string, 0)
+				vhosts := make([]servicedefinition.VHost, 0)
 				for _, vhost := range ep.VHostList {
 					if strings.ToLower(vhost.Name) != _vhostName {
 						vhosts = append(vhosts, vhost)

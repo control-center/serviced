@@ -16,7 +16,7 @@ package servicedefinition
 import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
-	"github.com/zenoss/glog"
+//	"github.com/zenoss/glog"
 
 	"errors"
 	"strings"

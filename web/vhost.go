@@ -29,7 +29,7 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/domain/servicestate"
+//	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
