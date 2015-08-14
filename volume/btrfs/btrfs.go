@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
@@ -32,6 +33,7 @@ import (
 )
 
 var (
+	ErrBtrfsInvalidDriver     = errors.New("invalid driver")
 	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
 	ErrBtrfsInvalidLabel      = errors.New("invalid label")
 	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
@@ -44,8 +46,9 @@ func init() {
 
 // BtrfsDriver is a driver for the btrfs volume
 type BtrfsDriver struct {
-	sudoer bool
-	root   string
+	sudoer   bool
+	root     string
+	objectID string
 	sync.Mutex
 }
 
@@ -61,9 +64,18 @@ type BtrfsVolume struct {
 
 // Btrfs driver initialization
 func Init(root string, _ []string) (volume.Driver, error) {
+	// get the driver object id
+	objectID := "5" // root driver is always 5 unless it is a subvolume
+	if raw, err := volume.RunBtrFSCmd(volume.IsSudoer(), "subvolume", "show", root); err != nil {
+		glog.Errorf("Could not initialize btrfs driver for %s: %s (%s)", root, raw, err)
+		return nil, volume.ErrBtrfsCommand
+	} else if obidmatch := regexp.MustCompile("Object ID:\\s+(\\w+)").FindSubmatch(raw); len(obidmatch) == 2 {
+		objectID = string(obidmatch[1])
+	}
 	driver := &BtrfsDriver{
-		sudoer: volume.IsSudoer(),
-		root:   root,
+		sudoer:   volume.IsSudoer(),
+		root:     root,
+		objectID: objectID,
 	}
 	return driver, nil
 }
@@ -80,12 +92,10 @@ func (d *BtrfsDriver) DriverType() volume.DriverType {
 
 // Exists implements volume.Driver.Exists
 func (d *BtrfsDriver) Exists(volumeName string) bool {
-	for _, vol := range d.List() {
-		if vol == volumeName {
-			return true
-		}
+	if _, err := volume.RunBtrFSCmd(d.sudoer, "subvolume", "show", filepath.Join(d.root, volumeName)); err != nil {
+		return false
 	}
-	return false
+	return true
 }
 
 // Cleanup implements volume.Driver.Cleanup
@@ -126,6 +136,7 @@ func (d *BtrfsDriver) Remove(volumeName string) error {
 	d.Lock()
 	defer d.Unlock()
 	if !d.Exists(volumeName) {
+		glog.Warningf("Volume %s does not exist", volumeName)
 		return nil
 	}
 	v, err := d.Get(volumeName)
@@ -176,18 +187,15 @@ func (d *BtrfsDriver) Get(volumeName string) (volume.Volume, error) {
 
 // List implements volume.Driver.List
 func (d *BtrfsDriver) List() (result []string) {
-	if raw, err := volume.RunBtrFSCmd(d.sudoer, "subvolume", "list", "-a", d.root); err != nil {
-		glog.Warningf("Could not list subvolumes at: %s", d.root)
-	} else {
-		cleanraw := strings.TrimSpace(string(raw))
-		rows := strings.Split(cleanraw, "\n")
-		for _, row := range rows {
-			if parts := strings.Split(row, "path"); len(parts) != 2 {
-				glog.V(1).Infof("Bad format parsing subvolume row: %s", row)
-			} else {
-				result = append(result, strings.TrimSpace(parts[1]))
-			}
-		}
+	glog.Infof("Checking volumes at %s", d.root)
+	raw, err := volume.RunBtrFSCmd(d.sudoer, "subvolume", "list", d.root)
+	if err != nil {
+		glog.Warningf("Could not list subvolumes at %s: %s (%s)", d.root, raw, err)
+		return
+	}
+	rows := regexp.MustCompile(fmt.Sprintf("top level %s path (\\w+)", d.objectID)).FindAllSubmatch(raw, -1)
+	for _, row := range rows {
+		result = append(result, string(row[1]))
 	}
 	return
 }

@@ -51,7 +51,7 @@ type RsyncVolume struct {
 	name    string
 	path    string
 	tenant  string
-	driver  volume.Driver
+	driver  *RsyncDriver
 }
 
 func init() {
@@ -80,6 +80,12 @@ func (d *RsyncDriver) DriverType() volume.DriverType {
 func (d *RsyncDriver) Create(volumeName string) (volume.Volume, error) {
 	d.Lock()
 	defer d.Unlock()
+	if d.Exists(volumeName) {
+		return nil, volume.ErrVolumeExists
+	}
+	if err := os.MkdirAll(filepath.Join(d.MetadataDir(), volumeName), 0755); err != nil {
+		return nil, err
+	}
 	volumePath := filepath.Join(d.root, volumeName)
 	if err := os.MkdirAll(volumePath, 0755); err != nil {
 		return nil, err
@@ -107,16 +113,25 @@ func (d *RsyncDriver) Remove(volumeName string) error {
 	// Delete the volume
 	v.(*RsyncVolume).Lock()
 	defer v.(*RsyncVolume).Unlock()
-	sh := exec.Command("rm", "-Rf", v.Path())
-	glog.V(4).Infof("About to execute: %s", sh)
-	output, err := sh.CombinedOutput()
-	if err != nil {
-		glog.Errorf("could not delete volume: %s", string(output))
+	if err := os.RemoveAll(filepath.Join(d.MetadataDir(), volumeName)); err != nil {
+		return err
+	} else if err := os.RemoveAll(v.Path()); err != nil {
+		glog.Errorf("Could not delete volume %s: %s", volumeName, err)
 		return ErrDeletingVolume
 	}
 	return nil
 }
 
+func (d *RsyncDriver) poolDir() string {
+	return filepath.Join(d.root, ".rsync")
+}
+
+// MetadataDir returns the path to a volume's metadata directory
+func (d *RsyncDriver) MetadataDir() string {
+	return filepath.Join(d.poolDir(), "volumes")
+}
+
+// Status implements volume.Driver
 func (d *RsyncDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("rsync.Status()")
 	response := &volume.Status{
@@ -151,7 +166,7 @@ func (d *RsyncDriver) Release(volumeName string) error {
 
 // List implements volume.Driver.List
 func (d *RsyncDriver) List() (result []string) {
-	if files, err := ioutil.ReadDir(d.root); err != nil {
+	if files, err := ioutil.ReadDir(d.MetadataDir()); err != nil {
 		glog.Errorf("Error trying to read from root directory: %s", d.root)
 		return
 	} else {
@@ -166,17 +181,11 @@ func (d *RsyncDriver) List() (result []string) {
 
 // Exists implements volume.Driver.Exists
 func (d *RsyncDriver) Exists(volumeName string) bool {
-	if files, err := ioutil.ReadDir(d.root); err != nil {
-		glog.Errorf("Error trying to read from root directory: %s", d.root)
+	if finfo, err := os.Stat(filepath.Join(d.MetadataDir(), volumeName)); err != nil {
 		return false
 	} else {
-		for _, fi := range files {
-			if fi.IsDir() && fi.Name() == volumeName {
-				return true
-			}
-		}
+		return finfo.IsDir()
 	}
-	return false
 }
 
 // Cleanup implements volume.Driver.Cleanup
@@ -207,7 +216,8 @@ func (v *RsyncVolume) Tenant() string {
 
 // WriteMetadata writes the metadata info for a snapshot on the base volume.
 func (v *RsyncVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
-	filePath := filepath.Join(v.Path(), name)
+	label = v.rawSnapshotLabel(label)
+	filePath := filepath.Join(v.driver.MetadataDir(), label, name)
 	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 		glog.Errorf("Could not create path for file %s: %s", name, err)
 		return nil, err
@@ -217,8 +227,36 @@ func (v *RsyncVolume) WriteMetadata(label, name string) (io.WriteCloser, error) 
 
 // ReadMetadata reads the metadata info from a snapshot.
 func (v *RsyncVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
-	filePath := filepath.Join(v.snapshotPath(label), name)
-	return os.Open(filePath)
+	// check the metadata directory first
+	label = v.rawSnapshotLabel(label)
+	filename := filepath.Join(v.driver.MetadataDir(), label, name)
+	if _, err := os.Stat(filename); os.IsNotExist(err) {
+		// now check the snapshot volume and copy the file into the metadata dir
+		snapshotfile := filepath.Join(v.snapshotPath(label), name)
+		file, err := os.Open(snapshotfile)
+		if err != nil {
+			return nil, err
+		}
+		// if you can't create the new file return the snapshot file
+		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+			return file, nil
+		}
+		outfile, err := os.Create(filename)
+		if err != nil {
+			return file, nil
+		}
+		// copy the file and seek to the beginning
+		defer file.Close()
+		if _, err := io.Copy(outfile, file); err != nil {
+			return nil, err
+		} else if _, err := outfile.Seek(0, 0); err != nil {
+			return nil, err
+		}
+		return outfile, nil
+	} else if err != nil {
+		return nil, err
+	}
+	return os.Open(filename)
 }
 
 func (v *RsyncVolume) getSnapshotPrefix() string {
@@ -256,6 +294,7 @@ func (v *RsyncVolume) isSnapshot(rawLabel string) bool {
 func (v *RsyncVolume) Snapshot(label string) (err error) {
 	v.Lock()
 	defer v.Unlock()
+	label = v.rawSnapshotLabel(label)
 	dest := v.snapshotPath(label)
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
@@ -271,7 +310,9 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	}
 	argv := []string{"-a", v.Path() + "/", dest + "/"}
 	glog.Infof("Performing snapshot rsync command: %s %s", exe, argv)
-
+	if err := os.MkdirAll(filepath.Join(v.driver.MetadataDir(), label), 0755); err != nil {
+		return err
+	}
 	var output []byte
 	for i := 0; i < 3; i++ {
 		rsync := exec.Command(exe, argv...)
@@ -309,7 +350,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 func (v *RsyncVolume) Snapshots() ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
-	files, err := ioutil.ReadDir(v.Driver().Root())
+	files, err := ioutil.ReadDir(v.driver.MetadataDir())
 	if err != nil {
 		return nil, err
 	}
@@ -326,15 +367,15 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 func (v *RsyncVolume) RemoveSnapshot(label string) error {
 	v.Lock()
 	defer v.Unlock()
+	label = v.rawSnapshotLabel(label)
 	dest := v.snapshotPath(label)
 	if exists, _ := volume.IsDir(dest); !exists {
 		return volume.ErrSnapshotDoesNotExist
 	}
-	sh := exec.Command("rm", "-Rf", dest)
-	glog.V(4).Infof("About to execute: %s", sh)
-	output, err := sh.CombinedOutput()
-	if err != nil {
-		glog.Errorf("could not remove snapshot: %s", string(output))
+	if err := os.RemoveAll(filepath.Join(v.driver.MetadataDir(), label)); err != nil {
+		return err
+	} else if err := os.RemoveAll(dest); err != nil {
+		glog.Errorf("Could not remove snapshot %s: %s", label, err)
 		return volume.ErrRemovingSnapshot
 	}
 	return nil
@@ -368,16 +409,17 @@ func (v *RsyncVolume) Export(label, parent string, writer io.Writer) error {
 		glog.Errorf("%s: label cannot be empty", volume.DriverTypeRsync)
 		return ErrRsyncInvalidLabel
 	}
-	src := v.snapshotPath(label)
-	if exists, err := volume.IsDir(src); err != nil {
-		return err
-	} else if !exists {
-		return volume.ErrSnapshotDoesNotExist
-	}
+	label = v.rawSnapshotLabel(label)
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
-	if err := volume.ExportDirectory(tarfile, src, label); err != nil {
-		glog.Errorf("Could not export snapshot %s: %s", label, err)
+	// write metadata
+	mdpath := filepath.Join(v.driver.MetadataDir(), label)
+	if err := volume.ExportDirectory(tarfile, mdpath, fmt.Sprintf("%s-metadata", label)); err != nil {
+		return err
+	}
+	// write volume
+	volpath := v.snapshotPath(label)
+	if err := volume.ExportDirectory(tarfile, volpath, fmt.Sprintf("%s-volume", label)); err != nil {
 		return err
 	}
 	return nil
@@ -387,28 +429,33 @@ func (v *RsyncVolume) Export(label, parent string, writer io.Writer) error {
 func (v *RsyncVolume) Import(label string, reader io.Reader) error {
 	v.Lock()
 	defer v.Unlock()
-	path := v.snapshotPath(label)
-	if exists, err := volume.IsDir(path); err != nil {
+	label = v.rawSnapshotLabel(label)
+	if exists, err := volume.IsDir(v.snapshotPath(label)); err != nil {
 		return err
 	} else if exists {
 		return volume.ErrSnapshotExists
 	}
-	importdir := filepath.Join(v.path, fmt.Sprintf("import-%s", label))
-	if err := os.MkdirAll(importdir, 0755); err != nil {
-		glog.Errorf("Could not create import path for snapshot %s: %s", label, err)
-		return err
-	}
-	defer os.RemoveAll(importdir)
+	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
 	tarfile := tar.NewReader(reader)
-	if err := volume.ImportArchive(tarfile, importdir); err != nil {
-		glog.Errorf("Could not import snaphot %s: %s", label, err)
-		return err
-	}
-	rsync := exec.Command("rsync", "-azh", filepath.Join(importdir, label), v.Driver().Root())
-	glog.V(0).Infof("About to execute %s", rsync)
-	if output, err := rsync.CombinedOutput(); err != nil {
-		glog.Errorf("Could not rsync [%+v]: %s (%s)", rsync, output, err)
-		return err
+	for {
+		header, err := tarfile.Next()
+		if err == io.EOF {
+			break
+		} else if err != nil {
+			glog.Errorf("Could not import archive: %s", err)
+			return err
+		}
+		if strings.HasPrefix(header.Name, volumedir) {
+			header.Name = strings.Replace(header.Name, volumedir, label, 1)
+			if err := volume.ImportArchiveHeader(header, tarfile, v.driver.Root()); err != nil {
+				return err
+			}
+		} else if strings.HasPrefix(header.Name, metadatadir) {
+			header.Name = strings.Replace(header.Name, metadatadir, label, 1)
+			if err := volume.ImportArchiveHeader(header, tarfile, v.driver.MetadataDir()); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }

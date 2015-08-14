@@ -65,6 +65,7 @@ func getTenant(from string) string {
 // Create implements volume.Driver.Create
 func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
 	if d.Exists(volumeName) {
+		return nil, volume.ErrVolumeExists
 	}
 	// Create a new device
 	volumeDevice, err := utils.NewUUID62()
@@ -157,12 +158,11 @@ func (d *DeviceMapperDriver) List() (result []string) {
 
 // Exists implements volume.Driver.Exists
 func (d *DeviceMapperDriver) Exists(volumeName string) bool {
-	for _, vol := range d.List() {
-		if vol == volumeName {
-			return true
-		}
+	if finfo, err := os.Stat(filepath.Join(d.MetadataDir(), volumeName)); err != nil {
+		return false
+	} else {
+		return finfo.IsDir()
 	}
-	return false
 }
 
 // Cleanup implements volume.Driver.Cleanup
@@ -219,8 +219,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		return err
 	}
-	if err := v.Metadata.remove(); err != nil {
-		glog.Errorf("Could not remove metadata for %s: %s", volumeName, err)
+	if err := os.RemoveAll(filepath.Join(d.MetadataDir(), volumeName)); err != nil {
 		return err
 	}
 	return nil
