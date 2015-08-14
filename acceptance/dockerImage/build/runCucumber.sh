@@ -13,9 +13,10 @@ if [ $# -gt 0 -a "$1" == "--root" ]; then
 	runAsRoot=true
 fi
 
-CUCUMBER_CMD="cd /capybara; cucumber $*; java -jar /usr/share/reporter/reporter.jar ./output ./output/report.json"
+CUCUMBER_CMD="cd /capybara; cucumber $*"
 if [ "$runAsRoot" == "true" ]; then
 	eval ${CUCUMBER_CMD}
+	EXIT=$?
 else
 	#
 	# Make the user account 'cuke' in the container which matches the UID/GID of
@@ -28,4 +29,8 @@ else
 	# a nice HTML format
 	#
 	HOME=/home/cuke su cuke --preserve-environment -c "${CUCUMBER_CMD}"
+	EXIT=$?
 fi
+
+HOME=/home/cuke su --preserve-environment -c "java -jar /usr/share/reporter/reporter.jar ./output ./output/report.json"
+exit $EXIT
