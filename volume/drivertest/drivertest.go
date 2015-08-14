@@ -118,6 +118,7 @@ func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args
 
 	driver.Release(volumeName)
 	c.Assert(driver.Remove(volumeName), IsNil)
+	c.Assert(driver.Exists(volumeName), Equals, false)
 }
 
 func createBase(c *C, driver *Driver, name string) volume.Volume {
@@ -195,6 +196,7 @@ func DriverTestCreateBase(c *C, drivername volume.DriverType, root string, args 
 	c.Assert(err, IsNil)
 	verifyBase(c, driver, vol2)
 	c.Assert(driver.Remove("Base"), IsNil)
+	c.Assert(driver.Exists("Base"), Equals, false)
 }
 
 func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args []string) {
@@ -267,6 +269,7 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotExists.Error())
 
 	c.Assert(driver.Remove("Base"), IsNil)
+	c.Assert(driver.Exists("Base"), Equals, false)
 }
 
 func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, importfs string, args []string) {
