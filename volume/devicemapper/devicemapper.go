@@ -41,7 +41,9 @@ func Init(root string, options []string) (volume.Driver, error) {
 		root:    root,
 		options: options,
 	}
-	driver.ensureInitialized()
+	if err := driver.ensureInitialized(); err != nil {
+		return nil, err
+	}
 	return driver, nil
 }
 
@@ -117,7 +119,7 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 
 // Get implements volume.Driver.Get
 func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
-	glog.V(1).Infof("Getting devicemapper volume %s", volumeName)
+	glog.V(2).Infof("Getting devicemapper volume %s", volumeName)
 	vol, err := d.newVolume(volumeName)
 	if err != nil {
 		glog.Errorf("Error getting devicemapper volume: %s", err)
@@ -130,7 +132,9 @@ func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 		if err := d.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
 			return nil, err
 		}
-		glog.V(1).Infof("Mounted device %s to %s", device, mountpoint)
+		glog.V(2).Infof("Mounted device %s to %s", device, mountpoint)
+	} else {
+		glog.V(2).Infof("%s is already a mount point", vol.Path())
 	}
 	return vol, nil
 }
