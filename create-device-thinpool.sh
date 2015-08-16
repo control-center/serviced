@@ -49,15 +49,15 @@ lvs --nameprefixes --noheadings -o lv_name,kernel_major,kernel_minor ${GROUP} | 
         TPOOL_NAME="/dev/mapper/$(cat /sys/dev/block/${LVM2_LV_KERNEL_MAJOR}:${LVM2_LV_KERNEL_MINOR}/dm/name)-tpool"
         case $GROUP in 
             docker)
-                echo "Please add the following to /etc/default/docker:"
+                echo "Please add the following to /etc/default/docker, stop Docker, delete /var/lib/docker, and start it again:"
                 echo
-                echo DOCKER_OPTS="$${DOCKER_OPTS} --storage-opt dm.thinpooldev=${TPOOL_NAME}"
+                echo DOCKER_OPTS=\"\${DOCKER_OPTS} --storage-opt dm.thinpooldev=${TPOOL_NAME}\"
                 echo 
                 ;;
             serviced)
                 echo "Please add the following to /etc/default/serviced:"
                 echo
-                echo SERVICED_DM_THINPOOLDEV=${TPOOL_NAME}
+                echo SERVICED_DM_THINPOOLDEV=\"${TPOOL_NAME}\"
                 echo 
                 ;;
         esac
