@@ -98,6 +98,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.IntFlag{"max-rpc-clients", defaultOps.MaxRPCClients, "max number of rpc clients to an endpoint"},
 		cli.IntFlag{"rpc-dial-timeout", defaultOps.RPCDialTimeout, "timeout for creating rpc connections"},
 		cli.IntFlag{"snapshot-ttl", defaultOps.SnapshotTTL, "snapshot TTL in hours, 0 to disable"},
+		cli.StringFlag{"controller-binary", defaultOps.ControllerBinary, "path to the container controller binary"},
 
 		// Reimplementing GLOG flags :(
 		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
@@ -182,6 +183,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		RPCDialTimeout:       ctx.GlobalInt("rpc-dial-timeout"),
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
 		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
+		ControllerBinary:     ctx.GlobalString("controller-binary"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
