@@ -16,7 +16,7 @@ package servicedefinition
 import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
-	//	"github.com/zenoss/glog"
+	"github.com/zenoss/glog"
 
 	"encoding/json"
 	"errors"
@@ -77,7 +77,7 @@ type EndpointDefinition struct {
 	Application         string
 	ApplicationTemplate string
 	AddressConfig       AddressResourceConfig
-	//	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
 	VHostList []VHost // VHost is used to request named vhost(s) for this endpoint.
 }
@@ -177,24 +177,25 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	} else {
 		return err
 	}
-	//	if len(e.VHostList) > 0{
-	//		//VHostList is defined, keep it and unset deprecated field if set
-	//		e.VHosts = nil
-	//		return nil
-	//	}
-	//	if len(e.VHosts) > 0{
-	//		// no VHostsList but vhosts is defined. Convert to VHostsList
-	//		glog.V(0).Warn("EndpointDefinition VHosts field is deprecated, see VHostList")
-	//		for _, vhost := range e.VHosts{
-	//			e.VHostList = append(e.VHostList, VHost{Name:vhost, Enabled:true})
-	//		}
+	if len(e.VHostList) > 0 {
+		//VHostList is defined, keep it and unset deprecated field if set
+		e.VHosts = nil
+		return nil
+	}
+	if len(e.VHosts) > 0 {
+		// no VHostsList but vhosts is defined. Convert to VHostsList
+		glog.Warning("EndpointDefinition VHosts field is deprecated, see VHostList")
+		for _, vhost := range e.VHosts {
+			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
+		}
+	}
 	return nil
 }
 func (e EndpointDefinition) MarshalJSON() ([]byte, error) {
-	//	if len(e.VHosts) > 0 {
-	//		glog.V(0).Warn("EndpointDefinition VHosts field is deprecated, value will not be marshalled; see VHostList")
-	//		e.Vhosts = nil
-	//	}
+	if len(e.VHosts) > 0 {
+		glog.Warning("EndpointDefinition VHosts field is deprecated, value will not be marshalled; see VHostList")
+		e.VHosts = nil
+	}
 	// Can' marshal EndpointDefinitio as it would be infinite recursion
 	return json.Marshal(endpointDefinition(e))
 }
