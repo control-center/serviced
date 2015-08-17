@@ -107,6 +107,10 @@
 # Max number tracked connections for iptables
 # SERVICED_IPTABLES_MAX_CONNECTIONS=655360
 
+# The number of hours a snapshot is retained before removal.
+# To disable snapshot removal, set the value to 0.
+# SERVICED_SNAPSHOT_TTL=12
+
 # The interval, in seconds, at which a serviced instance configured as agent
 # modifies its /opt/serviced/var/monitor/<IP-Address> file.
 # Default: 60     (1 minute)
