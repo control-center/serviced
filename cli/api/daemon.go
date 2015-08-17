@@ -620,6 +620,7 @@ func (d *daemon) startAgent() error {
 			DockerRegistry:       dockerRegistry,
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
+			ControllerBinary:     options.ControllerBinary,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
@@ -665,7 +666,7 @@ func (d *daemon) startAgent() error {
 	// TODO: Integrate this server into the rpc server, or something.
 	// Currently its only use is for command execution.
 	go func() {
-		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry)
+		sio := shell.NewProcessExecutorServer(options.Endpoint, dockerRegistry, options.ControllerBinary)
 		http.ListenAndServe(":50000", sio)
 	}()
 
