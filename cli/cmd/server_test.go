@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/utils"
 )
 
 var DefaultServerAPITest = ServerAPITest{}
@@ -33,7 +34,7 @@ func (t ServerAPITest) StartServer() error {
 }
 
 func InitServerAPITest(args ...string) {
-	New(DefaultServerAPITest, TestConfigReader(map[string]string{})).Run(args)
+	New(DefaultServerAPITest, utils.TestConfigReader(map[string]string{})).Run(args)
 }
 
 func ExampleSerivcedCLI_CmdServer_good() {

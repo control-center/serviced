@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
@@ -34,12 +35,12 @@ const defaultRPCPort = 4979
 type ServicedCli struct {
 	driver       api.API
 	app          *cli.App
-	config       ConfigReader
+	config       utils.ConfigReader
 	exitDisabled bool
 }
 
 // New instantiates a new command-line client
-func New(driver api.API, config ConfigReader) *ServicedCli {
+func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	if config == nil {
 		panic("Missing configuration data!")
 	}

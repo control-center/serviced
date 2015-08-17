@@ -22,32 +22,6 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
-// URL parses and handles URL typed options
-type URL struct {
-	Host string
-	Port int
-}
-
-// Set converts a URL string to a URL object
-func (u *URL) Set(value string) error {
-	parts := strings.Split(value, ":")
-	if len(parts) != 2 {
-		return fmt.Errorf("bad format: %s; must be formatted as HOST:PORT", value)
-	}
-
-	u.Host = parts[0]
-	if port, err := strconv.Atoi(parts[1]); err != nil {
-		return fmt.Errorf("port does not parse as an integer")
-	} else {
-		u.Port = port
-	}
-	return nil
-}
-
-func (u *URL) String() string {
-	return fmt.Sprintf("%s:%d", u.Host, u.Port)
-}
-
 // ImageMap parses docker image data
 type ImageMap map[string]string
 

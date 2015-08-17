@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/utils"
 )
 
 const (
@@ -150,7 +151,7 @@ type ServiceAPITest struct {
 }
 
 func InitServiceAPITest(args ...string) {
-	c := New(DefaultServiceAPITest, TestConfigReader(make(map[string]string)))
+	c := New(DefaultServiceAPITest, utils.TestConfigReader(make(map[string]string)))
 	c.exitDisabled = true
 	c.Run(args)
 }
@@ -296,17 +297,6 @@ func (t ServiceAPITest) AssignIP(config api.IPConfig) error {
 	if t.errs["AssignIP"] != nil {
 		return t.errs["AssignIP"]
 	}
-	return nil
-}
-
-func (t ServiceAPITest) StartProxy(config api.ControllerOptions) error {
-	if s, err := t.GetService(config.ServiceID); err != nil {
-		return err
-	} else if s == nil {
-		return ErrNoServiceFound
-	}
-
-	fmt.Printf("%s\n", strings.Join(config.Command, " "))
 	return nil
 }
 

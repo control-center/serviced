@@ -22,6 +22,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/utils"
 	"github.com/pivotal-golang/bytefmt"
 )
 
@@ -190,7 +191,7 @@ func (c *ServicedCli) cmdHostAdd(ctx *cli.Context) {
 		return
 	}
 
-	var address api.URL
+	var address utils.URL
 	if err := address.Set(args[0]); err != nil {
 		fmt.Println(err)
 		return

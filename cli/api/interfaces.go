@@ -33,7 +33,6 @@ type API interface {
 
 	// Server
 	StartServer() error
-	StartProxy(ControllerOptions) error
 	ServicedHealthCheck(IServiceNames []string) ([]dao.IServiceHealthResult, error)
 
 	// Hosts

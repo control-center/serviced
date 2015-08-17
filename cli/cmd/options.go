@@ -26,7 +26,7 @@ import (
 	"github.com/control-center/serviced/volume"
 )
 
-func getDefaultOptions(config ConfigReader) api.Options {
+func getDefaultOptions(config utils.ConfigReader) api.Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	options := api.Options{

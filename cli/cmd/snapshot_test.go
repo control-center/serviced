@@ -22,6 +22,7 @@ import (
 
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/utils"
 )
 
 const (
@@ -48,7 +49,7 @@ type SnapshotAPITest struct {
 }
 
 func InitSnapshotAPITest(args ...string) {
-	New(DefaultSnapshotAPITest, TestConfigReader(make(map[string]string))).Run(args)
+	New(DefaultSnapshotAPITest, utils.TestConfigReader(make(map[string]string))).Run(args)
 }
 
 func (t SnapshotAPITest) hasSnapshot(id string) (bool, error) {

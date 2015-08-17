@@ -16,7 +16,6 @@ package cmd
 import (
 	"encoding/json"
 	"fmt"
-	"net/url"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -42,16 +41,6 @@ var unstartedTime = time.Date(1999, 12, 31, 23, 59, 0, 0, time.UTC)
 
 // Initializer for serviced service subcommands
 func (c *ServicedCli) initService() {
-
-	defaultMetricsForwarderPort := ":22350"
-	if cpConsumerUrl, err := url.Parse(os.Getenv("CONTROLPLANE_CONSUMER_URL")); err == nil {
-		hostParts := strings.Split(cpConsumerUrl.Host, ":")
-		if len(hostParts) == 2 {
-			defaultMetricsForwarderPort = ":" + hostParts[1]
-		}
-	}
-
-	rpcPort := c.config.IntVal("RPC_PORT", defaultRPCPort)
 
 	c.app.Commands = append(c.app.Commands, cli.Command{
 		Name:        "service",
@@ -156,27 +145,6 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceStop,
 				Flags: []cli.Flag{
 					cli.BoolTFlag{"auto-launch", "Recursively schedules child services"},
-				},
-			}, {
-				Name:         "proxy",
-				Usage:        "Starts a server proxy for a container",
-				Description:  "serviced service proxy SERVICEID INSTANCEID COMMAND",
-				BashComplete: c.printServicesFirst,
-				Before:       c.cmdServiceProxy,
-				Flags: []cli.Flag{
-					cli.StringFlag{"forwarder-binary", "/usr/local/serviced/resources/logstash/logstash-forwarder", "path to the logstash-forwarder binary"},
-					cli.StringFlag{"forwarder-config", "/etc/logstash-forwarder.conf", "path to the logstash-forwarder config file"},
-					cli.IntFlag{"muxport", 22250, "multiplexing port to use"},
-					cli.StringFlag{"keyfile", "", "path to private key file (defaults to compiled in private keys"},
-					cli.StringFlag{"certfile", "", "path to public certificate file (defaults to compiled in public cert)"},
-					cli.StringFlag{"endpoint", api.GetGateway(rpcPort), "serviced endpoint address"},
-					cli.BoolTFlag{"autorestart", "restart process automatically when it finishes"},
-					cli.BoolFlag{"disable-metric-forwarding", "disable forwarding of metrics for this container"},
-					cli.StringFlag{"metric-forwarder-port", defaultMetricsForwarderPort, "the port the container processes send performance data to"},
-					cli.BoolTFlag{"logstash", "forward service logs via logstash-forwarder"},
-					cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
-					cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
-					cli.StringFlag{"virtual-address-subnet", c.config.StringVal("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},
 				},
 			}, {
 				Name:         "shell",
@@ -427,7 +395,7 @@ func (c *ServicedCli) searchForService(keyword string) (*service.Service, error)
 }
 
 // cmdSetTreeCharset sets the default behavior for --ASCII, SERVICED_TREE_ASCII, and stdout pipe
-func cmdSetTreeCharset(ctx *cli.Context, config ConfigReader) {
+func cmdSetTreeCharset(ctx *cli.Context, config utils.ConfigReader) {
 	if ctx.Bool("ascii") {
 		treeCharset = treeASCII
 	} else if !utils.Isatty(os.Stdout) {
@@ -875,46 +843,6 @@ func sendLogMessage(lbClientPort string, serviceLogInfo node.ServiceLogInfo) err
 	}
 	defer client.Close()
 	return client.SendLogMessage(serviceLogInfo, nil)
-}
-
-// serviced service proxy SERVICE_ID INSTANCEID COMMAND
-func (c *ServicedCli) cmdServiceProxy(ctx *cli.Context) error {
-	if len(ctx.Args()) < 3 {
-		fmt.Printf("Incorrect Usage.\n\n")
-		return nil
-	}
-
-	args := ctx.Args()
-	options := api.ControllerOptions{
-		MuxPort:                 ctx.GlobalInt("muxport"),
-		TLS:                     true,
-		KeyPEMFile:              ctx.GlobalString("keyfile"),
-		CertPEMFile:             ctx.GlobalString("certfile"),
-		ServicedEndpoint:        ctx.GlobalString("endpoint"),
-		Autorestart:             ctx.GlobalBool("autorestart"),
-		MetricForwarderPort:     ctx.GlobalString("metric-forwarder-port"),
-		Logstash:                ctx.GlobalBool("logstash"),
-		LogstashIdleFlushTime:   ctx.GlobalString("logstash-idle-flush-time"),
-		LogstashSettleTime:      ctx.GlobalString("logstash-settle-time"),
-		LogstashBinary:          ctx.GlobalString("forwarder-binary"),
-		LogstashConfig:          ctx.GlobalString("forwarder-config"),
-		VirtualAddressSubnet:    ctx.GlobalString("virtual-address-subnet"),
-		ServiceID:               args[0],
-		InstanceID:              args[1],
-		Command:                 args[2:],
-		MetricForwardingEnabled: !ctx.GlobalBool("disable-metric-forwarding"),
-	}
-
-	if err := c.driver.StartProxy(options); err != nil {
-		sendLogMessage(options.ServicedEndpoint,
-			node.ServiceLogInfo{
-				ServiceID: options.ServiceID,
-				Message:   "container controller terminated with: " + err.Error(),
-			})
-		fmt.Fprintln(os.Stderr, err)
-	}
-
-	return fmt.Errorf("serviced service proxy")
 }
 
 // serviced service shell [--saveas SAVEAS]  [--interactive, -i] SERVICEID [COMMAND]

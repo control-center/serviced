@@ -20,11 +20,12 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/agent"
+	"github.com/control-center/serviced/utils"
 )
 
 // HostConfig is the deserialized object from the command-line
 type HostConfig struct {
-	Address *URL
+	Address *utils.URL
 	PoolID  string
 	Memory  string
 	IPs     []string

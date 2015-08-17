@@ -13,63 +13,14 @@
 
 // +build unit
 
-package cmd
+package utils
 
 import (
 	"bytes"
 	"os"
 	"reflect"
-	"strconv"
-	"strings"
 	"testing"
 )
-
-type TestConfigReader map[string]string
-
-func (r TestConfigReader) StringVal(name string, dflt string) string {
-	if val, _ := r[name]; val != "" {
-		return val
-	} else {
-		return dflt
-	}
-}
-
-func (r TestConfigReader) StringSlice(name string, dflt []string) []string {
-	if val, _ := r[name]; val != "" {
-		return strings.Split(val, ",")
-	}
-	return dflt
-}
-
-func (r TestConfigReader) IntVal(name string, dflt int) int {
-	if val, _ := r[name]; val != "" {
-		if intval, err := strconv.Atoi(val); err != nil {
-			return intval
-		}
-	}
-	return dflt
-}
-
-func (r TestConfigReader) BoolVal(name string, dflt bool) bool {
-	if val, _ := r[name]; val != "" {
-		val = strings.ToLower(val)
-
-		trues := []string{"1", "true", "t", "yes"}
-		for _, t := range trues {
-			if val == t {
-				return true
-			}
-		}
-
-		falses := []string{"0", "false", "f", "no"}
-		for _, f := range falses {
-			if val == f {
-				return false
-			}
-		}
-	}
-	return dflt
-}
 
 func TestEnvironConfigReader_parse(t *testing.T) {
 	config := EnvironConfigReader{"SERVICEDTEST_"}

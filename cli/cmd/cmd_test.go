@@ -22,6 +22,7 @@ import (
 	"os"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/utils"
 )
 
 func pipe(f func(...string), args ...string) []byte {
@@ -68,7 +69,7 @@ type APITest struct {
 }
 
 func InitAPITest(args ...string) {
-	New(DefaultAPITest, TestConfigReader(map[string]string{})).Run(args)
+	New(DefaultAPITest, utils.TestConfigReader(map[string]string{})).Run(args)
 }
 
 func (t APITest) StartServer() error {
