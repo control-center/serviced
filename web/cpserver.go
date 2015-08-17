@@ -373,15 +373,16 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
-		allvhostsLock.Lock()
-		defer allvhostsLock.Unlock()
-
-		allvhosts = make(map[string]string)
+		newVhosts := make(map[string]string)
 		for _, sv := range childIDs {
 			parts := strings.SplitN(sv, "_", 2)
-			allvhosts[parts[1]] = parts[0]
+			newVhosts[parts[1]] = parts[0]
 		}
-		glog.V(1).Infof("allvhosts: %+v", allvhosts)
+
+		allvhostsLock.Lock()
+		defer allvhostsLock.Unlock()
+		allvhosts = newVhosts
+		defer glog.V(1).Infof("allvhosts: %+v", allvhosts)
 	}
 
 	for {

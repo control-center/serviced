@@ -194,7 +194,8 @@ func (e EndpointDefinition) MarshalJSON() ([]byte, error){
 //		glog.V(0).Warn("EndpointDefinition VHosts field is deprecated, value will not be marshalled; see VHostList")
 //		e.Vhosts = nil
 //	}
-	return json.Marshal(e)
+	// Can' marshal EndpointDefinitio as it would be infinite recursion
+	return json.Marshal(endpointDefinition(e))
 }
 
 func (s ServiceDefinition) String() string {
