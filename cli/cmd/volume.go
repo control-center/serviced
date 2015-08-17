@@ -82,14 +82,12 @@ func printStatusText(status *volume.Status) {
 	fmt.Printf("PoolName:               %s\n", status.PoolName)
 	fmt.Printf("DataFile:               %s\n", status.DataFile)
 	fmt.Printf("DataLoopback:           %s\n", status.DataLoopback)
-	fmt.Printf("DataSpaceAvailable:     %s\n", bytefmt.ByteSize(status.DataSpaceAvailable))
-	fmt.Printf("DataSpaceUsed:          %s\n", bytefmt.ByteSize(status.DataSpaceUsed))
-	fmt.Printf("DataSpaceTotal:         %s\n", bytefmt.ByteSize(status.DataSpaceTotal))
 	fmt.Printf("MetadataFile:           %s\n", status.MetadataFile)
 	fmt.Printf("MetadataLoopback:       %s\n", status.MetadataLoopback)
-	fmt.Printf("MetadataSpaceAvailable: %s\n", bytefmt.ByteSize(status.MetadataSpaceAvailable))
-	fmt.Printf("MetadataSpaceUsed:      %s\n", bytefmt.ByteSize(status.MetadataSpaceUsed))
-	fmt.Printf("MetadataSpaceTotal:     %s\n", bytefmt.ByteSize(status.MetadataSpaceTotal))
 	fmt.Printf("SectorSize:             %s\n", bytefmt.ByteSize(status.SectorSize))
 	fmt.Printf("UdevSyncSupported:      %t\n", status.UdevSyncSupported)
+	fmt.Printf("Usage Data:\n")
+	for _, usage := range status.UsageData {
+		fmt.Printf("\t%s %s: %d\n", usage.Label, usage.Type, usage.Value)
+	}
 }

@@ -268,21 +268,48 @@ func (d *DeviceMapperDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("devicemapper.Status()")
 	dockerStatus := d.DeviceSet.Status()
 	// convert dockerStatus to our status and return
+	usage := []volume.Usage{
+		{
+			Label: "Data",
+			Type:  "Available",
+			Value: dockerStatus.Data.Available,
+		},
+		{
+			Label: "Data",
+			Type:  "Used",
+			Value: dockerStatus.Data.Used,
+		},
+		{
+			Label: "Data",
+			Type:  "Total",
+			Value: dockerStatus.Data.Total,
+		},
+		{
+			Label: "Metadata",
+			Type:  "Available",
+			Value: dockerStatus.Metadata.Available,
+		},
+		{
+			Label: "Metadata",
+			Type:  "Used",
+			Value: dockerStatus.Metadata.Used,
+		},
+		{
+			Label: "Metadata",
+			Type:  "Total",
+			Value: dockerStatus.Metadata.Total,
+		},
+	}
 	result := &volume.Status{
-		Driver:                 volume.DriverTypeDeviceMapper,
-		DataSpaceAvailable:     dockerStatus.Data.Available,
-		DataSpaceUsed:          dockerStatus.Data.Used,
-		DataSpaceTotal:         dockerStatus.Data.Total,
-		MetadataSpaceAvailable: dockerStatus.Metadata.Available,
-		MetadataSpaceUsed:      dockerStatus.Metadata.Used,
-		MetadataSpaceTotal:     dockerStatus.Metadata.Total,
-		PoolName:               dockerStatus.PoolName,
-		DataFile:               dockerStatus.DataFile,
-		DataLoopback:           dockerStatus.DataLoopback,
-		MetadataFile:           dockerStatus.MetadataFile,
-		MetadataLoopback:       dockerStatus.MetadataLoopback,
-		SectorSize:             dockerStatus.SectorSize,
-		UdevSyncSupported:      dockerStatus.UdevSyncSupported,
+		Driver:            volume.DriverTypeDeviceMapper,
+		PoolName:          dockerStatus.PoolName,
+		DataFile:          dockerStatus.DataFile,
+		DataLoopback:      dockerStatus.DataLoopback,
+		MetadataFile:      dockerStatus.MetadataFile,
+		MetadataLoopback:  dockerStatus.MetadataLoopback,
+		SectorSize:        dockerStatus.SectorSize,
+		UdevSyncSupported: dockerStatus.UdevSyncSupported,
+		UsageData:         usage,
 	}
 	return result, nil
 }
