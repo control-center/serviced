@@ -352,7 +352,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 
 	// bind mount on /serviced
-	dir, bin, err := node.ExecPath()
+	dir, _, err := node.ExecPath()
 	if err != nil {
 		glog.Errorf("serviced not found: %s", err)
 		return nil, err
@@ -370,14 +370,12 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 
 	// get the serviced command
-	svcdcmd := fmt.Sprintf("/serviced/%s", bin)
+	svcdcmd := "/serviced/serviced-controller"
 
 	// get the proxy command
 	proxycmd := []string{
 		svcdcmd,
 		fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
-		"service",
-		"proxy",
 		"--autorestart=false",
 		"--disable-metric-forwarding",
 		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),

@@ -42,6 +42,10 @@ func CmdServiceProxy(ctx *cli.Context) {
 	options.CertPEMFile = cfg.StringVal("CERT_FILE", options.CertPEMFile)
 	options.VirtualAddressSubnet = cfg.StringVal("VIRTUAL_ADDRESS_SUBNET", options.VirtualAddressSubnet)
 
+	if ctx.IsSet("logtostderr") {
+		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
+	}
+
 	if err := StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	}

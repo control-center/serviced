@@ -38,6 +38,7 @@ func main() {
 		cli.StringFlag{"logstash-idle-flush-time", "5s", "time duration for logstash to flush log messages"},
 		cli.StringFlag{"logstash-settle-time", "0s", "time duration to wait for logstash to flush log messages before closing"},
 		cli.StringFlag{"virtual-address-subnet", "10.3", "/16 subnet for virtual addresses"},
+		cli.BoolTFlag{"logtostderr", "log to standard error instead of files"},
 	}
 
 	app.Action = CmdServiceProxy
