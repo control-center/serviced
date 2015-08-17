@@ -1,0 +1,867 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>serviced</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <link rel="schema.DC" href="http://purl.org/dc/terms/">
+      <meta name="DC.Type" content="reference">
+      
+      <meta name="DC.Title" content="serviced">
+      
+      <meta name="prodname" content="Zenoss Control Center">
+      
+      <meta name="prodname" content="Zenoss Control Center">
+      
+      <meta name="version" content="1">
+      
+      <meta name="version" content="1">
+      
+      <meta name="release" content="1">
+      
+      <meta name="release" content="1">
+      
+      <meta name="modification" content="x">
+      
+      <meta name="modification" content="x">
+      
+      <meta name="DC.Publisher" content="Zenoss, Inc.">
+      
+      <meta name="DC.Format" content="XHTML">
+      
+      <meta name="DC.Identifier" content="referenceid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"dox.cc\/cli\/serviced-service.html","previousTopicHref":"dox.cc\/cli\/invoking-serviced.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
+      
+      <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+      <script rel="stylesheet" type="text/css" media="screen, projection, print" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="../../themes/html5-zenoss/js/script.js"></script>
+      </head>
+   <body class="en-us html5-zenoss centered navigation-default">
+      <ul id="page-links" class="hidden sr-only">
+         <li><a id="skip-to-content" href="#d4h5-main-content">Skip to content</a></li>
+         <li><a id="skip-to-localnav" href="#local-navigation">Skip to navigation</a></li>
+         <li><a id="skip-to-footer" href="#footer">Skip to footer</a></li>
+      </ul>
+      <header id="site-head" class="header header--fixed">
+         <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
+            <div class="container">
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Zenoss Control Center Help  </a></div>
+               <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
+                  <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
+               </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
+            </div>
+         </nav>
+         <div id="msg-version"></div>
+      </header>
+      <div class="container">
+         <div class="row">
+            <div class="col-xs-12 col-md-21">
+               <ol class="breadcrumb">
+                  <li><a class="breadcrumb" href="../../dox.cc/cli/cli.html" title="Using the Control Center command-line interface">Using the Control Center command-line interface</a></li>
+                  
+                  <li>serviced</li>
+               </ol>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-xs-6 col-md-4 hidden-xs">
+               <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
+                  <ul class="nav bs-docs-sidenav">
+                     <li class=" collapsible  collapsed"><a href="../../dox.cc/admin/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../dox.cc/admin/multiple.html">Deploying multiple instances of a service</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/admin/change-host.html">Changing the name or IP address of the master host</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  active"><a href="../../dox.cc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
+                           <li class=" no-child "><a href="../../dox.cc/cli/invoking-serviced.html">Invoking serviced</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../dox.cc/cli/serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/cli/serviced-service.html">serviced service</a></li>
+                           <li class=" no-child "><a href="../../dox.shared/serviced/vars.html">/etc/default/serviced</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/cli/script.html">serviced script</a></li>
+                        </ul>
+                     </li>
+                  </ul>
+               </nav>
+            </div>
+            <div class="col-xs-12 col-md-8">
+               <div id="page" class="starter-template">
+                  <article>
+                     <div class="page reference  - topic-topic       reference-reference " id="referenceid">
+                        
+                        <h1 class="title topictitle1"><span class="keyword cmdname">serviced</span></h1>
+                        <div class="body refbody">
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e36" id="referenceid-d1304e36" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">NAME</h2>
+                              
+                              <p class="p"><span class="keyword cmdname">serviced</span> - a container-based management system
+                              </p>
+                                  
+                              
+                           </div>
+                              
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e47" id="referenceid-d1304e47" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">SYNTAX</h2>
+                              
+                              <p class="p"><span class="ph synph"><span class="keyword kwd">serviced</span> <span class="ph delim">[</span>global options<span class="ph delim">]</span> command <span class="ph delim">[</span>command options<span class="ph delim">]</span> <span class="ph delim">[</span>arguments...<span class="ph delim">]</span></span></p>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e77" id="referenceid-d1304e77" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">DESCRIPTION</h2>
+                              
+                              <p class="p"><span class="keyword cmdname">serviced</span> is an open-source, application 
+                                 service orchestrator based on <a class="xref" href="https://www.docker.io/" target="_blank">Docker</a>.
+                              </p>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e92" id="referenceid-d1304e92" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">GLOBAL OPTIONS</h2>
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--docker-registry
+                                       <span class="ph var">Master-Hostname</span><span class="ph delim">:</span>5000</span></dt>
+                                 
+                                 
+                                 <dd class="dd">The local Docker registry to use. The value of <var class="keyword varname">Master-Hostname</var> is the
+                                    hostname of the master host, not its IP address.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--static-ip <span class="ph var">IP-Address</span>
+                                       <span class="ph delim">[</span>--static-ip <span class="ph var">IP-Address</span><span class="ph delim">]</span>…</span></dt>
+                                 
+                                 
+                                 <dd class="dd">One or more static IP addresses for a <span class="keyword cmdname">serviced</span> instance to
+                                    advertise. Static IP addresses are declared in service definition templates, but must be
+                                    passed to an instance with this option.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--endpoint
+                                       <span class="ph var">Host</span><span class="ph delim">:</span><span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The <span class="keyword cmdname">serviced</span> RPC endpoint. The 
+                                    value of <var class="keyword varname">Host</var> 
+                                    is the hostname or IP address of the master host. The default value
+                                    of <var class="keyword varname">Port</var> is 4979. NOTE: For release 1.0, only port 4979 is supported.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--outbound <span class="ph var">IP-Address</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The outbound IP address.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--uiport <span class="ph delim">:</span><span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The port on which this <span class="keyword cmdname">serviced</span> instance listens for HTTPS
+                                    requests. The default value is 443, unless <var class="keyword varname">SERVICED_UI_PORT</var> is set in
+                                    the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--listen <span class="ph delim">:</span><span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The <span class="keyword cmdname">serviced</span> RPC endpoint on the local host. 
+                                    The default value of <var class="keyword varname">Port</var> is 4979. NOTE: For release 1.0, only port 4979 is supported.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--docker-dns <span class="ph var">Option</span>
+                                       <span class="ph delim">[</span>--docker-dns <span class="ph var">Option</span><span class="ph delim">]</span>…</span></dt>
+                                 
+                                 
+                                 <dd class="dd">One or more DNS configuration flags for Docker to use when starting containers.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--master</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Run the application services scheduler and other internal services.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--agent</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Run application services scheduled by the master.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--mux <span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The multiplexer port. The default value is 22250, unless
+                                    <var class="keyword varname">SERVICED_MUX_PORT</var> is set in the configuration file. 
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--var <span class="ph var">Path</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The location in which <span class="keyword cmdname">serviced</span> stores application data. The default
+                                    value is <span class="ph filepath"><var class="keyword varname">$SERVICED_HOME</var>/var</span>, unless
+                                    <var class="keyword varname">SERVICED_VARPATH</var> is set in the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--keyfile <span class="ph var">Path</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The path of a TLS key file. The default value is
+                                    <span class="ph filepath"><var class="keyword varname">$TMPDIR</var>/zenoss_key.[0-9]+</span>, unless
+                                    <var class="keyword varname">SERVICED_KEY_FILE</var> is set in the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--certfile <span class="ph var">Path</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The path of a TLS certificate file. The default value is
+                                    <span class="ph filepath"><var class="keyword varname">$TMPDIR</var>/zenoss_cert.[0-9]+</span>, unless
+                                    <var class="keyword varname">SERVICED_CERT_FILE</var> is set in the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--zk <span class="ph var">Host</span><span class="ph delim">:</span><span class="ph var">Port</span>
+                                       <span class="ph delim">[</span>--zk
+                                       <span class="ph var">Host</span><span class="ph delim">:</span><span class="ph var">Port</span><span class="ph delim">]</span>…</span></dt>
+                                 
+                                 
+                                 <dd class="dd">One or more ZooKeeper endpoints. The value of <var class="keyword varname">Host</var> is the hostname
+                                    or IP address of the ZooKeeper host. The default value of <var class="keyword varname">Port</var> is
+                                    2181. If multiple endpoints are specified, <span class="keyword cmdname">serviced</span> will try each in
+                                    turn until it connects to a working server. 
+                                 </dd>
+                                  
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--mount <span class="ph var">Option</span> 
+                                       <span class="ph delim">[</span>--mount <span class="ph var">Option</span><span class="ph delim">]</span>…</span></dt>
+                                 
+                                 
+                                 <dd class="dd">One or more bind mounts for a container. The syntax for <var class="keyword varname">Option</var> is
+                                    DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]. 
+                                    
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--fstype <span class="ph var">Driver</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The driver for the underlying file system where application data is stored
+                                    (by default, <span class="ph filepath">/opt/serviced/var</span>). The supported drivers are
+                                    <samp class="ph codeph">rsync</samp> and <samp class="ph codeph">btrfs</samp>. The default value is
+                                    <samp class="ph codeph">rsync</samp>, unless <var class="keyword varname">SERVICED_FS_TYPE</var> is set in the
+                                    configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--alias <span class="ph var">Alias</span>
+                                       <span class="ph delim">[</span>--alias <span class="ph var">Alias</span><span class="ph delim">]</span>…</span>
+                                    
+                                 </dt>
+                                 
+                                 
+                                 <dd class="dd">One or more DNS aliases to associate with a container. </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--es-startup-timeout <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The number of seconds to wait for Elasticsearch to complete its startup. The default
+                                    value is 600 seconds (10 minutes).
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--max-container-age <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The number of seconds to wait before removing a stopped container. The default value
+                                    is 86400 seconds (24 hours), unless <var class="keyword varname">SERVICED_MAX_CONTAINER_AGE</var> is set
+                                    in the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--max-dfs-timeout <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The number of seconds to wait for a snapshot to complete. The default value is 300
+                                    seconds (5 minutes).
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--virtual-address-subnet <span class="ph var">Subnet</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The 16-bit private subnet to use for virtual IPv4 addresses. The default value is
+                                    10.3, unless <var class="keyword varname">SERVICED_VIRTUAL_ADDRESS_SUBNET</var> is set in the
+                                    configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--master-pool-id <span class="ph var">Pool-ID</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The name of the resource pool to which the <span class="keyword cmdname">serviced</span> instance
+                                    configured as master belongs. The default value of <var class="keyword varname">Pool-ID</var> 
+                                    is <samp class="ph codeph">default</samp>.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--admin-group <span class="ph var">Group</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The name of the Linux group on the <span class="keyword cmdname">serviced</span> master host 
+                                    whose members are authorized to use the <span class="keyword cmdname">serviced</span> web interface.
+                                    On Ubuntu systems, the default value of <var class="keyword varname">Group</var> is <samp class="ph codeph">sudo</samp>;
+                                    on RHEL/CentOS systems, the default is <samp class="ph codeph">wheel</samp>. If 
+                                    <var class="keyword varname">SERVICED_VIRTUAL_ADDRESS_SUBNET</var> is set in the configuration file,
+                                    its value is used instead of the default.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--report-stats</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Enable reporting statistics in a container.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--host-stats <span class="ph var">Host</span><span class="ph delim">:</span><span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The endpoint of the OpenTSDB reader daemon, for <span class="keyword cmdname">serviced</span> statistics.
+                                    The default value of <var class="keyword varname">Host</var> is the IP address of the master host,
+                                    and the default value of <var class="keyword varname">Port</var> is 8443. If 
+                                    <var class="keyword varname">SERVICED_STATS_PORT</var> is set in the configuration file,
+                                    its value is used instead of the default endpoint.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--stats-period <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The number of seconds to wait between polls (health checks) of hosts in resource pools. 
+                                    The default value of <var class="keyword varname">Duration</var> is 10, unless
+                                    <var class="keyword varname">SERVICED_STATS_PERIOD</var> is set in the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--mc-username <span class="ph var">User</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The username of the OpenTSDB account that MetricConsumer uses gain access to
+                                    data stored by <span class="keyword cmdname">serviced</span>.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--mc-password <span class="ph var">Password</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The password of the OpenTSDB account that MetricConsumer uses gain access to
+                                    data stored by <span class="keyword cmdname">serviced</span>.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--cpuprofile</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Instructs a container to write its CPU profile to a file.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--isvcs-env <span class="ph var">Option</span>
+                                       <span class="ph delim">[</span>--isvcs-env <span class="ph var">Option</span><span class="ph delim">]</span>…</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Arguments to pass to internal services. The default value is no arguments, unless
+                                    <var class="keyword varname">SERVICED_ISVCS_ENV_[0-9]+</var> is set in the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--debug-port <span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The port on which <span class="keyword cmdname">serviced</span> listens for HTTP requests 
+                                    for the <a class="xref" href="http://golang.org/pkg/net/http/pprof/" target="_blank">Go profiler</a>. The default value of <var class="keyword varname">Port</var>
+                                    is 6006, unless <var class="keyword varname">SERVICED_DEBUG_PORT</var> is set in the configuration file. To stop listening
+                                    for requests, set the value to <samp class="ph codeph">-1</samp>.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--max-rpc-clients <span class="ph var">Count</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The maximum number of clients the <span class="keyword cmdname">serviced</span> RPC endpoint supports.
+                                    The default value is 3, unless <var class="keyword varname">SERVICED_MAX_RPC_CLIENTS</var> is set in 
+                                    the configuration file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--rpc-dial-timeout <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The number of seconds <span class="keyword cmdname">serviced</span> waits before giving up on
+                                    attempts to connect to the RPC endpoint on the master host. 
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--logtostderr</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Write log messages to STDERR instead of the system log.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--alsologtostderr</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Write log messages to STDERR as well as the system log.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--logstashurl
+                                       <span class="ph var">Host</span><span class="ph delim">:</span><span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The <a class="xref" href="http://logstash.net/" target="_blank">logstash</a> endpoint to which log data are sent. 
+                                    The default value of <var class="keyword varname">Host</var> is the IP address of the master host, 
+                                    and the default value of <var class="keyword varname">Port</var> is 5042. If 
+                                    <var class="keyword varname">SERVICED_LOG_ADDRESS</var> is set in the configuration file,
+                                    its value is used instead of the default endpoint.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--logstash-es
+                                       <span class="ph var">Host</span><span class="ph delim">:</span><span class="ph var">Port</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The administrative endpoint of the <a class="xref" href="http://logstash.net/" target="_blank">logstash</a> service.
+                                    The default value of <var class="keyword varname">Host</var> is the IP address of the master host, 
+                                    and the default value of <var class="keyword varname">Port</var> is 9100. If 
+                                    <var class="keyword varname">SERVICED_LOGSTASH_ES</var> is set in the configuration file,
+                                    its value is used instead of the default endpoint.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--logstash-max-days <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The maximum number of days to keep data in the logstash server before purging it.
+                                    The default value of <var class="keyword varname">Duration</var> is 1, 
+                                    unless <var class="keyword varname">SERVICED_LOGSTASH_MAX_DAYS</var> is set in the configuration file.
+                                    When this argument and <samp class="ph codeph">--logstash-max-size</samp> are used at the same time, 
+                                    both conditions are evaluated and enforced.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--logstash-max-size <span class="ph var">Quantity</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The maximum amount of logstash data to keep, in gigabytes.
+                                    The default value of <var class="keyword varname">Quantity</var> is 10, 
+                                    unless <var class="keyword varname">SERVICED_LOGSTASH_MAX_SIZE</var> is set in the configuration file.
+                                    When this argument and <samp class="ph codeph">--logstash-max-days</samp> are used at the same time, 
+                                    both conditions are evaluated and enforced.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--v <span class="ph var">Level</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The relative amount of INFO messages <span class="keyword cmdname">serviced</span> writes to the system
+                                    log. The value of <var class="keyword varname">Level</var> may be 0 (minimum) to 5 (maximum). The
+                                    default value is 0, unless <var class="keyword varname">SERVICED_LOG_LEVEL</var> is set in the
+                                    configuration file. 
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--stderrthreshold <span class="ph var">Level</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Write log messages at or above <var class="keyword varname">Level</var> to STDERR, 
+                                    in addition to the system log. The value of <var class="keyword varname">Level</var> may be 
+                                    0 (INFO), 1 (WARNING), 2 (ERROR), or 3 (FATAL). The default value is 2.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--vmodule</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Module-specific logging. For more information, refer to 
+                                    the <a class="xref" href="http://google-glog.googlecode.com/svn/trunk/doc/glog.html" target="_blank">Google Logging</a> documentation.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--log_backtrace_at <span class="ph var">File</span><span class="ph delim">:</span><span class="ph var">Line</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Emit a stack trace when logging hits the specified line and file.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph">--version</span></dt>
+                                 
+                                 
+                                 <dd class="dd">Display minimal version information about the <span class="keyword cmdname">serviced</span> binary. To
+                                    display additional information, use the <span class="keyword cmdname">serviced version</span>
+                                    command.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="ph delim">[</span>--help<span class="ph delim">|</span>--h<span class="ph delim">]</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Display help information.</dd>
+                                 
+                                 
+                                 
+                              </dl>
+                                  
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e970" id="referenceid-d1304e970" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">COMMANDS</h2>
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">backup</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Copy all templates and services into a <span class="keyword cmdname">tar</span> archive file.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">docker</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer Docker.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="ph delim">[</span><span class="keyword kwd">help</span><span class="ph delim">|</span><span class="keyword kwd">h</span><span class="ph delim">]</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Display a global or command-specific help message.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">host</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer hosts.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">log</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer logs.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">metric</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer metrics.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">pool</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer resource pools.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">restore</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Reconstruct templates and services from a a <span class="keyword cmdname">tar</span> archive file
+                                    created with <span class="keyword cmdname">backup</span>.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">script</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer services.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">service</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer services.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">snapshot</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer snapshots.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">template</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Administer templates.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">version</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Display <span class="keyword cmdname">serviced</span> version information.
+                                 </dd>
+                                 
+                                 
+                                 
+                              </dl>
+                                  
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e1145" id="referenceid-d1304e1145" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">INVOCATION</h2>
+                              
+                              <p class="p">Service (daemon) control commands include start, stop and reload. The reload
+                                 command sends <samp class="ph codeph">SIGHUP</samp> to the daemon, which restarts all internal
+                                 services except ZooKeeper.
+                              </p>
+                              
+                              
+                              <ul class="ul">
+                                 
+                                 <li class="li">RHEL/CentOS: <samp class="ph codeph">sudo systemctl [start|stop|reload] serviced</samp></li>
+                                 
+                                 
+                                 <li class="li">Ubuntu: <samp class="ph codeph">sudo [start|stop|reload] serviced</samp></li>
+                                 
+                                 
+                              </ul>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e1170" id="referenceid-d1304e1170" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">MISCELLANEOUS</h2>
+                              
+                              <p class="p">Sending <samp class="ph codeph">SIGUSR1</samp> to the <span class="keyword cmdname">serviced</span>
+                                 process toggles the log level between 0 and 2.
+                              </p>
+                              
+                              
+                              <p class="p">To attach to a container running on a remote host, log in to the
+                                 container from the <span class="keyword cmdname">serviced</span> master host.
+                                 If you are running a Linux shell on an agent host, specify the 
+                                 <samp class="ph codeph">--endpoint</samp> option in the <span class="keyword cmdname">serviced</span> 
+                                 invocation.
+                              </p>
+                              
+                              
+                              <p class="p"><span class="keyword cmdname">serviced</span> relies on Docker, and some administration
+                                 procedures include <span class="keyword cmdname">docker</span> commands. However, commands
+                                 that manipulate containers directly, such as <samp class="ph codeph">docker pause</samp>,
+                                 should not be used when <span class="keyword cmdname">serviced</span> is running. 
+                              </p>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e1211" id="referenceid-d1304e1211" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">ENVIRONMENT</h2>
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm"><var class="keyword varname">SERVICED_HOME</var></dt>
+                                 
+                                 
+                                 <dd class="dd">The install path of <span class="keyword cmdname">serviced</span>. 
+                                    The default value is <span class="ph filepath">/opt/serviced</span>.
+                                 </dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d1304e1236" id="referenceid-d1304e1236" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">FILES</h2>
+                              
+                              <p class="p"><span class="ph filepath">/etc/default/serviced</span></p>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                        </div>
+                        
+                     </div>
+                     
+                     <div class="row">
+                        <footer id="topicsNPLinks">
+                           <div id="footer_previous"><a href="../../dox.cc/cli/invoking-serviced.html" class="previous" rel="internal" title="Invoking serviced"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">Invoking serviced</span></a></div>
+                           <div id="footer_next"><a href="../../dox.cc/cli/serviced-service.html" class="next" rel="internal" title="serviced service"><span class="sr-only">serviced service</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                        </footer>
+                     </div>
+                  </article>
+                  <div class="clear"></div>
+                  
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>
