@@ -583,7 +583,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	// mount serviced path
-	dir, binary, err := ExecPath()
+	dir, _, err := ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return nil, nil, err
@@ -710,9 +710,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	cfg.Cmd = append([]string{},
-		fmt.Sprintf("/serviced/%s", binary),
-		"service",
-		"proxy",
+		"/serviced/serviced-controller",
 		svc.ID,
 		strconv.Itoa(serviceState.InstanceID),
 		svc.Startup)
