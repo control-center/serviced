@@ -1,0 +1,510 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>serviced script</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <link rel="schema.DC" href="http://purl.org/dc/terms/">
+      <meta name="DC.Type" content="reference">
+      
+      <meta name="DC.Title" content="serviced script">
+      
+      <meta name="abstract" content="The serviced script command verifies or performs the commands in a script file. A script file is a text file that contains commands to automate common or repetitive tasks, and tasks that may require specific services or conditions.">
+      
+      <meta name="description" content="The serviced script command verifies or performs the commands in a script file. A script file is a text file that contains commands to automate common or repetitive tasks, and tasks that may require specific services or conditions.">
+      
+      <meta name="prodname" content="Zenoss Control Center">
+      
+      <meta name="version" content="1">
+      
+      <meta name="release" content="1">
+      
+      <meta name="modification" content="x">
+      
+      <meta name="DC.Publisher" content="Zenoss, Inc.">
+      
+      <meta name="DC.Format" content="XHTML">
+      
+      <meta name="DC.Identifier" content="referenceid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":null,"previousTopicHref":"dox.shared\/serviced\/vars.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
+      
+      <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+      <script rel="stylesheet" type="text/css" media="screen, projection, print" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="../../themes/html5-zenoss/js/script.js"></script>
+      </head>
+   <body class="en-us html5-zenoss centered navigation-default">
+      <ul id="page-links" class="hidden sr-only">
+         <li><a id="skip-to-content" href="#d4h5-main-content">Skip to content</a></li>
+         <li><a id="skip-to-localnav" href="#local-navigation">Skip to navigation</a></li>
+         <li><a id="skip-to-footer" href="#footer">Skip to footer</a></li>
+      </ul>
+      <header id="site-head" class="header header--fixed">
+         <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
+            <div class="container">
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Zenoss Control Center Help  </a></div>
+               <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
+                  <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
+               </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
+            </div>
+         </nav>
+         <div id="msg-version"></div>
+      </header>
+      <div class="container">
+         <div class="row">
+            <div class="col-xs-12 col-md-21">
+               <ol class="breadcrumb">
+                  <li><a class="breadcrumb" href="../../dox.cc/cli/cli.html" title="Using the Control Center command-line interface">Using the Control Center command-line interface</a></li>
+                  
+                  <li>serviced script</li>
+               </ol>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-xs-6 col-md-4 hidden-xs">
+               <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
+                  <ul class="nav bs-docs-sidenav">
+                     <li class=" collapsible  collapsed"><a href="../../dox.cc/admin/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../dox.cc/admin/multiple.html">Deploying multiple instances of a service</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/admin/change-host.html">Changing the name or IP address of the master host</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  active"><a href="../../dox.cc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
+                           <li class=" no-child "><a href="../../dox.cc/cli/invoking-serviced.html">Invoking serviced</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/cli/serviced.html">serviced</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/cli/serviced-service.html">serviced service</a></li>
+                           <li class=" no-child "><a href="../../dox.shared/serviced/vars.html">/etc/default/serviced</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../dox.cc/cli/script.html">serviced script</a></li>
+                        </ul>
+                     </li>
+                  </ul>
+               </nav>
+            </div>
+            <div class="col-xs-12 col-md-8">
+               <div id="page" class="starter-template">
+                  <article>
+                     <div class="page reference  - topic-topic       reference-reference " id="referenceid">
+                        
+                        <h1 class="title topictitle1"><span class="keyword cmdname">serviced script</span></h1>
+                        <div class="body refbody">
+                           <p class="shortdesc">The <span class="keyword cmdname">serviced script</span> command verifies or performs the commands in a
+                              script file. A script file is a text file that contains commands to automate common or
+                              repetitive tasks, and tasks that may require specific services or conditions. 
+                           </p>
+                           
+                           
+                           <div class="section"><a name="referenceid-d6284e32" id="referenceid-d6284e32" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">Usage</h2>
+                              
+                              <p class="p">The <span class="keyword cmdname">serviced script</span> command provides three subcommands.
+                              </p>
+                              
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm"><samp class="ph codeph">help</samp></dt>
+                                 
+                                 
+                                 <dd class="dd">Display the help message.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><samp class="ph codeph">parse</samp></dt>
+                                 
+                                 
+                                 <dd class="dd">Verify the syntax of a script file.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><samp class="ph codeph">run</samp></dt>
+                                 
+                                 
+                                 <dd class="dd">Perform the commands in a script file.</dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                              
+                              <p class="p">The correct invocaton of <span class="keyword cmdname">serviced script run</span> depends on whether the
+                                 <span class="keyword cmdname">REQUIRE_SVC</span> command is present in a script file.
+                              </p>
+                              
+                              
+                              <ul class="ul">
+                                 
+                                 <li class="li">If a script file does not include <span class="keyword cmdname">REQUIRE_SVC</span>, no additional
+                                    parameters are required. For example:<pre class="pre codeblock">serviced script run task1.txt</pre>
+                                    
+                                    </li>
+                                 
+                                 
+                                 <li class="li">If a script file includes <span class="keyword cmdname">REQUIRE_SVC</span>, the <samp class="ph codeph">--service</samp>
+                                    parameter is required. For
+                                    example:<pre class="pre codeblock">serviced script run task2.txt --service Zenoss.core</pre>
+                                    
+                                    </li>
+                                 
+                                 
+                              </ul>
+                              
+                              
+                              <p class="p">The log file of a <span class="keyword cmdname">serviced script run</span> invocation
+                                 is <span class="ph filepath">/var/log/serviced/script-<var class="keyword varname">TIMESTAMP</var>-<var class="keyword varname">$USER</var>.log</span></p>
+                              
+                              
+                              <aside class="note note "><span class="title">Note:</span> To commit a container, a <span class="keyword cmdname">serviced script run</span> invocation must be performed on the
+                                 <span class="ph">Control Center</span> master host.
+                              </aside>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d6284e134" id="referenceid-d6284e134" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">Script file syntax</h2>
+                              
+                              <ul class="ul">
+                                 
+                                 <li class="li">Lines that contain no text and lines that start with the number sign
+                                    character (<samp class="ph codeph">#</samp>) are ignored.
+                                 </li>
+                                 
+                                 
+                                 <li class="li">Lines are terminated with LF or CR+LF.</li>
+                                 
+                                 
+                                 <li class="li">A command and its arguments may not span lines.</li>
+                                 
+                                 
+                                 <li class="li">The maximum number of characters per line (command and arguments) is 300000.</li>
+                                 
+                                 
+                                 <li class="li">Unless otherwise noted, all command arguments are treated as strings.</li>
+                                 
+                                 
+                              </ul>
+                              
+                              
+                           </div>
+                           
+                           
+                           
+                           <div class="section"><a name="referenceid-d6284e161" id="referenceid-d6284e161" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">Commands</h2>
+                              
+                              <p class="p">Commands are performed in the order in which they occur in a script. Scripts terminate on
+                                 completion and when a command returns an exit code other than zero.
+                              </p>
+                              
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">DESCRIPTION</span>
+                                       <span class="ph var">argument...</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">A statement about the script. </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain one or zero <span class="keyword cmdname">DESCRIPTION</span> commands. At least one
+                                    argument is required.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">VERSION</span> <span class="ph var">argument</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">A revision reference for the script. </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain one or zero <span class="keyword cmdname">VERSION</span> commands. Only one argument
+                                    is supported.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">REQUIRE_SVC</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">The script needs a reference service in order to perform some or all of its tasks. The
+                                    service is specified with the <samp class="ph codeph">--service</samp> parameter of the
+                                    <span class="keyword cmdname">serviced script run</span> command.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain one or zero <span class="keyword cmdname">REQUIRE_SVC</span> commands.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SNAPSHOT</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Perform a snapshot. If a script command fails, <span class="keyword cmdname">serviced</span> rolls back
+                                    to the most recent snapshot. 
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SNAPSHOT</span> commands.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_USE</span> <span class="ph var">Image-ID</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Use the specified image for script commands that occur after this
+                                    <span class="keyword cmdname">SVC_USE</span> command. If your application uses multiple images, enter
+                                    additional <span class="keyword cmdname">SVC_USE</span> commands to specify each image. If the specified
+                                    image is not present in the local Docker registry, <span class="keyword cmdname">serviced</span> attempts
+                                    to pull it from Docker Hub.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_USE</span> commands. Only one argument is
+                                    supported.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_RUN</span> <span class="ph var">Service</span> <span class="ph var">Run-Command</span> <span class="ph var">arguments</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Invoke one of the pre-defined commands associated with a service.</dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand"><var class="keyword varname">Service</var> must be the absolute path of a service, with each service
+                                    in the path separated by the solidus character (<samp class="ph codeph">/</samp>). For example,
+                                    <samp class="ph codeph">Zenoss.core/Zope</samp>.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_RUN</span> commands. Multiple arguments
+                                    are supported.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_EXEC</span>
+                                       <span class="ph delim">[</span>COMMIT<span class="ph delim">|</span>NO_COMMIT<span class="ph delim">]</span>
+                                       <span class="ph var">Service</span>
+                                       <span class="ph var">argument...</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Start a new container to run arbitrary commands. (Equivalent to a non-interactive
+                                    invocation of <span class="keyword cmdname">serviced service shell</span>.) 
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">When <samp class="ph codeph">COMMIT</samp> is specified, changes are committed on successful completion
+                                    of the commands in <var class="keyword varname">argument</var>. When <samp class="ph codeph">NO_COMMIT</samp> is specified,
+                                    changes are not committed.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand"><var class="keyword varname">Service</var> must be the absolute path of a service, with each service
+                                    in the path separated by the solidus character (<samp class="ph codeph">/</samp>). For example,
+                                    <samp class="ph codeph">Zenoss.core/Zope</samp>.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_EXEC</span> commands.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_START</span>
+                                       <span class="ph delim">{</span>auto<span class="ph delim">|</span>recurse<span class="ph delim">}</span>
+                                       <span class="ph var">Service</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Start a new instance of <var class="keyword varname">Service</var>. 
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">If <samp class="ph codeph">auto</samp> or <samp class="ph codeph">recurse</samp> is not specified, all configured
+                                    instances of <var class="keyword varname">Service</var> are started. If <samp class="ph codeph">auto</samp> or
+                                    <samp class="ph codeph">recurse</samp> is specified, all configured instances of
+                                    <var class="keyword varname">Service</var> and all of their child services are started.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand"><var class="keyword varname">Service</var> must be the absolute path of a service, with each service
+                                    in the path separated by the solidus character (<samp class="ph codeph">/</samp>). For example,
+                                    <samp class="ph codeph">Zenoss.core/Zope</samp>.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_START</span> commands. 
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_STOP</span>
+                                       <span class="ph delim">{</span>auto<span class="ph delim">|</span>recurse<span class="ph delim">}</span>
+                                       <span class="ph var">Service</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Stop the specified service.</dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">If <samp class="ph codeph">auto</samp> or <samp class="ph codeph">recurse</samp> is not specified, all instances
+                                    of <var class="keyword varname">Service</var> are stopped. If <samp class="ph codeph">auto</samp> or
+                                    <samp class="ph codeph">recurse</samp> is specified, all instances of <var class="keyword varname">Service</var> and
+                                    all of their child services are stopped.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand"><var class="keyword varname">Service</var> must be the absolute path of a service, with each service
+                                    in the path separated by the solidus character (<samp class="ph codeph">/</samp>). For example,
+                                    <samp class="ph codeph">Zenoss.core/Zope</samp>.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_STOP</span> commands. 
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_RESTART</span>
+                                       <span class="ph delim">{</span>auto<span class="ph delim">|</span>recurse<span class="ph delim">}</span>
+                                       <span class="ph var">Service</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Restart the specified service. </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">If <samp class="ph codeph">auto</samp> or <samp class="ph codeph">recurse</samp> is not specified, all instances
+                                    of <var class="keyword varname">Service</var> are restarted. If <samp class="ph codeph">auto</samp> or
+                                    <samp class="ph codeph">recurse</samp> is specified, all instances of <var class="keyword varname">Service</var> and
+                                    all of their child services are restarted.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand"><var class="keyword varname">Service</var> must be the absolute path of a service, with each service
+                                    in the path separated by the solidus character (<samp class="ph codeph">/</samp>). For example,
+                                    <samp class="ph codeph">Zenoss.core/Zope</samp>.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_RESTART</span> commands. 
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm"><span class="ph synph"><span class="keyword kwd">SVC_WAIT</span>
+                                       <span class="ph var">Service...</span>
+                                       <span class="ph delim">[</span>started<span class="ph delim">|</span>stopped<span class="ph delim">|</span>paused<span class="ph delim">]</span>
+                                       <span class="ph var">Duration</span></span></dt>
+                                 
+                                 
+                                 <dd class="dd">Pause <var class="keyword varname">Duration</var> seconds, or pause until the specified service or
+                                    services reach the <samp class="ph codeph">started</samp>, <samp class="ph codeph">stopped</samp>, or
+                                    <samp class="ph codeph">paused</samp> state. If the state is not reached when
+                                    <var class="keyword varname">Duration</var> expires, the command fails.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand"><var class="keyword varname">Duration</var> must be an integer.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Each <var class="keyword varname">Service</var> must be the absolute path of a service, with each
+                                    service in the path separated by the solidus character (<samp class="ph codeph">/</samp>). For
+                                    example, <samp class="ph codeph">Zenoss.core/Zope</samp>.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">The <span class="keyword cmdname">REQUIRE_SVC</span> command must be present in the script.
+                                 </dd>
+                                 
+                                 
+                                 <dd class="dd ddexpand">Scripts may contain multiple <span class="keyword cmdname">SVC_WAIT</span> commands. 
+                                 </dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                              
+                           </div>
+                           
+                           
+                        </div>
+                        
+                     </div>
+                     
+                     <div class="row">
+                        <footer id="topicsNPLinks">
+                           <div id="footer_previous"><a href="../../dox.shared/serviced/vars.html" class="previous" rel="internal" title="/etc/default/serviced"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">/etc/default/serviced</span></a></div>
+                           <div id="footer_next"></div>
+                        </footer>
+                     </div>
+                  </article>
+                  <div class="clear"></div>
+                  
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>

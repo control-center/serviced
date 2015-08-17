@@ -1,0 +1,346 @@
+<!DOCTYPE html
+  SYSTEM "about:legacy-compat">
+<html lang="">
+   <head>
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>serviced service</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <link rel="schema.DC" href="http://purl.org/dc/terms/">
+      <meta name="DC.Type" content="reference">
+      
+      <meta name="DC.Title" content="serviced service">
+      
+      <meta name="abstract" content="The serviced service command lets you manage an application's individual services.">
+      
+      <meta name="description" content="The serviced service command lets you manage an application's individual services.">
+      
+      <meta name="prodname" content="Zenoss Control Center">
+      
+      <meta name="version" content="1">
+      
+      <meta name="release" content="1">
+      
+      <meta name="modification" content="x">
+      
+      <meta name="DC.Publisher" content="Zenoss, Inc.">
+      
+      <meta name="DC.Format" content="XHTML">
+      
+      <meta name="DC.Identifier" content="referenceid">
+      <script type="text/javascript">var d4p = {"relativePath":"..\/..\/","dev":false,"debug":false,"draft":false,"nextTopicHref":"dox.shared\/serviced\/vars.html","previousTopicHref":"dox.cc\/cli\/serviced.html","root":false,"map":{"chunked":false},"search":{"minlength":2},"l":{"searchPageHeading":"Search Results","close":"Close"}}</script>
+      <link rel="stylesheet" type="text/css" media="screen, projection" href="../../themes/html5-zenoss/css/style.css">
+      
+      <link rel="stylesheet" type="text/css" media="screen, projection, print" src="http://fonts.googleapis.com/css?family=Open+Sans:300,400,600,700">
+      <script rel="stylesheet" type="text/css" media="screen, projection, print" src="http://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      <script type="text/javascript" src="../../themes/html5-zenoss/js/script.js"></script>
+      </head>
+   <body class="en-us html5-zenoss centered navigation-default">
+      <ul id="page-links" class="hidden sr-only">
+         <li><a id="skip-to-content" href="#d4h5-main-content">Skip to content</a></li>
+         <li><a id="skip-to-localnav" href="#local-navigation">Skip to navigation</a></li>
+         <li><a id="skip-to-footer" href="#footer">Skip to footer</a></li>
+      </ul>
+      <header id="site-head" class="header header--fixed">
+         <nav id="topNav" class="navbar navbar-inverse navbar-static-top" role="navigation">
+            <div class="container">
+               <div class="navbar-header"><button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar"><span class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span class="icon-bar"></span></button><a class="navbar-brand" href="#">  Zenoss Control Center Help  </a></div>
+               <form id="search" class="navbar-form navbar-right hidden-xs" role="search">
+                  <div class="form-group"><input id="search-text" type="text" class="form-control" placeholder="Search"></div>
+               </form>
+               <ul class="nav navbar-nav navbar-right hidden-xs">
+                  <li id="dropdown-share" class="dropdown share"><a href="#" class="dropdown-toggle  btn-lg btn" data-toggle="dropdown" role="button" aria-expanded="false"><span class="fa  fa-share-alt"></span><span class="sr-only">Share</span><span class="caret"></span></a><ul class="dropdown-menu" role="menu">
+                        <li><a id="LinkFacebook" href="https://www.facebook.com/"><span class="fa fa-facebook"></span> Facebook</a></li>
+                        <li><a id="LinkLinkedin" href="https://www.linkedin.com/"><span class="fa fa-linkedin"></span> LinkedIn</a></li>
+                        <li><a id="LinkTwitter" href="https://twitter.com/?lang=en"><span class="fa fa-twitter"></span> Tweeter</a></li>
+                     </ul>
+                  </li>
+               </ul>
+            </div>
+         </nav>
+         <div id="msg-version"></div>
+      </header>
+      <div class="container">
+         <div class="row">
+            <div class="col-xs-12 col-md-21">
+               <ol class="breadcrumb">
+                  <li><a class="breadcrumb" href="../../dox.cc/cli/cli.html" title="Using the Control Center command-line interface">Using the Control Center command-line interface</a></li>
+                  
+                  <li>serviced service</li>
+               </ol>
+            </div>
+         </div>
+         <div class="row">
+            <div class="col-xs-6 col-md-4 hidden-xs">
+               <nav id="side-navigation" class="bs-docs-sidebar hidden-print hidden-xs">
+                  <ul class="nav bs-docs-sidenav">
+                     <li class=" collapsible  collapsed"><a href="../../dox.cc/admin/admin.html"><span class="enumeration enumeration0">Chapter 1. </span>Administration reference</a><ul class="nav">
+                           <li class=" no-child "><a href="../../dox.cc/admin/multiple.html">Deploying multiple instances of a service</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/admin/change-host.html">Changing the name or IP address of the master host</a></li>
+                        </ul>
+                     </li>
+                     <li class=" collapsible  active"><a href="../../dox.cc/cli/cli.html"><span class="enumeration enumeration0">Chapter 2. </span>Using the Control Center command-line interface</a><ul class="nav">
+                           <li class=" no-child "><a href="../../dox.cc/cli/invoking-serviced.html">Invoking serviced</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/cli/serviced.html">serviced</a></li>
+                           <li class=" no-child  active"><a class="selected" href="../../dox.cc/cli/serviced-service.html">serviced service</a></li>
+                           <li class=" no-child "><a href="../../dox.shared/serviced/vars.html">/etc/default/serviced</a></li>
+                           <li class=" no-child "><a href="../../dox.cc/cli/script.html">serviced script</a></li>
+                        </ul>
+                     </li>
+                  </ul>
+               </nav>
+            </div>
+            <div class="col-xs-12 col-md-8">
+               <div id="page" class="starter-template">
+                  <article>
+                     <div class="page reference  - topic-topic       reference-reference " id="referenceid">
+                        
+                        <h1 class="title topictitle1"><span class="keyword cmdname">serviced service</span></h1>
+                        <div class="body refbody">
+                           <p class="shortdesc">The <span class="keyword cmdname">serviced service</span> command lets you manage an application's
+                              individual services.
+                           </p>
+                           
+                           
+                           <div class="section"><a name="referenceid-d3745e32" id="referenceid-d3745e32" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">USAGE</h2>
+                              
+                              <p class="p">Use this command to perform administrative actions on specific service.</p>
+                              
+                              
+                           </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-d3745e41" id="referenceid-d3745e41" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">SYNTAX</h2>
+                              <pre class="pre codeblock">serviced service [global options] command [command options] [arguments...]</pre>
+                              
+                              </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-d3745e50" id="referenceid-d3745e50" class="anchor"></a><h2 class="title sectiontitle">COMMANDS</h2>The following commands are available for <span class="keyword cmdname">serviced
+                                 service</span>:
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm">list</dt>
+                                 
+                                 
+                                 <dd class="dd">List all services.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">status</dt>
+                                 
+                                 
+                                 <dd class="dd">Display the status of deployed services.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">add</dt>
+                                 
+                                 
+                                 <dd class="dd">Add a new service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">clone</dt>
+                                 
+                                 
+                                 <dd class="dd">Clone an existing service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">migrate, mig</dt>
+                                 
+                                 
+                                 <dd class="dd">Migrate an existing service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">remove, rm</dt>
+                                 
+                                 
+                                 <dd class="dd">Remove an existing service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">edit</dt>
+                                 
+                                 
+                                 <dd class="dd">Edit an existing service in a text editor.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">assign-ip</dt>
+                                 
+                                 
+                                 <dd class="dd">Assign an IP address to service endpoints that require an explicit IP address.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">start</dt>
+                                 
+                                 
+                                 <dd class="dd">Start a service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">restart</dt>
+                                 
+                                 
+                                 <dd class="dd">Restart a service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">stop</dt>
+                                 
+                                 
+                                 <dd class="dd">Stop a service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">proxy</dt>
+                                 
+                                 
+                                 <dd class="dd">Start a server proxy for a container.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">shell</dt>
+                                 
+                                 
+                                 <dd class="dd">Start a service instance.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">run</dt>
+                                 
+                                 
+                                 <dd class="dd">Run a service command in a service instance.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">attach</dt>
+                                 
+                                 
+                                 <dd class="dd">Run an arbitrary command in a running service container.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">action</dt>
+                                 
+                                 
+                                 <dd class="dd">Run a predefined action in a running service container.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">logs</dt>
+                                 
+                                 
+                                 <dd class="dd">Display the log contents for a running service container by calling <samp class="ph codeph">docker
+                                       logs</samp>.
+                                 </dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">list-snapshots</dt>
+                                 
+                                 
+                                 <dd class="dd">List all snapshots of a service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">snapshot</dt>
+                                 
+                                 
+                                 <dd class="dd">Take a snapshot of a service.</dd>
+                                 
+                                 
+                                 
+                                 
+                                 <dt class="dt dlterm">help, h</dt>
+                                 
+                                 
+                                 <dd class="dd">Show a list of commands or the help for a single command.</dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                           </div>
+                           
+                           
+                           <div class="section"><a name="referenceid-d3745e246" id="referenceid-d3745e246" class="anchor"></a>
+                              
+                              <h2 class="title sectiontitle">OPTIONS</h2>
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm">--generate-bash-completion</dt>
+                                 
+                                 
+                                 <dd class="dd"></dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                              
+                              <dl class="dl">
+                                 
+                                 
+                                 <dt class="dt dlterm">--help, -h</dt>
+                                 
+                                 
+                                 <dd class="dd">Shows the help for an option.</dd>
+                                 
+                                 
+                                 
+                              </dl>
+                              
+                              
+                           </div>
+                           
+                           
+                        </div>
+                        
+                     </div>
+                     
+                     <div class="row">
+                        <footer id="topicsNPLinks">
+                           <div id="footer_previous"><a href="../../dox.cc/cli/serviced.html" class="previous" rel="internal" title="serviced"><span class="fa fa-arrow-circle-o-left"></span><span class="sr-only">serviced</span></a></div>
+                           <div id="footer_next"><a href="../../dox.shared/serviced/vars.html" class="next" rel="internal" title="/etc/default/serviced"><span class="sr-only">/etc/default/serviced</span><span class="fa fa-arrow-circle-o-right"></span></a></div>
+                        </footer>
+                     </div>
+                  </article>
+                  <div class="clear"></div>
+                  
+               </div>
+            </div>
+         </div>
+      </div>
+   </body>
+</html>
