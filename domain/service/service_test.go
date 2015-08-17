@@ -36,7 +36,7 @@ func (s *S) TestAddVirtualHost(t *C) {
 				EndpointDefinition: servicedefinition.EndpointDefinition{
 					Purpose:     "export",
 					Application: "server",
-					VHosts:      nil,
+					VHostList:   nil,
 				},
 			},
 		},
@@ -56,8 +56,8 @@ func (s *S) TestAddVirtualHost(t *C) {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
-	if len(svc.Endpoints[0].VHosts) != 1 && (svc.Endpoints[0].VHosts)[0] != "name" {
-		t.Errorf("Virtualhost incorrect, %+v should contain name", svc.Endpoints[0].VHosts)
+	if len(svc.Endpoints[0].VHostList) != 1 && (svc.Endpoints[0].VHostList)[0].Name != "name" {
+		t.Errorf("Virtualhost incorrect, %+v should contain name", svc.Endpoints[0].VHostList)
 	}
 }
 
@@ -68,7 +68,7 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 				EndpointDefinition: servicedefinition.EndpointDefinition{
 					Purpose:     "export",
 					Application: "server",
-					VHosts:      []string{"name0", "name1"},
+					VHostList:   []servicedefinition.VHost{servicedefinition.VHost{Name: "name0"}, servicedefinition.VHost{Name: "name1"}},
 				},
 			},
 		},
@@ -79,8 +79,8 @@ func (s *S) TestRemoveVirtualHost(t *C) {
 		t.Errorf("Unexpected error adding vhost: %v", err)
 	}
 
-	if len(svc.Endpoints[0].VHosts) != 1 && svc.Endpoints[0].VHosts[0] != "name1" {
-		t.Errorf("Virtualhost incorrect, %+v should contain one host", svc.Endpoints[0].VHosts)
+	if len(svc.Endpoints[0].VHostList) != 1 && svc.Endpoints[0].VHostList[0].Name != "name1" {
+		t.Errorf("Virtualhost incorrect, %+v should contain one host", svc.Endpoints[0].VHostList)
 	}
 
 	if err = svc.RemoveVirtualHost("server", "name0"); err == nil {

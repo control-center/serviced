@@ -299,7 +299,7 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 						vhosts = append(vhosts, vhost)
 					}
 				}
-				ep.VHostList = append(vhosts, servicedefinition.VHost{Name:_vhostName})
+				ep.VHostList = append(vhosts, servicedefinition.VHost{Name: _vhostName})
 				return nil
 			}
 		}
