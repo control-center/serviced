@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/utils"
 )
 
 var DefaultHostAPITest = HostAPITest{
@@ -72,7 +73,7 @@ type HostAPITest struct {
 }
 
 func InitHostAPITest(args ...string) {
-	New(DefaultHostAPITest, TestConfigReader(make(map[string]string))).Run(args)
+	New(DefaultHostAPITest, utils.TestConfigReader(make(map[string]string))).Run(args)
 }
 
 func (t HostAPITest) GetHosts() ([]host.Host, error) {

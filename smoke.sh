@@ -7,7 +7,7 @@
 #######################################################
 
 DIR="$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
-SERVICED=${DIR}/serviced
+SERVICED=$(which serviced)
 IP=$(/sbin/ifconfig docker0 | grep 'inet addr:' | cut -d: -f2 | awk {'print $1'})
 HOSTNAME=$(hostname)
 

@@ -19,6 +19,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/domain/service"
 	template "github.com/control-center/serviced/domain/servicetemplate"
+	"github.com/control-center/serviced/utils"
 
 	"encoding/json"
 	"errors"
@@ -61,7 +62,7 @@ type TemplateAPITest struct {
 }
 
 func InitTemplateAPITest(args ...string) {
-	New(DefaultTemplateAPITest, TestConfigReader(make(map[string]string))).Run(args)
+	New(DefaultTemplateAPITest, utils.TestConfigReader(make(map[string]string))).Run(args)
 }
 
 func (t TemplateAPITest) GetServiceTemplates() ([]template.ServiceTemplate, error) {

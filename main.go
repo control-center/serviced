@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/cli/cmd"
 	"github.com/control-center/serviced/servicedversion"
+	"github.com/control-center/serviced/utils"
 )
 
 const conffile = "/etc/default/serviced"
@@ -48,7 +49,7 @@ func main() {
 	cmd.New(api.New(), config).Run(os.Args)
 }
 
-func getConfigs(args []string) (*cmd.EnvironConfigReader, error) {
+func getConfigs(args []string) (*utils.EnvironConfigReader, error) {
 	var filename string
 	for i, arg := range args {
 		if strings.HasPrefix(arg, "--config-file") {
@@ -66,5 +67,5 @@ func getConfigs(args []string) (*cmd.EnvironConfigReader, error) {
 	if filename = strings.TrimSpace(filename); filename == "" {
 		filename = conffile
 	}
-	return cmd.NewEnvironConfigReader(filename, "SERVICED_")
+	return utils.NewEnvironConfigReader(filename, "SERVICED_")
 }

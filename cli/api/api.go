@@ -76,6 +76,7 @@ type Options struct {
 	SnapshotTTL          int               // hours to keep snapshots around, zero for infinity
 	StorageArgs          []string          // command-line arguments for storage options
 	StorageOptions       map[string]string // environment arguments for storage options
+	ControllerBinary     string            // Path to the container controller binary
 }
 
 // LoadOptions overwrites the existing server options

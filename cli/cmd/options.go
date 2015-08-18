@@ -22,11 +22,13 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
-func getDefaultOptions(config ConfigReader) api.Options {
+func getDefaultOptions(config utils.ConfigReader) api.Options {
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
 
 	options := api.Options{
@@ -67,6 +69,15 @@ func getDefaultOptions(config ConfigReader) api.Options {
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
+
+	// Set the path to the controller binary
+	dir, _, err := node.ExecPath()
+	if err != nil {
+		glog.Warningf("Unable to find path to current serviced binary; assuming /opt/serviced/bin")
+		dir = "/opt/serviced/bin"
+	}
+	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
+	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
 	// Set the varpath to /tmp if running serviced as just an agent
 	if options.Master {

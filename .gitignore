@@ -8,6 +8,7 @@
 .repo_tag_exists*
 .build_repo_exists*
 serviced
+serviced-controller/serviced-controller
 nsinit
 
 # Folders

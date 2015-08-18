@@ -57,7 +57,7 @@ INSTALL_TEMPLATES_ONLY = 0
 PKG         = $(default_PKG) # deb | rpm | tgz
 default_PKG = deb
 
-build_TARGETS = build_isvcs build_js serviced
+build_TARGETS = build_isvcs build_js serviced serviced-controller
 
 # Define GOPATH for containerized builds.
 #
@@ -151,6 +151,7 @@ govet: $(GOSRC)/$(govet_SRC)
 .PHONY: go
 go:
 	$(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
 
 # As a dev convenience, we call both 'go build' and 'go install'
 # so the current directory and $GOPATH/bin are updated
@@ -173,6 +174,10 @@ serviced: FORCE
 	make govet
 	if [ -n "$(GOBIN)" ]; then cp serviced $(GOBIN)/serviced; fi
 
+serviced-controller: $(GODEP)
+serviced-controller: FORCE
+	cd serviced-controller && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
+	if [ -n "$(GOBIN)" ]; then cp serviced-controller/serviced-controller $(GOBIN)/serviced-controller; fi
 #
 # BUILD_VERSION is the version of the serviced-build docker image
 #
@@ -271,6 +276,7 @@ default_INSTCMD = cp
 $(_DESTDIR)$(sysconfdir)/cron.daily_TARGETS        = pkg/cron.daily:serviced
 $(_DESTDIR)$(prefix)/etc_TARGETS                   = pkg/serviced.logrotate:logrotate.conf
 $(_DESTDIR)$(prefix)/bin_TARGETS                   = serviced
+$(_DESTDIR)$(prefix)/bin_TARGETS                  += serviced-controller/serviced-controller:serviced-controller
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-cleanup:serviced-container-cleanup
 $(_DESTDIR)$(prefix)/bin_TARGETS                  += pkg/serviced-container-usage:serviced-container-usage
 $(_DESTDIR)$(prefix)/bin_LINK_TARGETS             += $(prefix)/bin/serviced:$(_DESTDIR)/usr/bin/serviced

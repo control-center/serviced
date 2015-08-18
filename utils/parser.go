@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package cmd
+package utils
 
 import (
 	"bufio"
@@ -54,6 +54,12 @@ func NewEnvironConfigReader(filename, prefix string) (*EnvironConfigReader, erro
 		return r, err
 	}
 	return r, nil
+}
+
+// NewEnvironOnlyConfigReader creates an EnvironConfigReader without parsing
+// a file first.
+func NewEnvironOnlyConfigReader(prefix string) *EnvironConfigReader {
+	return &EnvironConfigReader{prefix}
 }
 
 // parse is a really dumb reader parser.  It maps only key values in the form

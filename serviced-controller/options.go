@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -11,35 +11,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package api
+package main
 
 import (
 	"time"
 
 	"github.com/control-center/serviced/container"
-	"github.com/zenoss/glog"
 )
 
 // ControllerOptions are options to be run when starting a new proxy server
 type ControllerOptions struct {
-	ServiceID             	string   // The uuid of the service to launch
-	InstanceID            	string   // The service state instance id
-	Command               	[]string // The command to launch
-	MuxPort               	int      // the TCP port for the remote mux
-	Mux                   	bool     // True if a remote mux is used
-	TLS                   	bool     // True if TLS should be used on the mux
-	KeyPEMFile            	string   // path to the KeyPEMfile
-	CertPEMFile           	string   // path to the CertPEMfile
-	ServicedEndpoint      	string
-	Autorestart           	bool
-	MetricForwarderPort   	string // port to which container processes send performance data to
-	Logstash              	bool
-	LogstashBinary        	string // path to the logstash-forwarder binary
-	LogstashConfig        	string // path to the logstash-forwarder config file
-	LogstashIdleFlushTime 	string // how often should log stash flush its logs
-	LogstashSettleTime    	string // how long to wait for log stash to flush its logs before exiting
-	VirtualAddressSubnet  	string // The subnet of virtual addresses, 10.3
-	MetricForwardingEnabled	bool // Enable metric forwarding from the container
+	ServiceID               string   // The uuid of the service to launch
+	InstanceID              string   // The service state instance id
+	Command                 []string // The command to launch
+	MuxPort                 int      // the TCP port for the remote mux
+	Mux                     bool     // True if a remote mux is used
+	TLS                     bool     // True if TLS should be used on the mux
+	KeyPEMFile              string   // path to the KeyPEMfile
+	CertPEMFile             string   // path to the CertPEMfile
+	ServicedEndpoint        string
+	Autorestart             bool
+	MetricForwarderPort     string // port to which container processes send performance data to
+	Logstash                bool
+	LogstashBinary          string // path to the logstash-forwarder binary
+	LogstashConfig          string // path to the logstash-forwarder config file
+	LogstashIdleFlushTime   string // how often should log stash flush its logs
+	LogstashSettleTime      string // how long to wait for log stash to flush its logs before exiting
+	VirtualAddressSubnet    string // The subnet of virtual addresses, 10.3
+	MetricForwardingEnabled bool   // Enable metric forwarding from the container
 }
 
 func (c ControllerOptions) toContainerControllerOptions() (options container.ControllerOptions, err error) {
@@ -70,20 +69,4 @@ func (c ControllerOptions) toContainerControllerOptions() (options container.Con
 	}
 
 	return options, nil
-}
-
-// Start a service proxy
-func (a *api) StartProxy(cfg ControllerOptions) error {
-	glog.SetLogstashType("controller-" + cfg.ServiceID + "-" + cfg.InstanceID)
-
-	o, err := cfg.toContainerControllerOptions()
-	if err != nil {
-		return err
-	}
-
-	c, err := container.NewController(o)
-	if err != nil {
-		return err
-	}
-	return c.Run()
 }

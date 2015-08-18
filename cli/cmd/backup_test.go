@@ -21,6 +21,7 @@ import (
 	"path"
 
 	"github.com/control-center/serviced/cli/api"
+	"github.com/control-center/serviced/utils"
 )
 
 const (
@@ -40,7 +41,7 @@ type BackupAPITest struct {
 }
 
 func InitBackupAPITest(args ...string) {
-	New(DefaultBackupAPITest, TestConfigReader(map[string]string{})).Run(args)
+	New(DefaultBackupAPITest, utils.TestConfigReader{}).Run(args)
 }
 
 func (t BackupAPITest) Backup(dirpath string) (string, error) {

@@ -27,6 +27,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -92,6 +93,7 @@ type HostAgent struct {
 	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string          // subnet for virtual addresses
 	servicedChain        *iptables.Chain // Assigned IP rule chain
+	controllerBinary     string          // Path to the controller binary
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -127,6 +129,7 @@ type AgentOptions struct {
 	DockerRegistry       string
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
 	VirtualAddressSubnet string
+	ControllerBinary     string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -147,6 +150,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.maxContainerAge = options.MaxContainerAge
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 	agent.servicedChain = iptables.NewChain("SERVICED")
+	agent.controllerBinary = options.ControllerBinary
 
 	dsn := getZkDSN(options.Zookeepers)
 	basePath := ""
@@ -583,12 +587,13 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	// mount serviced path
-	dir, binary, err := ExecPath()
+	dir, _, err := ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return nil, nil, err
 	}
 
+	dir, binary := filepath.Split(a.controllerBinary)
 	resourcePath := strings.TrimSpace(dir)
 	containerPath := strings.TrimSpace("/serviced")
 	cfg.Volumes[containerPath] = struct{}{}
@@ -710,9 +715,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	cfg.Cmd = append([]string{},
-		fmt.Sprintf("/serviced/%s", binary),
-		"service",
-		"proxy",
+		filepath.Join("/serviced", binary),
 		svc.ID,
 		strconv.Itoa(serviceState.InstanceID),
 		svc.Startup)

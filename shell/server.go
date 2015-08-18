@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"runtime"
 	"strings"
 
@@ -70,10 +71,10 @@ func NewProcessForwarderServer(addr string) *ProcessServer {
 	return server
 }
 
-func NewProcessExecutorServer(port, dockerRegistry string) *ProcessServer {
+func NewProcessExecutorServer(port, dockerRegistry, controllerBinary string) *ProcessServer {
 	server := &ProcessServer{
 		sio:   socketio.NewSocketIOServer(&socketio.Config{}),
-		actor: &Executor{port: port, dockerRegistry: dockerRegistry},
+		actor: &Executor{port: port, dockerRegistry: dockerRegistry, controllerBinary: controllerBinary},
 	}
 	server.sio.On("connect", server.onConnect)
 	server.sio.On("disconnect", onExecutorDisconnect)
@@ -286,7 +287,7 @@ func (e *Executor) Exec(cfg *ProcessConfig) (p *ProcessInstance) {
 		Result: make(chan Result, 2),
 	}
 
-	cmd, err := StartDocker(cfg, e.port)
+	cmd, err := StartDocker(cfg, e.port, e.controllerBinary)
 	if err != nil {
 		p.Result <- Result{0, err.Error(), ABNORMAL}
 		return
@@ -329,7 +330,7 @@ func parseMountArg(arg string) (hostPath, containerPath string, err error) {
 
 }
 
-func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
+func StartDocker(cfg *ProcessConfig, port, controller string) (*exec.Cmd, error) {
 	var svc service.Service
 
 	// Create a control center client to look up the service
@@ -351,12 +352,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 		return nil, err
 	}
 
-	// bind mount on /serviced
-	dir, bin, err := node.ExecPath()
-	if err != nil {
-		glog.Errorf("serviced not found: %s", err)
-		return nil, err
-	}
+	dir, binary := filepath.Split(controller)
 	servicedVolume := fmt.Sprintf("%s:/serviced", dir)
 
 	// bind mount the pwd
@@ -370,14 +366,12 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 	}
 
 	// get the serviced command
-	svcdcmd := fmt.Sprintf("/serviced/%s", bin)
+	svcdcmd := fmt.Sprintf("/serviced/%s", binary)
 
 	// get the proxy command
 	proxycmd := []string{
 		svcdcmd,
 		fmt.Sprintf("--logtostderr=%t", cfg.LogToStderr),
-		"service",
-		"proxy",
 		"--autorestart=false",
 		"--disable-metric-forwarding",
 		fmt.Sprintf("--logstash=%t", cfg.LogStash.Enable),
