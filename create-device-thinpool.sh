@@ -3,7 +3,7 @@
 set -e
 
 usage() {
-    >&2 echo "Usage: create-devicemapper-thinpool.sh (docker|serviced) /dev/XXX [/dev/YYY...]"
+    >&2 echo "Usage: create-device-thinpool.sh (docker|serviced) /dev/XXX [/dev/YYY...]"
     exit 1
 }
 
