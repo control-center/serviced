@@ -26,42 +26,55 @@ type DriverInit struct {
 	} `positional-args:"yes" required:"yes"`
 }
 
+type DriverShutdown struct{}
+
 func (c *DriverInit) Execute(args []string) error {
 	driverType, err := volume.StringToDriverType(c.Args.Type)
 	if err != nil {
 		return err
 	}
 	path := string(App.Options.Directory)
-	log.WithFields(log.Fields{
-		"path": path,
-		"type": driverType,
-	}).Info("Initializing storage driver")
-
+	logger := log.WithFields(log.Fields{
+		"directory": path,
+		"type":      driverType,
+	})
+	logger.Info("Initializing storage driver")
 	if err := volume.InitDriver(driverType, path, c.Args.Options); err != nil {
 		return err
 	}
-	log.WithFields(log.Fields{
-		"path": path,
-		"type": driverType,
-	}).Info("Storage driver initialized successfully")
+	logger.Info("Storage driver initialized successfully")
 	return nil
 }
 
-func InitDriverIfExists(directory string) error {
-	driverType, err := volume.DetectDriverType(directory)
+func (d *DriverShutdown) Execute(args []string) error {
+	driver, err := InitDriverIfExists(string(App.Options.Directory))
 	if err != nil {
 		return err
 	}
-	log.WithFields(log.Fields{
-		"directory": directory,
-		"type":      driverType,
-	}).Info("Found existing storage")
-	if err := volume.InitDriver(driverType, directory, []string{}); err != nil {
+	if err := driver.Cleanup(); err != nil {
+		// TODO: Log or something
 		return err
 	}
 	log.WithFields(log.Fields{
+		"directory": driver.Root(),
+		"type":      driver.DriverType(),
+	}).Infof("Shut down driver")
+	return nil
+}
+
+func InitDriverIfExists(directory string) (volume.Driver, error) {
+	driverType, err := volume.DetectDriverType(directory)
+	if err != nil {
+		return nil, err
+	}
+	logger := log.WithFields(log.Fields{
 		"directory": directory,
 		"type":      driverType,
-	}).Info("Initialized storage driver")
-	return nil
+	})
+	logger.Info("Found existing storage")
+	if err := volume.InitDriver(driverType, directory, []string{}); err != nil {
+		return nil, err
+	}
+	logger.Info("Initialized storage driver")
+	return volume.GetDriver(directory)
 }
