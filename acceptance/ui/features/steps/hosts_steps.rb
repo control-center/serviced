@@ -119,12 +119,33 @@ def clickAddHostButton()
     @hosts_page.addHost_button.click
 end
 
-def addHost(name, pool, commitment)
+def addHost(name, pool, commitment, hostID)
+    addHostCLI(name, pool, commitment, hostID)
+end
+
+def addHostUI(name, pool, commitment)
     clickAddHostButton()
     fillInHostAndPort(name)
     fillInResourcePool(pool)
     fillInRAMCommitment(commitment)
     click_link_or_button("Add Host")
+end
+
+#
+# serviced host list --show-fields ID  | grep -v ^ID | xargs --no-run-if-empty serviced host rm
+#
+
+def addHostCLI(name, pool, commitment, hostID)
+    nameValue =  getTableValue(name)
+    poolValue =  getTableValue(pool)
+    commitmentValue =  getTableValue(commitment)
+    cmd = "/capybara/serviced --endpoint #{HOST_IP}:4979 host add #{nameValue} #{poolValue} --memory #{commitmentValue}"
+
+    result = `#{cmd}`
+
+    hostIDValue =  getTableValue(hostID)
+    expect($?.exitstatus).to eq(0)
+    expect(result.strip).to eq(hostIDValue.to_s)
 end
 
 def addDefaultHost()
@@ -135,6 +156,7 @@ def addHostJson(host)
     nameAndPort = "table://hosts/" + host + "/nameAndPort"
     pool = "table://hosts/" + host + "/pool"
     commitment = "table://hosts/" + host + "/commitment"
+    hostID = "table://hosts/" + host + "/hostID"
 
-    addHost(nameAndPort, pool, commitment)
+    addHost(nameAndPort, pool, commitment, hostID)
 end
