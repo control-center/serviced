@@ -90,8 +90,8 @@
             var vHosts = [];
 
             service.model.Endpoints.forEach(endpoint => {
-                if(endpoint.VHosts){
-                    endpoint.VHosts.forEach(vHost => vHosts.push(vHost));
+                if(endpoint.VHostList){
+                    endpoint.VHostList.forEach(vHost => vHosts.push(vHost));
                 }
             });
 

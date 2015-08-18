@@ -185,9 +185,12 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
 		glog.Warning("EndpointDefinition VHosts field is deprecated, see VHostList")
+		glog.V(0).Infof("VHosts is %#v", e.VHosts)
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
 		}
+                glog.V(0).Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
+		e.VHosts = nil
 	}
 	return nil
 }
