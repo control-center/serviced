@@ -35,15 +35,9 @@ type Usage struct {
 }
 
 type Status struct { // see Docker - look at their status struct and borrow heavily.
-	Driver            DriverType
-	PoolName          string
-	DataFile          string
-	DataLoopback      string
-	MetadataFile      string
-	MetadataLoopback  string
-	SectorSize        uint64
-	UdevSyncSupported bool
-	UsageData         []Usage
+	Driver     DriverType
+	DriverData map[string]string
+	UsageData  []Usage
 }
 
 type Statuses struct {
@@ -323,11 +317,10 @@ func ShutdownAll() error {
 }
 
 // GetStatus retrieves the status for the volumeNames passed in. If volumeNames is empty, it getst all statuses.
-func GetStatus(volumeNames []string) *Statuses {
-	glog.V(2).Infof("volume.GetStatus(%v)", volumeNames)
+func GetStatus() *Statuses {
 	result := &Statuses{}
 	result.StatusMap = make(map[string]Status)
-	driverMap := getDrivers(volumeNames)
+	driverMap := getDrivers()
 	for path, driver := range *driverMap {
 		status, err := driver.Status()
 		if err != nil {
@@ -344,27 +337,7 @@ func GetStatus(volumeNames []string) *Statuses {
 
 // getDrivers retrieves the driver for each volumeName passed in.
 // if volumeNames is empty, the function returns all drivers, with their roots.
-func getDrivers(volumeNames []string) *map[string]Driver {
-	result := make(map[string]Driver)
-	for root, driver := range driversByRoot {
-		if len(volumeNames) == 0 {
-			result[root] = driver
-		} else {
-			for _, volumeName := range volumeNames {
-				if driverMatches(driver, volumeName) {
-					result[volumeName] = driver
-				}
-			}
-		}
-	}
-	return &result
-}
-
-func driverMatches(driver Driver, volumeName string) bool {
-	_, err := driver.Get(volumeName)
-	if err != nil {
-		glog.Warningf("get(%s) failed with error: %v", volumeName, err)
-		return false
-	}
-	return true
+func getDrivers() *map[string]Driver {
+	glog.Infof("getDrivers(): returning driversByRoot(%q)", driversByRoot)
+	return &driversByRoot
 }

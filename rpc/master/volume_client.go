@@ -18,10 +18,9 @@ import (
 )
 
 //GetVolumeStatus gets status information for the given volume or nil
-func (c *Client) GetVolumeStatus(volumeNames []string) (*volume.Statuses, error) {
-	glog.V(2).Infof("[hosts_client.go]master.GetVolumeStatus(%v)", volumeNames)
+func (c *Client) GetVolumeStatus() (*volume.Statuses, error) {
 	response := &volume.Statuses{}
-	if err := c.call("GetVolumeStatus", volumeNames, response); err != nil {
+	if err := c.call("GetVolumeStatus", empty, response); err != nil {
 		glog.V(2).Infof("\tcall to GetVolumeStatus returned error: %v", err)
 		return nil, err
 	}

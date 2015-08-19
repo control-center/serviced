@@ -18,15 +18,14 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func (a *api) GetVolumeStatus(volumeNames []string ) (*volume.Statuses, error) {
-	glog.V(2).Infof("api.GetVolumeStatus(%v)\n", volumeNames)
+func (a *api) GetVolumeStatus() (*volume.Statuses, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
-	response, err := client.GetVolumeStatus(volumeNames)
+	response, err := client.GetVolumeStatus()
 	if err != nil {
-		glog.Errorf("Error from client.GetVolumeStatus(%v): %v", volumeNames, err)
+		glog.Errorf("Error from client.GetVolumeStatus(): %v", err)
 		return nil, err
 	}
 	glog.V(2).Infof("api.GetVolumeStatus(): response from client.GetVolumeStatus(): %+v", response)

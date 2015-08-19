@@ -187,29 +187,13 @@ func (d *BtrfsDriver) Status() (*volume.Status, error) {
 
 	usage := dfDataToUsageData(dfData)
 	response := &volume.Status{
-		Driver:    volume.DriverTypeBtrFS,
-		DataFile:  rootDir,
-		UsageData: usage,
+		Driver:     volume.DriverTypeBtrFS,
+		DataFile:   rootDir,
+		UsageData:  usage,
+		DriverData: map[string]string{"DataFile": rootDir},
 	}
 	return response, nil
 }
-
-/*
-	Driver                 string
-	DataSpaceAvailable     uint64
-	DataSpaceUsed          uint64
-	DataSpaceTotal         uint64
-	MetadataSpaceAvailable uint64
-	MetadataSpaceUsed      uint64
-	MetadataSpaceTotal     uint64
-	PoolName               string
-	DataFile               string
-	DataLoopback           string
-	MetadataFile           string
-	MetadataLoopback       string
-	SectorSize             uint64
-	UdevSyncSupported      bool
-*/
 
 func getTenant(from string) string {
 	parts := strings.Split(from, "_")

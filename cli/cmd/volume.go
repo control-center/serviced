@@ -18,7 +18,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 	"fmt"
-	"github.com/pivotal-golang/bytefmt"
 	"encoding/json"
 	"os"
 )
@@ -33,7 +32,7 @@ func (c *ServicedCli) initVolume() {
 			{
 				Name:         "status",
 				Usage:        "Provides volume status for specified tenants",
-				Description:  "serviced volume status [TENANT [TENANT ...]]",
+				Description:  "serviced volume status",
 				Action:       c.cmdVolumeStatus,
 				Flags:  []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
@@ -45,11 +44,7 @@ func (c *ServicedCli) initVolume() {
 
 // serviced volume status
 func (c *ServicedCli) cmdVolumeStatus(ctx *cli.Context) {
-	glog.V(2).Info("cmd.cmdVolumeStatus()")
-	args := ctx.Args()
-	glog.V(2).Infof("\tctx.Args() = %+v\n", args)
-
-	response, err := c.driver.GetVolumeStatus(args)
+	response, err := c.driver.GetVolumeStatus()
 	if err != nil {
 		glog.Errorf("error getting volume status: %v", err)
 		return
@@ -79,13 +74,9 @@ func printStatusesJson(statuses *volume.Statuses) {
 
 func printStatusText(status *volume.Status) {
 	fmt.Printf("Driver:                 %s\n", status.Driver)
-	fmt.Printf("PoolName:               %s\n", status.PoolName)
-	fmt.Printf("DataFile:               %s\n", status.DataFile)
-	fmt.Printf("DataLoopback:           %s\n", status.DataLoopback)
-	fmt.Printf("MetadataFile:           %s\n", status.MetadataFile)
-	fmt.Printf("MetadataLoopback:       %s\n", status.MetadataLoopback)
-	fmt.Printf("SectorSize:             %s\n", bytefmt.ByteSize(status.SectorSize))
-	fmt.Printf("UdevSyncSupported:      %t\n", status.UdevSyncSupported)
+	for key, value := range status.DriverData {
+		fmt.Printf("%-24s%s\n", fmt.Sprintf("%s:",key), value)
+	}
 	fmt.Printf("Usage Data:\n")
 	for _, usage := range status.UsageData {
 		fmt.Printf("\t%s %s: %d\n", usage.Label, usage.Type, usage.Value)
