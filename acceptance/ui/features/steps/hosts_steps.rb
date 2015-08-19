@@ -103,14 +103,23 @@ def visitHostsPage()
 end
 
 def fillInHostAndPort(host)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
     @hosts_page.hostName_input.set getTableValue(host)
 end
 
 def fillInResourcePool(pool)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
     @hosts_page.resourcePool_input.select getTableValue(pool)
 end
 
 def fillInRAMCommitment(commitment)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
     @hosts_page.ramCommitment_input.set getTableValue(commitment)
 end
 

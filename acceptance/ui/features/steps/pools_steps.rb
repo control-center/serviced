@@ -1,8 +1,7 @@
 Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
     if @pools_page.pool_entries.size < 4
-        removeAllPools()
-        addDefaultPool()
+        removeAllPoolsExceptDefault()
         addPoolJson("pool2")
         addPoolJson("pool3")
         addPoolJson("pool4")
@@ -22,8 +21,7 @@ end
 Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
     if (page.has_no_content?("Showing 1 Result") || isNotInRows("default"))
-        removeAllPools()
-        addDefaultPool()
+        removeAllPoolsExceptDefault()
     end
 end
 
@@ -204,11 +202,12 @@ def addPoolJson(pool)
     addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
 end
 
-def removeAllPools()
-    removeAllHostsCLI()
+def removeAllPoolsExceptDefault()
     visitApplicationsPage()
     removeAllEntries("service")
+    removeAllHostsCLI()
     removeAllPoolsCLI()
+    addDefaultPool()
 end
 
 def removeAllPoolsCLI()
