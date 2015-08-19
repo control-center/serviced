@@ -564,37 +564,42 @@ func (d *daemon) startAgent() error {
 			glog.Errorf("Error in getting a connection based on pool %v: %v", poolID, err)
 		}
 
-		nfsClient, err := storage.NewClient(thisHost, path.Join(options.VarPath, "volumes"))
-		if err != nil {
-			glog.Fatalf("could not create an NFS client: %s", err)
-		}
-
-		go func() {
-			<-d.shutdown
-			glog.Infof("shutting down storage client")
-			nfsClient.Close()
-		}()
-
-		//loop and log waiting for Storage Leader
-		nfsDone := make(chan struct{})
-		go func() {
-			defer close(nfsDone)
-			nfsClient.Wait()
-		}()
-		//wait indefinitely(?) for storage to work before starting
-		glog.Info("Waiting for Storage Leader")
-		nfsUp := false
-		for !nfsUp {
-			select {
-			case <-nfsDone:
-				nfsUp = true
-				glog.Info("Found Storage Leader")
-				break
-			case <-time.After(time.Second * 30):
-				glog.Info("Waiting for Storage Leader, will not be available for running services. ")
-				continue
+		if options.NFSClient != "0" {
+			nfsClient, err := storage.NewClient(thisHost, path.Join(options.VarPath, "volumes"))
+			if err != nil {
+				glog.Fatalf("could not create an NFS client: %s", err)
 			}
+
+			go func() {
+				<-d.shutdown
+				glog.Infof("shutting down storage client")
+				nfsClient.Close()
+			}()
+
+			//loop and log waiting for Storage Leader
+			nfsDone := make(chan struct{})
+			go func() {
+				defer close(nfsDone)
+				nfsClient.Wait()
+			}()
+			//wait indefinitely(?) for storage to work before starting
+			glog.Info("Waiting for Storage Leader")
+			nfsUp := false
+			for !nfsUp {
+				select {
+				case <-nfsDone:
+					nfsUp = true
+					glog.Info("Found Storage Leader")
+					break
+				case <-time.After(time.Second * 30):
+					glog.Info("Waiting for Storage Leader, will not be available for running services. ")
+					continue
+				}
+			}
+		} else {
+			glog.Info("NFS Client disabled")
 		}
+
 		agentOptions := node.AgentOptions{
 			PoolID:               thisHost.PoolID,
 			Master:               options.Endpoint,
