@@ -44,9 +44,7 @@ func (s *ServicedStorage) Run() {
 		log.WithFields(log.Fields{"exitcode": 1}).Fatal("Unable to add option group")
 		os.Exit(1)
 	}
-	if _, err := s.Parser.Parse(); err != nil {
-		log.Fatal(err)
-	}
+	s.Parser.Parse()
 }
 
 func (s *ServicedStorage) initializeLogging() {

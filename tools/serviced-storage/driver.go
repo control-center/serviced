@@ -39,7 +39,7 @@ type DriverList struct{}
 func InitDriverIfExists(directory string) (volume.Driver, error) {
 	driverType, err := volume.DetectDriverType(directory)
 	if err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 	logger := log.WithFields(log.Fields{
 		"directory": directory,
@@ -47,10 +47,14 @@ func InitDriverIfExists(directory string) (volume.Driver, error) {
 	})
 	logger.Debug("Found existing storage")
 	if err := volume.InitDriver(driverType, directory, []string{}); err != nil {
-		return nil, err
+		log.Fatal(err)
 	}
 	logger.Debug("Initialized storage driver")
-	return volume.GetDriver(directory)
+	driver, err := volume.GetDriver(directory)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return driver, nil
 }
 
 // Get the appropriate driver required by command line args
@@ -73,7 +77,7 @@ func (c *DriverInit) Execute(args []string) error {
 	App.initializeLogging()
 	driverType, err := volume.StringToDriverType(c.Args.Type)
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 	path := string(App.Options.Directory)
 	logger := log.WithFields(log.Fields{
@@ -82,7 +86,7 @@ func (c *DriverInit) Execute(args []string) error {
 	})
 	logger.Info("Initializing storage driver")
 	if err := volume.InitDriver(driverType, path, c.Args.Options); err != nil {
-		return err
+		log.Fatal(err)
 	}
 	logger.Info("Storage driver initialized successfully")
 	return nil
