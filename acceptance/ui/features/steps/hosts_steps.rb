@@ -135,10 +135,11 @@ end
 #
 
 def addHostCLI(name, pool, commitment, hostID)
+    servicedCLI = getServicedCLI()
     nameValue =  getTableValue(name)
     poolValue =  getTableValue(pool)
     commitmentValue =  getTableValue(commitment)
-    cmd = "/capybara/serviced --endpoint #{HOST_IP}:4979 host add #{nameValue} #{poolValue} --memory #{commitmentValue} 2>&1"
+    cmd = "#{servicedCLI} host add #{nameValue} #{poolValue} --memory #{commitmentValue} 2>&1"
 
     result = `#{cmd}`
 
@@ -161,12 +162,13 @@ def addHostJson(host)
 end
 
 def removeAllHostsCLI()
-    cmd = "/capybara/serviced --endpoint #{HOST_IP}:4979 host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty /capybara/serviced --endpoint #{HOST_IP}:4979  host rm 2>&1"
+    servicedCLI = getServicedCLI()
+    cmd = "#{servicedCLI} host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} host rm 2>&1"
     result = `#{cmd}`
     expect($?.exitstatus).to eq(0)
 
     # verify all of the hosts were really removed
-    cmd = "/capybara/serviced --endpoint #{HOST_IP}:4979 host list 2>&1"
+    cmd = "#{servicedCLI} host list 2>&1"
     result = `#{cmd}`
     expect($?.exitstatus).to eq(0)
     expect(result.strip).to include("no hosts found")
