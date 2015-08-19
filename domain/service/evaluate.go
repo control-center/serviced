@@ -374,7 +374,6 @@ func newRuntimeContext(svc *Service, instanceID int) *runtimeContext {
 	}
 }
 
-
 // Evaluate evaluates all the fields of the Service that we care about, using
 // a runtimeContext with the current Service embedded, and adding instanceID
 // as an extra attribute.

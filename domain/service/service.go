@@ -99,7 +99,18 @@ type Service struct {
 
 //ServiceEndpoint endpoint exported or imported by a service
 type ServiceEndpoint struct {
-	servicedefinition.EndpointDefinition
+	Name                string // Human readable name of the endpoint. Unique per service definition
+	Purpose             string
+	Protocol            string
+	PortNumber          uint16
+	PortTemplate        string // A template which, if specified, is used to calculate the port number
+	VirtualAddress      string // An address by which an imported endpoint may be accessed within the container, e.g. "mysqlhost:1234"
+	Application         string
+	ApplicationTemplate string
+	AddressConfig       servicedefinition.AddressResourceConfig
+	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
+	// subdomain, i.e "myapplication"  not "myapplication.host.com"
+	VHostList         []servicedefinition.VHost // VHost is used to request named vhost(s) for this endpoint.
 	AddressAssignment addressassignment.AddressAssignment
 }
 
@@ -132,7 +143,19 @@ func (s *Service) HasEndpointsFor(purpose string) bool {
 
 //BuildServiceEndpoint build a ServiceEndpoint from a EndpointDefinition
 func BuildServiceEndpoint(epd servicedefinition.EndpointDefinition) ServiceEndpoint {
-	return ServiceEndpoint{EndpointDefinition: epd}
+	sep := ServiceEndpoint{}
+	sep.Name = epd.Name
+	sep.Purpose = epd.Purpose
+	sep.Protocol = epd.Protocol
+	sep.PortNumber = epd.PortNumber
+	sep.PortTemplate = epd.PortTemplate
+	sep.VirtualAddress = epd.VirtualAddress
+	sep.Application = epd.Application
+	sep.ApplicationTemplate = epd.ApplicationTemplate
+	sep.AddressConfig = epd.AddressConfig
+	sep.VHosts = epd.VHosts
+	sep.VHostList = epd.VHostList
+	return sep
 }
 
 //BuildService build a service from a ServiceDefinition.
@@ -186,7 +209,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 
 	svc.Endpoints = make([]ServiceEndpoint, 0)
 	for _, ep := range sd.Endpoints {
-		svc.Endpoints = append(svc.Endpoints, ServiceEndpoint{EndpointDefinition: ep})
+		svc.Endpoints = append(svc.Endpoints, BuildServiceEndpoint(ep))
 	}
 
 	tags := map[string][]string{
@@ -310,8 +333,8 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 
 // EnableVirtualHost enable or disable a virtual host for given service
 func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) error {
-	for _, ep := range s.GetServiceVHosts(){
-		if ep.Application == application{
+	for _, ep := range s.GetServiceVHosts() {
+		if ep.Application == application {
 			for _, vhost := range ep.VHostList {
 				if vhost.Name == vhostName {
 					vhost.Enabled = enable

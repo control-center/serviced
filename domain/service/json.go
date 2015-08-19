@@ -30,7 +30,7 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	} else {
 		return err
 	}
-     	glog.V(4).Infof("ServiceEndpoint UnmarshalJSON %#v", e)
+	glog.V(4).Infof("ServiceEndpoint UnmarshalJSON %#v", e)
 	if len(e.VHostList) > 0 {
 		//VHostList is defined, keep it and unset deprecated field if set
 		e.VHosts = nil
@@ -48,4 +48,3 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
-
