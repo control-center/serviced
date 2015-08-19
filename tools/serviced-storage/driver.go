@@ -95,7 +95,7 @@ func (c *DriverSet) Execute(args []string) error {
 	App.initializeLogging()
 	path := string(c.Args.Path)
 	if _, err := InitDriverIfExists(path); err == volume.ErrDriverNotInit {
-		log.Fatalf("Driver not initialized. Use `%s driver init %s TYPE [OPTIONS]`", App.name, path)
+		log.Fatalf("Driver not initialized. Use `%s driver init %s TYPE [OPTIONS]`", "."+App.name, path)
 	}
 	usr, err := user.Current()
 	if err != nil {
@@ -210,7 +210,7 @@ func GetDefaultDriver(path string) string {
 		return path
 	}
 	if usr, err := user.Current(); err == nil {
-		state, _ := ioutil.ReadFile(filepath.Join(usr.HomeDir, App.name))
+		state, _ := ioutil.ReadFile(filepath.Join(usr.HomeDir, "."+App.name))
 		return string(state)
 	}
 	return ""
