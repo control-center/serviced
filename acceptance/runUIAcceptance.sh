@@ -143,5 +143,5 @@ docker run --rm --name ui_acceptance \
     -e APPLICATION_PASSWORD=${APPLICATION_PASSWORD} \
     -e HOST_IP=${HOST_IP} \
     ${INTERACTIVE_OPTION} \
-    -t zenoss/capybara:1.0.2 \
+    -t zenoss/capybara:1.0.3 \
     ${CMD}

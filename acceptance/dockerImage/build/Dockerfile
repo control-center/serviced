@@ -103,6 +103,11 @@ RUN mkdir -p /usr/share/reporter
 ADD reporter.jar /usr/share/reporter/reporter.jar
 
 #
+# Silence warnings from serviced about a missing config file
+#
+RUN touch /etc/default/serviced
+
+#
 # This is the directory that wlll be the mount point for the cucumber files
 #
 WORKDIR /capybara
