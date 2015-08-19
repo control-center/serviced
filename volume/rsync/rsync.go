@@ -18,24 +18,24 @@ import (
 	"errors"
 	"fmt"
 	"io"
-
-	"github.com/control-center/serviced/utils"
-	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
-
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
 var (
-	ErrDeletingVolume      = errors.New("could not delete volume")
-	ErrRsyncNotImplemented = errors.New("function not implemented for rsync")
-	ErrRsyncInvalidLabel   = errors.New("invalid label")
+	ErrDeletingVolume    = errors.New("could not delete volume")
+	ErrRsyncInvalidLabel = errors.New("invalid label")
+	ErrRsyncDfCommand    = errors.New("error executing df command")
 )
 
 // RsyncDriver is a driver for the rsync volume
@@ -52,6 +52,13 @@ type RsyncVolume struct {
 	path    string
 	tenant  string
 	driver  *RsyncDriver
+}
+
+type RsyncDFStatus struct {
+	Filesystem     string
+	TotalBytes     uint64
+	UsedBytes      uint64
+	AvailableBytes uint64
 }
 
 func init() {
@@ -131,12 +138,80 @@ func (d *RsyncDriver) MetadataDir() string {
 	return filepath.Join(d.poolDir(), "volumes")
 }
 
-// Status implements volume.Driver
+// runcmd runs the command
+func runcmd(args ...string) ([]byte, error) {
+	cmd := append([]string{}, args...)
+	glog.V(4).Infof("Executing: %v", cmd)
+	output, err := exec.Command(cmd[0], cmd[1:]...).CombinedOutput()
+	if err != nil {
+		glog.Errorf("unable to run cmd:%s  output:%s  error:%s", cmd, string(output), err)
+		return output, ErrRsyncDfCommand
+	}
+	return output, err
+}
+
+func makeUint64(input string) (uint64, error) {
+	return strconv.ParseUint(input, 10, 64)
+}
+
+/*
+type Usage struct {
+	Label string
+	Type  string
+	Value uint64
+}*/
+func parseDFCommand(volname string, bytes []byte) ([]volume.Usage, error) {
+	outString := strings.TrimSpace(string(bytes))
+	lines := strings.Split(outString, "\n")
+	result := []volume.Usage{}
+	first := true
+	for _, line := range lines {
+		// skip first (header) line
+		if first {
+			first = false
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 4 {
+			glog.Errorf("Error parsing DF output (%s). Expected %d fields, but got %d.", line, 4, len(fields))
+			return nil, ErrRsyncDfCommand
+		}
+		label := fmt.Sprintf("%s on %s", volname, string(fields[0]))
+		result = appendIfConvertSucceeds(result, fields[1], label, "Total Bytes")
+		result = appendIfConvertSucceeds(result, fields[2], label, "Used Bytes")
+		result = appendIfConvertSucceeds(result, fields[3], label, "Available Bytes")
+	}
+	return result, nil
+}
+
+func appendIfConvertSucceeds(result []volume.Usage, field string, label string, usage string) []volume.Usage {
+	totalBytes, err := makeUint64(field)
+	if err != nil {
+		glog.Warningf("could not convert string %s to Uint64 for %s", field, usage)
+	} else {
+		result = append(result, volume.Usage{Label: label, Type: usage, Value: totalBytes})
+	}
+	return result
+}
+
+// Status implements volume.Driver.Status
 func (d *RsyncDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("rsync.Status()")
-	response := &volume.Status{
-		Driver: volume.DriverTypeRsync,
+
+	outBytes, err := runcmd("df", "--output=source,size,used,avail", "-B1", d.root)
+	glog.Infof("Result of running df command: (%q,%q)", outBytes, err)
+
+	dfResult, err2 := parseDFCommand(d.root, outBytes)
+	if err2 != nil {
+		return nil, err2
 	}
+
+	response := &volume.Status{
+		Driver:    volume.DriverTypeRsync,
+		DataFile:  d.root,
+		UsageData: dfResult,
+	}
+
 	return response, nil
 }
 

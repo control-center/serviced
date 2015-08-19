@@ -17,20 +17,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"os/exec"
-	"regexp"
-
-	"github.com/control-center/serviced/volume"
-	"github.com/zenoss/glog"
-
-	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+
+	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
 var (
@@ -561,6 +560,11 @@ func parseDF(lines []string) ([]BtrfsDFData, error) {
 	*/
 	// output format, Btrfs v3.17 (btrfs fi df -b/--raw):
 	/*
+		System, DUP: total=8.00MiB, used=16.00KiB
+		System, single: total=4.00MiB, used=0.00B
+		Metadata, DUP: total=51.19MiB, used=112.00KiB
+		Metadata, single: total=8.00MiB, used=0.00B
+		GlobalReserve, single: total=16.00MiB, used=0.00B
 		vagrant@vagrant-ubuntu-vivid-64:~/btrfs$ sudo btrfs fi df --raw ./mnt/
 		System, DUP: total=8388608, used=16384
 		System, single: total=4194304, used=0
@@ -569,14 +573,9 @@ func parseDF(lines []string) ([]BtrfsDFData, error) {
 		GlobalReserve, single: total=16777216, used=0
 
 		vagrant@vagrant-ubuntu-vivid-64:~/btrfs$ sudo btrfs fi df -h ./mnt/
-		System, DUP: total=8.00MiB, used=16.00KiB
-		System, single: total=4.00MiB, used=0.00B
-		Metadata, DUP: total=51.19MiB, used=112.00KiB
-		Metadata, single: total=8.00MiB, used=0.00B
-		GlobalReserve, single: total=16.00MiB, used=0.00B
 	*/
 
-	glog.Infof("parseDF(%v)", lines)
+	glog.V(2).Infof("parseDF(%v)", lines)
 
 	if len(lines) < 3 {
 		return []BtrfsDFData{}, fmt.Errorf("insufficient output: %v", strings.Join(lines, "/n"))
@@ -585,8 +584,8 @@ func parseDF(lines []string) ([]BtrfsDFData, error) {
 	var err error
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
-		fields := strings.Fields(line)
-		glog.Infof("Fields from line %v: %v", fields, line)
+		fields := strings.FieldsFunc(line, func(c rune) bool { return unicode.IsSpace(c) || strings.ContainsRune(",:", c) })
+		glog.V(0).Infof("Fields from line %v: %v", line, fields)
 		if len(fields) == 0 {
 			glog.Info("Skipping blank line in input.")
 			continue
@@ -596,7 +595,7 @@ func parseDF(lines []string) ([]BtrfsDFData, error) {
 			continue
 		}
 		switch fields[0] {
-		case "Data,", "System,", "Metadata,", "GlobalReserve,":
+		case "Data", "System", "Metadata", "GlobalReserve":
 			total := fields[2]
 			var totalBytes, usedBytes uint64
 			if strings.HasPrefix(total, "total=") {
@@ -636,7 +635,7 @@ func parseDF(lines []string) ([]BtrfsDFData, error) {
 }
 
 func parseSize(size string) (uint64, error) {
-	glog.Infof("parseSize(%s)", size)
+	glog.V(2).Infof("parseSize(%s)", size)
 	sizemod := strings.Trim(size, " ,:")
 	sizeret, err := humanize.ParseBytes(sizemod)
 	return sizeret, err
