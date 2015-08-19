@@ -173,10 +173,27 @@ def addVirtualIpJson(ip)
 end
 
 def addPool(name, description)
+    addPoolCLI(name, description)
+end
+
+def addPoolUI(name, description)
     clickAddPoolButton()
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
+end
+
+def addPoolCLI(name, description)
+    servicedCLI = getServicedCLI()
+    nameValue =  getTableValue(name)
+    # description is not used by the CLI
+    # descriptionValue =  getTableValue(description)
+    cmd = "#{servicedCLI} pool add #{nameValue} 2>&1"
+
+    result = `#{cmd}`
+
+    expect($?.exitstatus).to eq(0)
+    expect(result.strip).to eq(nameValue.to_s)
 end
 
 def addDefaultPool()
@@ -191,6 +208,18 @@ def removeAllPools()
     removeAllHostsCLI()
     visitApplicationsPage()
     removeAllEntries("service")
-    visitPoolsPage()
-    removeAllEntries("pool")
+    removeAllPoolsCLI()
+end
+
+def removeAllPoolsCLI()
+    servicedCLI = getServicedCLI()
+    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
+    result = `#{cmd}`
+    expect($?.exitstatus).to eq(0)
+
+    # verify all of the hosts were really removed
+    cmd = "#{servicedCLI} pool list 2>&1"
+    result = `#{cmd}`
+    expect($?.exitstatus).to eq(0)
+    expect(result).to include("no resource pools found")
 end
