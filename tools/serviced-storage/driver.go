@@ -1,3 +1,16 @@
+// Copyright 2015 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 package main
 
 import (
@@ -9,7 +22,6 @@ import (
 
 	"github.com/control-center/serviced/volume"
 	"github.com/jessevdk/go-flags"
-	"github.com/pivotal-golang/bytefmt"
 
 	_ "github.com/control-center/serviced/volume/btrfs"
 	_ "github.com/control-center/serviced/volume/devicemapper"
@@ -18,92 +30,54 @@ import (
 	log "github.com/Sirupsen/logrus"
 )
 
-func init() {
-	App.Parser.AddCommand("driver", "Driver subcommands", "Driver subcommands", &Driver{})
-}
-
-type Driver struct {
-	Init     DriverInit     `command:"init" description:"Initialize a driver"`
-	Shutdown DriverShutdown `command:"shutdown" description:"Release any system resources held by a driver"`
-	Status   DriverStatus   `command:"status" description:"Print driver status"`
-	List     DriverList     `command:"list" alias:"ls" description:"List volumes maintained by this driver"`
-	Set      DriverSet      `command:"set" description:"Use a particular driver for volume operations"`
-	Unset    DriverUnset    `command:"unset" description:"Clear driver cache"`
-}
-
+// DriverInit is the subcommand for initializing a new driver
 type DriverInit struct {
 	Args struct {
-		Type    string   `description:"Type of driver to initialize (btrfs, devicemapper, rsync)"`
-		Options []string `description:"name=value pairs of storage options"`
+		Path    flags.Filename `description:"Path of the driver"`
+		Type    string         `description:"Type of driver to initialize (btrfs|devicemapper|rsync)"`
+		Options []string       `description:"name=value pairs of storage options"`
 	} `positional-args:"yes" required:"yes"`
 }
 
-type DriverShutdown struct{}
-type DriverStatus struct{}
-type DriverList struct{}
-
+// DriverSet is the subcommand for setting the default driver
 type DriverSet struct {
 	Args struct {
-		Path flags.Filename `description:"Driver directory to set"`
+		Path flags.Filename `description:"Path of the driver"`
 	} `positional-args:"yes" required:"yes"`
 }
 
+// DriverUnset is the subcommand for unsetting the default driver
 type DriverUnset struct{}
 
-// If a driver exists in the given directory, initialize and return it
-func InitDriverIfExists(directory string) (volume.Driver, error) {
-	driverType, err := volume.DetectDriverType(directory)
-	if err != nil {
-		log.Fatal(err)
-	}
-	logger := log.WithFields(log.Fields{
-		"directory": directory,
-		"type":      driverType,
-	})
-	logger.Debug("Found existing storage")
-	if err := volume.InitDriver(driverType, directory, []string{}); err != nil {
-		log.Fatal(err)
-	}
-	logger.Debug("Initialized storage driver")
-	driver, err := volume.GetDriver(directory)
-	if err != nil {
-		log.Fatal(err)
-	}
-	return driver, nil
+// DriverDisable is the subcommand to disable the driver
+type DriverDisable struct {
+	Args struct {
+		Path flags.Filename `description:"Path of the driver"`
+	} `positional-args:"yes" optional:"yes"`
 }
 
-// Get the appropriate driver required by command line args
-func GetDriver() (volume.Driver, *log.Entry) {
-	// get the directory as stored in the state file
-	var directory string
-	if usr, err := user.Current(); err == nil {
-		state, _ := ioutil.ReadFile(filepath.Join(usr.HomeDir, App.name))
-		directory = string(state)
-	}
-	// overwrite state if -d flag is set
-	if dir := string(App.Options.Directory); dir != "" {
-		directory = dir
-	}
-	logger := log.WithFields(log.Fields{
-		"directory": directory,
-	})
-	driver, err := InitDriverIfExists(directory)
-	if err != nil {
-		logger.Fatal(err)
-	}
-	logger = logger.WithFields(log.Fields{
-		"type": driver.DriverType(),
-	})
-	return driver, logger
+// DriverStatus is the subcommand for displaying the status of the driver
+type DriverStatus struct {
+	Args struct {
+		Path flags.Filename `description:"Path of the driver"`
+	} `positional-args:"yes" optional:"yes"`
 }
 
+// DriverList is the subcommand for listing the volumes for a driver
+type DriverList struct {
+	Args struct {
+		Path flags.Filename `description:"Path of the driver"`
+	} `positional-args:"yes" optional:"yes"`
+}
+
+// Execute initializes a new storage driver
 func (c *DriverInit) Execute(args []string) error {
 	App.initializeLogging()
 	driverType, err := volume.StringToDriverType(c.Args.Type)
 	if err != nil {
 		log.Fatal(err)
 	}
-	path := string(App.Options.Directory)
+	path := string(c.Args.Path)
 	logger := log.WithFields(log.Fields{
 		"directory": path,
 		"type":      driverType,
@@ -116,73 +90,128 @@ func (c *DriverInit) Execute(args []string) error {
 	return nil
 }
 
-func (d *DriverShutdown) Execute(args []string) error {
+// Execute sets the default driver for all proceeding commands
+func (c *DriverSet) Execute(args []string) error {
 	App.initializeLogging()
-	driver, logger := GetDriver()
-	if err := driver.Cleanup(); err != nil {
-		logger.Fatal(err)
+	path := string(c.Args.Path)
+	if _, err := InitDriverIfExists(path); err == volume.ErrDriverNotInit {
+		log.Fatalf("Driver not initialized. Use `%s driver init %s TYPE [OPTIONS]`", App.name, path)
 	}
-	logger.Info("Shut down driver")
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(usr.HomeDir, App.name), []byte(path), 0644); err != nil {
+		log.Fatal(err)
+	}
 	return nil
 }
 
-func (d *DriverStatus) Execute(args []string) error {
+// Execute unsets the default driver
+func (c *DriverUnset) Execute(args []string) error {
 	App.initializeLogging()
-	driver, logger := GetDriver()
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(usr.HomeDir, App.name)); err != nil && !os.IsNotExist(err) {
+		log.Fatal(err)
+	}
+	return nil
+}
+
+// Execute disables a driver
+func (c *DriverDisable) Execute(args []string) error {
+	App.initializeLogging()
+	directory := GetDefaultDriver(string(c.Args.Path))
+	logger := log.WithFields(log.Fields{
+		"directory": directory,
+	})
+	driver, err := InitDriverIfExists(directory)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger = logger.WithFields(log.Fields{
+		"type": driver.DriverType(),
+	})
+	if err := driver.Cleanup(); err != nil {
+		logger.Fatal(err)
+	}
+	logger.Info("Disabled driver")
+	return nil
+}
+
+// Execute displays the status of a driver
+func (c *DriverStatus) Execute(args []string) error {
+	App.initializeLogging()
+	directory := GetDefaultDriver(string(c.Args.Path))
+	logger := log.WithFields(log.Fields{
+		"directory": directory,
+	})
+	driver, err := InitDriverIfExists(directory)
+	if err != nil {
+		log.Fatal(err)
+	}
+	logger = logger.WithFields(log.Fields{
+		"type": driver.DriverType(),
+	})
 	status, err := driver.Status()
 	if err != nil {
 		logger.Fatal(err)
 	}
-	fmt.Printf("Driver:                 %s\n", status.Driver)
-	fmt.Printf("PoolName:               %s\n", status.PoolName)
-	fmt.Printf("DataFile:               %s\n", status.DataFile)
-	fmt.Printf("DataLoopback:           %s\n", status.DataLoopback)
-	fmt.Printf("DataSpaceAvailable:     %s\n", bytefmt.ByteSize(status.DataSpaceAvailable))
-	fmt.Printf("DataSpaceUsed:          %s\n", bytefmt.ByteSize(status.DataSpaceUsed))
-	fmt.Printf("DataSpaceTotal:         %s\n", bytefmt.ByteSize(status.DataSpaceTotal))
-	fmt.Printf("MetadataFile:           %s\n", status.MetadataFile)
-	fmt.Printf("MetadataLoopback:       %s\n", status.MetadataLoopback)
-	fmt.Printf("MetadataSpaceAvailable: %s\n", bytefmt.ByteSize(status.MetadataSpaceAvailable))
-	fmt.Printf("MetadataSpaceUsed:      %s\n", bytefmt.ByteSize(status.MetadataSpaceUsed))
-	fmt.Printf("MetadataSpaceTotal:     %s\n", bytefmt.ByteSize(status.MetadataSpaceTotal))
-	fmt.Printf("SectorSize:             %s\n", bytefmt.ByteSize(status.SectorSize))
-	fmt.Printf("UdevSyncSupported:      %t\n", status.UdevSyncSupported)
+	fmt.Println(directory)
+	fmt.Println(status.String())
 	return nil
 }
 
-func (d *DriverList) Execute(args []string) error {
+// Execute displays the volumes on a driver
+func (c *DriverList) Execute(args []string) error {
 	App.initializeLogging()
-	driver, _ := GetDriver()
+	directory := GetDefaultDriver(string(c.Args.Path))
+	logger := log.WithFields(log.Fields{
+		"directory": directory,
+	})
+	driver, err := InitDriverIfExists(directory)
+	if err != nil {
+		logger.Fatal(err)
+	}
 	for _, volname := range driver.List() {
 		fmt.Println(volname)
 	}
 	return nil
 }
 
-func (d *DriverSet) Execute(args []string) error {
-	App.initializeLogging()
-	directory := string(d.Args.Path)
-	if _, err := volume.DetectDriverType(directory); err == volume.ErrDriverNotInit {
-		log.Fatalf("Driver not initialized.  Use `%s driver init`.", App.name)
-	}
-	usr, err := user.Current()
+// InitDriverIfExists returns a driver if it has been initialized in the given
+// directory.
+func InitDriverIfExists(directory string) (volume.Driver, error) {
+	log.WithFields(log.Fields{
+		"directory": directory,
+	}).Debug("Checking driver")
+	driverType, err := volume.DetectDriverType(directory)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	if err := ioutil.WriteFile(filepath.Join(usr.HomeDir, App.name), []byte(directory), 0644); err != nil {
-		log.Fatal(err)
+	logger := log.WithFields(log.Fields{
+		"directory": directory,
+		"type":      driverType,
+	})
+	logger.Debug("Found existing storage")
+	if err := volume.InitDriver(driverType, directory, []string{}); err != nil {
+		return nil, err
 	}
-	return nil
+	logger.Debug("Loaded storage driver")
+	return volume.GetDriver(directory)
 }
 
-func (d *DriverUnset) Execute(args []string) error {
-	App.initializeLogging()
-	usr, err := user.Current()
-	if err != nil {
-		log.Fatal(err)
+// GetDefaultDriver returns the path of the default directory as written in the
+// state file.
+func GetDefaultDriver(path string) string {
+	if path != "" {
+		return path
 	}
-	if err := os.RemoveAll(filepath.Join(usr.HomeDir, App.name)); err != nil && os.IsNotExist(err) {
-		log.Fatal(err)
+	if usr, err := user.Current(); err == nil {
+		state, _ := ioutil.ReadFile(filepath.Join(usr.HomeDir, App.name))
+		return string(state)
 	}
-	return nil
+	return ""
 }
