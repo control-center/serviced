@@ -10,8 +10,7 @@ Before('@login-required') do
 end
 
 After('@clean_hosts') do
-    visitHostsPage()
-    removeAllEntries("host")
+    removeAllHostsCLI()
 end
 
 After('@clean_pools') do

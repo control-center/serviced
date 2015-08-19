@@ -105,7 +105,7 @@ Feature: Host Management
       And I should see "table://hosts/defaultHost/ramGB" in the "RAM Commitment" column
       And I should see "table://hosts/defaultHost/cores" in the "CPU Cores" column
       And I should see "Showing 1 Result"
-  
+
   @clean_hosts
   Scenario: Add another valid host
     Given only the default host is added
@@ -176,7 +176,7 @@ Feature: Host Management
     Then I should see "By RAM"
       And I should see "By CPU"
       And I should not see "Active"
-  
+
   @clean_hosts
   Scenario: View Host Details
     Given only the default host is added

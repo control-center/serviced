@@ -188,8 +188,7 @@ def addPoolJson(pool)
 end
 
 def removeAllPools()
-    visitHostsPage()
-    removeAllEntries("host")
+    removeAllHostsCLI()
     visitApplicationsPage()
     removeAllEntries("service")
     visitPoolsPage()
