@@ -144,7 +144,7 @@ def addHostCLI(name, pool, commitment, hostID)
     nameValue =  getTableValue(name)
     poolValue =  getTableValue(pool)
     commitmentValue =  getTableValue(commitment)
-    cmd = "#{servicedCLI} host add #{nameValue} #{poolValue} --memory #{commitmentValue} 2>&1"
+    cmd = "#{servicedCLI} host add '#{nameValue}' '#{poolValue}' --memory '#{commitmentValue}' 2>&1"
 
     result = `#{cmd}`
 

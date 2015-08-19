@@ -16,6 +16,5 @@ class Pools < SitePrism::Page
     element :interface_input, "[ng-model='add_virtual_ip.BindInterface']"
     element :dialogAddVirtualIp_button, "button[class='btn btn-primary submit']"
     element :virtualIps_table, "table[data-config='virtualIPsTable']"
-    elements :pool_entries, "[ng-repeat='pool in $data']"
     elements :pool_names, "td[data-title-text='Resource Pool']"
 end

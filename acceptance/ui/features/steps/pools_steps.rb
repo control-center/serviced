@@ -1,12 +1,11 @@
 Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
-    if @pools_page.pool_entries.size < 4
+    @pools_page.wait_for_pool_names(Capybara.default_wait_time)
+    if @pools_page.pool_names.size < 4
         removeAllPoolsExceptDefault()
         addPoolJson("pool2")
         addPoolJson("pool3")
         addPoolJson("pool4")
-        expect(isInRows("table://pools/pool2/name")).to be true
-        expect(isInRows("table://pools/pool4/name")).to be true
     end
 end
 
@@ -186,7 +185,7 @@ def addPoolCLI(name, description)
     nameValue =  getTableValue(name)
     # description is not used by the CLI
     # descriptionValue =  getTableValue(description)
-    cmd = "#{servicedCLI} pool add #{nameValue} 2>&1"
+    cmd = "#{servicedCLI} pool add '#{nameValue}' 2>&1"
 
     result = `#{cmd}`
 
