@@ -341,18 +341,21 @@ func (v *DeviceMapperVolume) ReadMetadata(label, name string) (io.ReadCloser, er
 // code has a function for this, but it depends on some internal state that we
 // both can't count on and don't care about.
 func (v *DeviceMapperVolume) unmount() error {
+	v.driver.DeviceSet.Lock()
+	defer v.driver.DeviceSet.Unlock()
+
 	mountPath := v.Path()
-	if err := unmount(mountPath, v.driver.DeviceSet); err != nil {
+	if err := unmount(mountPath); err != nil {
 		return err
 	}
+	// pessimistically clean up the DeviceInfo object in memory. If it isn't
+	// there the next time the device is requested, it'll be recreated from
+	// disk.
 	delete(v.driver.DeviceSet.Devices, v.Metadata.CurrentDevice())
 	return nil
 }
 
-func unmount(mountpoint string, devices *devmapper.DeviceSet) error {
-	devices.Lock()
-	defer devices.Unlock()
-
+func unmount(mountpoint string) error {
 	if mounted, _ := devmapper.Mounted(mountpoint); mounted {
 		if err := syscall.Unmount(mountpoint, syscall.MNT_DETACH); err != nil {
 			glog.Errorf("Error unmounting %s: %s", mountpoint, err)
@@ -360,7 +363,6 @@ func unmount(mountpoint string, devices *devmapper.DeviceSet) error {
 		}
 	}
 	return nil
-
 }
 
 // Snapshot implements volume.Volume.Snapshot
@@ -492,7 +494,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
 		return err
 	}
-	defer unmount(mountpoint, v.driver.DeviceSet)
+	defer unmount(mountpoint)
 	// Set up the file stream
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
@@ -533,7 +535,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	if err := v.driver.DeviceSet.MountDevice(device, filepath.Join(mountpoint, label), fmt.Sprintf("%s_import", label)); err != nil {
 		return err
 	}
-	defer unmount(filepath.Join(mountpoint, label), v.driver.DeviceSet)
+	defer unmount(filepath.Join(mountpoint, label))
 	// write volume and metadata
 	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
 	tarfile := tar.NewReader(reader)

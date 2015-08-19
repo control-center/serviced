@@ -1,8 +1,6 @@
 package main
 
-import (
-	log "github.com/Sirupsen/logrus"
-)
+import log "github.com/Sirupsen/logrus"
 
 func init() {
 	App.Parser.AddCommand("volume", "Volume subcommands", "Driver subcommands", &Volume{})
@@ -11,7 +9,7 @@ func init() {
 type Volume struct {
 	Create VolumeCreate `command:"create" description:"Create a new volume"`
 	Mount  VolumeMount  `command:"mount" description:"Mount an existing volume"`
-	Delete VolumeDelete `command:"delete" description:"Delete an existing volume"`
+	Delete VolumeDelete `command:"delete" alias:"rm" alias:"remove" description:"Delete an existing volume"`
 }
 
 type VolumeCreate struct {
@@ -33,20 +31,19 @@ type VolumeDelete struct {
 }
 
 func (c *VolumeCreate) Execute(args []string) error {
-	driver, err := InitDriverIfExists(string(App.Options.Directory))
-	if err != nil {
-		return err
-	}
+	App.initializeLogging()
+	driver, logger := GetDriver()
 	volumeName := c.Args.Name
-	logger := log.WithFields(log.Fields{
-		"directory": driver.Root(),
-		"type":      driver.DriverType(),
-		"volume":    volumeName,
+	logger = logger.WithFields(log.Fields{
+		"volume": volumeName,
 	})
-	logger.Info("Creating a volume")
+	if driver.Exists(volumeName) {
+		logger.Fatal("Volume exists")
+	}
+	logger.Info("Creating volume")
 	vol, err := driver.Create(volumeName)
 	if err != nil {
-		return err
+		logger.Fatal(err)
 	}
 	logger.WithFields(log.Fields{
 		"mount": vol.Path(),
@@ -55,20 +52,19 @@ func (c *VolumeCreate) Execute(args []string) error {
 }
 
 func (c *VolumeMount) Execute(args []string) error {
-	driver, err := InitDriverIfExists(string(App.Options.Directory))
-	if err != nil {
-		return err
-	}
+	App.initializeLogging()
+	driver, logger := GetDriver()
 	volumeName := c.Args.Name
-	logger := log.WithFields(log.Fields{
-		"directory": driver.Root(),
-		"type":      driver.DriverType(),
-		"volume":    volumeName,
+	logger = logger.WithFields(log.Fields{
+		"volume": volumeName,
 	})
+	if !driver.Exists(volumeName) {
+		logger.Fatal("Volume does not exist")
+	}
 	logger.Info("Mounting volume")
 	vol, err := driver.Get(volumeName)
 	if err != nil {
-		return err
+		logger.Fatal(err)
 	}
 	logger.WithFields(log.Fields{
 		"mount": vol.Path(),
@@ -77,19 +73,18 @@ func (c *VolumeMount) Execute(args []string) error {
 }
 
 func (c *VolumeDelete) Execute(args []string) error {
-	driver, err := InitDriverIfExists(string(App.Options.Directory))
-	if err != nil {
-		return err
-	}
+	App.initializeLogging()
+	driver, logger := GetDriver()
 	volumeName := c.Args.Name
-	logger := log.WithFields(log.Fields{
-		"directory": driver.Root(),
-		"type":      driver.DriverType(),
-		"volume":    volumeName,
+	logger = logger.WithFields(log.Fields{
+		"volume": volumeName,
 	})
+	if !driver.Exists(volumeName) {
+		logger.Fatal("Volume does not exist")
+	}
 	logger.Info("Deleting volume")
 	if err := driver.Remove(volumeName); err != nil {
-		return err
+		logger.Fatal(err)
 	}
 	logger.Info("Volume deleted")
 	return nil
