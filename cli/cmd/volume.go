@@ -32,7 +32,7 @@ func (c *ServicedCli) initVolume() {
 		Subcommands: []cli.Command{
 			{
 				Name:        "status",
-				Usage:       "Provides volume status for specified tenants",
+				Usage:       "Provides volume status for application storage",
 				Description: "serviced volume status",
 				Action:      c.cmdVolumeStatus,
 				Flags: []cli.Flag{
