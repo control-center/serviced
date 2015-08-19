@@ -25,13 +25,14 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 
 	routes := []rest.Route{
 		rest.Route{"GET", "/", gz(mainPage)},
-		rest.Route{"GET", "/stats", gz(sc.isCollectingStats())},
-		rest.Route{"GET", "/version", gz(sc.authorizedClient(restGetServicedVersion))},
+
+		// Backups
 		rest.Route{"GET", "/backup/create", gz(sc.authorizedClient(RestBackupCreate))},
 		rest.Route{"GET", "/backup/restore", gz(sc.authorizedClient(RestBackupRestore))},
 		rest.Route{"GET", "/backup/list", gz(sc.authorizedClient(RestBackupFileList))},
 		rest.Route{"GET", "/backup/status", gz(sc.authorizedClient(RestBackupStatus))},
 		rest.Route{"GET", "/backup/restore/status", gz(sc.authorizedClient(RestRestoreStatus))},
+
 		// Hosts
 		rest.Route{"GET", "/hosts", gz(sc.checkAuth(restGetHosts))},
 		rest.Route{"GET", "/hosts/running", gz(sc.checkAuth(restGetActiveHostIDs))},
@@ -99,9 +100,6 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"POST", "/login", gz(sc.unAuthorizedClient(restLogin))},
 		rest.Route{"DELETE", "/login", gz(restLogout)},
 
-		// DockerLogin
-		rest.Route{"GET", "/dockerIsLoggedIn", gz(sc.authorizedClient(restDockerIsLoggedIn))},
-
 		// "Misc" stuff
 		rest.Route{"GET", "/top/services", gz(sc.authorizedClient(restGetTopServices))},
 		rest.Route{"GET", "/running", gz(sc.authorizedClient(restGetAllRunning))},
@@ -111,6 +109,12 @@ func (sc *ServiceConfig) getRoutes() []rest.Route {
 		rest.Route{"GET", "/static/logview/*resource", gz(sc.checkAuth(getProtectedLogViewData))},
 		rest.Route{"GET", "/static/*resource", gz(staticData)},
 		rest.Route{"GET", "/licenses.html", gz(licenses)},
+
+		// Info about serviced itself
+		rest.Route{"GET", "/dockerIsLoggedIn", gz(sc.authorizedClient(restDockerIsLoggedIn))},
+		rest.Route{"GET", "/stats", gz(sc.isCollectingStats())},
+		rest.Route{"GET", "/version", gz(sc.authorizedClient(restGetServicedVersion))},
+		rest.Route{"GET", "/storage", gz(sc.authorizedClient(restGetStorage))},
 	}
 
 	// Hardcoding these target URLs for now.
