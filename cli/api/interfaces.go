@@ -114,5 +114,5 @@ type API interface {
 	ScriptParse(fileName string, config *script.Config) error
 
 	// Volumes
-	GetVolumeStatus(volumeNames []string) (*volume.Statuses, error)
+	GetVolumeStatus() (*volume.Statuses, error)
 }
