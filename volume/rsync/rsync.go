@@ -208,7 +208,6 @@ func (d *RsyncDriver) Status() (*volume.Status, error) {
 
 	response := &volume.Status{
 		Driver:     volume.DriverTypeRsync,
-		DataFile:   d.root,
 		UsageData:  dfResult,
 		DriverData: map[string]string{"DataFile": d.root},
 	}

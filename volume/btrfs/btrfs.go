@@ -188,7 +188,6 @@ func (d *BtrfsDriver) Status() (*volume.Status, error) {
 	usage := dfDataToUsageData(dfData)
 	response := &volume.Status{
 		Driver:     volume.DriverTypeBtrFS,
-		DataFile:   rootDir,
 		UsageData:  usage,
 		DriverData: map[string]string{"DataFile": rootDir},
 	}
@@ -535,48 +534,41 @@ func runBtrfsRecv(reader io.Reader, sudoer bool, path string) error {
 	return nil
 }
 
+// Parse output of btrfs fi df command. Older btrfs does not support -b/--raw arg.
+// output without -b:
+/*
+	System, DUP: total=8.00MiB, used=16.00KiB
+	System, single: total=4.00MiB, used=0.00B
+	Metadata, DUP: total=51.19MiB, used=112.00KiB
+	Metadata, single: total=8.00MiB, used=0.00B
+	GlobalReserve, single: total=16.00MiB, used=0.00B
+*/
+// output with -b:
+/*
+	System, DUP: total=8388608, used=16384
+	System, single: total=4194304, used=0
+	Metadata, DUP: total=53673984, used=114688
+	Metadata, single: total=8388608, used=0
+	GlobalReserve, single: total=16777216, used=0
+*/
 func parseDF(lines []string) ([]BtrfsDFData, error) {
-	//output format, Btrfs v3.12 (btrfs fi df):
-	/*
-		Data, single: total=9.00GiB, used=8.67GiB
-		System, DUP: total=32.00MiB, used=16.00KiB
-		Metadata, DUP: total=1.00GiB, used=466.88MiB
-	*/
-	// output format, Btrfs v3.17 (btrfs fi df -b/--raw):
-	/*
-		System, DUP: total=8.00MiB, used=16.00KiB
-		System, single: total=4.00MiB, used=0.00B
-		Metadata, DUP: total=51.19MiB, used=112.00KiB
-		Metadata, single: total=8.00MiB, used=0.00B
-		GlobalReserve, single: total=16.00MiB, used=0.00B
-		vagrant@vagrant-ubuntu-vivid-64:~/btrfs$ sudo btrfs fi df --raw ./mnt/
-		System, DUP: total=8388608, used=16384
-		System, single: total=4194304, used=0
-		Metadata, DUP: total=53673984, used=114688
-		Metadata, single: total=8388608, used=0
-		GlobalReserve, single: total=16777216, used=0
-
-		vagrant@vagrant-ubuntu-vivid-64:~/btrfs$ sudo btrfs fi df -h ./mnt/
-	*/
-
-	glog.V(2).Infof("parseDF(%v)", lines)
-
+	lines = removeBlankLines(lines)
 	if len(lines) < 3 {
-		return []BtrfsDFData{}, fmt.Errorf("insufficient output: %v", strings.Join(lines, "/n"))
+		return []BtrfsDFData{}, fmt.Errorf("insufficient output: %v", strings.Join(lines, "\n"))
 	}
 	df := []BtrfsDFData{}
 	var err error
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		fields := strings.FieldsFunc(line, func(c rune) bool { return unicode.IsSpace(c) || strings.ContainsRune(",:", c) })
-		glog.V(0).Infof("Fields from line %v: %v", line, fields)
+		glog.V(2).Infof("Fields from line %v: %v", line, fields)
 		if len(fields) == 0 {
 			glog.Info("Skipping blank line in input.")
 			continue
 		}
 		if len(fields) != 4 {
 			glog.Errorf("Wrong number of fields (%d, expected 4) in line %q", len(fields), line)
-			continue
+			return []BtrfsDFData{}, fmt.Errorf("Wrong number of fields (%d, expected 4) in line %q", len(fields), line)
 		}
 		switch fields[0] {
 		case "Data", "System", "Metadata", "GlobalReserve":
@@ -586,40 +578,34 @@ func parseDF(lines []string) ([]BtrfsDFData, error) {
 				total = strings.TrimPrefix(total, "total=")
 				if totalBytes, err = parseSize(total); err != nil {
 					glog.Errorf("parseSize(%s) returned error: %s", total, err)
-					continue
-					//return []BtrfsDFData{}, err
+					return []BtrfsDFData{}, err
 				}
 			} else {
 				glog.Errorf("total field not found in line %q", line)
-				continue
-				//return []BtrfsDFData{}, fmt.Errorf("expected total field: %v", line)
+				return []BtrfsDFData{}, fmt.Errorf("expected total field, not found in line %q", line)
 			}
 			used := fields[3]
 			if strings.HasPrefix(used, "used=") {
 				used = strings.TrimPrefix(used, "used=")
 				if usedBytes, err = parseSize(used); err != nil {
 					glog.Errorf("parseSize(%s) returned error: %s", used, err)
-					continue
-					//return []BtrfsDFData{}, err
+					return []BtrfsDFData{}, err
 				}
 			} else {
 				glog.Errorf("used field not found in line %q", line)
-				continue
-				//return []BtrfsDFData{}, fmt.Errorf("expected used field: %v", line)
+				return []BtrfsDFData{}, fmt.Errorf("expected used field, not found in line %q", line)
 			}
 
 			df = append(df, BtrfsDFData{DataType: fields[0], Level: fields[1], Total: totalBytes, Used: usedBytes})
 		default:
 			glog.Errorf("Unrecognized field %q in line %q", fields[0], line)
-			continue
-			//return []BtrfsDFData{}, fmt.Errorf("Unknown fields(B): %v->%v", line, fields)
+			return []BtrfsDFData{}, fmt.Errorf("Unrecognized field %q in line %q", fields[0], line)
 		}
 	}
 	return df, nil
 }
 
 func parseSize(size string) (uint64, error) {
-	glog.V(2).Infof("parseSize(%s)", size)
 	sizemod := strings.Trim(size, " ,:")
 	sizeret, err := humanize.ParseBytes(sizemod)
 	return sizeret, err
@@ -629,16 +615,18 @@ func dfDataToUsageData(dfData []BtrfsDFData) []volume.Usage {
 	result := []volume.Usage{}
 	for _, btrfsData := range dfData {
 		label := btrfsData.DataType + " " + btrfsData.Level
-		result = append(result, volume.Usage{
-			Label: label,
-			Type:  "Total",
-			Value: btrfsData.Total,
-		})
-		result = append(result, volume.Usage{
-			Label: label,
-			Type:  "Used",
-			Value: btrfsData.Used,
-		})
+		result = append(result, volume.Usage{Label: label, Type: "Total", Value: btrfsData.Total})
+		result = append(result, volume.Usage{Label: label, Type: "Used", Value: btrfsData.Used})
 	}
 	return result
+}
+
+func removeBlankLines(in []string) []string {
+	out := []string{}
+	for _, value := range in {
+		if value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
 }

@@ -14,12 +14,14 @@
 package cmd
 
 import (
+	"fmt"
+	"os"
+
+	"encoding/json"
+
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
-	"fmt"
-	"encoding/json"
-	"os"
 )
 
 // Initializer for serviced pool subcommands
@@ -30,11 +32,11 @@ func (c *ServicedCli) initVolume() {
 		Description: "",
 		Subcommands: []cli.Command{
 			{
-				Name:         "status",
-				Usage:        "Provides volume status for specified tenants",
-				Description:  "serviced volume status",
-				Action:       c.cmdVolumeStatus,
-				Flags:  []cli.Flag{
+				Name:        "status",
+				Usage:       "Provides volume status for specified tenants",
+				Description: "serviced volume status",
+				Action:      c.cmdVolumeStatus,
+				Flags: []cli.Flag{
 					cli.BoolFlag{"verbose, v", "Show JSON format"},
 				},
 			},
@@ -75,7 +77,7 @@ func printStatusesJson(statuses *volume.Statuses) {
 func printStatusText(status *volume.Status) {
 	fmt.Printf("Driver:                 %s\n", status.Driver)
 	for key, value := range status.DriverData {
-		fmt.Printf("%-24s%s\n", fmt.Sprintf("%s:",key), value)
+		fmt.Printf("%-24s%s\n", fmt.Sprintf("%s:", key), value)
 	}
 	fmt.Printf("Usage Data:\n")
 	for _, usage := range status.UsageData {

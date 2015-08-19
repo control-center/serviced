@@ -12,6 +12,7 @@
 // limitations under the License.
 
 package master
+
 import (
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"

@@ -12,10 +12,12 @@
 // limitations under the License.
 
 package master
+
 import (
-	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/volume"
 	"errors"
+
+	"github.com/control-center/serviced/volume"
+	"github.com/zenoss/glog"
 )
 
 // GetVolumeStatus gets the volume status

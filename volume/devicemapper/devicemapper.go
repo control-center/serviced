@@ -7,10 +7,9 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
-
-	"strconv"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
