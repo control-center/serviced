@@ -18,7 +18,6 @@ Commands:
 	init     TYPE PATH [OPTIONS...]
 	set      PATH
 	unset
-	which
 	disable  [PATH]
 	status   [PATH]
 	list     [PATH]
