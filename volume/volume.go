@@ -15,10 +15,12 @@ package volume
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"path"
 	"path/filepath"
 
+	"bytes"
 	"github.com/zenoss/glog"
 )
 
@@ -340,4 +342,17 @@ func GetStatus() *Statuses {
 func getDrivers() *map[string]Driver {
 	glog.Infof("getDrivers(): returning driversByRoot(%q)", driversByRoot)
 	return &driversByRoot
+}
+
+func (s Status) String() string {
+	var buffer bytes.Buffer
+	buffer.WriteString(fmt.Sprintf("Driver:                 %s\n", s.Driver))
+	for key, value := range s.DriverData {
+		buffer.WriteString(fmt.Sprintf("%-24s%s\n", fmt.Sprintf("%s:", key), value))
+	}
+	buffer.WriteString(fmt.Sprintf("Usage Data:\n"))
+	for _, usage := range s.UsageData {
+		buffer.WriteString(fmt.Sprintf("\t%s %s: %d\n", usage.Label, usage.Type, usage.Value))
+	}
+	return buffer.String()
 }

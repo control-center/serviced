@@ -74,12 +74,5 @@ func printStatusesJson(statuses *volume.Statuses) {
 }
 
 func printStatusText(status *volume.Status) {
-	fmt.Printf("Driver:                 %s\n", status.Driver)
-	for key, value := range status.DriverData {
-		fmt.Printf("%-24s%s\n", fmt.Sprintf("%s:", key), value)
-	}
-	fmt.Printf("Usage Data:\n")
-	for _, usage := range status.UsageData {
-		fmt.Printf("\t%s %s: %d\n", usage.Label, usage.Type, usage.Value)
-	}
+	fmt.Printf("%s\n", status)
 }
