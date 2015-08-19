@@ -14,10 +14,9 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
-
-	"encoding/json"
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/volume"

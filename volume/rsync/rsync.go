@@ -154,12 +154,7 @@ func makeUint64(input string) (uint64, error) {
 	return strconv.ParseUint(input, 10, 64)
 }
 
-/*
-type Usage struct {
-	Label string
-	Type  string
-	Value uint64
-}*/
+// parseDFCommand parses output of df to get volume.Usage information for Status command
 func parseDFCommand(volname string, bytes []byte) ([]volume.Usage, error) {
 	outString := strings.TrimSpace(string(bytes))
 	lines := strings.Split(outString, "\n")
