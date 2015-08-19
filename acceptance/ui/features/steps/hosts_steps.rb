@@ -1,5 +1,6 @@
 Given (/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
+    @hosts_page.wait_for_host_entries(Capybara.default_wait_time)
     if @hosts_page.host_entries.size < 5
         removeAllHostsCLI()
         addDefaultHost()
@@ -7,8 +8,6 @@ Given (/^(?:|that )multiple hosts have been added$/) do
         addHostJson("host3")
         addHostJson("host4")
         addHostJson("host5")
-        expect(isInRows("table://hosts/host3/name")).to be true
-        expect(isInRows("table://hosts/host5/name")).to be true
     end
 end
 
