@@ -159,7 +159,7 @@ func (d *daemon) stopISVCS() {
 func (d *daemon) startRPC() {
 	if options.DebugPort > 0 {
 		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", options.DebugPort), nil); err != nil {
+			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
 				glog.Errorf("Unable to bind to debug port %s. Is another instance running?", err)
 				return
 			}
@@ -753,7 +753,6 @@ func (d *daemon) initWeb() {
 	// TODO: Make bind port for web server optional?
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile)
-	go cpserver.ServeUI()
 	go cpserver.Serve(d.shutdown)
 }
 
