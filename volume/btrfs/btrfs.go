@@ -29,6 +29,7 @@ import (
 	"unicode"
 
 	"github.com/control-center/serviced/volume"
+	"github.com/dustin/go-humanize"
 	"github.com/zenoss/glog"
 )
 
@@ -168,10 +169,10 @@ func (d *BtrfsDriver) Remove(volumeName string) error {
 func (d *BtrfsDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("btrfs.Status()")
 	rootDir := d.root
-	dfstatus, err := runcmd(d.sudoer, "filesystem", "df", "-b", rootDir)
+	dfstatus, err := volume.RunBtrFSCmd(d.sudoer, "filesystem", "df", "-b", rootDir)
 	if err != nil {
 		glog.Infof("Error running df command with -b: %v. Trying without for older btrfs.", err)
-		dfstatus, err = runcmd(d.sudoer, "filesystem", "df", rootDir)
+		dfstatus, err = volume.RunBtrFSCmd(d.sudoer, "filesystem", "df", rootDir)
 		if err != nil {
 			glog.Errorf("Could not get status of filestystem at %s", rootDir)
 			return nil, err

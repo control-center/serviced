@@ -17,10 +17,10 @@ package rsync
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/control-center/serviced/volume"
 	"github.com/stretchr/testify/assert"
-	"math"
-	"testing"
 )
 
 type ParseDFTest struct {
