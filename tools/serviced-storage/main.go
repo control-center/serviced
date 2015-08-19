@@ -28,7 +28,7 @@ var (
 
 type ServicedStorageOptions struct {
 	Verbose   []bool         `short:"v" description:"Display verbose logging"`
-	Directory flags.Filename `short:"d" long:"directory" description:"Driver directory"`
+	Directory flags.Filename `short:"d" long:"directory" env:"SVCDSTORAGE_DRIVER_PATH" description:"Driver directory"`
 }
 
 type ServicedStorage struct {

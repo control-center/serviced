@@ -2,8 +2,13 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
+	"os"
+	"os/user"
+	"path/filepath"
 
 	"github.com/control-center/serviced/volume"
+	"github.com/jessevdk/go-flags"
 	"github.com/pivotal-golang/bytefmt"
 
 	_ "github.com/control-center/serviced/volume/btrfs"
@@ -22,6 +27,8 @@ type Driver struct {
 	Shutdown DriverShutdown `command:"shutdown" description:"Release any system resources held by a driver"`
 	Status   DriverStatus   `command:"status" description:"Print driver status"`
 	List     DriverList     `command:"list" alias:"ls" description:"List volumes maintained by this driver"`
+	Set      DriverSet      `command:"set" description:"Use a particular driver for volume operations"`
+	Unset    DriverUnset    `command:"unset" description:"Clear driver cache"`
 }
 
 type DriverInit struct {
@@ -34,6 +41,14 @@ type DriverInit struct {
 type DriverShutdown struct{}
 type DriverStatus struct{}
 type DriverList struct{}
+
+type DriverSet struct {
+	Args struct {
+		Path flags.Filename `description:"Driver directory to set"`
+	} `positional-args:"yes" required:"yes"`
+}
+
+type DriverUnset struct{}
 
 // If a driver exists in the given directory, initialize and return it
 func InitDriverIfExists(directory string) (volume.Driver, error) {
@@ -59,7 +74,16 @@ func InitDriverIfExists(directory string) (volume.Driver, error) {
 
 // Get the appropriate driver required by command line args
 func GetDriver() (volume.Driver, *log.Entry) {
-	directory := string(App.Options.Directory)
+	// get the directory as stored in the state file
+	var directory string
+	if usr, err := user.Current(); err == nil {
+		state, _ := ioutil.ReadFile(filepath.Join(usr.HomeDir, App.name))
+		directory = string(state)
+	}
+	// overwrite state if -d flag is set
+	if dir := string(App.Options.Directory); dir != "" {
+		directory = dir
+	}
 	logger := log.WithFields(log.Fields{
 		"directory": directory,
 	})
@@ -131,6 +155,34 @@ func (d *DriverList) Execute(args []string) error {
 	driver, _ := GetDriver()
 	for _, volname := range driver.List() {
 		fmt.Println(volname)
+	}
+	return nil
+}
+
+func (d *DriverSet) Execute(args []string) error {
+	App.initializeLogging()
+	directory := string(d.Args.Path)
+	if _, err := volume.DetectDriverType(directory); err == volume.ErrDriverNotInit {
+		log.Fatalf("Driver not initialized.  Use `%s driver init`.", App.name)
+	}
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := ioutil.WriteFile(filepath.Join(usr.HomeDir, App.name), []byte(directory), 0644); err != nil {
+		log.Fatal(err)
+	}
+	return nil
+}
+
+func (d *DriverUnset) Execute(args []string) error {
+	App.initializeLogging()
+	usr, err := user.Current()
+	if err != nil {
+		log.Fatal(err)
+	}
+	if err := os.RemoveAll(filepath.Join(usr.HomeDir, App.name)); err != nil && os.IsNotExist(err) {
+		log.Fatal(err)
 	}
 	return nil
 }
