@@ -32,14 +32,16 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/control-center/serviced/servicedversion"
 	"github.com/jessevdk/go-flags"
 )
 
 var (
 	name    = "serviced-storage"
-	version = "v0.0.1"
+	version = fmt.Sprintf("%s - %s ", servicedversion.Version, servicedversion.Gitcommit)
 	App     = &ServicedStorage{
 		name:    name,
 		version: version,
@@ -80,6 +82,11 @@ type ServicedStorageVersion struct{}
 func (s *ServicedStorage) Run() {
 	// Set up some initial logging for the sake of parser errors
 	s.initializeLogging()
+	if usr, err := user.Current(); err != nil {
+		log.Fatal(err)
+	} else if usr.Uid != "0" {
+		log.Fatalf("%s must be run by root", App.name)
+	}
 	if _, err := s.Parser.AddGroup("Basic Options", "Basic options", &s.Options); err != nil {
 		log.WithFields(log.Fields{"exitcode": 1}).Fatal("Unable to add option group")
 		os.Exit(1)

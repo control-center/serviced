@@ -150,7 +150,7 @@ func (c *DriverStatus) Execute(args []string) error {
 	})
 	driver, err := InitDriverIfExists(directory)
 	if err != nil {
-		log.Fatal(err)
+		logger.Fatal(err)
 	}
 	logger = logger.WithFields(log.Fields{
 		"type": driver.DriverType(),
