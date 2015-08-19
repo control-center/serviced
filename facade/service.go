@@ -1257,6 +1257,7 @@ func (f *Facade) fillServiceAddr(ctx datastore.Context, svc *service.Service) er
 
 	for idx := range svc.Endpoints {
 		endpointName := svc.Endpoints[idx].Name
+		//TODO: only lookup if there is a possibility for an address assignment. i.e. AddressConfig has port and protocol
 		if assignment, err := f.FindAssignmentByServiceEndpoint(ctx, svc.ID, endpointName); err != nil {
 			glog.Errorf("Error searching for address assignments for endpoint %s of service %s (%s): %s", endpointName, svc.Name, svc.ID, err)
 			return err

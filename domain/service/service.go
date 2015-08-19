@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
+	"encoding/json"
 )
 
 // Desired states of services.
@@ -306,6 +307,20 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 	}
 
 	return fmt.Errorf("unable to find application %s in service: %s", application, s.Name)
+}
+
+// EnableVirtualHost enable or disable a virtual host for given service
+func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) error {
+	for _, ep := range s.GetServiceVHosts(){
+		if ep.Application == application{
+			for _, vhost := range ep.VHostList {
+				if vhost.Name == vhostName {
+					vhost.Enabled = enable
+				}
+			}
+		}
+	}
+	return nil
 }
 
 // RemoveVirtualHost Remove a virtual host for given service

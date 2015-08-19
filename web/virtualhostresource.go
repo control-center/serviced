@@ -100,37 +100,16 @@ func restAddVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 // restRemoveVirtualHost removes a vhost name from provided service and endpoint. Parameters are defined in path.
 func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
-	if err != nil {
-		glog.Errorf("Failed getting serviceId: %v", err)
-		restBadRequest(w, err)
-		return
-	}
-	application, err := url.QueryUnescape(r.PathParam("application"))
-	if err != nil {
-		glog.Errorf("Failed getting application: %v", err)
-		restBadRequest(w, err)
-		return
-	}
 
-	hostname, err := url.QueryUnescape(r.PathParam("name"))
+	service, application, vhostname, err := getVHostContext(r, client)
 	if err != nil {
-		glog.Errorf("Failed getting hostname: %v", err)
-		restBadRequest(w, err)
-		return
-	}
-
-	var service service.Service
-	err = client.GetService(serviceID, &service)
-	if err != nil {
-		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
 		restServerError(w, err)
 		return
 	}
 
-	err = service.RemoveVirtualHost(application, hostname)
+	err = service.RemoveVirtualHost(application, vhostname)
 	if err != nil {
-		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceID, err)
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
 		restServerError(w, err)
 		return
 	}
@@ -138,12 +117,82 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	var unused int
 	err = client.UpdateService(service, &unused)
 	if err != nil {
-		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", hostname, serviceID, err)
+		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
 		restServerError(w, err)
 		return
 	}
 
 	restSuccess(w)
+}
+
+
+// return serviceID, application and vhostname from the URL path
+func getVHostContext(r *rest.Request,  client *node.ControlClient) (*service.Service, string, string, error){
+	serviceID, err := url.QueryUnescape(r.PathParam("serviceId"))
+	if err != nil {
+		glog.Errorf("Failed getting serviceID: %v", err)
+		return nil, "", "", err
+	}
+
+	var service service.Service
+	err = client.GetService(serviceID, &service)
+	if err != nil {
+		glog.Errorf("Unexpected error getting service (%s): %v", serviceID, err)
+		return nil, "", "", err
+	}
+
+	application, err := url.QueryUnescape(r.PathParam("application"))
+	if err != nil {
+		glog.Errorf("Failed getting application: %v", err)
+		return nil, "", "", err
+	}
+
+	vhostname, err := url.QueryUnescape(r.PathParam("name"))
+	if err != nil {
+		glog.Errorf("Failed getting hostname: %v", err)
+		return nil, "", "", err
+	}
+	return serviceID, application, vhostname, nil
+
+}
+
+// json object for enabling/disabling a virtual host
+type virtualHostEnable struct {
+	enable bool
+}
+
+// restVirtualHostEnable enables or disables a virtual host endpoint
+func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	var request virtualHostEnable
+	err := r.DecodeJsonPayload(&request)
+	if err != nil {
+		restBadRequest(w, err)
+		return
+	}
+
+	service, application, vhostname, err := getVHostContext(r, client)
+	if err != nil {
+		restServerError(w, err)
+		return
+	}
+
+	err = service.EnableVirtualHost(application, vhostname, request.enable)
+	if err != nil {
+		glog.Errorf("Unexpected error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	var unused int
+	err = client.UpdateService(*service, &unused)
+	if err != nil {
+		glog.Errorf("Unexpected error updating  vhost %s on service (%s): %v", vhostname, service.Name, err)
+		restServerError(w, err)
+		return
+	}
+
+	restSuccess(w)
+
 }
 
 // Get all virtual hosts
