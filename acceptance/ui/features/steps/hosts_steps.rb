@@ -130,10 +130,6 @@ def addHostUI(name, pool, commitment)
     click_link_or_button("Add Host")
 end
 
-#
-# serviced host list --show-fields ID  | grep -v ^ID | xargs --no-run-if-empty serviced host rm
-#
-
 def addHostCLI(name, pool, commitment, hostID)
     servicedCLI = getServicedCLI()
     nameValue =  getTableValue(name)
@@ -171,5 +167,5 @@ def removeAllHostsCLI()
     cmd = "#{servicedCLI} host list 2>&1"
     result = `#{cmd}`
     expect($?.exitstatus).to eq(0)
-    expect(result.strip).to include("no hosts found")
+    expect(result).to include("no hosts found")
 end
