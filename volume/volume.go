@@ -42,10 +42,6 @@ type Status struct { // see Docker - look at their status struct and borrow heav
 	UsageData  []Usage
 }
 
-func (s *Status) String() string {
-	return fmt.Sprintf("Driver is %s", s.Driver)
-}
-
 type Statuses struct {
 	StatusMap map[string]Status
 }
@@ -346,6 +342,18 @@ func GetStatus() *Statuses {
 func getDrivers() *map[string]Driver {
 	glog.Infof("getDrivers(): returning driversByRoot(%q)", driversByRoot)
 	return &driversByRoot
+}
+
+func StringToDriverType(name string) (DriverType, error) {
+	switch name {
+	case "btrfs":
+		return DriverTypeBtrFS, nil
+	case "rsync":
+		return DriverTypeRsync, nil
+	case "devicemapper":
+		return DriverTypeDeviceMapper, nil
+	}
+	return "", ErrDriverNotSupported
 }
 
 func (s Status) String() string {
