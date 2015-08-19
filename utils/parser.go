@@ -25,10 +25,12 @@ import (
 
 const buffersize = 1024
 
-type ParseError string
+type ParseError struct {
+	String string
+}
 
 func (err ParseError) Error() string {
-	return fmt.Sprintf("could not parse line: %s", err)
+	return fmt.Sprintf("could not parse line: %s", err.String)
 }
 
 type ConfigReader interface {
@@ -142,7 +144,7 @@ func keyvalue(line []byte) error {
 			return err
 		}
 	} else if pair != "" {
-		return ParseError(pair)
+		return ParseError{pair}
 	}
 	return nil
 }
