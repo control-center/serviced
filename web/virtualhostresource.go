@@ -158,25 +158,27 @@ func getVHostContext(r *rest.Request,  client *node.ControlClient) (*service.Ser
 
 // json object for enabling/disabling a virtual host
 type virtualHostEnable struct {
-	enable bool
+	Enable bool
 }
 
 // restVirtualHostEnable enables or disables a virtual host endpoint
 func restVirtualHostEnable(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+   	glog.V(0).Infof("vhost enable %s", r.URL.Path)
 	var request virtualHostEnable
 	err := r.DecodeJsonPayload(&request)
 	if err != nil {
 		restBadRequest(w, err)
 		return
 	}
+	glog.Infof("Enable VHOST with %s %#v", r.URL.Path, request)
 
 	service, application, vhostname, err := getVHostContext(r, client)
 	if err != nil {
 		restServerError(w, err)
 		return
 	}
-
-	err = service.EnableVirtualHost(application, vhostname, request.enable)
+	glog.Infof("Enable VHOST request : %s, %s, %s", service.ID, application, vhostname)
+	err = service.EnableVirtualHost(application, vhostname, request.Enable)
 	if err != nil {
 		glog.Errorf("Unexpected error enabling/disabling vhost %s on service (%s): %v", vhostname, service.Name, err)
 		restServerError(w, err)

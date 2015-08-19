@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 // Desired states of services.
@@ -334,10 +335,14 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 // EnableVirtualHost enable or disable a virtual host for given service
 func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) error {
 	for _, ep := range s.GetServiceVHosts() {
+		glog.Infof("checking endpoint %#v against %s", ep, application)
 		if ep.Application == application {
-			for _, vhost := range ep.VHostList {
+			for i, vhost := range ep.VHostList {
+				glog.Infof("checking vhost %#v against %s", vhost, vhostName)
 				if vhost.Name == vhostName {
-					vhost.Enabled = enable
+					vh := &(ep.VHostList[i])
+					vh.Enabled = enable
+					glog.Infof("enable vhost %s for %s %s set to %v", vhostName, s.ID, application, enable)
 				}
 			}
 		}
