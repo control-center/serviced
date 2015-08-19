@@ -186,7 +186,7 @@ tools: serviced-storage
 serviced-storage: $(GODEP)
 serviced-storage: FORCE
 	cd tools/serviced-storage && $(GO) build $(GOBUILD_FLAGS) ${LDFLAGS}
-	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage $(GOBIN)/serviced-storage; fi
+	if [ -n "$(GOBIN)" ]; then cp tools/serviced-storage/serviced-storage $(GOBIN)/serviced-storage; fi
 
 #
 # BUILD_VERSION is the version of the serviced-build docker image
