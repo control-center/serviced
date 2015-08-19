@@ -11,6 +11,7 @@ func init() {
 type Volume struct {
 	Create VolumeCreate `command:"create" description:"Create a new volume"`
 	Mount  VolumeMount  `command:"mount" description:"Mount an existing volume"`
+	Delete VolumeDelete `command:"delete" description:"Delete an existing volume"`
 }
 
 type VolumeCreate struct {
@@ -22,6 +23,12 @@ type VolumeCreate struct {
 type VolumeMount struct {
 	Args struct {
 		Name string `description:"Name of the volume to mount"`
+	} `positional-args:"yes" required:"yes"`
+}
+
+type VolumeDelete struct {
+	Args struct {
+		Name string `description:"Name of the volume to delete"`
 	} `positional-args:"yes" required:"yes"`
 }
 
@@ -66,5 +73,24 @@ func (c *VolumeMount) Execute(args []string) error {
 	logger.WithFields(log.Fields{
 		"mount": vol.Path(),
 	}).Info("Volume mounted")
+	return nil
+}
+
+func (c *VolumeDelete) Execute(args []string) error {
+	driver, err := InitDriverIfExists(string(App.Options.Directory))
+	if err != nil {
+		return err
+	}
+	volumeName := c.Args.Name
+	logger := log.WithFields(log.Fields{
+		"directory": driver.Root(),
+		"type":      driver.DriverType(),
+		"volume":    volumeName,
+	})
+	logger.Info("Deleting volume")
+	if err := driver.Remove(volumeName); err != nil {
+		return err
+	}
+	logger.Info("Volume deleted")
 	return nil
 }

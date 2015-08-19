@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
@@ -171,21 +172,29 @@ func (d *DeviceMapperDriver) Cleanup() error {
 	if d.DeviceSet == nil {
 		return nil
 	}
+	glog.V(1).Infof("Cleaning up devicemapper driver at %s", d.root)
+	for _, volname := range d.List() {
+		vol, err := d.Get(volname)
+		if err != nil {
+			glog.V(2).Infof("Unable to get volume %s; skipping", volname)
+			continue
+		}
+		if mounted, _ := devmapper.Mounted(vol.Path()); mounted {
+			glog.V(2).Infof("Unmounting %s", volname)
+			vol.(*DeviceMapperVolume).unmount()
+		}
+	}
 	return d.DeviceSet.Shutdown()
 }
 
 // Release implements volume.Driver.Release
 func (d *DeviceMapperDriver) Release(volumeName string) error {
-	tenant := getTenant(volumeName)
-	metadata, err := NewMetadata(d.MetadataPath(tenant))
+	vol, err := d.Get(volumeName)
 	if err != nil {
 		return err
 	}
-	device := metadata.CurrentDevice()
-	if err := d.DeviceSet.UnmountDevice(device); err != nil {
-		if !strings.HasPrefix(err.Error(), "UnmountDevice: device not-mounted id") {
-			return err
-		}
+	if err := vol.(*DeviceMapperVolume).unmount(); err != nil {
+		return err
 	}
 	return nil
 }
@@ -328,6 +337,32 @@ func (v *DeviceMapperVolume) ReadMetadata(label, name string) (io.ReadCloser, er
 	return os.Open(filePath)
 }
 
+// unmount unmounts the current device from the volume mount point. Docker's
+// code has a function for this, but it depends on some internal state that we
+// both can't count on and don't care about.
+func (v *DeviceMapperVolume) unmount() error {
+	mountPath := v.Path()
+	if err := unmount(mountPath, v.driver.DeviceSet); err != nil {
+		return err
+	}
+	delete(v.driver.DeviceSet.Devices, v.Metadata.CurrentDevice())
+	return nil
+}
+
+func unmount(mountpoint string, devices *devmapper.DeviceSet) error {
+	devices.Lock()
+	defer devices.Unlock()
+
+	if mounted, _ := devmapper.Mounted(mountpoint); mounted {
+		if err := syscall.Unmount(mountpoint, syscall.MNT_DETACH); err != nil {
+			glog.Errorf("Error unmounting %s: %s", mountpoint, err)
+			return err
+		}
+	}
+	return nil
+
+}
+
 // Snapshot implements volume.Volume.Snapshot
 func (v *DeviceMapperVolume) Snapshot(label string) error {
 	if v.snapshotExists(label) {
@@ -353,7 +388,7 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		return err
 	}
 	// Unmount the current device and mount the new one
-	if err := v.driver.DeviceSet.UnmountDevice(oldHead); err != nil {
+	if err := v.unmount(); err != nil {
 		glog.Errorf("Unable to unmount device %s", oldHead)
 		return err
 	}
@@ -427,7 +462,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 		return err
 	}
 	// Now unmount the current device and mount the new one
-	if err := v.driver.DeviceSet.UnmountDevice(current); err != nil {
+	if err := v.unmount(); err != nil {
 		return err
 	}
 	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
@@ -457,7 +492,7 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
 		return err
 	}
-	defer v.driver.DeviceSet.UnmountDevice(device)
+	defer unmount(mountpoint, v.driver.DeviceSet)
 	// Set up the file stream
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
@@ -498,7 +533,7 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	if err := v.driver.DeviceSet.MountDevice(device, filepath.Join(mountpoint, label), fmt.Sprintf("%s_import", label)); err != nil {
 		return err
 	}
-	defer v.driver.DeviceSet.UnmountDevice(device)
+	defer unmount(filepath.Join(mountpoint, label), v.driver.DeviceSet)
 	// write volume and metadata
 	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
 	tarfile := tar.NewReader(reader)

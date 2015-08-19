@@ -68,6 +68,6 @@ func (s *ServicedStorage) initializeLogging(level log.Level) {
 }
 
 func main() {
-	App.initializeLogging(log.InfoLevel)
+	App.initializeLogging(log.DebugLevel)
 	App.Run()
 }
