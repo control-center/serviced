@@ -116,6 +116,10 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			sc.vhosthandler(w, r, subdomain)
 		} else {
 			glog.V(2).Infof("httphost: calling uiHandler")
+			if r.TLS == nil {
+				http.Redirect(w, r, fmt.Sprintf("https://%s:%s", r.Host, sc.bindPort), http.StatusMovedPermanently)
+				return
+			}
 			uiHandler.ServeHTTP(w, r)
 		}
 	}

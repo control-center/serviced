@@ -159,7 +159,7 @@ func (d *daemon) stopISVCS() {
 func (d *daemon) startRPC() {
 	if options.DebugPort > 0 {
 		go func() {
-			if err := http.ListenAndServe(fmt.Sprintf(":%d", options.DebugPort), nil); err != nil {
+			if err := http.ListenAndServe(fmt.Sprintf("127.0.0.1:%d", options.DebugPort), nil); err != nil {
 				glog.Errorf("Unable to bind to debug port %s. Is another instance running?", err)
 				return
 			}
