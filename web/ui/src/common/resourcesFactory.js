@@ -67,14 +67,14 @@
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}/enable`;
                 },
-                payload: ()=>{enable:true}
+                payload: () => {return JSON.stringify({enable:true});}
             },
             disableVHost: {
                 method: "POST",
                 url: (serviceID, endpointName, vhostName) => {
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}/enable`;
                 },
-                payload: ()=>{enable:false}
+                payload: () => {return JSON.stringify({enable:false});}
             },
             getRunningServices: {
                 method: "GET",

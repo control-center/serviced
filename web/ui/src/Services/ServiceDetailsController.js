@@ -258,7 +258,7 @@
             .error((data, status) => {
                 $notification.create("Stopt Vhost failed", data.Detail).error();
             });
-        
+
     };
         $scope.clickEditContext = function() {
             //set editor options for context editing
