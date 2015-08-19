@@ -18,7 +18,6 @@ import (
 	"log"
 	"mime"
 	"net/http"
-	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
@@ -78,24 +77,21 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	//start watching global vhosts as they are added/deleted/updated in services
 	go sc.syncAllVhosts(shutdown)
 
-	// Reverse proxy to the web UI server.
-	uihandler := func(w http.ResponseWriter, r *http.Request) {
-		uiURL, err := url.Parse("http://127.0.0.1:7878")
-		if err != nil {
-			glog.Errorf("Can't parse UI URL: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+	mime.AddExtensionType(".json", "application/json")
+	mime.AddExtensionType(".woff", "application/font-woff")
 
-		ui := httputil.NewSingleHostReverseProxy(uiURL)
-		if ui == nil {
-			glog.Errorf("Can't proxy UI request: %v", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
-
-		ui.ServeHTTP(w, r)
+	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
+	if err != nil {
+		glog.Errorf("Could not create access log file.")
 	}
+
+	uiHandler := rest.ResourceHandler{
+		EnableRelaxedContentType: true,
+		Logger: log.New(accessLogFile, "", log.LstdFlags),
+	}
+
+	routes := sc.getRoutes()
+	uiHandler.SetRoutes(routes...)
 
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
 		glog.V(2).Infof("httphandler handling request: %+v", r)
@@ -119,8 +115,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
 			sc.vhosthandler(w, r, subdomain)
 		} else {
-			glog.V(2).Infof("httphost: calling uihandler")
-			uihandler(w, r)
+			glog.V(2).Infof("httphost: calling uiHandler")
+			uiHandler.ServeHTTP(w, r)
 		}
 	}
 
@@ -177,30 +173,6 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	}()
 	blockerChan := make(chan bool)
 	<-blockerChan
-}
-
-// ServeUI is a blocking call that runs the UI hander on port :7878
-func (sc *ServiceConfig) ServeUI() {
-	mime.AddExtensionType(".json", "application/json")
-	mime.AddExtensionType(".woff", "application/font-woff")
-
-	accessLogFile, err := os.OpenFile("/var/log/serviced.access.log", os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
-	if err != nil {
-		glog.Errorf("Could not create access log file.")
-	}
-
-	handler := rest.ResourceHandler{
-		EnableRelaxedContentType: true,
-		Logger: log.New(accessLogFile, "", log.LstdFlags),
-	}
-
-	routes := sc.getRoutes()
-	handler.SetRoutes(routes...)
-
-	// FIXME: bubble up these errors to the caller
-	if err := http.ListenAndServe(":7878", &handler); err != nil {
-		glog.Fatalf("could not setup internal web server: %s", err)
-	}
 }
 
 var methods = []string{"GET", "POST", "PUT", "DELETE"}
