@@ -115,7 +115,7 @@ func restRemoveVirtualHost(w *rest.ResponseWriter, r *rest.Request, client *node
 	}
 
 	var unused int
-	err = client.UpdateService(service, &unused)
+	err = client.UpdateService(*service, &unused)
 	if err != nil {
 		glog.Errorf("Unexpected error removing vhost, %s, from service (%s): %v", vhostname, service.ID, err)
 		restServerError(w, err)
@@ -152,7 +152,7 @@ func getVHostContext(r *rest.Request,  client *node.ControlClient) (*service.Ser
 		glog.Errorf("Failed getting hostname: %v", err)
 		return nil, "", "", err
 	}
-	return serviceID, application, vhostname, nil
+	return &service, application, vhostname, nil
 
 }
 

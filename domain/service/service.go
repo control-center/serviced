@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/utils"
-	"encoding/json"
 )
 
 // Desired states of services.
