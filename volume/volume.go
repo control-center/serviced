@@ -14,13 +14,13 @@
 package volume
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
 	"path"
 	"path/filepath"
 
-	"bytes"
 	"github.com/zenoss/glog"
 )
 
