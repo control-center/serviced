@@ -42,6 +42,10 @@ type Status struct { // see Docker - look at their status struct and borrow heav
 	UsageData  []Usage
 }
 
+func (s *Status) String() string {
+	return fmt.Sprintf("Driver is %s", s.Driver)
+}
+
 type Statuses struct {
 	StatusMap map[string]Status
 }
