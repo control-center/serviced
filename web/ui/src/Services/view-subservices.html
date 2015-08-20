@@ -64,6 +64,14 @@
             <td data-title="'vhost_service_endpoint'|translate" sortable="'ServiceEndpoint'">{{vhost.ServiceEndpoint}}</td>
             <td data-title="'vhost_url'|translate" sortable="'vhost_url(vhost.Name)'"><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
             <td data-title="'actions'|translate">
+                <button ng-class="{disabled: vhost.Enabled }" ng-click="clickVHostEnable(vhost)" class="btn btn-link action">
+                    <i class="glyphicon glyphicon-play"></i>
+                    <span translate>start</span>
+                </button>
+                <button ng-class="{disabled: !vhost.Enabled }" ng-click="clickVHostDisable(vhost)" class="btn btn-link action">
+                    <i class="glyphicon glyphicon-stop"></i>
+                    <span translate>stop</span>
+                </button>
                 <button ng-click="clickRemoveVirtualHost(vhost)" class="btn btn-link action" ng-disabled="$data.length <= 1">
                     <i class="glyphicon glyphicon-remove-sign"></i>
                     <span translate>label_delete</span>

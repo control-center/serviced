@@ -202,7 +202,12 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 		if defep.Purpose == "export" {
 
 			exp := export{}
-			exp.vhosts = defep.VHosts
+			if len(defep.VHostList) > 0 {
+				exp.vhosts = []string{}
+				for _, vhost := range defep.VHostList {
+					exp.vhosts = append(exp.vhosts, vhost.Name)
+				}
+			}
 			exp.endpointName = defep.Name
 
 			var err error
@@ -367,9 +372,9 @@ func (c *Controller) watchRemotePorts() {
 		select {
 		case errc := <-c.closing:
 			glog.Infof("Closing endpoint watchers")
-			select{
-			    case endpointsWatchCanceller <- true:
-			    default:
+			select {
+			case endpointsWatchCanceller <- true:
+			default:
 			}
 			close(cancelEndpointWatch)
 			errc <- nil
@@ -395,7 +400,7 @@ func (c *Controller) watchRemotePorts() {
 			}
 			if !missingWatchers {
 				glog.V(2).Infof("all imports are being watched - cancelling watcher on /endpoints")
-				select{
+				select {
 				case endpointsWatchCanceller <- true:
 					return
 				default:
@@ -412,8 +417,8 @@ func (c *Controller) watchRemotePorts() {
 				glog.Infof("Starting watch for tenantEndpointKey %s: %v", tenantEndpointKey, err)
 				if err := endpointRegistry.WatchTenantEndpoint(zkConn, tenantEndpointKey,
 					c.processTenantEndpoint, endpointWatchError, cancelEndpointWatch); err != nil {
-						glog.Errorf("error watching tenantEndpointKey %s: %v", tenantEndpointKey, err)
-					}
+					glog.Errorf("error watching tenantEndpointKey %s: %v", tenantEndpointKey, err)
+				}
 				select {
 				case <-cancelEndpointWatch:
 					glog.Infof("Closing watch for tenantEndpointKey %s", tenantEndpointKey)

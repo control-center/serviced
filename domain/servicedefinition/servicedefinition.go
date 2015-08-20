@@ -16,7 +16,9 @@ package servicedefinition
 import (
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 
+	"encoding/json"
 	"errors"
 	"strings"
 	"time"
@@ -77,6 +79,13 @@ type EndpointDefinition struct {
 	AddressConfig       AddressResourceConfig
 	VHosts              []string // VHost is used to request named vhost for this endpoint. Should be the name of a
 	// subdomain, i.e "myapplication"  not "myapplication.host.com"
+	VHostList []VHost // VHost is used to request named vhost(s) for this endpoint.
+}
+
+// VHost is the configuration for an application endpoint that wants an http VHost endpoint provided by Control Center
+type VHost struct {
+	Name    string // name of the vhost subdomain subdomain, i.e "myapplication"  not "myapplication.host.com
+	Enabled bool   // whether the vhost should be enabled or disabled.
 }
 
 // Task A scheduled task
@@ -152,6 +161,35 @@ func (p *HostPolicy) UnmarshalText(b []byte) error {
 		*p = DEFAULT
 	default:
 		return errors.New("Invalid HostPolicy: " + s)
+	}
+	return nil
+}
+
+// private for dealing with unmarshal recursion
+type endpointDefinition EndpointDefinition
+
+// UnmarshalJSON implements the encoding/json/Unmarshaler interface used to convert deprecated vhosts list to VHostList
+func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
+	epd := endpointDefinition{}
+	if err := json.Unmarshal(b, &epd); err == nil {
+		*e = EndpointDefinition(epd)
+	} else {
+		return err
+	}
+     	glog.V(4).Infof("EndpointDefintion UnmarshalJSON %#v", e)
+	if len(e.VHostList) > 0 {
+		//VHostList is defined, keep it and unset deprecated field if set
+		e.VHosts = nil
+		return nil
+	}
+	if len(e.VHosts) > 0 {
+		// no VHostsList but vhosts is defined. Convert to VHostsList
+		glog.Warningf("EndpointDefinition VHosts field is deprecated, see VHostList: %#v", e.VHosts)
+		for _, vhost := range e.VHosts {
+			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
+		}
+		glog.Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
+		e.VHosts = nil
 	}
 	return nil
 }

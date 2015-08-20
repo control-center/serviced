@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 const (
@@ -92,16 +93,18 @@ func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	}
 	glog.V(2).Infof("  currentvhosts %+v", currentvhosts)
 
-	// generate map of vhosts in the service
-	svcvhosts := map[string]string{}
+	// generate map of enabled vhosts in the service
+	svcvhosts := map[string]servicedefinition.VHost{}
 	for _, ep := range svc.GetServiceVHosts() {
-		for _, vhostname := range ep.VHosts {
-			svcvhosts[fmt.Sprintf("%s_%s", svc.ID, vhostname)] = vhostname
+		for _, vhost := range ep.VHostList {
+			if vhost.Enabled {
+				svcvhosts[fmt.Sprintf("%s_%s", svc.ID, vhost.Name)] = vhost
+			}
 		}
 	}
 	glog.V(2).Infof("  svcvhosts %+v", svcvhosts)
 
-	// remove vhosts in current not in svc that match serviceid
+	// remove vhosts if current not in svc that match serviceid
 	for sv, vhostname := range currentvhosts {
 		svcID := strings.SplitN(sv, "_", 2)[0]
 		if svcID != svc.ID {
@@ -116,9 +119,9 @@ func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	}
 
 	// add vhosts from svc not in current
-	for sv, vhostname := range svcvhosts {
+	for sv, vhost := range svcvhosts {
 		if _, ok := currentvhosts[sv]; !ok {
-			if err := UpdateServiceVhost(conn, svc.ID, vhostname); err != nil {
+			if err := UpdateServiceVhost(conn, svc.ID, vhost.Name); err != nil {
 				return err
 			}
 		}

@@ -62,6 +62,20 @@
                     return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}`;
                 }
             },
+            enableVHost: {
+                method: "POST",
+                url: (serviceID, endpointName, vhostName) => {
+                    return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}/enable`;
+                },
+                payload: () => {return JSON.stringify({Enable:true});}
+            },
+            disableVHost: {
+                method: "POST",
+                url: (serviceID, endpointName, vhostName) => {
+                    return `/services/${serviceID}/endpoint/${endpointName}/vhosts/${vhostName}/enable`;
+                },
+                payload: () => {return JSON.stringify({Enable:false});}
+            },
             getRunningServices: {
                 method: "GET",
                 url: "/running"

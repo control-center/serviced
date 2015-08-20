@@ -173,14 +173,13 @@ var endpoint_testcases = []struct {
 		DesiredState:   int(SVCStop),
 		Launch:         "auto",
 		Endpoints: []ServiceEndpoint{
-			ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
+			BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
 					Purpose:     "something",
 					Protocol:    "tcp",
 					PortNumber:  1000,
 					Application: "{{(context (parent .)).RemoteHost}}_collector",
-				},
-			},
+				}),
 		},
 		ParentServiceID: "100",
 		CreatedAt:       time.Now(),
@@ -469,11 +468,10 @@ func (s *S) TestIllegalTemplates(t *C) {
 		//endpoint
 		Service{
 			Endpoints: []ServiceEndpoint{
-				ServiceEndpoint{
-					EndpointDefinition: servicedefinition.EndpointDefinition{
+				BuildServiceEndpoint(
+					servicedefinition.EndpointDefinition{
 						Application: "{{illegal_endpoint}}",
-					},
-				},
+					}),
 			},
 		},
 		//log config - path

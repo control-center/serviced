@@ -27,15 +27,14 @@ func (ft *FacadeTest) TestDaoValidServiceForStart(t *C) {
 	testService := service.Service{
 		ID: "TestDaoValidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
+			service.BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
 					Name:        "TestDaoValidServiceForStart_EndpointName",
 					Protocol:    "tcp",
 					PortNumber:  8081,
 					Application: "websvc",
 					Purpose:     "import",
-				},
-			},
+				}),
 		},
 	}
 	err := ft.Facade.validateServicesForStarting(datastore.Get(), &testService)
@@ -48,8 +47,8 @@ func (ft *FacadeTest) TestDaoInvalidServiceForStart(t *C) {
 	testService := service.Service{
 		ID: "TestDaoInvalidServiceForStart_ServiceID",
 		Endpoints: []service.ServiceEndpoint{
-			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
+			service.BuildServiceEndpoint(
+				servicedefinition.EndpointDefinition{
 					Name:        "TestDaoInvalidServiceForStart_EndpointName",
 					Protocol:    "tcp",
 					PortNumber:  8081,
@@ -59,8 +58,7 @@ func (ft *FacadeTest) TestDaoInvalidServiceForStart(t *C) {
 						Port:     8081,
 						Protocol: commons.TCP,
 					},
-				},
-			},
+				}),
 		},
 	}
 	err := ft.Facade.validateServicesForStarting(datastore.Get(), &testService)

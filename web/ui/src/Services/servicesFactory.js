@@ -476,10 +476,11 @@
                 if(service.model.Endpoints){
                     result = service.model.Endpoints.reduce(function(acc, endpoint){
                         // if VHosts, iterate VHosts
-                        if(endpoint.VHosts){
-                            endpoint.VHosts.forEach(function(VHost){
+                        if(endpoint.VHostList){
+                            endpoint.VHostList.forEach(function(VHost){
                                 acc.push({
-                                    Name: VHost,
+                                    Name: VHost.Name,
+                                    Enabled: VHost.Enabled,
                                     Application: service.name,
                                     ServiceEndpoint: endpoint.Application,
                                     ApplicationId: service.id,

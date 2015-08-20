@@ -81,7 +81,7 @@ func CreateValidServiceDefinition() *ServiceDefinition {
 						PortNumber:  8080,
 						Application: "websvc",
 						Purpose:     "export",
-						VHosts:      []string{"testhost"},
+						VHostList:   []VHost{VHost{Name: "testhost"}},
 					},
 				},
 				LogConfigs: []LogConfig{

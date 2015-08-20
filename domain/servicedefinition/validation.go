@@ -14,9 +14,9 @@
 package servicedefinition
 
 import (
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/validation"
+	"github.com/zenoss/glog"
 
 	"fmt"
 	"regexp"
@@ -94,12 +94,12 @@ type validationContext struct {
 
 //validateVHost ensures that the VHosts in a ServiceEndpoint have not already been defined
 func (vc validationContext) validateVHost(se EndpointDefinition) error {
-	if len(se.VHosts) > 0 {
-		for _, vhost := range se.VHosts {
-			if _, found := vc.vhosts[vhost]; found {
-				return fmt.Errorf("duplicate Vhost found: %v", vhost)
+	if len(se.VHostList) > 0 {
+		for _, vhost := range se.VHostList {
+			if _, found := vc.vhosts[vhost.Name]; found {
+				return fmt.Errorf("duplicate Vhost found: %v", vhost.Name)
 			}
-			vc.vhosts[vhost] = se
+			vc.vhosts[vhost.Name] = se
 		}
 	}
 	return nil

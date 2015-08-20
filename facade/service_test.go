@@ -34,8 +34,8 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInOneService(t *
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
 		},
 	}
 
@@ -52,8 +52,8 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInAllServices(t 
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
 		},
 	}
 
@@ -71,8 +71,8 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInAllServices(t 
 		Launch:          "auto",
 		DesiredState:    int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}},
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}),
 		},
 	}
 	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {
@@ -93,8 +93,8 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsInOneService(t *C)
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
 		},
 	}
 
@@ -112,8 +112,8 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 		Launch:       "auto",
 		DesiredState: int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
 		},
 	}
 
@@ -131,8 +131,8 @@ func (ft *FacadeTest) TestFacade_validateServiceEndpoints_dupsBtwnServices(t *C)
 		Launch:          "auto",
 		DesiredState:    int(service.SVCStop),
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
 		},
 	}
 	if err := ft.Facade.AddService(ft.CTX, childSvc); err != nil {

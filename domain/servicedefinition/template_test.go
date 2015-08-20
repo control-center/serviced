@@ -143,7 +143,7 @@ done
 						Application: "websvc",
 						Name:        "websvc",
 						Purpose:     "export",
-						VHosts:      []string{"testhost"},
+						VHostList:   []VHost{VHost{Name: "testhost"}},
 					},
 				},
 				LogConfigs: []LogConfig{

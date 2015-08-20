@@ -44,11 +44,11 @@ func (st *ServiceTemplate) ValidEntity() error {
 	//grab the vhost from every endpoing
 	visit := func(sd *servicedefinition.ServiceDefinition) error {
 		for _, ep := range sd.Endpoints {
-			for _, vhost := range ep.VHosts {
-				if _, found := vhosts[vhost]; found {
-					return fmt.Errorf("duplicate vhost found: %s; ServiceDefintion %s", vhost, sd)
+			for _, vhost := range ep.VHostList {
+				if _, found := vhosts[vhost.Name]; found {
+					return fmt.Errorf("duplicate vhost found: %s; ServiceDefintion %s", vhost.Name, sd)
 				}
-				vhosts[vhost] = struct{}{}
+				vhosts[vhost.Name] = struct{}{}
 			}
 		}
 		return nil

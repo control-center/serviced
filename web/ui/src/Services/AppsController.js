@@ -90,8 +90,8 @@
             var vHosts = [];
 
             service.model.Endpoints.forEach(endpoint => {
-                if(endpoint.VHosts){
-                    endpoint.VHosts.forEach(vHost => vHosts.push(vHost));
+                if(endpoint.VHostList){
+                    endpoint.VHostList.forEach(vHost => vHosts.push(vHost));
                 }
             });
 
@@ -105,7 +105,7 @@
         // given a vhost, return a url to it
         $scope.createVHostURL = function(vhost) {
             var port = $location.port() === "" ? "" : ":"+$location.port();
-            var host = vhost.indexOf('.') === -1 ? vhost + "." + $scope.defaultHostAlias : vhost;
+            var host = vhost.Name.indexOf('.') === -1 ? vhost.Name + "." + $scope.defaultHostAlias : vhost.Name;
             return $location.protocol() + "://" + host + port;
         };
 

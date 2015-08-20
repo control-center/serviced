@@ -246,6 +246,20 @@
             utils.setServiceState($scope, app, serviceStatus, $modalService, $translate);
         };
 
+        $scope.clickVHostEnable = function(vhost){
+            resourcesFactory.enableVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
+                .error((data, status) => {
+                    $notification.create("Start Vhost failed", data.Detail).error();
+                });
+        };
+
+    $scope.clickVHostDisable = function(vhost){
+        resourcesFactory.disableVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
+            .error((data, status) => {
+                $notification.create("Stop Vhost failed", data.Detail).error();
+            });
+
+    };
         $scope.clickEditContext = function() {
             //set editor options for context editing
             $scope.codemirrorOpts = {
