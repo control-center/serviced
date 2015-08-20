@@ -22,15 +22,18 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/zzk"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/domain/servicedefinition"
 )
 
 const (
 	zkServiceVhosts = "/servicevhosts"
 )
 
-func servicevhostpath(serviceID, vhost string) string {
-	p := append([]string{zkServiceVhosts}, fmt.Sprintf("%s_%s", serviceID, vhost))
+func servicevhostpath(serviceID, vhost string, enabled bool) string {
+	state := "off"
+	if enabled {
+		state = "on"
+	}
+	p := append([]string{zkServiceVhosts}, fmt.Sprintf("%s_%s_%s", state, serviceID, vhost))
 	return path.Join(p...)
 }
 
@@ -38,6 +41,7 @@ func servicevhostpath(serviceID, vhost string) string {
 type ServiceVhostNode struct {
 	ServiceID string
 	Vhost     string
+	Enabled   bool
 	version   interface{}
 }
 
@@ -48,12 +52,12 @@ func (node *ServiceVhostNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *ServiceVhostNode) Create(conn client.Connection) error {
-	return UpdateServiceVhost(conn, node.ServiceID, node.Vhost)
+	return updateServiceVhost(conn, node.ServiceID, node.Vhost, node.Enabled)
 }
 
 // Update implements zzk.Node
 func (node *ServiceVhostNode) Update(conn client.Connection) error {
-	return UpdateServiceVhost(conn, node.ServiceID, node.Vhost)
+	return updateServiceVhost(conn, node.ServiceID, node.Vhost, node.Enabled)
 }
 
 // Version implements client.Node
@@ -62,12 +66,45 @@ func (node *ServiceVhostNode) Version() interface{} { return node.version }
 // SetVersion implements client.Node
 func (node *ServiceVhostNode) SetVersion(version interface{}) { node.version = version }
 
+//format is enabled_serviceid_vhost
+type VHostKey string
+
+func (v VHostKey) IsEnabled() bool {
+	if v.Enabled() == "on" {
+		return true
+	}
+	return false
+}
+
+func (v VHostKey) Enabled() string {
+	parts := strings.SplitN(v, "_", 2)
+	return parts[0]
+}
+
+func (v VHostKey) ServiceID() string {
+	parts := strings.SplitN(v, "_", 3)
+	return parts[1]
+}
+
+func (v VHostKey) VHost() string {
+	parts := strings.SplitN(v, "_", 3)
+	return parts[2]
+}
+
+func newVhostKey(serviceID string, vhostName string, enabled bool) string {
+	state := "off"
+	if enabled {
+		state = "on"
+	}
+	return fmt.Sprintf("%s_%s_%s", state, serviceID, vhostName)
+}
+
 // UpdateServiceVhosts updates vhosts of a service
 func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	glog.V(2).Infof("UpdateServiceVhosts for ID:%s Name:%s", svc.ID, svc.Name)
 
 	// generate map of current vhosts
-	currentvhosts := map[string]string{}
+	currentvhosts := make(map[VHostKey]struct{})
 	if svcvhosts, err := conn.Children(zkServiceVhosts); err == client.ErrNoNode {
 		/*
 			// do not do this, otherwise, nodes aren't deleted when calling RemoveServiceVhost
@@ -86,42 +123,38 @@ func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 		return err
 	} else {
 		for _, svcvhost := range svcvhosts {
-			parts := strings.SplitN(svcvhost, "_", 2)
-			vhostname := parts[1]
-			currentvhosts[svcvhost] = vhostname
+			vhKey := VHostKey(svcvhost)
+			currentvhosts[vhKey] = struct{}{}
 		}
 	}
 	glog.V(2).Infof("  currentvhosts %+v", currentvhosts)
 
 	// generate map of enabled vhosts in the service
-	svcvhosts := map[string]servicedefinition.VHost{}
+	svcvhosts := make(map[VHostKey]struct{})
 	for _, ep := range svc.GetServiceVHosts() {
 		for _, vhost := range ep.VHostList {
-			if vhost.Enabled {
-				svcvhosts[fmt.Sprintf("%s_%s", svc.ID, vhost.Name)] = vhost
-			}
+			svcvhosts[newVhostKey(svc.ID, vhost.Name, vhost.Enabled)] = vhost
 		}
 	}
 	glog.V(2).Infof("  svcvhosts %+v", svcvhosts)
 
 	// remove vhosts if current not in svc that match serviceid
-	for sv, vhostname := range currentvhosts {
-		svcID := strings.SplitN(sv, "_", 2)[0]
-		if svcID != svc.ID {
+	for key, _ := range currentvhosts {
+		if key.ServiceID() != svc.ID {
 			continue
 		}
 
-		if _, ok := svcvhosts[sv]; !ok {
-			if err := RemoveServiceVhost(conn, svc.ID, vhostname); err != nil {
+		if _, ok := svcvhosts[key]; !ok {
+			if err := removeServiceVhost(conn, svc.ID, key.VHost(), key.IsEnabled()); err != nil {
 				return err
 			}
 		}
 	}
 
 	// add vhosts from svc not in current
-	for sv, vhost := range svcvhosts {
+	for sv, _ := range svcvhosts {
 		if _, ok := currentvhosts[sv]; !ok {
-			if err := UpdateServiceVhost(conn, svc.ID, vhost.Name); err != nil {
+			if err := updateServiceVhost(conn, svc.ID, sv.VHost(), sv.IsEnabled()); err != nil {
 				return err
 			}
 		}
@@ -130,11 +163,11 @@ func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	return nil
 }
 
-// UpdateServiceVhost updates a service vhost node if it exists, otherwise creates it
-func UpdateServiceVhost(conn client.Connection, serviceID, vhostname string) error {
+// updateServiceVhost updates a service vhost node if it exists, otherwise creates it
+func updateServiceVhost(conn client.Connection, serviceID, vhostname string, enabled bool) error {
 	glog.V(2).Infof("UpdateServiceVhost serviceID:%s vhostname:%s", serviceID, vhostname)
 	var node ServiceVhostNode
-	spath := servicevhostpath(serviceID, vhostname)
+	spath := servicevhostpath(serviceID, vhostname, enabled)
 
 	// For some reason you can't just create the node with the service data
 	// already set.  Trust me, I tried.  It was very aggravating.
@@ -145,6 +178,7 @@ func UpdateServiceVhost(conn client.Connection, serviceID, vhostname string) err
 	}
 	node.ServiceID = serviceID
 	node.Vhost = vhostname
+	node.Enabled = enabled
 	glog.V(2).Infof("Adding service vhost at path:%s %+v", spath, node)
 	return conn.Set(spath, &node)
 }
@@ -161,11 +195,9 @@ func RemoveServiceVhosts(conn client.Connection, svc *service.Service) error {
 	} else {
 		glog.V(2).Infof("RemoveServiceVhosts for svc.ID:%s from children:%+v", svc.ID, svcvhosts)
 		for _, svcvhost := range svcvhosts {
-			parts := strings.SplitN(svcvhost, "_", 2)
-			svcID := parts[0]
-			vhostname := parts[1]
-			if svcID == svc.ID {
-				if err := RemoveServiceVhost(conn, svc.ID, vhostname); err != nil {
+			vhkey := VHostKey(svcvhost)
+			if vhkey.ServiceID() == svc.ID {
+				if err := removeServiceVhost(conn, vhkey.ServiceID(), vhkey.VHost(), vhkey.IsEnabled()); err != nil {
 					return err
 				}
 			}
@@ -175,11 +207,11 @@ func RemoveServiceVhosts(conn client.Connection, svc *service.Service) error {
 	return nil
 }
 
-// RemoveServiceVhost deletes a service vhost
-func RemoveServiceVhost(conn client.Connection, serviceID, vhostname string) error {
+// removeServiceVhost deletes a service vhost
+func removeServiceVhost(conn client.Connection, serviceID, vhostname string, enabled bool) error {
 	glog.V(2).Infof("RemoveServiceVhost serviceID:%s vhostname:%s", serviceID, vhostname)
 	// Check if the path exists
-	spath := servicevhostpath(serviceID, vhostname)
+	spath := servicevhostpath( serviceID, vhostname, enabled)
 	if exists, err := zzk.PathExists(conn, spath); err != nil {
 		glog.Errorf("unable to determine whether removal path exists %s %s", spath, err)
 		return err

@@ -63,6 +63,7 @@ type vhostEndpointInfo struct {
 	hostIP    string
 	epPort    uint16
 	privateIP string
+	serviceID string
 }
 
 func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
@@ -70,6 +71,7 @@ func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
 		hostIP:    vep.HostIP,
 		epPort:    vep.ContainerPort,
 		privateIP: vep.ContainerIP,
+		serviceID: vep.ServiceID,
 	}
 }
 
@@ -223,9 +225,8 @@ func vhostWatchError(path string, err error) {
 }
 
 // Lookup the appropriate virtual host and forward the request to it.
-// TODO: when zookeeper registration is integrated we can be more event
-// driven and only refresh the vhost map when service states change.
-func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request, vhostname string) {
+// serviceIDs is the list of services on which the vhost is enabled
+func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request, vhostname string, serviceIDs map[string]struct{}) {
 	start := time.Now()
 	glog.V(1).Infof("vhosthandler handling: %+v", r)
 
@@ -238,14 +239,22 @@ func (sc *ServiceConfig) vhosthandler(w http.ResponseWriter, r *http.Request, vh
 		http.Error(w, fmt.Sprintf("service associated with vhost %v is not running", vhostname), http.StatusNotFound)
 		return
 	}
-	// TODO: implement a more intelligent strategy than "always pick the first one" when more
-	// than one service state is mapped to a given virtual host
+	// round robin through available endpoints
 	vhEP, err := vhInfo.GetNext()
 	if err != nil {
 		glog.V(4).Infof("no endpoint found for vhost %s: %v", vhostname, err)
 		http.Error(w, fmt.Sprintf("no available service for vhost %v ", vhostname), http.StatusNotFound)
 		return
 	}
+	// check that the endpoint's service id is in the list of vhosts that are enabled.
+	// This happens if more than one tenant has the same vhost. One tenant is off and the one that is running has
+	// has disabled this vhost.
+	if _, found := serviceIDs[vhEP.serviceID]; !found {
+		glog.V(4).Infof("vhost not enabled %s: %v", vhostname, err)
+		http.Error(w, fmt.Sprintf("vhost %s not available", vhostname), http.StatusNotFound)
+		return
+	}
+
 	rp := getReverseProxy(vhEP.hostIP, sc.muxPort, vhEP.privateIP, vhEP.epPort, sc.muxTLS && (sc.muxPort > 0))
 	glog.V(1).Infof("Time to set up %s vhost proxy for %v: %v", vhostname, r.URL, time.Since(start))
 
