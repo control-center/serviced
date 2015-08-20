@@ -63,13 +63,12 @@ func (s *S) TestAddVirtualHost(t *C) {
 func (s *S) TestRemoveVirtualHost(t *C) {
 	svc := Service{
 		Endpoints: []ServiceEndpoint{
-			ServiceEndpoint{BuildServiceEndpoint(
+			BuildServiceEndpoint(
 				servicedefinition.EndpointDefinition{
 					Purpose:     "export",
 					Application: "server",
 					VHostList:   []servicedefinition.VHost{servicedefinition.VHost{Name: "name0"}, servicedefinition.VHost{Name: "name1"}},
 				}),
-			},
 		},
 	}
 
