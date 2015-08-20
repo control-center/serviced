@@ -187,8 +187,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		Launch:       "auto",
 		DeploymentID: "deployment_id",
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
+			{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
 		},
 	}
 	err := dt.Dao.AddService(svc, &id)
@@ -197,15 +197,15 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 
 	// test 2: success
 	svc.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
 	}
 	err = dt.Dao.AddService(svc, &id)
 	t.Assert(err, IsNil)
 
 	// test 3: update service with dup ep
 	svc.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
 	}
 	err = dt.Dao.UpdateService(svc, &unused)
 	t.Check(err, NotNil)
@@ -220,7 +220,7 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 		Launch:          svc.Launch,
 		DeploymentID:    svc.DeploymentID,
 		Endpoints: []service.ServiceEndpoint{
-			{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+			{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
 		},
 	}
 	err = dt.Dao.AddService(svc2, &id)
@@ -229,15 +229,15 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 
 	// test 5: add child success
 	svc2.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"})},
 	}
 	err = dt.Dao.AddService(svc2, &id)
 	t.Assert(err, IsNil)
 
 	// test 6: update parent service with dup id on child
 	svc.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"})},
 	}
 	err = dt.Dao.UpdateService(svc, &unused)
 	t.Check(err, NotNil)
@@ -245,16 +245,16 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 
 	// test 7: update parent service success
 	svc.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_3", Application: "test_ep_3", Purpose: "export"})},
 	}
 	err = dt.Dao.UpdateService(svc, &unused)
 	t.Assert(err, IsNil)
 
 	// test 8: update child service with dup id on parent
 	svc2.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"})},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"})},
 	}
 	err = dt.Dao.UpdateService(svc2, &unused)
 	t.Check(err, NotNil)
@@ -262,8 +262,8 @@ func (dt *DaoTest) TestDao_ValidateEndpoints(t *C) {
 
 	// test 9: update child service success
 	svc2.Endpoints = []service.ServiceEndpoint{
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}},
-		{EndpointDefinition: servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"}},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"})},
+		{EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_4", Application: "test_ep_4", Purpose: "export"})},
 	}
 	err = dt.Dao.UpdateService(svc2, &unused)
 	t.Assert(err, IsNil)
@@ -1122,7 +1122,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 		DeploymentID: "deployment_id",
 		Endpoints: []service.ServiceEndpoint{
 			service.ServiceEndpoint{
-				EndpointDefinition: servicedefinition.EndpointDefinition{
+				EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
 					Name:        "AssignIPsEndpointName",
 					Protocol:    "tcp",
 					PortNumber:  8081,
@@ -1132,7 +1132,7 @@ func (dt *DaoTest) TestDaoAutoAssignIPs(t *C) {
 						Port:     8081,
 						Protocol: commons.TCP,
 					},
-				},
+				}),
 			},
 		},
 	}
@@ -1402,11 +1402,11 @@ func (dt *DaoTest) setupMigrationTest() (*service.Service, error) {
 	svc.DeploymentID = "deployment_id"
 	svc.Endpoints = []service.ServiceEndpoint{
 		service.ServiceEndpoint{
-			EndpointDefinition: servicedefinition.EndpointDefinition{
+			EndpointDefinition: service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{
 				Name:        "endpoint-name",
 				Application: "application-name",
 				Purpose:     "export",
-			},
+			}),
 		},
 	}
 	return svc, dt.Dao.AddService(*svc, &id)
