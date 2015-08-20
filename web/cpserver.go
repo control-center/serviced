@@ -32,6 +32,7 @@ import (
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
+	"github.com/control-center/serviced/zzk/service"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -354,7 +355,7 @@ type getRoutes func(sc *ServiceConfig) []rest.Route
 
 var (
 	allvhostsLock sync.RWMutex
-	allvhosts     map[string]map[string]struct{} // map of vhostname to service IDs that have the vhost
+	allvhosts     map[string]map[string]struct{} // map of vhostname to service IDs that have the vhost enabled
 )
 
 func init() {
@@ -374,12 +375,17 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 
 		newVhosts := make(map[string]map[string]struct{})
 		for _, sv := range childIDs {
-			parts := strings.SplitN(sv, "_", 2)
-			vhosts, found := newVhosts[parts[1]]
+			//cast to a VHostKey so we don't have to care about the format of the key string
+			vhostKey := service.VHostKey(sv)
+			vhost := vhostKey.VHost()
+			vhostServices, found := newVhosts[vhost]
 			if !found {
-				newVhosts[parts[1]] = make(map[string]struct{})
+				vhostServices = make(map[string]struct{})
+				newVhosts[vhost] = vhostServices
 			}
-			vhosts[parts[0]] = struct{}{}
+			if vhostKey.IsEnabled() {
+				vhostServices[vhostKey.ServiceID()] = struct{}{}
+			}
 		}
 
 		//lock for as short a time as possible
