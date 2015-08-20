@@ -1,13 +1,11 @@
 Given (/^(?:|that )multiple resource pools have been added$/) do
     visitPoolsPage()
-    if @pools_page.pool_entries.size < 4
-        removeAllPools()
-        addDefaultPool()
+    @pools_page.wait_for_pool_names(Capybara.default_wait_time)
+    if @pools_page.pool_names.size < 4
+        removeAllPoolsExceptDefault()
         addPoolJson("pool2")
         addPoolJson("pool3")
         addPoolJson("pool4")
-        expect(isInRows("table://pools/pool2/name")).to be true
-        expect(isInRows("table://pools/pool4/name")).to be true
     end
 end
 
@@ -22,8 +20,7 @@ end
 Given (/^(?:|that )only the default resource pool is added$/) do
     visitPoolsPage()
     if (page.has_no_content?("Showing 1 Result") || isNotInRows("default"))
-        removeAllPools()
-        addDefaultPool()
+        removeAllPoolsExceptDefault()
     end
 end
 
@@ -173,10 +170,27 @@ def addVirtualIpJson(ip)
 end
 
 def addPool(name, description)
+    addPoolCLI(name, description)
+end
+
+def addPoolUI(name, description)
     clickAddPoolButton()
     fillInResourcePoolField(name)
     fillInDescriptionField(description)
     click_link_or_button("Add Resource Pool")
+end
+
+def addPoolCLI(name, description)
+    servicedCLI = getServicedCLI()
+    nameValue =  getTableValue(name)
+    # description is not used by the CLI
+    # descriptionValue =  getTableValue(description)
+    cmd = "#{servicedCLI} pool add '#{nameValue}' 2>&1"
+
+    result = `#{cmd}`
+
+    expect($?.exitstatus).to eq(0)
+    expect(result.strip).to eq(nameValue.to_s)
 end
 
 def addDefaultPool()
@@ -187,11 +201,23 @@ def addPoolJson(pool)
     addPool("table://pools/" + pool + "/name", "table://pools/" + pool + "/description")
 end
 
-def removeAllPools()
-    visitHostsPage()
-    removeAllEntries("host")
+def removeAllPoolsExceptDefault()
     visitApplicationsPage()
     removeAllEntries("service")
-    visitPoolsPage()
-    removeAllEntries("pool")
+    removeAllHostsCLI()
+    removeAllPoolsCLI()
+    addDefaultPool()
+end
+
+def removeAllPoolsCLI()
+    servicedCLI = getServicedCLI()
+    cmd = "#{servicedCLI} pool list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} pool rm 2>&1"
+    result = `#{cmd}`
+    expect($?.exitstatus).to eq(0)
+
+    # verify all of the hosts were really removed
+    cmd = "#{servicedCLI} pool list 2>&1"
+    result = `#{cmd}`
+    expect($?.exitstatus).to eq(0)
+    expect(result).to include("no resource pools found")
 end

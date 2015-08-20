@@ -1,5 +1,5 @@
 {
-  "pools": 
+  "pools":
   {
     "defaultPool": {
       "name": "default",
@@ -7,17 +7,17 @@
     },
 
     "pool2": {
-      "name": "test",
+      "name": "testPool2",
       "description": "another pool"
     },
 
     "pool3": {
-      "name": "another test",
+      "name": "testPool3",
       "description": "yet another pool"
     },
 
     "pool4": {
-      "name": "yet another test",
+      "name": "testPool4",
       "description": "another pool"
     }
   }

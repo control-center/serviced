@@ -296,3 +296,7 @@ def getTableValue(valueOrTableUrl)
         return data
     end
 end
+
+def getServicedCLI()
+    return "/capybara/serviced --endpoint #{HOST_IP}:4979"
+end

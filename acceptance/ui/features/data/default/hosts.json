@@ -1,5 +1,5 @@
 {
-  "hosts": 
+  "hosts":
   {
     "defaultHost": {
       "nameAndPort": "%{local_ip}:4981",
@@ -47,7 +47,7 @@
       "kernelVersion": "Third Test Kernel Version",
       "kernelRelease": "Third Test Kernel Release",
       "ccRelease": "Third Test CC Release",
-      "pool": "test",
+      "pool": "testPool2",
       "commitment": "20%",
       "outboundIP": "%{local_ip}"
     },
@@ -64,7 +64,7 @@
       "kernelVersion": "v4",
       "kernelRelease": "#4",
       "ccRelease": "v4",
-      "pool": "another test",
+      "pool": "testPool3",
       "commitment": "100%",
       "outboundIP": "%{local_ip}"
     },
@@ -81,7 +81,7 @@
       "kernelVersion": "#5",
       "kernelRelease": "v5",
       "ccRelease": "#5",
-      "pool": "yet another test",
+      "pool": "testPool4",
       "commitment": "75%",
       "outboundIP": "%{local_ip}"
     }

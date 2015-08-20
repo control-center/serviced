@@ -1,26 +1,24 @@
 Given (/^(?:|that )multiple hosts have been added$/) do
     visitHostsPage()
+    @hosts_page.wait_for_host_entries(Capybara.default_wait_time)
     if @hosts_page.host_entries.size < 5
-        removeAllEntries("host")
+        removeAllHostsCLI()
         addDefaultHost()
         addHostJson("host2")
         addHostJson("host3")
         addHostJson("host4")
         addHostJson("host5")
-        expect(isInRows("table://hosts/host3/name")).to be true
-        expect(isInRows("table://hosts/host5/name")).to be true
     end
 end
 
 Given (/^(?:|that )there are no hosts added$/) do
-    visitHostsPage()
-    removeAllEntries("host")
+    removeAllHostsCLI()
 end
 
 Given (/^(?:|that )only the default host is added$/) do
     visitHostsPage()
     if (page.has_no_content?("Showing 1 Result") || isNotInRows("table://hosts/defaultHost/name"))
-        removeAllEntries("host")
+        removeAllHostsCLI()
         addDefaultHost()
     end
 end
@@ -104,14 +102,23 @@ def visitHostsPage()
 end
 
 def fillInHostAndPort(host)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
     @hosts_page.hostName_input.set getTableValue(host)
 end
 
 def fillInResourcePool(pool)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
     @hosts_page.resourcePool_input.select getTableValue(pool)
 end
 
 def fillInRAMCommitment(commitment)
+    if @hosts_page == nil
+         @hosts_page = Hosts.new
+    end
     @hosts_page.ramCommitment_input.set getTableValue(commitment)
 end
 
@@ -119,12 +126,30 @@ def clickAddHostButton()
     @hosts_page.addHost_button.click
 end
 
-def addHost(name, pool, commitment)
+def addHost(name, pool, commitment, hostID)
+    addHostCLI(name, pool, commitment, hostID)
+end
+
+def addHostUI(name, pool, commitment)
     clickAddHostButton()
     fillInHostAndPort(name)
     fillInResourcePool(pool)
     fillInRAMCommitment(commitment)
     click_link_or_button("Add Host")
+end
+
+def addHostCLI(name, pool, commitment, hostID)
+    servicedCLI = getServicedCLI()
+    nameValue =  getTableValue(name)
+    poolValue =  getTableValue(pool)
+    commitmentValue =  getTableValue(commitment)
+    cmd = "#{servicedCLI} host add '#{nameValue}' '#{poolValue}' --memory '#{commitmentValue}' 2>&1"
+
+    result = `#{cmd}`
+
+    hostIDValue =  getTableValue(hostID)
+    expect($?.exitstatus).to eq(0)
+    expect(result.strip).to eq(hostIDValue.to_s)
 end
 
 def addDefaultHost()
@@ -135,6 +160,20 @@ def addHostJson(host)
     nameAndPort = "table://hosts/" + host + "/nameAndPort"
     pool = "table://hosts/" + host + "/pool"
     commitment = "table://hosts/" + host + "/commitment"
+    hostID = "table://hosts/" + host + "/hostID"
 
-    addHost(nameAndPort, pool, commitment)
+    addHost(nameAndPort, pool, commitment, hostID)
+end
+
+def removeAllHostsCLI()
+    servicedCLI = getServicedCLI()
+    cmd = "#{servicedCLI} host list --show-fields ID 2>&1 | grep -v ^ID | xargs --no-run-if-empty #{servicedCLI} host rm 2>&1"
+    result = `#{cmd}`
+    expect($?.exitstatus).to eq(0)
+
+    # verify all of the hosts were really removed
+    cmd = "#{servicedCLI} host list 2>&1"
+    result = `#{cmd}`
+    expect($?.exitstatus).to eq(0)
+    expect(result).to include("no hosts found")
 end
