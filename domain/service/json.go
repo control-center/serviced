@@ -22,7 +22,7 @@ import (
 // private for dealing with unmarshal recursion
 type serviceEndpoint ServiceEndpoint
 
-// UnmarshalJSON implements the encoding/TextUnmarshaler interface
+// UnmarshalJSON implements the encoding/json/Unmarshaler interface used to convert deprecated vhosts list to VHostList
 func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	se := serviceEndpoint{}
 	if err := json.Unmarshal(b, &se); err == nil {
@@ -38,12 +38,11 @@ func (e *ServiceEndpoint) UnmarshalJSON(b []byte) error {
 	}
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
-		glog.Warning("ServiceEndpoint VHosts field is deprecated, see VHostList")
-		glog.V(0).Infof("VHosts is %#v", e.VHosts)
+		glog.Warningf("ServiceEndpoint VHosts field is deprecated, see VHostList: %#v", e.VHosts)
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, servicedefinition.VHost{Name: vhost, Enabled: true})
 		}
-		glog.V(0).Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
+		glog.Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
 		e.VHosts = nil
 	}
 	return nil

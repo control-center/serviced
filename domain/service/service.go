@@ -335,14 +335,12 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 // EnableVirtualHost enable or disable a virtual host for given service
 func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) error {
 	for _, ep := range s.GetServiceVHosts() {
-		glog.Infof("checking endpoint %#v against %s", ep, application)
 		if ep.Application == application {
 			for i, vhost := range ep.VHostList {
-				glog.Infof("checking vhost %#v against %s", vhost, vhostName)
 				if vhost.Name == vhostName {
 					vh := &(ep.VHostList[i])
 					vh.Enabled = enable
-					glog.Infof("enable vhost %s for %s %s set to %v", vhostName, s.ID, application, enable)
+					glog.V(1).Infof("enable vhost %s for %s %s set to %v", vhostName, s.ID, application, enable)
 				}
 			}
 		}

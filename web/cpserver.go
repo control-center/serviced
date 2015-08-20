@@ -379,10 +379,11 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 			newVhosts[parts[1]] = parts[0]
 		}
 
+		//lock for as short a time as possible
 		allvhostsLock.Lock()
 		defer allvhostsLock.Unlock()
 		allvhosts = newVhosts
-		defer glog.V(1).Infof("allvhosts: %+v", allvhosts)
+		glog.V(1).Infof("allvhosts: %+v", allvhosts)
 	}
 
 	for {

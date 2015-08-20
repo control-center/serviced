@@ -168,8 +168,7 @@ func (p *HostPolicy) UnmarshalText(b []byte) error {
 // private for dealing with unmarshal recursion
 type endpointDefinition EndpointDefinition
 
-// UnmarshalJSON implements the encoding/TextUnmarshaler interface
-
+// UnmarshalJSON implements the encoding/json/Unmarshaler interface used to convert deprecated vhosts list to VHostList
 func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	epd := endpointDefinition{}
 	if err := json.Unmarshal(b, &epd); err == nil {
@@ -185,12 +184,11 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	}
 	if len(e.VHosts) > 0 {
 		// no VHostsList but vhosts is defined. Convert to VHostsList
-		glog.Warning("EndpointDefinition VHosts field is deprecated, see VHostList")
-		glog.V(0).Infof("VHosts is %#v", e.VHosts)
+		glog.Warningf("EndpointDefinition VHosts field is deprecated, see VHostList: %#v", e.VHosts)
 		for _, vhost := range e.VHosts {
 			e.VHostList = append(e.VHostList, VHost{Name: vhost, Enabled: true})
 		}
-                glog.V(0).Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
+		glog.Infof("VHostList %#v converted from VHosts %#v", e.VHostList, e.VHosts)
 		e.VHosts = nil
 	}
 	return nil

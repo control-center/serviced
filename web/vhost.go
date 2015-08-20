@@ -29,7 +29,6 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
-//	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -74,27 +73,6 @@ func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
 	}
 }
 
-//func createVhostInfos(state *servicestate.ServiceState) map[string]*vhostInfo {
-//	infos := make(map[string]*vhostInfo)
-//
-//	for _, svcep := range state.Endpoints {
-//		for _, vhost := range svcep.VHosts {
-//			if _, found := infos[vhost]; !found {
-//				infos[vhost] = newVhostInfo()
-//			}
-//			vi := vhostEndpointInfo{
-//				hostIP:    state.HostIP,
-//				epPort:    svcep.PortNumber,
-//				privateIP: state.PrivateIP,
-//			}
-//			info := infos[vhost]
-//			info.endpoints = append(infos[vhost].endpoints, vi)
-//		}
-//	}
-//	glog.Infof("created vhost infos %#v", infos)
-//	return infos
-//}
-
 //vhostRegistry keeps track of all current known vhosts and vhost endpoints.
 type vhostRegistry struct {
 	sync.RWMutex
@@ -120,19 +98,6 @@ func (vr *vhostRegistry) setVhostInfo(vhost string, vhInfo *vhostInfo) {
 	vr.lookup[vhost] = vhInfo
 	glog.Infof("setVhostInfo adding VHost %v with backend: %#v", vhost, vhInfo)
 }
-
-////replaces all the vhost lookup information
-//func (vr *vhostRegistry) setAll(vhosts map[string]*vhostInfo) {
-//	vr.Lock()
-//	defer vr.Unlock()
-//	vr.lookup = make(map[string]*vhostInfo)
-//	for key, infos := range vhosts {
-//		vr.lookup[key] = infos
-//		for _, ep := range infos.endpoints {
-//			glog.Infof("vhosthandler adding VHost %v with backend: %#v", key, ep)
-//		}
-//	}
-//}
 
 func areEqual(s1, s2 []string) bool {
 
