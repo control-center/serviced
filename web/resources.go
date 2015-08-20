@@ -34,6 +34,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/servicedversion"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume"
 )
 
 var empty interface{}
@@ -879,6 +880,30 @@ func downloadServiceStateLogs(w *rest.ResponseWriter, r *rest.Request, client *n
 
 func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	w.WriteJson(servicedversion.GetVersion())
+}
+
+func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
+	volumeStatuses := volume.GetStatus()
+	if volumeStatuses == nil || volumeStatuses.StatusMap == nil {
+		err := fmt.Errorf("Unexpected error getting volume status")
+		glog.Errorf("%s", err)
+		restServerError(w, err)
+		return
+	}
+
+	type VolumeInfo struct {
+		Name   string
+		Status volume.Status
+	}
+
+	// REST collections should return arrays, not maps
+	storageInfo := make([]VolumeInfo, 0, len(volumeStatuses.StatusMap))
+	for volumeName, volumeStatus := range volumeStatuses.StatusMap {
+		volumeInfo := VolumeInfo{Name: volumeName, Status: volumeStatus}
+		storageInfo = append(storageInfo, volumeInfo)
+	}
+
+	w.WriteJson(storageInfo)
 }
 
 func RestBackupCreate(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {

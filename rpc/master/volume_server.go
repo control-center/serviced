@@ -22,11 +22,11 @@ import (
 
 // GetVolumeStatus gets the volume status
 func (s *Server) GetVolumeStatus(empty struct{}, reply *volume.Statuses) error {
-	glog.V(2).Infof("[hosts_server.go]master.GetVolumeStatus(empty, %v)\n", reply)
+	glog.V(2).Infof("[volume_server.go]master.GetVolumeStatus(empty, %v)\n", reply)
 	response := volume.GetStatus()
 	if response == nil {
-		glog.V(2).Infof("\tCall to volume.getStatus failed: (%v). Returning error.", response)
-		return errors.New("hosts_server.go host not found")
+		glog.V(2).Infof("\tCall to volume.getStatus failed: Returning error.")
+		return errors.New("volume_server.go GetStatus failed")
 	}
 	*reply = *response
 	return nil
