@@ -256,7 +256,7 @@
     $scope.clickVHostDisable = function(vhost){
         resourcesFactory.disableVHost( vhost.ApplicationId, vhost.ServiceEndpoint, vhost.Name)
             .error((data, status) => {
-                $notification.create("Stopt Vhost failed", data.Detail).error();
+                $notification.create("Stop Vhost failed", data.Detail).error();
             });
 
     };

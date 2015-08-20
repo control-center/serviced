@@ -334,17 +334,27 @@ func (s *Service) AddVirtualHost(application, vhostName string) error {
 
 // EnableVirtualHost enable or disable a virtual host for given service
 func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) error {
+	appFound := false
+	vhostFound := false
 	for _, ep := range s.GetServiceVHosts() {
 		if ep.Application == application {
+			appFound = true
 			for i, vhost := range ep.VHostList {
 				if vhost.Name == vhostName {
-					vh := &(ep.VHostList[i])
-					vh.Enabled = enable
+					vhostFound = true
+					ep.VHostList[i].Enabled = enable
 					glog.V(1).Infof("enable vhost %s for %s %s set to %v", vhostName, s.ID, application, enable)
 				}
 			}
 		}
 	}
+	if !appFound {
+		return fmt.Errorf("vhost %s not found; application %s not found in service", vhostName, application)
+	}
+	if !vhostFound {
+		return fmt.Errorf("vhost %s not found in service", vhostName, application)
+	}
+
 	return nil
 }
 
