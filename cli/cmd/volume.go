@@ -74,5 +74,5 @@ func printStatusesJson(statuses *volume.Statuses) {
 }
 
 func printStatusText(status *volume.Status) {
-	fmt.Printf("%s\n", status)
+	fmt.Printf("%s\n", status.String())
 }

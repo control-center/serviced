@@ -85,8 +85,11 @@ func CleanupBtrfsTmpVolume(c *C, fsPath string) {
 	c.Assert(ok, Equals, true)
 
 	// First unmount the loop device
-	err := syscall.Unmount(fsPath, syscall.MNT_DETACH)
-	c.Check(err, IsNil)
+	// Do it with a shell to take advantage of umount -d
+	output, err := exec.Command("umount", "-d", fsPath).CombinedOutput()
+	if err != nil {
+		c.Errorf("Error unmounting the filesystem: %s (%s)", output, err)
+	}
 
 	// Unmount the ramdisk
 	err = syscall.Unmount(ramdisk, syscall.MNT_DETACH)
