@@ -349,10 +349,10 @@ func (s *Service) EnableVirtualHost(application, vhostName string, enable bool) 
 		}
 	}
 	if !appFound {
-		return fmt.Errorf("vhost %s not found; application %s not found in service", vhostName, application)
+		return fmt.Errorf("vhost %s not found; application %s not found in service %s:%s", vhostName, application, s.ID, s.Name)
 	}
 	if !vhostFound {
-		return fmt.Errorf("vhost %s not found in service", vhostName, application)
+		return fmt.Errorf("vhost %s not found in service %s:%s", vhostName, s.ID, s.Name)
 	}
 
 	return nil
