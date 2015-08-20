@@ -883,8 +883,7 @@ func restGetServicedVersion(w *rest.ResponseWriter, r *rest.Request, client *nod
 }
 
 func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
-	volumeNames := make([]string, 0)
-	volumeStatuses := volume.GetStatus(volumeNames)
+	volumeStatuses := volume.GetStatus()
 	if volumeStatuses == nil || volumeStatuses.StatusMap == nil {
 		err := fmt.Errorf("Unexpected error getting volume status")
 		glog.Errorf("%s", err)
