@@ -77,26 +77,26 @@ func (v VHostKey) IsEnabled() bool {
 }
 
 func (v VHostKey) Enabled() string {
-	parts := strings.SplitN(v, "_", 2)
+	parts := strings.SplitN(string(v), "_", 2)
 	return parts[0]
 }
 
 func (v VHostKey) ServiceID() string {
-	parts := strings.SplitN(v, "_", 3)
+	parts := strings.SplitN(string(v), "_", 3)
 	return parts[1]
 }
 
 func (v VHostKey) VHost() string {
-	parts := strings.SplitN(v, "_", 3)
+	parts := strings.SplitN(string(v), "_", 3)
 	return parts[2]
 }
 
-func newVhostKey(serviceID string, vhostName string, enabled bool) string {
+func newVhostKey(serviceID string, vhostName string, enabled bool) VHostKey {
 	state := "off"
 	if enabled {
 		state = "on"
 	}
-	return fmt.Sprintf("%s_%s_%s", state, serviceID, vhostName)
+	return VHostKey(fmt.Sprintf("%s_%s_%s", state, serviceID, vhostName))
 }
 
 // UpdateServiceVhosts updates vhosts of a service
@@ -133,7 +133,7 @@ func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 	svcvhosts := make(map[VHostKey]struct{})
 	for _, ep := range svc.GetServiceVHosts() {
 		for _, vhost := range ep.VHostList {
-			svcvhosts[newVhostKey(svc.ID, vhost.Name, vhost.Enabled)] = vhost
+			svcvhosts[newVhostKey(svc.ID, vhost.Name, vhost.Enabled)] = struct{}{}
 		}
 	}
 	glog.V(2).Infof("  svcvhosts %+v", svcvhosts)
@@ -211,7 +211,7 @@ func RemoveServiceVhosts(conn client.Connection, svc *service.Service) error {
 func removeServiceVhost(conn client.Connection, serviceID, vhostname string, enabled bool) error {
 	glog.V(2).Infof("RemoveServiceVhost serviceID:%s vhostname:%s", serviceID, vhostname)
 	// Check if the path exists
-	spath := servicevhostpath( serviceID, vhostname, enabled)
+	spath := servicevhostpath(serviceID, vhostname, enabled)
 	if exists, err := zzk.PathExists(conn, spath); err != nil {
 		glog.Errorf("unable to determine whether removal path exists %s %s", spath, err)
 		return err

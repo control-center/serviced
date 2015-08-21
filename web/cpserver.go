@@ -104,7 +104,8 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		getVhost := func(vhostname string) (map[string]struct{}, bool) {
 			allvhostsLock.RLock()
 			defer allvhostsLock.RUnlock()
-			return allvhosts[vhostname]
+			svcs, found := allvhosts[vhostname]
+			return svcs, found
 		}
 
 		httphost := r.Host
