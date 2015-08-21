@@ -95,9 +95,8 @@
                         <h1 class="title topictitle1">Changing the name or IP address of the master host</h1>
                         <div class="body taskbody">
                            
-                           <div class="section context"><a name="taskid-d671e25" id="taskid-d671e25" class="anchor"></a>If you change the hostname or IP address of the <span class="ph">Control Center</span> master
-                              host, the <span class="ph">Zenoss</span> applications that you manage through <span class="ph">Control Center</span> cannot run until they are made aware of the master host's new system
-                              information. Use this procedure to update the master host system information in the <span class="ph">Control Center</span> so that managed applications can run properly. 
+                           <div class="section context"><a name="taskid-d671e25" id="taskid-d671e25" class="anchor"></a>Perform this procedure after updating the master host operating system with
+                              a new hostname or IP address.
                            </div>
                            
                            
@@ -109,7 +108,7 @@
                               
                               <li class="li step stepexpand" id="taskid__select">
                                  <span class="ph cmd">In the <span class="ph uicontrol">Actions</span> column of the <span class="ph uicontrol">Applications</span>
-                                    table, click <span class="ph uicontrol">Stop</span> for each <span class="ph">Zenoss</span>
+                                    table, click <span class="ph uicontrol">Stop</span> for each 
                                     application running on the master host. </span>
                                  
                               </li>
@@ -121,22 +120,58 @@
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Log in to the <span class="ph">Control Center</span> master host as a user with
-                                    <span class="keyword cmdname">sudo</span> privileges.</span>
+                                 <span class="ph cmd">Log in to the <span class="ph">Control Center</span> master 
+                                    host <span class="ph">as <samp class="ph codeph">root</samp> or as a user with <samp class="ph codeph">sudo</samp> privileges</span>.</span>
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand"><strong>Optional: </strong>
+                                 <span class="ph cmd">Update variables in <span class="ph filepath">/etc/default/serviced</span>, if necessary.</span>
+                                 
+                                 <div class="itemgroup info">For example, some deployments use the master host IP address for the values of the
+                                    <var class="keyword varname">SERVICED_OUTBOUND_IP</var> or <var class="keyword varname">SERVICED_STATIC_IPS</var>
+                                    variables.
+                                    
+                                 </div>
                                  
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Remove the <span class="ph filepath">zookeeper</span> file: </span>
+                                 <span class="ph cmd">Stop <span class="ph">Control Center</span>.</span>
                                  
-                                 <div class="itemgroup stepxmp"><kbd class="ph userinput">rm -rf /opt/serviced/var/isvcs/zookeeper</kbd></div>
+                                 <ul class="ul choices">
+                                    
+                                    <li class="li choice">Ubuntu: <kbd class="ph userinput">sudo stop serviced</kbd></li>
+                                    
+                                    
+                                    <li class="li choice">RHEL/CentOS: <kbd class="ph userinput">systemctl stop serviced</kbd></li>
+                                    
+                                    
+                                 </ul>
+                                 
                                  
                               </li>
                               
                               <li class="li step stepexpand">
-                                 <span class="ph cmd">Start the <span class="keyword cmdname">serviced</span> service:</span>
+                                 <span class="ph cmd">Remove the <span class="ph filepath">zookeeper</span> file.</span>
                                  
-                                 <ul class="ul choices" id="taskid__choices_es3_t4b_wr">
+                                 <ul class="ul choices">
+                                    
+                                    <li class="li choice">Ubuntu: <kbd class="ph userinput">sudo rm -rf /opt/serviced/var/isvcs/zookeeper</kbd></li>
+                                    
+                                    
+                                    <li class="li choice">RHEL/CentOS: <kbd class="ph userinput">rm -rf /opt/serviced/var/isvcs/zookeeper</kbd></li>
+                                    
+                                    
+                                 </ul>
+                                 
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Start <span class="ph">Control Center</span>.</span>
+                                 
+                                 <ul class="ul choices">
                                     
                                     <li class="li choice">Ubuntu: <kbd class="ph userinput">sudo start serviced</kbd></li>
                                     
@@ -145,6 +180,91 @@
                                     
                                     
                                  </ul>
+                                 
+                                 
+                              </li>
+                              
+                              <li class="li step stepexpand">
+                                 <span class="ph cmd">Update resource pool hosts with the new master host name or IP address.</span>
+                                 
+                                 <div class="itemgroup info">Each resource pool host includes the master host name or IP address in its
+                                    <span class="ph filepath">/etc/default/serviced</span> file, which must be changed. 
+                                 </div>
+                                 
+                                 <div class="itemgroup info">Perform the following substeps on each resource pool host:</div>
+                                 
+                                 <ol type="a" class="ol substeps">
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Log in to the resource pool host <span class="ph">as <samp class="ph codeph">root</samp> or as a user with <samp class="ph codeph">sudo</samp> privileges</span>.</span>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Open <span class="ph filepath">/etc/default/serviced</span> with a text editor, and then change
+                                          the name or IP address of the master host.</span>
+                                       
+                                       <div class="itemgroup info">The following variables need to be updated with the new information: 
+                                          
+                                          <ul class="ul">
+                                             
+                                             <li class="li"><var class="keyword varname">SERVICED_ZK</var></li>
+                                             
+                                             
+                                             <li class="li"><var class="keyword varname">SERVICED_DOCKER_REGISTRY</var></li>
+                                             
+                                             
+                                             <li class="li"><var class="keyword varname">SERVICED_ENDPOINT</var></li>
+                                             
+                                             
+                                             <li class="li"><var class="keyword varname">SERVICED_LOG_ADDRESS</var></li>
+                                             
+                                             
+                                             <li class="li"><var class="keyword varname">SERVICED_LOGSTASH_ES</var></li>
+                                             
+                                             
+                                             <li class="li"><var class="keyword varname">SERVICED_STATS_PORT</var></li>
+                                             
+                                             
+                                          </ul>
+                                          
+                                          
+                                       </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Save the file, and then exit the text editor.</span>
+                                       
+                                    </li>
+                                    
+                                    
+                                    <li class="li substep substepexpand">
+                                       <span class="ph cmd">Stop and restart <span class="ph">Control Center</span>.</span>
+                                       
+                                       <div class="itemgroup stepxmp">
+                                          
+                                          <ul class="sl simple">
+                                             
+                                             <li class="sli">Ubuntu: <kbd class="ph userinput">sudo stop serviced &amp;&amp; sudo start
+                                                   serviced</kbd></li>
+                                             
+                                             
+                                             <li class="sli">RHEL/CentOS: <kbd class="ph userinput">systemctl stop serviced &amp; systemctl start
+                                                   serviced</kbd></li>
+                                             
+                                             
+                                          </ul>
+                                          
+                                          
+                                       </div>
+                                       
+                                    </li>
+                                    
+                                    
+                                 </ol>
                                  
                                  
                               </li>

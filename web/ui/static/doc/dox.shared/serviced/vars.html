@@ -103,7 +103,7 @@
                         <h1 class="title topictitle1"><span class="ph filepath">/etc/default/serviced</span></h1>
                         <div class="body refbody">
                            
-                           <div class="section"><a name="referenceid-d4243e36" id="referenceid-d4243e36" class="anchor"></a>
+                           <div class="section"><a name="referenceid-d4507e36" id="referenceid-d4507e36" class="anchor"></a>
                               
                               <p class="p"><span class="ph">Control Center</span> (<span class="keyword cmdname">serviced</span>) is a single binary that behaves
                                  differently based on the environment variables defined in its startup script. 
@@ -170,7 +170,7 @@
                                  <dt class="dt dlterm" id="referenceid__SERVICED_AGENT"><samp class="ph codeph">SERVICED_AGENT</samp></dt>
                                  
                                  
-                                 <dd class="dd">Default: <samp class="ph codeph">1</samp> (true)
+                                 <dd class="dd">Default: <samp class="ph codeph">0</samp> (false)
                                  </dd>
                                   
                                  
@@ -187,7 +187,7 @@
                                  <dt class="dt dlterm" id="referenceid__SERVICED_MASTER"><samp class="ph codeph">SERVICED_MASTER</samp></dt>
                                  
                                  
-                                 <dd class="dd">Default: <samp class="ph codeph">1</samp> (true)
+                                 <dd class="dd">Default: <samp class="ph codeph">0</samp> (false)
                                  </dd>
                                   
                                  
@@ -253,11 +253,6 @@
                                  
                                  <dd class="dd ddexpand">The outbound IP address to set when <span class="ph">Control Center</span> is used in a 
                                     private network. 
-                                    <aside class="note note "><span class="title">Note:</span> Setting the Docker <var class="keyword varname">HTTP_PROXY</var> 
-                                       or <var class="keyword varname">HTTPS_PROXY</var> environment variables prevents
-                                       access to the <span class="keyword cmdname">serviced</span> outbound IP address.
-                                       To enable access, unset the variables, and then reboot the host.
-                                    </aside>
                                     
                                  </dd>
                                  
@@ -396,8 +391,9 @@
                                  <dd class="dd">Default: <samp class="ph codeph">rsync</samp></dd>
                                   
                                  
-                                 <dd class="dd ddexpand">The driver for the underlying file system where application data is stored (by
-                                    default, <span class="ph filepath">/opt/serviced/var</span>). The supported types are
+                                 <dd class="dd ddexpand">The driver for the distributed file system where application data is stored 
+                                    on the master host (by
+                                    default, <span class="ph filepath">/opt/serviced/var/volumes</span>). The supported types are
                                     <samp class="ph codeph">rsync</samp>, <samp class="ph codeph">btrfs</samp>, and <samp class="ph codeph">devicemapper</samp>.
                                     
                                     <aside class="note note "><span class="title">Note:</span> Only <samp class="ph codeph">btrfs</samp> and <samp class="ph codeph">devicemapper</samp> are supported in
@@ -448,10 +444,6 @@
                                     addresses. RFC 1918 restricts private networks to the 10.0/24, 172.16/20, and 192.168/16
                                     address spaces. However, <span class="keyword cmdname">serviced</span> accepts any valid, 16-bit, IPv4
                                     address space for its private network. 
-                                    <aside class="note note "><span class="title">Note:</span> This value affects the values of
-                                       SERVICED_STATIC_IPS.
-                                    </aside>
-                                    
                                  </dd>
                                  
                                  

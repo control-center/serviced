@@ -7120,6 +7120,38 @@ tr.row:before {
     display: block;
     font-weight: bold;
     font-style: italic;
+}
+
+.sectiontitle {
+    font-size: 26px !important;
+}
+
+.note > .title {
+    font-weight: bold;
+}
+
+.li, .p, .note {
+    margin: 0 0 4px;
+}
+
+.uicontrol, .wintitle {
+    font-weight: bold;
+}
+
+.p > ul, .p > ol {
+    margin-top: 4px;
+}
+
+.dt {
+    margin-left: 20px;
+}
+
+.dd {
+    margin-left: 40px;
+}
+
+.step > .stepxmp {
+    margin-top: 4px;
 }/**
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
