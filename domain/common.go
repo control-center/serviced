@@ -23,6 +23,11 @@ type MinMax struct {
 	Default int
 }
 
+type Run struct {
+	Command         string
+	CommitOnSuccess bool
+}
+
 type HostIPAndPort struct {
 	HostIP   string
 	HostPort string

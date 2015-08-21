@@ -15,9 +15,37 @@ package service
 
 import (
 	"encoding/json"
+
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/zenoss/glog"
 )
+
+type service Service
+
+func (s *Service) UnmarshalJSON(b []byte) error {
+	svc := service{}
+	if err := json.Unmarshal(b, &svc); err == nil {
+		*s = Service(svc)
+	} else {
+		return err
+	}
+	if len(s.RunStructs) > 0 {
+		s.Runs = nil
+		return nil
+	}
+	s.RunStructs = make(map[string]domain.Run)
+	if len(s.Runs) > 0 {
+		for k, v := range s.Runs {
+			s.RunStructs[k] = domain.Run{
+				Command:         v,
+				CommitOnSuccess: false,
+			}
+		}
+		s.Runs = nil
+	}
+	return nil
+}
 
 // private for dealing with unmarshal recursion
 type serviceEndpoint ServiceEndpoint
