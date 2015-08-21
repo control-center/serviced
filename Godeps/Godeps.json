@@ -217,6 +217,11 @@
 			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
 		},
 		{
+			"ImportPath": "github.com/jessevdk/go-flags",
+			"Comment": "v1-302-g1acbbaf",
+			"Rev": "1acbbaff2f347c412a0c7884873bd72cc9c1f5b4"
+		},
+		{
 			"ImportPath": "github.com/kr/pretty",
 			"Comment": "go.weekly.2011-12-22-18-gbc9499c",
 			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"

@@ -25,6 +25,7 @@ pkg/templates/
 coordinator/storage/zookeeper-3.3.3
 coordinator/client/zookeeper/zookeeper-3.3.3
 output/
+tools/serviced-storage/serviced-storage
 
 # emacs tags file
 TAGS

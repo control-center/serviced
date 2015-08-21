@@ -70,6 +70,9 @@ func Init(root string, _ []string) (volume.Driver, error) {
 	driver := &RsyncDriver{
 		root: root,
 	}
+	if err := os.MkdirAll(driver.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
 	return driver, nil
 }
 
@@ -288,7 +291,7 @@ func (v *RsyncVolume) Tenant() string {
 func (v *RsyncVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
 	label = v.rawSnapshotLabel(label)
 	filePath := filepath.Join(v.driver.MetadataDir(), label, name)
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil && !os.IsExist(err) {
 		glog.Errorf("Could not create path for file %s: %s", name, err)
 		return nil, err
 	}
@@ -308,7 +311,7 @@ func (v *RsyncVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
 			return nil, err
 		}
 		// if you can't create the new file return the snapshot file
-		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil {
+		if err := os.MkdirAll(filepath.Dir(filename), 0755); err != nil && !os.IsExist(err) {
 			return file, nil
 		}
 		outfile, err := os.Create(filename)

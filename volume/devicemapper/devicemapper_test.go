@@ -23,7 +23,9 @@ import (
 
 	. "gopkg.in/check.v1"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume/drivertest"
+	devmapper "github.com/docker/docker/daemon/graphdriver/devmapper"
 	// Register the devicemapper driver
 	_ "github.com/control-center/serviced/volume/devicemapper"
 )
@@ -34,9 +36,17 @@ var (
 )
 
 func init() {
+	// Reduce the size the the base fs and loopback for the tests
+	devmapper.DefaultDataLoopbackSize = 300 * 1024 * 1024
+	devmapper.DefaultMetaDataLoopbackSize = 199 * 1024 * 1024
+	devmapper.DefaultBaseFsSize = 300 * 1024 * 1024
+	devmapper.DefaultUdevSyncOverride = true
 	if err := initLoopbacks(); err != nil {
 		panic(err)
 	}
+	// Set Docker's logger to debug level, so we can get interesting
+	// information if -v
+	logrus.SetLevel(logrus.DebugLevel)
 }
 
 // getBaseLoopStats inspects /dev/loop0 to collect uid,gid, and mode for the

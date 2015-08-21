@@ -344,6 +344,18 @@ func getDrivers() *map[string]Driver {
 	return &driversByRoot
 }
 
+func StringToDriverType(name string) (DriverType, error) {
+	switch name {
+	case "btrfs":
+		return DriverTypeBtrFS, nil
+	case "rsync":
+		return DriverTypeRsync, nil
+	case "devicemapper":
+		return DriverTypeDeviceMapper, nil
+	}
+	return "", ErrDriverNotSupported
+}
+
 func (s Status) String() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(fmt.Sprintf("Driver:                 %s\n", s.Driver))

@@ -34,6 +34,7 @@ import (
 )
 
 var (
+	ErrBtrfsInvalidFilesystem = errors.New("not a btrfs filesystem")
 	ErrBtrfsInvalidDriver     = errors.New("invalid driver")
 	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
 	ErrBtrfsInvalidLabel      = errors.New("invalid label")
@@ -71,18 +72,28 @@ type BtrfsDFData struct {
 
 // Btrfs driver initialization
 func Init(root string, _ []string) (volume.Driver, error) {
+	if !volume.IsBtrfsFilesystem(root) {
+		return nil, ErrBtrfsInvalidFilesystem
+	}
 	// get the driver object id
 	objectID := "5" // root driver is always 5 unless it is a subvolume
-	if raw, err := volume.RunBtrFSCmd(volume.IsSudoer(), "subvolume", "show", root); err != nil {
+	raw, err := volume.RunBtrFSCmd(volume.IsSudoer(), "subvolume", "show", root)
+	if err != nil {
 		glog.Errorf("Could not initialize btrfs driver for %s: %s (%s)", root, raw, err)
 		return nil, volume.ErrBtrfsCommand
-	} else if obidmatch := regexp.MustCompile("Object ID:\\s+(\\w+)").FindSubmatch(raw); len(obidmatch) == 2 {
+	}
+	if obidmatch := regexp.MustCompile("Object ID:\\s+(\\w+)").FindSubmatch(raw); len(obidmatch) == 2 {
 		objectID = string(obidmatch[1])
 	}
 	driver := &BtrfsDriver{
 		sudoer:   volume.IsSudoer(),
 		root:     root,
 		objectID: objectID,
+	}
+	// Create future metadata dir, into which we can put stuff, but for now is
+	// used for detection of type
+	if err := os.MkdirAll(driver.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
+		return nil, err
 	}
 	return driver, nil
 }
@@ -136,6 +147,15 @@ func (d *BtrfsDriver) Create(volumeName string) (volume.Volume, error) {
 		}
 	}
 	return d.Get(volumeName)
+}
+
+func (d *BtrfsDriver) poolDir() string {
+	return filepath.Join(d.root, ".btrfs")
+}
+
+// MetadataDir returns the path to a volume's metadata directory
+func (d *BtrfsDriver) MetadataDir() string {
+	return filepath.Join(d.poolDir(), "volumes")
 }
 
 // Remove implements volume.Driver.Remove

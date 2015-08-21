@@ -14,6 +14,7 @@
 package volume
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -21,7 +22,7 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func DetectDriverType(root string) (DriverType, error) {
+func OldDetectDriverType(root string) (DriverType, error) {
 	// Check to see if the directory even exists. If not, no driver has been initialized.
 	glog.V(2).Infof("Detecting driver type under %s", root)
 	if _, err := os.Stat(root); err != nil {
@@ -71,4 +72,24 @@ func DetectDriverType(root string) (DriverType, error) {
 		}
 	}
 	return DriverTypeRsync, nil
+}
+
+func DetectDriverType(root string) (DriverType, error) {
+	// Check to see if the directory even exists. If not, no driver has been initialized.
+	glog.V(2).Infof("Detecting driver type under %s", root)
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			glog.V(2).Infof("Root does not exist; no driver has been initialized")
+			return "", ErrDriverNotInit
+		}
+		return "", err
+	}
+	for _, drivertype := range []DriverType{DriverTypeBtrFS, DriverTypeRsync, DriverTypeDeviceMapper} {
+		dirname := fmt.Sprintf(".%s", drivertype)
+		if fi, err := os.Stat(filepath.Join(root, dirname)); !os.IsNotExist(err) && fi != nil && fi.IsDir() {
+			glog.V(2).Infof("Found %s directory; returning %s", dirname, drivertype)
+			return drivertype, nil
+		}
+	}
+	return "", ErrDriverNotInit
 }
