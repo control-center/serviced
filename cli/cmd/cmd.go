@@ -196,7 +196,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		fstype := ctx.GlobalString("fstype")
 		options.FSType = volume.DriverType(fstype)
 	} else {
-		options.FSType = volume.DriverTypeRsync
+		options.FSType = volume.DriverTypeNFS
 	}
 
 	if len(options.StorageArgs) == 0 {
