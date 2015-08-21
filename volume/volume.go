@@ -50,6 +50,7 @@ const (
 	DriverTypeBtrFS        DriverType = "btrfs"
 	DriverTypeRsync        DriverType = "rsync"
 	DriverTypeDeviceMapper DriverType = "devicemapper"
+	DriverTypeNFS          DriverType = "nfs"
 )
 
 var (
@@ -183,14 +184,16 @@ func InitDriver(name DriverType, root string, args []string) error {
 		if !path.IsAbs(root) {
 			return ErrPathIsNotAbs
 		}
-		// Check for an existing driver initialization that doesn't match
-		if t, err := DetectDriverType(root); err != nil {
-			if err != ErrDriverNotInit {
-				return err
+		if name != DriverTypeNFS {
+			// Check for an existing driver initialization that doesn't match
+			if t, err := DetectDriverType(root); err != nil {
+				if err != ErrDriverNotInit {
+					return err
+				}
+			} else if t != name {
+				glog.Errorf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
+				return ErrDriverAlreadyInit
 			}
-		} else if t != name {
-			glog.Errorf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
-			return ErrDriverAlreadyInit
 		}
 		// Create the driver instance
 		driver, err := init(root, args)

@@ -249,8 +249,8 @@ func (c *Server) writeExports() error {
 	if network == "0.0.0.0/0" {
 		network = "*" // turn this in to nfs 'allow all hosts' syntax
 	}
-	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async)\n"+
-		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async)",
+	serviced_exports := fmt.Sprintf("%s\t%s(rw,fsid=0,no_root_squash,insecure,no_subtree_check,async,crossmnt)\n"+
+		"%s/%s\t%s(rw,no_root_squash,nohide,insecure,no_subtree_check,async,crossmnt)",
 		exportsPath, network, exportsPath, c.exportedName, network)
 	if err := os.MkdirAll(exportsDir, 0775); err != nil {
 		return err

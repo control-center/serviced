@@ -144,7 +144,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.dockerDNS = options.DockerDNS
 	agent.varPath = options.VarPath
 	agent.mount = options.Mount
-	agent.fsType = volume.DriverTypeRsync
+	agent.fsType = volume.DriverTypeNFS
 	agent.mux = options.Mux
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge

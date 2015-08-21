@@ -50,6 +50,8 @@ import (
 	_ "github.com/control-center/serviced/volume/rsync"
 	// Need to do devicemapper driver initializations
 	_ "github.com/control-center/serviced/volume/devicemapper"
+	// Need to do nfs driver initializations
+	_ "github.com/control-center/serviced/volume/nfs"
 	"github.com/control-center/serviced/web"
 	"github.com/control-center/serviced/zzk"
 
