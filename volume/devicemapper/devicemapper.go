@@ -11,10 +11,12 @@ import (
 	"strings"
 	"sync"
 	"syscall"
+	"time"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
+	"github.com/docker/docker/pkg/devicemapper"
 	"github.com/zenoss/glog"
 )
 
@@ -23,9 +25,10 @@ func init() {
 }
 
 type DeviceMapperDriver struct {
-	root      string
-	options   []string
-	DeviceSet *devmapper.DeviceSet
+	root         string
+	options      []string
+	DeviceSet    *devmapper.DeviceSet
+	DevicePrefix string
 }
 
 type DeviceMapperVolume struct {
@@ -66,6 +69,8 @@ func getTenant(from string) string {
 
 // Create implements volume.Driver.Create
 func (d *DeviceMapperDriver) Create(volumeName string) (volume.Volume, error) {
+	glog.V(2).Infof("Create() (%s) START", volumeName)
+	defer glog.V(2).Infof("Create() (%s) END", volumeName)
 	if d.Exists(volumeName) {
 		return nil, volume.ErrVolumeExists
 	}
@@ -122,6 +127,8 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 
 // Get implements volume.Driver.Get
 func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
+	glog.V(2).Infof("Get() (%s) START", volumeName)
+	defer glog.V(2).Infof("Get() (%s) END", volumeName)
 	glog.V(2).Infof("Getting devicemapper volume %s", volumeName)
 	vol, err := d.newVolume(volumeName)
 	if err != nil {
@@ -169,19 +176,23 @@ func (d *DeviceMapperDriver) Exists(volumeName string) bool {
 
 // Cleanup implements volume.Driver.Cleanup
 func (d *DeviceMapperDriver) Cleanup() error {
+	glog.V(2).Infof("Cleanup() START")
+	defer glog.V(2).Infof("Cleanup() END")
 	if d.DeviceSet == nil {
 		return nil
 	}
 	glog.V(1).Infof("Cleaning up devicemapper driver at %s", d.root)
 	for _, volname := range d.List() {
-		vol, err := d.Get(volname)
+		vol, err := d.newVolume(volname)
 		if err != nil {
 			glog.V(2).Infof("Unable to get volume %s; skipping", volname)
 			continue
 		}
 		if mounted, _ := devmapper.Mounted(vol.Path()); mounted {
 			glog.V(2).Infof("Unmounting %s", volname)
-			vol.(*DeviceMapperVolume).unmount()
+			if err := d.Release(volname); err != nil {
+				return err
+			}
 		}
 	}
 	return d.DeviceSet.Shutdown()
@@ -189,18 +200,32 @@ func (d *DeviceMapperDriver) Cleanup() error {
 
 // Release implements volume.Driver.Release
 func (d *DeviceMapperDriver) Release(volumeName string) error {
-	vol, err := d.Get(volumeName)
+	glog.V(2).Infof("Release() (%s) START", volumeName)
+	defer glog.V(2).Infof("Release() (%s) END", volumeName)
+	vol, err := d.newVolume(volumeName)
 	if err != nil {
 		return err
 	}
-	if err := vol.(*DeviceMapperVolume).unmount(); err != nil {
+	if err := vol.unmount(); err != nil {
+		glog.Errorf("Error whilst unmounting %s: %s", vol.path, err)
 		return err
 	}
+	device := vol.Metadata.CurrentDevice()
+	glog.V(2).Infof("Deactivating device (%s)", device)
+	d.DeviceSet.Lock()
+	defer d.DeviceSet.Unlock()
+	if err := d.deactivateDevice(device); err != nil {
+		glog.Errorf("Error removing device (%s)", err)
+		return err
+	}
+	glog.V(2).Infof("Deactivated device")
 	return nil
 }
 
 // Remove implements volume.Driver.Remove
 func (d *DeviceMapperDriver) Remove(volumeName string) error {
+	glog.V(2).Infof("Remove() (%s) START", volumeName)
+	defer glog.V(2).Infof("Remove() (%s) END", volumeName)
 	if !d.Exists(volumeName) {
 		return nil
 	}
@@ -221,9 +246,8 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		}
 	}
 	if err := d.Release(volumeName); err != nil {
-		return err
+		glog.V(1).Infof("Error releasing device: %s", err)
 	}
-
 	glog.V(1).Infof("Removing volume %s", volumeName)
 	if err := d.DeviceSet.DeleteDevice(v.volumeDevice()); err != nil {
 		glog.Errorf("Could not delete device %s: %s", volumeName, err)
@@ -233,6 +257,33 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		return err
 	}
 	return nil
+}
+
+// Issues the underlying dm remove operation.
+func (d *DeviceMapperDriver) deactivateDevice(devname string) error {
+	glog.V(2).Infof("deactivateDevice START(%s)", devname)
+	defer glog.V(2).Infof("deactivateDevice END(%s)", devname)
+
+	var err error
+
+	devicename := fmt.Sprintf("%s-%s", d.DevicePrefix, devname)
+	for i := 0; i < 200; i++ {
+		err = devicemapper.RemoveDevice(devicename)
+		if err == nil {
+			break
+		}
+		if err != devicemapper.ErrBusy {
+			return err
+		}
+
+		// If we see EBUSY it may be a transient error,
+		// sleep a bit a retry a few times.
+		d.DeviceSet.Unlock()
+		time.Sleep(100 * time.Millisecond)
+		d.DeviceSet.Lock()
+	}
+
+	return err
 }
 
 func (d *DeviceMapperDriver) volumeDir(volumeName string) string {
@@ -267,6 +318,11 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 			return err
 		}
 		d.DeviceSet = deviceSet
+		prefix, err := GetDevicePrefix(poolPath)
+		if err != nil {
+			return err
+		}
+		d.DevicePrefix = prefix
 	}
 	if err := os.MkdirAll(d.MetadataDir(), 0755); err != nil && !os.IsExist(err) {
 		return err
@@ -341,13 +397,18 @@ func (v *DeviceMapperVolume) ReadMetadata(label, name string) (io.ReadCloser, er
 // code has a function for this, but it depends on some internal state that we
 // both can't count on and don't care about.
 func (v *DeviceMapperVolume) unmount() error {
+	glog.V(2).Infof("unmount() (%s) START", v.name)
+	defer glog.V(2).Infof("unmount() (%s) END", v.name)
 	v.driver.DeviceSet.Lock()
 	defer v.driver.DeviceSet.Unlock()
 
 	mountPath := v.Path()
+	glog.V(2).Infof("Unmounting from path %s START", mountPath)
 	if err := unmount(mountPath); err != nil {
+		glog.Errorf("Got an error unmounting %s (%s)", mountPath, err)
 		return err
 	}
+	glog.V(2).Infof("Unmounting from path %s END", mountPath)
 	// pessimistically clean up the DeviceInfo object in memory. If it isn't
 	// there the next time the device is requested, it'll be recreated from
 	// disk.
@@ -367,6 +428,8 @@ func unmount(mountpoint string) error {
 
 // Snapshot implements volume.Volume.Snapshot
 func (v *DeviceMapperVolume) Snapshot(label string) error {
+	glog.V(2).Infof("Snapshot() (%s) START", v.name)
+	defer glog.V(2).Infof("Snapshot() (%s) END", v.name)
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
 	}
@@ -379,6 +442,7 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 	if err != nil {
 		return err
 	}
+	glog.V(2).Infof("Creating new head device %s based on %s", newHead, oldHead)
 	if err := v.driver.DeviceSet.AddDevice(newHead, oldHead); err != nil {
 		glog.Errorf("Unable to add devicemapper device: %s", err)
 		return err
@@ -390,20 +454,31 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		return err
 	}
 	// Unmount the current device and mount the new one
+	glog.V(2).Infof("Unmounting the old head device (%s)", oldHead)
 	if err := v.unmount(); err != nil {
 		glog.Errorf("Unable to unmount device %s", oldHead)
 		return err
 	}
+	glog.V(2).Infof("Deactivating the old head device (%s)", oldHead)
+	v.driver.DeviceSet.Lock()
+	if err := v.driver.deactivateDevice(oldHead); err != nil {
+		glog.V(2).Infof("Error removing device: %s", err)
+	}
+	v.driver.DeviceSet.Unlock()
+	glog.V(2).Infof("Deactivated the old head device (%s)", oldHead)
+	glog.V(2).Infof("Mounting the new head device %s at %s", newHead, v.path)
 	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
 		glog.Errorf("Unable to mount device %s at %s", newHead, v.path)
 		return err
 	}
 	// Save the old HEAD as the snapshot
+	glog.V(2).Infof("Saving old head %s as snapshot %s", oldHead, label)
 	if err := v.Metadata.AddSnapshot(label, oldHead); err != nil {
 		glog.Errorf("Unable to save snapshot metadata: %s", err)
 		return err
 	}
 	// Save the new HEAD as the current device
+	glog.V(2).Infof("Saving new head device %s as current", newHead)
 	if err := v.Metadata.SetCurrentDevice(newHead); err != nil {
 		glog.Errorf("Unable to save device metadata: %s", err)
 		return err
@@ -418,6 +493,8 @@ func (v *DeviceMapperVolume) Snapshots() ([]string, error) {
 
 // RemoveSnapshot implements volume.Volume.RemoveSnapshot
 func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
+	glog.V(2).Infof("RemoveSnapshot() (%s) START", v.name)
+	defer glog.V(2).Infof("RemoveSnapshot() (%s) END", v.name)
 	if !v.snapshotExists(label) {
 		return volume.ErrSnapshotDoesNotExist
 	}
@@ -435,6 +512,12 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		return volume.ErrRemovingSnapshot
 	}
 	// Delete the device itself
+	glog.V(2).Infof("Deactivating snapshot device %s", device)
+	v.driver.DeviceSet.Lock()
+	if err := v.driver.deactivateDevice(device); err != nil {
+		glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
+	}
+	v.driver.DeviceSet.Unlock()
 	if err := v.driver.DeviceSet.DeleteDevice(device); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
@@ -444,6 +527,8 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 
 // Rollback implements volume.Volume.Rollback
 func (v *DeviceMapperVolume) Rollback(label string) error {
+	glog.V(2).Infof("Rollback() (%s) START", v.name)
+	defer glog.V(2).Infof("Rollback() (%s) END", v.name)
 	if !v.snapshotExists(label) {
 		return volume.ErrSnapshotDoesNotExist
 	}
@@ -460,16 +545,26 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 	if err != nil {
 		return err
 	}
+	glog.V(2).Infof("Creating new head device %s based on snapshot %s", newHead, device)
 	if err := v.driver.DeviceSet.AddDevice(newHead, device); err != nil {
 		return err
 	}
 	// Now unmount the current device and mount the new one
+	glog.V(2).Infof("Unmounting old head device %s", current)
 	if err := v.unmount(); err != nil {
 		return err
 	}
+	glog.V(2).Infof("Rollback(): mounting new head device %s", newHead)
 	if err := v.driver.DeviceSet.MountDevice(newHead, v.path, v.name); err != nil {
 		return err
 	}
+	glog.V(2).Infof("Deactivating old head device %s", current)
+	v.driver.DeviceSet.Lock()
+	if err := v.driver.deactivateDevice(current); err != nil {
+		glog.V(2).Infof("Error removing device: %s", err)
+	}
+	v.driver.DeviceSet.Unlock()
+	glog.V(2).Infof("Deleting old head device %s", current)
 	if err := v.driver.DeviceSet.DeleteDevice(current); err != nil {
 		glog.Warningf("Error cleaning up device %s: %s", current, err)
 	}
@@ -478,6 +573,8 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 
 // Export implements volume.Volume.Export
 func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) error {
+	glog.V(2).Infof("Export() (%s) START", v.name)
+	defer glog.V(2).Infof("Export() (%s) END", v.name)
 	if !v.snapshotExists(label) {
 		return volume.ErrSnapshotDoesNotExist
 	}
@@ -486,15 +583,27 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(mountpoint)
+	//defer os.RemoveAll(mountpoint)
 	device, err := v.Metadata.LookupSnapshotDevice(label)
 	if err != nil {
 		return err
 	}
+	glog.V(2).Infof("Mounting temporary export device %s", device)
 	if err := v.driver.DeviceSet.MountDevice(device, mountpoint, label); err != nil {
 		return err
 	}
-	defer unmount(mountpoint)
+	defer func() {
+		glog.V(2).Infof("Unmounting temporary export device %s", device)
+		if err := unmount(mountpoint); err != nil {
+			glog.V(2).Infof("Error unmounting (%s): %s", mountpoint, err)
+		}
+		glog.V(2).Infof("Deactivating temporary export device %s", device)
+		v.driver.DeviceSet.Lock()
+		if err := v.driver.deactivateDevice(device); err != nil {
+			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
+		}
+		v.driver.DeviceSet.Unlock()
+	}()
 	// Set up the file stream
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
@@ -512,6 +621,8 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 
 // Import implements volume.Volume.Import
 func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
+	glog.V(2).Infof("Import() (%s) START", v.name)
+	defer glog.V(2).Infof("Import() (%s) END", v.name)
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
 	}
@@ -526,16 +637,30 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 	if err != nil {
 		return err
 	}
+	glog.V(2).Infof("Creating imported snapshot device %s", device)
 	if err := v.driver.DeviceSet.AddDevice(device, ""); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(mountpoint, label), 0755); err != nil {
 		return err
 	}
+	glog.V(2).Infof("Mounting imported snapshot device %s", device)
 	if err := v.driver.DeviceSet.MountDevice(device, filepath.Join(mountpoint, label), fmt.Sprintf("%s_import", label)); err != nil {
 		return err
 	}
-	defer unmount(filepath.Join(mountpoint, label))
+	defer func() {
+		mp := filepath.Join(mountpoint, label)
+		glog.V(2).Infof("Unmounting imported snapshot device %s", device)
+		if err := unmount(mp); err != nil {
+			glog.V(2).Infof("Error unmounting (%s): %s", mp, err)
+		}
+		glog.V(2).Infof("Deactivating imported snapshot device %s", device)
+		v.driver.DeviceSet.Lock()
+		if err := v.driver.deactivateDevice(device); err != nil {
+			glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
+		}
+		v.driver.DeviceSet.Unlock()
+	}()
 	// write volume and metadata
 	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
 	tarfile := tar.NewReader(reader)

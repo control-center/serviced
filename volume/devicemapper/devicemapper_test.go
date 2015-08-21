@@ -23,6 +23,7 @@ import (
 
 	. "gopkg.in/check.v1"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume/drivertest"
 	devmapper "github.com/docker/docker/daemon/graphdriver/devmapper"
 	// Register the devicemapper driver
@@ -43,6 +44,9 @@ func init() {
 	if err := initLoopbacks(); err != nil {
 		panic(err)
 	}
+	// Set Docker's logger to debug level, so we can get interesting
+	// information if -v
+	logrus.SetLevel(logrus.DebugLevel)
 }
 
 // getBaseLoopStats inspects /dev/loop0 to collect uid,gid, and mode for the
