@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/rpc/master"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
+	"github.com/control-center/serviced/zzk/service"
 	"github.com/gorilla/mux"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
@@ -96,11 +97,11 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 	httphandler := func(w http.ResponseWriter, r *http.Request) {
 		glog.V(2).Infof("httphandler handling request: %+v", r)
 
-		vhostExists := func(vhostname string) bool {
+		getVhost := func(vhostname string) (map[string]struct{}, bool) {
 			allvhostsLock.RLock()
 			defer allvhostsLock.RUnlock()
-			_, ok := allvhosts[vhostname]
-			return ok
+			svcs, found := allvhosts[vhostname]
+			return svcs, found
 		}
 
 		httphost := r.Host
@@ -108,12 +109,12 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
 
-		if vhostExists(httphost) {
+		if svcIDs, found := getVhost(httphost); found {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, httphost)
-		} else if vhostExists(subdomain) {
+			sc.vhosthandler(w, r, httphost, svcIDs)
+		} else if svcIDs, found := getVhost(subdomain); found {
 			glog.V(2).Infof("httphost: calling sc.vhosthandler")
-			sc.vhosthandler(w, r, subdomain)
+			sc.vhosthandler(w, r, subdomain, svcIDs)
 		} else {
 			glog.V(2).Infof("httphost: calling uiHandler")
 			if r.TLS == nil {
@@ -331,11 +332,11 @@ type getRoutes func(sc *ServiceConfig) []rest.Route
 
 var (
 	allvhostsLock sync.RWMutex
-	allvhosts     map[string]string
+	allvhosts     map[string]map[string]struct{} // map of vhostname to service IDs that have the vhost enabled
 )
 
 func init() {
-	allvhosts = make(map[string]string)
+	allvhosts = make(map[string]map[string]struct{})
 }
 
 func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
@@ -349,10 +350,19 @@ func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	syncVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("syncVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
-		newVhosts := make(map[string]string)
+		newVhosts := make(map[string]map[string]struct{})
 		for _, sv := range childIDs {
-			parts := strings.SplitN(sv, "_", 2)
-			newVhosts[parts[1]] = parts[0]
+			//cast to a VHostKey so we don't have to care about the format of the key string
+			vhostKey := service.VHostKey(sv)
+			vhost := vhostKey.VHost()
+			vhostServices, found := newVhosts[vhost]
+			if !found {
+				vhostServices = make(map[string]struct{})
+				newVhosts[vhost] = vhostServices
+			}
+			if vhostKey.IsEnabled() {
+				vhostServices[vhostKey.ServiceID()] = struct{}{}
+			}
 		}
 
 		//lock for as short a time as possible
