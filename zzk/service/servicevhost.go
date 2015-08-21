@@ -26,14 +26,21 @@ import (
 
 const (
 	zkServiceVhosts = "/servicevhosts"
+	offPrefix       = ":vhOff:" // serviceIDs and vhosts can't have ":"
+	onPrefix        = ":vhOn:"  // serviceIDs and vhosts can't have ":"
 )
 
 func servicevhostpath(serviceID, vhost string, enabled bool) string {
-	state := "off"
+	state := offPrefix
 	if enabled {
-		state = "on"
+		state = onPrefix
 	}
 	p := append([]string{zkServiceVhosts}, fmt.Sprintf("%s_%s_%s", state, serviceID, vhost))
+	return path.Join(p...)
+}
+
+func servicevhostkeypath(key string) string {
+	p := append([]string{zkServiceVhosts}, key)
 	return path.Join(p...)
 }
 
@@ -69,32 +76,45 @@ func (node *ServiceVhostNode) SetVersion(version interface{}) { node.version = v
 //format is enabled_serviceid_vhost
 type VHostKey string
 
-func (v VHostKey) IsEnabled() bool {
-	if v.Enabled() == "on" {
+func (v VHostKey) hasStatePrefix() bool {
+	if strings.HasPrefix(string(v), offPrefix) || strings.HasPrefix(string(v), onPrefix) {
 		return true
 	}
 	return false
 }
 
-func (v VHostKey) Enabled() string {
-	parts := strings.SplitN(string(v), "_", 2)
-	return parts[0]
+func (v VHostKey) IsEnabled() bool {
+	if strings.HasPrefix(string(v), offPrefix) {
+		return false
+	}
+	//it either has the on prefix or no prefix. No prefix is enabled for backwards compatability
+	return true
 }
 
 func (v VHostKey) ServiceID() string {
 	parts := strings.SplitN(string(v), "_", 3)
-	return parts[1]
+	if v.hasStatePrefix() {
+		return parts[1]
+	}
+	//no state prefix means the first part is the service ID
+	return parts[0]
 }
 
 func (v VHostKey) VHost() string {
-	parts := strings.SplitN(string(v), "_", 3)
-	return parts[2]
+	if v.hasStatePrefix() {
+		parts := strings.SplitN(string(v), "_", 3)
+		return parts[2]
+	}
+	// no state prefix means the second item is the vhost name
+	parts := strings.SplitN(string(v), "_", 2)
+	return parts[1]
+
 }
 
 func newVhostKey(serviceID string, vhostName string, enabled bool) VHostKey {
-	state := "off"
+	state := offPrefix
 	if enabled {
-		state = "on"
+		state = onPrefix
 	}
 	return VHostKey(fmt.Sprintf("%s_%s_%s", state, serviceID, vhostName))
 }
@@ -145,7 +165,7 @@ func UpdateServiceVhosts(conn client.Connection, svc *service.Service) error {
 		}
 
 		if _, ok := svcvhosts[key]; !ok {
-			if err := removeServiceVhost(conn, svc.ID, key.VHost(), key.IsEnabled()); err != nil {
+			if err := removeServiceVhost(conn, string(key)); err != nil {
 				return err
 			}
 		}
@@ -197,7 +217,7 @@ func RemoveServiceVhosts(conn client.Connection, svc *service.Service) error {
 		for _, svcvhost := range svcvhosts {
 			vhkey := VHostKey(svcvhost)
 			if vhkey.ServiceID() == svc.ID {
-				if err := removeServiceVhost(conn, vhkey.ServiceID(), vhkey.VHost(), vhkey.IsEnabled()); err != nil {
+				if err := removeServiceVhost(conn, string(vhkey)); err != nil {
 					return err
 				}
 			}
@@ -208,10 +228,10 @@ func RemoveServiceVhosts(conn client.Connection, svc *service.Service) error {
 }
 
 // removeServiceVhost deletes a service vhost
-func removeServiceVhost(conn client.Connection, serviceID, vhostname string, enabled bool) error {
-	glog.V(2).Infof("RemoveServiceVhost serviceID:%s vhostname:%s", serviceID, vhostname)
+func removeServiceVhost(conn client.Connection, key string) error {
+	glog.V(2).Infof("RemoveServiceVhost %s", key)
 	// Check if the path exists
-	spath := servicevhostpath(serviceID, vhostname, enabled)
+	spath := servicevhostkeypath(key)
 	if exists, err := zzk.PathExists(conn, spath); err != nil {
 		glog.Errorf("unable to determine whether removal path exists %s %s", spath, err)
 		return err
