@@ -516,10 +516,11 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 
 			// Get the service node and verify that the number of running instances meets or exceeds the number
 			// of instances required by the service
-			var service ServiceNode
-			if err := conn.Get(servicepath(serviceID), &service); err != nil {
+			var node ServiceNode
+			node.Service = &service.Service{}
+			if err := conn.Get(servicepath(serviceID), &node); err != nil {
 				return err
-			} else if count >= service.Instances {
+			} else if count >= node.Instances {
 				return nil
 			}
 		case service.SVCPause:
