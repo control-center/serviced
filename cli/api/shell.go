@@ -152,7 +152,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	if err := svc.EvaluateRunsTemplate(getSvc, findChild); err != nil {
 		return 1, fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
-	command, ok := svc.Runs[config.Command]
+	run, ok := svc.RunStructs[config.Command]
 	if !ok {
 		return 1, fmt.Errorf("command not found for service")
 	}
@@ -162,7 +162,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	}
 
 	quotedArgs := utils.ShellQuoteArgs(config.Args)
-	command = strings.Join([]string{command, quotedArgs}, " ")
+	command := strings.Join([]string{run.Command, quotedArgs}, " ")
 
 	asUser := "su - root -c "
 	if config.Username != "" && config.Username != "root" {
@@ -243,25 +243,25 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	}
 	glog.V(2).Infof("Container ID: %s", container.ID)
 
-	switch exitcode {
-	case 0:
-		// Commit the container
-		label := ""
-		glog.V(0).Infof("Committing container")
-		if err := client.Commit(container.ID, &label); err != nil {
-			glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
+	if exitcode == 0 {
+		if run.CommitOnSuccess {
+			// Commit the container
+			label := ""
+			glog.V(0).Infof("Committing container")
+			if err := client.Commit(container.ID, &label); err != nil {
+				glog.Fatalf("Error committing container: %s (%s)", container.ID, err)
+			}
+			var layers = 0
+			if err := client.ImageLayerCount(container.Image, &layers); err != nil {
+				glog.Errorf("Counting layers for image %s", svc.ImageID)
+			}
+			if layers > layer.WARN_LAYER_COUNT {
+				glog.Warningf("Image '%s' number of layers (%d) approaching maximum (%d).  Please squash image layers.",
+					svc.ImageID, layers, layer.MAX_LAYER_COUNT)
+			}
 		}
-		var layers = 0
-		if err := client.ImageLayerCount(container.Image, &layers); err != nil {
-			glog.Errorf("Counting layers for image %s", svc.ImageID)
-		}
-		if layers > layer.WARN_LAYER_COUNT {
-			glog.Warningf("Image '%s' number of layers (%d) approaching maximum (%d).  Please squash image layers.",
-				svc.ImageID, layers, layer.MAX_LAYER_COUNT)
-		}
-	default:
+	} else {
 		// Delete the container
-
 		if err := dockercli.StopContainer(container.ID, 10); err != nil {
 			if _, ok := err.(*dockerclient.ContainerNotRunning); !ok {
 				glog.Fatalf("failed to stop container: %s (%s)", container.ID, err)
@@ -269,7 +269,11 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 		} else if err := dockercli.RemoveContainer(dockerclient.RemoveContainerOptions{ID: container.ID}); err != nil {
 			glog.Fatalf("failed to remove container: %s (%s)", container.ID, err)
 		}
-		return exitcode, fmt.Errorf("Command returned non-zero exit code %d.  Container not commited.", exitcode)
+		commitMsg := ""
+		if run.CommitOnSuccess {
+			commitMsg = " Container not committed."
+		}
+		return exitcode, fmt.Errorf("Command returned non-zero exit code %d.%s", exitcode, commitMsg)
 	}
 
 	return exitcode, nil

@@ -438,8 +438,7 @@ func UpdateService(conn client.Connection, svc service.Service) error {
 	var node ServiceNode
 	spath := servicepath(svc.ID)
 
-	// For some reason you can't just create the node with the service data
-	// already set.  Trust me, I tried.  It was very aggravating.
+	node.Service = &service.Service{}
 	if err := conn.Get(spath, &node); err != nil {
 		if err == client.ErrNoNode {
 			// Set up the service alert
