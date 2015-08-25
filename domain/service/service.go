@@ -86,7 +86,7 @@ type Service struct {
 	LogConfigs        []servicedefinition.LogConfig
 	Snapshot          servicedefinition.SnapshotCommands
 	Runs              map[string]string
-	RunStructs        map[string]domain.Run
+	Commands          map[string]domain.Command
 	RAMCommitment     utils.EngNotation
 	CPUCommitment     uint64
 	Actions           map[string]string
@@ -204,7 +204,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
-	svc.RunStructs = sd.RunStructs
+	svc.Commands = sd.Commands
 	svc.Actions = sd.Actions
 	svc.HealthChecks = sd.HealthChecks
 	svc.Prereqs = sd.Prereqs

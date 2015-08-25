@@ -152,7 +152,7 @@ func (a *api) RunShell(config ShellConfig, stopChan chan struct{}) (int, error) 
 	if err := svc.EvaluateRunsTemplate(getSvc, findChild); err != nil {
 		return 1, fmt.Errorf("error evaluating service:%s Runs:%+v  error:%s", svc.ID, svc.Runs, err)
 	}
-	run, ok := svc.RunStructs[config.Command]
+	run, ok := svc.Commands[config.Command]
 	if !ok {
 		return 1, fmt.Errorf("command not found for service")
 	}

@@ -23,7 +23,7 @@ type MinMax struct {
 	Default int
 }
 
-type Run struct {
+type Command struct {
 	Command         string
 	CommitOnSuccess bool
 }

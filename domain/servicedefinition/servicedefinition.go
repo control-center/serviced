@@ -51,7 +51,7 @@ type ServiceDefinition struct {
 	RAMCommitment     utils.EngNotation // expected RAM commitment to use for scheduling
 	CPUCommitment     uint64            // expected CPU commitment (#cores) to use for scheduling
 	Runs              map[string]string // Map of commands that can be executed with 'serviced run ...'
-	RunStructs        map[string]domain.Run
+	Commands          map[string]domain.Command
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
 	HealthChecks      map[string]domain.HealthCheck // HealthChecks for a service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
@@ -175,14 +175,14 @@ func (s *ServiceDefinition) UnmarshalJSON(b []byte) error {
 	} else {
 		return err
 	}
-	if len(s.RunStructs) > 0 {
+	if len(s.Commands) > 0 {
 		s.Runs = nil
 		return nil
 	}
 	if len(s.Runs) > 0 {
-		s.RunStructs = make(map[string]domain.Run)
+		s.Commands = make(map[string]domain.Command)
 		for k, v := range s.Runs {
-			s.RunStructs[k] = domain.Run{
+			s.Commands[k] = domain.Command{
 				Command:         v,
 				CommitOnSuccess: false,
 			}
