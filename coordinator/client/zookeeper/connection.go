@@ -213,7 +213,7 @@ func toClientEvent(zkEvent <-chan zklib.Event) <-chan client.Event {
 	return echan
 }
 
-// ChildrenW returns the children of the node at the give path and a channel of
+// ChildrenW returns the children of the node at the given path and a channel of
 // events that will yield the next event at that node.
 func (c *Connection) ChildrenW(path string) (children []string, event <-chan client.Event, err error) {
 	if c.conn == nil {
@@ -226,7 +226,7 @@ func (c *Connection) ChildrenW(path string) (children []string, event <-chan cli
 	return children, toClientEvent(zkEvent), xlateError(err)
 }
 
-// GetW gets the node at the given path and return a channel to watch for events on that node.
+// GetW gets the node at the given path and returns a channel to watch for events on that node.
 func (c *Connection) GetW(path string, node client.Node) (event <-chan client.Event, err error) {
 	if c.conn == nil {
 		return nil, client.ErrConnectionClosed
