@@ -239,6 +239,7 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 	}
 
 	// wait until all the service instances have stopped
+loop:
 	for {
 		nodes, event, err := conn.ChildrenW(hostpath(hostID))
 		if err != nil {
@@ -246,12 +247,14 @@ func RemoveHost(cancel <-chan interface{}, conn client.Connection, hostID string
 		} else if len(nodes) == 0 {
 			break
 		}
+		glog.V(2).Infof("%d services still running on host %s", len(nodes), hostID)
 
 		select {
 		case <-event:
 			// pass
 		case <-cancel:
-			return ErrShutdown
+			glog.Warningf("Giving up on waiting for services on host %s to stop", hostID)
+			break loop
 		}
 	}
 
