@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path"
 	"path/filepath"
 
@@ -194,6 +195,10 @@ func InitDriver(name DriverType, root string, args []string) error {
 				glog.Errorf("Unable to initialize %s driver. Path %s has an existing %s volume driver.", name, root, t)
 				return ErrDriverAlreadyInit
 			}
+		}
+		// Create the directory
+		if err := os.MkdirAll(root, 0755); err != nil {
+			return err
 		}
 		// Create the driver instance
 		driver, err := init(root, args)
