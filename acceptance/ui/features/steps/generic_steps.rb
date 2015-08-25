@@ -225,15 +225,17 @@ def closeDialog()
 end
 
 def sortColumn(category, sortOrder)
-    categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
     if sortOrder == "ascending"
         order = 'header  sortable sort-asc'
     else
         order = 'header  sortable sort-desc'
     end
+
     # click until column header shows ascending/descending
+    categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
     while categoryLink[:class] != order do
         categoryLink.click()
+        categoryLink = page.find("[class^='header  sortable']", :text => /\A#{category}\z/)
     end
 end
 
