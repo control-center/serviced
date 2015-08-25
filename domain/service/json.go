@@ -34,8 +34,8 @@ func (s *Service) UnmarshalJSON(b []byte) error {
 		s.Runs = nil
 		return nil
 	}
-	s.RunStructs = make(map[string]domain.Run)
 	if len(s.Runs) > 0 {
+		s.RunStructs = make(map[string]domain.Run)
 		for k, v := range s.Runs {
 			s.RunStructs[k] = domain.Run{
 				Command:         v,
