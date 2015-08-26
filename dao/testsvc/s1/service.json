@@ -29,6 +29,20 @@
             "path": "/tmp/foo",
             "type": "foo"
           }],
+          "Commands": {
+            "commands-exit0": {
+              "Command": "date",
+              "CommitOnSuccess": true
+            },
+            "commands-exit1":  {
+              "Command": "date; exit 42",
+              "CommitOnSuccess": true
+            },
+            "commands-sleepy60":  {
+              "Command": "sleep 60",
+              "CommitOnSuccess": true
+            }
+          },
           "Snapshot": {
             "Pause": "echo pause",
             "Resume": "echo resume"
