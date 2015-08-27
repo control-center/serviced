@@ -17,7 +17,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"regexp"
 	"sync"
 	"syscall"
@@ -683,19 +682,15 @@ func lookupImage(repotag string) (*Image, error) {
 }
 
 func PullImage(repotag string) error {
-	cmd := exec.Command("docker", "pull", repotag)
-
-	// Suppressing docker output (too chatty)
-	if err := cmd.Run(); err != nil {
-		glog.Errorf("Unable to pull image %s", repotag)
-		return ErrNoSuchImage
+	iid, err := commons.ParseImageID(repotag)
+	if err != nil {
+		return err
 	}
 
-	return nil
+	return pullImage(iid.BaseName(), iid.Registry(), iid.Tag)
 }
 
 func pullImage(repo, registry, tag string) error {
-
 	dc, err := getDockerClient()
 	if err != nil {
 		return err
@@ -725,8 +720,8 @@ func PushImage(repotag string) error {
 	iid, err := commons.ParseImageID(repotag)
 	if err != nil {
 		return err
-
 	}
+
 	return pushImage(iid.BaseName(), iid.Registry(), iid.Tag)
 }
 
