@@ -201,7 +201,7 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 	if err != nil {
 		return err
 	}
-	*hosts, err = zkhost.GetActiveHosts(conn, poolID)
+	*hosts, err = zkhost.GetActiveHosts(conn)
 	return err
 }
 

@@ -197,7 +197,7 @@ func InitDriver(name DriverType, root string, args []string) error {
 			}
 		}
 		// Create the directory
-		if err := os.MkdirAll(root, 0755); err != nil {
+		if err := os.MkdirAll(root, 0755); err != nil && !os.IsExist(err) {
 			return err
 		}
 		// Create the driver instance
