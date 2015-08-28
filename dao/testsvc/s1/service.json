@@ -30,12 +30,20 @@
             "type": "foo"
           }],
           "Commands": {
+            "commands-exit0-nc": {
+              "Command": "date",
+              "CommitOnSuccess": false
+            },
+            "commands-exit1-nc":  {
+              "Command": "date; exit 1",
+              "CommitOnSuccess": false
+            },
             "commands-exit0": {
               "Command": "date",
               "CommitOnSuccess": true
             },
             "commands-exit1":  {
-              "Command": "date; exit 42",
+              "Command": "date; exit 1",
               "CommitOnSuccess": true
             },
             "commands-sleepy60":  {
