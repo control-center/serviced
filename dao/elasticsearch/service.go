@@ -103,10 +103,19 @@ func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]servic
 
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
+	var tenantID string
+	if err := this.GetTenantId(id, &tenantID); err != nil {
+		glog.Errorf("Could not find tenant for service %s: %s", id, err)
+		return err
+	}
 	if err := this.facade.RemoveService(datastore.Get(), id); err != nil {
 		return err
-	} else if err := this.DeleteSnapshots(id, unused); err != nil {
-		return err
+	}
+	if tenantID == id {
+		// We're deleting the top-level service, so there may be snapshots
+		if err := this.DeleteSnapshots(id, unused); err != nil {
+			return err
+		}
 	}
 	return nil
 }
