@@ -219,19 +219,37 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 
 // getServiceStates returns all the valid service states on a service
 func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []string) ([]dao.RunningService, error) {
+	// figure out which hosts are still available
+	hosts, err := GetActiveHosts(l.conn)
+	if err != nil {
+		return nil, err
+	}
+	hostmap := make(map[string]struct{})
+	for _, host := range hosts {
+		hostmap[host] = struct{}{}
+	}
+
 	var rss []dao.RunningService
 	for _, stateID := range stateIDs {
+		// get the service state
 		var state servicestate.ServiceState
 		if err := l.conn.Get(servicepath(svc.ID, stateID), &ServiceStateNode{ServiceState: &state}); err != nil {
 			if err != client.ErrNoNode {
 				glog.Errorf("Could not look up service instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
 				return nil, err
 			}
-		} else if exists, err := l.conn.Exists(hostpath(state.HostID, state.ID)); err != nil && err != client.ErrNoNode {
-			glog.Errorf("Could not look up host instance %s on host %s for service %s: %s", state.ID, state.HostID, state.ServiceID, err)
-			return nil, err
-		} else if !exists {
-			glog.Warningf("Service instance %s not found on host %s, removing", state.ID, state.HostID)
+		}
+		// is the host currently active?
+		var isActive bool
+		if _, isActive = hostmap[state.HostID]; isActive {
+			if isActive, err = l.conn.Exists(hostpath(state.HostID, state.ID)); err != nil && err != client.ErrNoNode {
+				glog.Errorf("Could not look up host instance %s on host %s for service %s: %s", state.ID, state.HostID, state.ServiceID, err)
+				return nil, err
+			}
+		}
+		if !isActive {
+			// if the host is not active, remove the node
+			glog.Infof("Service instance %s of service %s (%s) running on host %s (%s) is not active, rescheduling", state.ID, svc.Name, svc.ID, state.HostIP, state.HostID)
 			if err := removeInstance(l.conn, state.ServiceID, state.HostID, state.ID); err != nil {
 				glog.Errorf("Could not delete service instance %s for service %s: %s", state.ID, state.ServiceID, err)
 				return nil, err

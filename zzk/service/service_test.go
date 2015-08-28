@@ -41,6 +41,8 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 	conn, err := zzk.GetLocalConnection("/TestServiceListener_NoHostState")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 
 	shutdown := make(chan interface{})
 	done := make(chan interface{})
@@ -108,6 +110,8 @@ func (t *ZZKTest) TestServiceListener_Listen(c *C) {
 	err = conn.CreateDir(zkService)
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 
 	c.Log("Start and stop listener with no services")
 	shutdown := make(chan interface{})
@@ -172,6 +176,8 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	conn, err := zzk.GetLocalConnection("/TestServiceListener_Spawn")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 
 	// Add 1 service
 	svc := service.Service{
@@ -298,6 +304,8 @@ func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
 	conn, err := zzk.GetLocalConnection("/base_sync_restartAllOnInstanceChanged")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 	svc := service.Service{
 		ID:            "test-service-1",
 		Endpoints:     make([]service.ServiceEndpoint, 1),
@@ -331,6 +339,8 @@ func (t *ZZKTest) TestServiceListener_sync(c *C) {
 	conn, err := zzk.GetLocalConnection("/base_sync")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 	svc := service.Service{
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
@@ -442,6 +452,8 @@ func (t *ZZKTest) TestServiceListener_start(c *C) {
 	conn, err := zzk.GetLocalConnection("/base")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 
 	// Add 1 instance for 1 host
 	svc := service.Service{
@@ -487,6 +499,8 @@ func (t *ZZKTest) TestServiceListener_pause(c *C) {
 	conn, err := zzk.GetLocalConnection("/base")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 
 	svc := service.Service{
 		ID:        "test-service-1",
@@ -518,6 +532,8 @@ func (t *ZZKTest) TestServiceListener_stop(c *C) {
 	conn, err := zzk.GetLocalConnection("/base")
 	c.Assert(err, IsNil)
 	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	_, err = registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
 
 	svc := service.Service{
 		ID:        "test-service-1",

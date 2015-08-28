@@ -380,7 +380,7 @@ func (v *DeviceMapperVolume) Tenant() string {
 // WriteMetadata writes the metadata info for a snapshot
 func (v *DeviceMapperVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
 	filePath := filepath.Join(v.driver.MetadataDir(), v.rawSnapshotLabel(label), name)
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil && !os.IsExist(err) {
 		glog.Errorf("Could not create path for file %s: %s", name, err)
 		return nil, err
 	}
@@ -449,7 +449,7 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 	}
 	// Create the metadata path
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
-	if err := os.MkdirAll(mdpath, 0755); err != nil {
+	if err := os.MkdirAll(mdpath, 0755); err != nil && !os.IsExist(err) {
 		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
 		return err
 	}

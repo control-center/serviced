@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/control-center/serviced/volume"
 )
@@ -112,8 +113,7 @@ func (d *NFSDriver) Exists(volumeName string) bool {
 
 // Cleanup implements volume.Driver.Cleanup
 func (d *NFSDriver) Cleanup() error {
-	// TODO: Release the NFS root
-	return nil
+	return syscall.Unmount(d.root, syscall.MNT_DETACH)
 }
 
 // Create implements volume.Driver.Create

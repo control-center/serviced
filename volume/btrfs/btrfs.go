@@ -272,7 +272,7 @@ func (v *BtrfsVolume) Tenant() string {
 // volume.
 func (v *BtrfsVolume) WriteMetadata(label, name string) (io.WriteCloser, error) {
 	filePath := filepath.Join(v.Path(), name)
-	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil && !os.IsExist(err) {
 		glog.Errorf("Could not create path for file %s: %s", name, err)
 		return nil, err
 	}

@@ -93,7 +93,7 @@ func (d *RsyncDriver) Create(volumeName string) (volume.Volume, error) {
 	if d.Exists(volumeName) {
 		return nil, volume.ErrVolumeExists
 	}
-	if err := os.MkdirAll(filepath.Join(d.MetadataDir(), volumeName), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(d.MetadataDir(), volumeName), 0755); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 	volumePath := filepath.Join(d.root, volumeName)
@@ -383,7 +383,7 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 	}
 	argv := []string{"-a", v.Path() + "/", dest + "/"}
 	glog.Infof("Performing snapshot rsync command: %s %s", exe, argv)
-	if err := os.MkdirAll(filepath.Join(v.driver.MetadataDir(), label), 0755); err != nil {
+	if err := os.MkdirAll(filepath.Join(v.driver.MetadataDir(), label), 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
 	var output []byte

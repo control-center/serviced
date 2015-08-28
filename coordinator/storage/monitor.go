@@ -72,7 +72,7 @@ func UpdateRemoteMonitorFile(localPath string, writeInterval time.Duration, ipAd
 		_, err := os.Stat(monitorPath)
 		if err != nil {
 			glog.V(2).Infof("unable to stat DFS monitor path: %s %s", monitorPath, err)
-			if err := os.MkdirAll(monitorPath, 0755); err != nil {
+			if err := os.MkdirAll(monitorPath, 0755); err != nil && !os.IsExist(err) {
 				glog.Warningf("unable to create DFS volume monitor path %s: %s", monitorPath, err)
 			} else {
 				glog.Infof("created DFS volume monitor path %s", monitorPath)
