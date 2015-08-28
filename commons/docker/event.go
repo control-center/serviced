@@ -241,7 +241,9 @@ func listenAndDispatch(c *Client, em *clientEventMonitor, r *io.PipeReader, w *i
 	c.dc.AddEventListener(listener)
 	for {
 		evt := <-listener
-		em.dispatch(evt)
+		if evt != nil {
+			em.dispatch(evt)
+		}
 	}
 }
 
