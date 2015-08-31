@@ -85,7 +85,7 @@ type Service struct {
 	DisableImage      bool
 	LogConfigs        []servicedefinition.LogConfig
 	Snapshot          servicedefinition.SnapshotCommands
-	Runs              map[string]string
+	Runs              map[string]string // FIXME: This field is deprecated. Remove when possible.
 	Commands          map[string]domain.Command
 	RAMCommitment     utils.EngNotation
 	CPUCommitment     uint64

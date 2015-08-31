@@ -39,7 +39,7 @@ func (s *Service) UnmarshalJSON(b []byte) error {
 		for k, v := range s.Runs {
 			s.Commands[k] = domain.Command{
 				Command:         v,
-				CommitOnSuccess: false,
+				CommitOnSuccess: true,
 			}
 		}
 		s.Runs = nil

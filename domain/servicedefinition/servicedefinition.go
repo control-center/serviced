@@ -47,11 +47,11 @@ type ServiceDefinition struct {
 	LogFilters        map[string]string      // map of log filter name to log filter definitions
 	Volumes           []Volume               // list of volumes to bind into containers
 	LogConfigs        []LogConfig
-	Snapshot          SnapshotCommands  // Snapshot quiesce info for the service: Pause/Resume bash commands
-	RAMCommitment     utils.EngNotation // expected RAM commitment to use for scheduling
-	CPUCommitment     uint64            // expected CPU commitment (#cores) to use for scheduling
-	Runs              map[string]string // Map of commands that can be executed with 'serviced run ...'
-	Commands          map[string]domain.Command
+	Snapshot          SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
+	RAMCommitment     utils.EngNotation             // expected RAM commitment to use for scheduling
+	CPUCommitment     uint64                        // expected CPU commitment (#cores) to use for scheduling
+	Runs              map[string]string             // FIXME: This field is deprecated. Remove when possible.
+	Commands          map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
 	HealthChecks      map[string]domain.HealthCheck // HealthChecks for a service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
@@ -184,7 +184,7 @@ func (s *ServiceDefinition) UnmarshalJSON(b []byte) error {
 		for k, v := range s.Runs {
 			s.Commands[k] = domain.Command{
 				Command:         v,
-				CommitOnSuccess: false,
+				CommitOnSuccess: true,
 			}
 		}
 		s.Runs = nil
