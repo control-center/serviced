@@ -162,6 +162,28 @@ func (l *HostRegistryListener) unregister(hostID string) {
 	return
 }
 
+// registerHost alerts the resource manager that a host is available for
+// scheduling.  Returns the path to the node.
+func registerHost(conn client.Connection, host *host.Host) (string, error) {
+	node := &HostNode{}
+
+	// CreateEphemeral returns the full path from root.
+	// e.g. /pools/default/registry/hosts/[node]
+	hostpath, err := conn.CreateEphemeral(hostregpath(host.ID), node)
+	if err != nil {
+		glog.Errorf("Could not register host %s (%s): %s", host.ID, host.IPAddr, err)
+		return "", err
+	}
+	relpath := hostregpath(path.Base(hostpath))
+	node.Host = host
+	if err := conn.Set(relpath, node); err != nil {
+		defer conn.Delete(relpath)
+		glog.Errorf("Could not register host %s (%s): %s", host.ID, host.IPAddr, err)
+		return "", err
+	}
+	return relpath, nil
+}
+
 // GetHosts returns all of the registered hosts
 func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	if err := zzk.Ready(l.shutdown, l.conn, l.GetPath()); err != nil {
