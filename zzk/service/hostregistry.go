@@ -201,7 +201,7 @@ func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
 	}
 }
 
-func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
+func GetActiveHosts(conn client.Connection) ([]string, error) {
 	ehosts, err := conn.Children(hostregpath())
 	if err != nil {
 		return nil, err
@@ -212,7 +212,16 @@ func GetActiveHosts(conn client.Connection, poolID string) ([]string, error) {
 		if err := conn.Get(hostregpath(ehostID), &HostNode{Host: &ehost}); err != nil {
 			return nil, err
 		}
-		hostIDs = append(hostIDs, ehost.ID)
+		exists, err := conn.Exists(hostpath(ehost.ID))
+		if err != nil && err != client.ErrNoNode {
+			return nil, err
+		}
+		if !exists {
+			// Note when hosts are registered in the wrong pool
+			glog.Warningf("Host %s (%s) is registered, but not available.  Please restart this host.", ehost.ID, ehost.Name)
+		} else {
+			hostIDs = append(hostIDs, ehost.ID)
+		}
 	}
 	return hostIDs, nil
 }
