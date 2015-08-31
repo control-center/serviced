@@ -171,6 +171,8 @@
         function getBackupFiles(){
             resourcesFactory.getBackupFiles().success(function(data){
                 $scope.backupFiles = data;
+
+                $scope.$emit("ready");
             });
         }
 

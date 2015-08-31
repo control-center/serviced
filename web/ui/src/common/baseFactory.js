@@ -20,14 +20,15 @@
     // TODO - make update frequency configurable
     var UPDATE_FREQUENCY = 3000;
 
-    var $q, $interval;
+    var $q, $interval, $rootScope;
 
     angular.module('baseFactory', []).
-    factory("baseFactory", ["$q", "$interval",
-    function(_$q, _$interval){
+    factory("baseFactory", ["$q", "$interval", "$rootScope",
+    function(_$q, _$interval, _$rootScope){
 
         $q = _$q;
         $interval = _$interval;
+        $rootScope = _$rootScope;
 
         return BaseFactory;
     }]);
@@ -96,6 +97,12 @@
                     console.error("Unable to update factory", data);
                 })
                 .finally(() => {
+                    // notify the first request is complete
+                    if(!this.lastUpdate){
+                        console.log("ready");
+                        $rootScope.$emit("ready");
+                    }
+
                     this.lastUpdate = new Date().getTime();
                 });
             return deferred.promise;

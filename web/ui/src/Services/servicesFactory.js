@@ -87,6 +87,9 @@
                         // HACK - services should update themselves?
                         this.updateHealth();
 
+                        // notify the first services request is done
+                        $rootScope.$emit("ready");
+
                         deferred.resolve();
                     })
                     .finally(() => {

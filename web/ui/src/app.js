@@ -167,4 +167,19 @@ controlplane.
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
         });
+
+        var loaderEl = $(".loading"),
+            isCleared = false;
+
+        $rootScope.$on("ready", function(){
+            setTimeout(function(){
+                if(!isCleared){
+                    loaderEl.addClass("hide_it").one("transitionend", function(){
+                        loaderEl.remove();
+                        isCleared = true;
+                    });
+                }
+            }, 1000);
+        });
+
     });

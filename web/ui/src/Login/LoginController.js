@@ -13,6 +13,8 @@
 
         enableLoginButton();
 
+        $scope.$emit("ready");
+
         // Makes XHR POST with contents of login form
         $scope.login = function() {
             disableLoginButton();
