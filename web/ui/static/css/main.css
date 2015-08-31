@@ -1842,6 +1842,7 @@ input[type=file] {
     background-color: #8EA9D1;
     text-align: center;
     opacity: 1;
+    font-family: Verdana, Arial, Helvetica, sans-serif;
 
     transition: opacity 0.2s ease-in;
 }

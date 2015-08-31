@@ -99,7 +99,6 @@
                 .finally(() => {
                     // notify the first request is complete
                     if(!this.lastUpdate){
-                        console.log("ready");
                         $rootScope.$emit("ready");
                     }
 
