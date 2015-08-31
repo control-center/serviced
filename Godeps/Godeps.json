@@ -202,7 +202,7 @@
 		},
 		{
 			"ImportPath": "github.com/fsouza/go-dockerclient",
-			"Rev": "69eb698fe078e24f52c14cc2f7ba6027ddebfd31"
+			"Rev": "c0187cbf588c59709e8881fd2bba082b02231356"
 		},
 		{
 			"ImportPath": "github.com/googollee/go-socket.io",
