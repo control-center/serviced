@@ -879,60 +879,60 @@ input.startup {
 
 /* dagre-d3 related below  */
 
-svg {
+svg.service_map {
   border: 0px;
   height: 600px;
 }
 
-svg.tall {
+svg.service_map.tall {
   height: 1200px;
   width: 1140px;
 }
 
-rect {
+.service_map rect {
   fill: #fff;
 }
 
-.node rect {
+.service_map .node rect {
   stroke-width: 2px;
   stroke: #333;
   fill: none;
 }
 
-.edge rect {
+.service_map .edge rect {
   fill: #fff;
 }
 
-.edge path {
+.service_map .edge path {
   fill: none;
   stroke: #333;
   stroke-width: 1.5px;
 }
 
-.node.host rect {
+.service_map .node.host rect {
     fill: #B89300;
     stroke: black;
 }
-.node.host text {
+.service_map .node.host text {
     fill: white;
 }
 
-.node.service rect {
+.service_map .node.service rect {
     fill: #29A3CC;
     stroke: black;
 }
 
-.node.service.notrunning rect {
+.service_map .node.service.notrunning rect {
     fill: #AAAAAA;
     stroke: black;
 }
 
-.node.service.meta rect {
+.service_map .node.service.meta rect {
     fill: #19627A;
     stroke: black;
 }
 
-.node.service text {
+.service_map .node.service text {
     fill: white;
 }
 
@@ -1826,4 +1826,37 @@ input[type=file] {
 
 .overcomText.bad {
     color: #9C1200;
+}
+
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1001;
+    width: 100%;
+    height: 100%;
+    background-color: #8EA9D1;
+    text-align: center;
+    opacity: 1;
+    font-family: Verdana, Arial, Helvetica, sans-serif;
+
+    transition: opacity 0.2s ease-in;
+}
+.loading .animated_logo {
+    transition: transform 0.5s cubic-bezier(.42,-0.47,.38,1.33);
+}
+.loading.hide_it {
+    opacity: 0;
+}
+.loading.hide_it .animated_logo {
+    transform: scale(0.2, 0.2);
+}
+.loading .loading_body {
+    margin-top: -5px;
+    font-weight: bold;
+    font-size: 1.4em;
 }

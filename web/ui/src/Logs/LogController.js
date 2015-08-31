@@ -10,7 +10,9 @@
         $scope.breadcrumbs = [
             { label: 'breadcrumb_logs', itemClass: 'active' }
         ];
-        
+
+        $scope.$emit("ready");
+
         // force log iframe to fill screen
         setInterval(function() {
             var logsframe = document.getElementById("logsframe");
