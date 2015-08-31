@@ -85,7 +85,8 @@ type Service struct {
 	DisableImage      bool
 	LogConfigs        []servicedefinition.LogConfig
 	Snapshot          servicedefinition.SnapshotCommands
-	Runs              map[string]string
+	Runs              map[string]string // FIXME: This field is deprecated. Remove when possible.
+	Commands          map[string]domain.Command
 	RAMCommitment     utils.EngNotation
 	CPUCommitment     uint64
 	Actions           map[string]string
@@ -203,6 +204,7 @@ func BuildService(sd servicedefinition.ServiceDefinition, parentServiceID string
 	svc.Snapshot = sd.Snapshot
 	svc.RAMCommitment = sd.RAMCommitment
 	svc.Runs = sd.Runs
+	svc.Commands = sd.Commands
 	svc.Actions = sd.Actions
 	svc.HealthChecks = sd.HealthChecks
 	svc.Prereqs = sd.Prereqs

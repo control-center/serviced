@@ -50,7 +50,8 @@ type ServiceDefinition struct {
 	Snapshot          SnapshotCommands              // Snapshot quiesce info for the service: Pause/Resume bash commands
 	RAMCommitment     utils.EngNotation             // expected RAM commitment to use for scheduling
 	CPUCommitment     uint64                        // expected CPU commitment (#cores) to use for scheduling
-	Runs              map[string]string             // Map of commands that can be executed with 'serviced run ...'
+	Runs              map[string]string             // FIXME: This field is deprecated. Remove when possible.
+	Commands          map[string]domain.Command     // Map of commands that can be executed with 'serviced run ...'
 	Actions           map[string]string             // Map of commands that can be executed with 'serviced action ...'
 	HealthChecks      map[string]domain.HealthCheck // HealthChecks for a service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
@@ -165,6 +166,32 @@ func (p *HostPolicy) UnmarshalText(b []byte) error {
 	return nil
 }
 
+type serviceDefinition ServiceDefinition
+
+func (s *ServiceDefinition) UnmarshalJSON(b []byte) error {
+	sd := serviceDefinition{}
+	if err := json.Unmarshal(b, &sd); err == nil {
+		*s = ServiceDefinition(sd)
+	} else {
+		return err
+	}
+	if len(s.Commands) > 0 {
+		s.Runs = nil
+		return nil
+	}
+	if len(s.Runs) > 0 {
+		s.Commands = make(map[string]domain.Command)
+		for k, v := range s.Runs {
+			s.Commands[k] = domain.Command{
+				Command:         v,
+				CommitOnSuccess: true,
+			}
+		}
+		s.Runs = nil
+	}
+	return nil
+}
+
 // private for dealing with unmarshal recursion
 type endpointDefinition EndpointDefinition
 
@@ -176,7 +203,7 @@ func (e *EndpointDefinition) UnmarshalJSON(b []byte) error {
 	} else {
 		return err
 	}
-     	glog.V(4).Infof("EndpointDefintion UnmarshalJSON %#v", e)
+	glog.V(4).Infof("EndpointDefintion UnmarshalJSON %#v", e)
 	if len(e.VHostList) > 0 {
 		//VHostList is defined, keep it and unset deprecated field if set
 		e.VHosts = nil

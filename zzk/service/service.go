@@ -456,8 +456,7 @@ func UpdateService(conn client.Connection, svc service.Service) error {
 	var node ServiceNode
 	spath := servicepath(svc.ID)
 
-	// For some reason you can't just create the node with the service data
-	// already set.  Trust me, I tried.  It was very aggravating.
+	node.Service = &service.Service{}
 	if err := conn.Get(spath, &node); err != nil {
 		if err == client.ErrNoNode {
 			// Set up the service alert
@@ -535,10 +534,11 @@ func WaitService(shutdown <-chan interface{}, conn client.Connection, serviceID 
 
 			// Get the service node and verify that the number of running instances meets or exceeds the number
 			// of instances required by the service
-			var service ServiceNode
-			if err := conn.Get(servicepath(serviceID), &service); err != nil {
+			var node ServiceNode
+			node.Service = &service.Service{}
+			if err := conn.Get(servicepath(serviceID), &node); err != nil {
 				return err
-			} else if count >= service.Instances {
+			} else if count >= node.Instances {
 				return nil
 			}
 		case service.SVCPause:

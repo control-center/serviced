@@ -68,8 +68,9 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 
 // LoadRunningService returns a RunningService object given a coordinator connection
 func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.RunningService, error) {
-	var service ServiceNode
-	if err := conn.Get(servicepath(serviceID), &service); err != nil {
+	var node ServiceNode
+	node.Service = &service.Service{}
+	if err := conn.Get(servicepath(serviceID), &node); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +79,7 @@ func LoadRunningService(conn client.Connection, serviceID, ssID string) (*dao.Ru
 		return nil, err
 	}
 
-	return NewRunningService(service.Service, state.ServiceState)
+	return NewRunningService(node.Service, state.ServiceState)
 }
 
 // LoadRunningServicesByHost returns a slice of RunningServices given a host(s)

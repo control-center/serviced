@@ -196,6 +196,39 @@ test_service_run() {
     set +x
 }
 
+test_service_run_command() {
+    set -x
+    local rc=""
+    ${SERVICED} service run s1 commands-exit0; rc="$?"
+    [ "$rc" -eq 0 ] || return "$rc"
+    ${SERVICED} service run s1 commands-exit1; rc="$?"
+    [ "$rc" -eq 42 ] || return "255"
+    ${SERVICED} service run s1 commands-exit0-nc; rc="$?"
+    [ "$rc" -eq 0 ] || return "$rc"
+    ${SERVICED} service run s1 commands-exit1-nc; rc="$?"
+    [ "$rc" -eq 42 ] || return "255"
+    # make sure kills to 'commands' are working OK
+    for signal in INT TERM; do
+        local sleepyPid=""
+        ${SERVICED} service run s1 commands-sleepy60 &
+        sleepyPid="$!"
+        sleep 10
+        kill -"$signal" "$sleepyPid"
+        sleep 10
+        kill -0 "$sleepyPid" &>/dev/null && return 1 # make sure job is gone
+    done
+    for signal in INT TERM; do
+        local sleepyPid=""
+        ${SERVICED} service run s1 commands-sleepy60-nc &
+        sleepyPid="$!"
+        sleep 10
+        kill -"$signal" "$sleepyPid"
+        sleep 10
+        kill -0 "$sleepyPid" &>/dev/null && return 1 # make sure job is gone
+    done
+    set +x
+}
+
 retry() {
     TIMEOUT=$1
     shift
