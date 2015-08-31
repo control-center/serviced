@@ -217,9 +217,8 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 	}
 }
 
-// getServiceStates returns all the valid service states on a service
-func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []string) ([]dao.RunningService, error) {
-	// figure out which hosts are still available
+// getActiveHosts returns a map of all the available hosts
+func (l *ServiceListener) getActiveHosts() (map[string]struct{}, error) {
 	hosts, err := GetActiveHosts(l.conn)
 	if err != nil {
 		return nil, err
@@ -228,7 +227,16 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 	for _, host := range hosts {
 		hostmap[host] = struct{}{}
 	}
+	return hostmap, nil
+}
 
+// getServiceStates returns all the valid service states on a service
+func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []string) ([]dao.RunningService, error) {
+	// figure out which hosts are still available
+	hosts, err := l.getActiveHosts()
+	if err != nil {
+		return nil, err
+	}
 	var rss []dao.RunningService
 	for _, stateID := range stateIDs {
 		// get the service state
@@ -238,10 +246,11 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 				glog.Errorf("Could not look up service instance %s for service %s (%s): %s", stateID, svc.Name, svc.ID, err)
 				return nil, err
 			}
+			continue
 		}
 		// is the host currently active?
 		var isActive bool
-		if _, isActive = hostmap[state.HostID]; isActive {
+		if _, isActive = hosts[state.HostID]; isActive {
 			if isActive, err = l.conn.Exists(hostpath(state.HostID, state.ID)); err != nil && err != client.ErrNoNode {
 				glog.Errorf("Could not look up host instance %s on host %s for service %s: %s", state.ID, state.HostID, state.ServiceID, err)
 				return nil, err
@@ -266,6 +275,7 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 	return rss, nil
 }
 
+// sync synchronizes the number of running instances for this service
 func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) bool {
 	// sort running services by instance ID, so that you stop instances by the
 	// lowest instance ID first and start instances with the greatest instance
@@ -339,6 +349,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) b
 	return true
 }
 
+// start schedules the given service instances with the provided instance ID.
 func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 	var i, id int
 
@@ -394,6 +405,7 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 	return i + 1
 }
 
+// stop unschedules the provided service instances
 func (l *ServiceListener) stop(rss []dao.RunningService) {
 	for _, state := range rss {
 		if err := StopServiceInstance(l.conn, state.HostID, state.ID); err != nil {
@@ -405,6 +417,7 @@ func (l *ServiceListener) stop(rss []dao.RunningService) {
 	}
 }
 
+// pause updates the state of the given service instance to paused
 func (l *ServiceListener) pause(rss []dao.RunningService) {
 	for _, state := range rss {
 		// pauseInstance updates the service state ONLY if it has a RUN DesiredState
