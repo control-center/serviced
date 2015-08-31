@@ -295,6 +295,36 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 	wg.Wait()
 }
 
+func (t *ZZKTest) TestServiceListener_getServiceStates(c *C) {
+	conn, err := zzk.GetLocalConnection("/base_getServiceStates")
+	c.Assert(err, IsNil)
+	handler := &TestServiceHandler{Host: &host.Host{ID: "test-host-1", IPAddr: "test-host-1-ip"}}
+	eHostID, err := registerHost(conn, handler.Host)
+	c.Assert(err, IsNil)
+	svc := service.Service{
+		ID:        "test-service-1",
+		Endpoints: make([]service.ServiceEndpoint, 1),
+	}
+	err = UpdateService(conn, svc)
+	c.Assert(err, IsNil)
+	listener := NewServiceListener(handler)
+	listener.SetConnection(conn)
+
+	c.Log("Starting 1 instance")
+	rss, err := LoadRunningServicesByService(conn, svc.ID)
+	svc.Instances = 1
+	listener.sync(&svc, rss)
+	stateIDs, err := conn.Children(hostpath(handler.Host.ID))
+	c.Assert(err, IsNil)
+	c.Assert(stateIDs, HasLen, svc.Instances)
+	// unregister the host
+	err = conn.Delete(eHostID)
+	c.Assert(err, IsNil)
+	rss, err = listener.getServiceStates(&svc, stateIDs)
+	c.Assert(err, IsNil)
+	c.Assert(rss, HasLen, 0)
+}
+
 func (t *ZZKTest) TestServiceListener_sync_restartAllOnInstanceChanged(c *C) {
 	conn, err := zzk.GetLocalConnection("/base_sync_restartAllOnInstanceChanged")
 	c.Assert(err, IsNil)
