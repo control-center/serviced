@@ -305,7 +305,7 @@ func (t *ZZKTest) TestServiceListener_getServiceStates(c *C) {
 		ID:        "test-service-1",
 		Endpoints: make([]service.ServiceEndpoint, 1),
 	}
-	err = UpdateService(conn, svc)
+	err = UpdateService(conn, &svc)
 	c.Assert(err, IsNil)
 	listener := NewServiceListener(handler)
 	listener.SetConnection(conn)
