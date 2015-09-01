@@ -479,15 +479,11 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 
 func isNFSMountStale(mountpoint string) bool {
 	if err := exec.Command("/bin/bash", "-c", fmt.Sprintf("read -t1 < <(stat -t '%s' 2>&-)", mountpoint)).Run(); err != nil {
-		if exit, ok := err.(*exec.ExitError); ok {
-			if status, ok := exit.Sys().(syscall.WaitStatus); ok {
-				exitcode := status.ExitStatus()
-				if exitcode == 142 {
-					// EREMDEV; wait for NFS to come back
-					glog.Infof("Distributed storage temporarily unavailable. Waiting for it to return.")
-					return false
-				}
-			}
+		if status, iscode := utils.GetExitStatus(err); iscode && status == 142 {
+			// EREMDEV; wait for NFS to come back
+			glog.Infof("Distributed storage temporarily unavailable. Waiting for it to return.")
+			return false
+
 		}
 		glog.Errorf("Mount point %s check had error (%s); considering stale", mountpoint, err)
 		return true
@@ -509,18 +505,20 @@ func (c *Controller) storageHealthCheck() (chan struct{}, error) {
 			nfsMountPoints = append(nfsMountPoints, minfo.Mountpoint)
 		}
 	}
-	// Start polling
-	go func() {
-		for {
-			for _, mp := range nfsMountPoints {
-				if isNFSMountStale(mp) {
-					close(gone)
-					return
+	if len(nfsMountPoints) > 0 {
+		// Start polling
+		go func() {
+			for {
+				for _, mp := range nfsMountPoints {
+					if isNFSMountStale(mp) {
+						close(gone)
+						return
+					}
 				}
+				<-time.After(5 * time.Second)
 			}
-			<-time.After(5 * time.Second)
-		}
-	}()
+		}()
+	}
 	return gone, nil
 }
 
