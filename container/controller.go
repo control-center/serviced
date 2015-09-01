@@ -478,26 +478,21 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 }
 
 func isNFSMountStale(mountpoint string) bool {
-	var stat syscall.Stat_t
-	errchan := make(chan error, 1)
-	go func() {
-		if err := syscall.Stat(mountpoint, &stat); err != nil && err != syscall.Errno(142) {
-			errchan <- err
-		} else {
-			errchan <- nil
+	if err := exec.Command("/bin/bash", "-c", fmt.Sprintf("read -t1 < <(stat -t '%s' 2>&-)", mountpoint)).Run(); err != nil {
+		if exit, ok := err.(*exec.ExitError); ok {
+			if status, ok := exit.Sys().(syscall.WaitStatus); ok {
+				exitcode := status.ExitStatus()
+				if exitcode == 142 {
+					// EREMDEV; wait for NFS to come back
+					glog.Infof("Distributed storage temporarily unavailable. Waiting for it to return.")
+					return false
+				}
+			}
 		}
-	}()
-	select {
-	case err := <-errchan:
-		if err != nil {
-			glog.Errorf("Mount point %s check had error (%s); considering stale", mountpoint, err)
-			return true
-		}
-		return false
-	case <-time.After(time.Second):
-		glog.Errorf("Mount point %s timed out; considering stale", mountpoint)
+		glog.Errorf("Mount point %s check had error (%s); considering stale", mountpoint, err)
 		return true
 	}
+	return false
 }
 
 // storageHealthCheck returns a channel that will close when the distributed
@@ -684,7 +679,7 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("RPC Server has gone away, cleaning up")
 			shutdownService(service, syscall.SIGTERM)
 		case <-storageDead:
-			glog.Infof("Distributed storage has gone away, cleaning up")
+			glog.Infof("Distributed storage for service %s has gone away; shutting down", c.options.Service.ID)
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
