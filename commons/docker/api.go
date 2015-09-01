@@ -402,6 +402,18 @@ func (c *Container) Wait(timeout time.Duration) (int, error) {
 	}
 	errc := make(chan waitResult, 1)
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				var ok bool
+				err, ok = r.(error)
+				if !ok {
+					err = fmt.Errorf("%v", r)
+				}
+				glog.Warningf("recovered from panic: %s", err)
+				errc <- waitResult{-127, err}
+			}
+		}()
+
 		rc, err := dc.WaitContainer(c.ID)
 		errc <- waitResult{rc, err}
 	}()
