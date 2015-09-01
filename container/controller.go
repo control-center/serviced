@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/zenoss/glog"
 
 	"bufio"
@@ -473,7 +474,58 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 			}
 		}
 	}()
+	return gone, nil
+}
 
+func isNFSMountStale(mountpoint string) bool {
+	var stat syscall.Stat_t
+	errchan := make(chan error, 1)
+	go func() {
+		if err := syscall.Stat(mountpoint, &stat); err != nil && err != syscall.Errno(142) {
+			errchan <- err
+		} else {
+			errchan <- nil
+		}
+	}()
+	select {
+	case err := <-errchan:
+		if err != nil {
+			glog.Errorf("Mount point %s check had error (%s); considering stale", mountpoint, err)
+			return true
+		}
+		return false
+	case <-time.After(time.Second):
+		glog.Errorf("Mount point %s timed out; considering stale", mountpoint)
+		return true
+	}
+}
+
+// storageHealthCheck returns a channel that will close when the distributed
+// storage is no longer accessible (i.e., stale NFS mount)
+func (c *Controller) storageHealthCheck() (chan struct{}, error) {
+	gone := make(chan struct{})
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		return nil, err
+	}
+	nfsMountPoints := []string{}
+	for _, minfo := range mounts {
+		if strings.HasPrefix(minfo.Fstype, "nfs") {
+			nfsMountPoints = append(nfsMountPoints, minfo.Mountpoint)
+		}
+	}
+	// Start polling
+	go func() {
+		for {
+			for _, mp := range nfsMountPoints {
+				if isNFSMountStale(mp) {
+					close(gone)
+					return
+				}
+			}
+			<-time.After(5 * time.Second)
+		}
+	}()
 	return gone, nil
 }
 
@@ -540,6 +592,12 @@ func (c *Controller) Run() (err error) {
 	rpcDead, err := c.rpcHealthCheck()
 	if err != nil {
 		glog.Errorf("Could not setup RPC ping check: %s", err)
+		return err
+	}
+
+	storageDead, err := c.storageHealthCheck()
+	if err != nil {
+		glog.Errorf("Could not set up storage check: %s", err)
 		return err
 	}
 
@@ -624,6 +682,9 @@ func (c *Controller) Run() (err error) {
 			reregister = registerExportedEndpoints(c, rpcDead)
 		case <-rpcDead:
 			glog.Infof("RPC Server has gone away, cleaning up")
+			shutdownService(service, syscall.SIGTERM)
+		case <-storageDead:
+			glog.Infof("Distributed storage has gone away, cleaning up")
 			shutdownService(service, syscall.SIGTERM)
 		}
 	}
