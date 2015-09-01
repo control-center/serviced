@@ -6,6 +6,6 @@ class ServicesMap < SitePrism::Page
     set_url_matcher /servicesmap/
 
     section :navbar, NavBarSection, ".navbar-collapse"
-    
-    element :map, "svg[class='tall']"
+
+    element :map, "svg.service_map"
 end
