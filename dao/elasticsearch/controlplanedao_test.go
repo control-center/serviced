@@ -17,6 +17,7 @@ package elasticsearch
 
 import (
 	"fmt"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -24,6 +25,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/commons"
+	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
@@ -80,6 +82,11 @@ func (m MockStorageDriver) Restart() error {
 
 func (m MockStorageDriver) Stop() error {
 	return nil
+}
+
+func TestMain(m *testing.M) {
+	docker.StartKernel()
+	os.Exit(m.Run())
 }
 
 // This plumbs gocheck into testing
