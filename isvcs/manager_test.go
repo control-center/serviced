@@ -21,11 +21,19 @@
 package isvcs
 
 import (
+	"os"
+
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/utils"
 
 	"testing"
 	"time"
 )
+
+func TestMain(m *testing.M) {
+	docker.StartKernel()
+	os.Exit(m.Run())
+}
 
 func TestManager(t *testing.T) {
 	testManager := NewManager(utils.LocalDir("images"), "/tmp")

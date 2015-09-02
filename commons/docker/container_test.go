@@ -25,6 +25,12 @@ import (
 	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
+func TestMain(m *testing.M) {
+	StartKernel()
+	defer func() { done <- struct{}{} }()
+	os.Exit(m.Run())
+}
+
 func TestContainerCommit(t *testing.T) {
 	cd := &ContainerDefinition{
 		dockerclient.CreateContainerOptions{
