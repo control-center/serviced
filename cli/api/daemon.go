@@ -14,6 +14,7 @@
 package api
 
 import (
+	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -100,6 +101,10 @@ type daemon struct {
 	waitGroup        *sync.WaitGroup
 	rpcServer        *rpc.Server
 	networkDriver    storage.StorageDriver
+}
+
+func init() {
+	docker.StartKernel()
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
