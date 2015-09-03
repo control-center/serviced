@@ -45,13 +45,6 @@ type leader struct {
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, poolID string, snapshotTTL int) {
 
 	// creates a listener for the host registry
-	if err := zkservice.InitHostRegistry(conn); err != nil {
-		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
-		if err == zzk.ErrBadConn {
-			conn.Close()
-		}
-		return
-	}
 	hostRegistry := zkservice.NewHostRegistryListener()
 	leader := leader{conn, cpClient, hostRegistry, poolID}
 	glog.V(0).Info("Processing leader duties")
