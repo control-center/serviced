@@ -1829,11 +1829,15 @@ input[type=file] {
 }
 
 
-.loading {
+body.loading {
+    overflow: hidden
+}
+
+.loading_wrapper {
     display: flex;
     align-items: center;
     justify-content: center;
-    position: absolute;
+    position: fixed;
     top: 0;
     left: 0;
     z-index: 1001;
@@ -1846,16 +1850,16 @@ input[type=file] {
 
     transition: opacity 0.2s ease-in;
 }
-.loading .animated_logo {
+.loading_wrapper .animated_logo {
     transition: transform 0.5s cubic-bezier(.42,-0.47,.38,1.33);
 }
-.loading.hide_it {
+.loading_wrapper.hide_it {
     opacity: 0;
 }
-.loading.hide_it .animated_logo {
+.loading_wrapper.hide_it .animated_logo {
     transform: scale(0.2, 0.2);
 }
-.loading .loading_body {
+.loading_wrapper .loading_body {
     margin-top: -5px;
     font-weight: bold;
     font-size: 1.4em;
