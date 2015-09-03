@@ -168,7 +168,7 @@ controlplane.
             $window.scrollTo(0, 0);
         });
 
-        var loaderEl = $(".loading"),
+        var loaderEl = $(".loading_wrapper"),
             isCleared = false;
 
         $rootScope.$on("ready", function(){
@@ -176,6 +176,7 @@ controlplane.
                 if(!isCleared){
                     loaderEl.addClass("hide_it").one("transitionend", function(){
                         loaderEl.remove();
+                        $("body").removeClass("loading");
                         isCleared = true;
                     });
                 }
