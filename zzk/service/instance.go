@@ -191,7 +191,6 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 		defer rmInstanceLock(conn, stateID)
 		glog.V(2).Infof("Acquired lock for instance %s", stateID)
 	}
-	
 	// Remove the node on the service
 	spath := servicepath(serviceID, stateID)
 	if err := conn.Delete(spath); err != nil {
@@ -335,8 +334,32 @@ func UpdateServiceState(conn client.Connection, state *ss.ServiceState) error {
 
 // StopServiceInstance stops a host state instance
 func StopServiceInstance(conn client.Connection, hostID, stateID string) error {
-	return updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
-		glog.V(2).Infof("Stopping service instance via %s host %s", stateID, hostID)
-		hsdata.DesiredState = int(service.SVCStop)
-	})
+	// verify that the host is active
+	var isActive bool
+	hostIDs, err := GetActiveHosts(conn)
+	if err != nil {
+		glog.Warningf("Could not verify if host %s is active: %s", hostID, err)
+		isActive = false
+	} else {
+		for _, hid := range hostIDs {
+			if isActive = hid == hostID; isActive {
+				break
+			}
+		}
+	}
+	if isActive {
+		// try to stop the instance nicely
+		return updateInstance(conn, hostID, stateID, func(hsdata *HostState, _ *ss.ServiceState) {
+			glog.V(2).Infof("Stopping service instance via %s host %s", stateID, hostID)
+			hsdata.DesiredState = int(service.SVCStop)
+		})
+	} else {
+		// if the host isn't active, then remove the instance
+		var hs HostState
+		if err := conn.Get(hostpath(hostID, stateID), &hs); err != nil {
+			glog.Errorf("Could not look up host instance %s on host %s: %s", stateID, hostID, err)
+			return err
+		}
+		return removeInstance(conn, hs.ServiceID, hs.HostID, hs.ServiceStateID)
+	}
 }
