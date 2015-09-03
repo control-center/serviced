@@ -232,15 +232,11 @@ func GetActiveHosts(conn client.Connection) ([]string, error) {
 	for _, ehostID := range ehosts {
 		var ehost host.Host
 		if err := conn.Get(hostregpath(ehostID), &HostNode{Host: &ehost}); err != nil {
-			return nil, err
+			glog.Warningf("Could not look up registration for host at %s: %s", ehostID, err)
+			continue
 		}
-		exists, err := conn.Exists(hostpath(ehost.ID))
-		if err != nil && err != client.ErrNoNode {
-			return nil, err
-		}
-		if !exists {
-			// Note when hosts are registered in the wrong pool
-			glog.Warningf("Host %s (%s) is registered, but not available.  Please restart this host.", ehost.ID, ehost.Name)
+		if exists, err := conn.Exists(hostpath(ehost.ID)); !exists {
+			glog.Warningf("Host %s (%s) is registered, but not available (%s).  Please restart this host.", ehost.ID, ehost.Name, err)
 		} else {
 			hostIDs = append(hostIDs, ehost.ID)
 		}
