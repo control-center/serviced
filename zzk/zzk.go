@@ -221,7 +221,7 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 		select {
 		case e := <-event:
 			if e.Type == client.EventNodeDeleted {
-				glog.V(1).Infof("Node %s has been removed; shutting down listener", l.GetPath())
+				glog.Infof("Node %s has been removed; shutting down listener", l.GetPath())
 				return
 			} else if e.Type == client.EventSession || e.Type == client.EventNotWatching {
 				glog.Warningf("Node %s had a reconnect; resetting listener", l.GetPath())
