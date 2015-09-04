@@ -374,7 +374,7 @@ func setImageID(registry, tenantID string, svc *service.Service) error {
 		return err
 	}
 
-	if _, err := docker.FindImage(imageID, false); err == docker.ErrNoSuchImage {
+	if _, err := docker.FindImage(imageID, false); docker.IsImageNotFound(err) {
 		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_loading_image|"+svc.Name)
 		// tagged image not found, so look for the base image
 		image, err := docker.FindImage(svc.ImageID, false)

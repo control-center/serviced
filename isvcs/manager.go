@@ -102,7 +102,7 @@ func NewManager(imagesDir, volumesDir string) *Manager {
 
 // checks to see if the given repo:tag exists in docker
 func (m *Manager) imageExists(repo, tag string) (bool, error) {
-	if _, err := docker.FindImage(commons.JoinRepoTag(repo, tag), false); err == docker.ErrNoSuchImage {
+	if _, err := docker.FindImage(commons.JoinRepoTag(repo, tag), false); docker.IsImageNotFound(err) {
 		return false, nil
 	} else if err != nil {
 		return false, err
