@@ -27,6 +27,7 @@ import (
 	"github.com/zenoss/go-json-rest"
 
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/isvcs"
@@ -894,12 +895,24 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	type VolumeInfo struct {
 		Name   string
 		Status volume.Status
+		MonitoringProfile domain.MonitorProfile
 	}
 
 	// REST collections should return arrays, not maps
 	storageInfo := make([]VolumeInfo, 0, len(volumeStatuses.StatusMap))
 	for volumeName, volumeStatus := range volumeStatuses.StatusMap {
 		volumeInfo := VolumeInfo{Name: volumeName, Status: volumeStatus}
+		tags := map[string][]string{}
+		profile, err := volumeProfile.ReBuild("1h-ago", tags)
+		if err != nil {
+			glog.Errorf("Unexpected error getting volume statuses: %v", err)
+			restServerError(w, err)
+			return
+		}
+		//add graphs to profile
+		profile.GraphConfigs = make([]domain.GraphConfig, 1)
+		profile.GraphConfigs[0] = newVolumeUsageGraph(tags)
+		volumeInfo.MonitoringProfile = *profile
 		storageInfo = append(storageInfo, volumeInfo)
 	}
 

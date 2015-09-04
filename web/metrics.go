@@ -22,8 +22,6 @@ var (
 	zero       int = 0
 	onehundred int = 100
 
-	zeroInt64 int64 = 0
-
 	hostPoolProfile = domain.MonitorProfile{
 		MetricConfigs: []domain.MetricConfig{
 			//Loadavg
@@ -103,12 +101,63 @@ var (
 				MetricSource: "memory",
 				DataPoints:   []string{"swap.free", "memory.free"},
 				Type:         "MinMax",
-				Threshold:    domain.MinMaxThreshold{Min: &zeroInt64, Max: nil},
+				Threshold:    domain.MinMaxThreshold{Min: "0", Max: ""},
 				EventTags: map[string]interface{}{
 					"Severity":    1,
 					"Resolution":  "Increase swap or memory",
 					"Explanation": "Ran out of all available memory space",
 					"EventClass":  "/Perf/Memory",
+				},
+			},
+		},
+	}
+)
+
+//profile defines meta-data for the volume resource's metrics and graphs
+var (
+	tenGb = int64(10000000000)
+
+	volumeProfile = domain.MonitorProfile{
+		MetricConfigs: []domain.MetricConfig{
+			domain.MetricConfig{
+				ID: "storage",
+				Name: "storage",
+				Description: "DFS usage data",
+				Metrics: []domain.Metric{
+					domain.Metric{ID: "storage.total", Name: "total", Unit: "bytes"},
+					domain.Metric{ID: "storage.used", Name: "used", Unit: "bytes"},
+				},
+			},
+		},
+		ThresholdConfigs: []domain.ThresholdConfig{
+			domain.ThresholdConfig{
+				ID: "dfs.space.low",
+				Name: "DFS space low",
+				Description: "DFS free space is low",
+				MetricSource: "storage",
+				DataPoints: []string{"storage.used"},
+				Type: "MinMax",
+				Threshold:    domain.MinMaxThreshold{Min: "", Max: "here.totalBytes * 0.80"},
+				EventTags: map[string]interface{}{
+					"Severity":    3,
+					"Resolution":  "Increase free space on the DFS",
+					"Explanation": "Low on free space on the DFS",
+					"EventClass":  "/Storage/Full",
+				},
+			},
+			domain.ThresholdConfig{
+				ID: "dfs.space.very.low",
+				Name: "DFS space very low",
+				Description: "DFS free space is very low",
+				MetricSource: "storage",
+				DataPoints: []string{"storage.used"},
+				Type: "MinMax",
+				Threshold:    domain.MinMaxThreshold{Min: "", Max: "here.totalBytes * 0.90"},
+				EventTags: map[string]interface{}{
+					"Severity":    4,
+					"Resolution":  "Increase free space on the DFS",
+					"Explanation": "Very low on free space on the DFS",
+					"EventClass":  "/Storage/Full",
 				},
 			},
 		},
@@ -525,5 +574,52 @@ func newRSSConfigGraph(tags map[string][]string, totalMemory uint64) domain.Grap
 		Units:       "bytes",
 		Base:        1024,
 		Description: "Bytes used",
+	}
+}
+
+//Major Page Faults
+func newVolumeUsageGraph(tags map[string][]string) domain.GraphConfig {
+	return domain.GraphConfig{
+		DataPoints: []domain.DataPoint{
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "used",
+				Color:        "#aec7e8",
+				Fill:         false,
+				Format:       "%4.2f",
+				Legend:       "Used Bytes",
+				Metric:       "storage.used",
+				MetricSource: "storage",
+				Name:         "Used Bytes",
+				Type:         "line",
+			},
+			domain.DataPoint{
+				Aggregator:   "avg",
+				ID:           "total",
+				Color:        "#aee4e8",
+				Fill:         false,
+				Format:       "%4.2f",
+				Legend:       "Total Bytes",
+				Metric:       "storage.total",
+				MetricSource: "storage",
+				Name:         "Total Bytes",
+				Type:         "line",
+			},
+		},
+		ID:     "storage.usage",
+		Name:   "DFS Usage",
+		Footer: false,
+		Format: "%.2f",
+		MinY:   &zero,
+		Range: &domain.GraphConfigRange{
+			End:   "0s-ago",
+			Start: "1h-ago",
+		},
+		YAxisLabel:  "Bytes",
+		ReturnSet:   "EXACT",
+		Type:        "line",
+		Tags:        tags,
+		Units:       "Bytes",
+		Description: "DFS usage",
 	}
 }

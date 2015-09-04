@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/stats/cgroup"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
@@ -224,10 +225,38 @@ func (sr *StatsReporter) updateHostStats() {
 	}
 }
 
+func (sr *StatsReporter) updateStorageStats() {
+	volumeStatuses := volume.GetStatus()
+	if volumeStatuses == nil || volumeStatuses.StatusMap == nil {
+		glog.Errorf("Unexpected error getting volume status")
+		return
+	}
+
+	for _, volumeStatus := range volumeStatuses.StatusMap {
+		for _, volumeUsage := range volumeStatus.UsageData {
+			fields := strings.Fields(volumeUsage.Type)
+			if len(fields) < 1 {
+				glog.Errorf("Error parsing volume usage %s", volumeUsage.Type)
+				return
+			}
+			if fields[0] == "Total" {
+				metrics.GetOrRegisterGauge("storage.total", sr.hostRegistry).Update(int64(volumeUsage.Value))
+			}
+			if fields[0] == "Used" {
+				metrics.GetOrRegisterGauge("storage.used", sr.hostRegistry).Update(int64(volumeUsage.Value))
+			}
+			if fields[0] == "Available" {
+				metrics.GetOrRegisterGauge("storage.free", sr.hostRegistry).Update(int64(volumeUsage.Value))
+			}
+		}
+	}
+}
+
 // Updates the default registry.
 func (sr *StatsReporter) updateStats() {
 	// Stats for host.
 	sr.updateHostStats()
+	sr.updateStorageStats()
 	// Stats for the containers.
 	var running []dao.RunningService
 	running, err := zkservice.LoadRunningServicesByHost(sr.conn, sr.hostID)

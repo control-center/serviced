@@ -198,13 +198,13 @@ func (d *BtrfsDriver) Status() (*volume.Status, error) {
 			return nil, err
 		}
 	}
-	glog.Infof("Output from btrfs filesystem df %s: %s", rootDir, dfstatus)
+	glog.V(2).Infof("Output from btrfs filesystem df %s: %s", rootDir, dfstatus)
 	dfData, err := parseDF(strings.Split(string(dfstatus), "\n"))
 	if err != nil {
 		glog.Errorf("Could not parse df output: %s", err)
 		return nil, err
 	}
-	glog.Infof("dfData = %v", dfData)
+	glog.V(2).Infof("dfData = %v", dfData)
 
 	usage := dfDataToUsageData(dfData)
 	response := &volume.Status{

@@ -197,7 +197,7 @@ func (d *RsyncDriver) Status() (*volume.Status, error) {
 	glog.V(2).Info("rsync.Status()")
 
 	outBytes, err := runcmd("df", "--output=source,size,used,avail", "-B1", d.root)
-	glog.Infof("Result of running df command: (%q,%q)", outBytes, err)
+	glog.V(2).Infof("Result of running df command: (%q,%q)", outBytes, err)
 
 	dfResult, err2 := parseDFCommand(d.root, outBytes)
 	if err2 != nil {
