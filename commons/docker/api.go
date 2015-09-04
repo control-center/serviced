@@ -53,8 +53,33 @@ var (
 	ErrRequestTimeout  = errors.New("docker: request timed out")
 	ErrKernelShutdown  = errors.New("docker: kernel shutdown")
 	ErrNoSuchContainer = errors.New("docker: no such container")
-	ErrNoSuchImage     = errors.New("docker: no such image")
 )
+
+// ImageNotFound is a an error type when an image is not found
+type ImageNotFound struct {
+	Tag  string
+	Repo string
+}
+
+// IsImageNotFound parses an err to determine whether the image is not found
+func IsImageNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if err == dockerclient.ErrNoSuchImage {
+		return true
+	}
+	var ok bool
+	if _, ok = err.(*ImageNotFound); !ok {
+		ok = regexp.MustCompile("Tag .* not found in repository .*").MatchString(err.Error())
+	}
+	return ok
+}
+
+// Error implements error
+func (err *ImageNotFound) Error() string {
+	return fmt.Sprintf("docker: Tag %s not found in repository %s", err.Tag, err.Repo)
+}
 
 // NewContainer creates a new container and returns its id. The supplied create action, if
 // any, will be executed on successful creation of the container. If a start action is specified
@@ -94,7 +119,7 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	glog.V(2).Infof("creating container: %#v", *args.containerOptions)
 	ctr, err := dc.CreateContainer(*args.containerOptions)
 	switch {
-	case err == dockerclient.ErrNoSuchImage:
+	case IsImageNotFound(err):
 		if err := PullImage(iid.String()); err != nil {
 			glog.V(2).Infof("Unable to pull image %s: %v", iid.String(), err)
 			return nil, err
@@ -500,7 +525,7 @@ func ImportImage(repotag, filename string) error {
 func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull {
-		if err := PullImage(repotag); err != nil && err != ErrNoSuchImage {
+		if err := PullImage(repotag); err != nil && !IsImageNotFound(err) {
 			return nil, err
 		}
 	}
@@ -689,8 +714,7 @@ func lookupImage(repotag string) (*Image, error) {
 			return img, nil
 		}
 	}
-
-	return nil, ErrNoSuchImage
+	return nil, &ImageNotFound{Tag: iid.Tag, Repo: iid.BaseName()}
 }
 
 func PullImage(repotag string) error {

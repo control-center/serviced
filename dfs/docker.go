@@ -347,7 +347,7 @@ func getImageTags(templateRepos []string, serviceRepos []string, tags []string) 
 	// find all the template repos
 	for _, repo := range templateRepos {
 		image, err := docker.FindImage(repo, false)
-		if err == docker.ErrNoSuchImage {
+		if docker.IsImageNotFound(err) {
 			glog.Warningf("Could not find template image %s", repo)
 			continue
 		} else if err != nil {
@@ -376,7 +376,7 @@ func getImageTags(templateRepos []string, serviceRepos []string, tags []string) 
 
 		for _, tag := range tags {
 			image, err := docker.FindImage(commons.JoinRepoTag(repo, tag), false)
-			if err == docker.ErrNoSuchImage {
+			if docker.IsImageNotFound(err) {
 				continue
 			} else if err != nil {
 				glog.Errorf("Could not look up repo %s: %s", commons.JoinRepoTag(repo, tag), err)
