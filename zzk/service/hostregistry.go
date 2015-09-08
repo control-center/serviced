@@ -179,6 +179,9 @@ func GetRegisteredHosts(conn client.Connection, cancel <-chan interface{}) ([]*h
 
 func GetActiveHosts(conn client.Connection) ([]string, error) {
 	ehosts, err := conn.Children(hostregpath())
+	if err == client.ErrNoNode {
+		return []string{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
