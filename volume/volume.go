@@ -348,7 +348,7 @@ func GetStatus() *Statuses {
 // getDrivers retrieves the driver for each volumeName passed in.
 // if volumeNames is empty, the function returns all drivers, with their roots.
 func getDrivers() *map[string]Driver {
-	glog.Infof("getDrivers(): returning driversByRoot(%q)", driversByRoot)
+	glog.V(2).Infof("getDrivers(): returning driversByRoot(%q)", driversByRoot)
 	return &driversByRoot
 }
 

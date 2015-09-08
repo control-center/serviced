@@ -36,8 +36,8 @@ type ThresholdConfig struct {
 
 // MinMaxThreshold triggers events when a metric breaches either min or max threshold value
 type MinMaxThreshold struct {
-	Min *int64 //min threshold value
-	Max *int64 //max threshold value
+	Min string //min threshold value
+	Max string //max threshold value
 }
 
 // DurationThreshold tiggers events when a percentage of min/max thresholds are breached in a given time perion
