@@ -72,8 +72,7 @@ func (node *HostNode) SetVersion(version interface{}) {
 // HostRegistryListener watches ephemeral nodes on /registry/hosts and provides
 // information about available hosts
 type HostRegistryListener struct {
-	conn     client.Connection
-	shutdown chan interface{}
+	conn client.Connection
 }
 
 // InitHostRegistry initializes the host registry
@@ -97,7 +96,7 @@ func InitHostRegistry(conn client.Connection) error {
 
 // NewHostRegistryListener instantiates a new HostRegistryListener
 func NewHostRegistryListener() *HostRegistryListener {
-	return &HostRegistryListener{shutdown: make(chan interface{})}
+	return &HostRegistryListener{}
 }
 
 // SetConnection implements zzk.Listener
@@ -110,7 +109,7 @@ func (l *HostRegistryListener) GetPath(nodes ...string) string { return hostregp
 func (l *HostRegistryListener) Ready() (err error) { return }
 
 // Done shuts down any running processes outside of the main listener, like l.GetHosts()
-func (l *HostRegistryListener) Done() { close(l.shutdown) }
+func (l *HostRegistryListener) Done() {}
 
 // PostProcess implments zzk.Listener
 func (l *HostRegistryListener) PostProcess(p map[string]struct{}) {}
@@ -185,40 +184,40 @@ func registerHost(conn client.Connection, host *host.Host) (string, error) {
 }
 
 // GetHosts returns all of the registered hosts
-func (l *HostRegistryListener) GetHosts() (hosts []*host.Host, err error) {
-	if err := zzk.Ready(l.shutdown, l.conn, l.GetPath()); err != nil {
+func GetRegisteredHosts(conn client.Connection, cancel <-chan interface{}) ([]*host.Host, error) {
+	// wait for the parent node to be available
+	if err := zzk.Ready(cancel, conn, hostregpath()); err != nil {
 		return nil, err
 	}
-
 	for {
-		ehosts, eventW, err := l.conn.ChildrenW(hostregpath())
+		// get all of the ready nodes
+		children, ev, err := conn.ChildrenW(hostregpath())
 		if err != nil {
 			return nil, err
 		}
-
-		for _, ehostID := range ehosts {
-			var host host.Host
-			if err := l.conn.Get(hostregpath(ehostID), &HostNode{Host: &host}); err != nil {
+		var hosts []*host.Host
+		for _, child := range children {
+			host := &host.Host{}
+			if err := conn.Get(hostregpath(child), &HostNode{Host: host}); err != nil {
 				return nil, err
 			}
-			if exists, err := zzk.PathExists(l.conn, hostpath(host.ID)); err != nil {
+			// has this host been added to the database?
+			if exists, err := conn.Exists(hostpath(host.ID)); err != nil && err != client.ErrNoNode {
 				return nil, err
 			} else if exists {
-				hosts = append(hosts, &host)
+				hosts = append(hosts, host)
 			}
 		}
-
-		// wait if no hosts are registered
-		if len(hosts) > 0 {
+		if len(hosts) == 0 {
+			// wait for hosts if none are registered
+			glog.Warningf("No hosts are registered in pool; did you add hosts or bounce running agents?")
+			select {
+			case <-ev:
+			case <-cancel:
+				return nil, ErrShutdown
+			}
+		} else {
 			return hosts, nil
-		}
-		glog.Warningf("No hosts are registered in pool; did you add hosts or bounce running agents?")
-
-		select {
-		case <-eventW:
-			// pass
-		case <-l.shutdown:
-			return nil, ErrShutdown
 		}
 	}
 }

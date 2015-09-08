@@ -223,7 +223,6 @@ func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 
 	// start the listener again
 	shutdown = make(chan interface{})
-	listener.shutdown = shutdown
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
