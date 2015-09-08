@@ -526,7 +526,7 @@ func FindImage(repotag string, pull bool) (*Image, error) {
 	glog.V(1).Infof("looking up image: %s (pull if neccessary %t)", repotag, pull)
 	if pull {
 		if err := PullImage(repotag); err != nil && !IsImageNotFound(err) {
-			return nil, err
+			glog.Warningf("Unable to call PullImage: %s", err)
 		}
 	}
 	return lookupImage(repotag)
@@ -738,16 +738,14 @@ func pullImage(repo, registry, tag string) error {
 		Registry:   registry,
 		Tag:        tag,
 	}
-	defer func(stime time.Time) {
-		duration := time.Now().Sub(stime)
-		glog.V(0).Infof("Finished pulling image from repo: %s and registry: %s with tag: %s in %s", repo, registry, tag, duration)
-	}(time.Now())
 
+	startPull := time.Now()
 	err = dc.PullImage(opts, fetchRegistryCreds(registry))
 	if err != nil {
 		glog.V(2).Infof("failed to pull %s: %v", repo, err)
 		return err
 	}
+	glog.V(0).Infof("Finished pulling image from repo: %s and registry: %s with tag: %s in %s", repo, registry, tag, time.Since(startPull))
 	return nil
 }
 
