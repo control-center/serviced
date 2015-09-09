@@ -100,6 +100,12 @@ func ValidHostID(hostID string) error {
 	if result <= 0 {
 		return NewViolation(fmt.Sprintf("not valid hostid: %v", hostID))
 	}
+	return nil
+}
 
+func ValidPoolId(poolID string) error {
+	if strings.ContainsAny(poolID, ".#") {
+		return NewViolation(fmt.Sprintf("not a valid poolid: %v", poolID))
+	}
 	return nil
 }
