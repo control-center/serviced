@@ -5,7 +5,7 @@
         <div class="serviceControls" sticky sticky-class="stickied">
 
             <h2 class="serviceTitle">
-                <health-icon ng-if="services.current.children.length || services.current.model.Startup" data-status="services.current.status" style="display: inline-block; font-size: 0.6em;"></health-icon>
+                <health-icon ng-if="services.current.model.Startup" data-status="services.current.status" style="display: inline-block; font-size: 0.6em;"></health-icon>
                 {{services.current.model.Name}}
                 <span class="version" ng-show="services.current.model.Version"> (v{{services.current.model.Version}})</span>
             </h2>
