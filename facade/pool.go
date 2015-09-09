@@ -24,7 +24,6 @@ import (
 
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -42,7 +41,6 @@ var (
 	ErrPoolNotExists = errors.New("facade: resource pool does not exist")
 	ErrIPExists      = errors.New("facade: ip exists in resource pool")
 	ErrIPNotExists   = errors.New("facade: ip does not exist in resource pool")
-	ErrPoolIdInvalid = errors.New("facade: invalid pool id")
 )
 
 //PoolIPs type for IP resources available in a ResourcePool
@@ -54,10 +52,6 @@ type PoolIPs struct {
 
 // AddResourcePool adds a new resource pool
 func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
-	if strings.ContainsAny(entity.ID, ".#") {
-		return ErrPoolIdInvalid
-	}
-
 	if pool, err := f.GetResourcePool(ctx, entity.ID); err != nil {
 		return err
 	} else if pool != nil {

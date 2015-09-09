@@ -27,6 +27,7 @@ func (p *ResourcePool) ValidEntity() error {
 	trimmedID := strings.TrimSpace(p.ID)
 	violations := validation.NewValidationError()
 	violations.Add(validation.NotEmpty("Pool.ID", p.ID))
+	violations.Add(validation.ValidPoolId(p.ID))
 	violations.Add(validation.StringsEqual(p.ID, trimmedID, "leading and trailing spaces not allowed for pool id"))
 
 	trimmedRealm := strings.TrimSpace(p.Realm)
