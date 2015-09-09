@@ -160,6 +160,16 @@ func (service *Service) EvaluateRunsTemplate(gs GetService, fc FindChildService)
 			service.Runs[key] = result
 		}
 	}
+	for key, value := range service.Commands {
+		err, result := service.evaluateTemplate(gs, fc, 0, value.Command)
+		if err != nil {
+			return err
+		}
+		if result != "" {
+			value.Command = result
+			service.Commands[key] = value
+		}
+	}
 	return
 }
 
