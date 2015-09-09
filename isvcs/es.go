@@ -24,11 +24,42 @@ import (
 
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 )
+
+const (
+	ESRed ESHealth = iota
+	ESYellow
+	ESGreen
+)
+
+type ESHealth int
+
+func GetHealth(health string) ESHealth {
+	switch health {
+	case "red":
+		return ESRed
+	case "yellow":
+		return ESYellow
+	case "green":
+		return ESGreen
+	}
+	return ESHealth(-1)
+}
+
+func (health ESHealth) String() string {
+	switch health {
+	case ESRed:
+		return "red"
+	case ESYellow:
+		return "yellow"
+	case ESGreen:
+		return "green"
+	}
+	return "unknown"
+}
 
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
@@ -40,7 +71,7 @@ func init() {
 	serviceName = "elasticsearch-serviced"
 
 	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: elasticsearchHealthCheck(9200),
+		healthCheck: esHealthCheck(9200, ESYellow),
 		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
 		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
 	}
@@ -78,7 +109,7 @@ func init() {
 
 	serviceName = "elasticsearch-logstash"
 	logStashHealthCheck := defaultHealthCheck
-	logStashHealthCheck.healthCheck = elasticsearchHealthCheck(9100)
+	logStashHealthCheck.healthCheck = esHealthCheck(9100, ESYellow)
 	healthChecks = map[string]healthCheckDefinition{
 		DEFAULT_HEALTHCHECK_NAME: logStashHealthCheck,
 	}
@@ -113,66 +144,59 @@ func init() {
 	}
 }
 
-// elasticsearchHealthCheck() determines if elasticsearch is healthy
-func elasticsearchHealthCheck(port int) HealthCheckFunction {
-	return func(halt <-chan struct{}) error {
-		lastError := time.Now()
-		minUptime := time.Second * 2
-		baseUrl := fmt.Sprintf("http://localhost:%d", port)
-
-		for {
-			healthResponse, err := getElasticHealth(baseUrl)
-			if err == nil && (healthResponse.Status == "green" || healthResponse.Status == "yellow") {
-				break
-			} else {
-				lastError = time.Now()
-				glog.V(1).Infof("Still trying to connect to elasticsearch at %s: %v: %s", baseUrl, err, healthResponse.Status)
-			}
-
-			if time.Since(lastError) > minUptime {
-				break
-			}
-
-			select {
-			case <-halt:
-				glog.V(1).Infof("Quit healthcheck for elasticsearch at %s", baseUrl)
-				return nil
-			default:
-				time.Sleep(time.Second)
-			}
-		}
-		glog.V(1).Infof("elasticsearch running browser at %s/_plugin/head/", baseUrl)
-		return nil
-	}
+type esres struct {
+	url      string
+	response *cluster.ClusterHealthResponse
+	err      error
 }
 
-func getElasticHealth(baseUrl string) (cluster.ClusterHealthResponse, error) {
-	healthUrl := fmt.Sprintf("%s/_cluster/health?pretty=true", baseUrl)
-	healthResponse := cluster.ClusterHealthResponse{}
-	healthResponse.Status = "unknown"
-	response, err := http.Get(healthUrl)
-	if err != nil {
-		return healthResponse, err
-	}
+func getESHealth(url string) <-chan esres {
+	esresC := make(chan esres, 1)
+	go func() {
+		resp, err := http.Get(url)
+		if err != nil {
+			esresC <- esres{url, nil, err}
+			return
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode != 200 {
+			esresC <- esres{url, nil, fmt.Errorf("received %d status code", resp.StatusCode)}
+			return
+		}
+		var health cluster.ClusterHealthResponse
+		if err := json.NewDecoder(resp.Body).Decode(&health); err != nil {
+			esresC <- esres{url, nil, err}
+			return
+		}
+		esresC <- esres{url, &health, nil}
 
-	defer response.Body.Close()
-	if response.StatusCode != 200 {
-		err = fmt.Errorf("Failed to HTTP GET for %s, return code = %d", healthUrl, response.StatusCode)
-		return healthResponse, err
-	}
+	}()
+	return esresC
+}
 
-	body, readErr := ioutil.ReadAll(response.Body)
-	if readErr != nil {
-		err = fmt.Errorf("Failed to read HTTP response from %s: %s", healthUrl, readErr)
-		return healthResponse, err
+func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
+	return func(cancel <-chan struct{}) error {
+		url := fmt.Sprintf("http://localhost:%d/_cluster/health?wait_for_status=%s", port, minHealth)
+		var r esres
+		for {
+			select {
+			case r = <-getESHealth(url):
+				if r.err != nil {
+					glog.Warningf("Problem looking up %s: %s", r.url, r.err)
+					break
+				}
+				if status := GetHealth(r.response.Status); status < minHealth {
+					glog.Warningf("Receieved health status {%+v} at %s", r.response, r.url)
+					break
+				}
+				return nil
+			case <-cancel:
+				glog.Infof("Cancel healthcheck for elasticsearch at %s", url)
+				return nil
+			}
+			time.Sleep(time.Second)
+		}
 	}
-
-	jsonErr := json.Unmarshal(body, &healthResponse)
-	if jsonErr != nil {
-		err = fmt.Errorf("Failed to unmarshall response to healthcheck from %s: %s", healthUrl, jsonErr)
-	}
-
-	return healthResponse, err
 }
 
 func PurgeLogstashIndices(days int, gb int) {
