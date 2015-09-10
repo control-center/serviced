@@ -19,6 +19,12 @@
 package isvcs
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"os"
+	"path/filepath"
+
+	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/elastigo/cluster"
 	"github.com/zenoss/glog"
 
@@ -129,6 +135,7 @@ func init() {
 			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
 			Configuration: make(map[string]interface{}),
 			HealthChecks:  healthChecks,
+			Recover:       recoverES,
 		},
 	)
 	if err != nil {
@@ -142,6 +149,33 @@ func init() {
 		}
 		return fmt.Sprintf(`exec /opt/elasticsearch-1.3.1/bin/elasticsearch -Des.node.name=%s %s`, elasticsearch_logstash.Name, clusterArg)
 	}
+}
+
+func recoverES(path string) error {
+	if err := func() error {
+		file, err := os.Create(path + "-backup.tgz")
+		if err != nil {
+			glog.Errorf("Could not create backup for %s: %s", path, err)
+			return err
+		}
+		defer file.Close()
+		gz := gzip.NewWriter(file)
+		defer gz.Close()
+		tarfile := tar.NewWriter(gz)
+		defer tarfile.Close()
+		if err := volume.ExportDirectory(tarfile, path, filepath.Base(path)); err != nil {
+			glog.Errorf("Could not backup %s: %s", path, err)
+			return err
+		}
+		return nil
+	}(); err != nil {
+		return err
+	}
+	if err := os.RemoveAll(path); err != nil {
+		glog.Errorf("Could not remove %s: %s", path, err)
+		return err
+	}
+	return nil
 }
 
 type esres struct {
@@ -176,7 +210,7 @@ func getESHealth(url string) <-chan esres {
 
 func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 	return func(cancel <-chan struct{}) error {
-		url := fmt.Sprintf("http://localhost:%d/_cluster/health?wait_for_status=%s", port, minHealth)
+		url := fmt.Sprintf("http://localhost:%d/_cluster/health", port)
 		var r esres
 		for {
 			select {
