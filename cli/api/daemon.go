@@ -650,7 +650,7 @@ func (d *daemon) startAgent() error {
 			statsdest := fmt.Sprintf("http://%s/api/metrics/store", options.HostStats)
 			statsduration := time.Duration(options.StatsPeriod) * time.Second
 			glog.V(1).Infoln("Staring container statistics reporter")
-			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn)
+			statsReporter, err := stats.NewStatsReporter(statsdest, statsduration, poolBasedConn, options.Master)
 			if err != nil {
 				glog.Errorf("Error kicking off stats reporter %v", err)
 			} else {

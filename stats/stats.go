@@ -44,6 +44,7 @@ type StatsReporter struct {
 	containerRegistries map[registryKey]metrics.Registry
 	hostID              string
 	hostRegistry        metrics.Registry
+	isMasterHost        bool
 	sync.Mutex
 }
 
@@ -61,7 +62,7 @@ type registryKey struct {
 }
 
 // NewStatsReporter creates a new StatsReporter and kicks off the reporting goroutine.
-func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection) (*StatsReporter, error) {
+func NewStatsReporter(destination string, interval time.Duration, conn coordclient.Connection, isMasterHost bool) (*StatsReporter, error) {
 	hostID, err := utils.HostID()
 	if err != nil {
 		glog.Errorf("Could not determine host ID.")
@@ -77,6 +78,7 @@ func NewStatsReporter(destination string, interval time.Duration, conn coordclie
 		conn:                conn,
 		containerRegistries: make(map[registryKey]metrics.Registry),
 		hostID:              hostID,
+		isMasterHost:        isMasterHost,
 	}
 
 	sr.hostRegistry = metrics.NewRegistry()
@@ -256,7 +258,10 @@ func (sr *StatsReporter) updateStorageStats() {
 func (sr *StatsReporter) updateStats() {
 	// Stats for host.
 	sr.updateHostStats()
-	sr.updateStorageStats()
+	if sr.isMasterHost {
+		sr.updateStorageStats()
+	} else {
+	}
 	// Stats for the containers.
 	var running []dao.RunningService
 	running, err := zkservice.LoadRunningServicesByHost(sr.conn, sr.hostID)
