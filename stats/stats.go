@@ -260,7 +260,6 @@ func (sr *StatsReporter) updateStats() {
 	sr.updateHostStats()
 	if sr.isMasterHost {
 		sr.updateStorageStats()
-	} else {
 	}
 	// Stats for the containers.
 	var running []dao.RunningService
