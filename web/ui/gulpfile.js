@@ -113,8 +113,8 @@ gulp.task("release", function(){
     sequence("lint", "concat", "uglify", "copyStatic", function(){});
 });
 
-// this needs to run 3rd party code is
-// updated, which should be infrequent
+// this needs to be run manually if 3rd party
+// code is updated, which should be infrequent
 gulp.task("release3rdparty", function(){
     sequence("copyStatic", "concat3rdparty", "uglify3rdparty", function(){});
 });

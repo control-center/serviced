@@ -6,8 +6,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "instancesFactory",
-    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils, hostsFactory, instancesFactory) {
+    controlplane.controller("ServicesMapController", ["$scope", "$location", "$routeParams", "authService", "resourcesFactory", "servicesFactory", "miscUtils", "hostsFactory", "instancesFactory", "$q",
+    function($scope, $location, $routeParams, authService, resourcesFactory, servicesFactory, utils, hostsFactory, instancesFactory, $q) {
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -19,86 +19,122 @@
             { label: 'breadcrumb_services_map', itemClass: 'active' }
         ];
 
-        var runningServices;
-        var data_received = {
-            hosts: false,
-            running: false,
-            services: false
-        };
-        var nodeClasses = {};
+        var g = new dagreD3.graphlib.Graph();
+        g.setGraph({
+            nodesep: 10,
+            ranksep: 75,
+            rankdir: "LR"
+        });
+        var svg = d3.select(".service_map");
+        var inner = svg.select("g");
+        var render = new dagreD3.render();
 
-        var draw = function() {
-            if (!data_received.hosts) {
-                console.log('Waiting for host data');
-                return;
-            }
-            if (!data_received.running) {
-                console.log('Waiting for running data');
-                return;
-            }
-            if (!data_received.services) {
-                console.log('Waiting for services data');
-                return;
-            }
+        svg.height = $(".service_map").height();
 
-            var states = [];
+        var draw = function(services, instances) {
+
+            var nodes = [];
             var edges = [];
+            var nodeClasses = {};
 
-            for (var key in $scope.services.mapped) {
-                var service = $scope.services.mapped[key];
-                states[states.length] = {
+            // create service nodes and links
+            for (var serviceId in services) {
+                var service = services[serviceId];
+
+                // if this is an isvc, dont add it
+                if(service.isIsvc()){
+                    continue;
+                }
+
+                // add this service to the list of service nodes
+                nodes.push({
                     id: service.id,
-                    value: { label: service.name}
-                };
-
-                if(!nodeClasses[service.id]){
-                    nodeClasses[service.id] = 'service notrunning';
-                }
-
-                if (service.model.ParentServiceID !== '') {
-                    nodeClasses[service.model.ParentServiceID] = 'service meta';
-                    edges[edges.length] = {
-                        u: service.model.ParentServiceID,
-                        v: key
-                    };
-                }
-            }
-
-            var addedHosts = {};
-
-            for (var i=0; i < runningServices.length; i++) {
-                var running = runningServices[i];
-                if (running.model.HostID) {
-                    if (!addedHosts[running.model.HostID]) {
-                        states[states.length] = {
-                            id: running.model.HostID,
-                            value: { label: hostsFactory.get(running.model.HostID).name }
-                        };
-                        nodeClasses[running.model.HostID] = 'host';
-                        addedHosts[running.model.HostID] = true;
+                    config: {
+                        label: service.name,
+                        class: "service",
+                        paddingTop: 6, paddingBottom: 6,
+                        paddingLeft: 8, paddingRight: 8
                     }
-                    nodeClasses[running.model.ServiceID] = 'service';
-                    edges[edges.length] = {
-                        u: running.model.ServiceID,
-                        v: running.model.HostID
-                    };
+                });
+
+                // if this service has a parent, add it to the
+                // list of edges
+                if (service.model.ParentServiceID !== '') {
+                    // if this service has a parent, mark its
+                    // parent as meta
+                    nodeClasses[service.model.ParentServiceID] = 'service meta';
+
+                    // link this service to its parent
+                    edges.push({
+                        source: service.model.ParentServiceID,
+                        target: serviceId,
+                        config: {
+                            lineInterpolate: "basis"
+                        }
+                    });
+                }
+
+            }
+
+            // link services to hosts
+            for (var i=0; i < instances.length; i++) {
+                var running = instances[i];
+                // if this running service has a HostID
+                if (running.model.HostID) {
+                    // if this host isnt in the list of hosts
+                    if (!nodeClasses[running.model.HostID]) {
+
+                        // add the host the the graph
+                        nodes.push({
+                            id: running.model.HostID,
+                            config: {
+                                label: hostsFactory.get(running.model.HostID).name,
+                                class: "host",
+                                paddingTop: 6, paddingBottom: 6,
+                                paddingLeft: 8, paddingRight: 8,
+                                // round corners to distinguish
+                                // from services
+                                rx: 10,
+                                ry: 10
+                            }
+                        });
+
+                        // mark this node as a host
+                        nodeClasses[running.model.HostID] = 'host';
+                    }
+
+                    // mark running service
+                    nodeClasses[running.model.ServiceID] = 'service running '+ running.status.status;
+
+                    // create a link from this service to the host
+                    // link this service to its parent
+                    edges.push({
+                        source: running.model.ServiceID,
+                        target: running.model.HostID,
+                        config: {
+                            lineInterpolate: "basis"
+                        }
+                    });
                 }
             }
 
-            var layout = dagreD3.layout().nodeSep(5).rankSep(100).rankDir("LR");
-            var renderer = new dagreD3.Renderer().layout(layout);
-            var oldDrawNode = renderer.drawNode();
-            renderer.drawNode(function(graph, u, svg) {
-                oldDrawNode(graph, u, svg);
-                svg.attr("class", "node " + nodeClasses[u]);
+            // attach all the cool stuff we just made
+            // to the graph
+            edges.forEach(function(edge){
+                g.setEdge(edge.source, edge.target, edge.config);
+            });
+            nodes.forEach(function(node){
+                if(nodeClasses[node.id]){
+                    node.config.class = nodeClasses[node.id];
+                }
+                g.setNode(node.id, node.config);
             });
 
-            renderer.run(
-                dagreD3.json.decode(states, edges),
-                d3.select("svg g"));
+            render(inner, g);
+            $(".service_map_loader").fadeOut(150);
 
             // Add zoom behavior
-            var svg = d3.select("svg");
+            var svg = d3.select(".service_map");
             svg.call(d3.behavior.zoom().on("zoom", function() {
                 var ev = d3.event;
                 svg.select("g")
@@ -106,24 +142,10 @@
             }));
         };
 
-        // TODO - replace the data_received stuff with promise
-        // aggregation
-        hostsFactory.update()
-            .then(() => {
-                data_received.hosts = true;
-                draw();
-            });
-        servicesFactory.update().then(function() {
-            data_received.services = true;
-            $scope.services = {
-                mapped: servicesFactory.serviceMap
-            };
-            draw();
-        });
-        instancesFactory.update().then(function(){
-            data_received.running = true;
-            runningServices = instancesFactory.instanceArr;
-            draw();
+        console.log("Fetching services, instances, and hosts");
+        // TODO - loading indicator
+        $q.all([hostsFactory.update(), servicesFactory.update(), instancesFactory.update()]).then(function(){
+            draw(servicesFactory.serviceMap, instancesFactory.instanceArr);
         });
     }]);
 })();
