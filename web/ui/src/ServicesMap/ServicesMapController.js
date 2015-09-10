@@ -19,6 +19,11 @@
             { label: 'breadcrumb_services_map', itemClass: 'active' }
         ];
 
+        // flag if this is the first time the service
+        // map has been updated
+        var isFirstTime = true;
+        $scope.refreshFrequency = 30000;
+
         var g = new dagreD3.graphlib.Graph();
         g.setGraph({
             nodesep: 10,
@@ -31,7 +36,14 @@
 
         svg.height = $(".service_map").height();
 
-        var draw = function(services, instances) {
+        // Add zoom behavior
+        var zoom = d3.behavior.zoom().on("zoom", function() {
+            var ev = d3.event;
+            inner.attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")");
+        });
+        svg.call(zoom);
+
+        var draw = function(services, instances, isUpdate) {
 
             var nodes = [];
             var edges = [];
@@ -131,21 +143,45 @@
             });
 
             render(inner, g);
-            $(".service_map_loader").fadeOut(150);
 
-            // Add zoom behavior
-            var svg = d3.select(".service_map");
-            svg.call(d3.behavior.zoom().on("zoom", function() {
-                var ev = d3.event;
-                svg.select("g")
-                    .attr("transform", "translate(" + ev.translate + ") scale(" + ev.scale + ")");
-            }));
+            if(isFirstTime){
+                isFirstTime = false;
+                // Zoom and scale to fit
+                var zoomScale = zoom.scale();
+                var padding = 200;
+                var graphWidth = g.graph().width + padding;
+                var graphHeight = g.graph().height + padding;
+                var width = parseInt(svg.style("width").replace(/px/, ""));
+                var height = parseInt(svg.style("height").replace(/px/, ""));
+                zoomScale = Math.min(width / graphWidth, height / graphHeight);
+                var translate = [
+                    (width/2) - ((graphWidth*zoomScale)/2) + (padding*zoomScale/2),
+                    (height/2) - ((graphHeight*zoomScale)/2) + (padding*zoomScale/2)
+                ];
+
+                zoom.translate(translate);
+                zoom.scale(zoomScale);
+                zoom.event(isUpdate ? svg.transition().duration(500) : d3.select("svg"));
+            }
+
+            $(".service_map_loader").fadeOut(150);
         };
 
-        console.log("Fetching services, instances, and hosts");
-        // TODO - loading indicator
-        $q.all([hostsFactory.update(), servicesFactory.update(), instancesFactory.update()]).then(function(){
-            draw(servicesFactory.serviceMap, instancesFactory.instanceArr);
-        });
+        $scope.update = function(){
+            return $q.all([hostsFactory.update(), servicesFactory.update(false, true), instancesFactory.update()]).then(function(){
+                draw(servicesFactory.serviceMap, instancesFactory.instanceArr);
+                $scope.lastUpdate = new Date();
+            });
+        };
+
+        $scope.pollUpdate = function(){
+            $scope.update().then(function(){
+                setTimeout(function(){
+                    $scope.pollUpdate();
+                }, $scope.refreshFrequency);
+            });
+        };
+
+        $scope.pollUpdate();
     }]);
 })();

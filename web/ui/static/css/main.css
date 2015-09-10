@@ -883,7 +883,7 @@ input.startup {
 
 .service_map_wrap {
     position: relative;
-    height: calc(100% - 130px);
+    height: calc(100% - 140px);
 }
 svg.service_map {
   position: absolute;
@@ -910,13 +910,23 @@ svg.service_map {
     transform: translateY(-50%);
 }
 
+.last_update {
+    font-size: 0.9em;
+    color: #CCC;
+    text-align: right;
+}
+.last_update strong {
+    font-weight: bold;
+    color: #888;
+}
+
 .service_map rect {
   fill: #fff;
 }
 
 .service_map .node rect {
   stroke-width: 0;
-75fill: #EEE;
+  fill: #EEE;
 }
 
 .service_map .edgePath rect {
@@ -949,7 +959,7 @@ svg.service_map {
 }
 
 .service_map .node.service rect {
-    fill: #888;
+    fill: #AAA;
 }
 
 .service_map .node.service.meta rect {
