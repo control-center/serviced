@@ -1,3 +1,9 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
-    <svg class="service_map tall"><g transform="translate(20, 20)"/></svg>
+    <div class="service_map_wrap">
+        <svg class="service_map"><g></g></svg>
+        <div class="service_map_loader">
+            <div class="message">One Moment Please...</div>
+        </div>
+    </div>
+    <div ng-show="lastUpdate" class="last_update">Last Update: <strong>{{lastUpdate | prettyDate}}</strong></div>
