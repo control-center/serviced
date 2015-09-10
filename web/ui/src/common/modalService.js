@@ -99,9 +99,11 @@
                 constructor: Modal,
                 close: function(){
                     this.$el.modal("hide");
+                    this.enableScroll();
                 },
                 show: function(){
                     this.$el.modal("show");
+                    this.disableScroll();
                 },
                 validate: function(){
                     return this.validateFn();
@@ -112,6 +114,16 @@
                 // convenience method for attaching notifications to the modal
                 createNotification: function(title, message){
                     return $notification.create(title, message, this.$notificationEl);
+                },
+
+                disableScroll(){
+                    var bodyEl = $("body");
+                    this.bodyOverflowProp = bodyEl.css("overflow");
+                    bodyEl.css("overflow", "hidden");
+                },
+                enableScroll(){
+                    var prop = this.bodyOverflowProp || "scroll";
+                    $("body").css("overflow", prop);
                 },
 
                 // convenience method to disable the default ok/submit button
