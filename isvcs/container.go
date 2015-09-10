@@ -152,7 +152,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		sd.Configuration = make(map[string]interface{})
 	}
 
-	if sd.StartupTimeout <= 0 {
+	if sd.StartupTimeout == 0 { //Initialize startup timeout to Default for all IServices if not specified
 		sd.StartupTimeout = WAIT_FOR_INITIAL_HEALTHCHECK
 	}
 

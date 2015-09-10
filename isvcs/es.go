@@ -30,6 +30,9 @@ import (
 	"time"
 )
 
+const DEFAULT_ES_STARTUP_TIMEOUT = WAIT_FOR_INITIAL_HEALTHCHECK	//default startup timeout (same as all other iservices)
+const MIN_ES_STARTUP_TIMEOUT = time.Duration(30) * time.Second	 	//minimum startup timeout
+
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
 
@@ -55,14 +58,15 @@ func init() {
 
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
-			Name:          serviceName,
-			Repo:          IMAGE_REPO,
-			Tag:           IMAGE_TAG,
-			Command:       func() string { return "" },
-			PortBindings:  []portBinding{elasticsearch_servicedPortBinding},
-			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
-			Configuration: make(map[string]interface{}),
-			HealthChecks:  healthChecks,
+			Name:          	serviceName,
+			Repo:          	IMAGE_REPO,
+			Tag:           	IMAGE_TAG,
+			Command:       	func() string { return "" },
+			PortBindings:  	[]portBinding{elasticsearch_servicedPortBinding},
+			Volumes:       	map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			Configuration: 	make(map[string]interface{}),
+			HealthChecks:	healthChecks,
+			StartupTimeout:	DEFAULT_ES_STARTUP_TIMEOUT,
 		},
 	)
 	if err != nil {
@@ -90,14 +94,15 @@ func init() {
 
 	elasticsearch_logstash, err = NewIService(
 		IServiceDefinition{
-			Name:          serviceName,
-			Repo:          IMAGE_REPO,
-			Tag:           IMAGE_TAG,
-			Command:       func() string { return "" },
-			PortBindings:  []portBinding{elasticsearch_logstashPortBinding},
-			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
-			Configuration: make(map[string]interface{}),
-			HealthChecks:  healthChecks,
+			Name:          	serviceName,
+			Repo:          	IMAGE_REPO,
+			Tag:           	IMAGE_TAG,
+			Command:       	func() string { return "" },
+			PortBindings:  	[]portBinding{elasticsearch_logstashPortBinding},
+			Volumes:       	map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
+			Configuration: 	make(map[string]interface{}),
+			HealthChecks:  	healthChecks,
+			StartupTimeout:	DEFAULT_ES_STARTUP_TIMEOUT,
 		},
 	)
 	if err != nil {
