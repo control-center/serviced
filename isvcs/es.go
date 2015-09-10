@@ -167,6 +167,9 @@ func recoverES(path string) error {
 			glog.Errorf("Could not backup %s: %s", path, err)
 			return err
 		}
+		if err := volume.ExportFile(tarfile, path+".clustername", filepath.Base(path)+".clustername"); err != nil {
+			return err
+		}
 		return nil
 	}(); err != nil {
 		return err
