@@ -123,6 +123,7 @@ type IServiceDefinition struct {
 	Configuration map[string]interface{}             // service specific configuration
 	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
 	PostStart     func(*IService) error              // A function to run after the initial start of the service
+	Recover       func(path string) error            // A recovery step if the service fails to start
 	HostNetwork   bool                               // enables host network in the container
 	Links         []string                           // List of links to other containers in the form of <name>:<alias>
 	StartGroup    uint16                             // Start up group number
@@ -446,7 +447,7 @@ func (svc *IService) remove(notify chan<- int) {
 	defer func() { notify <- rc }()
 
 	// delete the container
-	if err := ctr.Delete(true); err != nil {
+	if err := ctr.Delete(true); err != nil && err != docker.ErrNoSuchContainer {
 		glog.Errorf("Could not remove isvc %s: %s", ctr.Name, err)
 	}
 }
@@ -496,6 +497,14 @@ func (svc *IService) run() {
 				}
 
 				newExited, err = svc.start()
+				if err != nil && svc.Recover != nil {
+					glog.Warningf("ISVC %s failed to start; attempting recovery", svc.name())
+					if e := svc.Recover(svc.getResourcePath("")); e != nil {
+						glog.Errorf("Could not recover service %s: %s", svc.name(), e)
+					} else {
+						newExited, err = svc.start()
+					}
+				}
 				svc.setExitedChannel(newExited)
 				if err != nil {
 					req.response <- err
