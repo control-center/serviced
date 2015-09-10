@@ -293,7 +293,11 @@ func (c *Container) Delete(volumes bool) error {
 	if err != nil {
 		return err
 	}
-	return dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes})
+	err = dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: c.ID, RemoveVolumes: volumes})
+	if _, ok := err.(*dockerclient.NoSuchContainer); ok {
+		return ErrNoSuchContainer
+	}
+	return err
 }
 
 // Export writes the contents of the container's filesystem as a tar archive to outfile.
