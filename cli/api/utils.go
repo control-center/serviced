@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/control-center/serviced/utils"
+	"github.com/zenoss/glog"
 )
 
 const (
@@ -41,7 +42,7 @@ func GetAgentIP(defaultRPCPort int) string {
 	}
 	agentIP, err := utils.GetIPAddress()
 	if err != nil {
-		panic(err)
+		glog.Fatalf("Failed to get IP address: %s", err)
 	}
 	return agentIP + fmt.Sprintf(":%d", defaultRPCPort)
 }

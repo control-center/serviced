@@ -100,7 +100,7 @@ func getDefaultEndpoint(ip, port string) string {
 	if ip == "" {
 		var err error
 		if ip, err = utils.GetIPAddress(); err != nil {
-			panic(err)
+			return ""
 		}
 	}
 	return fmt.Sprintf("%s:%s", ip, port)

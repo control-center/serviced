@@ -506,7 +506,7 @@ func (d *daemon) startAgent() error {
 	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, "unknown", "", options.StaticIPs...)
 	if err != nil {
-		panic(err)
+		glog.Fatalf("Failed to acquire all host info: %s", err)
 	}
 
 	myHostID, err := utils.HostID()

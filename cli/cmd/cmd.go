@@ -42,7 +42,7 @@ type ServicedCli struct {
 // New instantiates a new command-line client
 func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 	if config == nil {
-		panic("Missing configuration data!")
+		glog.Fatal("Missing configuration data!")
 	}
 	defaultOps := getDefaultOptions(config)
 	masterIP := config.StringVal("MASTER_IP", "127.0.0.1")
