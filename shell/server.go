@@ -347,7 +347,7 @@ func StartDocker(cfg *ProcessConfig, port string) (*exec.Cmd, error) {
 
 	// make sure docker image is present
 	if _, err = docker.FindImage(svc.ImageID, false); err != nil {
-		if docker.IsImageNotFound(err) {
+		if err == docker.ErrNoSuchImage {
 			if err := docker.PullImage(svc.ImageID); err != nil {
 				glog.Errorf("unable to pull image %s: %s", svc.ImageID, err)
 				return nil, err
