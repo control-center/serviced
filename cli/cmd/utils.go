@@ -24,29 +24,8 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/zenoss/glog"
-
 	"golang.org/x/crypto/ssh/terminal"
 )
-
-func remove(index int, list ...interface{}) []interface{} {
-	var (
-		left  []interface{}
-		right []interface{}
-	)
-
-	switch {
-	case index < 0 || index > len(list):
-		glog.Warning("index out of bounds")
-	case index+1 < len(list):
-		right = list[index+1:]
-		fallthrough
-	default:
-		left = list[:index]
-	}
-
-	return append(left, right...)
-}
 
 var editors = []string{"vim", "vi", "nano"}
 
