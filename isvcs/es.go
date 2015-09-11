@@ -67,8 +67,8 @@ func (health ESHealth) String() string {
 	return "unknown"
 }
 
-const DEFAULT_ES_STARTUP_TIMEOUT = WAIT_FOR_INITIAL_HEALTHCHECK	//default startup timeout (same as all other iservices)
-const MIN_ES_STARTUP_TIMEOUT = time.Duration(30) * time.Second	 	//minimum startup timeout
+const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = int(WAIT_FOR_INITIAL_HEALTHCHECK/time.Second)	//default startup timeout in seconds (same as all other iservices)
+const MIN_ES_STARTUP_TIMEOUT_SECONDS = 30	 	//minimum startup timeout in seconds
 
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
@@ -103,7 +103,7 @@ func init() {
 			Volumes:       	map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
 			Configuration: 	make(map[string]interface{}),
 			HealthChecks:	healthChecks,
-			StartupTimeout:	DEFAULT_ES_STARTUP_TIMEOUT,
+			StartupTimeout:	time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)*time.Second,
 		},
 	)
 	if err != nil {
@@ -140,7 +140,7 @@ func init() {
 			Configuration: 	make(map[string]interface{}),
 			HealthChecks:  	healthChecks,
 			Recover:       	recoverES,
-			StartupTimeout:	DEFAULT_ES_STARTUP_TIMEOUT,
+			StartupTimeout:	time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)*time.Second,
 		},
 	)
 	if err != nil {

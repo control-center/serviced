@@ -17,11 +17,10 @@ package isvcs
 
 import (
 	"testing"
-	"time"
 )
 
 func TestPurge(t *testing.T) {
-	Init(int(DEFAULT_ES_STARTUP_TIMEOUT / time.Second))
+	Init(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)
 	Mgr.Start()
 	PurgeLogstashIndices(10, 10)
 	Mgr.Stop()
