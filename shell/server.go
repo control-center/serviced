@@ -32,6 +32,7 @@ import (
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 var empty interface{}
@@ -348,8 +349,15 @@ func StartDocker(cfg *ProcessConfig, port, controller string) (*exec.Cmd, error)
 
 	// make sure docker image is present
 	if _, err = docker.FindImage(svc.ImageID, false); err != nil {
-		glog.Errorf("unable to inspect image %s: %s", svc.ImageID, err)
-		return nil, err
+		if err == dockerclient.ErrNoSuchImage {
+			if err := docker.PullImage(svc.ImageID); err != nil {
+				glog.Errorf("unable to pull image %s: %s", svc.ImageID, err)
+				return nil, err
+			}
+		} else {
+			glog.Errorf("unable to inspect image %s: %s", svc.ImageID, err)
+			return nil, err
+		}
 	}
 
 	dir, binary := filepath.Split(controller)
