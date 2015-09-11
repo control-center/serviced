@@ -24,6 +24,8 @@ import (
 	"strings"
 	"syscall"
 
+	"github.com/zenoss/glog"
+
 	"golang.org/x/crypto/ssh/terminal"
 )
 
@@ -35,7 +37,7 @@ func remove(index int, list ...interface{}) []interface{} {
 
 	switch {
 	case index < 0 || index > len(list):
-		panic("index out of bounds")
+		glog.Warning("index out of bounds")
 	case index+1 < len(list):
 		right = list[index+1:]
 		fallthrough

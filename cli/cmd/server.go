@@ -20,6 +20,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/rpc/rpcutils"
+	"github.com/zenoss/glog"
 )
 
 // Initializer for serviced server
@@ -49,5 +50,7 @@ func (c *ServicedCli) cmdServer(ctx *cli.Context) {
 
 	// Start server mode
 	rpcutils.RPC_CLIENT_SIZE = api.GetOptionsMaxRPCClients()
-	c.driver.StartServer()
+	if err := c.driver.StartServer(); err != nil {
+		glog.Fatalf("Could not start server: %s", err)
+	}
 }
