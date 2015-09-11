@@ -74,6 +74,8 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 	existingServer := true
 	//is elastic already running?
 	if !driver.isUp() {
+		log.Printf("ElasticTest SetUpSuite: starting new cluster.\n")
+
 		//Seeding because mkdir uses rand and it was returning the same directory
 		rand.Seed(time.Now().Unix())
 		//Create unique tmp dir that will be deleted when suite ends.
@@ -88,6 +90,8 @@ func (et *ElasticTest) SetUpSuite(c *gocheck.C) {
 		}
 		et.server = tc
 		existingServer = false
+	} else {
+		log.Printf("ElasticTest SetUpSuite: using existing cluster.\n")
 	}
 
 	for _, mapping := range et.Mappings {
