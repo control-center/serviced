@@ -35,7 +35,7 @@ echo "Running integration tests ..."
 START_TIME=`date --utc +%s`
 mkdir $ES_TMP
 if [ ! -e /tmp/elasticsearch-$ES_VER.tar.gz ]; then
-	curl https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-$ES_VER.tar.gz > /tmp/elasticsearch-$ES_VER.tar.gz;
+	curl https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-$ES_VER.tar.gz > /tmp/elasticsearch-$ES_VER.tar.gz;
 fi
 
 tar -xf /tmp/elasticsearch-$ES_VER.tar.gz -C $ES_TMP
