@@ -2,8 +2,16 @@
 
     <div class="service_map_wrap">
         <svg class="service_map"><g></g></svg>
-        <div class="service_map_loader">
-            <div class="message">One Moment Please...</div>
+        <div class="service_map_loader loading">
+            <div class="message">
+                <img src="static/img/loading.gif">
+                <div>One Moment Please...</div>
+            </div>
+        </div>
+        <div class="service_map_loader no_services" style="display: none;">
+            <div class="message">
+                <div>No Services Found</div>
+            </div>
         </div>
     </div>
     <div ng-show="lastUpdate" class="last_update">Last Update: <strong>{{lastUpdate | prettyDate}}</strong></div>

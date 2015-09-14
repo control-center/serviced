@@ -165,12 +165,15 @@
                     zoom.scale(zoomScale);
                     zoom.event(isUpdate ? svg.transition().duration(500) : d3.select("svg"));
                 }
+
+                // hide messages
+                $(".service_map_loader").fadeOut(150);
             } else {
-                // TODO - show message in UI
-                console.log("Nothing to map :(");
+                // show "no services" message
+                $(".service_map_loader.loading").hide();
+                $(".service_map_loader.no_services").show();
             }
 
-            $(".service_map_loader").fadeOut(150);
         };
 
         $scope.update = function(){

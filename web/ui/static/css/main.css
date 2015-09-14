@@ -885,7 +885,8 @@ input.startup {
     position: relative;
     height: calc(100% - 140px);
 }
-svg.service_map {
+.service_map_wrap .service_map,
+.service_map_wrap .service_map_loader {
   position: absolute;
   top: 0;
   left: 0;
@@ -894,19 +895,13 @@ svg.service_map {
   height: 100%;
   border: solid #CCC 1px;
 }
-.service_map_loader {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 1140px;
-  height: 100%;
-  border: solid #CCC 1px;
-  background: rgba(255,255,255,.9) center center url("/static/img/loading.gif") no-repeat;
-  text-align: center;
+.service_map_wrap .service_map_loader {
+    background-color: rgba(255,255,255,0.9);
 }
 .service_map_loader .message {
+    text-align: center;
     position: relative;
-    top: calc(50% + 30px);
+    top: calc(50%);
     transform: translateY(-50%);
 }
 
