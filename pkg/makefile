@@ -164,7 +164,7 @@ deb: stage_deb
 		-d libdevmapper1.02.1 \
 		-d libdevmapper-event1.02.1 \
 		-d nfs-common \
-		-d 'docker-engine (= 1.8.1-0~trusty)' \
+		-d 'docker-engine (= 1.8.2-0~trusty)' \
 		-d logrotate \
 		-t deb \
 		-a x86_64 \
@@ -197,7 +197,7 @@ rpm: stage_rpm
 		-d device-mapper-event \
 		-d device-mapper-event-libs \
 		-d device-mapper-libs \
-		-d 'docker-engine = 1.8.1' \
+		-d 'docker-engine = 1.8.2' \
 		-d logrotate \
 		-t rpm \
 		-a x86_64 \
