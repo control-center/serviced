@@ -130,38 +130,44 @@
                 }
             }
 
-            // attach all the cool stuff we just made
-            // to the graph
-            edges.forEach(function(edge){
-                g.setEdge(edge.source, edge.target, edge.config);
-            });
-            nodes.forEach(function(node){
-                if(nodeClasses[node.id]){
-                    node.config.class = nodeClasses[node.id];
+            if(edges.length && nodes.length){
+
+                // attach all the cool stuff we just made
+                // to the graph
+                edges.forEach(function(edge){
+                    g.setEdge(edge.source, edge.target, edge.config);
+                });
+                nodes.forEach(function(node){
+                    if(nodeClasses[node.id]){
+                        node.config.class = nodeClasses[node.id];
+                    }
+                    g.setNode(node.id, node.config);
+                });
+
+                render(inner, g);
+
+                if(isFirstTime){
+                    isFirstTime = false;
+                    // Zoom and scale to fit
+                    var zoomScale = zoom.scale();
+                    var padding = 200;
+                    var graphWidth = g.graph().width + padding;
+                    var graphHeight = g.graph().height + padding;
+                    var width = parseInt(svg.style("width").replace(/px/, ""));
+                    var height = parseInt(svg.style("height").replace(/px/, ""));
+                    zoomScale = Math.min(width / graphWidth, height / graphHeight);
+                    var translate = [
+                        (width/2) - ((graphWidth*zoomScale)/2) + (padding*zoomScale/2),
+                        (height/2) - ((graphHeight*zoomScale)/2) + (padding*zoomScale/2)
+                    ];
+
+                    zoom.translate(translate);
+                    zoom.scale(zoomScale);
+                    zoom.event(isUpdate ? svg.transition().duration(500) : d3.select("svg"));
                 }
-                g.setNode(node.id, node.config);
-            });
-
-            render(inner, g);
-
-            if(isFirstTime){
-                isFirstTime = false;
-                // Zoom and scale to fit
-                var zoomScale = zoom.scale();
-                var padding = 200;
-                var graphWidth = g.graph().width + padding;
-                var graphHeight = g.graph().height + padding;
-                var width = parseInt(svg.style("width").replace(/px/, ""));
-                var height = parseInt(svg.style("height").replace(/px/, ""));
-                zoomScale = Math.min(width / graphWidth, height / graphHeight);
-                var translate = [
-                    (width/2) - ((graphWidth*zoomScale)/2) + (padding*zoomScale/2),
-                    (height/2) - ((graphHeight*zoomScale)/2) + (padding*zoomScale/2)
-                ];
-
-                zoom.translate(translate);
-                zoom.scale(zoomScale);
-                zoom.event(isUpdate ? svg.transition().duration(500) : d3.select("svg"));
+            } else {
+                // TODO - show message in UI
+                console.log("Nothing to map :(");
             }
 
             $(".service_map_loader").fadeOut(150);

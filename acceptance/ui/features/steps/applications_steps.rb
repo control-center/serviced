@@ -88,9 +88,9 @@ Then (/^the "Status" column should be sorted with active applications on (top|th
     end
 end
 
-Then (/^I should see "([^"]*)" in the Services Map$/) do |node|
+Then (/^I should see "(.*?)" in the Services Map$/) do |node|
     within(@servicesMap_page.map) do
-        assert_text(node)
+        assert_text(getTableValue(node))
     end
 end
 

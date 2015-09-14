@@ -18,10 +18,13 @@ Feature: Application Management
       And I should see "Description"
       And I should see "Services Map"
 
+  @fun
   Scenario: View services map
+    Given only the default host is added
+      And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
     When I am on the applications page
       And I click the Services Map button
-    Then I should see "Internal Services" in the Services Map
+    Then I should see "table://applications/defaultApp/template" in the Services Map
 
   Scenario: View application template dialog
     When I am on the applications page
