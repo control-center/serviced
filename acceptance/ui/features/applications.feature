@@ -18,7 +18,6 @@ Feature: Application Management
       And I should see "Description"
       And I should see "Services Map"
 
-  @fun
   Scenario: View services map
     Given only the default host is added
       And that the "table://applications/defaultApp/template" application with the "table://applications/defaultApp/id" Deployment ID is added
