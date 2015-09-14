@@ -67,6 +67,9 @@ func (health ESHealth) String() string {
 	return "unknown"
 }
 
+const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = int(WAIT_FOR_INITIAL_HEALTHCHECK/time.Second)	//default startup timeout in seconds (same as all other iservices)
+const MIN_ES_STARTUP_TIMEOUT_SECONDS = 30	 	//minimum startup timeout in seconds
+
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
 
@@ -92,14 +95,15 @@ func init() {
 
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
-			Name:          serviceName,
-			Repo:          IMAGE_REPO,
-			Tag:           IMAGE_TAG,
-			Command:       func() string { return "" },
-			PortBindings:  []portBinding{elasticsearch_servicedPortBinding},
-			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
-			Configuration: make(map[string]interface{}),
-			HealthChecks:  healthChecks,
+			Name:          	serviceName,
+			Repo:          	IMAGE_REPO,
+			Tag:           	IMAGE_TAG,
+			Command:       	func() string { return "" },
+			PortBindings:  	[]portBinding{elasticsearch_servicedPortBinding},
+			Volumes:       	map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			Configuration: 	make(map[string]interface{}),
+			HealthChecks:	healthChecks,
+			StartupTimeout:	time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)*time.Second,
 		},
 	)
 	if err != nil {
@@ -127,15 +131,16 @@ func init() {
 
 	elasticsearch_logstash, err = NewIService(
 		IServiceDefinition{
-			Name:          serviceName,
-			Repo:          IMAGE_REPO,
-			Tag:           IMAGE_TAG,
-			Command:       func() string { return "" },
-			PortBindings:  []portBinding{elasticsearch_logstashPortBinding},
-			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
-			Configuration: make(map[string]interface{}),
-			HealthChecks:  healthChecks,
-			Recover:       recoverES,
+			Name:          	serviceName,
+			Repo:          	IMAGE_REPO,
+			Tag:           	IMAGE_TAG,
+			Command:       	func() string { return "" },
+			PortBindings:  	[]portBinding{elasticsearch_logstashPortBinding},
+			Volumes:       	map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
+			Configuration: 	make(map[string]interface{}),
+			HealthChecks:  	healthChecks,
+			Recover:       	recoverES,
+			StartupTimeout:	time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)*time.Second,
 		},
 	)
 	if err != nil {

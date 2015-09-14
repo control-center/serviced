@@ -107,7 +107,7 @@ type DaoTest struct {
 //SetUpSuite is run before the tests to ensure elastic, zookeeper etc. are running.
 func (dt *DaoTest) SetUpSuite(c *C) {
 	dt.Port = 9202
-	isvcs.Init()
+	isvcs.Init(isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)
 	isvcs.Mgr.SetVolumesDir("/tmp/serviced-test")
 	esServicedClusterName, _ := utils.NewUUID36()
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", esServicedClusterName); err != nil {

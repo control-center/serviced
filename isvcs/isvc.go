@@ -21,6 +21,8 @@ package isvcs
 import (
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
+
+	"time"
 )
 
 var Mgr *Manager
@@ -30,7 +32,10 @@ const (
 	IMAGE_TAG  = "v32"
 )
 
-func Init() {
+func Init(esStartupTimeoutInSeconds int) {
+	elasticsearch_serviced.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
+	elasticsearch_logstash.StartupTimeout = time.Duration(esStartupTimeoutInSeconds) * time.Second
+
 	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"))
 
 	if err := Mgr.Register(elasticsearch_serviced); err != nil {

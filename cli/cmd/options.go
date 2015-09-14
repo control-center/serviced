@@ -25,6 +25,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/zenoss/glog"
 )
 
@@ -49,7 +50,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		MCUsername:           "scott",
 		MCPasswd:             "tiger",
 		FSType:               volume.DriverType(config.StringVal("FS_TYPE", "rsync")),
-		ESStartupTimeout:     getDefaultESStartupTimeout(config.IntVal("ES_STARTUP_TIMEOUT", 600)),
+		ESStartupTimeout:     getDefaultESStartupTimeout(config.IntVal("ES_STARTUP_TIMEOUT", isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)),
 		HostAliases:          config.StringSlice("VHOST_ALIASES", []string{}),
 		Verbosity:            config.IntVal("LOG_LEVEL", 0),
 		StaticIPs:            config.StringSlice("STATIC_IPS", []string{}),
@@ -119,7 +120,7 @@ func getDefaultVarPath(home string) string {
 }
 
 func getDefaultESStartupTimeout(timeout int) int {
-	const minTimeout = 30
+	minTimeout := isvcs.MIN_ES_STARTUP_TIMEOUT_SECONDS
 	if timeout < minTimeout {
 		timeout = minTimeout
 	}
