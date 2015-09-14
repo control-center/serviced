@@ -349,9 +349,9 @@
     "title_services": "Services",
     "title_user_details": "User Details",
     "title_resource_commitment": "Resource Commitment",
-    
+
     "too_few_instances": "Number of instances is too small",
-    
+
     "vhost_actions": "Actions",
     "vhost_application": "Service",
     "vhost_controls": "Controls",
@@ -362,5 +362,8 @@
     "vhost_url": "URL",
     "view_licenses": "View Licenses",
     "warning": "Warning",
-    "warning_remove_service": "This action will permanently delete the running application"
+    "warning_remove_service": "This action will permanently delete the running application",
+
+    "one_moment": "One moment please...",
+    "no_services_found": "No Services found"
 }

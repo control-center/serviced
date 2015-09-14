@@ -142,7 +142,6 @@
     "ctl_running_started": "iniciado",
     "ctl_running_stopped": "detenido",
     "deployed_tbl_deployment": "Estado de la Instalaci\u00f3n",
-    "deployed_tbl_deployment_id": "Nombre",
     "deployed_tbl_details": "Detalles",
     "deployed_tbl_description": "Descripci\u00f3n",
     "deployed_tbl_deployment_id": "ID Aplicaci\u00f3n",
@@ -331,20 +330,21 @@
     "title_services": "Servicios",
     "title_user_details": "Informaci\u00f3n de Usuario",
     "title_resource_commitment": "Resource Commitment",
-    
+
     "too_few_instances": "Número de las instancias es demasiado baja",
-    
+
     "vhost_actions": "Acciones",
     "vhost_application": "Servicio",
     "vhost_controls": "Controles",
-    "vhost_service_endpoint": "Punto de Destino",
     "vhost_name_invalid": "Nombre de Servidor inv\u00e1lido:", 	 	
     "vhost_name": "Nombre", 
     "vhost_names": "Nombre", 
     "vhost_service_endpoint": "Punto de Destino",
     "vhost_url": "URL",
-    "vhost_name_invalid": "Nombre de servidor virtual no valido:",
     "view_licenses": "Ver licencias",
     "warning": "Aviso",
-    "warning_remove_service": "Esto eliminar\u00e1 la aplicación en ejecuci\u00f3n, esta accion no podra ser revertida."
+    "warning_remove_service": "Esto eliminar\u00e1 la aplicación en ejecuci\u00f3n, esta accion no podra ser revertida.",
+
+    "one_moment": "Un momento por favor...",
+    "no_services_found": "No hay servicios encontrados"
 }

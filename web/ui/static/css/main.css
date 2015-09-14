@@ -48,6 +48,8 @@
   }
 }
 
+html, body, .container { height: 100%; }
+
 body {
     padding: 20px;
     color: #666;
@@ -867,7 +869,6 @@ input.startup {
   border: solid 1px white;
   font: 10px sans-serif;
   line-height: 12px;
-  overflow: hidden;
   position: absolute;
   text-indent: 2px;
 }
@@ -879,14 +880,38 @@ input.startup {
 
 /* dagre-d3 related below  */
 
-svg.service_map {
+.service_map_wrap {
+    position: relative;
+    height: calc(100% - 140px);
+}
+.service_map_wrap .service_map,
+.service_map_wrap .service_map_loader {
+  position: absolute;
+  top: 0;
+  left: 0;
   border: 0px;
-  height: 600px;
+  width: 1140px;
+  height: 100%;
+  border: solid #CCC 1px;
+}
+.service_map_wrap .service_map_loader {
+    background-color: rgba(255,255,255,0.9);
+}
+.service_map_loader .message {
+    text-align: center;
+    position: relative;
+    top: calc(50%);
+    transform: translateY(-50%);
 }
 
-svg.service_map.tall {
-  height: 1200px;
-  width: 1140px;
+.last_update {
+    font-size: 0.9em;
+    color: #CCC;
+    text-align: right;
+}
+.last_update strong {
+    font-weight: bold;
+    color: #888;
 }
 
 .service_map rect {
@@ -894,42 +919,50 @@ svg.service_map.tall {
 }
 
 .service_map .node rect {
-  stroke-width: 2px;
-  stroke: #333;
-  fill: none;
+  stroke-width: 0;
+  fill: #EEE;
 }
 
-.service_map .edge rect {
+.service_map .edgePath rect {
   fill: #fff;
 }
 
-.service_map .edge path {
+.service_map .edgePath path {
   fill: none;
-  stroke: #333;
-  stroke-width: 1.5px;
+  stroke: #888;
+  stroke-width: 1px;
+}
+
+.service_map .edgePath marker path {
+    fill: #888;
 }
 
 .service_map .node.host rect {
-    fill: #B89300;
-    stroke: black;
+    fill: #0084DB;
+    border-radius: 50%;
 }
 .service_map .node.host text {
     fill: white;
 }
 
-.service_map .node.service rect {
-    fill: #29A3CC;
-    stroke: black;
+.service_map .node.service.running rect {
+    fill: #0084DB;
+}
+.service_map .node.service.running.bad rect {
+    fill: #9C1200;
 }
 
-.service_map .node.service.notrunning rect {
-    fill: #AAAAAA;
-    stroke: black;
+.service_map .node.service rect {
+    fill: #AAA;
 }
 
 .service_map .node.service.meta rect {
-    fill: #19627A;
-    stroke: black;
+    fill: white;
+    stroke: #999;
+    stroke-width: 1px;
+}
+.service_map .node.service.meta text {
+    fill: #777;
 }
 
 .service_map .node.service text {

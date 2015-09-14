@@ -1,3 +1,17 @@
     <div ng-show="loggedIn" ng-include="'/static/partials/top-nav.html'" class="navWrapper"></div>
 
-    <svg class="service_map tall"><g transform="translate(20, 20)"/></svg>
+    <div class="service_map_wrap">
+        <svg class="service_map"><g></g></svg>
+        <div class="service_map_loader loading">
+            <div class="message">
+                <img src="static/img/loading.gif">
+                <div translate>one_moment</div>
+            </div>
+        </div>
+        <div class="service_map_loader no_services" style="display: none;">
+            <div class="message">
+                <div translate>no_services_found</div>
+            </div>
+        </div>
+    </div>
+    <div ng-show="lastUpdate" class="last_update">Last Update: <strong>{{lastUpdate | prettyDate}}</strong></div>
