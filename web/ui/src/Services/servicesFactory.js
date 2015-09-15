@@ -29,7 +29,7 @@
         angular.extend(newFactory, {
             // TODO - update list by application instead
             // of all services ever?
-            update: function(force, skipUpdateInstances){
+            update: function(force){
                 var deferred = $q.defer(),
                     now = new Date().getTime(),
                     since;
@@ -97,9 +97,7 @@
                     });
 
                 // keep instances up to date
-                if(!skipUpdateInstances){
-                    instancesFactory.update();
-                }
+                //instancesFactory.update();
 
                 return deferred.promise;
             },

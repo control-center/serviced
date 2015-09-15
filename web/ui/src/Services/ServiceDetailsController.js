@@ -6,12 +6,13 @@
 (function() {
     'use strict';
 
-    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory){
+    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils", "hostsFactory", "instancesFactory",
+    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory, instancesFactory){
         // Ensure logged in
         authService.checkLogin($scope);
         $scope.resourcesFactory = resourcesFactory;
         $scope.hostsFactory = hostsFactory;
+        $scope.instancesFactory = instancesFactory;
 
         $scope.defaultHostAlias = $location.host();
         if(utils.needsHostAlias($location.host())){
@@ -707,9 +708,14 @@
             servicesFactory.activate();
             servicesFactory.update();
 
+            instancesFactory.setCurrentServiceId($scope.params.serviceId);
+            instancesFactory.activate();
+            instancesFactory.update();
+
             $scope.$on("$destroy", function() {
                 servicesFactory.deactivate();
                 hostsFactory.deactivate();
+                instancesFactory.deactivate();
             });
 
         }

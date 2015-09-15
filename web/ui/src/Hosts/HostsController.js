@@ -4,8 +4,8 @@
 (function(){
     "use strict";
 
-    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory", "servicesFactory",
-    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory, poolsFactory, servicesFactory){
+    controlplane.controller("HostsController", ["$scope", "$routeParams", "$location", "$filter", "resourcesFactory", "authService", "$modalService", "$interval", "$translate", "$notification", "miscUtils", "hostsFactory", "poolsFactory", "instancesFactory",
+    function($scope, $routeParams, $location, $filter, resourcesFactory, authService, $modalService, $interval, $translate, $notification, utils, hostsFactory, poolsFactory, instancesFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -127,16 +127,19 @@
             // update hosts
             update();
 
-            servicesFactory.activate();
             hostsFactory.activate();
             poolsFactory.activate();
+            // need instances to roll up
+            // RAM commitment per host
+            instancesFactory.activate();
         }
 
         init();
 
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
-            servicesFactory.deactivate();
+            poolsFactory.deactivate();
+            instancesFactory.deactivate();
         });
     }]);
 })();

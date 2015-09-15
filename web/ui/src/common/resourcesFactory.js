@@ -80,6 +80,14 @@
                 method: "GET",
                 url: "/running"
             },
+            getRunningForService: {
+                method: "GET",
+                url: id => `/services/${id}/running`
+            },
+            getRunningForHost: {
+                method: "GET",
+                url: id => `/hosts/${id}/running`
+            },
             addPool: {
                 method: "POST",
                 url: "/pools/add",
