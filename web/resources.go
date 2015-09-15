@@ -335,8 +335,16 @@ func restGetRunningForHost(w *rest.ResponseWriter, r *rest.Request, client *node
 		glog.V(3).Info("Running services was nil, returning empty list instead")
 		services = []dao.RunningService{}
 	}
-	glog.V(2).Infof("Returning %d running services for host %s", len(services), hostID)
-	w.WriteJson(&services)
+
+	uiServices, err := runningServicesToUIRunningServices(services, client)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Infof("Returning %d running services for host %s", len(uiServices), hostID)
+	w.WriteJson(&uiServices)
 }
 
 func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -360,8 +368,16 @@ func restGetRunningForService(w *rest.ResponseWriter, r *rest.Request, client *n
 		glog.V(3).Info("Running services was nil, returning empty list instead")
 		services = []dao.RunningService{}
 	}
-	glog.V(2).Infof("Returning %d running services for service %s", len(services), serviceID)
-	w.WriteJson(&services)
+
+	uiServices, err := runningServicesToUIRunningServices(services, client)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Infof("Returning %d running services for service %s", len(uiServices), serviceID)
+	w.WriteJson(&uiServices)
 }
 
 func restGetStatusForService(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -409,13 +425,25 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 		services = []dao.RunningService{}
 	}
 
+	uiServices, err := runningServicesToUIRunningServices(services, client)
+	if err != nil {
+		glog.Errorf("Could not get services: %v", err)
+		restServerError(w, err)
+		return
+	}
+
+	glog.V(2).Infof("Return %d running services", len(uiServices))
+	w.WriteJson(&uiServices)
+}
+
+func runningServicesToUIRunningServices(services []dao.RunningService, client *node.ControlClient) ([]uiRunningService, error) {
+
 	instances := []metrics.ServiceInstance{}
 
 	for _, rsvc := range services {
 		var svc service.Service
 		if err := client.GetService(rsvc.ServiceID, &svc); err != nil {
-			glog.Errorf("Could not get services: %v", err)
-			restServerError(w, err)
+			return nil, err
 		}
 		fillBuiltinMetrics(&svc)
 		rsvc.MonitoringProfile = svc.MonitoringProfile
@@ -466,8 +494,7 @@ func restGetAllRunning(w *rest.ResponseWriter, r *rest.Request, client *node.Con
 		}
 	}
 
-	glog.V(2).Infof("Return %d running services", len(uiServices))
-	w.WriteJson(&uiServices)
+	return uiServices, nil
 }
 
 func restKillRunning(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
@@ -893,8 +920,8 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	type VolumeInfo struct {
-		Name   string
-		Status volume.Status
+		Name              string
+		Status            volume.Status
 		MonitoringProfile domain.MonitorProfile
 	}
 
