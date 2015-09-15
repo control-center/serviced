@@ -82,7 +82,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 
 	// Set the volumePath to /tmp if running serviced as just an agent
 	homepath := config.StringVal("HOME", "")
-	varpath := getDefaultVarPath(config.StringVal("VARPATH", homepath))
+	varpath := config.StringVal("VARPATH", getDefaultVarPath(homepath))
 	if options.Master {
 		options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 		options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
