@@ -314,35 +314,27 @@ func EnsureZkFatjar() {
 		log.Fatal("Can't find java in path")
 	}
 
-	jars, err := filepath.Glob("zookeeper-*/contrib/fatjar/zookeeper-*-fatjar.jar")
+	jars, err := filepath.Glob("zookeeper-*/contrib/jar/*.jar")
 	if err != nil {
 		log.Fatal("Error search for files")
 	}
+
 	if len(jars) > 0 {
 		return
 	}
 
-	err = exec.Command("curl", "-O", "http://www.java2s.com/Code/JarDownload/zookeeper/zookeeper-3.3.3-fatjar.jar.zip").Run()
+	err = exec.Command("curl", "-O", "https://archive.apache.org/dist/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz").Run()
 	if err != nil {
-		log.Fatalf("Could not download fatjar: %s", err)
+		log.Fatalf("Could not download jar: %s", err)
 	}
 
-	err = exec.Command("unzip", "zookeeper-3.3.3-fatjar.jar.zip").Run()
+	err = exec.Command("tar", "-xf", "zookeeper-3.4.5.tar.gz").Run()
 	if err != nil {
-		log.Fatalf("Could not unzip fatjar: %s", err)
-	}
-	err = exec.Command("mkdir", "-p", "zookeeper-3.3.3/contrib/fatjar").Run()
-	if err != nil {
-		log.Fatalf("Could not make fatjar dir: %s", err)
+		log.Fatalf("Could not unzip jar: %s", err)
 	}
 
-	err = exec.Command("mv", "zookeeper-3.3.3-fatjar.jar", "zookeeper-3.3.3/contrib/fatjar/").Run()
+	err = exec.Command("rm", "zookeeper-3.4.5.tar.gz").Run()
 	if err != nil {
-		log.Fatalf("Could not mv fatjar: %s", err)
-	}
-
-	err = exec.Command("rm", "zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatalf("Could not rm fatjar.zip: %s", err)
+		log.Fatalf("Could not rm jar.zip: %s", err)
 	}
 }
