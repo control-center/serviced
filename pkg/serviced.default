@@ -39,11 +39,15 @@
 # Set the mux port to listen on
 # SERVICED_MUX_PORT=22250
 
-# Set the VOLUMES path for serviced application data
-# SERVICED_VOLUMES_PATH=/opt/serviced/var/volumes
+# DEPRECATED: Set the var path for serviced. Use options below to specify paths
+# to the isvcs, volumes, and backups directories.
+# SERVICED_VARPATH=/opt/serviced/var
 
 # Set the ISVCS path for serviced internal data
 # SERVICED_ISVCS_PATH=/opt/serviced/var/isvcs
+
+# Set the VOLUMES path for serviced application data
+# SERVICED_VOLUMES_PATH=/opt/serviced/var/volumes
 
 # Set the BACKUPS path for serviced backups
 # SERVICED_BACKUPS_PATH=/opt/serviced/var/backups

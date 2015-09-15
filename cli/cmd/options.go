@@ -22,10 +22,10 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/volume"
-	"github.com/control-center/serviced/isvcs"
 	"github.com/zenoss/glog"
 )
 
@@ -81,7 +81,8 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
 	// Set the volumePath to /tmp if running serviced as just an agent
-	varpath := getDefaultVarPath(config.StringVal("HOME", ""))
+	homepath := config.StringVal("HOME", "")
+	varpath := getDefaultVarPath(config.StringVal("VARPATH", homepath))
 	if options.Master {
 		options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
 		options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
