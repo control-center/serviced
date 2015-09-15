@@ -60,3 +60,15 @@ func Init(esStartupTimeoutInSeconds int) {
 		glog.Fatalf("%s", err)
 	}
 }
+
+func InitServices(isvcNames []string) {
+	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"))
+	for _, isvcName := range isvcNames {
+		switch isvcName {
+		case "zookeeper":
+			if err := Mgr.Register(zookeeper); err != nil {
+				glog.Fatalf("%s", err)
+			}
+		}
+	}
+}

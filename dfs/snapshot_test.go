@@ -77,7 +77,7 @@ func (st *snapshotTest) SetUpTest(c *C) {
 	// st.dfs.facade = st.mockFacade
 	st.dfs = &DistributedFilesystem{
 		fsType:           volume.DriverTypeRsync,
-		varpath:          st.tmpDir,
+		volumesPath:      st.tmpDir,
 		dockerHost:       "localhost",
 		dockerPort:       5000,
 		facade:           st.mockFacade,

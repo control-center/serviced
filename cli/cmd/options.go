@@ -44,7 +44,6 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		KeyPEMFile:           config.StringVal("KEY_FILE", ""),
 		CertPEMFile:          config.StringVal("CERT_FILE", ""),
 		Zookeepers:           config.StringSlice("ZK", []string{}),
-		RemoteZookeepers:     []string{},
 		HostStats:            config.StringVal("STATS_PORT", fmt.Sprintf("%s:8443", masterIP)),
 		StatsPeriod:          config.IntVal("STATS_PERIOD", 10),
 		MCUsername:           "scott",
@@ -67,6 +66,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		MaxRPCClients:        config.IntVal("MAX_RPC_CLIENTS", 3),
 		RPCDialTimeout:       config.IntVal("RPC_DIAL_TIMEOUT", 30),
 		SnapshotTTL:          config.IntVal("SNAPSHOT_TTL", 12),
+		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
@@ -80,11 +80,16 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 	defaultControllerBinary := filepath.Join(dir, "serviced-controller")
 	options.ControllerBinary = config.StringVal("CONTROLLER_BINARY", defaultControllerBinary)
 
-	// Set the varpath to /tmp if running serviced as just an agent
+	// Set the volumePath to /tmp if running serviced as just an agent
+	varpath := getDefaultVarPath(config.StringVal("HOME", ""))
 	if options.Master {
-		options.VarPath = config.StringVal("VARPATH", getDefaultVarPath(config.StringVal("HOME", "")))
+		options.IsvcsPath = config.StringVal("ISVCS_PATH", filepath.Join(varpath, "isvcs"))
+		options.VolumesPath = config.StringVal("VOLUMES_PATH", filepath.Join(varpath, "volumes"))
+		options.BackupsPath = config.StringVal("BACKUPS_PATH", filepath.Join(varpath, "backups"))
 	} else {
-		options.VarPath = config.StringVal("VARPATH", getDefaultVarPath(""))
+		tmpvarpath := getDefaultVarPath("")
+		options.IsvcsPath = filepath.Join(varpath, "isvcs")
+		options.VolumesPath = filepath.Join(tmpvarpath, "volumes")
 	}
 	return options
 }
