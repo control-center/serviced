@@ -86,7 +86,8 @@ func (c *OpenTsdbISvc) Run() error {
 	start := time.Now()
 	timeout := time.Second * 30
 	for {
-		if _, err := http.Get("http://localhost:4242/version"); err == nil {
+		if resp, err := http.Get("http://localhost:4242/version"); err == nil {
+			resp.Body.Close()
 			break
 		} else {
 			if time.Since(start) > timeout && time.Since(start) < (timeout/4) {
