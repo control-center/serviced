@@ -141,35 +141,38 @@ func (vs *ScriptSuite) Test_parseLine(t *C) {
 		test{"cmd arg1", "cmd", []string{"arg1"}},
 		test{"cmd3 arg1 arg2", "cmd3", []string{"arg1", "arg2"}},
 		test{"cmd4   arg1  \t  arg2   ", "cmd4", []string{"arg1", "arg2"}},
+		test{"cmd5 arg1 \"arg2a arg2b\" arg3", "cmd5", []string{"arg1", "arg2a arg2b", "arg3"}},
+		test{"cmd6 arg1 'arg2a arg2b' arg3", "cmd6", []string{"arg1", "arg2a arg2b", "arg3"}},
 	}
 
 	for _, testCase := range tests {
-		cmd, args := parseLine(testCase.line)
+		cmd, args, err := parseLine(testCase.line)
+
+		t.Assert(err, IsNil)
 		t.Assert(cmd, Equals, testCase.cmd)
 		t.Assert(args, DeepEquals, testCase.args)
 	}
 }
-func (vs *ScriptSuite) Test_parseCommand(t *C) {
-	type test struct {
-		line string
-		cmd  string
-		args []string
-	}
 
-	tests := []test{
-		test{"", "", []string{}},
-		test{"   ", "", []string{}},
-		test{"\t", "", []string{}},
-		test{"cmd", "cmd", []string{}},
-		test{"    cmd2   ", "cmd2", []string{}},
-		test{"cmd arg1", "cmd", []string{"arg1"}},
-		test{"cmd3 arg1 arg2", "cmd3", []string{"arg1", "arg2"}},
-		test{"cmd4   arg1  \t  arg2   ", "cmd4", []string{"arg1", "arg2"}},
+func (vs *ScriptSuite) Test_parseBadLines(t *C) {
+	tests := []string{
+		"cmd1 \"",
+		"cmd1 '",
+		"cmd1 \"arg",
+		"cmd1 'arg",
+		"cmd1 arg\"",
+		"cmd1 arg'",
+		"cmd1 arg1 'ar g2' 'arg3",
+		"cmd1 arg1 'ar g2' arg3'",
+		"cmd1 'arg1 arg2\"",
+		"cmd1 \"arg1 arg2'",
 	}
 
 	for _, testCase := range tests {
-		cmd, args := parseLine(testCase.line)
-		t.Assert(cmd, Equals, testCase.cmd)
-		t.Assert(args, DeepEquals, testCase.args)
+		cmd, args, err := parseLine(testCase)
+
+		t.Assert(cmd, Equals, "")
+		t.Assert(len(args), Equals, 0)
+		t.Assert(err, ErrorMatches, "invalid command line string")
 	}
 }

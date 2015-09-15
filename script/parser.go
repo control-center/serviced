@@ -11,6 +11,8 @@ import (
 	"os"
 	"strings"
 	"unicode"
+
+	"github.com/mattn/go-shellwords"
 )
 
 type parseContext struct {
@@ -63,12 +65,18 @@ func ForEachLine(r io.Reader, apply func(num int, line string) error) error {
 }
 
 //parseLine returns the command and args array if any. If line is empty empty string and args are returned
-func parseLine(line string) (string, []string) {
+func parseLine(line string) (string, []string, error) {
 	line = strings.TrimLeftFunc(line, unicode.IsSpace)
-	fields := strings.Fields(line)
+	shellwords.ParseEnv = false
+	shellwords.ParseBacktick = false
+	fields, err := shellwords.Parse(line)
+	if err != nil {
+		return "", []string{}, err
+	}
+
 	//ignore empty lines
 	if len(fields) == 0 {
-		return "", []string{}
+		return "", []string{}, nil
 	}
 	var cmd string
 	if strings.HasPrefix(fields[0], "#") {
@@ -80,12 +88,15 @@ func parseLine(line string) (string, []string) {
 	for i, _ := range args {
 		args[i] = strings.TrimFunc(args[i], unicode.IsSpace)
 	}
-	return cmd, args
+	return cmd, args, nil
 }
 
 // parseCommand parses current line and creates a command
 func parseNode(ctx *parseContext) error {
-	prefix, args := parseLine(ctx.line)
+	prefix, args, err := parseLine(ctx.line)
+	if err != nil {
+		return fmt.Errorf("could not parse line %d: %s: %s", ctx.lineNum, ctx.line, err)
+	}
 
 	f, found := nodeFactories[prefix]
 	if !found {
