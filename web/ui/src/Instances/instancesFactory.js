@@ -16,7 +16,19 @@
         $notification = _notification;
         utils = _utils;
 
-        var newFactory = new BaseFactory(Instance, resourcesFactory.getRunningServices);
+        var newFactory = new BaseFactory(Instance, function(){
+            var promise;
+
+            if(this.currentServiceId){
+                promise = resourcesFactory.getRunningForService(this.currentServiceId);
+            } else if(this.currentHostId){
+                promise = resourcesFactory.getRunningForHost(this.currentHostId);
+            } else {
+                promise = resourcesFactory.getRunningServices();
+            }
+
+            return promise;
+        });
 
         // alias some stuff for ease of use
         newFactory.instanceArr = newFactory.objArr;
@@ -42,11 +54,29 @@
                 }
                 return results;
             },
+
+            // scope the request for running instances
+            // to one specific service
+            setCurrentServiceId: function(id){
+                this.currentServiceId = id;
+                this.currentHostId = "";
+            },
+
+            // scope the request for running instances
+            // to one specific service
+            setCurrentHostId: function(id){
+                this.currentServiceId = "";
+                this.currentHostId = id;
+            }
         });
 
         newFactory.update = utils.after(newFactory.update, function(){
             // call update on all children
             newFactory.instanceArr.forEach(instance => instance.update());
+        }, newFactory);
+
+        newFactory.deactivate = utils.after(newFactory.deactivate, function(){
+            this.currentServiceId = this.currentHostId = "";
         }, newFactory);
 
         return newFactory;

@@ -6,8 +6,8 @@
 (function() {
     'use strict';
 
-    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification", "instancesFactory", "servicesFactory",
-    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, $notification, instancesFactory, servicesFactory){
+    controlplane.controller("HostDetailsController", ["$scope", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "miscUtils", "hostsFactory", "$notification", "instancesFactory",
+    function($scope, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, utils, hostsFactory, $notification, instancesFactory){
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -75,8 +75,9 @@
         function init(){
             // start polling
             hostsFactory.activate();
-            servicesFactory.activate();
-            servicesFactory.update();
+            instancesFactory.setCurrentHostId($scope.params.hostId);
+            instancesFactory.activate();
+            instancesFactory.update();
 
             $scope.ipsTable = {
                 sorting: {
@@ -109,7 +110,7 @@
 
         $scope.$on("$destroy", function(){
             hostsFactory.deactivate();
-            servicesFactory.deactivate();
+            instancesFactory.deactivate();
         });
     }]);
 })();
