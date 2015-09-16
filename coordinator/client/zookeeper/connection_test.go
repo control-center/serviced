@@ -168,12 +168,10 @@ func TestZkDriver_Multi(t *testing.T) {
 		Name: "test1",
 	}
 
-	ops := []interface{}{
-		coordclient.CreateRequest{"/test0", testNode0},
-		coordclient.CreateRequest{"/test1", testNode1},
-	}
-
-	if err = conn.Multi(ops...); err != nil {
+	multi := conn.NewTransaction()
+	multi.Create("/test0", testNode0)
+	multi.Create("/test1", testNode1)
+	if err = multi.Commit(); err != nil {
 		t.Fatalf("creating /test0 and /test1 should work: %s", err)
 	}
 
@@ -202,12 +200,10 @@ func TestZkDriver_Multi(t *testing.T) {
 	testNode0.Name = "test0b"
 	testNode1.Name = "test1b"
 
-	ops = []interface{}{
-		coordclient.SetDataRequest{"/test0", testNode0},
-		coordclient.SetDataRequest{"/test1", testNode1},
-	}
-
-	if err = conn.Multi(ops...); err != nil {
+	multi = conn.NewTransaction()
+	multi.Set("/test0", testNode0)
+	multi.Set("/test1", testNode1)
+	if err = multi.Commit(); err != nil {
 		t.Fatalf("setting test0 and test1 should work: %s", err)
 	}
 
@@ -237,12 +233,10 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("expected test1b, got %s", out.Name)
 	}
 
-	ops = []interface{}{
-		coordclient.DeleteRequest{"/test0"},
-		coordclient.DeleteRequest{"/test1"},
-	}
-
-	if err = conn.Multi(ops...); err != nil {
+	multi = conn.NewTransaction()
+	multi.Delete("/test0")
+	multi.Delete("/test1")
+	if err = multi.Commit(); err != nil {
 		t.Fatalf("deleting /test0 and /test1 should work: %s", err)
 	}
 

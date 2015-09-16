@@ -39,30 +39,14 @@ type Node interface {
 	SetVersion(interface{})
 }
 
-// Used to build a transaction for Connection.Multi.
-type CreateRequest struct {
-	Path string
-	Node Node
-}
-
-// Used to build a transaction for Connection.Multi.
-type SetDataRequest struct {
-	Path string
-	Node Node
-}
-
-// Used to build a transaction for Connection.Multi.
-type DeleteRequest struct {
-	Path string
-}
-
 // Connection is the interface that allows interaction with the coordination service
 type Connection interface {
 	Close()
 	SetID(int)
 	ID() int
 	SetOnClose(func(int))
-	Multi(ops ...interface{}) error
+	NewTransaction() Transaction
+	Transact(t Transaction) error
 	Create(path string, node Node) error
 	CreateDir(path string) error
 	CreateEphemeral(path string, node Node) (string, error)
@@ -73,7 +57,6 @@ type Connection interface {
 	Get(path string, node Node) error
 	GetW(path string, node Node) (<-chan Event, error)
 	Set(path string, node Node) error
-
 	NewLock(path string) Lock
 	NewLeader(path string, data Node) Leader
 }
