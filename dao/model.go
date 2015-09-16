@@ -117,8 +117,9 @@ var (
 )
 
 type ServiceStatus struct {
-	State  servicestate.ServiceState
-	Status Status
+	State  				servicestate.ServiceState
+	Status 				Status
+	HealthCheckStatuses	map[string]domain.HealthCheckStatus //map of healthcheck name --> healthcheck status
 }
 
 // BackupFile is the structure for backup file data

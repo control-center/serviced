@@ -101,9 +101,9 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 	statusmap, err = GetServiceStatus(conn, svc.ID)
 	c.Assert(err, IsNil)
 	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{
-		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Running},
-		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Resuming},
-		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Starting},
+		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Running, nil},
+		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Resuming, nil},
+		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Starting, nil},
 	})
 
 	c.Log("Desired state is PAUSE")
@@ -114,9 +114,9 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 	statusmap, err = GetServiceStatus(conn, svc.ID)
 	c.Assert(err, IsNil)
 	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{
-		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Pausing},
-		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Paused},
-		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Stopped},
+		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Pausing, nil},
+		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Paused, nil},
+		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Stopped, nil},
 	})
 
 	c.Log("Desired state is STOP")
@@ -127,8 +127,8 @@ func (t *ZZKTest) TestGetServiceStatus(c *C) {
 	statusmap, err = GetServiceStatus(conn, svc.ID)
 	c.Assert(err, IsNil)
 	c.Assert(statusmap, DeepEquals, map[string]dao.ServiceStatus{
-		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Stopping},
-		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Stopping},
-		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Stopped},
+		stateIDs[0]: dao.ServiceStatus{states[stateIDs[0]], dao.Stopping, nil},
+		stateIDs[1]: dao.ServiceStatus{states[stateIDs[1]], dao.Stopping, nil},
+		stateIDs[2]: dao.ServiceStatus{states[stateIDs[2]], dao.Stopped, nil},
 	})
 }

@@ -102,6 +102,7 @@ func wait(shutdown <-chan interface{}, conn client.Connection, serviceID, stateI
 }
 
 // GetServiceStatus creates a map of service states to their corresponding status
+// The ServiceStatus objects returned will NOT include healthcheck info
 func GetServiceStatus(conn client.Connection, serviceID string) (map[string]dao.ServiceStatus, error) {
 	states, err := GetServiceStates(conn, serviceID)
 	if err != nil {

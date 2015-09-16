@@ -41,6 +41,23 @@ var runningServices []dao.RunningService
 var exitChannel = make(chan bool)
 var lock = &sync.RWMutex{}
 
+
+// Returns Map of InstanceID -> HealthCheckName -> healthStatus for a given serviceID.  
+func GetHealthStatusesForService(serviceID string) map[string]map[string]domain.HealthCheckStatus {
+	lock.RLock()
+	defer lock.RUnlock()
+
+	//make a copy of healthStatuses[serviceID] and store the HealthCheckStatus values instead of pointers
+	result := make(map[string]map[string]domain.HealthCheckStatus, len(healthStatuses[serviceID]))
+	for instanceID, healthChecks := range(healthStatuses[serviceID]){
+		result[instanceID]= make(map[string]domain.HealthCheckStatus, len(healthChecks))
+		for hcName, hcStatus := range(healthChecks){
+			result[instanceID][hcName] = *hcStatus
+		}
+	}
+	return result
+}
+
 func init() {
 	foreverHealthy := &domain.HealthCheckStatus{
 		Status:    "passed",
