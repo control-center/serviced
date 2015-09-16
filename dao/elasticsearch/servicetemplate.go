@@ -50,7 +50,7 @@ func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymen
 
 	// Create the tenant volume
 	for _, tenantID := range *tenantIDs {
-		if _, err := this.dfs.GetVolume(tenantID); err != nil {
+		if err := this.dfs.CreateVolume(tenantID); err != nil {
 			glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
 		}
 	}

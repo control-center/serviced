@@ -22,6 +22,16 @@ func (dfs *DistributedFilesystem) GetVolume(serviceID string) (volume.Volume, er
 	return dfs.getServiceVolume(dfs.fsType, dfs.volumesPath, serviceID)
 }
 
+func (dfs *DistributedFilesystem) CreateVolume(serviceID string) error {
+	drv, err := volume.GetDriver(dfs.volumesPath)
+	if err != nil {
+		glog.Errorf("Could not find driver at root %s: %s", dfs.volumesPath, err)
+		return err
+	}
+	_, err = drv.Create(serviceID)
+	return err
+}
+
 func serviceVolumeGet(fsType volume.DriverType, root, serviceID string) (volume.Volume, error) {
 	drv, err := volume.GetDriver(root)
 	if err != nil {
