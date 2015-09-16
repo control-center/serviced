@@ -110,7 +110,7 @@ func loginOK(r *rest.Request) bool {
 
 	sessionsLock.Lock()
 	defer sessionsLock.Unlock()
-	value, err := url.QueryUnescape(cookie.Value)
+	value, err := url.QueryUnescape(strings.Replace(cookie.Value, "+", url.QueryEscape("+"), -1))
 	if err != nil {
 		glog.Warning("Unable to decode session ", cookie.Value)
 		return false
