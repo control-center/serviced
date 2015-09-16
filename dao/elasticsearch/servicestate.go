@@ -16,6 +16,7 @@ package elasticsearch
 import (
 	//	"errors"
 
+	"fmt"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -24,7 +25,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-	"fmt"
 	"strconv"
 )
 
@@ -138,13 +138,13 @@ func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[stri
 
 	if st != nil {
 		//get all healthcheck statuses for this service
-		healthStatuses:= health.GetHealthStatusesForService(serviceID) //map[string]map[string]*domain.HealthCheckStatus
-		
+		healthStatuses := health.GetHealthStatusesForService(serviceID) //map[string]map[string]*domain.HealthCheckStatus
+
 		//merge st with healthcheck info into *status
 		*status = make(map[string]dao.ServiceStatus, len(st))
-		for stateID, instanceStatus := range st{
+		for stateID, instanceStatus := range st {
 			instanceID := strconv.Itoa(instanceStatus.State.InstanceID) //healthStatuses are mapped using a string for instanceID
-			instanceStatus.HealthCheckStatuses = healthStatuses[instanceID] 
+			instanceStatus.HealthCheckStatuses = healthStatuses[instanceID]
 
 			(*status)[stateID] = instanceStatus
 		}

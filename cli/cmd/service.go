@@ -410,16 +410,15 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	var states map[string]map[string]interface{}
 	var err error
 
-	
 	//Determine whether to show healthcheck fields and rows based on user input:
 	//   By default, we only show individual healthcheck rows if a specific service is requested
 	//   However, we will show them if the user explicitly requests the "Healthcheck" or "Healthcheck Status" fields
-	showIndividualHealthChecks := false //whether or not to add rows to the table for individual health checks.
+	showIndividualHealthChecks := false       //whether or not to add rows to the table for individual health checks.
 	fieldsToShow := ctx.String("show-fields") //we will modify this if not user-set
-	
-	if(!ctx.IsSet("show-fields")){
+
+	if !ctx.IsSet("show-fields") {
 		//only show the appropriate health fields based on arguments
-		if len(ctx.Args()) > 0{ //don't show "HC Fail"
+		if len(ctx.Args()) > 0 { //don't show "HC Fail"
 			fieldsToShow = strings.Replace(fieldsToShow, "HC Fail,", "", -1)
 			fieldsToShow = strings.Replace(fieldsToShow, ",HC Fail", "", -1) //in case it was last in the list
 		} else { //don't show "Healthcheck" or "Healthcheck Status"
@@ -474,9 +473,9 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			defer t.DedentRow()
 			for _, rowid := range childmap[root] {
 				row := states[rowid]
-				
+
 				if _, ok := row["Healthcheck"]; !ok || showIndividualHealthChecks { //if this is a healthcheck row, only include it if showIndividualHealthChecks is true
-					t.AddRow(row)	
+					t.AddRow(row)
 					nextRoot := fmt.Sprintf("%v", row["ServiceID"])
 
 					if _, ok := childmap[rowid]; ok {

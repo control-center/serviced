@@ -168,11 +168,11 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 				rowmap[fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID)] = row
 
-				if(stat.Status == dao.Running && len(stat.HealthCheckStatuses) > 0){ 
-				
+				if stat.Status == dao.Running && len(stat.HealthCheckStatuses) > 0 {
+
 					explicitFailure := false
 
-					for hcName, hcResult := range stat.HealthCheckStatuses{
+					for hcName, hcResult := range stat.HealthCheckStatuses {
 						newrow := make(map[string]interface{})
 						if svc.Instances > 1 {
 							newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID)
@@ -182,16 +182,16 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 						newrow["Healthcheck"] = hcName
 						newrow["Healthcheck Status"] = hcResult.Status
 
-						if(hcResult.Status == "failed"){
+						if hcResult.Status == "failed" {
 							explicitFailure = true
 						}
 
 						rowmap[fmt.Sprintf("%s/%d-%v", svc.ID, stat.State.InstanceID, hcName)] = newrow
 					}
-					
+
 					//go back and add the healthcheck field for the parent row
-					if explicitFailure{
-						row["HC Fail"] = "X"	
+					if explicitFailure {
+						row["HC Fail"] = "X"
 					}
 				}
 
