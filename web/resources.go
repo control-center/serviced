@@ -304,7 +304,6 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 
 	if tenantID == "" { //Don't add isvcs if a tenant is specified
 		if since == "" {
-			fmt.Printf("-----> web/resources.go restGetAllServices Appending isvcs\n")
 			result = append(result, getISVCS()...)
 		} else {
 			t0 := time.Now().Add(-tsince)
