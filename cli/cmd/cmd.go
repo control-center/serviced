@@ -70,12 +70,12 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.BoolFlag{"master", "run in master mode, i.e., the control center service"},
 		cli.BoolFlag{"agent", "run in agent mode, i.e., a host in a resource pool"},
 		cli.IntFlag{"mux", defaultOps.MuxPort, "multiplexing port"},
-		cli.StringFlag{"var", defaultOps.VarPath, "path to store serviced data"},
+		cli.StringFlag{"volumes-path", defaultOps.VolumesPath, "path where application data is stored"},
+		cli.StringFlag{"isvcs-path", defaultOps.IsvcsPath, "path where internal application data is stored"},
+		cli.StringFlag{"backups-path", defaultOps.BackupsPath, "default path where backups are stored"},
 		cli.StringFlag{"keyfile", defaultOps.KeyPEMFile, "path to private key file (defaults to compiled in private key)"},
 		cli.StringFlag{"certfile", defaultOps.CertPEMFile, "path to public certificate file (defaults to compiled in public cert)"},
 		cli.StringSliceFlag{"zk", convertToStringSlice(defaultOps.Zookeepers), "Specify a zookeeper instance to connect to (e.g. -zk localhost:2181)"},
-		// TODO: 1.1
-		// cli.StringSliceFlag{"remote-zk", &remotezks, "Specify a zookeeper instance to connect to (e.g. -remote-zk remote:2181)"},
 		cli.StringSliceFlag{"mount", convertToStringSlice(defaultOps.Mount), "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"fstype", string(defaultOps.FSType), "driver for underlying file system"},
 		cli.StringSliceFlag{"alias", convertToStringSlice(defaultOps.HostAliases), "list of aliases for this host, e.g., localhost"},
@@ -86,6 +86,7 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"master-pool-id", defaultOps.MasterPoolID, "master's pool ID"},
 		cli.StringFlag{"admin-group", defaultOps.AdminGroup, "system group that can log in to control center"},
 		cli.StringSliceFlag{"storage-opts", convertToStringSlice(defaultOps.StorageArgs), "storage args to initialize filesystem"},
+		cli.StringSliceFlag{"isvcs-start", convertToStringSlice(defaultOps.StartISVCS), "isvcs to start on agent"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", defaultOps.HostStats, "container statistics for host:port"},
@@ -154,11 +155,12 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		Agent:                ctx.GlobalBool("agent"),
 		MuxPort:              ctx.GlobalInt("mux"),
 		TLS:                  true,
-		VarPath:              ctx.GlobalString("var"),
+		VolumesPath:          ctx.GlobalString("volumes-path"),
+		IsvcsPath:            ctx.GlobalString("isvcs-path"),
+		BackupsPath:          ctx.GlobalString("backups-path"),
 		KeyPEMFile:           ctx.GlobalString("keyfile"),
 		CertPEMFile:          ctx.GlobalString("certfile"),
 		Zookeepers:           ctx.GlobalStringSlice("zk"),
-		RemoteZookeepers:     ctx.GlobalStringSlice("remote-zk"),
 		Mount:                ctx.GlobalStringSlice("mount"),
 		HostAliases:          ctx.GlobalStringSlice("alias"),
 		ESStartupTimeout:     ctx.GlobalInt("es-startup-timeout"),
@@ -184,6 +186,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		SnapshotTTL:          ctx.GlobalInt("snapshot-ttl"),
 		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
 		ControllerBinary:     ctx.GlobalString("controller-binary"),
+		StartISVCS:           ctx.GlobalStringSlice("isvcs-start"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true

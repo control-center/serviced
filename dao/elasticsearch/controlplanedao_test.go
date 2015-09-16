@@ -18,7 +18,6 @@ package elasticsearch
 import (
 	"fmt"
 	"os"
-	"path"
 	"strconv"
 	"strings"
 	"testing"
@@ -139,10 +138,10 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	}
 
 	tmpdir := c.MkDir()
-	err = volume.InitDriver(volume.DriverTypeRsync, path.Join(tmpdir, "volumes"), []string{})
+	err = volume.InitDriver(volume.DriverTypeRsync, tmpdir, []string{})
 	c.Assert(err, IsNil)
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, volume.DriverTypeRsync, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, "", volume.DriverTypeRsync, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {

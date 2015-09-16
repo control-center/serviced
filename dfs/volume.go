@@ -14,32 +14,29 @@
 package dfs
 
 import (
-	"errors"
-	"path/filepath"
-
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"
 )
 
 func (dfs *DistributedFilesystem) GetVolume(serviceID string) (volume.Volume, error) {
-	return dfs.getServiceVolume(dfs.fsType, dfs.varpath, serviceID)
+	return dfs.getServiceVolume(dfs.fsType, dfs.volumesPath, serviceID)
 }
 
-// GetSubvolume gets the path of the *local* volume on the host
-func GetSubvolume(fsType volume.DriverType, varpath, serviceID string) (volume.Volume, error) {
-	glog.Infof("Mounting tenantID: %v; baseDir: %v", serviceID, varpath)
-	return volume.FindMount(filepath.Join(varpath, "volumes", serviceID))
-}
-
-func serviceVolumeGet(fsType volume.DriverType, varpath, serviceID string) (volume.Volume, error) {
-	v, err := GetSubvolume(fsType, varpath, serviceID)
+func (dfs *DistributedFilesystem) CreateVolume(serviceID string) error {
+	drv, err := volume.GetDriver(dfs.volumesPath)
 	if err != nil {
-		glog.Errorf("Could not acquire subvolume for service %s: %s", serviceID, err)
-		return nil, err
-	} else if v == nil {
-		err := errors.New("volume is nil")
-		glog.Errorf("Could not get volume for service %s: %s", serviceID, err)
+		glog.Errorf("Could not find driver at root %s: %s", dfs.volumesPath, err)
+		return err
+	}
+	_, err = drv.Create(serviceID)
+	return err
+}
+
+func serviceVolumeGet(fsType volume.DriverType, root, serviceID string) (volume.Volume, error) {
+	drv, err := volume.GetDriver(root)
+	if err != nil {
+		glog.Errorf("Could not find driver at root %s: %s", root, err)
 		return nil, err
 	}
-	return v, nil
+	return drv.Get(serviceID)
 }
