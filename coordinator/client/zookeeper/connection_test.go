@@ -133,6 +133,137 @@ func TestZkDriver(t *testing.T) {
 	conn.Close()
 }
 
+func TestZkDriver_Multi(t *testing.T) {
+	basePath := "/basePath"
+	tc, err := zklib.StartTestCluster(1, nil, nil)
+	if err != nil {
+		t.Fatalf("could not start test zk cluster: %s", err)
+	}
+	defer os.RemoveAll(tc.Path)
+	defer tc.Stop()
+	time.Sleep(time.Second)
+
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+
+	drv := Driver{}
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	if err != nil {
+		t.Fatalf("unexpected error creating zk DSN: %s", err)
+	}
+
+	dsn := string(dsnBytes)
+
+	conn, err := drv.GetConnection(dsn, basePath)
+	defer conn.Close()
+	if err != nil {
+		t.Fatal("unexpected error getting connection")
+	}
+
+	conn.CreateDir("/basePath")
+
+	testNode0 := &testNodeT{
+		Name: "test0",
+	}
+	testNode1 := &testNodeT{
+		Name: "test1",
+	}
+
+	ops := []interface{}{
+		coordclient.CreateRequest{"/test0", testNode0},
+		coordclient.CreateRequest{"/test1", testNode1},
+	}
+
+	if err = conn.Multi(ops...); err != nil {
+		t.Fatalf("creating /test0 and /test1 should work: %s", err)
+	}
+
+	out := &testNodeT{
+		Name: "badwolf",
+	}
+
+	err = conn.Get("/test0", out)
+	if err != nil {
+		t.Fatalf("getting /test0 should work: %s", err)
+	}
+
+	if out.Name != "test0" {
+		t.Fatalf("expected test0, got %s", out.Name)
+	}
+
+	err = conn.Get("/test1", out)
+	if err != nil {
+		t.Fatalf("getting /test1 should work: %s", err)
+	}
+
+	if out.Name != "test1" {
+		t.Fatalf("expected test1, got %s", out.Name)
+	}
+
+	testNode0.Name = "test0b"
+	testNode1.Name = "test1b"
+
+	ops = []interface{}{
+		coordclient.SetDataRequest{"/test0", testNode0},
+		coordclient.SetDataRequest{"/test1", testNode1},
+	}
+
+	if err = conn.Multi(ops...); err != nil {
+		t.Fatalf("setting test0 and test1 should work: %s", err)
+	}
+
+	out = &testNodeT{
+		Name: "badwolf",
+	}
+
+	err = conn.Get("/test0", out)
+	if err != nil {
+		t.Fatalf("getting /test0 should work: %s", err)
+	}
+
+	if out.Name != "test0b" {
+		t.Fatalf("expected test0b, got %s", out.Name)
+	}
+
+	out = &testNodeT{
+		Name: "badwolf",
+	}
+
+	err = conn.Get("/test1", out)
+	if err != nil {
+		t.Fatalf("getting /test1 should work: %s", err)
+	}
+
+	if out.Name != "test1b" {
+		t.Fatalf("expected test1b, got %s", out.Name)
+	}
+
+	ops = []interface{}{
+		coordclient.DeleteRequest{"/test0"},
+		coordclient.DeleteRequest{"/test1"},
+	}
+
+	if err = conn.Multi(ops...); err != nil {
+		t.Fatalf("deleting /test0 and /test1 should work: %s", err)
+	}
+
+	exists, err := conn.Exists("/test0")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test0: %s", err)
+	}
+	if exists {
+		t.Fatalf("/test0 should have been deleted")
+	}
+
+	exists, err = conn.Exists("/test1")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test1: %s", err)
+	}
+	if exists {
+		t.Fatalf("/test1 should have been deleted")
+	}
+
+}
+
 func TestZkDriver_Ephemeral(t *testing.T) {
 	basePath := "/basePath"
 	tc, err := zklib.StartTestCluster(1, nil, nil)

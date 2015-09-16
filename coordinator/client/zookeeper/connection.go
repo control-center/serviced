@@ -122,6 +122,73 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 	return path, xlateError(err)
 }
 
+// Perform a zookeeper transaction.
+func (c *Connection) Multi(ops ...interface{}) error {
+	if c.conn == nil {
+		return client.ErrConnectionClosed
+	}
+	zkCreate := []zklib.CreateRequest{}
+	zkDelete := []zklib.DeleteRequest{}
+	zkSetData := []zklib.SetDataRequest{}
+	for _, op := range ops {
+		switch op.(type) {
+		case client.CreateRequest:
+			cr := op.(client.CreateRequest)
+			path := join(c.basePath, cr.Path)
+			bytes, err := json.Marshal(cr.Node)
+			if err != nil {
+				return client.ErrSerialization
+			}
+			zkCreate = append(zkCreate, zklib.CreateRequest{
+				Path:  path,
+				Data:  bytes,
+				Acl:   zklib.WorldACL(zklib.PermAll),
+				Flags: 0,
+			})
+		case client.SetDataRequest:
+			sdr := op.(client.SetDataRequest)
+			path := join(c.basePath, sdr.Path)
+			bytes, err := json.Marshal(sdr.Node)
+			if err != nil {
+				return client.ErrSerialization
+			}
+			stat := &zklib.Stat{}
+			if sdr.Node.Version() != nil {
+				zstat, ok := sdr.Node.Version().(*zklib.Stat)
+				if !ok {
+					return client.ErrInvalidVersionObj
+				}
+				*stat = *zstat
+			}
+			zkSetData = append(zkSetData, zklib.SetDataRequest{
+				Path:    path,
+				Data:    bytes,
+				Version: stat.Version,
+			})
+		case client.DeleteRequest:
+			dr := op.(client.DeleteRequest)
+			path := join(c.basePath, dr.Path)
+			_, stat, err := c.conn.Get(path)
+			if err != nil {
+				return xlateError(err)
+			}
+			zkDelete = append(zkDelete, zklib.DeleteRequest{
+				Path:    path,
+				Version: stat.Version,
+			})
+		}
+	}
+	multi := zklib.MultiOps{
+		Create:  zkCreate,
+		SetData: zkSetData,
+		Delete:  zkDelete,
+	}
+	if err := c.conn.Multi(multi); err != nil {
+		return xlateError(err)
+	}
+	return nil
+}
+
 // Create places data at the node at the given path.
 func (c *Connection) Create(path string, node client.Node) error {
 	if c.conn == nil {
