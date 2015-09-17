@@ -111,6 +111,5 @@ func TestServiceImageKey(t *testing.T) {
 	image := buildValidNewImage()
 
 	assert.Equal(t, image.Key().ID(), "someImageID")
-//    assert.Equal(t, image.Key().ID(), "someImageID-someUUID")
 	assert.Equal(t, image.Key().Kind(), "serviceimage")
 }

@@ -116,33 +116,6 @@ func (suite *ServiceImageSuite) TestGetImagesByImageID_FoundOne(c *C) {
     c.Assert(len(results), Equals, 1)
     c.Assert(results[0], ImageEquals, image)
 }
-//
-//func (suite *ServiceImageSuite) TestGetImagesByImageID_FoundMoreThanOne(c *C) {
-//    // Load some other records first so we're looking in a set with >1 item
-//    filler1 := suite.buildAndStoreImage(c, "fillerImage1")
-//    defer suite.store.Delete(suite.ctx, filler1.Key())
-//    filler2 := suite.buildAndStoreImage(c, "fillerImage2")
-//    defer suite.store.Delete(suite.ctx, filler2.Key())
-//
-//    // Add the images under test
-//    targetID := "someImageID"
-//    image1 := buildValidNamedImage(targetID)
-//    suite.storeImage(c, image1)
-//    defer suite.store.Delete(suite.ctx, image1.Key())
-//
-//    image2 := buildValidNamedImage(targetID)
-//    image2.UUID = "someDifferentUUID"
-//    suite.storeImage(c, image2)
-//    defer suite.store.Delete(suite.ctx, image2.Key())
-//
-//    results, err := suite.store.GetImagesByImageID(suite.ctx, targetID)
-//
-//    c.Assert(results, NotNil)
-//    c.Assert(err, IsNil)
-//    c.Assert(len(results), Equals, 2)
-//    c.Assert(results[0], ImageEquals, image1)
-//    c.Assert(results[1], ImageEquals, image2)
-//}
 
 func (suite *ServiceImageSuite) TestGetImagesByStatus_InvalidStatus(c *C) {
     results, err := suite.store.GetImagesByStatus(suite.ctx, -1)
