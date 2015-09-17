@@ -286,6 +286,44 @@ func (c *ServicedCli) printServicesAll(ctx *cli.Context) {
 	}
 }
 
+func (c *ServicedCli) printHelpForRun(svc *service.Service, command string) (returncode int) {
+	var (
+		found             bool
+		availablecommands []string
+	)
+	for commandname := range svc.Commands {
+		availablecommands = append(availablecommands, commandname)
+		if commandname == command {
+			found = true
+		}
+	}
+
+	sort.Strings(availablecommands)
+	if command == "help" {
+		fmt.Printf("Available commands for %v:\n", svc.Name)
+		for _, commandname := range availablecommands {
+			fmt.Printf("    %-20v  %v\n", commandname, svc.Commands[commandname].Description)
+		}
+		if len(availablecommands) == 0 {
+			fmt.Println("    No commands available.")
+		}
+		return 0
+
+	} else if !found {
+		fmt.Printf("Command %#v not available.\n", command)
+		fmt.Printf("Available commands for %v:\n", svc.Name)
+		for _, commandname := range availablecommands {
+			fmt.Printf("    %-20v  %v\n", commandname, svc.Commands[commandname].Description)
+		}
+		if len(availablecommands) == 0 {
+			fmt.Println("    No commands available.")
+		}
+		return 1
+
+	}
+	return -1
+}
+
 // Bash-completion command that completes the service ID as the first argument
 // and runnable commands as the second argument
 func (c *ServicedCli) printServiceRun(ctx *cli.Context) {
@@ -975,6 +1013,10 @@ func (c *ServicedCli) cmdServiceRun(ctx *cli.Context) error {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return c.exit(1)
+	}
+
+	if returncode := c.printHelpForRun(svc, args[1]); returncode >= 0 {
+		return c.exit(returncode)
 	}
 
 	command = args[1]

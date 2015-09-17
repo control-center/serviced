@@ -25,6 +25,7 @@ type MinMax struct {
 
 type Command struct {
 	Command         string
+	Description     string
 	CommitOnSuccess bool
 }
 
