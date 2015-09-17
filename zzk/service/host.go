@@ -136,18 +136,11 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var processDone <-chan struct{}
 	var processLock sync.Mutex
 
-	// Let's have exclusive access to this node
-	lock := newInstanceLock(l.conn, stateID)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Could not lock service instance %s on host %s: %s", stateID, l.hostID, err)
-		return
-	}
 	// Get the HostState node
 	var hs HostState
 	if err := l.conn.Get(hostpath(l.hostID, stateID), &hs); err != nil {
 		glog.Errorf("Could not load host instance %s on host %s: %s", stateID, l.hostID, err)
 		l.conn.Delete(hostpath(l.hostID, stateID))
-		lock.Unlock()
 		return
 	}
 	defer removeInstance(l.conn, hs.ServiceID, hs.HostID, hs.ServiceStateID)
@@ -155,11 +148,9 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var ss servicestate.ServiceState
 	if err := l.conn.Get(servicepath(hs.ServiceID, hs.ServiceStateID), &ServiceStateNode{ServiceState: &ss}); err != nil {
 		glog.Errorf("Could not load service instance %s for service %s on host %s: %s", hs.ServiceStateID, hs.ServiceID, hs.HostID, err)
-		lock.Unlock()
 		return
 	}
 	defer l.stopInstance(&processLock, &ss)
-	lock.Unlock()
 
 	for {
 		// Get the HostState instance

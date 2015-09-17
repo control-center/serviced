@@ -14,110 +14,11 @@
 package service
 
 import (
-	"errors"
-	"path"
-	"time"
-
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 	ss "github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
 )
-
-const (
-	// zkServiceAlert alerts services when instances are added or deleted.
-	zkServiceAlert = "/alerts/services"
-	// zkInstanceLock keeps service instance updates in sync.
-	zkInstanceLock = "/locks/instances"
-)
-
-const (
-	// AlertInitialized indicates that the alerter has been initialized for the
-	// service.
-	AlertInitialized = "INIT"
-	// InstanceAdded describes a service event alert for an instance that was
-	// created.
-	InstanceAdded = "ADD"
-	// InstanceDeleted describes a service event alert for an instance that was
-	// deleted.
-	InstanceDeleted = "DEL"
-)
-
-var ErrLockNotFound = errors.New("lock not found")
-
-// ServiceAlert is a alert node for when a service instance is added or
-// deleted.
-type ServiceAlert struct {
-	ServiceID string
-	HostID    string
-	StateID   string
-	Event     string
-	Timestamp time.Time
-	version   interface{}
-}
-
-// Version implements client.Node
-func (alert *ServiceAlert) Version() interface{} {
-	return alert.version
-}
-
-// SetVersion implements client.Node
-func (alert *ServiceAlert) SetVersion(version interface{}) {
-	alert.version = version
-}
-
-// setUpAlert sets up the service alerter.
-func setupAlert(conn client.Connection, serviceID string) error {
-	var alert ServiceAlert
-	if err := conn.Create(path.Join(zkServiceAlert, serviceID), &alert); err == nil {
-		alert.Event = AlertInitialized
-		alert.Timestamp = time.Now()
-		if err := conn.Set(path.Join(zkServiceAlert, serviceID), &alert); err != nil {
-			glog.Errorf("Could not set alerter for service %s: %s", serviceID, err)
-			return err
-		}
-	} else if err != client.ErrNodeExists {
-		glog.Errorf("Could not create alerter for service %s: %s", serviceID, err)
-		return err
-	}
-	return nil
-}
-
-// removeAlert cleans up service alerter.
-func removeAlert(conn client.Connection, serviceID string) error {
-	return conn.Delete(path.Join(zkServiceAlert, serviceID))
-}
-
-// alertService sends a notification to a service that one of its service
-// instances has been updated.  And will set the value of the last updated
-// instance.
-func alertService(conn client.Connection, serviceID, hostID, stateID, event string) error {
-	var alert ServiceAlert
-	if err := conn.Get(path.Join(zkServiceAlert, serviceID), &alert); err != nil && err != client.ErrEmptyNode {
-		glog.Errorf("Could not find service %s: %s", serviceID, err)
-		return err
-	}
-	alert.ServiceID = serviceID
-	alert.HostID = hostID
-	alert.StateID = stateID
-	alert.Event = event
-	alert.Timestamp = time.Now()
-	if err := conn.Set(path.Join(zkServiceAlert, serviceID), &alert); err != nil {
-		glog.Errorf("Could not alert service %s: %s", serviceID, err)
-		return err
-	}
-	return nil
-}
-
-// newInstanceLock sets up a new zk instance lock for a given service state id
-func newInstanceLock(conn client.Connection, stateID string) client.Lock {
-	return conn.NewLock(path.Join(zkInstanceLock, stateID))
-}
-
-// rmInstanceLock removes a zk instance lock parent
-func rmInstanceLock(conn client.Connection, stateID string) error {
-	return conn.Delete(path.Join(zkInstanceLock, stateID))
-}
 
 // addInstance creates a new service state and host instance
 func addInstance(conn client.Connection, state ss.ServiceState) error {
@@ -141,8 +42,6 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		return err
 	}
 
-	alertService(conn, state.ServiceID, state.HostID, state.ID, InstanceAdded)
-
 	return nil
 }
 
@@ -160,8 +59,6 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 		glog.Errorf("Could not delete service state nodes %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
-
-	alertService(conn, serviceID, hostID, stateID, InstanceDeleted)
 
 	return nil
 }
@@ -187,8 +84,8 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 	mutate(&hsdata, ssnode.ServiceState)
 
 	t := conn.NewTransaction()
-	t.Set(hpath, hsdata)
-	t.Set(spath, ssnode)
+	t.Set(hpath, &hsdata)
+	t.Set(spath, &ssnode)
 	if err := t.Commit(); err != nil {
 		glog.Errorf("Could not update service state %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
