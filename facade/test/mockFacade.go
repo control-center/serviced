@@ -21,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/serviceimage"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/facade"
@@ -132,4 +133,13 @@ func (mf *MockFacade) HasIP(ctx datastore.Context, poolID string, ipAddr string)
 
 func (mf *MockFacade) UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error {
 	return mf.Mock.Called(ctx, entity).Error(0)
+}
+
+func (mf *MockFacade) GetServiceImage(ctx datastore.Context, imageID string) (*serviceimage.ServiceImage, error) {
+	args := mf.Mock.Called(ctx, imageID)
+	return args.Get(0).(*serviceimage.ServiceImage), args.Error(1)
+}
+
+func (mf *MockFacade) PushServiceImage(ctx datastore.Context, image *serviceimage.ServiceImage) error {
+	return mf.Mock.Called(ctx, image).Error(0)
 }
