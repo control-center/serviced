@@ -119,5 +119,10 @@ func (t *Transaction) Commit() error {
 	if err := t.conn.conn.Multi(multi); err != nil {
 		return xlateError(err)
 	}
-	return nil
+	for _, op := range t.ops {
+		if op.op == transactionCreate {
+			op.node.SetVersion(&zklib.Stat{})
+		}
+	}
+	return xlateError(nil)
 }

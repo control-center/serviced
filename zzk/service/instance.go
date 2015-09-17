@@ -128,48 +128,21 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		return err
 	}
 
-	lock := newInstanceLock(conn, state.ID)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
-		return err
-	}
-	glog.V(2).Infof("Acquired lock for instance %s", state.ID)
-	defer lock.Unlock()
 	defer alertService(conn, state.ServiceID, state.HostID, state.ID, InstanceAdded)
 
-	var err error
-	defer func() {
-		if err != nil {
-			conn.Delete(hostpath(state.HostID, state.ID))
-			conn.Delete(servicepath(state.ServiceID, state.ID))
-			rmInstanceLock(conn, state.ID)
-		}
-	}()
-
-	// Create node on the service
 	spath := servicepath(state.ServiceID, state.ID)
 	snode := &ServiceStateNode{ServiceState: &state}
-	if err = conn.Create(spath, snode); err != nil {
-		glog.Errorf("Could not create service state %s for service %s: %s", state.ID, state.ServiceID, err)
-		return err
-	} else if err = conn.Set(spath, snode); err != nil {
-		glog.Errorf("Could not set service state %s for node %+v: %s", state.ID, snode, err)
-		return err
-	}
-
-	// Create node on the host
 	hpath := hostpath(state.HostID, state.ID)
 	hnode := NewHostState(&state)
-	glog.V(2).Infof("Host node: %+v", hnode)
-	if err = conn.Create(hpath, hnode); err != nil {
-		glog.Errorf("Could not create host state %s for host %s: %s", state.ID, state.HostID, err)
-		return err
-	} else if err = conn.Set(hpath, hnode); err != nil {
-		glog.Errorf("Could not set host state %s for node %+v: %s", state.ID, hnode, err)
+
+	t := conn.NewTransaction()
+	t.Create(spath, snode)
+	t.Create(hpath, hnode)
+	if err := t.Commit(); err != nil {
+		glog.Errorf("failed transaction: could not create service states: %s", err)
 		return err
 	}
 
-	glog.V(2).Infof("Releasing lock for instance %s", state.ID)
 	return nil
 }
 
