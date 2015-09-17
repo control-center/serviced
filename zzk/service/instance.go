@@ -169,22 +169,6 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 // updateInstance updates the service state and host instances
 func updateInstance(conn client.Connection, hostID, stateID string, mutate func(*HostState, *ss.ServiceState)) error {
 	glog.V(2).Infof("Updating instance %s", stateID)
-	// do not lock if parent lock does not exist
-	if exists, err := conn.Exists(path.Join(zkInstanceLock, stateID)); err != nil && err != client.ErrNoNode {
-		glog.Errorf("Could not check for lock on instance %s: %s", stateID, err)
-		return err
-	} else if !exists {
-		glog.Errorf("Lock not found for instance %s", stateID)
-		return ErrLockNotFound
-	}
-
-	lock := newInstanceLock(conn, stateID)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Could not set lock for service instance %s on host %s: %s", stateID, hostID, err)
-		return err
-	}
-	defer lock.Unlock()
-	glog.V(2).Infof("Acquired lock for instance %s", stateID)
 
 	hpath := hostpath(hostID, stateID)
 	var hsdata HostState
@@ -202,15 +186,14 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 
 	mutate(&hsdata, ssnode.ServiceState)
 
-	if err := conn.Set(hpath, &hsdata); err != nil {
-		glog.Errorf("Could not update instance %s for host %s: %s", stateID, hostID, err)
+	t := conn.NewTransaction()
+	t.Set(hpath, hsdata)
+	t.Set(spath, ssnode)
+	if err := t.Commit(); err != nil {
+		glog.Errorf("Could not update service state %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
-	if err := conn.Set(spath, &ssnode); err != nil {
-		glog.Errorf("Could not update instance %s for service %s: %s", stateID, serviceID, err)
-		return err
-	}
-	glog.V(2).Infof("Releasing lock for instance %s", stateID)
+
 	return nil
 }
 
