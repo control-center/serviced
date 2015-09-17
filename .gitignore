@@ -31,6 +31,9 @@ tools/serviced-storage/serviced-storage
 TAGS
 tags
 
+# IntelliJ workspace files
+.idea
+
 # Architecture specific extensions/prefixes
 *.[568vq]
 [568vq].out
