@@ -39,6 +39,13 @@ type Node interface {
 	SetVersion(interface{})
 }
 
+type Transaction interface {
+	Create(path string, node Node)
+	Set(path string, node Node)
+	Delete(path string)
+	Commit() error
+}
+
 // Connection is the interface that allows interaction with the coordination service
 type Connection interface {
 	Close()
@@ -46,7 +53,6 @@ type Connection interface {
 	ID() int
 	SetOnClose(func(int))
 	NewTransaction() Transaction
-	Transact(t Transaction) error
 	Create(path string, node Node) error
 	CreateDir(path string) error
 	CreateEphemeral(path string, node Node) (string, error)

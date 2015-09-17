@@ -176,7 +176,7 @@ func TestZkDriver_Multi(t *testing.T) {
 	}
 
 	out := &testNodeT{
-		Name: "badwolf",
+		Name: "luffydmonkey",
 	}
 
 	err = conn.Get("/test0", out)
@@ -208,7 +208,7 @@ func TestZkDriver_Multi(t *testing.T) {
 	}
 
 	out = &testNodeT{
-		Name: "badwolf",
+		Name: "luffydmonkey",
 	}
 
 	err = conn.Get("/test0", out)
@@ -221,7 +221,7 @@ func TestZkDriver_Multi(t *testing.T) {
 	}
 
 	out = &testNodeT{
-		Name: "badwolf",
+		Name: "luffydmonkey",
 	}
 
 	err = conn.Get("/test1", out)
