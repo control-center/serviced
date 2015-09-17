@@ -149,11 +149,11 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 
 	// load all of the images into the registry
 	go func() {
-		images, err := s.facade.GetImages(datastore.Get())
+		imageIDs, err := s.facade.GetImageIDs(datastore.Get())
 		if err != nil {
 			glog.Fatalf("Could not get images: %s", err)
 		}
-		for _, imageID := range images {
+		for _, imageID := range imageIDs {
 			select {
 			case <-_shutdown:
 				return
