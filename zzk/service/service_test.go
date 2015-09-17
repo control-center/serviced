@@ -97,8 +97,6 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 	// delete the host path
 	err = conn.Delete(hostpath("test-host-1", instanceIDs[0]))
 	c.Assert(err, IsNil)
-	err = alertService(conn, svc.ID, "test-host-1", instanceIDs[0], InstanceDeleted)
-	c.Assert(err, IsNil)
 	c.Assert(getInstances(&svc), Not(DeepEquals), instanceIDs)
 	close(shutdown)
 	<-done
@@ -227,10 +225,6 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 		}
 
 		for _, ssID := range stateIDs {
-			lock := newInstanceLock(conn, ssID)
-			err := lock.Lock()
-			c.Assert(err, IsNil)
-
 			var hs HostState
 			hpath := hostpath(handler.Host.ID, ssID)
 			err = conn.Get(hpath, &hs)
@@ -238,9 +232,6 @@ func (t *ZZKTest) TestServiceListener_Spawn(c *C) {
 			if hs.DesiredState == int(service.SVCRun) {
 				count++
 			}
-
-			err = lock.Unlock()
-			c.Assert(err, IsNil)
 		}
 		return count
 	}
