@@ -64,6 +64,18 @@ var DefaultTestServices = []service.Service{
 			"hello":   "echo hello world",
 			"goodbye": "echo goodbye world",
 		},
+		Commands: map[string]domain.Command{
+			"hello": domain.Command{
+				Command:         "echo hello world",
+				Description:     "Just says 'hello world'.",
+				CommitOnSuccess: false,
+			},
+			"goodbye": domain.Command{
+				Command:         "echo goodbye world",
+				Description:     "Just says 'goodbye world'.",
+				CommitOnSuccess: false,
+			},
+		},
 	}, {
 		ID:             "test-service-2",
 		Name:           "Zope",
@@ -892,11 +904,30 @@ func ExampleServicedCLI_CmdServiceShell_err() {
 	// hello
 }
 */
-func ExampleServicedCLI_CmdServiceRun_exec() {
-	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "hello", "-i")
+func ExampleServicedCLI_CmdServiceRun_exec_aloha() {
+	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "aloha")
 
 	// Output:
-	// echo hello world -i
+	// Command "aloha" not available.
+	// Available commands for Zenoss:
+	//     goodbye               Just says 'goodbye world'.
+	//     hello                 Just says 'hello world'.
+}
+
+func ExampleServicedCLI_CmdServiceRun_exec_hello() {
+	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "hello")
+
+	// Output:
+	// echo hello world
+}
+
+func ExampleServicedCLI_CmdServiceRun_help() {
+	InitServiceAPITest("serviced", "service", "run", "-i", "test-service-1", "help")
+
+	// Output:
+	// Available commands for Zenoss:
+	//     goodbye               Just says 'goodbye world'.
+	//     hello                 Just says 'hello world'.
 }
 
 /*
