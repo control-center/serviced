@@ -170,6 +170,21 @@ func TestZkDriver_Multi(t *testing.T) {
 
 	multi := conn.NewTransaction()
 	multi.Create("/test0", testNode0)
+	multi.Set("/test1", testNode1)
+	if err = multi.Commit(); err == nil {
+		t.Fatalf("creating /test0 and setting /test1 should have failed")
+	}
+
+	exists, err := conn.Exists("/test0")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test0: %s", err)
+	}
+	if exists {
+		t.Fatalf("/test0 should not have been created")
+	}
+
+	multi = conn.NewTransaction()
+	multi.Create("/test0", testNode0)
 	multi.Create("/test1", testNode1)
 	if err = multi.Commit(); err != nil {
 		t.Fatalf("creating /test0 and /test1 should work: %s", err)
@@ -235,12 +250,27 @@ func TestZkDriver_Multi(t *testing.T) {
 
 	multi = conn.NewTransaction()
 	multi.Delete("/test0")
+	multi.Delete("/test0")
+	if err = multi.Commit(); err == nil {
+		t.Fatalf("expected error trying to delete the same node twice")
+	}
+
+	exists, err = conn.Exists("/test0")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test0: %s", err)
+	}
+	if !exists {
+		t.Fatalf("/test0 should not have been deleted")
+	}
+
+	multi = conn.NewTransaction()
+	multi.Delete("/test0")
 	multi.Delete("/test1")
 	if err = multi.Commit(); err != nil {
 		t.Fatalf("deleting /test0 and /test1 should work: %s", err)
 	}
 
-	exists, err := conn.Exists("/test0")
+	exists, err = conn.Exists("/test0")
 	if err != nil {
 		t.Fatalf("Error testing for existence of /test0: %s", err)
 	}
@@ -254,6 +284,20 @@ func TestZkDriver_Multi(t *testing.T) {
 	}
 	if exists {
 		t.Fatalf("/test1 should have been deleted")
+	}
+
+	testNode0 = &testNodeT{
+		Name: "test0",
+	}
+	testNode1 = &testNodeT{
+		Name: "test1",
+	}
+
+	multi = conn.NewTransaction()
+	multi.Create("/test0", testNode0)
+	multi.Create("/test0", testNode1)
+	if err = multi.Commit(); err == nil {
+		t.Fatalf("expected error trying to create an existing node")
 	}
 
 }
