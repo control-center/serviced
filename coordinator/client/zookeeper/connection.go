@@ -162,6 +162,31 @@ func (c *Connection) Create(path string, node client.Node) error {
 	return xlateError(err)
 }
 
+// Creates the path up to and including the immediate parent of the
+// target node.
+func (c *Connection) EnsurePath(path string) error {
+	path = join(c.basePath, path)
+	split := strings.Split(path, "/")
+	final := strings.Join(split[:len(split)-1], "/")
+	exists, err := c.Exists(final)
+	if err != nil {
+		glog.Errorf("Error testing existence of node %s: %s", final, err)
+		return xlateError(err)
+	}
+	if exists {
+		return xlateError(nil)
+	}
+	_path := ""
+	for _, n := range split[1 : len(split)-1] {
+		_path += "/" + n
+		_, err = c.conn.Create(_path, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+		if err != nil && err != zklib.ErrNodeExists {
+			return xlateError(err)
+		}
+	}
+	return xlateError(nil)
+}
+
 type dirNode struct {
 	version interface{}
 }

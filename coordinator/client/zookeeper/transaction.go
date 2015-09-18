@@ -119,6 +119,9 @@ func (t *Transaction) Commit() error {
 	if err := t.conn.conn.Multi(multi); err != nil {
 		return xlateError(err)
 	}
+	// I honestly have no idea why we're doing this, but we were
+	// doing it in the original Create function, so I replicate that
+	// behavior here. -RT
 	for _, op := range t.ops {
 		if op.op == transactionCreate {
 			op.node.SetVersion(&zklib.Stat{})
