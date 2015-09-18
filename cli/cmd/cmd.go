@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/codegangsta/cli"
@@ -87,6 +88,8 @@ func New(driver api.API, config utils.ConfigReader) *ServicedCli {
 		cli.StringFlag{"admin-group", defaultOps.AdminGroup, "system group that can log in to control center"},
 		cli.StringSliceFlag{"storage-opts", convertToStringSlice(defaultOps.StorageArgs), "storage args to initialize filesystem"},
 		cli.StringSliceFlag{"isvcs-start", convertToStringSlice(defaultOps.StartISVCS), "isvcs to start on agent"},
+		cli.IntFlag{"isvcs-zk-id", defaultOps.IsvcsZKID, "zookeeper id when running in a cluster"},
+		cli.StringSliceFlag{"isvcs-zk-quorum", convertToStringSlice(defaultOps.IsvcsZKQuorum), "isvcs zookeeper host quorum (e.g. -isvcs-zk-quorum zk1@localhost:2888:3888)"},
 
 		cli.BoolTFlag{"report-stats", "report container statistics"},
 		cli.StringFlag{"host-stats", defaultOps.HostStats, "container statistics for host:port"},
@@ -187,6 +190,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		StorageArgs:          ctx.GlobalStringSlice("storage-opts"),
 		ControllerBinary:     ctx.GlobalString("controller-binary"),
 		StartISVCS:           ctx.GlobalStringSlice("isvcs-start"),
+		IsvcsZKID:            ctx.GlobalInt("isvcs-zk-id"),
+		IsvcsZKQuorum:        ctx.GlobalStringSlice("isvcs-zk-quorum"),
 	}
 	if os.Getenv("SERVICED_MASTER") == "1" {
 		options.Master = true
@@ -298,6 +303,16 @@ func setLogging(ctx *cli.Context) error {
 }
 
 func setIsvcsEnv(ctx *cli.Context) error {
+	if zkid := ctx.GlobalInt("isvcs-zk-id"); zkid > 0 {
+		if err := isvcs.AddEnv(fmt.Sprintf("zookeeper:ZKID=%d", zkid)); err != nil {
+			return err
+		}
+	}
+	if zkquorum := strings.Join(ctx.GlobalStringSlice("isvcs-zk-quorum"), ","); zkquorum != "" {
+		if err := isvcs.AddEnv("zookeeper:ZK_QUORUM=" + zkquorum); err != nil {
+			return err
+		}
+	}
 	for _, val := range ctx.GlobalStringSlice("isvcs-env") {
 		if err := isvcs.AddEnv(val); err != nil {
 			return err

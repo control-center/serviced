@@ -79,6 +79,8 @@ type Options struct {
 	StorageOptions       map[string]string // environment arguments for storage options
 	ControllerBinary     string            // Path to the container controller binary
 	StartISVCS           []string          // ISVCS to start when running as an agent
+	IsvcsZKID            int               // Zookeeper server id when running as a quorum
+	IsvcsZKQuorum        []string          // Members of the zookeeper quorum
 }
 
 // LoadOptions overwrites the existing server options

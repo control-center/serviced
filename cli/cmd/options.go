@@ -67,6 +67,8 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		RPCDialTimeout:       config.IntVal("RPC_DIAL_TIMEOUT", 30),
 		SnapshotTTL:          config.IntVal("SNAPSHOT_TTL", 12),
 		StartISVCS:           config.StringSlice("ISVCS_START", []string{}),
+		IsvcsZKID:            config.IntVal("ISVCS_ZOOKEEPER_ID", 0),
+		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 	}
 
 	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
