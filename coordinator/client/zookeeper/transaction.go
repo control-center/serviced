@@ -60,6 +60,56 @@ func (t *Transaction) Delete(path string) {
 	})
 }
 
+func (t *Transaction) processCreate(op transactionOperation) (*zklib.CreateRequest, error) {
+	path := join(t.conn.basePath, op.path)
+	bytes, err := json.Marshal(op.node)
+	if err != nil {
+		return nil, client.ErrSerialization
+	}
+	req := &zklib.CreateRequest{
+		Path:  path,
+		Data:  bytes,
+		Acl:   zklib.WorldACL(zklib.PermAll),
+		Flags: 0,
+	}
+	return req, nil
+}
+
+func (t *Transaction) processSet(op transactionOperation) (*zklib.SetDataRequest, error) {
+	path := join(t.conn.basePath, op.path)
+	bytes, err := json.Marshal(op.node)
+	if err != nil {
+		return nil, client.ErrSerialization
+	}
+	stat := &zklib.Stat{}
+	if op.node.Version() != nil {
+		zstat, ok := op.node.Version().(*zklib.Stat)
+		if !ok {
+			return nil, client.ErrInvalidVersionObj
+		}
+		*stat = *zstat
+	}
+	req := &zklib.SetDataRequest{
+		Path:    path,
+		Data:    bytes,
+		Version: stat.Version,
+	}
+	return req, nil
+}
+
+func (t *Transaction) processDelete(op transactionOperation) (*zklib.DeleteRequest, error) {
+	path := join(t.conn.basePath, op.path)
+	_, stat, err := t.conn.conn.Get(path)
+	if err != nil {
+		return nil, xlateError(err)
+	}
+	req := &zklib.DeleteRequest{
+		Path:    path,
+		Version: stat.Version,
+	}
+	return req, nil
+}
+
 func (t *Transaction) Commit() error {
 	if t.conn == nil {
 		return client.ErrConnectionClosed
@@ -68,47 +118,25 @@ func (t *Transaction) Commit() error {
 	zkDelete := []zklib.DeleteRequest{}
 	zkSetData := []zklib.SetDataRequest{}
 	for _, op := range t.ops {
-		path := join(t.conn.basePath, op.path)
 		switch op.op {
 		case transactionCreate:
-			bytes, err := json.Marshal(op.node)
+			req, err := t.processCreate(op)
 			if err != nil {
-				return client.ErrSerialization
+				return err
 			}
-			zkCreate = append(zkCreate, zklib.CreateRequest{
-				Path:  path,
-				Data:  bytes,
-				Acl:   zklib.WorldACL(zklib.PermAll),
-				Flags: 0,
-			})
+			zkCreate = append(zkCreate, *req)
 		case transactionSet:
-			bytes, err := json.Marshal(op.node)
+			req, err := t.processSet(op)
 			if err != nil {
-				return client.ErrSerialization
+				return err
 			}
-			stat := &zklib.Stat{}
-			if op.node.Version() != nil {
-				zstat, ok := op.node.Version().(*zklib.Stat)
-				if !ok {
-					return client.ErrInvalidVersionObj
-				}
-				*stat = *zstat
-			}
-			zkSetData = append(zkSetData, zklib.SetDataRequest{
-				Path:    path,
-				Data:    bytes,
-				Version: stat.Version,
-			})
+			zkSetData = append(zkSetData, *req)
 		case transactionDelete:
-			path := join(t.conn.basePath, op.path)
-			_, stat, err := t.conn.conn.Get(path)
+			req, err := t.processDelete(op)
 			if err != nil {
-				return xlateError(err)
+				return err
 			}
-			zkDelete = append(zkDelete, zklib.DeleteRequest{
-				Path:    path,
-				Version: stat.Version,
-			})
+			zkDelete = append(zkDelete, *req)
 		}
 	}
 	multi := zklib.MultiOps{
