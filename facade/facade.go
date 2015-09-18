@@ -26,14 +26,14 @@ import (
 var _ FacadeInterface = &Facade{}
 
 // New creates an initialized Facade instance
-func New(dockerRegistry string) *Facade {
+func New(dockerRegistryName string) *Facade {
 	return &Facade{
 		hostStore:      host.NewStore(),
 		imageStore:   	serviceimage.NewStore(),
 		poolStore:      pool.NewStore(),
 		serviceStore:   service.NewStore(),
 		templateStore:  servicetemplate.NewStore(),
-		dockerRegistry: dockerRegistry,
+		registryName:   dockerRegistryName,
 		registry:       &docker.DockerRegistry{},
 	}
 }
@@ -45,6 +45,6 @@ type Facade struct {
 	poolStore      *pool.Store
 	templateStore  *servicetemplate.Store
 	serviceStore   *service.Store
-	dockerRegistry string
+	registryName   string
 	registry       docker.DockerRegistryInterface
 }

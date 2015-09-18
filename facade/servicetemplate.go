@@ -306,7 +306,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	if tenantID == "" {
 		tenantID = newsvc.ID
 	}
-	if err := setImageID(f.dockerRegistry, tenantID, newsvc); err != nil {
+	if err := setImageID(f.registryName, tenantID, newsvc); err != nil {
 		glog.Errorf("Could not set image id for service %s at parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
@@ -362,13 +362,13 @@ func checkImages(imap map[string]struct{}, svcdef servicedefinition.ServiceDefin
 	return nil
 }
 
-func setImageID(registry, tenantID string, svc *service.Service) error {
+func setImageID(registryName, tenantID string, svc *service.Service) error {
 	if svc.ImageID == "" {
 		return nil
 	}
 
 	UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_renaming_image|"+svc.Name)
-	imageID, err := renameImageID(registry, svc.ImageID, tenantID)
+	imageID, err := renameImageID(registryName, svc.ImageID, tenantID)
 	if err != nil {
 		glog.Errorf("malformed imageID %s: %s", svc.ImageID, err)
 		return err
@@ -395,7 +395,7 @@ func setImageID(registry, tenantID string, svc *service.Service) error {
 	return nil
 }
 
-func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
+func renameImageID(registryName, imageId, tenantId string) (string, error) {
 	repo, _ := parsers.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
 	matches := re.FindStringSubmatch(repo)
@@ -403,7 +403,7 @@ func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 		return "", errors.New("malformed imageid")
 	}
 	name := matches[1]
-	return fmt.Sprintf("%s/%s/%s", dockerRegistry, tenantId, name), nil
+	return fmt.Sprintf("%s/%s/%s", registryName, tenantId, name), nil
 }
 
 // writeLogstashConfiguration takes all the available
