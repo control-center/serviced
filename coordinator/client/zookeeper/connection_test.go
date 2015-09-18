@@ -161,6 +161,9 @@ func TestZkDriver_Multi(t *testing.T) {
 
 	conn.CreateDir("/basePath")
 
+	//
+	// Test creating a new node and setting a non-existent node. Should not commit.
+	//
 	testNode0 := &testNodeT{
 		Name: "test0",
 	}
@@ -183,6 +186,9 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("/test0 should not have been created")
 	}
 
+	//
+	// Test creating two new nodes. Should commit.
+	//
 	multi = conn.NewTransaction()
 	multi.Create("/test0", testNode0)
 	multi.Create("/test1", testNode1)
@@ -212,6 +218,9 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("expected test1, got %s", out.Name)
 	}
 
+	//
+	// Test setting the newly created nodes. Should commit.
+	//
 	testNode0.Name = "test0b"
 	testNode1.Name = "test1b"
 
@@ -222,9 +231,7 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("setting test0 and test1 should work: %s", err)
 	}
 
-	out = &testNodeT{
-		Name: "luffydmonkey",
-	}
+	out.Name = "luffydmonkey"
 
 	err = conn.Get("/test0", out)
 	if err != nil {
@@ -235,9 +242,7 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("expected test0b, got %s", out.Name)
 	}
 
-	out = &testNodeT{
-		Name: "luffydmonkey",
-	}
+	out.Name = "luffydmonkey"
 
 	err = conn.Get("/test1", out)
 	if err != nil {
@@ -248,6 +253,9 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("expected test1b, got %s", out.Name)
 	}
 
+	//
+	// Attempt to delete the same node twice in the same transaction. Should not commit.
+	//
 	multi = conn.NewTransaction()
 	multi.Delete("/test0")
 	multi.Delete("/test0")
@@ -263,6 +271,9 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("/test0 should not have been deleted")
 	}
 
+	//
+	// Attempt to delete two nodes in a transaction. Should commit.
+	//
 	multi = conn.NewTransaction()
 	multi.Delete("/test0")
 	multi.Delete("/test1")
@@ -286,13 +297,9 @@ func TestZkDriver_Multi(t *testing.T) {
 		t.Fatalf("/test1 should have been deleted")
 	}
 
-	testNode0 = &testNodeT{
-		Name: "test0",
-	}
-	testNode1 = &testNodeT{
-		Name: "test1",
-	}
-
+	//
+	// Attempt to create the same node twice in the same transaction. Should not commit.
+	//
 	multi = conn.NewTransaction()
 	multi.Create("/test0", testNode0)
 	multi.Create("/test0", testNode1)
