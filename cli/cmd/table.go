@@ -48,11 +48,12 @@ func init() {
 }
 
 type Table struct {
-	Fields     []string
-	Padding    int
-	rows       []map[string]string
-	fieldSize  map[string]int
-	treeIndent []int
+	Fields                 []string
+	Padding                int
+	rows                   []map[string]string
+	fieldSize              map[string]int
+	treeIndent             []int
+	rowsAddedSinceLastDent bool
 }
 
 func NewTable(fieldString string) *Table {
@@ -82,12 +83,23 @@ func (t *Table) AddRow(row map[string]interface{}) {
 	if len(t.rows) > len(t.treeIndent) {
 		t.treeIndent = append(t.treeIndent, 0)
 	}
+	t.rowsAddedSinceLastDent = true
 }
 func (t *Table) IndentRow() {
-	t.treeIndent = append(t.treeIndent, 1)
+	if t.rowsAddedSinceLastDent || len(t.treeIndent) == 0 {
+		t.treeIndent = append(t.treeIndent, 1)
+	} else { //just increment the last indentation
+		t.treeIndent[len(t.treeIndent)-1]++
+	}
+	t.rowsAddedSinceLastDent = false
 }
 func (t *Table) DedentRow() {
-	t.treeIndent = append(t.treeIndent, -1)
+	if t.rowsAddedSinceLastDent || len(t.treeIndent) == 0 {
+		t.treeIndent = append(t.treeIndent, -1)
+	} else {
+		t.treeIndent[len(t.treeIndent)-1]--
+	}
+	t.rowsAddedSinceLastDent = false
 }
 func (t *Table) Print() {
 	colCount := len(t.Fields)
@@ -132,16 +144,18 @@ func (t *Table) getIndents(field string) (int, []string) {
 	// determines if the row is the last parent in the tree
 	isLastIndex := func(index int) bool {
 		if index+1 < len(t.rows) {
-			switch t.treeIndent[index+1] {
-			case -1:
+
+			if t.treeIndent[index+1] < 0 {
 				return true
-			case 0:
+			} else if t.treeIndent[index+1] == 0 {
 				return false
-			case 1:
-				level := t.treeIndent[index]
+			} else {
+				level := 0
 				for _, ind := range t.treeIndent[index+1 : len(t.rows)] {
-					if level = level + ind; level == 0 {
+					if level = level + ind; level == 0 { //found another node at the same level
 						return false
+					} else if level < 0 { //found a node at a higher level in the tree
+						return true
 					}
 				}
 			}
@@ -166,18 +180,22 @@ func (t *Table) getIndents(field string) (int, []string) {
 			rows[i] = indent + treeCharset["middle"] + row[field]
 		}
 		if i+1 < len(t.rows) {
-			switch t.treeIndent[i+1] {
-			case -1:
-				size := len(indent)
-				indent = strings.TrimSuffix(indent, "  ")
-				if size == len(indent) {
-					indent = strings.TrimSuffix(indent, treeCharset["bar"])
+			if t.treeIndent[i+1] < 0 {
+				for diff := 0; diff > t.treeIndent[i+1]; diff-- {
+					size := len(indent)
+					indent = strings.TrimSuffix(indent, "  ")
+					if size == len(indent) {
+						indent = strings.TrimSuffix(indent, treeCharset["bar"])
+					}
 				}
-			case 1:
+			} else if t.treeIndent[i+1] > 0 {
 				if lastIndex {
 					indent += "  "
 				} else {
 					indent += treeCharset["bar"]
+				}
+				for diff := 1; diff < t.treeIndent[i+1]; diff++ {
+					indent += "  "
 				}
 			}
 		}

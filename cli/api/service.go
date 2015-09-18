@@ -128,7 +128,11 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 			row := make(map[string]interface{})
 			row["ServiceID"] = svc.ID
 			row["Name"] = svc.Name
-			row["ParentID"] = svc.ParentServiceID
+			if svc.ParentServiceID != "" {
+				row["ParentID"] = fmt.Sprintf("%s/%d", svc.ParentServiceID, 0) //make this match the rowmap key
+			} else {
+				row["ParentID"] = ""
+			}
 			row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 
 			if svc.Instances > 0 {
@@ -141,13 +145,17 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 					row["Status"] = dao.Stopped.String()
 				}
 			}
-			rowmap[svc.ID] = row
+			rowmap[fmt.Sprintf("%s/%d", svc.ID, 0)] = row
 		} else {
 			for _, stat := range status {
 				metricReq.Instances = append(metricReq.Instances, metrics.ServiceInstance{svc.ID, stat.State.InstanceID})
 				row := make(map[string]interface{})
 				row["ServiceID"] = svc.ID
-				row["ParentID"] = svc.ParentServiceID
+				if svc.ParentServiceID != "" {
+					row["ParentID"] = fmt.Sprintf("%s/%d", svc.ParentServiceID, 0) //make this match the rowmap key
+				} else {
+					row["ParentID"] = ""
+				}
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.Status.String()
 				row["Hostname"] = hostmap[stat.State.HostID]
@@ -174,11 +182,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 					for hcName, hcResult := range stat.HealthCheckStatuses {
 						newrow := make(map[string]interface{})
-						if svc.Instances > 1 {
-							newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID)
-						} else {
-							newrow["ParentID"] = svc.ID
-						}
+						newrow["ParentID"] = fmt.Sprintf("%s/%d", svc.ID, stat.State.InstanceID) //make this match the rowmap key
 						newrow["Healthcheck"] = hcName
 						newrow["Healthcheck Status"] = hcResult.Status
 

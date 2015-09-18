@@ -473,17 +473,12 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			defer t.DedentRow()
 			for _, rowid := range childmap[root] {
 				row := states[rowid]
-
 				if _, ok := row["Healthcheck"]; !ok || showIndividualHealthChecks { //if this is a healthcheck row, only include it if showIndividualHealthChecks is true
 					t.AddRow(row)
-					nextRoot := fmt.Sprintf("%v", row["ServiceID"])
-
-					if _, ok := childmap[rowid]; ok {
-						nextRoot = rowid //if rowid exists in our childmap, use it instead of ServiceID
-					}
-
-					addRows(nextRoot)
 				}
+
+				nextRoot := rowid
+				addRows(nextRoot)
 			}
 		}
 	}
