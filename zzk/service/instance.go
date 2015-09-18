@@ -34,14 +34,6 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 	hpath := hostpath(state.HostID, state.ID)
 	hnode := NewHostState(&state)
 
-	if err := conn.EnsurePath(spath); err != nil {
-		glog.Errorf("Error ensuring path for node %s: %s", spath, err)
-	}
-
-	if err := conn.EnsurePath(hpath); err != nil {
-		glog.Errorf("Error ensuring path for node %s: %s", hpath, err)
-	}
-
 	t := conn.NewTransaction()
 	t.Create(spath, snode)
 	t.Create(hpath, hnode)
@@ -60,10 +52,16 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 	spath := servicepath(serviceID, stateID)
 	hpath := hostpath(hostID, stateID)
 
+	t := conn.NewTransaction()
+
 	spresent, err := conn.Exists(spath)
 	if err != nil {
 		glog.Errorf("Error checking the existence of service state node %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
+	}
+
+	if spresent {
+		t.Delete(spath)
 	}
 
 	hpresent, err := conn.Exists(hpath)
@@ -72,29 +70,10 @@ func removeInstance(conn client.Connection, serviceID, hostID, stateID string) e
 		return err
 	}
 
-	// If neither of the nodes is present, we're good.
-	if !hpresent && !spresent {
-		return nil
+	if hpresent {
+		t.Delete(hpath)
 	}
 
-	// If only one of the two nodes is present, delete it and return.
-	if hpresent != spresent {
-		if hpresent {
-			if err := conn.Delete(hpath); err != nil {
-				glog.Errorf("Error deleting the host state node %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
-				return err
-			}
-		} else {
-			if err := conn.Delete(spath); err != nil {
-				glog.Errorf("Error deleting the service state node %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
-				return err
-			}
-		}
-	}
-
-	t := conn.NewTransaction()
-	t.Delete(spath)
-	t.Delete(hpath)
 	if err := t.Commit(); err != nil {
 		glog.Errorf("Could not delete service state nodes %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
