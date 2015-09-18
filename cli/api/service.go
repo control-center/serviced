@@ -156,11 +156,20 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 				} else {
 					row["ParentID"] = ""
 				}
+
+				//round to uptime to nearest second
+				uptime := stat.State.Uptime()
+				remainder := uptime % time.Second
+				uptime = uptime - remainder
+				if remainder/time.Millisecond >= 500 {
+					uptime += 1 * time.Second
+				}
+
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.Status.String()
 				row["Hostname"] = hostmap[stat.State.HostID]
 				row["DockerID"] = fmt.Sprintf("%.12s", stat.State.DockerID)
-				row["Uptime"] = stat.State.Uptime().String()
+				row["Uptime"] = uptime.String()
 
 				if stat.State.InSync {
 					row["InSync"] = "Y"

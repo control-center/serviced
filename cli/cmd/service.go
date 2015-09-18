@@ -483,7 +483,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 		}
 	}
 	addRows("")
-	t.Padding = 6
+	t.Padding = 3
 	t.Print()
 	return
 }
