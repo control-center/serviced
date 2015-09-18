@@ -200,7 +200,7 @@ func (t *Table) getIndents(field string) (int, []string) {
 			}
 		}
 		// compute the max width of the column
-		if width := len(rows[i]); width > maxWidth {
+		if width := len([]rune(rows[i])); width > maxWidth { //count runes, not bytes
 			maxWidth = width
 		}
 	}
