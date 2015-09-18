@@ -6,6 +6,10 @@
 	],
 	"Deps": [
 		{
+			"ImportPath": "github.com/mattn/go-shellwords",
+			"Rev": "f4e566c536cf69158e808ec28ef4182a37fdc981"
+		},
+		{
 			"ImportPath": "golang.org/x/crypto/ssh/terminal",
 			"Comment": "null-187",
 			"Rev": "1351f936d976c60a0a48d728281922cf63eafb8d"

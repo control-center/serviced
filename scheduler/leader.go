@@ -32,10 +32,10 @@ import (
 )
 
 type leader struct {
-	conn         coordclient.Connection
-	cpClient     dao.ControlPlane
-	hostRegistry *zkservice.HostRegistryListener
-	poolID       string
+	shutdown <-chan interface{}
+	conn     coordclient.Connection
+	cpClient dao.ControlPlane
+	poolID   string
 }
 
 // Lead is executed by the "leader" of the control center cluster to handle its management responsibilities of:
@@ -44,17 +44,11 @@ type leader struct {
 //    virtual IPs
 func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, poolID string, snapshotTTL int) {
 
-	// creates a listener for the host registry
-	if err := zkservice.InitHostRegistry(conn); err != nil {
-		glog.Errorf("Could not initialize host registry for pool %s: %s", poolID, err)
-		if err == zzk.ErrBadConn {
-			conn.Close()
-		}
-		return
-	}
-	hostRegistry := zkservice.NewHostRegistryListener()
-	leader := leader{conn, cpClient, hostRegistry, poolID}
 	glog.V(0).Info("Processing leader duties")
+	leader := leader{shutdown, conn, cpClient, poolID}
+
+	// creates a listener for the host registry
+	hostRegistry := zkservice.NewHostRegistryListener()
 
 	// creates a listener for snapshots with a function call to take snapshots
 	// and return the label and error message
@@ -148,7 +142,7 @@ func (l *leader) TakeSnapshot(serviceID string) (string, error) {
 // of memory committed to running containers will be chosen.
 func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 	glog.Infof("Looking for available hosts in pool %s", l.poolID)
-	hosts, err := l.hostRegistry.GetHosts()
+	hosts, err := zkservice.GetRegisteredHosts(l.conn, l.shutdown)
 	if err != nil {
 		glog.Errorf("Could not get available hosts for pool %s: %s", l.poolID, err)
 		return nil, err
