@@ -20,7 +20,7 @@ import (
 
 // VolumeCreate is the subcommand for creating a new volume on a driver
 type VolumeCreate struct {
-	Path flags.Filename `description:"Path of the driver"`
+	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
 	Args struct {
 		Name string `description:"Name of the volume to create"`
 	} `positional-args:"yes" required:"yes"`
@@ -28,7 +28,7 @@ type VolumeCreate struct {
 
 // VolumeMount is the subcommand for mounting an existing volume from a driver
 type VolumeMount struct {
-	Path flags.Filename `description:"Path of the driver"`
+	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
 	Args struct {
 		Name string `description:"Name of the volume to mount"`
 	} `positional-args:"yes" required:"yes"`
@@ -36,7 +36,7 @@ type VolumeMount struct {
 
 // VolumeRemove is the subcommand for deleting an existing volume from a driver
 type VolumeRemove struct {
-	Path flags.Filename `description:"Path of the driver"`
+	Path flags.Filename `long:"driver" short:"d" description:"Path of the driver"`
 	Args struct {
 		Name string `description:"Name of the volume to remove"`
 	} `positional-args:"yes" required:"yes"`
