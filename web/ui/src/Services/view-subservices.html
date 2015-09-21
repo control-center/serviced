@@ -60,7 +60,7 @@
     <table jelly-table data-data="vhosts.data" data-config="vhostsTable" class="table">
         <tr ng-repeat="vhost in $data">
             <td data-title="'vhost_name'|translate" sortable="'Name'">{{vhost.Name}}</td>
-            <td data-title="'vhost_application'|translate" sortable="'Application'" ng-click="click_app(vhost.ApplicationId)" class="link">{{vhost.Application}}</td>
+            <td data-title="'vhost_application'|translate" sortable="'Application'" ng-click="routeToService(vhost.ApplicationId)" class="link">{{vhost.Application}}</td>
             <td data-title="'vhost_service_endpoint'|translate" sortable="'ServiceEndpoint'">{{vhost.ServiceEndpoint}}</td>
             <td data-title="'vhost_url'|translate" sortable="'vhost_url(vhost.Name)'"><a href="{{vhost_url(vhost.Name)}}" target="_blank" class="link">{{vhost_url(vhost.Name)}}</a></td>
             <td data-title="'actions'|translate">
@@ -86,7 +86,7 @@
         <h3 class="pull-left" translate>label_ip_assignments</h3>
         <table jelly-table data-data="ips.data" data-config="ipsTable" class="table">
             <tr ng-repeat="ip in $data">
-                <td data-title="'tbl_virtual_ip_service'|translate" sortable="'ServiceName'" ng-click="click_app(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
+                <td data-title="'tbl_virtual_ip_service'|translate" sortable="'ServiceName'" ng-click="routeToService(ip.ServiceID)" class="link">{{ip.ServiceName}}</td>
                 <td data-title="'tbl_virtual_ip_assignment_type'|translate" sortable="'AssignmentType'">{{ip.AssignmentType}}</td>
                 <td data-title="'tbl_virtual_ip_host'|translate" sortable="'HostID'" ng-click="click_host(ip.HostID)" class="link">{{getHostName(ip.HostID)}}</td>
                 <td data-title="'tbl_virtual_ip_pool'|translate" sortable="'PoolID'" ng-click="click_pool(ip.PoolID)" class="link">{{ip.PoolID|cut:true:50}}</td>
@@ -134,7 +134,7 @@
                 <span ng-style="calculateIndent(app)"></span>
                 <span ng-if="app.children.length" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
                 <span ng-if="!app.children.length" ng-style="indent(1)"></span>
-                <span ng-click="click_app(app.model.ID)" class="link">
+                <span ng-click="routeToService(app.model.ID)" class="link">
                     {{app.model.Name}}
                     <div class="overcomIndicator" ng-class="{'bad': !app.resourcesGood() && !app.isIsvc()}" title="An instance is oversubscribed."></div>
                     <span class="version" ng-show="app.model.Version"> (v{{app.model.Version}})</span>
@@ -223,4 +223,6 @@
   <br>
 
   <!-- Graphs -->
+  <!--
   <graph-panel ng-if="services.current.model.MonitoringProfile.GraphConfigs.length > 0" data-service-id="services.current.model.ID" data-graph-configs="services.current.model.MonitoringProfile.GraphConfigs" class="infoWrapper graphPanel"></graph-panel>
+  -->

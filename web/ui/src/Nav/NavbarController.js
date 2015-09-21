@@ -47,6 +47,21 @@
             $scope.navlinks[i].itemClass = cls;
         }
 
+        $scope.subNavClick = function(crumb){
+            // if parent scope has defined a handler
+            // for sub nav click, use it
+            if($scope.$parent && $scope.$parent.subNavClick){
+                $scope.$parent.subNavClick(crumb);
+            } else {
+                $location.path(crumb.url);
+            }
+        };
+
+        // watch parent for new breadcrumbs
+        $scope.$watch("$parent.breadcrumbs", function(){
+            $scope.breadcrumbs = $scope.$parent.breadcrumbs;
+        });
+
         // Create a logout function
         $scope.logout = function() {
             authService.logout();
