@@ -43,10 +43,8 @@
                     now: true
                 };
 
-                //index: graph index for div id selection
-                //graph: the graph to display
-                $scope.viz = function(index, graph) {
-                    var id = $scope.serviceId+'-graph-'+index,
+                $scope.viz = function(graph) {
+                    var id = $scope.getUniqueGraphId(graph),
                         graphCopy;
 
                     if (!$scope.graphs[id]) {
@@ -65,7 +63,6 @@
 
                             // store graph def for later use
                             $scope.graphs[id] = graphCopy;
-
                         }
                     }
                 };
@@ -197,6 +194,23 @@
                     }
                 };
 
+                $scope.getUniqueGraphId = function(graph){
+                    return $scope.serviceId +"-graph-"+ graph.id;
+                };
+
+                $scope.cleanup = function(){
+                    var chart;
+
+                    // remove graph from cache
+                    for(var id in $scope.graphs){
+                        // TODO - expose removeChart() and use it
+                        chart = zenoss.visualization.chart.getChart(id);
+                        chart.onDestroyed();
+                    }
+
+                    $scope.graphs = {};
+                };
+
                 $scope.graphControlsPopover = function(){
                     $scope.showGraphControls = !$scope.showGraphControls;
 
@@ -209,19 +223,15 @@
                     // force angular to apply the visibility change
                     $scope.$apply();
                 };
-                angular.element("body").on("click", hideGraphControls);
+                angular.element("html").on("click", hideGraphControls);
+
+                $scope.$watch("graphConfigs", $scope.cleanup);
+                $scope.$watch("serviceId", $scope.cleanup);
 
                 $scope.$on("$destroy", function(){
-                    var chart;
+                    $scope.cleanup();
                     $interval.cancel($scope.refreshPromise);
-                    angular.element("body").off("click", hideGraphControls);
-
-                    // remove graph from cache
-                    for(var id in $scope.graphs){
-                        // TODO - expose removeChart() and use it
-                        chart = zenoss.visualization.chart.getChart(id);
-                        chart.onDestroyed();
-                    }
+                    angular.element("html").off("click", hideGraphControls);
                 });
 
                 function updateGraphRequest(graph){
