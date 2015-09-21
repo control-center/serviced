@@ -195,7 +195,7 @@
                 };
 
                 $scope.getUniqueGraphId = function(graph){
-                    return $scope.serviceId +"-graph-"+ graph.id;
+                    return ($scope.serviceId +"-graph-"+ graph.id).replace(/\./g, "_");
                 };
 
                 $scope.cleanup = function(){
@@ -225,7 +225,6 @@
                 };
                 angular.element("html").on("click", hideGraphControls);
 
-                $scope.$watch("graphConfigs", $scope.cleanup);
                 $scope.$watch("serviceId", $scope.cleanup);
 
                 $scope.$on("$destroy", function(){
