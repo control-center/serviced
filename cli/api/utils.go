@@ -21,14 +21,17 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
 
 const (
-	minTimeout     = 30
-	defaultTimeout = 600
+	minTimeout            = 30
+	defaultTimeout        = 600
+	networkAccessDelay    = 1
+	networkAccessAttempts = 90
 )
 
 var (
@@ -41,11 +44,19 @@ func GetAgentIP(defaultRPCPort int) string {
 	if options.Endpoint != "" {
 		return options.Endpoint
 	}
-	agentIP, err := utils.GetIPAddress()
-	if err != nil {
-		panic(err)
+
+	var agentIP string
+	var err error
+	for i := 1; i <= networkAccessAttempts; i++ {
+		if agentIP, err = utils.GetIPAddress(); err == nil {
+			return agentIP + fmt.Sprintf(":%d", defaultRPCPort)
+		}
+		glog.Info("Waiting for network initialization...")
+		time.Sleep(networkAccessDelay * time.Second)
 	}
-	return agentIP + fmt.Sprintf(":%d", defaultRPCPort)
+
+	glog.Fatalf("Gave up waiting for network (to determine our outbound IP address): %s", err)
+	return ""
 }
 
 // GetDockerDNS returns the docker dns address
