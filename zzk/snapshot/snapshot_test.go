@@ -98,7 +98,7 @@ func (t *ZZKTest) TestSnapshotListener_Listen(c *C) {
 	if nodeID, err := Send(conn, serviceID); err != nil {
 		c.Errorf("Could not send success snasphot")
 	} else if err := Recv(conn, nodeID, &actual); err != nil {
-		c.Errorf("Could not receieve success snapshot")
+		c.Errorf("Could not receive success snapshot")
 	}
 	actual.SetVersion(nil)
 	c.Assert(actual, Equals, handler.expected(serviceID))

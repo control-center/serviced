@@ -186,7 +186,7 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 	close(ready)
 
 	defer func() {
-		glog.Infof("Listener at %s receieved interrupt", l.GetPath())
+		glog.Infof("Listener at %s received interrupt", l.GetPath())
 		l.Done()
 		close(_shutdown)
 		for len(processing) > 0 {
@@ -230,7 +230,7 @@ func Listen(shutdown <-chan interface{}, ready chan<- error, conn client.Connect
 					return
 				}
 			}
-			glog.V(4).Infof("Node %s receieved event %v", l.GetPath(), e)
+			glog.V(4).Infof("Node %s received event %v", l.GetPath(), e)
 		case node := <-done:
 			glog.V(3).Infof("Cleaning up %s", l.GetPath(node))
 			delete(processing, node)
@@ -293,7 +293,7 @@ func Start(shutdown <-chan interface{}, conn client.Connection, master Listener,
 	case <-childDone:
 		glog.Warningf("Child listeners for master %s died prematurely; shutting down", master.GetPath())
 	case <-shutdown:
-		glog.Infof("Receieved signal to shutdown for master listener %s", master.GetPath())
+		glog.Infof("Received signal to shutdown for master listener %s", master.GetPath())
 	}
 }
 
@@ -324,6 +324,6 @@ func start(shutdown <-chan interface{}, conn client.Connection, listeners ...Lis
 		glog.Warningf("Listener exited prematurely, stopping all listeners")
 		count -= i
 	case <-shutdown:
-		glog.Infof("Receieved signal to shutdown")
+		glog.Infof("Received signal to shutdown")
 	}
 }

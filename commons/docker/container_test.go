@@ -148,7 +148,7 @@ func TestOnContainerStop(t *testing.T) {
 
 	select {
 	case exitcode := <-ec:
-		t.Logf("Receieved exit code: %d", exitcode)
+		t.Logf("Received exit code: %d", exitcode)
 	case <-time.After(30 * time.Second):
 		t.Fatal("Timed out waiting for event")
 	}

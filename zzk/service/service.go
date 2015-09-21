@@ -186,14 +186,14 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		select {
 		case <-glock:
 			// passthrough
-			glog.V(3).Infof("Receieved a global lock event, resyncing")
+			glog.V(3).Infof("Received a global lock event, resyncing")
 		case e := <-alertEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
 				l.stop(rss)
 				return
 			}
-			glog.V(2).Infof("Receieved an alert event for service %s (%s): %v", svc.Name, svc.ID, e)
+			glog.V(2).Infof("Received an alert event for service %s (%s): %v", svc.Name, svc.ID, e)
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)

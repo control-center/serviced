@@ -61,7 +61,7 @@ type PerformanceOptions struct {
 	Metrics              []MetricOptions     `json:"metrics,omitempty"`
 }
 
-// MetricOptions are the options for receieving metrics for a set of data.
+// MetricOptions are the options for receiving metrics for a set of data.
 type MetricOptions struct {
 	Metric       string              `json:"metric,omitempty"`
 	Name         string              `json:"name,omitempty"`

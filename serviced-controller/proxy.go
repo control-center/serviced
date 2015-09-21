@@ -27,6 +27,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 3 {
 		fmt.Printf("Incorrect Usage.\n\n")
+		fmt.Printf("Incorrect Usage.\n\n")
 		os.Exit(1)
 	}
 	cfg := utils.NewEnvironOnlyConfigReader("SERVICED_")

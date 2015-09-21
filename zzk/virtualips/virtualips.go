@@ -213,7 +213,7 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 			if e.Type == client.EventNodeDeleted {
 				return
 			}
-			glog.V(4).Infof("virtual ip listener for %s receieved event: %v", ip, e)
+			glog.V(4).Infof("virtual ip listener for %s received event: %v", ip, e)
 		case <-rebind:
 			// If the primary virtual IP is removed, all other virtual IPs on
 			// that subnet are removed.  This is in place to restore the

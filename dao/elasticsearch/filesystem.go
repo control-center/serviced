@@ -103,7 +103,7 @@ func (this *ControlPlaneDao) AsyncSnapshot(serviceID string, snapshotID *string)
 		glog.Errorf("Could not submit snapshot for %s: %s", serviceID, err)
 		return err
 	} else if err := zkSnapshot.Recv(conn, nodeID, &ss); err != nil {
-		glog.Errorf("Could not receieve snapshot for %s (%s): %s", serviceID, nodeID, err)
+		glog.Errorf("Could not receive snapshot for %s (%s): %s", serviceID, nodeID, err)
 		return err
 	}
 

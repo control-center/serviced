@@ -296,7 +296,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			// TODO: cancel listener here
 		}
 
-		// case 2: update an item (should not receieve an event)
+		// case 2: update an item (should not receive an event)
 		expected.ContainerIP = "192.168.23.12"
 		_, err = epr.SetItem(dt.zkConn, expected)
 		t.Assert(err, IsNil)
