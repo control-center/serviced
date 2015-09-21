@@ -68,6 +68,7 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular-cache/angular-cache.js",
     paths.thirdpartySrc + "angular-moment/angular-moment.js",
     paths.thirdpartySrc + "angular-sticky/sticky.js",
+    paths.thirdpartySrc + "angular-location-update/angular-location-update.js",
 
     paths.thirdpartySrc + "ng-table/ng-table.js",
 

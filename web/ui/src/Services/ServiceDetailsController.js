@@ -508,6 +508,7 @@
         };
 
         $scope.routeToService = function(id){
+            $location.update_path("/services/"+id, true);
             $scope.params.serviceId = id;
             $scope.services.current = servicesFactory.get($scope.params.serviceId);
             $scope.update();
