@@ -6,7 +6,7 @@
         <img src="static/img/theMcKraken.png" style="padding: 5px;">
     </div>
   </div>
-  <div class="navbar-collapse collapse">
+  <div class="navbar-collapse collapse main-nav">
     <ul class="nav navbar-nav">
       <li ng-repeat="navlink in navlinks" ng-class="navlink.itemClass"><a href="{{navlink.url}}" translate>{{navlink.label}}</a></li>
     </ul>
@@ -38,17 +38,16 @@
       -->
     </ul>
   </div><!--/.nav-collapse -->
-</div>
 
-<div class="details">
-  <div class="details">
+    <div class="details">
       <ol class="breadcrumb inline">
           <li ng-repeat="crumb in breadcrumbs" ng-switch on="crumb.url" ng-class="crumb.itemClass">
               <span ng-switch-when="undefined" class="crumb current">{{crumb.label|translate|cut:true:25}}</span>
-              <a ng-switch-default ng-href="{{crumb.url}}" class="crumb" translate>{{crumb.label}}</a>
+              <a ng-switch-default ng-click="subNavClick(crumb)" class="crumb" translate>{{crumb.label}}</a>
           </li>
       </ol>
-  </div>
+    </div>
+
 </div>
 
 <div id="notifications" sticky></div>

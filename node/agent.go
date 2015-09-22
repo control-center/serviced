@@ -26,7 +26,6 @@ import (
 	"net"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -43,7 +42,6 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
@@ -81,9 +79,8 @@ type HostAgent struct {
 	rpcport              string               // the rpc port to serviced (default is 4979)
 	hostID               string               // the hostID of the current host
 	dockerDNS            []string             // docker dns addresses
-	varPath              string               // directory to store serviced	 data
+	storage              volume.Driver        // driver supporting the application data
 	mount                []string             // each element is in the form: dockerImage,hostPath,containerPath
-	fsType               volume.DriverType    // driver for container volumes
 	currentServices      map[string]*exec.Cmd // the current running services
 	mux                  *proxy.TCPMux
 	useTLS               bool // Whether the mux uses TLS
@@ -120,7 +117,7 @@ type AgentOptions struct {
 	UIPort               string
 	RPCPort              string
 	DockerDNS            []string
-	VarPath              string
+	VolumesPath          string
 	Mount                []string
 	FSType               volume.DriverType
 	Zookeepers           []string
@@ -142,9 +139,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.uiport = options.UIPort
 	agent.rpcport = options.RPCPort
 	agent.dockerDNS = options.DockerDNS
-	agent.varPath = options.VarPath
 	agent.mount = options.Mount
-	agent.fsType = volume.DriverTypeNFS
 	agent.mux = options.Mux
 	agent.useTLS = options.UseTLS
 	agent.maxContainerAge = options.MaxContainerAge
@@ -152,43 +147,21 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.servicedChain = iptables.NewChain("SERVICED")
 	agent.controllerBinary = options.ControllerBinary
 
+	var err error
 	dsn := getZkDSN(options.Zookeepers)
-	basePath := ""
-	zkClient, err := coordclient.New("zookeeper", dsn, basePath, nil)
-	if err != nil {
+	if agent.zkClient, err = coordclient.New("zookeeper", dsn, "", nil); err != nil {
 		return nil, err
 	}
-	agent.zkClient = zkClient
-
-	hostID, err := utils.HostID()
-	if err != nil {
+	if agent.storage, err = volume.GetDriver(options.VolumesPath); err != nil {
+		glog.Errorf("Could not load storage driver at %s: %s", options.VolumesPath, err)
+		return nil, err
+	}
+	if agent.hostID, err = utils.HostID(); err != nil {
 		panic("Could not get hostid")
 	}
-	agent.hostID = hostID
 	agent.currentServices = make(map[string]*exec.Cmd)
-
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	return agent, err
-
-	/* FIXME: this should work here
-
-	addr, err := net.ResolveTCPAddr("tcp", processForwarderAddr)
-	if err != nil {
-		return nil, err
-	}
-	listener, err := net.ListenTCP("tcp", addr)
-	if err != nil {
-		return nil, err
-	}
-
-	sio := shell.NewProcessForwarderServer(proxyOptions.servicedEndpoint)
-	sio.Handle("/", http.FileServer(http.Dir("/serviced/www/")))
-	go http.Serve(listener, sio)
-	c := &ControllerP{
-		processForwarderListener: listener,
-	}
-	*/
-
 }
 
 // Use the Context field of the given template to fill in all the templates in
@@ -461,7 +434,7 @@ func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
 	if err := ctr.Delete(true); err != nil {
 		glog.Errorf("Could not remove instance %s (%s): %s", stateID, ctr.ID, err)
 	}
-	glog.Infof("Service state %s (%s) receieved exit code %d", stateID, ctr.ID, rc)
+	glog.Infof("Service state %s (%s) received exit code %d", stateID, ctr.ID, rc)
 
 }
 
@@ -743,12 +716,11 @@ func configureContainer(a *HostAgent, client *ControlClient,
 // setupVolume
 func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volume servicedefinition.Volume) (string, error) {
 	glog.V(4).Infof("setupVolume for service Name:%s ID:%s", service.Name, service.ID)
-	sv, err := dfs.GetSubvolume(a.fsType, a.varPath, tenantID)
+	vol, err := a.storage.Get(tenantID)
 	if err != nil {
-		return "", fmt.Errorf("Could not create subvolume: %s", err)
+		return "", fmt.Errorf("could not get subvolume %s: %s", tenantID, err)
 	}
-
-	resourcePath := path.Join(sv.Path(), volume.ResourcePath)
+	resourcePath := filepath.Join(vol.Path(), volume.ResourcePath)
 	if err = os.MkdirAll(resourcePath, 0770); err != nil {
 		return "", fmt.Errorf("Could not create resource path: %s, %s", resourcePath, err)
 	}
@@ -831,7 +803,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// this blocks until
 		// 1) has a connection
 		// 2) its node is registered
-		// 3) receieves signal to shutdown or breaks
+		// 3) receives signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
 		glog.Infof("Host Agent successfully started")

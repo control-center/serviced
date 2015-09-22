@@ -16,8 +16,6 @@ package api
 import (
 	"fmt"
 	"os"
-	"os/user"
-	"path"
 	"strconv"
 	"strings"
 
@@ -55,18 +53,6 @@ func GetDockerDNS() []string {
 
 	dockerdns := os.Getenv("SERVICED_DOCKER_DNS")
 	return strings.Split(dockerdns, ",")
-}
-
-// GetVarPath returns the serviced varpath
-func GetVarPath() string {
-	if options.VarPath != "" {
-		return options.VarPath
-	} else if home := os.Getenv("SERVICED_HOME"); home != "" {
-		return path.Join(home, "var")
-	} else if user, err := user.Current(); err == nil {
-		return path.Join(os.TempDir(), "serviced-"+user.Username, "var")
-	}
-	return path.Join(os.TempDir(), "serviced")
 }
 
 // GetESStartupTimeout returns the Elastic Search Startup Timeout

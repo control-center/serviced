@@ -31,7 +31,7 @@ func (s *scheduler) startRemote(cancel <-chan struct{}, remote, local client.Con
 		done     = make(chan interface{})
 	)
 
-	// wait to receieve a cancel channel or a done channel and shutdown
+	// wait to receive a cancel channel or a done channel and shutdown
 	go func() {
 		defer close(shutdown)
 		select {
@@ -92,7 +92,7 @@ func (s *scheduler) monitorRemote(shutdown <-chan interface{}, remote, local cli
 			// synchronization failed; shutdown
 			return
 		case <-shutdown:
-			// receieved signal to shutdown
+			// received signal to shutdown
 			return
 		}
 	}

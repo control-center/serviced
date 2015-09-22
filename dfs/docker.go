@@ -17,7 +17,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
@@ -28,7 +27,6 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 )
 
@@ -243,7 +241,7 @@ func (dfs *DistributedFilesystem) importImages(dirpath string, images []imagemet
 		filename := filepath.Join(dirpath, metadata.Filename)
 
 		// Make sure all images that refer to a local registry are named with the local registry
-		tags := make([]string, len(metadata.Tags))
+		imageIDs := make([]commons.ImageID, len(metadata.Tags))
 		for i, tag := range metadata.Tags {
 			imageID, err := commons.ParseImageID(tag)
 			if err != nil {
@@ -254,10 +252,10 @@ func (dfs *DistributedFilesystem) importImages(dirpath string, images []imagemet
 			if _, ok := tenants[imageID.User]; ok {
 				imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
 			}
-			tags[i] = imageID.String()
+			imageIDs[i] = *imageID
 		}
 
-		if err := loadImage(filename, metadata.UUID, tags); err != nil {
+		if err := loadImage(filename, metadata.UUID, imageIDs); err != nil {
 			glog.Errorf("Error loading %s (%s): %s", filename, metadata.UUID, err)
 			return err
 		}
@@ -424,53 +422,7 @@ func getImageRefs(templates map[string]servicetemplate.ServiceTemplate, services
 	return t, s
 }
 
-// DEPRECATED
-func saveImage(imageID, filename string) error {
-	file, err := os.Create(filename)
-	if err != nil {
-		glog.Errorf("Could not create file %s: %s", filename, err)
-		return err
-	}
-
-	defer func() {
-		if err := file.Close(); err != nil {
-			glog.Warningf("Could not close file %s: %s", filename, err)
-		}
-	}()
-
-	cd := &docker.ContainerDefinition{
-		dockerclient.CreateContainerOptions{
-			Config: &dockerclient.Config{
-				Cmd:   []string{"echo"},
-				Image: imageID,
-			},
-		},
-		dockerclient.HostConfig{},
-	}
-
-	ctr, err := docker.NewContainer(cd, false, 10*time.Second, nil, nil)
-	if err != nil {
-		glog.Errorf("Could not create container from image %s.  Have you synced lately?  (serviced docker sync): %s", imageID, err)
-		return err
-	}
-
-	glog.V(1).Infof("Created container %s based on image %s", ctr.ID, imageID)
-	defer func() {
-		if err := ctr.Delete(true); err != nil {
-			glog.Errorf("Could not remove container %s (%s): %s", ctr.ID, imageID, err)
-		}
-	}()
-
-	if err := ctr.Export(file); err != nil {
-		glog.Errorf("Could not export container %s (%s): %v", ctr.ID, imageID, err)
-		return err
-	}
-
-	glog.Infof("Exported container %s (based on image %s) to %s", ctr.ID, imageID, filename)
-	return nil
-}
-
-func loadImage(filename string, uuid string, tags []string) error {
+func loadImage(filename string, uuid string, imageIDs []commons.ImageID) error {
 	// look up the image by UUID
 	images, err := docker.Images()
 	if err != nil {
@@ -497,21 +449,22 @@ func loadImage(filename string, uuid string, tags []string) error {
 			return nil
 		}
 
-		if err := docker.ImportImage(tags[0], filename); err != nil {
+		tag := imageIDs[0].String()
+		if err := docker.ImportImage(tag, filename); err != nil {
 			glog.Errorf("Could not import image from file %s: %s", filename, err)
 			return err
-		} else if image, err = docker.FindImage(tags[0], false); err != nil {
-			glog.Errorf("Could not look up docker image %s: %s", tags[0], err)
+		} else if image, err = docker.FindImage(tag, false); err != nil {
+			glog.Errorf("Could not look up docker image %s: %s", tag, err)
 			return err
 		}
-		glog.Infof("Tagging images %v at %s", tags, image.UUID)
-		tags = tags[1:]
+		glog.Infof("Tagging images %v at %s", imageIDs, image.UUID)
 	}
 
 	// tag the remaining images
-	for _, tag := range tags {
-		if _, err := image.Tag(tag, true); err != nil {
-			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, tag, err)
+	for _, imageID := range imageIDs {
+		pushTag := (imageID.Registry() != "")
+		if _, err := image.Tag(imageID.String(), pushTag); err != nil {
+			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, imageID, err)
 			return err
 		}
 	}

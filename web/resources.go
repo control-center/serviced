@@ -301,13 +301,16 @@ func restGetAllServices(w *rest.ResponseWriter, r *rest.Request, client *node.Co
 		restServerError(w, err)
 		return
 	}
-	if since == "" {
-		result = append(result, getISVCS()...)
-	} else {
-		t0 := time.Now().Add(-tsince)
-		for _, isvc := range getISVCS() {
-			if isvc.UpdatedAt.After(t0) {
-				result = append(result, isvc)
+
+	if tenantID == "" { //Don't add isvcs if a tenant is specified
+		if since == "" {
+			result = append(result, getISVCS()...)
+		} else {
+			t0 := time.Now().Add(-tsince)
+			for _, isvc := range getISVCS() {
+				if isvc.UpdatedAt.After(t0) {
+					result = append(result, isvc)
+				}
 			}
 		}
 	}
@@ -893,8 +896,8 @@ func restGetStorage(w *rest.ResponseWriter, r *rest.Request, client *node.Contro
 	}
 
 	type VolumeInfo struct {
-		Name   string
-		Status volume.Status
+		Name              string
+		Status            volume.Status
 		MonitoringProfile domain.MonitorProfile
 	}
 

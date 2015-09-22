@@ -32,11 +32,12 @@ import (
 
 type DatastoreGetter func() datastore.Context
 
-type ServiceVolumeGetter func(fsType volume.DriverType, varpath, serviceID string) (volume.Volume, error)
+type ServiceVolumeGetter func(fsType volume.DriverType, volumesPath, serviceID string) (volume.Volume, error)
 
 type DistributedFilesystem struct {
 	fsType           volume.DriverType
-	varpath          string
+	volumesPath      string
+	backupsPath      string
 	dockerHost       string
 	dockerPort       int
 	datastoreGet     DatastoreGetter
@@ -53,7 +54,7 @@ type DistributedFilesystem struct {
 	logger *logger
 }
 
-func NewDistributedFilesystem(fsType volume.DriverType, varpath, dockerRegistry string, facade facade.FacadeInterface, timeout time.Duration, networkDriver storage.StorageDriver) (*DistributedFilesystem, error) {
+func NewDistributedFilesystem(fsType volume.DriverType, volumesPath, backupsPath, dockerRegistry string, facade facade.FacadeInterface, timeout time.Duration, networkDriver storage.StorageDriver) (*DistributedFilesystem, error) {
 	host, port, err := parseRegistry(dockerRegistry)
 	if err != nil {
 		return nil, err
@@ -67,7 +68,8 @@ func NewDistributedFilesystem(fsType volume.DriverType, varpath, dockerRegistry 
 
 	return &DistributedFilesystem{
 		fsType:           fsType,
-		varpath:          varpath,
+		volumesPath:      volumesPath,
+		backupsPath:      backupsPath,
 		dockerHost:       host,
 		dockerPort:       port,
 		facade:           facade,

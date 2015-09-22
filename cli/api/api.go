@@ -44,10 +44,11 @@ type Options struct {
 	TLS                  bool
 	KeyPEMFile           string
 	CertPEMFile          string
-	VarPath              string
+	VolumesPath          string
+	IsvcsPath            string
+	BackupsPath          string
 	ResourcePath         string
 	Zookeepers           []string
-	RemoteZookeepers     []string
 	ReportStats          bool
 	HostStats            string
 	StatsPeriod          int
@@ -77,6 +78,7 @@ type Options struct {
 	StorageArgs          []string          // command-line arguments for storage options
 	StorageOptions       map[string]string // environment arguments for storage options
 	ControllerBinary     string            // Path to the container controller binary
+	StartISVCS           []string          // ISVCS to start when running as an agent
 }
 
 // LoadOptions overwrites the existing server options

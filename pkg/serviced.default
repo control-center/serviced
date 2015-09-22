@@ -12,9 +12,6 @@
 # Set enable/disable the master role, set to 1/0, respectively
 # SERVICED_MASTER=0
 
-# Set the pool id for the master role
-# SERVICED_MASTER_POOLID=default
-
 # Set the the zookeeper ensemble, multiple masters should be comma separated
 # SERVICED_ZK={{SERVICED_MASTER_IP}}:2181
 
@@ -42,8 +39,18 @@
 # Set the mux port to listen on
 # SERVICED_MUX_PORT=22250
 
-# Set the VAR path for serviced
+# DEPRECATED: Set the var path for serviced. Use options below to specify paths
+# to the isvcs, volumes, and backups directories.
 # SERVICED_VARPATH=/opt/serviced/var
+
+# Set the ISVCS path for serviced internal data
+# SERVICED_ISVCS_PATH=/opt/serviced/var/isvcs
+
+# Set the VOLUMES path for serviced application data
+# SERVICED_VOLUMES_PATH=/opt/serviced/var/volumes
+
+# Set the BACKUPS path for serviced backups
+# SERVICED_BACKUPS_PATH=/opt/serviced/var/backups
 
 # Set the TLS keyfile
 # SERVICED_KEY_FILE=/etc/....
@@ -130,6 +137,9 @@
 
 # Overrides the default for the service migration image.
 # SERVICED_SERVICE_MIGRATION_TAG=1.0.2
+
+# Enables the following isvcs to run on the host (if not the master)
+# SERVICED_ISVCS_START=celery,elasticsearch,logstash,opentsdb,docker-registry,zookeeper
 
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=

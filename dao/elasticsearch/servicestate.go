@@ -16,14 +16,16 @@ package elasticsearch
 import (
 	//	"errors"
 
+	"fmt"
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicestate"
+	"github.com/control-center/serviced/health"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-	"fmt"
+	"strconv"
 )
 
 func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {
@@ -122,6 +124,7 @@ func (this *ControlPlaneDao) StopRunningInstance(request dao.HostServiceRequest,
 
 func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[string]dao.ServiceStatus) error {
 	*status = make(map[string]dao.ServiceStatus, 0)
+
 	poolBasedConn, err := this.getPoolBasedConnection(serviceID)
 	if err != nil {
 		return err
@@ -134,7 +137,17 @@ func (this *ControlPlaneDao) GetServiceStatus(serviceID string, status *map[stri
 	}
 
 	if st != nil {
-		*status = st
+		//get all healthcheck statuses for this service
+		healthStatuses := health.GetHealthStatusesForService(serviceID) //map[string]map[string]*domain.HealthCheckStatus
+
+		//merge st with healthcheck info into *status
+		*status = make(map[string]dao.ServiceStatus, len(st))
+		for stateID, instanceStatus := range st {
+			instanceID := strconv.Itoa(instanceStatus.State.InstanceID) //healthStatuses are mapped using a string for instanceID
+			instanceStatus.HealthCheckStatuses = healthStatuses[instanceID]
+
+			(*status)[stateID] = instanceStatus
+		}
 	}
 
 	return nil

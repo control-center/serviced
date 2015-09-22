@@ -117,8 +117,8 @@ func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
 	return result
 }
 
-func pullTemplateImages(template *servicetemplate.ServiceTemplate) error {
-	return pullImages(getImageIDs(template.Services...))
+func pullTemplateImages(registry docker.DockerRegistryInterface, template *servicetemplate.ServiceTemplate) error {
+	return pullImages(registry, getImageIDs(template.Services...))
 }
 
 var deployments = make(map[string]map[string]string)
@@ -202,7 +202,7 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	}
 
 	UpdateDeployTemplateStatus(deploymentID, "deploy_pulling_images")
-	if err := pullTemplateImages(template); err != nil {
+	if err := pullTemplateImages(f.registry, template); err != nil {
 		glog.Errorf("Unable to pull one or more images")
 		return nil, err
 	}
@@ -259,13 +259,13 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 	}
 
 	// pull the images
-	if err := pullServiceImages(&svcDef); err != nil {
+	if err := pullServiceImages(f.registry, &svcDef); err != nil {
 		glog.Errorf("Unable to pull one or more images")
 		return "", err
 	}
 
 	// check the images
-	if err := checkImages(make(map[string]struct{}), svcDef); err != nil {
+	if err := checkImages(f.registry, make(map[string]struct{}), svcDef); err != nil {
 		glog.Errorf("Error while validating image IDs: %s", err)
 		return "", err
 	}
@@ -306,7 +306,7 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	if tenantID == "" {
 		tenantID = newsvc.ID
 	}
-	if err := setImageID(f.dockerRegistry, tenantID, newsvc); err != nil {
+	if err := setImageID(f.registry, f.registryName, tenantID, newsvc); err != nil {
 		glog.Errorf("Could not set image id for service %s at parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
@@ -346,38 +346,38 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	return newsvc.ID, nil
 }
 
-func checkImages(imap map[string]struct{}, svcdef servicedefinition.ServiceDefinition) error {
+func checkImages(registry docker.DockerRegistryInterface, imap map[string]struct{}, svcdef servicedefinition.ServiceDefinition) error {
 	if _, ok := imap[svcdef.ImageID]; !ok {
-		if _, err := docker.FindImage(svcdef.ImageID, false); err != nil {
+		if _, err := registry.FindImage(svcdef.ImageID, false); err != nil {
 			glog.Errorf("Could not get image %s: %s", svcdef.ImageID, err)
 			return err
 		}
 		imap[svcdef.ImageID] = struct{}{}
 	}
 	for _, childDef := range svcdef.Services {
-		if err := checkImages(imap, childDef); err != nil {
+		if err := checkImages(registry, imap, childDef); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func setImageID(registry, tenantID string, svc *service.Service) error {
+func setImageID(registry docker.DockerRegistryInterface, registryName, tenantID string, svc *service.Service) error {
 	if svc.ImageID == "" {
 		return nil
 	}
 
 	UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_renaming_image|"+svc.Name)
-	imageID, err := renameImageID(registry, svc.ImageID, tenantID)
+	imageID, err := renameImageID(registryName, svc.ImageID, tenantID)
 	if err != nil {
 		glog.Errorf("malformed imageID %s: %s", svc.ImageID, err)
 		return err
 	}
 
-	if _, err := docker.FindImage(imageID, false); docker.IsImageNotFound(err) {
+	if _, err := registry.FindImage(imageID, false); docker.IsImageNotFound(err) {
 		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_loading_image|"+svc.Name)
 		// tagged image not found, so look for the base image
-		image, err := docker.FindImage(svc.ImageID, false)
+		image, err := registry.FindImage(svc.ImageID, false)
 		if err != nil {
 			glog.Errorf("Could not search for image %s: %s", svc.ImageID, err)
 			return err
@@ -389,13 +389,13 @@ func setImageID(registry, tenantID string, svc *service.Service) error {
 			return err
 		}
 		// Push the image in the background
-		go docker.PushImage(imageID)
+		go registry.PushImage(imageID)
 	}
 	svc.ImageID = imageID
 	return nil
 }
 
-func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
+func renameImageID(registryName, imageId, tenantId string) (string, error) {
 	repo, _ := parsers.ParseRepositoryTag(imageId)
 	re := regexp.MustCompile("/?([^/]+)\\z")
 	matches := re.FindStringSubmatch(repo)
@@ -403,7 +403,7 @@ func renameImageID(dockerRegistry, imageId, tenantId string) (string, error) {
 		return "", errors.New("malformed imageid")
 	}
 	name := matches[1]
-	return fmt.Sprintf("%s/%s/%s", dockerRegistry, tenantId, name), nil
+	return fmt.Sprintf("%s/%s/%s", registryName, tenantId, name), nil
 }
 
 // writeLogstashConfiguration takes all the available
@@ -440,11 +440,11 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 	return nil
 }
 
-func pullServiceImages(svcDef *servicedefinition.ServiceDefinition) error {
-	return pullImages(getImageIDs(*svcDef))
+func pullServiceImages(registry docker.DockerRegistryInterface, svcDef *servicedefinition.ServiceDefinition) error {
+	return pullImages(registry, getImageIDs(*svcDef))
 }
 
-func pullImages(imgs []string) error {
+func pullImages(registry docker.DockerRegistryInterface, imgs []string) error {
 	for _, img := range imgs {
 		imageID, err := commons.ParseImageID(img)
 		if err != nil {
@@ -456,7 +456,7 @@ func pullImages(imgs []string) error {
 		}
 		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
 		glog.Infof("Pulling image %s", image)
-		if err := docker.PullImage(image); err != nil {
+		if err := registry.PullImage(image); err != nil {
 			glog.Warningf("Unable to pull image %s", image)
 		}
 	}

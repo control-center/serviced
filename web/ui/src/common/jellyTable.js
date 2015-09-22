@@ -42,8 +42,7 @@
                 // add loading and no data elements
                 table.find("tr").last()
                     .after(`<tr class="noData"><td colspan="100%" translate>no_data</td></tr>`)
-                    .after(`<tr class="loader"><td colspan="100%">&nbsp;</td></tr>`)
-                    .after(`<tr class="loaderSpacer"><td colspan="100%">&nbsp;</td></tr>`);
+                    .after(`<tr class="loader"><td colspan="100%">&nbsp;</td></tr>`);
 
                 // add table status bar
                 table.append(`
@@ -74,7 +73,7 @@
                     // bind scope to html
                     fn($scope);
 
-                    var $loader, $loaderSpacer, $noData,
+                    var $loader, $noData,
                         toggleLoader, toggleNoData,
                         getData, pageConfig, dataConfig,
                         timezone, orderBy;
@@ -96,7 +95,6 @@
                     // TODO - errors for missing data
 
                     $loader = $wrap.find(".loader");
-                    $loaderSpacer = $wrap.find(".loaderSpacer");
                     $noData = $wrap.find(".noData");
 
                     toggleLoader = function(newVal, oldVal){
@@ -108,7 +106,6 @@
                         if(newVal){
                             $loader.show();
                             $animate.removeClass($loader, "disappear");
-                            $loaderSpacer.show();
 
                         // hide loading spinner
                         } else {
@@ -116,7 +113,6 @@
                                 .then(function(){
                                     $loader.hide();
                                 });
-                            $loaderSpacer.hide();
                         }
                     };
                     toggleNoData = function(val){

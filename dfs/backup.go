@@ -59,7 +59,7 @@ func (dfs *DistributedFilesystem) ListBackups(dirpath string) ([]dao.BackupFile,
 	backups := make([]dao.BackupFile, 0)
 
 	if dirpath = strings.TrimSpace(dirpath); dirpath == "" {
-		dirpath = utils.BackupDir(dfs.varpath)
+		dirpath = dfs.backupsPath
 	} else {
 		dirpath = filepath.Clean(dirpath)
 	}
@@ -129,7 +129,7 @@ func (dfs *DistributedFilesystem) Backup(dirpath string, last int) (string, erro
 	// get the full path of the backup
 	name := time.Now().Format("backup-2006-01-02-150405")
 	if dirpath = strings.TrimSpace(dirpath); dirpath == "" {
-		dirpath = utils.BackupDir(dfs.varpath)
+		dirpath = dfs.backupsPath
 	}
 	filename := filepath.Join(dirpath, fmt.Sprintf("%s.tgz", name))
 	dirpath = filepath.Join(dirpath, name)
@@ -292,7 +292,7 @@ func (dfs *DistributedFilesystem) Restore(filename string) error {
 		}
 	}()
 
-	dirpath := filepath.Join(utils.BackupDir(dfs.varpath), "restore")
+	dirpath := filepath.Join(dfs.backupsPath, "restore")
 	if err := os.RemoveAll(dirpath); err != nil {
 		glog.Errorf("Could not remove %s: %s", dirpath, err)
 		return err

@@ -49,7 +49,7 @@ type ControlPlaneDao struct {
 	hostName       string
 	port           int
 	rpcPort        int
-	varpath        string
+	volumesPath    string
 	fsType         volume.DriverType
 	dfs            *dfs.DistributedFilesystem
 	facade         *facade.Facade
@@ -133,7 +133,7 @@ func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDa
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath string, fsType volume.DriverType, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string, networkDriver storage.StorageDriver) (*ControlPlaneDao, error) {
+func NewControlSvc(hostName string, port int, facade *facade.Facade, volumesPath, backupsPath string, fsType volume.DriverType, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string, networkDriver storage.StorageDriver) (*ControlPlaneDao, error) {
 	glog.V(2).Info("calling NewControlSvc()")
 	defer glog.V(2).Info("leaving NewControlSvc()")
 
@@ -145,7 +145,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath str
 	//Used to bridge old to new
 	s.facade = facade
 
-	s.varpath = varpath
+	s.volumesPath = volumesPath
 	s.fsType = fsType
 
 	// create the account credentials
@@ -153,7 +153,7 @@ func NewControlSvc(hostName string, port int, facade *facade.Facade, varpath str
 		return nil, err
 	}
 
-	dfs, err := dfs.NewDistributedFilesystem(fsType, varpath, dockerRegistry, facade, maxdfstimeout, networkDriver)
+	dfs, err := dfs.NewDistributedFilesystem(fsType, volumesPath, backupsPath, dockerRegistry, facade, maxdfstimeout, networkDriver)
 	if err != nil {
 		return nil, err
 	}

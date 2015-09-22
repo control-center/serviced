@@ -66,7 +66,7 @@ func (c *ServicedCli) initService() {
 				Action:      c.cmdServiceStatus,
 				Flags: []cli.Flag{
 					cli.BoolFlag{"ascii, a", "use ascii characters for service tree (env SERVICED_TREE_ASCII=1 will default to ascii)"},
-					cli.StringFlag{"show-fields", "Name,ServiceID,Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID", "Comma-delimited list describing which fields to display"},
+					cli.StringFlag{"show-fields", "Name,ServiceID,Status,HC Fail,Healthcheck,Healthcheck Status,Uptime,RAM,Cur/Max/Avg,Hostname,InSync,DockerID", "Comma-delimited list describing which fields to display"},
 				},
 			}, {
 				Name:        "add",
@@ -410,6 +410,30 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 	var states map[string]map[string]interface{}
 	var err error
 
+	//Determine whether to show healthcheck fields and rows based on user input:
+	//   By default, we only show individual healthcheck rows if a specific service is requested
+	//   However, we will show them if the user explicitly requests the "Healthcheck" or "Healthcheck Status" fields
+	showIndividualHealthChecks := false       //whether or not to add rows to the table for individual health checks.
+	fieldsToShow := ctx.String("show-fields") //we will modify this if not user-set
+
+	if !ctx.IsSet("show-fields") {
+		//only show the appropriate health fields based on arguments
+		if len(ctx.Args()) > 0 { //don't show "HC Fail"
+			fieldsToShow = strings.Replace(fieldsToShow, "HC Fail,", "", -1)
+			fieldsToShow = strings.Replace(fieldsToShow, ",HC Fail", "", -1) //in case it was last in the list
+		} else { //don't show "Healthcheck" or "Healthcheck Status"
+
+			fieldsToShow = strings.Replace(fieldsToShow, "Healthcheck Status,", "", -1)
+			fieldsToShow = strings.Replace(fieldsToShow, ",Healthcheck Status", "", -1) //in case it was last in the list
+
+			fieldsToShow = strings.Replace(fieldsToShow, "Healthcheck,", "", -1)
+			fieldsToShow = strings.Replace(fieldsToShow, ",Healthcheck", "", -1) //in case it was last in the list
+		}
+	}
+
+	//set showIndividualHealthChecks based on the fields
+	showIndividualHealthChecks = strings.Contains(fieldsToShow, "Healthcheck") || strings.Contains(fieldsToShow, "Healthcheck Status")
+
 	if len(ctx.Args()) > 0 {
 		svc, err := c.searchForService(ctx.Args()[0])
 		if err != nil {
@@ -433,7 +457,7 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 
 	cmdSetTreeCharset(ctx, c.config)
 
-	t := NewTable(ctx.String("show-fields"))
+	t := NewTable(fieldsToShow)
 	childmap := make(map[string][]string)
 	for id, state := range states {
 		parent := fmt.Sprintf("%v", state["ParentID"])
@@ -449,14 +473,17 @@ func (c *ServicedCli) cmdServiceStatus(ctx *cli.Context) {
 			defer t.DedentRow()
 			for _, rowid := range childmap[root] {
 				row := states[rowid]
-				t.AddRow(row)
-				nextRoot := fmt.Sprintf("%v", row["ServiceID"])
+				if _, ok := row["Healthcheck"]; !ok || showIndividualHealthChecks { //if this is a healthcheck row, only include it if showIndividualHealthChecks is true
+					t.AddRow(row)
+				}
+
+				nextRoot := rowid
 				addRows(nextRoot)
 			}
 		}
 	}
 	addRows("")
-	t.Padding = 6
+	t.Padding = 3
 	t.Print()
 	return
 }

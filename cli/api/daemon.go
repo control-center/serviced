@@ -14,6 +14,8 @@
 package api
 
 import (
+	"bytes"
+
 	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
@@ -119,38 +121,44 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 	return d, nil
 }
 
-func (d *daemon) getEsClusterName(Type string) string {
-
-	filename := path.Join(options.VarPath, "isvcs", Type+".clustername")
-	clusterName := ""
-	data, err := ioutil.ReadFile(filename)
-	if err != nil || len(data) <= 0 {
-		clusterName, err = utils.NewUUID36()
+func (d *daemon) getEsClusterName(name string) string {
+	filename := path.Join(options.IsvcsPath, name+".clustername")
+	data, _ := ioutil.ReadFile(filename)
+	clusterName := string(bytes.TrimSpace(data))
+	if clusterName == "" {
+		clusterName, err := utils.NewUUID36()
 		if err != nil {
-			glog.Fatalf("could not generate uuid: %s", err)
+			glog.Fatalf("Could not generate uuid: %s", err)
 		}
-		if err := os.MkdirAll(path.Dir(filename), 0770); err != nil {
-			glog.Fatalf("could not create dir %s: %s", path.Dir(filename), err)
+		if err := os.MkdirAll(filepath.Dir(filename), 0770); err != nil && !os.IsExist(err) {
+			glog.Fatalf("Could not create path to file %s: %s", filename, err)
 		}
 		if err := ioutil.WriteFile(filename, []byte(clusterName), 0600); err != nil {
-			glog.Fatalf("could not write clustername to %s: %s", filename, err)
+			glog.Fatalf("Could not write clustername to file %s: %s", filename, err)
 		}
-	} else {
-		clusterName = strings.TrimSpace(string(data))
 	}
 	return clusterName
 }
 
 func (d *daemon) startISVCS() {
 	isvcs.Init(options.ESStartupTimeout)
-	isvcs.Mgr.SetVolumesDir(path.Join(options.VarPath, "isvcs"))
+	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
 		glog.Fatalf("Could not set es-serviced option: %s", err)
 	}
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-logstash", "cluster", d.getEsClusterName("elasticsearch-logstash")); err != nil {
 		glog.Fatalf("Could not set es-logstash option: %s", err)
 	}
-	if err := d.initISVCS(); err != nil {
+	if err := isvcs.Mgr.Start(); err != nil {
+		glog.Fatalf("Could not start isvcs: %s", err)
+	}
+	go d.startLogstashPurger(10*time.Minute, 6*time.Hour)
+}
+
+func (d *daemon) startAgentISVCS(serviceNames []string) {
+	isvcs.InitServices(serviceNames)
+	isvcs.Mgr.SetVolumesDir(options.IsvcsPath)
+	if err := isvcs.Mgr.Start(); err != nil {
 		glog.Fatalf("Could not start isvcs: %s", err)
 	}
 }
@@ -279,12 +287,12 @@ func (d *daemon) run() (err error) {
 	}
 
 	// Initialize the storage driver
-	if volumesPath, err := filepath.Abs(filepath.Join(options.VarPath, "volumes")); err != nil {
-		glog.Fatalf("Could not look up var path %s: %s", options.VarPath, err)
-	} else if err := volume.InitDriver(options.FSType, volumesPath, options.StorageArgs); err != nil {
-		glog.Fatalf("Could not initialize storage driver type=%s root=%s args=%v options=%+v: %s", options.FSType, options.VarPath, options.StorageArgs, options.StorageOptions, err)
+	if !filepath.IsAbs(options.VolumesPath) {
+		glog.Fatalf("volumes path %s must be absolute", options.VolumesPath)
 	}
-
+	if err := volume.InitDriver(options.FSType, options.VolumesPath, options.StorageArgs); err != nil {
+		glog.Fatalf("Could not initialize storage driver type=%s root=%s args=%v options=%+v: %s", options.FSType, options.VolumesPath, options.StorageArgs, options.StorageOptions, err)
+	}
 	d.startRPC()
 	d.startDockerRegistryProxy()
 
@@ -293,6 +301,8 @@ func (d *daemon) run() (err error) {
 		if err := d.startMaster(); err != nil {
 			glog.Fatal(err)
 		}
+	} else {
+		d.startAgentISVCS(options.StartISVCS)
 	}
 
 	if options.Agent {
@@ -324,17 +334,14 @@ func (d *daemon) run() (err error) {
 
 	zzk.ShutdownConnections()
 	volume.ShutdownAll()
-
-	if options.Master {
-		switch sig {
-		case syscall.SIGHUP:
-			glog.Infof("Not shutting down isvcs")
-			command := os.Args
-			glog.Infof("Reloading by calling syscall.exec for command: %+v\n", command)
-			syscall.Exec(command[0], command[0:], os.Environ())
-		default:
-			d.stopISVCS()
-		}
+	switch sig {
+	case syscall.SIGHUP:
+		glog.Infof("Not shutting down isvcs")
+		command := os.Args
+		glog.Infof("Reloading by calling syscall.exec for command: %+v\n", command)
+		syscall.Exec(command[0], command[0:], os.Environ())
+	default:
+		d.stopISVCS()
 	}
 	return nil
 }
@@ -376,18 +383,11 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
 	}
-
-	if err := os.MkdirAll(options.VarPath, 0755); err != nil {
-		glog.Errorf("could not create varpath %s: %s", options.VarPath, err)
-		return err
-	}
-
-	volumesPath := path.Join(options.VarPath, "volumes")
-	if d.networkDriver, err = nfs.NewServer(volumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+	if d.networkDriver, err = nfs.NewServer(options.VolumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
 		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	} else {
-		if d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, volumesPath); err != nil {
+		if d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, options.VolumesPath); err != nil {
 			glog.Errorf("Could not start network server: %s", err)
 			return err
 		}
@@ -407,15 +407,6 @@ func (d *daemon) startMaster() error {
 		return err
 	}
 	zzk.InitializeLocalClient(localClient)
-
-	if len(options.RemoteZookeepers) > 0 {
-		remoteClient, err := d.initZK(options.RemoteZookeepers)
-		if err != nil {
-			glog.Warningf("failed to create a remote coordclient; running in disconnected mode: %v", err)
-		} else {
-			zzk.InitializeRemoteClient(remoteClient)
-		}
-	}
 
 	d.facade = d.initFacade()
 
@@ -577,7 +568,7 @@ func (d *daemon) startAgent() error {
 		}
 
 		if options.NFSClient != "0" {
-			nfsClient, err := storage.NewClient(thisHost, path.Join(options.VarPath, "volumes"))
+			nfsClient, err := storage.NewClient(thisHost, options.VolumesPath)
 			if err != nil {
 				glog.Fatalf("could not create an NFS client: %s", err)
 			}
@@ -618,7 +609,7 @@ func (d *daemon) startAgent() error {
 			UIPort:               options.UIPort,
 			RPCPort:              options.RPCPort,
 			DockerDNS:            options.DockerDNS,
-			VarPath:              options.VarPath,
+			VolumesPath:          options.VolumesPath,
 			Mount:                options.Mount,
 			FSType:               options.FSType,
 			Zookeepers:           options.Zookeepers,
@@ -720,31 +711,22 @@ func (d *daemon) initFacade() *facade.Facade {
 	return f
 }
 
-func (d *daemon) initISVCS() error {
-	if err := isvcs.Mgr.Start(); err != nil {
-		return err
+// startLogstashPurger purges logstash based on days and size
+func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
+	// Run the first time after 10 minutes
+	select {
+	case <-d.shutdown:
+		return
+	case <-time.After(initialStart):
 	}
-
-	// Start the logstash purger
-	go func() {
-		// Run the first time after 10 minutes
+	for {
+		isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
 		select {
 		case <-d.shutdown:
 			return
-		case <-time.After(10 * time.Minute):
-			isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
+		case <-time.After(cycleTime):
 		}
-		// Now run every 6 hours
-		for {
-			select {
-			case <-d.shutdown:
-				return
-			case <-time.After(6 * time.Hour):
-				isvcs.PurgeLogstashIndices(options.LogstashMaxDays, options.LogstashMaxSize)
-			}
-		}
-	}()
-	return nil
+	}
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
@@ -753,7 +735,7 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	if err != nil {
 		return nil, err
 	}
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VarPath, options.FSType, rpcPortInt, dfsTimeout, dockerRegistry, d.networkDriver)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VolumesPath, options.BackupsPath, options.FSType, rpcPortInt, dfsTimeout, dockerRegistry, d.networkDriver)
 }
 
 func (d *daemon) initWeb() {
@@ -765,9 +747,8 @@ func (d *daemon) initWeb() {
 
 func (d *daemon) initDFS() error {
 	if options.FSType == "btrfs" {
-		volumesPath := path.Join(options.VarPath, "volumes")
-		if !volume.IsBtrfsFilesystem(volumesPath) {
-			return fmt.Errorf("volumes path at %s is not a btrfs filesystem", volumesPath)
+		if !volume.IsBtrfsFilesystem(options.VolumesPath) {
+			return fmt.Errorf("volumes path at %s is not a btrfs filesystem", options.VolumesPath)
 		}
 	}
 	return nil

@@ -15,7 +15,7 @@
         $scope.params = $routeParams;
 
         $scope.breadcrumbs = [
-            { label: 'breadcrumb_hosts', url: '#/hosts' }
+            { label: 'breadcrumb_hosts', url: '/hosts' }
         ];
 
         $scope.viewLog = function(instance) {

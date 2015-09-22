@@ -24,6 +24,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -109,9 +110,14 @@ func loginOK(r *rest.Request) bool {
 
 	sessionsLock.Lock()
 	defer sessionsLock.Unlock()
-	session, err := findsessionT(cookie.Value)
+	value, err := url.QueryUnescape(strings.Replace(cookie.Value, "+", url.QueryEscape("+"), -1))
 	if err != nil {
-		glog.V(1).Info("Unable to find session ", cookie.Value)
+		glog.Warning("Unable to decode session ", cookie.Value)
+		return false
+	}
+	session, err := findsessionT(value)
+	if err != nil {
+		glog.Info("Unable to find session ", value)
 		return false
 	}
 	session.access = time.Now()

@@ -13,7 +13,7 @@
         $scope.params = $routeParams;
         $scope.indent = utils.indentClass;
         $scope.breadcrumbs = [
-            { label: 'breadcrumb_hosts', url: '#/hosts' },
+            { label: 'breadcrumb_hosts', url: '/hosts' },
             { label: 'breadcrumb_hosts_map', itemClass: 'active' }
         ];
 

@@ -370,8 +370,8 @@ func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, er
 	return svc.PoolID, nil
 }
 
-// GetImages returns all the images of all the deployed services.
-func (f *Facade) GetImages(ctx datastore.Context) ([]string, error) {
+// GetImageIDs returns a list of unique IDs of all the images of all the deployed services.
+func (f *Facade) GetImageIDs(ctx datastore.Context) ([]string, error) {
 	store := f.serviceStore
 	svcs, err := store.GetServices(ctx)
 	if err != nil {
@@ -380,6 +380,9 @@ func (f *Facade) GetImages(ctx datastore.Context) ([]string, error) {
 	var imageIDs []string
 	imagemap := make(map[string]struct{})
 	for _, svc := range svcs {
+		if len(svc.ImageID) == 0 {
+			continue
+		}
 		if _, ok := imagemap[svc.ImageID]; !ok {
 			imageIDs = append(imageIDs, svc.ImageID)
 			imagemap[svc.ImageID] = struct{}{}
@@ -890,8 +893,8 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 	return f.walkServices(ctx, request.ServiceID, true, visitor)
 }
 
-func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registry string, noOp bool) (string, error) {
-	result, err := docker.ServiceUse(serviceID, imageName, registry, noOp)
+func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registryName string, noOp bool) (string, error) {
+	result, err := docker.ServiceUse(serviceID, imageName, registryName, noOp)
 	if err != nil {
 		return "", err
 	}

@@ -47,11 +47,11 @@
 </div>
 
 <div class="graphsContainer" style="margin-bottom: 20px;">
-  <div ng-repeat="graph in graphConfigs track by $index">
+  <div ng-repeat="graph in graphConfigs track by getUniqueGraphId(graph)">
     <div class="zenchartContainer">
       <h4>{{graph.name}}</h4>
       <div class="graphDescrip" ng-if="graph.yAxisLabel"><span ng-if"graph.type === 'area'">Total</span> {{graph.yAxisLabel}} </div>
-      <div id="{{serviceId+'-graph-'+$index}}" class="medChart">{{viz($index, graph)}}</div>
+      <div id="{{::getUniqueGraphId(graph)}}" class="medChart">{{viz(graph)}}</div>
     </div>
   </div>
   <br style="clear: both;">
