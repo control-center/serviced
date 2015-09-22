@@ -174,7 +174,7 @@ func (c *Connection) EnsurePath(path string) error {
 		return xlateError(err)
 	}
 	if exists {
-		return xlateError(nil)
+		return nil
 	}
 	_path := ""
 	for _, n := range split[1 : len(split)-1] {
@@ -184,7 +184,7 @@ func (c *Connection) EnsurePath(path string) error {
 			return xlateError(err)
 		}
 	}
-	return xlateError(nil)
+	return nil
 }
 
 type dirNode struct {

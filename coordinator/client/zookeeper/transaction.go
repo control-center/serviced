@@ -155,5 +155,5 @@ func (t *Transaction) Commit() error {
 			op.node.SetVersion(&zklib.Stat{})
 		}
 	}
-	return xlateError(nil)
+	return nil
 }
