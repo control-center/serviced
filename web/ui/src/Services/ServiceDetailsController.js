@@ -228,7 +228,7 @@
         };
 
         $scope.indent = function(depth){
-            return {'padding-left': (20*depth) + "px"};
+            return {'padding-left': (15*depth) + "px"};
         };
 
         $scope.clickRunning = function(app, serviceStatus){

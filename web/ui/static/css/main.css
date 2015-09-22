@@ -1483,7 +1483,7 @@ input[type=file] {
 
 .table-collapse {
     font-size: 8px;
-    padding: 0px 5px 5px 5px;
+    padding: 0px 3px 3px 3px;
     vertical-align: middle;
     cursor: pointer;
 }
@@ -1774,12 +1774,11 @@ input[type=file] {
 .jelly-table .loader{
     opacity: 1;
     width: 100%;
+    height: calc(100% - 59px);
     position: absolute;
     margin: auto;
     top: 30px;
     left: 0;
-    bottom: 41px;
-    right: 0;
     background: rgba(255,255,255,.9) center center url("/static/img/loading.gif") no-repeat;
     text-align: center;
     overflow: hidden;
@@ -1797,10 +1796,6 @@ input[type=file] {
 }
 .jelly-table .loader:hover td {
     background-color: transparent;
-}
-.jelly-table .loaderSpacer{
-    width: 100%;
-    height: 45px;
 }
 
 .jelly-table .noData {

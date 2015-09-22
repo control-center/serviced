@@ -123,14 +123,14 @@
         <table jelly-table data-data="services.subservices" data-config="servicesTable" class="table">
             <thead>
                 <tr>
-                  <th style="white-space: nowrap; width:200px;" translate>label_service</th>
+                  <th style="width: 200px;" translate>label_service</th>
                   <th style="width: 75px; line-height: 11px;">Instances <span style="font-size: .75em;">healthy/total</span></th>
-                  <th style="width: 600px;" translate>deployed_tbl_description</th>
-                  <th ng-if="!services.current.isIsvc()" translate>running_tbl_actions</th>
+                  <th translate>deployed_tbl_description</th>
+                  <th style="width: 210px;" ng-if="!services.current.isIsvc()" translate>running_tbl_actions</th>
                 </tr>
             </thead>
             <tr ng-repeat="app in $data" data-id="{{app.model.ID}}">
-              <td data-title="'label_service'|translate">
+              <td data-title="'label_service'|translate" style="overflow: hidden; white-space: nowrap;">
                 <span ng-style="calculateIndent(app)"></span>
                 <span ng-if="app.children.length" ng-click="toggleChildren($event, app)" class="table-collapse glyphicon glyphicon-chevron-down"></span>
                 <span ng-if="!app.children.length" ng-style="indent(1)"></span>
