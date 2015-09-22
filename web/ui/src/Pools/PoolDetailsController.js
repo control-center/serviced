@@ -110,7 +110,7 @@
             $scope.add_virtual_ip = {};
 
             $scope.breadcrumbs = [
-                { label: 'breadcrumb_pools', url: '#/pools' }
+                { label: 'breadcrumb_pools', url: '/pools' }
             ];
 
             // start polling

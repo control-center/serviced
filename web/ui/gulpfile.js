@@ -59,7 +59,6 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "elastic/elasticsearch.js",
 
     paths.thirdpartySrc + "angular/angular.js",
-    paths.thirdpartySrc + "angular/angular-animate.js",
     paths.thirdpartySrc + "angular/angular-route.js",
     paths.thirdpartySrc + "angular/angular-cookies.js",
     paths.thirdpartySrc + "angular-dragdrop/angular-dragdrop.js",
@@ -69,6 +68,7 @@ var thirdpartyFiles = [
     paths.thirdpartySrc + "angular-cache/angular-cache.js",
     paths.thirdpartySrc + "angular-moment/angular-moment.js",
     paths.thirdpartySrc + "angular-sticky/sticky.js",
+    paths.thirdpartySrc + "angular-location-update/angular-location-update.js",
 
     paths.thirdpartySrc + "ng-table/ng-table.js",
 
@@ -117,6 +117,10 @@ gulp.task("release", function(){
 // code is updated, which should be infrequent
 gulp.task("release3rdparty", function(){
     sequence("copyStatic", "concat3rdparty", "uglify3rdparty", function(){});
+});
+
+gulp.task("debug3rdparty", function(){
+    sequence("copyStatic", "concat3rdparty", "copyStatic", function(){});
 });
 
 gulp.task("concat", function(){

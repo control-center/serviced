@@ -25,10 +25,6 @@
             add: {}
         };
 
-        $scope.click_app = function(id) {
-            $location.path('/services/' + id);
-        };
-
         $scope.click_pool = function(id) {
             resourcesFactory.routeToPool(id);
         };
@@ -502,6 +498,22 @@
             }
         };
 
+        $scope.subNavClick = function(crumb){
+            if(crumb.id){
+                $scope.routeToService(crumb.id);
+            } else {
+                // TODO - just call subnavs usual function
+                $location.path(crumb.url);
+            }
+        };
+
+        $scope.routeToService = function(id){
+            $location.update_path("/services/"+id, true);
+            $scope.params.serviceId = id;
+            $scope.services.current = servicesFactory.get($scope.params.serviceId);
+            $scope.update();
+        };
+
         $scope.update = function(){
             if($scope.services.current){
                 $scope.services.subservices = $scope.services.current.descendents;
@@ -627,7 +639,7 @@
             $scope.params = $routeParams;
 
             $scope.breadcrumbs = [
-                { label: 'breadcrumb_deployed', url: '#/apps' }
+                { label: 'breadcrumb_deployed', url: '/apps' }
             ];
 
             $scope.vhostsTable = {
@@ -711,7 +723,6 @@
                 servicesFactory.deactivate();
                 hostsFactory.deactivate();
             });
-
         }
 
         // kick off controller
@@ -744,14 +755,16 @@
         function makeCrumbs(current){
             var crumbs = [{
                 label: current.name,
-                itemClass: "active"
+                itemClass: "active",
+                id: current.id
             }];
 
             (function recurse(service){
                 if(service){
                     crumbs.unshift({
                         label: service.name,
-                        url: "#/services/"+ service.id
+                        url: "/services/"+ service.id,
+                        id: service.id
                     });
                     recurse(service.parent);
                 }
@@ -759,7 +772,7 @@
 
             crumbs.unshift({
                 label: "Applications",
-                url: "#/apps"
+                url: "/apps"
             });
 
             return crumbs;

@@ -228,9 +228,9 @@ table .btn,
     margin-left: 15px;
 }
 
-.navbar-zen button,
-.navbar-zen a {
-    padding: 15px 8px;
+.navbar-zen .main-nav button,
+.navbar-zen .main-nav a {
+    padding: 15px;
     margin: 0px;
     border: 0px;
     color: #CCC;
@@ -238,19 +238,19 @@ table .btn,
     text-shadow: 1px 1px 2px #414141;
 }
 
-.navbar-zen a.glyphicon {
+.navbar-zen .main-nav a.glyphicon {
     top: 0px;
 }
 
-.navbar-zen li.active > button,
-.navbar-zen li.active > a {
+.navbar-zen .main-nav li.active > button,
+.navbar-zen .main-nav li.active > a {
     color: #F6F6F6;
     background-color: #515151;
 }
 
-.navbar-zen a.navbar-brand:hover,
-.navbar-zen li > button:hover,
-.navbar-zen li > a:hover {
+.navbar-zen .main-nav a.navbar-brand:hover,
+.navbar-zen .main-nav li > button:hover,
+.navbar-zen .main-nav li > a:hover {
     background-color: #969696;
     color: #f6f6f6;
 }
@@ -275,14 +275,14 @@ table .btn,
     z-index: 1000;
 }
 
-.navbar-zen .navbar-right button{
+.navbar-zen .main-nav .navbar-right button{
     font-weight: normal;
     color: #EEE;
     font-size: .9em;
     line-height: 1.6em;
 }
 
-.navbar-zen .navbar-right .vr{
+.navbar-zen .main-nav .navbar-right .vr{
     font-weight: normal;
     color: #888;
     font-size: .9em;
@@ -301,7 +301,7 @@ table .btn,
 }
 
 .navbar {
-    margin: 10px 0 0 0;
+    margin: 10px 0 30px 0;
     border-radius: 0;
     border: 0;
 }
@@ -356,7 +356,6 @@ table .btn,
 
 .details {
     background-color: #f5f5f5;
-    margin-bottom: 30px;
 }
 
 .breadcrumb {

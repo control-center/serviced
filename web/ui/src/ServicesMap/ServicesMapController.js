@@ -15,7 +15,7 @@
         $scope.params = $routeParams;
 
         $scope.breadcrumbs = [
-            { label: 'breadcrumb_deployed', url: '#/apps' },
+            { label: 'breadcrumb_deployed', url: '/apps' },
             { label: 'breadcrumb_services_map', itemClass: 'active' }
         ];
 
