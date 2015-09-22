@@ -26,12 +26,10 @@ import (
 )
 
 var Zookeeper = IServiceDefinition{
-	Name:         "zookeeper",
-	Repo:         ZK_IMAGE_REPO,
-	Tag:          ZK_IMAGE_TAG,
-	Command:      func() string { return "exec start-zookeeper" },
-	PortBindings: []portBinding{zookeeperPortBinding, exhibitorPortBinding},
-	Command:      func() string { return "exec start-zookeeper" },
+	Name:    "zookeeper",
+	Repo:    ZK_IMAGE_REPO,
+	Tag:     ZK_IMAGE_TAG,
+	Command: func() string { return "exec start-zookeeper" },
 	PortBindings: []portBinding{
 		// client port
 		{
