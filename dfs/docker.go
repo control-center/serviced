@@ -241,7 +241,7 @@ func (dfs *DistributedFilesystem) importImages(dirpath string, images []imagemet
 		filename := filepath.Join(dirpath, metadata.Filename)
 
 		// Make sure all images that refer to a local registry are named with the local registry
-		tags := make([]string, len(metadata.Tags))
+		imageIDs := make([]commons.ImageID, len(metadata.Tags))
 		for i, tag := range metadata.Tags {
 			imageID, err := commons.ParseImageID(tag)
 			if err != nil {
@@ -252,10 +252,10 @@ func (dfs *DistributedFilesystem) importImages(dirpath string, images []imagemet
 			if _, ok := tenants[imageID.User]; ok {
 				imageID.Host, imageID.Port = dfs.dockerHost, dfs.dockerPort
 			}
-			tags[i] = imageID.String()
+			imageIDs[i] = *imageID
 		}
 
-		if err := loadImage(filename, metadata.UUID, tags); err != nil {
+		if err := loadImage(filename, metadata.UUID, imageIDs); err != nil {
 			glog.Errorf("Error loading %s (%s): %s", filename, metadata.UUID, err)
 			return err
 		}
@@ -422,7 +422,7 @@ func getImageRefs(templates map[string]servicetemplate.ServiceTemplate, services
 	return t, s
 }
 
-func loadImage(filename string, uuid string, tags []string) error {
+func loadImage(filename string, uuid string, imageIDs []commons.ImageID) error {
 	// look up the image by UUID
 	images, err := docker.Images()
 	if err != nil {
@@ -449,21 +449,22 @@ func loadImage(filename string, uuid string, tags []string) error {
 			return nil
 		}
 
-		if err := docker.ImportImage(tags[0], filename); err != nil {
+		tag := imageIDs[0].String()
+		if err := docker.ImportImage(tag, filename); err != nil {
 			glog.Errorf("Could not import image from file %s: %s", filename, err)
 			return err
-		} else if image, err = docker.FindImage(tags[0], false); err != nil {
-			glog.Errorf("Could not look up docker image %s: %s", tags[0], err)
+		} else if image, err = docker.FindImage(tag, false); err != nil {
+			glog.Errorf("Could not look up docker image %s: %s", tag, err)
 			return err
 		}
-		glog.Infof("Tagging images %v at %s", tags, image.UUID)
-		tags = tags[1:]
+		glog.Infof("Tagging images %v at %s", imageIDs, image.UUID)
 	}
 
 	// tag the remaining images
-	for _, tag := range tags {
-		if _, err := image.Tag(tag, true); err != nil {
-			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, tag, err)
+	for _, imageID := range imageIDs {
+		pushTag := (imageID.Registry() != "")
+		if _, err := image.Tag(imageID.String(), pushTag); err != nil {
+			glog.Errorf("Could not tag image %s as %s: %s", image.UUID, imageID, err)
 			return err
 		}
 	}
