@@ -64,14 +64,19 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 }
 
 func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
-	ft.mockRegistry = &test.MockDockerRegistry{}
-	ft.Facade.registry = ft.mockRegistry
 	ft.ElasticTest.SetUpTest(c)
 }
 
 func (ft *FacadeTest) TearDownTest(c *gocheck.C) {
-	ft.mockRegistry = nil
-	ft.Facade.registry = nil
+	if ft.mockRegistry != nil {
+		ft.mockRegistry = nil
+		ft.Facade.registry = nil
+	}
+}
+
+func (ft *FacadeTest) setupMockRegistry() {
+	ft.mockRegistry = &test.MockDockerRegistry{}
+	ft.Facade.registry = ft.mockRegistry
 }
 
 type zkMock struct {

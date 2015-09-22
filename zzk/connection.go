@@ -207,7 +207,7 @@ func (zconn *zconn) connect(timeout time.Duration) (client.Connection, error) {
 		glog.Warningf("timed out waiting for connection")
 		return nil, ErrTimeout
 	case <-zconn.shutdownC:
-		glog.Warningf("receieved signal to shutdown")
+		glog.Warningf("received signal to shutdown")
 		return nil, ErrShutdown
 	}
 }

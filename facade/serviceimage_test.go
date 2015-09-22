@@ -69,6 +69,7 @@ func (ft *FacadeTest) TestPushServiceImage_InvalidArgument(t *C) {
 func (ft *FacadeTest) TestPushServiceImage_NewImage(t *C) {
 	fmt.Println(" ##### TestPushServiceImage_NewImage: starting")
 	image := serviceimage.ServiceImage{ImageID: "someID", UUID: "someUUID", HostID: "1", Status: serviceimage.IMGCreated}
+	ft.setupMockRegistry()
 	ft.mockRegistry.On("PushImage", image.ImageID).Return(nil)
 
 	err := ft.Facade.PushServiceImage(ft.CTX, &image)
@@ -119,6 +120,7 @@ func (ft *FacadeTest) TestPushServiceImage_NewImagePushFail(t *C) {
 	fmt.Println(" ##### TestPushServiceImage_NewImagePushFail: starting")
 	image := serviceimage.ServiceImage{ImageID: "someID", UUID: "someUUID", HostID: "1", Status: serviceimage.IMGCreated}
 	errorStub := errors.New("errorStub: PushImage() failed")
+	ft.setupMockRegistry()
 	ft.mockRegistry.On("PushImage", "someID").Return(errorStub)
 
 	err := ft.Facade.PushServiceImage(ft.CTX, &image)
@@ -156,6 +158,7 @@ func (ft *FacadeTest) TestPushServiceImage_UpdateImage(t *C) {
 		Status: 	serviceimage.IMGFailed,
 		Error:  	"failed image",
 	}
+	ft.setupMockRegistry()
 	ft.mockRegistry.On("PushImage", "someID").Return(nil)
 
 	err := ft.Facade.PushServiceImage(ft.CTX, &image)

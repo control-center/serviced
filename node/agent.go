@@ -434,7 +434,7 @@ func (a *HostAgent) removeInstance(stateID string, ctr *docker.Container) {
 	if err := ctr.Delete(true); err != nil {
 		glog.Errorf("Could not remove instance %s (%s): %s", stateID, ctr.ID, err)
 	}
-	glog.Infof("Service state %s (%s) receieved exit code %d", stateID, ctr.ID, rc)
+	glog.Infof("Service state %s (%s) received exit code %d", stateID, ctr.ID, rc)
 
 }
 
@@ -803,7 +803,7 @@ func (a *HostAgent) Start(shutdown <-chan interface{}) {
 		// this blocks until
 		// 1) has a connection
 		// 2) its node is registered
-		// 3) receieves signal to shutdown or breaks
+		// 3) receives signal to shutdown or breaks
 		hsListener := zkservice.NewHostStateListener(a, a.hostID)
 
 		glog.Infof("Host Agent successfully started")

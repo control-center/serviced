@@ -244,7 +244,7 @@ func (l *HostStateListener) terminateInstance(locker sync.Locker, done chan<- st
 	return func(stateID string) {
 		defer locker.Unlock()
 		defer close(done)
-		glog.V(3).Infof("Receieved process done signal for %s", stateID)
+		glog.V(3).Infof("Received process done signal for %s", stateID)
 		terminated := time.Now()
 		setTerminated := func(_ *HostState, ssdata *servicestate.ServiceState) {
 			ssdata.Terminated = terminated

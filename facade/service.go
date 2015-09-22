@@ -893,8 +893,8 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 	return f.walkServices(ctx, request.ServiceID, true, visitor)
 }
 
-func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registry string, noOp bool) (string, error) {
-	result, err := docker.ServiceUse(serviceID, imageName, registry, noOp)
+func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registryName string, noOp bool) (string, error) {
+	result, err := docker.ServiceUse(serviceID, imageName, registryName, noOp)
 	if err != nil {
 		return "", err
 	}

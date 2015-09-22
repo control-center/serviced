@@ -110,7 +110,7 @@ func (s *Server) Run(shutdown <-chan interface{}, conn client.Connection) error 
 
 		select {
 		case e := <-clientW:
-			glog.Info("storage.server: receieved event: %s", e)
+			glog.Info("storage.server: received event: %s", e)
 		case <-leaderW:
 			err := fmt.Errorf("storage.server: lost lead")
 			return err

@@ -228,7 +228,7 @@ func esHealthCheck(port int, minHealth ESHealth) HealthCheckFunction {
 					break
 				}
 				if status := GetHealth(r.response.Status); status < minHealth {
-					glog.Warningf("Receieved health status {%+v} at %s", r.response, r.url)
+					glog.Warningf("Received health status {%+v} at %s", r.response, r.url)
 					break
 				}
 				return nil
