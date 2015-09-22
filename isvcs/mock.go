@@ -66,6 +66,7 @@ func init() {
 		MonitoringProfile: domain.MonitorProfile{
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -116,6 +117,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -188,6 +190,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -238,6 +241,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -294,6 +298,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -344,6 +349,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -415,6 +421,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -465,6 +472,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -536,6 +544,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -586,6 +595,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -657,6 +667,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -707,6 +718,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -778,6 +790,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -828,6 +841,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -899,6 +913,7 @@ func init() {
 			},
 			GraphConfigs: []domain.GraphConfig{
 				domain.GraphConfig{
+					ID:     "cpuUsage",
 					Name:   "CPU Usage",
 					Footer: false,
 					Format: "%4.2f",
@@ -949,6 +964,7 @@ func init() {
 					},
 				},
 				domain.GraphConfig{
+					ID:     "memoryUsage",
 					Name:   "Memory Usage",
 					Footer: false,
 					Format: "%4.2f",
