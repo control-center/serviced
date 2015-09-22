@@ -39,9 +39,9 @@ var exhibitorPortBinding = portBinding{
 
 var Zookeeper = IServiceDefinition{
 	Name:         "zookeeper",
-	Repo:         IMAGE_REPO,
-	Tag:          IMAGE_TAG,
-	Command:      func() string { return "exec /opt/zookeeper-3.4.5/bin/zkServer.sh start-foreground" },
+	Repo:         ZK_IMAGE_REPO,
+	Tag:          ZK_IMAGE_TAG,
+	Command:      func() string { return "exec start-zookeeper" },
 	PortBindings: []portBinding{zookeeperPortBinding, exhibitorPortBinding},
 	Volumes:      map[string]string{"data": "/tmp"},
 }

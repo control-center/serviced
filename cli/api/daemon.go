@@ -122,18 +122,22 @@ func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string)
 }
 
 func (d *daemon) getEsClusterName(name string) string {
+	var (
+		clusterName string
+		err         error
+	)
 	filename := path.Join(options.IsvcsPath, name+".clustername")
 	data, _ := ioutil.ReadFile(filename)
-	clusterName := string(bytes.TrimSpace(data))
+	clusterName = string(bytes.TrimSpace(data))
 	if clusterName == "" {
-		clusterName, err := utils.NewUUID36()
+		clusterName, err = utils.NewUUID36()
 		if err != nil {
 			glog.Fatalf("Could not generate uuid: %s", err)
 		}
-		if err := os.MkdirAll(filepath.Dir(filename), 0770); err != nil && !os.IsExist(err) {
+		if err = os.MkdirAll(filepath.Dir(filename), 0770); err != nil && !os.IsExist(err) {
 			glog.Fatalf("Could not create path to file %s: %s", filename, err)
 		}
-		if err := ioutil.WriteFile(filename, []byte(clusterName), 0600); err != nil {
+		if err = ioutil.WriteFile(filename, []byte(clusterName), 0600); err != nil {
 			glog.Fatalf("Could not write clustername to file %s: %s", filename, err)
 		}
 	}
