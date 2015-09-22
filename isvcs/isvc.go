@@ -28,8 +28,10 @@ import (
 var Mgr *Manager
 
 const (
-	IMAGE_REPO = "zenoss/serviced-isvcs"
-	IMAGE_TAG  = "v32"
+	IMAGE_REPO    = "zenoss/serviced-isvcs"
+	IMAGE_TAG     = "v33"
+	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
+	ZK_IMAGE_TAG  = "v1"
 )
 
 func Init(esStartupTimeoutInSeconds int) {
