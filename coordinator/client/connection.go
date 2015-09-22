@@ -39,15 +39,24 @@ type Node interface {
 	SetVersion(interface{})
 }
 
+type Transaction interface {
+	Create(path string, node Node)
+	Set(path string, node Node)
+	Delete(path string)
+	Commit() error
+}
+
 // Connection is the interface that allows interaction with the coordination service
 type Connection interface {
 	Close()
 	SetID(int)
 	ID() int
 	SetOnClose(func(int))
+	NewTransaction() Transaction
 	Create(path string, node Node) error
 	CreateDir(path string) error
 	CreateEphemeral(path string, node Node) (string, error)
+	EnsurePath(path string) error
 	Exists(path string) (bool, error)
 	Delete(path string) error
 	ChildrenW(path string) (children []string, event <-chan Event, err error)
@@ -55,7 +64,6 @@ type Connection interface {
 	Get(path string, node Node) error
 	GetW(path string, node Node) (<-chan Event, error)
 	Set(path string, node Node) error
-
 	NewLock(path string) Lock
 	NewLeader(path string, data Node) Leader
 }

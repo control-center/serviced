@@ -133,6 +133,182 @@ func TestZkDriver(t *testing.T) {
 	conn.Close()
 }
 
+func TestZkDriver_Multi(t *testing.T) {
+	basePath := "/basePath"
+	tc, err := zklib.StartTestCluster(1, nil, nil)
+	if err != nil {
+		t.Fatalf("could not start test zk cluster: %s", err)
+	}
+	defer os.RemoveAll(tc.Path)
+	defer tc.Stop()
+	time.Sleep(time.Second)
+
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+
+	drv := Driver{}
+	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
+	if err != nil {
+		t.Fatalf("unexpected error creating zk DSN: %s", err)
+	}
+
+	dsn := string(dsnBytes)
+
+	conn, err := drv.GetConnection(dsn, basePath)
+	defer conn.Close()
+	if err != nil {
+		t.Fatal("unexpected error getting connection")
+	}
+
+	conn.CreateDir("/basePath")
+
+	//
+	// Test creating a new node and setting a non-existent node. Should not commit.
+	//
+	testNode0 := &testNodeT{
+		Name: "test0",
+	}
+	testNode1 := &testNodeT{
+		Name: "test1",
+	}
+
+	multi := conn.NewTransaction()
+	multi.Create("/test0", testNode0)
+	multi.Set("/test1", testNode1)
+	if err = multi.Commit(); err == nil {
+		t.Fatalf("creating /test0 and setting /test1 should have failed")
+	}
+
+	exists, err := conn.Exists("/test0")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test0: %s", err)
+	}
+	if exists {
+		t.Fatalf("/test0 should not have been created")
+	}
+
+	//
+	// Test creating two new nodes. Should commit.
+	//
+	multi = conn.NewTransaction()
+	multi.Create("/test0", testNode0)
+	multi.Create("/test1", testNode1)
+	if err = multi.Commit(); err != nil {
+		t.Fatalf("creating /test0 and /test1 should work: %s", err)
+	}
+
+	out := &testNodeT{
+		Name: "luffydmonkey",
+	}
+
+	err = conn.Get("/test0", out)
+	if err != nil {
+		t.Fatalf("getting /test0 should work: %s", err)
+	}
+
+	if out.Name != "test0" {
+		t.Fatalf("expected test0, got %s", out.Name)
+	}
+
+	err = conn.Get("/test1", out)
+	if err != nil {
+		t.Fatalf("getting /test1 should work: %s", err)
+	}
+
+	if out.Name != "test1" {
+		t.Fatalf("expected test1, got %s", out.Name)
+	}
+
+	//
+	// Test setting the newly created nodes. Should commit.
+	//
+	testNode0.Name = "test0b"
+	testNode1.Name = "test1b"
+
+	multi = conn.NewTransaction()
+	multi.Set("/test0", testNode0)
+	multi.Set("/test1", testNode1)
+	if err = multi.Commit(); err != nil {
+		t.Fatalf("setting test0 and test1 should work: %s", err)
+	}
+
+	out.Name = "luffydmonkey"
+
+	err = conn.Get("/test0", out)
+	if err != nil {
+		t.Fatalf("getting /test0 should work: %s", err)
+	}
+
+	if out.Name != "test0b" {
+		t.Fatalf("expected test0b, got %s", out.Name)
+	}
+
+	out.Name = "luffydmonkey"
+
+	err = conn.Get("/test1", out)
+	if err != nil {
+		t.Fatalf("getting /test1 should work: %s", err)
+	}
+
+	if out.Name != "test1b" {
+		t.Fatalf("expected test1b, got %s", out.Name)
+	}
+
+	//
+	// Attempt to delete the same node twice in the same transaction. Should not commit.
+	//
+	multi = conn.NewTransaction()
+	multi.Delete("/test0")
+	multi.Delete("/test0")
+	if err = multi.Commit(); err == nil {
+		t.Fatalf("expected error trying to delete the same node twice")
+	}
+
+	exists, err = conn.Exists("/test0")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test0: %s", err)
+	}
+	if !exists {
+		t.Fatalf("/test0 should not have been deleted")
+	}
+
+	//
+	// Attempt to delete two nodes in a transaction. Should commit.
+	//
+	multi = conn.NewTransaction()
+	multi.Delete("/test0")
+	multi.Delete("/test1")
+	if err = multi.Commit(); err != nil {
+		t.Fatalf("deleting /test0 and /test1 should work: %s", err)
+	}
+
+	exists, err = conn.Exists("/test0")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test0: %s", err)
+	}
+	if exists {
+		t.Fatalf("/test0 should have been deleted")
+	}
+
+	exists, err = conn.Exists("/test1")
+	if err != nil {
+		t.Fatalf("Error testing for existence of /test1: %s", err)
+	}
+	if exists {
+		t.Fatalf("/test1 should have been deleted")
+	}
+
+	//
+	// Attempt to create the same node twice in the same transaction. Should not commit.
+	//
+	multi = conn.NewTransaction()
+	multi.Create("/test0", testNode0)
+	multi.Create("/test0", testNode1)
+	if err = multi.Commit(); err == nil {
+		t.Fatalf("expected error trying to create an existing node")
+	}
+
+}
+
 func TestZkDriver_Ephemeral(t *testing.T) {
 	basePath := "/basePath"
 	tc, err := zklib.StartTestCluster(1, nil, nil)

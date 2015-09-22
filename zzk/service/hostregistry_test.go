@@ -31,6 +31,8 @@ import (
 func (t *ZZKTest) TestHostRegistryListener_Spawn(c *C) {
 	conn, err := zzk.GetLocalConnection("/TestHostRegistry_Spawn")
 	c.Assert(err, IsNil)
+	err = conn.CreateDir(servicepath())
+	c.Assert(err, IsNil)
 
 	// Add a host
 	addHost := func(hostID string) *host.Host {

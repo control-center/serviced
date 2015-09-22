@@ -122,6 +122,14 @@ func (c *Connection) CreateEphemeral(path string, node client.Node) (string, err
 	return path, xlateError(err)
 }
 
+// Create a Transaction object.
+func (c *Connection) NewTransaction() client.Transaction {
+	return &Transaction{
+		conn: c,
+		ops:  []transactionOperation{},
+	}
+}
+
 // Create places data at the node at the given path.
 func (c *Connection) Create(path string, node client.Node) error {
 	if c.conn == nil {
@@ -152,6 +160,31 @@ func (c *Connection) Create(path string, node client.Node) error {
 		node.SetVersion(&zklib.Stat{})
 	}
 	return xlateError(err)
+}
+
+// Creates the path up to and including the immediate parent of the
+// target node.
+func (c *Connection) EnsurePath(path string) error {
+	path = join(c.basePath, path)
+	split := strings.Split(path, "/")
+	final := strings.Join(split[:len(split)-1], "/")
+	exists, err := c.Exists(final)
+	if err != nil {
+		glog.Errorf("Error testing existence of node %s: %s", final, err)
+		return xlateError(err)
+	}
+	if exists {
+		return nil
+	}
+	_path := ""
+	for _, n := range split[1 : len(split)-1] {
+		_path += "/" + n
+		_, err = c.conn.Create(_path, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
+		if err != nil && err != zklib.ErrNodeExists {
+			return xlateError(err)
+		}
+	}
+	return nil
 }
 
 type dirNode struct {
@@ -314,35 +347,27 @@ func EnsureZkFatjar() {
 		log.Fatal("Can't find java in path")
 	}
 
-	jars, err := filepath.Glob("zookeeper-*/contrib/fatjar/zookeeper-*-fatjar.jar")
+	jars, err := filepath.Glob("zookeeper-*/contrib/jar/*.jar")
 	if err != nil {
 		log.Fatal("Error search for files")
 	}
+
 	if len(jars) > 0 {
 		return
 	}
 
-	err = exec.Command("curl", "-O", "http://www.java2s.com/Code/JarDownload/zookeeper/zookeeper-3.3.3-fatjar.jar.zip").Run()
+	err = exec.Command("curl", "-O", "https://archive.apache.org/dist/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz").Run()
 	if err != nil {
-		log.Fatalf("Could not download fatjar: %s", err)
+		log.Fatalf("Could not download jar: %s", err)
 	}
 
-	err = exec.Command("unzip", "zookeeper-3.3.3-fatjar.jar.zip").Run()
+	err = exec.Command("tar", "-xf", "zookeeper-3.4.5.tar.gz").Run()
 	if err != nil {
-		log.Fatalf("Could not unzip fatjar: %s", err)
-	}
-	err = exec.Command("mkdir", "-p", "zookeeper-3.3.3/contrib/fatjar").Run()
-	if err != nil {
-		log.Fatalf("Could not make fatjar dir: %s", err)
+		log.Fatalf("Could not unzip jar: %s", err)
 	}
 
-	err = exec.Command("mv", "zookeeper-3.3.3-fatjar.jar", "zookeeper-3.3.3/contrib/fatjar/").Run()
+	err = exec.Command("rm", "zookeeper-3.4.5.tar.gz").Run()
 	if err != nil {
-		log.Fatalf("Could not mv fatjar: %s", err)
-	}
-
-	err = exec.Command("rm", "zookeeper-3.3.3-fatjar.jar.zip").Run()
-	if err != nil {
-		log.Fatalf("Could not rm fatjar.zip: %s", err)
+		log.Fatalf("Could not rm jar.zip: %s", err)
 	}
 }

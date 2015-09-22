@@ -119,12 +119,6 @@ func (l *ServiceListener) PostProcess(p map[string]struct{}) {}
 
 // Spawn watches a service and syncs the number of running instances
 func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
-	// set up the service alerter
-	if err := setupAlert(l.conn, serviceID); err != nil {
-		glog.Errorf("Could not set up alerter for service %s: %s", serviceID, err)
-		return
-	}
-
 	for {
 		var retry <-chan time.Time
 		var err error
@@ -139,13 +133,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 				glog.Errorf("Could not monitor service lock: %s", err)
 				return
 			}
-		}
-
-		// CC-1050: watch the service alerter
-		alertEvent, err := l.conn.GetW(path.Join(zkServiceAlert, serviceID), &ServiceAlert{})
-		if err != nil {
-			glog.Errorf("Could not monitor instance alerts for service %s: %s", serviceID, err)
-			return
 		}
 
 		var svc service.Service
@@ -186,14 +173,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		select {
 		case <-glock:
 			// passthrough
-			glog.V(3).Infof("Received a global lock event, resyncing")
-		case e := <-alertEvent:
-			if e.Type == client.EventNodeDeleted {
-				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
-				l.stop(rss)
-				return
-			}
-			glog.V(2).Infof("Received an alert event for service %s (%s): %v", svc.Name, svc.ID, e)
+			glog.V(3).Infof("Receieved a global lock event, resyncing")
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
@@ -472,11 +452,6 @@ func UpdateService(conn client.Connection, svc service.Service) error {
 	node.Service = &service.Service{}
 	if err := conn.Get(spath, &node); err != nil {
 		if err == client.ErrNoNode {
-			// Set up the service alert
-			if err := setupAlert(conn, svc.ID); err != nil {
-				glog.Errorf("Could not set up alert for service %s (%s): %s", svc.Name, svc.ID, err)
-				return err
-			}
 			// Create the service node
 			if err := conn.Create(spath, &node); err != nil {
 				glog.Errorf("Could not create node at %s: %s", spath, err)
@@ -511,7 +486,6 @@ func RemoveService(conn client.Connection, serviceID string) error {
 		return fmt.Errorf("service %s has %d running instances", serviceID, instances)
 	}
 	// Delete the service
-	defer removeAlert(conn, serviceID)
 	return conn.Delete(servicepath(serviceID))
 }
 

@@ -31,6 +31,8 @@ import (
 func (t *ZZKTest) TestGetServiceStatus(c *C) {
 	conn, err := zzk.GetLocalConnection("/")
 	c.Assert(err, IsNil)
+	err = conn.CreateDir(servicepath())
+	c.Assert(err, IsNil)
 
 	// Add a service
 	svc := service.Service{ID: "test-service-1", Instances: 3}

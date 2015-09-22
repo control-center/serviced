@@ -14,110 +14,11 @@
 package service
 
 import (
-	"errors"
-	"path"
-	"time"
-
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/service"
 	ss "github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
 )
-
-const (
-	// zkServiceAlert alerts services when instances are added or deleted.
-	zkServiceAlert = "/alerts/services"
-	// zkInstanceLock keeps service instance updates in sync.
-	zkInstanceLock = "/locks/instances"
-)
-
-const (
-	// AlertInitialized indicates that the alerter has been initialized for the
-	// service.
-	AlertInitialized = "INIT"
-	// InstanceAdded describes a service event alert for an instance that was
-	// created.
-	InstanceAdded = "ADD"
-	// InstanceDeleted describes a service event alert for an instance that was
-	// deleted.
-	InstanceDeleted = "DEL"
-)
-
-var ErrLockNotFound = errors.New("lock not found")
-
-// ServiceAlert is a alert node for when a service instance is added or
-// deleted.
-type ServiceAlert struct {
-	ServiceID string
-	HostID    string
-	StateID   string
-	Event     string
-	Timestamp time.Time
-	version   interface{}
-}
-
-// Version implements client.Node
-func (alert *ServiceAlert) Version() interface{} {
-	return alert.version
-}
-
-// SetVersion implements client.Node
-func (alert *ServiceAlert) SetVersion(version interface{}) {
-	alert.version = version
-}
-
-// setUpAlert sets up the service alerter.
-func setupAlert(conn client.Connection, serviceID string) error {
-	var alert ServiceAlert
-	if err := conn.Create(path.Join(zkServiceAlert, serviceID), &alert); err == nil {
-		alert.Event = AlertInitialized
-		alert.Timestamp = time.Now()
-		if err := conn.Set(path.Join(zkServiceAlert, serviceID), &alert); err != nil {
-			glog.Errorf("Could not set alerter for service %s: %s", serviceID, err)
-			return err
-		}
-	} else if err != client.ErrNodeExists {
-		glog.Errorf("Could not create alerter for service %s: %s", serviceID, err)
-		return err
-	}
-	return nil
-}
-
-// removeAlert cleans up service alerter.
-func removeAlert(conn client.Connection, serviceID string) error {
-	return conn.Delete(path.Join(zkServiceAlert, serviceID))
-}
-
-// alertService sends a notification to a service that one of its service
-// instances has been updated.  And will set the value of the last updated
-// instance.
-func alertService(conn client.Connection, serviceID, hostID, stateID, event string) error {
-	var alert ServiceAlert
-	if err := conn.Get(path.Join(zkServiceAlert, serviceID), &alert); err != nil && err != client.ErrEmptyNode {
-		glog.Errorf("Could not find service %s: %s", serviceID, err)
-		return err
-	}
-	alert.ServiceID = serviceID
-	alert.HostID = hostID
-	alert.StateID = stateID
-	alert.Event = event
-	alert.Timestamp = time.Now()
-	if err := conn.Set(path.Join(zkServiceAlert, serviceID), &alert); err != nil {
-		glog.Errorf("Could not alert service %s: %s", serviceID, err)
-		return err
-	}
-	return nil
-}
-
-// newInstanceLock sets up a new zk instance lock for a given service state id
-func newInstanceLock(conn client.Connection, stateID string) client.Lock {
-	return conn.NewLock(path.Join(zkInstanceLock, stateID))
-}
-
-// rmInstanceLock removes a zk instance lock parent
-func rmInstanceLock(conn client.Connection, stateID string) error {
-	return conn.Delete(path.Join(zkInstanceLock, stateID))
-}
 
 // addInstance creates a new service state and host instance
 func addInstance(conn client.Connection, state ss.ServiceState) error {
@@ -128,48 +29,19 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 		return err
 	}
 
-	lock := newInstanceLock(conn, state.ID)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
-		return err
-	}
-	glog.V(2).Infof("Acquired lock for instance %s", state.ID)
-	defer lock.Unlock()
-	defer alertService(conn, state.ServiceID, state.HostID, state.ID, InstanceAdded)
-
-	var err error
-	defer func() {
-		if err != nil {
-			conn.Delete(hostpath(state.HostID, state.ID))
-			conn.Delete(servicepath(state.ServiceID, state.ID))
-			rmInstanceLock(conn, state.ID)
-		}
-	}()
-
-	// Create node on the service
 	spath := servicepath(state.ServiceID, state.ID)
 	snode := &ServiceStateNode{ServiceState: &state}
-	if err = conn.Create(spath, snode); err != nil {
-		glog.Errorf("Could not create service state %s for service %s: %s", state.ID, state.ServiceID, err)
-		return err
-	} else if err = conn.Set(spath, snode); err != nil {
-		glog.Errorf("Could not set service state %s for node %+v: %s", state.ID, snode, err)
-		return err
-	}
-
-	// Create node on the host
 	hpath := hostpath(state.HostID, state.ID)
 	hnode := NewHostState(&state)
-	glog.V(2).Infof("Host node: %+v", hnode)
-	if err = conn.Create(hpath, hnode); err != nil {
-		glog.Errorf("Could not create host state %s for host %s: %s", state.ID, state.HostID, err)
-		return err
-	} else if err = conn.Set(hpath, hnode); err != nil {
-		glog.Errorf("Could not set host state %s for node %+v: %s", state.ID, hnode, err)
+
+	t := conn.NewTransaction()
+	t.Create(spath, snode)
+	t.Create(hpath, hnode)
+	if err := t.Commit(); err != nil {
+		glog.Errorf("Could not create service state nodes %s for service %s on host %s: %s", state.ID, state.ServiceID, state.HostID, err)
 		return err
 	}
 
-	glog.V(2).Infof("Releasing lock for instance %s", state.ID)
 	return nil
 }
 
@@ -177,59 +49,42 @@ func addInstance(conn client.Connection, state ss.ServiceState) error {
 func removeInstance(conn client.Connection, serviceID, hostID, stateID string) error {
 	glog.V(2).Infof("Removing instance %s", stateID)
 
-	if exists, err := conn.Exists(path.Join(zkInstanceLock, stateID)); err != nil && err != client.ErrNoNode {
-		glog.Errorf("Could not check for lock on instance %s: %s", stateID, err)
-		return err
-	} else if exists {
-		lock := newInstanceLock(conn, stateID)
-		if err := lock.Lock(); err != nil {
-			glog.Errorf("Could not set lock for service instance %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
-			return err
-		}
-		defer lock.Unlock()
-		defer alertService(conn, serviceID, hostID, stateID, InstanceDeleted)
-		defer rmInstanceLock(conn, stateID)
-		glog.V(2).Infof("Acquired lock for instance %s", stateID)
-	}
-	// Remove the node on the service
 	spath := servicepath(serviceID, stateID)
-	if err := conn.Delete(spath); err != nil {
-		if err != client.ErrNoNode {
-			glog.Errorf("Could not delete service state node %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
-			return err
-		}
-	}
-	// Remove the node on the host
 	hpath := hostpath(hostID, stateID)
-	if err := conn.Delete(hpath); err != nil {
-		if err != client.ErrNoNode {
-			glog.Errorf("Could not delete host state node %s for host %s: %s", stateID, hostID, err)
-			return err
-		}
+
+	t := conn.NewTransaction()
+
+	spresent, err := conn.Exists(spath)
+	if err != nil {
+		glog.Errorf("Error checking the existence of service state node %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
+		return err
 	}
-	glog.V(2).Infof("Releasing lock for instance %s", stateID)
+
+	if spresent {
+		t.Delete(spath)
+	}
+
+	hpresent, err := conn.Exists(hpath)
+	if err != nil {
+		glog.Errorf("Error checking the existence of host state node %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
+		return err
+	}
+
+	if hpresent {
+		t.Delete(hpath)
+	}
+
+	if err := t.Commit(); err != nil {
+		glog.Errorf("Could not delete service state nodes %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
+		return err
+	}
+
 	return nil
 }
 
 // updateInstance updates the service state and host instances
 func updateInstance(conn client.Connection, hostID, stateID string, mutate func(*HostState, *ss.ServiceState)) error {
 	glog.V(2).Infof("Updating instance %s", stateID)
-	// do not lock if parent lock does not exist
-	if exists, err := conn.Exists(path.Join(zkInstanceLock, stateID)); err != nil && err != client.ErrNoNode {
-		glog.Errorf("Could not check for lock on instance %s: %s", stateID, err)
-		return err
-	} else if !exists {
-		glog.Errorf("Lock not found for instance %s", stateID)
-		return ErrLockNotFound
-	}
-
-	lock := newInstanceLock(conn, stateID)
-	if err := lock.Lock(); err != nil {
-		glog.Errorf("Could not set lock for service instance %s on host %s: %s", stateID, hostID, err)
-		return err
-	}
-	defer lock.Unlock()
-	glog.V(2).Infof("Acquired lock for instance %s", stateID)
 
 	hpath := hostpath(hostID, stateID)
 	var hsdata HostState
@@ -247,15 +102,14 @@ func updateInstance(conn client.Connection, hostID, stateID string, mutate func(
 
 	mutate(&hsdata, ssnode.ServiceState)
 
-	if err := conn.Set(hpath, &hsdata); err != nil {
-		glog.Errorf("Could not update instance %s for host %s: %s", stateID, hostID, err)
+	t := conn.NewTransaction()
+	t.Set(hpath, &hsdata)
+	t.Set(spath, &ssnode)
+	if err := t.Commit(); err != nil {
+		glog.Errorf("Could not update service state %s for service %s on host %s: %s", stateID, serviceID, hostID, err)
 		return err
 	}
-	if err := conn.Set(spath, &ssnode); err != nil {
-		glog.Errorf("Could not update instance %s for service %s: %s", stateID, serviceID, err)
-		return err
-	}
-	glog.V(2).Infof("Releasing lock for instance %s", stateID)
+
 	return nil
 }
 
