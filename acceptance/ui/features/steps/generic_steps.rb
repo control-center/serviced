@@ -49,6 +49,10 @@ Then (/^I should see "(.*?)"$/) do |text|
     expect(page).to have_content getTableValue(text)
 end
 
+Then (/^I should see "(.*?)" after waiting no more than "(.*?)" seconds$/) do |text, time|
+    expect(page).to have_content(getTableValue(text), wait: time.to_f)
+end
+
 Then (/^I should not see "(.*?)"$/) do |text|
     expect(page).to have_no_content getTableValue(text)
 end

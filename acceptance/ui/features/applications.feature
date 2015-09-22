@@ -181,5 +181,5 @@ Feature: Application Management
     Then I should see "Remove Application"
       And I should see "This action will permanently delete the running application"
     When I click "Remove Application"
-    Then I should see "Removed App"
+    Then I should see "Removed App" after waiting no more than "30" seconds
       And I should not see "Showing 2 Results" in the "Applications" table
