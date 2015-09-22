@@ -25,25 +25,38 @@ import (
 	"time"
 )
 
-var zookeeperPortBinding = portBinding{
-	HostIp:         "0.0.0.0",
-	HostIpOverride: "", // zookeeper should always be open
-	HostPort:       2181,
-}
-
-var exhibitorPortBinding = portBinding{
-	HostIp:         "127.0.0.1",
-	HostIpOverride: "SERVICED_ISVC_ZOOKEEPER_PORT_12181_HOSTIP",
-	HostPort:       12181,
-}
-
 var Zookeeper = IServiceDefinition{
-	Name:         "zookeeper",
-	Repo:         ZK_IMAGE_REPO,
-	Tag:          ZK_IMAGE_TAG,
-	Command:      func() string { return "exec start-zookeeper" },
-	PortBindings: []portBinding{zookeeperPortBinding, exhibitorPortBinding},
-	Volumes:      map[string]string{"data": "/tmp"},
+	Name:    "zookeeper",
+	Repo:    ZK_IMAGE_REPO,
+	Tag:     ZK_IMAGE_TAG,
+	Command: func() string { return "exec start-zookeeper" },
+	PortBindings: []portBinding{
+		// client port
+		{
+			HostIp:         "0.0.0.0",
+			HostIpOverride: "",
+			HostPort:       2181,
+		},
+		// exhibitor port
+		{
+			HostIp:         "127.0.0.1",
+			HostIpOverride: "SERVICED_ISVC_ZOOKEEPER_PORT_12181_HOSTIP",
+			HostPort:       12181,
+		},
+		// peer port
+		{
+			HostIp:         "0.0.0.0",
+			HostIpOverride: "",
+			HostPort:       2888,
+		},
+		// leader port
+		{
+			HostIp:         "0.0.0.0",
+			HostIpOverride: "",
+			HostPort:       3888,
+		},
+	},
+	Volumes: map[string]string{"data": "/var/zookeeper"},
 }
 
 var zookeeper *IService

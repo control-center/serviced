@@ -141,5 +141,13 @@
 # Enables the following isvcs to run on the host (if not the master)
 # SERVICED_ISVCS_START=celery,elasticsearch,logstash,opentsdb,docker-registry,zookeeper
 
+# Specify the id no. of the zookeeper cluster node (must be unique amongst all
+# of the nodes in the cluster)
+# SERVICED_ISVCS_ZOOKEEPER_ID=
+
+# Specify nodes in the zookeeper quorum if this host is running as part of the
+# zookeeper quorum.  This takes the form of <ZKID#>@<IPAddress>:<PeerPort>:<LeaderPort>
+# SERVICED_ISVCS_ZOOKEEPER_QUORUM=1@host1:2888:3888,2@host2:2888:3888,3@host3:2888:3888
+
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
