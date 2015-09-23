@@ -55,7 +55,7 @@ func ExportDirectory(tarfile *tar.Writer, path, name string) error {
 			if err := ExportDirectory(tarfile, fullpath, relpath); err != nil {
 				return err
 			}
-		} else {
+		} else if isSocket := finfo.Mode() & os.ModeSocket; isSocket != os.ModeSocket {
 			if err := ExportFile(tarfile, fullpath, relpath); err != nil {
 				return err
 			}
