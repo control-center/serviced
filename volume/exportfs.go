@@ -66,6 +66,11 @@ func ExportDirectory(tarfile *tar.Writer, path, name string) error {
 
 // ExportFile writes a file into a tar Writer.
 func ExportFile(tarfile *tar.Writer, path, name string) error {
+	finfo, _ := os.Stat(path)
+	if isSocket := finfo.Mode() & os.ModeSocket; isSocket == os.ModeSocket {
+		glog.Warningf("Cannot export Unix domain socket %s", path)
+		return nil
+	}
 	file, err := os.Open(path)
 	if err != nil {
 		glog.Errorf("Could not open %s: %s", path, err)
