@@ -40,13 +40,11 @@ Feature: Host Sorting
     Then the "Resource Pool" column should be sorted in ascending order
 
   Scenario: Test descending memory sort
-    Given PENDING CC-1107
     When I am on the hosts page
       And I sort by "Memory" in descending order
     Then the "Memory" column should be sorted in descending order
 
   Scenario: Test ascending memory sort
-    Given PENDING CC-1107
     When I am on the hosts page
       And I sort by "Memory" in ascending order
     Then the "Memory" column should be sorted in ascending order
