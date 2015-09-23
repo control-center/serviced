@@ -207,6 +207,7 @@ def removeAllPoolsExceptDefault()
     removeAllHostsCLI()
     removeAllPoolsCLI()
     addDefaultPool()
+    refreshPage()
 end
 
 def removeAllPoolsCLI()

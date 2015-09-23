@@ -150,6 +150,8 @@ def addHostCLI(name, pool, commitment, hostID)
     hostIDValue =  getTableValue(hostID)
     expect($?.exitstatus).to eq(0)
     expect(result.strip).to eq(hostIDValue.to_s)
+
+    refreshPage()
 end
 
 def addDefaultHost()
@@ -176,4 +178,6 @@ def removeAllHostsCLI()
     result = `#{cmd}`
     expect($?.exitstatus).to eq(0)
     expect(result).to include("no hosts found")
+
+    refreshPage()
 end
