@@ -71,11 +71,11 @@
 <table jelly-table data-data="currentHost.instances" data-config="instancesTable" class="table side-flush">
     <tr ng-repeat="app in $data">
       <td data-title="'label_service'|translate" sortable="'name'" ng-click="click_app(app)" class="link">{{app.name}}</td>
-      <td data-title="'RAM Commitment'" style="text-align:left;">
+      <td data-title="'RAM Commitment'" sortable="'resources.RAMCommitment'" style="text-align:left;">
           <span ng-show="app.resources.RAMCommitment===0">N/A</span>
           <span ng-show="app.resources.RAMCommitment!==0" ng-class="{'bad': !app.resourcesGood()}" class="overcomText">{{app.resources.RAMCommitment|toMB}}</span>
       </td>
-      <td data-title="'RAM Cur/Max/Avg'" style="text-align:left;">
+      <td data-title="'RAM Cur/Max/Avg'" sortable="'resources.RAMLast'" style="text-align:left;">
           <span ng-show="app.resources.RAMCommitment===0">N/A</span>
           <span ng-show="app.resources.RAMCommitment!==0" ng-class="{'bad': !app.resourcesGood()}" class="overcomText">{{app.resources.RAMLast|toMB:true}} / {{app.resources.RAMMax|toMB:true}} / {{app.resources.RAMAverage|toMB:true}} MB</span>
       </td>

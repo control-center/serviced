@@ -20,22 +20,22 @@
 <!-- Hosts -->
 <table jelly-table data-data="hosts" data-config="hostsTable" class="table side-flush">
     <tr ng-repeat="host in $data">
-      <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" class="link">
-        {{host.name}}
-        <div class="overcomIndicator" ng-class="{'bad': !host.resourcesGood()}" title="This host's resources are oversubscribed."></div>
+      <td data-title="'label_host_id'|translate" sortable="'name'" ng-click="clickHost(host.id)" style="white-space: nowrap;" class="link">
+          {{host.name}}
+          <div class="overcomIndicator" ng-class="{'bad': !host.resourcesGood()}" title="This host's resources are oversubscribed."></div>
       </td>
       <td data-title="'label_active'|translate" sortable="'active'" style="text-align:center;">
         <div ng-if="host.active" class="good" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
         <div ng-if="!host.active" class="down" style="position: relative; height: 22px;"><i class="healthIcon glyphicon"></i></div>
       </td>
       <td data-title="'label_pool_name'|translate" sortable="'model.PoolID'" ng-click="clickPool(host.model.PoolID)" class="link">{{host.model.PoolID|cut:true:50}}</td>
-      <td data-title="'label_host_memory'|translate" sortable="'model.Memory'|toGB">{{host.model.Memory | toGB}}</td>
-      <td data-title="'RAM Commitment'">
+      <td data-title="'label_host_memory'|translate" sortable="'model.Memory'">{{host.model.Memory | toGB}}</td>
+      <td data-title="'RAM Commitment'" sortable="'RAMCommitment'">
           <span ng-show="host.RAMCommitment===0">{{host.model.Memory|toGB}}</span>
           <span ng-show="host.RAMCommitment!==0" ng-class="{'bad': !host.resourcesGood()}" class="overcomText">{{host.RAMCommitment|toGB}}</span>
       </td>
-      <td data-title="'RAM Cur/Max/Avg'" style="text-align:left;">
-          <span ng-class="{'bad': !host.resourcesGood()}" class="overcomText">{{host.RAMLast|toGB:true}} / {{host.RAMMax|toGB:true}} / {{host.RAMAverage|toGB:true}} GB</span>
+      <td data-title="'RAM Cur/Max/Avg GB'" sortable="'RAMLast'" style="text-align:left;">
+          <span ng-class="{'bad': !host.resourcesGood()}" class="overcomText">{{host.RAMLast|toGB:true}} / {{host.RAMMax|toGB:true}} / {{host.RAMAverage|toGB:true}}</span>
       </td>
       <td data-title="'label_host_cores'|translate" sortable="'model.Cores'">{{host.model.Cores}}</td>
       <td data-title="'label_host_kernel_version'|translate" sortable="'model.KernelVersion'">{{host.model.KernelVersion}}</td>

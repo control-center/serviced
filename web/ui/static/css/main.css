@@ -1824,6 +1824,10 @@ input[type=file] {
     color: #999;
 }
 
+.jelly-table .sort-indicator {
+    display: inline-block;
+}
+
 /* hide pagination */
 .jelly-table [ng-table-pagination="params"] {
     display: none;
