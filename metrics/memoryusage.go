@@ -82,7 +82,7 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 
 func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
 	getter := func() ([]MemoryUsageStats, error) {
-		glog.V(0).Infof("Requesting memory stats for host %s", hostID)
+		glog.V(2).Infof("Requesting memory stats for host %s", hostID)
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
 			End:       "now",
@@ -122,7 +122,7 @@ func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*Memory
 
 func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
 	getter := func() ([]MemoryUsageStats, error) {
-		glog.V(0).Infof("Requesting memory stats for service %s", serviceID)
+		glog.V(2).Infof("Requesting memory stats for service %s", serviceID)
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
 			End:       "now",
@@ -162,7 +162,7 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 
 func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
 	getter := func() ([]MemoryUsageStats, error) {
-		glog.V(0).Infof("Requesting memory stats for %d instances", len(instances))
+		glog.V(2).Infof("Requesting memory stats for %d instances", len(instances))
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
 			End:       "now",
