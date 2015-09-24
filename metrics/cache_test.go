@@ -41,10 +41,10 @@ func TestCache(t *testing.T) {
 		Clock:  testClock{afterchan},
 	}
 
-	memusage1 := &[]MemoryUsageStats{
+	memusage1 := []MemoryUsageStats{
 		MemoryUsageStats{ServiceID: "memusage1"},
 	}
-	memusage2 := &[]MemoryUsageStats{
+	memusage2 := []MemoryUsageStats{
 		MemoryUsageStats{ServiceID: "memusage2"},
 	}
 
