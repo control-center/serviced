@@ -99,7 +99,6 @@
                 constructor: Modal,
                 close: function(){
                     this.$el.modal("hide");
-                    this.enableScroll();
                 },
                 show: function(){
                     this.$el.modal("show");
@@ -110,6 +109,7 @@
                 },
                 destroy: function(){
                     this.$el.remove();
+                    this.enableScroll();
                 },
                 // convenience method for attaching notifications to the modal
                 createNotification: function(title, message){
@@ -212,13 +212,14 @@
             }
 
             function _create(template, model, config){
-                var modal = new Modal(template, model, config);
-                modal.show();
-
                 // immediately destroy any existing modals
                 modals.forEach(function(momo){
                     momo.destroy();
                 });
+
+                var modal = new Modal(template, model, config);
+                modal.show();
+
                 modals = [modal];
 
                 // perform onShow function after modal is visible
