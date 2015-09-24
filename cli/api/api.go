@@ -97,9 +97,14 @@ func LoadOptions(ops Options) {
 	}
 }
 
-// GetOptionsEndpoint returns the serviced RPC endpoint from options
+// GetOptionsRPCEndpoint returns the serviced RPC endpoint from options
 func GetOptionsRPCEndpoint() string {
 	return options.Endpoint
+}
+
+// SetOptionsRPCEndpoint sets the serviced RPC endpoint in the options
+func SetOptionsRPCEndpoint(endpoint string) {
+	options.Endpoint = endpoint
 }
 
 // GetOptionsRPCPort returns the serviced RPC port from options
