@@ -38,7 +38,7 @@ type MemoryUsageCache struct {
 	Clock  Clock
 }
 
-func (c *MemoryUsageCache) gethostlock(key string) *sync.Mutex {
+func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
 	c.Lock()
 	defer c.Unlock()
 	var (
@@ -54,7 +54,7 @@ func (c *MemoryUsageCache) gethostlock(key string) *sync.Mutex {
 
 func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val *[]MemoryUsageStats, err error) {
 	var ok bool
-	l := c.gethostlock(key)
+	l := c.getkeylock(key)
 	l.Lock()
 	defer l.Unlock()
 
@@ -65,7 +65,7 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val *[]Memo
 		c.Usages[key] = val
 		go func() {
 			<-c.Clock.After(c.TTL)
-			l := c.gethostlock(key)
+			l := c.getkeylock(key)
 			l.Lock()
 			defer l.Unlock()
 			delete(c.Usages, key)
