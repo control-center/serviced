@@ -18,6 +18,7 @@ import (
 	"time"
 )
 
+// Clock is an abstraction of a clock, for testing purposes
 type Clock interface {
 	After(d time.Duration) <-chan time.Time
 }
@@ -28,8 +29,10 @@ func (realClock) After(d time.Duration) <-chan time.Time {
 	return time.After(d)
 }
 
+// MemoryUsageQuery is a function that will return a value to be cached in the event of a miss
 type MemoryUsageQuery func() (*[]MemoryUsageStats, error)
 
+// MemoryUsageCache is a simple TTL cache for MemoryUsageStats objects
 type MemoryUsageCache struct {
 	sync.Mutex
 	Locks  map[string]sync.Mutex
@@ -38,13 +41,14 @@ type MemoryUsageCache struct {
 	Clock  Clock
 }
 
+// getkeylock returns a lock specifically for this key
 func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
-	c.Lock()
-	defer c.Unlock()
 	var (
 		lock sync.Mutex
 		ok   bool
 	)
+	c.Lock()
+	defer c.Unlock()
 	if lock, ok = c.Locks[key]; !ok {
 		lock = sync.Mutex{}
 		c.Locks[key] = lock
@@ -52,8 +56,10 @@ func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
 	return &lock
 }
 
+// Get retrieves a cached value if one exists; otherwise it calls getter, caches the result, and returns it
 func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val *[]MemoryUsageStats, err error) {
 	var ok bool
+	// Acquire a lock for this key to update or not
 	l := c.getkeylock(key)
 	l.Lock()
 	defer l.Unlock()
@@ -63,6 +69,7 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val *[]Memo
 			return
 		}
 		c.Usages[key] = val
+		// Start the expiration
 		go func() {
 			<-c.Clock.After(c.TTL)
 			l := c.getkeylock(key)
