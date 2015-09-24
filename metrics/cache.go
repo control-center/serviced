@@ -72,9 +72,8 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []Memor
 		// Start the expiration
 		go func() {
 			<-c.Clock.After(c.TTL)
-			l := c.getkeylock(key)
-			l.Lock()
-			defer l.Unlock()
+			c.Lock()
+			defer c.Unlock()
 			delete(c.Usages, key)
 		}()
 	}
