@@ -377,52 +377,62 @@ func (d *daemon) startMaster() error {
 
 	var err error
 	if err = d.initDFS(); err != nil {
-		return fmt.Errorf("Could not initialize DFS: %s", err)
+		glog.Errorf("Could not initialize DFS: %s", err)
+		return err
 	}
 
 	// This is storage related
 	rpcPort := strings.TrimLeft(options.Listen, ":")
 	thisHost, err := host.Build(agentIP, rpcPort, d.masterPoolID, "")
 	if err != nil {
-		return fmt.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
+		return err
 	}
 	if d.networkDriver, err = nfs.NewServer(options.VolumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
-		return fmt.Errorf("Could not initialize network driver: %s", err)
+		glog.Errorf("Could not initialize network driver: %s", err)
+		return err
 	} else {
 		if d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, options.VolumesPath); err != nil {
-			return fmt.Errorf("Could not start network server: %s", err)
+			glog.Errorf("Could not start network server: %s", err)
+			return err
 		}
 	}
 
 	if d.dsDriver, err = d.initDriver(); err != nil {
-		return fmt.Errorf("Could not initialize driver: %s", err)
+		glog.Errorf("Could not initialize driver: %s", err)
+		return err
 	}
 
 	if d.dsContext, err = d.initContext(); err != nil {
-		return fmt.Errorf("Could not initialize context: %s", err)
+		glog.Errorf("Could not initialize context: %s", err)
+		return err
 	}
 
 	localClient, err := d.initZK(options.Zookeepers)
 	if err != nil {
-		return fmt.Errorf("failed to create a local coordclient: %v", err)
+		glog.Errorf("failed to create a local coordclient: %v", err)
+		return err
 	}
 	zzk.InitializeLocalClient(localClient)
 
 	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {
-		return fmt.Errorf("Could not initialize DAO: %s", err)
+		glog.Errorf("Could not initialize DAO: %s", err)
+		return err
 	}
 
 	health.SetDao(d.cpDao)
 	go health.Cleanup(d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
-		return fmt.Errorf("Could not create default pool: %s", err)
+		glog.Errorf("Could not create default pool: %s", err)
+		return err
 	}
 
 	if err = d.registerMasterRPC(); err != nil {
-		return fmt.Errorf("Could not register master RPCs: %s", err)
+		glog.Errorf("Could not register master RPCs: %s", err)
+		return err
 	}
 
 	d.initWeb()
@@ -478,11 +488,13 @@ func createMuxListener() (net.Listener, error) {
 func (d *daemon) startAgent() error {
 	muxListener, err := createMuxListener()
 	if err != nil {
-		return fmt.Errorf("Could not create mux listener: %s", err)
+		glog.Errorf("Could not create mux listener: %s", err)
+		return err
 	}
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
-		return fmt.Errorf("Could not create TCP mux listener: %s", err)
+		glog.Errorf("Could not create TCP mux listener: %s", err)
+		return err
 	}
 
 	agentIP := options.OutboundIP
@@ -502,7 +514,8 @@ func (d *daemon) startAgent() error {
 
 	myHostID, err := utils.HostID()
 	if err != nil {
-		return fmt.Errorf("HostID failed: %v", err)
+		glog.Errorf("HostID failed: %v", err)
+		return err
 	} else if err := validation.ValidHostID(myHostID); err != nil {
 		glog.Errorf("invalid hostid: %s", myHostID)
 	}
