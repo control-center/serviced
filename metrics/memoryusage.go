@@ -81,7 +81,7 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 }
 
 func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
-	getter := func() (*[]MemoryUsageStats, error) {
+	getter := func() ([]MemoryUsageStats, error) {
 		glog.V(0).Infof("Requesting memory stats for host %s", hostID)
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
@@ -111,17 +111,17 @@ func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*Memory
 			return nil, err
 		}
 
-		return &mems, nil
+		return mems, nil
 	}
 	stats, err := cache.Get(hostID, getter)
 	if err != nil {
 		return nil, err
 	}
-	return &(*stats)[0], nil
+	return &stats[0], nil
 }
 
 func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
-	getter := func() (*[]MemoryUsageStats, error) {
+	getter := func() ([]MemoryUsageStats, error) {
 		glog.V(0).Infof("Requesting memory stats for service %s", serviceID)
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
@@ -151,17 +151,17 @@ func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*
 			return nil, err
 		}
 
-		return &mems, nil
+		return mems, nil
 	}
 	stats, err := cache.Get(serviceID, getter)
 	if err != nil {
 		return nil, err
 	}
-	return &(*stats)[0], nil
+	return &stats[0], nil
 }
 
-func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) (*[]MemoryUsageStats, error) {
-	getter := func() (*[]MemoryUsageStats, error) {
+func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
+	getter := func() ([]MemoryUsageStats, error) {
 		glog.V(0).Infof("Requesting memory stats for %d instances", len(instances))
 		options := PerformanceOptions{
 			Start:     startDate.Format(timeFormat),
@@ -188,8 +188,7 @@ func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...Servic
 			return nil, err
 		}
 
-		mems := convertMemoryUsage(result)
-		return &mems, nil
+		return convertMemoryUsage(result), nil
 	}
 	var keys []string
 	for _, instance := range instances {

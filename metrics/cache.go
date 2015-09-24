@@ -30,13 +30,13 @@ func (realClock) After(d time.Duration) <-chan time.Time {
 }
 
 // MemoryUsageQuery is a function that will return a value to be cached in the event of a miss
-type MemoryUsageQuery func() (*[]MemoryUsageStats, error)
+type MemoryUsageQuery func() ([]MemoryUsageStats, error)
 
 // MemoryUsageCache is a simple TTL cache for MemoryUsageStats objects
 type MemoryUsageCache struct {
 	sync.Mutex
 	Locks  map[string]sync.Mutex
-	Usages map[string]*[]MemoryUsageStats
+	Usages map[string][]MemoryUsageStats
 	TTL    time.Duration
 	Clock  Clock
 }
@@ -57,7 +57,7 @@ func (c *MemoryUsageCache) getkeylock(key string) *sync.Mutex {
 }
 
 // Get retrieves a cached value if one exists; otherwise it calls getter, caches the result, and returns it
-func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val *[]MemoryUsageStats, err error) {
+func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val []MemoryUsageStats, err error) {
 	var ok bool
 	// Acquire a lock for this key to update or not
 	l := c.getkeylock(key)
@@ -84,7 +84,7 @@ func (c *MemoryUsageCache) Get(key string, getter MemoryUsageQuery) (val *[]Memo
 func NewMemoryUsageCache(ttl time.Duration) *MemoryUsageCache {
 	return &MemoryUsageCache{
 		Locks:  make(map[string]sync.Mutex),
-		Usages: make(map[string]*[]MemoryUsageStats),
+		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    ttl,
 		Clock:  realClock{},
 	}

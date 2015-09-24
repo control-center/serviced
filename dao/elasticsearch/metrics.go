@@ -45,6 +45,6 @@ func (dao *ControlPlaneDao) GetInstanceMemoryStats(req dao.MetricRequest, stats 
 		glog.Errorf("Could not get service instance stats for %+v: %s", req.Instances, err)
 		return err
 	}
-	*stats = *s
+	*stats = s
 	return nil
 }

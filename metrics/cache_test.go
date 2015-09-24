@@ -36,7 +36,7 @@ func TestCache(t *testing.T) {
 	afterchan := make(chan time.Time)
 	cache := MemoryUsageCache{
 		Locks:  make(map[string]sync.Mutex),
-		Usages: make(map[string]*[]MemoryUsageStats),
+		Usages: make(map[string][]MemoryUsageStats),
 		TTL:    time.Minute,
 		Clock:  testClock{afterchan},
 	}
@@ -48,15 +48,15 @@ func TestCache(t *testing.T) {
 		MemoryUsageStats{ServiceID: "memusage2"},
 	}
 
-	getter1 := func() (*[]MemoryUsageStats, error) {
+	getter1 := func() ([]MemoryUsageStats, error) {
 		return memusage1, nil
 	}
 
-	getter2 := func() (*[]MemoryUsageStats, error) {
+	getter2 := func() ([]MemoryUsageStats, error) {
 		return memusage2, nil
 	}
 
-	errgetter := func() (*[]MemoryUsageStats, error) {
+	errgetter := func() ([]MemoryUsageStats, error) {
 		return nil, errors.New("")
 	}
 
