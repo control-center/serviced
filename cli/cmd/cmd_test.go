@@ -79,7 +79,7 @@ func (t APITest) StartServer() error {
 
 func ExampleServicedCLI_CmdInit_logging() {
 	InitAPITest("serviced", "--logtostderr", "--alsologtostderr", "--master", "server")
-	InitAPITest("serviced", "--logstashurl", "127.0.0.1", "-v", "4", "--agent", "server")
+	InitAPITest("serviced", "--logstashurl", "127.0.0.1", "-v", "4", "--agent", "--endpoint", "1.2.3.4:4979", "server")
 	InitAPITest("serviced", "--stderrthreshold", "2", "--vmodule", "a=1,b=2,c=3", "--master", "--agent", "server")
 	InitAPITest("serviced", "--log_backtrace_at", "file.go:123", "--master", "--agent", "server")
 
@@ -95,7 +95,7 @@ func ExampleServicedCLI_CmdInit_logging() {
 
 func ExampleServicedCLI_CmdInit_logerr() {
 	InitAPITest("serviced", "--master", "--stderrthreshold", "abc", "server")
-	InitAPITest("serviced", "--agent", "--vmodule", "abc", "server")
+	InitAPITest("serviced", "--agent", "--endpoint", "5.6.7.8:4979", "--vmodule", "abc", "server")
 	InitAPITest("serviced", "--master", "--log_backtrace_at", "abc", "server")
 
 	// Output:
