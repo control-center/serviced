@@ -59,7 +59,6 @@ func (c *ServicedCli) cmdServer(ctx *cli.Context) {
 				glog.Fatal(err)
 			}
 			endpoint := fmt.Sprintf("%s:%s", outboundIP, api.GetOptionsRPCPort())
-			glog.Infof("Using %s for endpoint", endpoint)
 			api.SetOptionsRPCEndpoint(endpoint)
 		} else {
 			glog.Fatal("No endpoint to master has been configured")
