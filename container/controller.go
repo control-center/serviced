@@ -620,10 +620,13 @@ func (c *Controller) Run() (err error) {
 			startAfter = nil
 			rpcDead = nil
 			exitAfter = time.After(time.Second * 30)
+			glog.Infof("Closing healthExit on signal %v for %q", sig, c.options.Service.ID)
 			close(healthExit)
+			glog.Infof("Closed healthExit on signal %v for %q", sig, c.options.Service.ID)
 		} else {
 			c.exitStatus = 1
 			exited = true
+			glog.Infof("Exited due to sendSignal(%v) failed for %q", sig, c.options.Service.ID)
 		}
 	}
 
@@ -632,12 +635,14 @@ func (c *Controller) Run() (err error) {
 	for !exited {
 		select {
 		case sig := <-sigc:
-			glog.Infof("Notifying subprocess of signal %v", sig)
+			glog.Infof("Notifying subprocess of signal %v for service %s", sig, c.options.Service.ID)
 			shutdownService(service, sig)
+			glog.Infof("Notification complete for signal %v for service %s", sig, c.options.Service.ID)
 
 		case <-exitAfter:
-			glog.Infof("Killing unresponsive subprocess")
+			glog.Infof("Killing unresponsive subprocess for service %s", c.options.Service.ID)
 			sendSignal(service, syscall.SIGKILL)
+			glog.Infof("Kill signal sent for service %s", c.options.Service.ID)
 			c.exitStatus = 1
 			exited = true
 
@@ -651,20 +656,20 @@ func (c *Controller) Run() (err error) {
 				if c.options.Logforwarder.Enabled {
 					time.Sleep(c.options.Logforwarder.SettleTime)
 				}
-				glog.Infof("Service Exited with status:%d due to %+v", exitStatus, exitError)
+				glog.Infof("Service %s Exited with status:%d due to %+v", c.options.Service.ID, exitStatus, exitError)
 				//set loop to end
 				exited = true
 				//exit with exit code, defer so that other cleanup can happen
 				c.exitStatus = exitStatus
 
 			} else {
-				glog.Infof("Restarting service process in 10 seconds.")
+				glog.Infof("Restarting service process for service %s in 10 seconds.", c.options.Service.ID)
 				service = nil
 				startAfter = time.After(time.Second * 10)
 			}
 
 		case <-startAfter:
-			glog.Infof("Starting service process.")
+			glog.Infof("Starting service process for service %s", c.options.Service.ID)
 			service, serviceExited = startService()
 			if doRegisterEndpoints {
 				reregister = registerExportedEndpoints(c, rpcDead)
@@ -674,11 +679,13 @@ func (c *Controller) Run() (err error) {
 		case <-reregister:
 			reregister = registerExportedEndpoints(c, rpcDead)
 		case <-rpcDead:
-			glog.Infof("RPC Server has gone away, cleaning up")
+			glog.Infof("RPC Server has gone away, cleaning up service %s", c.options.Service.ID)
 			shutdownService(service, syscall.SIGTERM)
+			glog.Infof("RPC Server shutdown for service %s complete", c.options.Service.ID)
 		case <-storageDead:
 			glog.Infof("Distributed storage for service %s has gone away; shutting down", c.options.Service.ID)
 			shutdownService(service, syscall.SIGTERM)
+			glog.Infof("Distributed storage shutdown for service %s complete", c.options.Service.ID)
 		}
 	}
 	// Signal to health check registry that this instance is giving up the ghost.
