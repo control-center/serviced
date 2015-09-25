@@ -377,6 +377,7 @@ func (d *daemon) startMaster() error {
 
 	var err error
 	if err = d.initDFS(); err != nil {
+		glog.Errorf("Could not initialize DFS: %s", err)
 		return err
 	}
 
@@ -398,10 +399,12 @@ func (d *daemon) startMaster() error {
 	}
 
 	if d.dsDriver, err = d.initDriver(); err != nil {
+		glog.Errorf("Could not initialize driver: %s", err)
 		return err
 	}
 
 	if d.dsContext, err = d.initContext(); err != nil {
+		glog.Errorf("Could not initialize context: %s", err)
 		return err
 	}
 
@@ -415,6 +418,7 @@ func (d *daemon) startMaster() error {
 	d.facade = d.initFacade()
 
 	if d.cpDao, err = d.initDAO(); err != nil {
+		glog.Errorf("Could not initialize DAO: %s", err)
 		return err
 	}
 
@@ -422,10 +426,12 @@ func (d *daemon) startMaster() error {
 	go health.Cleanup(d.shutdown)
 
 	if err = d.facade.CreateDefaultPool(d.dsContext, d.masterPoolID); err != nil {
+		glog.Errorf("Could not create default pool: %s", err)
 		return err
 	}
 
 	if err = d.registerMasterRPC(); err != nil {
+		glog.Errorf("Could not register master RPCs: %s", err)
 		return err
 	}
 
@@ -482,10 +488,12 @@ func createMuxListener() (net.Listener, error) {
 func (d *daemon) startAgent() error {
 	muxListener, err := createMuxListener()
 	if err != nil {
+		glog.Errorf("Could not create mux listener: %s", err)
 		return err
 	}
 	mux, err := proxy.NewTCPMux(muxListener)
 	if err != nil {
+		glog.Errorf("Could not create TCP mux listener: %s", err)
 		return err
 	}
 
@@ -506,7 +514,8 @@ func (d *daemon) startAgent() error {
 
 	myHostID, err := utils.HostID()
 	if err != nil {
-		return fmt.Errorf("HostID failed: %v", err)
+		glog.Errorf("HostID failed: %v", err)
+		return err
 	} else if err := validation.ValidHostID(myHostID); err != nil {
 		glog.Errorf("invalid hostid: %s", myHostID)
 	}

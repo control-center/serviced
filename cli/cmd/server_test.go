@@ -39,7 +39,7 @@ func InitServerAPITest(args ...string) {
 
 func ExampleSerivcedCLI_CmdServer_good() {
 	InitServerAPITest("serviced", "--master", "server")
-	InitServerAPITest("serviced", "--agent", "server")
+	InitServerAPITest("serviced", "--agent", "--endpoint", "10.20.30.40", "server")
 	InitServerAPITest("serviced", "--agent", "--master", "server")
 
 	// Output:

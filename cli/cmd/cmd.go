@@ -200,6 +200,8 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		options.Agent = true
 	}
 
+	options.Endpoint = validateEndpoint(options)
+
 	if options.Master {
 		fstype := ctx.GlobalString("fstype")
 		options.FSType = volume.DriverType(fstype)
@@ -237,6 +239,28 @@ func (c *ServicedCli) exit(code int) error {
 	}
 	os.Exit(code)
 	return nil
+}
+
+// validateEndpoint gets the endpoint to use if the user did not specify one.
+// Takes other configuration options into account while determining the default.
+func validateEndpoint(options api.Options) string {
+	// Not printing anything in here because it shows up in help, version, etc.
+	endpoint := options.Endpoint
+	if len(endpoint) == 0 {
+		if options.Master || !options.Agent {
+			// Master has multiple backup sources: OUTBOUND_IP or query network configuration.
+			// No role probably means user is running us on the Master and assumes we know how
+			// to connect to ourselves.
+			if len(options.OutboundIP) > 0 {
+				endpoint = fmt.Sprintf("%s:%s", options.OutboundIP, options.RPCPort)
+			} else if ip, err := utils.GetIPAddress(); err == nil {
+				endpoint = fmt.Sprintf("%s:%s", ip, options.RPCPort)
+			}
+		} else {
+			// On pure Agent, ENDPOINT is required to know where Master is (we can't just guess)
+		}
+	}
+	return endpoint
 }
 
 func setLogging(ctx *cli.Context) error {

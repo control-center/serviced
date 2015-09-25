@@ -71,7 +71,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 	}
 
-	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options.OutboundIP, options.RPCPort))
+	options.Endpoint = config.StringVal("ENDPOINT", "")
 
 	// Set the path to the controller binary
 	dir, _, err := node.ExecPath()
@@ -103,16 +103,6 @@ func getDefaultDockerRegistry() string {
 	} else {
 		return fmt.Sprintf("%s:5000", hostname)
 	}
-}
-
-func getDefaultEndpoint(ip, port string) string {
-	if ip == "" {
-		var err error
-		if ip, err = utils.GetIPAddress(); err != nil {
-			return ""
-		}
-	}
-	return fmt.Sprintf("%s:%s", ip, port)
 }
 
 func getDefaultVarPath(home string) string {
