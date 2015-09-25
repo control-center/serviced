@@ -15,6 +15,7 @@ package service
 
 import (
 	"path"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -143,6 +144,7 @@ func (l *HostStateListener) PostProcess(p map[string]struct{}) {}
 // Spawn listens for changes in the host state and manages running instances
 func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	var processDone <-chan struct{}
+	var processLock sync.Mutex
 
 	// Let's have exclusive access to this node
 	lock := newInstanceLock(l.conn, stateID)
@@ -166,7 +168,7 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		lock.Unlock()
 		return
 	}
-	defer l.stopInstance(processDone, &ss)
+	defer l.stopInstance(&processLock, &ss)
 	lock.Unlock()
 
 	for {
@@ -197,13 +199,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 			if !ss.IsRunning() {
 				// process has stopped
 				glog.Infof("Starting a new instance for %s (%s): %s", svc.Name, svc.ID, stateID)
-				if processDone, err = l.startInstance(&svc, &ss); err != nil {
+				if processDone, err = l.startInstance(&processLock, &svc, &ss); err != nil {
 					glog.Errorf("Could not start service instance %s for service %s on host %s: %s", hs.ServiceStateID, hs.ServiceID, hs.HostID, err)
 					return
 				}
 			} else if processDone == nil {
 				glog.Infof("Attaching to instance %s for %s (%s) via %s", stateID, svc.Name, svc.ID, ss.DockerID)
-				if processDone, err = l.attachInstance(&svc, &ss); err != nil {
+				if processDone, err = l.attachInstance(&processLock, &svc, &ss); err != nil {
 					glog.Errorf("Could not start service instance %s for service %s on host %s: %s", hs.ServiceStateID, hs.ServiceID, hs.HostID, err)
 					return
 				}
@@ -248,10 +250,9 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	}
 }
 
-func (l *HostStateListener) startInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
-	done := make(chan struct{})
-
-	terminateInstance := func(stateID string) {
+func (l *HostStateListener) terminateInstance(locker sync.Locker, done chan<- struct{}) func(string) {
+	return func(stateID string) {
+		defer locker.Unlock()
 		defer close(done)
 		glog.V(3).Infof("Receieved process done signal for %s", stateID)
 		terminated := time.Now()
@@ -260,34 +261,24 @@ func (l *HostStateListener) startInstance(svc *service.Service, state *servicest
 		}
 		if err := updateInstance(l.conn, l.hostID, stateID, setTerminated); err != nil {
 			glog.Warningf("Could not update instance %s with the time terminated (%s): %s", stateID, terminated, err)
-			return
 		}
 	}
+}
 
-	if err := l.handler.StartService(svc, state, terminateInstance); err != nil {
+func (l *HostStateListener) startInstance(locker sync.Locker, svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
+	done := make(chan struct{})
+	locker.Lock()
+	if err := l.handler.StartService(svc, state, l.terminateInstance(locker, done)); err != nil {
 		glog.Errorf("Error trying to start service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 		return nil, err
 	}
 	return done, UpdateServiceState(l.conn, state)
 }
 
-func (l *HostStateListener) attachInstance(svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
+func (l *HostStateListener) attachInstance(locker sync.Locker, svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
 	done := make(chan struct{})
-
-	terminateInstance := func(stateID string) {
-		defer close(done)
-		glog.V(3).Infof("Receieved process done signal for %s", stateID)
-		terminated := time.Now()
-		setTerminated := func(_ *HostState, ssdata *servicestate.ServiceState) {
-			ssdata.Terminated = terminated
-		}
-		if err := updateInstance(l.conn, l.hostID, stateID, setTerminated); err != nil {
-			glog.Warningf("Could not update instance %s with the time terminated (%s): %s", stateID, terminated, err)
-			return
-		}
-	}
-
-	if err := l.handler.AttachService(svc, state, terminateInstance); err != nil {
+	locker.Lock()
+	if err := l.handler.AttachService(svc, state, l.terminateInstance(locker, done)); err != nil {
 		glog.Errorf("Error trying to attach to service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
 		return nil, err
 	}
@@ -318,15 +309,14 @@ func (l *HostStateListener) resumeInstance(svc *service.Service, state *services
 }
 
 // stopInstance stops instance and signals done.  caller is expected to check for nil state
-func (l *HostStateListener) stopInstance(done <-chan struct{}, state *servicestate.ServiceState) error {
-	// TODO: may leave zombies hanging around if StopService fails...do we care?
+func (l *HostStateListener) stopInstance(locker sync.Locker, state *servicestate.ServiceState) error {
 	if err := l.handler.StopService(state); err != nil {
 		glog.Errorf("Could not stop service instance %s: %s", state.ID, err)
 		return err
-	} else if done != nil {
-		// wait for signal that the process is done
-		glog.V(3).Infof("waiting for service instance %s to be updated", state.ID)
-		<-done
 	}
+	// wait for the process to be done
+	glog.V(3).Infof("waiting for service instance %s to be updated", state.ID)
+	locker.Lock()
+	locker.Unlock()
 	return nil
 }
