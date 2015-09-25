@@ -15,9 +15,14 @@ package metrics
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/zenoss/glog"
+)
+
+var (
+	cache = NewMemoryUsageCache(time.Minute)
 )
 
 type ServiceInstance struct {
@@ -76,94 +81,123 @@ func convertMemoryUsage(data *PerformanceData) []MemoryUsageStats {
 }
 
 func (c *Client) GetHostMemoryStats(startDate time.Time, hostID string) (*MemoryUsageStats, error) {
-	options := PerformanceOptions{
-		Start:     startDate.Format(timeFormat),
-		End:       "now",
-		Returnset: "exact",
-		Tags: map[string][]string{
-			"controlplane_host_id": []string{hostID},
-		},
-		Metrics: []MetricOptions{
-			{
-				Metric:     "cgroup.memory.totalrss",
-				Name:       hostID,
-				Aggregator: "sum",
+	getter := func() ([]MemoryUsageStats, error) {
+		glog.V(2).Infof("Requesting memory stats for host %s", hostID)
+		options := PerformanceOptions{
+			Start:     startDate.Format(timeFormat),
+			End:       "now",
+			Returnset: "exact",
+			Tags: map[string][]string{
+				"controlplane_host_id": []string{hostID},
 			},
-		},
-	}
+			Metrics: []MetricOptions{
+				{
+					Metric:     "cgroup.memory.totalrss",
+					Name:       hostID,
+					Aggregator: "sum",
+				},
+			},
+		}
 
-	result, err := c.performanceQuery(options)
+		result, err := c.performanceQuery(options)
+		if err != nil {
+			glog.Errorf("Could not get performance data for host %s: %s", hostID, err)
+			return nil, err
+		}
+
+		mems := convertMemoryUsage(result)
+		if len(mems) < 1 {
+			err := fmt.Errorf("no data found")
+			return nil, err
+		}
+
+		return mems, nil
+	}
+	stats, err := cache.Get(hostID, getter)
 	if err != nil {
-		glog.Errorf("Could not get performance data for host %s: %s", hostID, err)
 		return nil, err
 	}
-
-	mems := convertMemoryUsage(result)
-	if len(mems) < 1 {
-		err := fmt.Errorf("no data found")
-		return nil, err
-	}
-
-	return &mems[0], nil
+	return &stats[0], nil
 }
 
 func (c *Client) GetServiceMemoryStats(startDate time.Time, serviceID string) (*MemoryUsageStats, error) {
-	options := PerformanceOptions{
-		Start:     startDate.Format(timeFormat),
-		End:       "now",
-		Returnset: "exact",
-		Tags: map[string][]string{
-			"controlplane_service_id": []string{serviceID},
-		},
-		Metrics: []MetricOptions{
-			{
-				Metric:     "cgroup.memory.totalrss",
-				Name:       serviceID,
-				Aggregator: "max",
+	getter := func() ([]MemoryUsageStats, error) {
+		glog.V(2).Infof("Requesting memory stats for service %s", serviceID)
+		options := PerformanceOptions{
+			Start:     startDate.Format(timeFormat),
+			End:       "now",
+			Returnset: "exact",
+			Tags: map[string][]string{
+				"controlplane_service_id": []string{serviceID},
 			},
-		},
-	}
+			Metrics: []MetricOptions{
+				{
+					Metric:     "cgroup.memory.totalrss",
+					Name:       serviceID,
+					Aggregator: "max",
+				},
+			},
+		}
 
-	result, err := c.performanceQuery(options)
+		result, err := c.performanceQuery(options)
+		if err != nil {
+			glog.Errorf("Could not get performance data for service %s: %s", serviceID, err)
+			return nil, err
+		}
+
+		mems := convertMemoryUsage(result)
+		if len(mems) < 1 {
+			err := fmt.Errorf("no data found")
+			return nil, err
+		}
+
+		return mems, nil
+	}
+	stats, err := cache.Get(serviceID, getter)
 	if err != nil {
-		glog.Errorf("Could not get performance data for service %s: %s", serviceID, err)
 		return nil, err
 	}
-
-	mems := convertMemoryUsage(result)
-	if len(mems) < 1 {
-		err := fmt.Errorf("no data found")
-		return nil, err
-	}
-
-	return &mems[0], nil
+	return &stats[0], nil
 }
 
 func (c *Client) GetInstanceMemoryStats(startDate time.Time, instances ...ServiceInstance) ([]MemoryUsageStats, error) {
-	options := PerformanceOptions{
-		Start:     startDate.Format(timeFormat),
-		End:       "now",
-		Returnset: "exact",
-	}
-
-	metrics := make([]MetricOptions, len(instances))
-	for i, instance := range instances {
-		metrics[i] = MetricOptions{
-			Metric: "cgroup.memory.totalrss",
-			Name:   fmt.Sprintf("%s.%d", instance.ServiceID, instance.InstanceID),
-			Tags: map[string][]string{
-				"controlplane_service_id":  []string{instance.ServiceID},
-				"controlplane_instance_id": []string{fmt.Sprintf("%d", instance.InstanceID)},
-			},
+	getter := func() ([]MemoryUsageStats, error) {
+		glog.V(2).Infof("Requesting memory stats for %d instances", len(instances))
+		options := PerformanceOptions{
+			Start:     startDate.Format(timeFormat),
+			End:       "now",
+			Returnset: "exact",
 		}
-	}
-	options.Metrics = metrics
 
-	result, err := c.performanceQuery(options)
+		metrics := make([]MetricOptions, len(instances))
+		for i, instance := range instances {
+			metrics[i] = MetricOptions{
+				Metric: "cgroup.memory.totalrss",
+				Name:   fmt.Sprintf("%s.%d", instance.ServiceID, instance.InstanceID),
+				Tags: map[string][]string{
+					"controlplane_service_id":  []string{instance.ServiceID},
+					"controlplane_instance_id": []string{fmt.Sprintf("%d", instance.InstanceID)},
+				},
+			}
+		}
+		options.Metrics = metrics
+
+		result, err := c.performanceQuery(options)
+		if err != nil {
+			glog.Errorf("Could not get performance data for instances %+v: %s", instances, err)
+			return nil, err
+		}
+
+		return convertMemoryUsage(result), nil
+	}
+	var keys []string
+	for _, instance := range instances {
+		keys = append(keys, fmt.Sprintf("%s.%d", instance.ServiceID, instance.InstanceID))
+	}
+	key := strings.Join(keys, "_")
+	stats, err := cache.Get(key, getter)
 	if err != nil {
-		glog.Errorf("Could not get performance data for instances %+v: %s", instances, err)
 		return nil, err
 	}
-
-	return convertMemoryUsage(result), nil
+	return stats, nil
 }
