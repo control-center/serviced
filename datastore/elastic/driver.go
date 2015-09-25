@@ -14,9 +14,9 @@
 package elastic
 
 import (
+	"github.com/control-center/serviced/datastore"
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/datastore"
 
 	"bytes"
 	"encoding/json"
@@ -178,11 +178,11 @@ func (ed *elasticDriver) getHealth() (map[string]interface{}, error) {
 	if err != nil {
 		return health, err
 	}
+	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
 		return health, fmt.Errorf("http status: %v", resp.StatusCode)
 	}
 
-	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		glog.Errorf("error reading elastic health: %v", err)

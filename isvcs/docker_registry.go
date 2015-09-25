@@ -62,7 +62,8 @@ func init() {
 func registryHealthCheck(halt <-chan struct{}) error {
 	url := fmt.Sprintf("http://localhost:%d/", registryPort)
 	for {
-		if _, err := http.Get(url); err == nil {
+		if resp, err := http.Get(url); err == nil {
+			resp.Body.Close()
 			break
 		} else {
 			glog.V(1).Infof("Still trying to connect to docker registry at %s: %v", url, err)
