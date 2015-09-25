@@ -250,11 +250,10 @@ func (sc *ServiceConfig) isCollectingStats() handlerFunc {
 
 func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	// setup the client
-	c, err = node.NewControlClient(sc.agentPort)
-	if err != nil {
-		glog.Fatalf("Could not create a control center client: %v", err)
+	if c, err = node.NewControlClient(sc.agentPort); err != nil {
+		glog.Errorf("Could not create a control center client: %s", err)
 	}
-	return c, err
+	return
 }
 
 func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
@@ -342,7 +341,7 @@ func init() {
 func (sc *ServiceConfig) syncAllVhosts(shutdown <-chan interface{}) error {
 	rootConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		glog.Fatalf("syncAllVhosts - Error getting root zk connection: %v", err)
+		glog.Errorf("syncAllVhosts - Error getting root zk connection: %v", err)
 		return err
 	}
 
