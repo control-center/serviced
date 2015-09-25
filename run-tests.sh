@@ -26,7 +26,7 @@ BUILD_TAGS="$(bash ${DIR}/build-tags.sh)"
 
 echo "Running unit tests ..."
 START_TIME=`date --utc +%s`
-godep go test -tags="${BUILD_TAGS} unit -v" $GOTEST ./...
+godep go test -tags="${BUILD_TAGS} unit" $GOTEST ./...
 UNIT_TEST_RESULT=$?
 END_TIME=`date --utc +%s`
 echo "Unit tests finished in $(($END_TIME - $START_TIME)) seconds"
