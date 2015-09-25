@@ -71,7 +71,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		IsvcsZKQuorum:        config.StringSlice("ISVCS_ZOOKEEPER_QUORUM", []string{}),
 	}
 
-	options.Endpoint = config.StringVal("ENDPOINT", getDefaultEndpoint(options))
+	options.Endpoint = config.StringVal("ENDPOINT", "")
 
 	// Set the path to the controller binary
 	dir, _, err := node.ExecPath()
@@ -103,30 +103,6 @@ func getDefaultDockerRegistry() string {
 	} else {
 		return fmt.Sprintf("%s:5000", hostname)
 	}
-}
-
-// getDefaultEndpoint gets the endpoint to use if the user did not specify one.
-// Takes other configuration options into account while determining the default.
-func getDefaultEndpoint(options api.Options) string {
-	defaultEndpoint := ""
-
-	switch {
-	case options.Master:
-		// Master has multiple backup sources: OUTBOUND_IP or query network configuration
-		if len(options.OutboundIP) > 0 {
-			defaultEndpoint = fmt.Sprintf("%s:%s", options.OutboundIP, options.RPCPort)
-		} else if ip, err := utils.GetIPAddress(); err == nil {
-			defaultEndpoint = fmt.Sprintf("%s:%s", ip, options.RPCPort)
-		} else {
-			defaultEndpoint = ""
-		}
-	default:
-		// On all other hosts (including pure Agent), ENDPOINT is required to know where Master is
-		// (We can't guess where)
-		defaultEndpoint = ""
-	}
-
-	return defaultEndpoint
 }
 
 func getDefaultVarPath(home string) string {
