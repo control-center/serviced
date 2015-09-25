@@ -177,7 +177,7 @@
         };
 
         $scope.update = function(){
-            return $q.all([hostsFactory.update(), servicesFactory.update(false, true), instancesFactory.update()]).then(function(){
+            return $q.all([hostsFactory.update(), servicesFactory.update(true, true), instancesFactory.update()]).then(function(){
                 draw(servicesFactory.serviceMap, instancesFactory.instanceArr);
                 $scope.lastUpdate = new Date();
             });
