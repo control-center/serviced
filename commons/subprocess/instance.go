@@ -29,11 +29,11 @@ type Instance struct {
 	command        string
 	args           []string
 	env            []string
-	commandExit    chan error		// used to send command exit values to the parent controller
+	commandExit    chan error // used to send command exit values to the parent controller
 	closing        chan chan error
-	closeLock      sync.Mutex		// mutex to synchronize Close() calls
-	sigtermTimeout time.Duration	// sigterm timeout
-	signalChan     chan os.Signal	// used to send signals to the command process
+	closeLock      sync.Mutex     // mutex to synchronize Close() calls
+	sigtermTimeout time.Duration  // sigterm timeout
+	signalChan     chan os.Signal // used to send signals to the command process
 }
 
 // New creates a subprocess.Instance
@@ -93,7 +93,7 @@ func (s *Instance) loop() {
 		return cmd
 	}
 
-	processExit := make(chan error, 1)//lets us know when the process exits
+	processExit := make(chan error, 1) //lets us know when the process exits
 	cmd := setUpCmd(processExit)
 	var returnChan chan error
 	sigterm := make(chan error)
@@ -103,15 +103,14 @@ func (s *Instance) loop() {
 	for {
 
 		select {
-
 		case s := <-s.signalChan:
 			cmd.Process.Signal(s)
-			glog.V(1).Infof("loop: signal sent%v", sig)
+			glog.V(1).Infof("loop: signal sent%v", s)
 
 		case exitError := <-processExit:
-			glog.V(1).Infof("loop: process exited with error %v",exitError)
+			glog.V(1).Infof("loop: process exited with error %v", exitError)
 			select {
-			case s.commandExit <- exitError:	// tell our the parent controller that the command has exited
+			case s.commandExit <- exitError: // tell our the parent controller that the command has exited
 			default:
 				glog.Warningf("Received child exit = %#v but the commandExit channel is full", exitError)
 			}
