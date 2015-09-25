@@ -397,16 +397,16 @@ func writeLogstashConfiguration(templates map[string]servicetemplate.ServiceTemp
 func reloadLogstashContainerImpl(ctx datastore.Context, f *Facade) error {
 	templates, err := f.GetServiceTemplates(ctx)
 	if err != nil {
-		glog.Fatalf("Could not write logstash configuration: %s", err)
-	}
-
-	if err := writeLogstashConfiguration(templates); err != nil {
-		glog.Fatalf("Could not write logstash configuration: %s", err)
+		glog.Errorf("Could not write logstash configuration: %s", err)
 		return err
 	}
-	glog.V(2).Info("Starting logstash container")
+	if err := writeLogstashConfiguration(templates); err != nil {
+		glog.Errorf("Could not write logstash configuration: %s", err)
+		return err
+	}
+	glog.V(2).Infof("Starting logstash container")
 	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
-		glog.Fatalf("Could not start logstash container: %s", err)
+		glog.Errorf("Could not start logstash container: %s", err)
 		return err
 	}
 	return nil

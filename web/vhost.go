@@ -157,14 +157,14 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 	// vhosts are at the root level (not pool aware)
 	poolBasedConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
-		glog.Fatalf("watchVhosts - Error getting pool based zk connection: %v", err)
+		glog.Errorf("watchVhosts - Error getting pool based zk connection: %v", err)
 		return err
 	}
 
 	glog.V(2).Infof("creating vhostRegistry")
 	vhostRegistry, err := registry.VHostRegistry(poolBasedConn)
 	if err != nil {
-		glog.Fatalf("watchVhosts - Error getting vhost registry: %v", err)
+		glog.Errorf("watchVhosts - Error getting vhost registry: %v", err)
 		return err
 	}
 
