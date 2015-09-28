@@ -67,7 +67,7 @@ func (health ESHealth) String() string {
 	return "unknown"
 }
 
-const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = int(WAIT_FOR_INITIAL_HEALTHCHECK / time.Second) //default startup timeout in seconds (same as all other iservices)
+const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = 240                                             //default startup timeout in seconds (4 minutes)
 const MIN_ES_STARTUP_TIMEOUT_SECONDS = 30                                                  //minimum startup timeout in seconds
 
 var elasticsearch_logstash *IService
