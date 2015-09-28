@@ -54,6 +54,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 	options.MuxPort = cfg.IntVal("MUX_PORT", options.MuxPort)
 	options.KeyPEMFile = cfg.StringVal("KEY_FILE", options.KeyPEMFile)
 	options.CertPEMFile = cfg.StringVal("CERT_FILE", options.CertPEMFile)
+	options.LogstashURL = cfg.StringVal("LOG_ADDRESS", options.LogstashURL)
 	options.VirtualAddressSubnet = cfg.StringVal("VIRTUAL_ADDRESS_SUBNET", options.VirtualAddressSubnet)
 
 	if ctx.IsSet("logtostderr") {

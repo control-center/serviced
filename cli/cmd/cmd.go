@@ -182,6 +182,7 @@ func (c *ServicedCli) cmdInit(ctx *cli.Context) error {
 		LogstashES:           ctx.GlobalString("logstash-es"),
 		LogstashMaxDays:      ctx.GlobalInt("logstash-max-days"),
 		LogstashMaxSize:      ctx.GlobalInt("logstash-max-size"),
+		LogstashURL:          ctx.GlobalString("logstashurl"),
 		DebugPort:            ctx.GlobalInt("debug-port"),
 		AdminGroup:           ctx.GlobalString("admin-group"),
 		MaxRPCClients:        ctx.GlobalInt("max-rpc-clients"),

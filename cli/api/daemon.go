@@ -632,6 +632,7 @@ func (d *daemon) startAgent() error {
 			MaxContainerAge:      time.Duration(int(time.Second) * options.MaxContainerAge),
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 			ControllerBinary:     options.ControllerBinary,
+			LogstashURL:          options.LogstashURL,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)

@@ -91,6 +91,7 @@ type HostAgent struct {
 	virtualAddressSubnet string          // subnet for virtual addresses
 	servicedChain        *iptables.Chain // Assigned IP rule chain
 	controllerBinary     string          // Path to the controller binary
+	logstashURL          string
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -127,6 +128,7 @@ type AgentOptions struct {
 	MaxContainerAge      time.Duration // Maximum container age for a stopped container before being removed
 	VirtualAddressSubnet string
 	ControllerBinary     string
+	LogstashURL          string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -146,6 +148,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.virtualAddressSubnet = options.VirtualAddressSubnet
 	agent.servicedChain = iptables.NewChain("SERVICED")
 	agent.controllerBinary = options.ControllerBinary
+	agent.logstashURL = options.LogstashURL
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers)
@@ -185,8 +188,8 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	ctr, err := docker.FindContainer(state.DockerID)
 	if err != nil {
-		glog.Infof("Can not find docker container %s for service %s (%s) ServiceStateID=%s", state.DockerID, svc.Name, svc.ID,  state.ID)
-		state.DockerID = ""             // CC-1341 - don't try to find this container again.
+		glog.Infof("Can not find docker container %s for service %s (%s) ServiceStateID=%s", state.DockerID, svc.Name, svc.ID, state.ID)
+		state.DockerID = "" // CC-1341 - don't try to find this container again.
 		return err
 	}
 
@@ -674,6 +677,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_SERVICE_IMAGE=%s", svc.ImageID),
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
+		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
 
 	// add dns values to setup

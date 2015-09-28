@@ -70,6 +70,7 @@ type Options struct {
 	LogstashES           string //logstatsh elasticsearch host:port
 	LogstashMaxDays      int    // Days to keep logstash indices
 	LogstashMaxSize      int    // Max size of logstash data
+	LogstashURL          string
 	DebugPort            int    // Port to listen for profile clients
 	AdminGroup           string // user group that can log in to control center
 	MaxRPCClients        int    // the max number of rpc clients to an endpoint
