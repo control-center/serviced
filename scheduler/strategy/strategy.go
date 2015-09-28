@@ -21,7 +21,6 @@ type Host interface {
 }
 
 type ServiceConfig interface {
-	GetHostID() string
 	GetServiceID() string
 	RequestedCores() int
 	RequestedMemory() uint64
