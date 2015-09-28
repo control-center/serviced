@@ -55,8 +55,6 @@ func (s *Instance) Notify(sig os.Signal) {
 	select {
 	case s.signalChan <- sig:
 		glog.V(1).Infof("Notify: sending signal %v", sig)
-	default:
-		glog.Warningf("Notify: unable to send signal %v, because signalChan is full", sig)
 	}
 }
 
@@ -111,8 +109,6 @@ func (s *Instance) loop() {
 			glog.V(1).Infof("loop: process exited with error %v", exitError)
 			select {
 			case s.commandExit <- exitError: // tell our the parent controller that the command has exited
-			default:
-				glog.Warningf("Received child exit = %#v but the commandExit channel is full", exitError)
 			}
 			return
 
