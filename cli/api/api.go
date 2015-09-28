@@ -81,12 +81,6 @@ func LoadOptions(ops Options) {
 
 	// Set verbosity
 	glog.SetVerbosity(options.Verbosity)
-
-	// Check option boundaries
-	if options.ESStartupTimeout < minTimeout {
-		glog.V(0).Infof("overriding elastic search startup timeout with minimum %d", minTimeout)
-		options.ESStartupTimeout = minTimeout
-	}
 }
 
 // GetOptionsEndpoint returns the serviced RPC endpoint from options

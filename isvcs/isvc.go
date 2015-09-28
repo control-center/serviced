@@ -21,6 +21,8 @@ package isvcs
 import (
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
+
+	"time"
 )
 
 var Mgr *Manager
@@ -30,7 +32,11 @@ const (
 	IMAGE_TAG  = "v27.1"
 )
 
-func Init() {
+func Init(esStartupTimeoutInSeconds int) {
+
+	elasticsearch_serviced.StartupTimeout = time.Duration(validateESStartupTimeout(esStartupTimeoutInSeconds)) * time.Second
+	elasticsearch_logstash.StartupTimeout = time.Duration(validateESStartupTimeout(esStartupTimeoutInSeconds)) * time.Second
+
 	Mgr = NewManager(utils.LocalDir("images"), utils.TempDir("var/isvcs"))
 
 	if err := Mgr.Register(elasticsearch_serviced); err != nil {
@@ -54,4 +60,13 @@ func Init() {
 	if err := Mgr.Register(dockerRegistry); err != nil {
 		glog.Fatalf("%s", err)
 	}
+}
+
+func validateESStartupTimeout(timeout int) int {
+	minTimeout := MIN_ES_STARTUP_TIMEOUT_SECONDS
+	if timeout < minTimeout {
+		glog.Infof("Requested ES timeout %d less that required minimum %d; reseting to the minimum", timeout, minTimeout)
+		timeout = minTimeout
+	}
+	return timeout
 }

@@ -133,7 +133,7 @@ func (d *daemon) getEsClusterName(Type string) string {
 }
 
 func (d *daemon) startISVCS() {
-	isvcs.Init()
+	isvcs.Init(options.ESStartupTimeout)
 	isvcs.Mgr.SetVolumesDir(path.Join(options.VarPath, "isvcs"))
 	if err := isvcs.Mgr.SetConfigurationOption("elasticsearch-serviced", "cluster", d.getEsClusterName("elasticsearch-serviced")); err != nil {
 		glog.Fatalf("Could not set es-serviced option: %s", err)
