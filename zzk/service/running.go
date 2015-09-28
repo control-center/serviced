@@ -42,6 +42,7 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 		DesiredState:    service.DesiredState,
 		ParentServiceID: service.ParentServiceID,
 		RAMCommitment:   service.RAMCommitment,
+		CPUCommitment:   service.CPUCommitment,
 	}
 
 	tags := map[string][]string{

@@ -93,7 +93,20 @@ type RunningService struct {
 	ParentServiceID   string
 	InstanceID        int
 	RAMCommitment     utils.EngNotation
+	CPUCommitment     uint64
 	MonitoringProfile domain.MonitorProfile
+}
+
+func (s RunningService) RequestedCores() uint64 {
+	return s.CPUCommitment
+}
+
+func (s RunningService) RequestedMemory() utils.EngNotation {
+	return s.RAMCommitment
+}
+
+func (s RunningService) GetServiceID() string {
+	return s.ServiceID
 }
 
 type Status struct {
