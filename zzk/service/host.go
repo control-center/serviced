@@ -232,7 +232,8 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 		select {
 		case <-processDone:
-			glog.V(2).Infof("Process ended for instance %s for service %s (%s)", stateID, svc.Name, svc.ID)
+                       glog.Infof("Process ended for instance %s for service %s (%s)", stateID, svc.Name, svc.ID)
+                       processDone = nil // CC-1341 - once the process exits, don't read this channel again
 		case e := <-hsEvt:
 			glog.V(3).Infof("Host instance %s for service %s (%s) received an event: %+v", stateID, svc.Name, svc.ID, e)
 			if e.Type == client.EventNodeDeleted {
