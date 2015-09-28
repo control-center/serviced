@@ -207,6 +207,8 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	ctr, err := docker.FindContainer(state.DockerID)
 	if err != nil {
+		glog.Infof("Can not find docker container %s for service %s (%s) ServiceStateID=%s", state.DockerID, svc.Name, svc.ID,  state.ID)
+		state.DockerID = ""             // CC-1341 - don't try to find this container again.
 		return err
 	}
 
