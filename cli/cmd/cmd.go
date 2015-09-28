@@ -104,7 +104,7 @@ func New(driver api.API) *ServicedCli {
 		rpcPort          = configInt("RPC_PORT", defaultRPCPort)
 		agentEndpoint    = getLocalAgentEndpoint(rpcPort)
 		varPath          = api.GetVarPath()
-		esStartupTimeout = api.GetESStartupTimeout()
+		esStartupTimeout = configInt("ES_STARTUP_TIMEOUT", isvcs.DEFAULT_ES_STARTUP_TIMEOUT_SECONDS)
 		dockerDNS        = cli.StringSlice(api.GetDockerDNS())
 	)
 
@@ -183,7 +183,7 @@ func New(driver api.API) *ServicedCli {
 		cli.StringSliceFlag{"mount", &cli.StringSlice{}, "bind mount: DOCKER_IMAGE,HOST_PATH[,CONTAINER_PATH]"},
 		cli.StringFlag{"fstype", configEnv("FS_TYPE", "rsync"), "driver for underlying file system"},
 		cli.StringSliceFlag{"alias", &aliases, "list of aliases for this host, e.g., localhost"},
-		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time to wait on elasticsearch startup before bailing"},
+		cli.IntFlag{"es-startup-timeout", esStartupTimeout, "time (in seconds) to wait on elasticsearch startup before bailing"},
 		cli.IntFlag{"max-container-age", configInt("MAX_CONTAINER_AGE", 60*60*24), "maximum age (seconds) of a stopped container before removing"},
 		cli.IntFlag{"max-dfs-timeout", configInt("MAX_DFS_TIMEOUT", 60*5), "max timeout to perform a dfs snapshot"},
 		cli.StringFlag{"virtual-address-subnet", configEnv("VIRTUAL_ADDRESS_SUBNET", "10.3"), "/16 subnet for virtual addresses"},

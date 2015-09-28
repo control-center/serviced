@@ -32,6 +32,11 @@ import (
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
 
+const (
+	MIN_ES_STARTUP_TIMEOUT_SECONDS = 30
+	DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = 240	// 4 minutes
+)
+
 func init() {
 	var serviceName string
 	var err error
@@ -55,15 +60,16 @@ func init() {
 
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
-			Name:          serviceName,
-			Repo:          IMAGE_REPO,
-			Tag:           IMAGE_TAG,
-			Command:       func() string { return "" },
-			PortBindings:  []portBinding{elasticsearch_servicedPortBinding},
-			Volumes:       map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
-			Configuration: make(map[string]interface{}),
-			HealthChecks:  healthChecks,
-			HostNetwork:   false,
+			Name:           serviceName,
+			Repo:           IMAGE_REPO,
+			Tag:            IMAGE_TAG,
+			Command:        func() string { return "" },
+			PortBindings:   []portBinding{elasticsearch_servicedPortBinding},
+			Volumes:        map[string]string{"data": "/opt/elasticsearch-0.90.9/data"},
+			Configuration:  make(map[string]interface{}),
+			HealthChecks:   healthChecks,
+			HostNetwork:    false,
+			StartupTimeout: time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS * time.Second),
 		},
 	)
 	if err != nil {
@@ -92,15 +98,16 @@ func init() {
 
 	elasticsearch_logstash, err = NewIService(
 		IServiceDefinition{
-			Name:          serviceName,
-			Repo:          IMAGE_REPO,
-			Tag:           IMAGE_TAG,
-			Command:       func() string { return "" },
-			PortBindings:  []portBinding{elasticsearch_logstashPortBinding},
-			Volumes:       map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
-			Configuration: make(map[string]interface{}),
-			HealthChecks:  healthChecks,
-			HostNetwork:   false,
+			Name:           serviceName,
+			Repo:           IMAGE_REPO,
+			Tag:            IMAGE_TAG,
+			Command:        func() string { return "" },
+			PortBindings:   []portBinding{elasticsearch_logstashPortBinding},
+			Volumes:        map[string]string{"data": "/opt/elasticsearch-1.3.1/data"},
+			Configuration:  make(map[string]interface{}),
+			HealthChecks:   healthChecks,
+			HostNetwork:    false,
+			StartupTimeout: time.Duration(DEFAULT_ES_STARTUP_TIMEOUT_SECONDS * time.Second),
 		},
 	)
 	if err != nil {
@@ -138,7 +145,11 @@ func elasticsearchHealthCheck(port int) HealthCheckFunction {
 
 			select {
 			case <-halt:
-				glog.V(1).Infof("Quit healthcheck for elasticsearch at %s", baseUrl)
+				if err != nil {
+					glog.Infof("Quit healthcheck for elasticsearch at %s: last error: %#v", baseUrl, err)
+				} else {
+					glog.Infof("Quit healthcheck for elasticsearch at %s: last response: %#v", baseUrl, healthResponse)
+				}
 				return nil
 			default:
 				time.Sleep(time.Second)

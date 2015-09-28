@@ -19,7 +19,6 @@ import (
 	"os/exec"
 	"os/user"
 	"path"
-	"strconv"
 	"strings"
 	"time"
 
@@ -28,8 +27,6 @@ import (
 )
 
 const (
-	minTimeout            = 30
-	defaultTimeout        = 600
 	networkAccessDelay    = 1
 	networkAccessAttempts = 90
 )
@@ -79,27 +76,6 @@ func GetVarPath() string {
 		return path.Join(os.TempDir(), "serviced-"+user.Username, "var")
 	}
 	return path.Join(os.TempDir(), "serviced")
-}
-
-// GetESStartupTimeout returns the Elastic Search Startup Timeout
-func GetESStartupTimeout() int {
-	var timeout int
-
-	if t := options.ESStartupTimeout; t > 0 {
-		timeout = options.ESStartupTimeout
-	} else if t := os.Getenv("ES_STARTUP_TIMEOUT"); t != "" {
-		if res, err := strconv.Atoi(t); err != nil {
-			timeout = res
-		}
-	}
-
-	if timeout == 0 {
-		timeout = defaultTimeout
-	} else if timeout < minTimeout {
-		timeout = minTimeout
-	}
-
-	return timeout
 }
 
 // GetGateway returns the default gateway

@@ -122,6 +122,7 @@ type IServiceDefinition struct {
 	HostNetwork   bool                               // enables host network in the container
 	Links         []string                           // List of links to other containers in the form of <name>:<alias>
 	StartGroup    uint16                             // Start up group number
+	StartupTimeout time.Duration                     // How long to wait for the service to start up (this is the timeout for the initial startup healthcheck)
 }
 
 type IService struct {
@@ -142,6 +143,10 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 
 	if sd.Configuration == nil {
 		sd.Configuration = make(map[string]interface{})
+	}
+
+	if sd.StartupTimeout == 0 {
+		sd.StartupTimeout = WAIT_FOR_INITIAL_HEALTHCHECK
 	}
 
 	svc := IService{sd, nil, "", make(chan actionrequest), time.Time{}, 0, &sync.RWMutex{}, nil}
@@ -623,7 +628,13 @@ func (svc *IService) startupHealthcheck() <-chan error {
 				currentTime := time.Now()
 				result = svc.runCheckOrTimeout(checkDefinition)
 				svc.setHealthStatus(result, currentTime.Unix())
-				if result == nil || time.Since(startCheck).Seconds() > WAIT_FOR_INITIAL_HEALTHCHECK.Seconds() {
+				elapsed := time.Since(startCheck)
+				if result == nil {
+					glog.Infof("Verified health status of %s after %s seconds", svc.Name, elapsed)
+					break
+				} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
+					glog.Error("Could not verified health status of %s after %s seconds. Last health check returned %#v",
+						svc.Name, WAIT_FOR_INITIAL_HEALTHCHECK, result)
 					break
 				}
 
