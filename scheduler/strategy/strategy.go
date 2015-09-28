@@ -13,32 +13,19 @@
 
 package strategy
 
-import (
-	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dao/elasticsearch"
-	"github.com/control-center/serviced/domain/host"
-	"github.com/control-center/serviced/utils"
-)
-
 type Host interface {
 	HostID() string
 	TotalCores() int
 	TotalMemory() uint64
-}
-
-type HostServiceInfo interface {
-	GetRunningServicesForHost(hostID string, services *[]ServiceConfig) error
+	RunningServices() []ServiceConfig
 }
 
 type ServiceConfig interface {
+	GetHostID() string
 	GetServiceID() string
-	RequestedCores() uint64
-	RequestedMemory() utils.EngNotation
+	RequestedCores() int
+	RequestedMemory() uint64
 }
-
-var _ ServiceConfig = &dao.RunningService{}
-var _ HostServiceInfo = &elasticsearch.ControlPlaneDao{}
-var _ Host = &host.Host{}
 
 type Strategy interface {
 	// The name of this strategy
@@ -46,3 +33,21 @@ type Strategy interface {
 	// Chooses the best host for svc to run on
 	SelectHost(svc ServiceConfig, hosts []Host) (Host, error)
 }
+
+/*
+type facadeHostServiceInfo struct {
+	facade *facade.Facade
+}
+
+func (f *facadeHostServiceInfo) GetRunningServices(hostIDs ...string) ([]ServiceConfig, error) {
+	services, err := f.facade.GetRunningServicesForHosts(hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	return services, nil
+}
+
+func NewFacadeHostServiceInfo(f *facade.Facade) HostServiceInfo {
+	return facadeHostServiceInfo(f)
+}
+*/

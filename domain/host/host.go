@@ -57,18 +57,6 @@ type Host struct {
 	datastore.VersionedEntity
 }
 
-func (h *Host) TotalCores() int {
-	return h.Cores
-}
-
-func (h *Host) TotalMemory() uint64 {
-	return h.RAMCommitment
-}
-
-func (h *Host) HostID() string {
-	return h.ID
-}
-
 // Equals verifies whether two host objects are equal
 func (a *Host) Equals(b *Host) bool {
 	if a.ID != b.ID {
