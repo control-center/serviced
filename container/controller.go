@@ -612,14 +612,22 @@ func (c *Controller) Run() (err error) {
 	doRegisterEndpoints := true
 	exited := false
 
+	var reregister <-chan struct{}
+
 	var shutdownService = func(service *subprocess.Instance, sig os.Signal) {
 		c.options.Service.Autorestart = false
 		if sendSignal(service, sig) {
+			// nil out all other channels because we're shutting down
 			sigc = nil
 			prereqsPassed = nil
 			startAfter = nil
 			rpcDead = nil
+			storageDead = nil
+			reregister = nil
+
+			// exitAfter is the deadman switch for unresponsive processes and any processes that have already exited
 			exitAfter = time.After(time.Second * 30)
+
 			glog.Infof("Closing healthExit on signal %v for %q", sig, c.options.Service.ID)
 			close(healthExit)
 			glog.Infof("Closed healthExit on signal %v for %q", sig, c.options.Service.ID)
@@ -629,8 +637,6 @@ func (c *Controller) Run() (err error) {
 			glog.Infof("Exited due to sendSignal(%v) failed for %q", sig, c.options.Service.ID)
 		}
 	}
-
-	var reregister <-chan struct{}
 
 	for !exited {
 		select {
@@ -835,10 +841,10 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 			select {
 			case err := <-exited:
 				if err == nil {
-					glog.V(4).Infof("Health check %s succeeded.", name)
+					glog.V(4).Infof("Health check %q succeeded.", name)
 					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "passed"}, &unused)
 				} else {
-					glog.Warningf("Health check %s failed: %s", name, err)
+					glog.Warningf("Health check %q failed.", name, err)
 					client.LogHealthCheck(domain.HealthCheckResult{c.options.Service.ID, c.options.Service.InstanceID, name, time.Now().String(), "failed"}, &unused)
 				}
 			case <-exitChannel:
