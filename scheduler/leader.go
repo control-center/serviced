@@ -133,5 +133,5 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		return nil, err
 	}
 
-	return NewServiceHostPolicy(s, l.cpClient).SelectHost(hosts)
+	return StrategySelectHost(s, hosts, strat, l.facade)
 }
