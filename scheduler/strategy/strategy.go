@@ -13,6 +13,21 @@
 
 package strategy
 
+import (
+	"errors"
+
+	"github.com/control-center/serviced/domain/servicedefinition"
+)
+
+var (
+	strategies        []Strategy
+	ErrNoSuchStrategy = errors.New("no such scheduler strategy")
+)
+
+func init() {
+	strategies = []Strategy{}
+}
+
 type Host interface {
 	HostID() string
 	TotalCores() int
@@ -24,6 +39,7 @@ type ServiceConfig interface {
 	GetServiceID() string
 	RequestedCores() int
 	RequestedMemory() uint64
+	HostPolicy() servicedefinition.HostPolicy
 }
 
 type Strategy interface {
@@ -31,6 +47,15 @@ type Strategy interface {
 	Name() string
 	// Chooses the best host for svc to run on
 	SelectHost(svc ServiceConfig, hosts []Host) (Host, error)
+}
+
+func Get(name string) (Strategy, error) {
+	for _, strategy := range strategies {
+		if strategy.Name() == name {
+			return strategy, nil
+		}
+	}
+	return nil, ErrNoSuchStrategy
 }
 
 /*

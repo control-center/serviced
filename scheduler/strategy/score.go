@@ -13,14 +13,19 @@
 
 package strategy
 
-import "sort"
+import (
+	"sort"
 
-type scoredHost struct {
-	Host  Host
-	Score int
+	"github.com/control-center/serviced/domain/servicedefinition"
+)
+
+type ScoredHost struct {
+	Host      Host
+	Score     int
+	Instances int
 }
 
-type scoredHostList []*scoredHost
+type scoredHostList []*ScoredHost
 
 func (l scoredHostList) Len() int {
 	return len(l)
@@ -34,12 +39,19 @@ func (l scoredHostList) Less(i, j int) bool {
 	return l[i].Score < l[j].Score
 }
 
-func ScoreHosts(service ServiceConfig, hosts []Host) ([]Host, error) {
+// ScoreHosts returns two arrays of hosts. The first lists hosts that have
+// enough resources to handle the service, sorted in order of combined free
+// resources. The second lists hosts that do not have enough resources to
+// handle the service, sorted in order of percentage memory used were the
+// service deployed to the host.
+func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHost) {
 
-	enough_free := scoredHostList{}
-	not_enough_free := scoredHostList{}
+	undersubscribed := scoredHostList{}
+	oversubscribed := scoredHostList{}
 
 	for _, host := range hosts {
+
+		scoredHost := &ScoredHost{Host: host}
 
 		totalMem := host.TotalMemory()
 		totalCpu := host.TotalCores()
@@ -55,6 +67,15 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]Host, error) {
 		for _, svc := range host.RunningServices() {
 			usedCpu += svc.RequestedCores()
 			usedMem += svc.RequestedMemory()
+			if svc.GetServiceID() == service.GetServiceID() {
+				scoredHost.Instances += 1
+			}
+		}
+
+		// Throw the host away if we require separate hosts for this service
+		// and it isn't eligible
+		if service.HostPolicy() == servicedefinition.RequireSeparate && scoredHost.Instances > 0 {
+			continue
 		}
 
 		// Calculate CPU score as a percentage of used cores on the host with this service deployed
@@ -68,25 +89,36 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]Host, error) {
 		}
 
 		if cpuScore <= 100 && memScore <= 100 {
-			shost := &scoredHost{Host: host, Score: cpuScore + memScore}
-			enough_free = append(enough_free, shost)
+			scoredHost.Score = cpuScore + memScore
+			undersubscribed = append(undersubscribed, scoredHost)
 		} else {
-			shost := &scoredHost{Host: host, Score: memScore}
-			not_enough_free = append(not_enough_free, shost)
+			scoredHost.Score = memScore
+			oversubscribed = append(oversubscribed, scoredHost)
 		}
-
 	}
 
-	sort.Sort(enough_free)
-	sort.Sort(not_enough_free)
-
-	var sorted []Host
-
-	for _, s := range enough_free {
-		sorted = append(sorted, s.Host)
+	// Add separation as a factor in the score to each host, if applicable
+	if service.HostPolicy() == servicedefinition.PreferSeparate {
+		for _, host := range undersubscribed {
+			host.Score += host.Instances * 100
+		}
+		var max int
+		for _, host := range oversubscribed {
+			if host.Instances > max {
+				max = host.Instances
+			}
+		}
+		for _, host := range oversubscribed {
+			if host.Score <= 100 {
+				host.Score += host.Instances * 100
+			} else {
+				host.Score += max * 100
+			}
+		}
 	}
-	for _, s := range not_enough_free {
-		sorted = append(sorted, s.Host)
-	}
-	return sorted, nil
+
+	sort.Sort(undersubscribed)
+	sort.Sort(oversubscribed)
+
+	return undersubscribed, oversubscribed
 }

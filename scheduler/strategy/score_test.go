@@ -49,10 +49,10 @@ func (s *StrategySuite) TestSimpleScoring(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{})
 
-	scored, err := strategy.ScoreHosts(svc2, []strategy.Host{hostA, hostB})
-	c.Assert(err, IsNil)
-	c.Assert(scored[0], Equals, hostB)
-	c.Assert(scored[1], Equals, hostA)
+	under, over := strategy.ScoreHosts(svc2, []strategy.Host{hostA, hostB})
+	c.Assert(under[0].Host, Equals, hostB)
+	c.Assert(under[1].Host, Equals, hostA)
+	c.Assert(over, HasLen, 0)
 }
 
 // Given two non-identical hosts, one of which has fewer overall resources but
@@ -67,11 +67,11 @@ func (s *StrategySuite) TestUnbalancedScoring(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{})
 
-	scored, err := strategy.ScoreHosts(svc2, []strategy.Host{hostA, hostB})
+	under, over := strategy.ScoreHosts(svc2, []strategy.Host{hostA, hostB})
 
-	c.Assert(err, IsNil)
-	c.Assert(scored[0], Equals, hostB)
-	c.Assert(scored[1], Equals, hostA)
+	c.Assert(under[0].Host, Equals, hostB)
+	c.Assert(under[1].Host, Equals, hostA)
+	c.Assert(over, HasLen, 0)
 
 }
 
@@ -88,11 +88,10 @@ func (s *StrategySuite) TestNoCPUAvailable(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2})
 
-	scored, err := strategy.ScoreHosts(svc3, []strategy.Host{hostA, hostB})
+	under, over := strategy.ScoreHosts(svc3, []strategy.Host{hostA, hostB})
 
-	c.Assert(err, IsNil)
-	c.Assert(scored[0], Equals, hostB)
-	c.Assert(scored[1], Equals, hostA)
+	c.Assert(under[0].Host, Equals, hostB)
+	c.Assert(over[0].Host, Equals, hostA)
 }
 
 // Given two identical hosts, none of which has enough CPU free but one of
@@ -109,11 +108,11 @@ func (s *StrategySuite) TestNotEnoughResources(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2})
 
-	scored, err := strategy.ScoreHosts(svc3, []strategy.Host{hostA, hostB})
+	under, over := strategy.ScoreHosts(svc3, []strategy.Host{hostA, hostB})
 
-	c.Assert(err, IsNil)
-	c.Assert(scored[0], Equals, hostB)
-	c.Assert(scored[1], Equals, hostA)
+	c.Assert(under, HasLen, 0)
+	c.Assert(over[0].Host, Equals, hostB)
+	c.Assert(over[1].Host, Equals, hostA)
 }
 
 // Given two identical hosts, all of which are overloaded both in terms of
@@ -131,9 +130,9 @@ func (s *StrategySuite) TestMemoryPreferred(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2})
 
-	scored, err := strategy.ScoreHosts(svc3, []strategy.Host{hostA, hostB})
+	under, over := strategy.ScoreHosts(svc3, []strategy.Host{hostA, hostB})
 
-	c.Assert(err, IsNil)
-	c.Assert(scored[0], Equals, hostA)
-	c.Assert(scored[1], Equals, hostB)
+	c.Assert(under, HasLen, 0)
+	c.Assert(over[0].Host, Equals, hostA)
+	c.Assert(over[1].Host, Equals, hostB)
 }
