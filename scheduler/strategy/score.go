@@ -62,7 +62,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		// Calculate used resources for the host
 		for _, svc := range host.RunningServices() {
 			usedCpu += svc.RequestedCorePercent()
-			usedMem += svc.RequestedMemory()
+			usedMem += svc.RequestedMemoryBytes()
 			// Increment a counter of number of instances, for later strategies to use
 			if svc.GetServiceID() == service.GetServiceID() {
 				scoredHost.NumInstances += 1
@@ -75,8 +75,8 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		}
 
 		// Calculate memory score as a percentage of used memory on the host with this service deployed
-		if service.RequestedMemory() > 0 {
-			memScore = int((usedMem + service.RequestedMemory()) * 100 / totalMem)
+		if service.RequestedMemoryBytes() > 0 {
+			memScore = int((usedMem + service.RequestedMemoryBytes()) * 100 / totalMem)
 		}
 
 		if cpuScore <= 100 && memScore <= 100 {

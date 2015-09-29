@@ -106,11 +106,11 @@ func (s *StrategyService) GetServiceID() string {
 	return s.svc.ID
 }
 
-func (s *StrategyService) RequestedCores() int {
+func (s *StrategyService) RequestedCorePercent() int {
 	return int(s.svc.CPUCommitment)
 }
 
-func (s *StrategyService) RequestedMemory() uint64 {
+func (s *StrategyService) RequestedMemoryBytes() uint64 {
 	return s.svc.RAMCommitment.Value
 }
 
@@ -122,11 +122,11 @@ func (s *StrategyRunningService) GetServiceID() string {
 	return s.svc.ServiceID
 }
 
-func (s *StrategyRunningService) RequestedCores() int {
+func (s *StrategyRunningService) RequestedCorePercent() int {
 	return int(s.svc.CPUCommitment)
 }
 
-func (s *StrategyRunningService) RequestedMemory() uint64 {
+func (s *StrategyRunningService) RequestedMemoryBytes() uint64 {
 	return s.svc.RAMCommitment.Value
 }
 

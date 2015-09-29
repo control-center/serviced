@@ -22,7 +22,7 @@ func (m *ServiceConfig) RequestedCorePercent() int {
 
 	return r0
 }
-func (m *ServiceConfig) RequestedMemory() uint64 {
+func (m *ServiceConfig) RequestedMemoryBytes() uint64 {
 	ret := m.Called()
 
 	r0 := ret.Get(0).(uint64)

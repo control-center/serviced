@@ -37,7 +37,7 @@ func newService(cores int, memgigs uint64) *mocks.ServiceConfig {
 	id, _ := utils.NewUUID36()
 	svc := &mocks.ServiceConfig{}
 	svc.On("RequestedCorePercent").Return(cores)
-	svc.On("RequestedMemory").Return(memgigs * Gigabyte)
+	svc.On("RequestedMemoryBytes").Return(memgigs * Gigabyte)
 	svc.On("GetServiceID").Return(id)
 	return svc
 }

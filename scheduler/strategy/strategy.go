@@ -44,7 +44,7 @@ type Host interface {
 type ServiceConfig interface {
 	GetServiceID() string
 	RequestedCorePercent() int
-	RequestedMemory() uint64
+	RequestedMemoryBytes() uint64
 	HostPolicy() servicedefinition.HostPolicy
 }
 
