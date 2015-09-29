@@ -14,7 +14,6 @@
 package scheduler
 
 import (
-	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/host"
@@ -22,6 +21,7 @@ import (
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/scheduler/strategy"
+	"github.com/zenoss/glog"
 )
 
 // Verify we implement all the interfaces
@@ -46,11 +46,7 @@ type StrategyService struct {
 
 func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy.Strategy, facade *facade.Facade) (*host.Host, error) {
 
-	log := logrus.WithFields(logrus.Fields{
-		"service":  svc.ID,
-		"strategy": strat.Name(),
-	})
-	log.WithFields(logrus.Fields{"numhosts": len(hosts)}).Info("Applying scheduler strategy")
+	glog.V(2).Infof("Applying %s strategy for service %s", strat.Name(), svc.ID)
 
 	hostmap := map[string]*StrategyHost{}
 	hostids := []string{}
@@ -63,7 +59,7 @@ func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy
 	}
 
 	// Look up all running services for the hosts
-	log.WithFields(logrus.Fields{"hosts": hostids}).Info("Looking up instances for hosts")
+	glog.V(2).Infof("Looking up instances for hosts: %+v", hostids)
 	svcs, err := facade.GetRunningServicesForHosts(datastore.Get(), hostids...)
 	if err != nil {
 		return nil, err
@@ -73,7 +69,7 @@ func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy
 		h := hostmap[s.HostID]
 		h.services = append(h.services, &StrategyRunningService{&s})
 	}
-	log.Info("Retrieved running service instances")
+	glog.V(2).Info("Retrieved running service instances")
 
 	shosts := []strategy.Host{}
 	for _, h := range hostmap {
@@ -83,7 +79,7 @@ func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy
 		return nil, err
 	} else {
 		h := result.(*StrategyHost).host
-		log.WithFields(logrus.Fields{"host": h.ID}).Info("Deploying service to host")
+		glog.V(2).Infof("Deploying service %s to host %s", svc.ID, h.ID)
 		return h, nil
 	}
 }
