@@ -27,7 +27,6 @@ func CmdServiceProxy(ctx *cli.Context) {
 	args := ctx.Args()
 	if len(args) < 3 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		fmt.Printf("Incorrect Usage.\n\n")
 		os.Exit(1)
 	}
 	cfg := utils.NewEnvironOnlyConfigReader("SERVICED_")
@@ -44,6 +43,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 		LogstashSettleTime:      ctx.GlobalString("logstash-settle-time"),
 		LogstashBinary:          ctx.GlobalString("forwarder-binary"),
 		LogstashConfig:          ctx.GlobalString("forwarder-config"),
+		LogstashURL:             ctx.GlobalString("logstashurl"),
 		VirtualAddressSubnet:    ctx.GlobalString("virtual-address-subnet"),
 		ServiceID:               args[0],
 		InstanceID:              args[1],
@@ -54,6 +54,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 	options.MuxPort = cfg.IntVal("MUX_PORT", options.MuxPort)
 	options.KeyPEMFile = cfg.StringVal("KEY_FILE", options.KeyPEMFile)
 	options.CertPEMFile = cfg.StringVal("CERT_FILE", options.CertPEMFile)
+	options.LogstashURL = cfg.StringVal("LOG_ADDRESS", options.LogstashURL)
 	options.VirtualAddressSubnet = cfg.StringVal("VIRTUAL_ADDRESS_SUBNET", options.VirtualAddressSubnet)
 
 	if ctx.IsSet("logtostderr") {
@@ -67,6 +68,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 
 func StartProxy(options ControllerOptions) error {
 	glog.SetLogstashType("controller-" + options.ServiceID + "-" + options.InstanceID)
+	glog.SetLogstashURL(options.LogstashURL)
 
 	o, err := options.toContainerControllerOptions()
 	if err != nil {

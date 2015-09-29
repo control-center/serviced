@@ -37,6 +37,7 @@ type ControllerOptions struct {
 	LogstashConfig          string // path to the logstash-forwarder config file
 	LogstashIdleFlushTime   string // how often should log stash flush its logs
 	LogstashSettleTime      string // how long to wait for log stash to flush its logs before exiting
+	LogstashURL             string // logstash endpoint
 	VirtualAddressSubnet    string // The subnet of virtual addresses, 10.3
 	MetricForwardingEnabled bool   // Enable metric forwarding from the container
 }
