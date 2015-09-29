@@ -15,6 +15,7 @@ package strategy
 
 import (
 	"errors"
+	"strings"
 
 	"github.com/control-center/serviced/domain/servicedefinition"
 )
@@ -25,7 +26,12 @@ var (
 )
 
 func init() {
-	strategies = []Strategy{}
+	strategies = []Strategy{
+		&BalanceStrategy{},
+		&PackStrategy{},
+		&PreferSeparateStrategy{},
+		&RequireSeparateStrategy{},
+	}
 }
 
 type Host interface {
@@ -51,27 +57,9 @@ type Strategy interface {
 
 func Get(name string) (Strategy, error) {
 	for _, strategy := range strategies {
-		if strategy.Name() == name {
+		if strategy.Name() == strings.ToLower(name) {
 			return strategy, nil
 		}
 	}
 	return nil, ErrNoSuchStrategy
 }
-
-/*
-type facadeHostServiceInfo struct {
-	facade *facade.Facade
-}
-
-func (f *facadeHostServiceInfo) GetRunningServices(hostIDs ...string) ([]ServiceConfig, error) {
-	services, err := f.facade.GetRunningServicesForHosts(hostIDs)
-	if err != nil {
-		return nil, err
-	}
-	return services, nil
-}
-
-func NewFacadeHostServiceInfo(f *facade.Facade) HostServiceInfo {
-	return facadeHostServiceInfo(f)
-}
-*/
