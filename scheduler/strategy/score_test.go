@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// +build unit
+
 package strategy_test
 
 import (
@@ -34,7 +36,7 @@ func newHost(cores int, memgigs uint64) *mocks.Host {
 func newService(cores int, memgigs uint64) *mocks.ServiceConfig {
 	id, _ := utils.NewUUID36()
 	svc := &mocks.ServiceConfig{}
-	svc.On("RequestedCores").Return(cores)
+	svc.On("RequestedCorePercent").Return(cores)
 	svc.On("RequestedMemory").Return(memgigs * Gigabyte)
 	svc.On("GetServiceID").Return(id)
 	return svc

@@ -15,7 +15,7 @@ func (m *ServiceConfig) GetServiceID() string {
 
 	return r0
 }
-func (m *ServiceConfig) RequestedCores() int {
+func (m *ServiceConfig) RequestedCorePercent() int {
 	ret := m.Called()
 
 	r0 := ret.Get(0).(int)
