@@ -52,9 +52,14 @@ func New(sigtermTimeout time.Duration, env []string, command string, args ...str
 
 // Notify sends the sig to the subprocess instance.
 func (s *Instance) Notify(sig os.Signal) {
+	glog.V(1).Infof("Notify: sending signal %v", sig)
 	select {
 	case s.signalChan <- sig:
-		glog.V(1).Infof("Notify: sending signal %v", sig)
+		glog.V(1).Infof("Notify: sent signal %v", sig)
+	default:
+		// This may happen if we're trying to kill a process that has already died. The controller will first send
+		// SIGTERM, then it will try SIGKILL
+		glog.Warningf("Notify: unable to send signal %v because channel is full", sig)
 	}
 }
 
@@ -102,8 +107,9 @@ func (s *Instance) loop() {
 
 		select {
 		case s := <-s.signalChan:
+			glog.V(1).Infof("loop: sending signal %v", s)
 			cmd.Process.Signal(s)
-			glog.V(1).Infof("loop: signal sent%v", s)
+			glog.V(1).Infof("loop: sent signal %v", s)
 
 		case exitError := <-processExit:
 			glog.V(1).Infof("loop: process exited with error %v", exitError)
