@@ -16,6 +16,7 @@ package strategy_test
 import (
 	"github.com/control-center/serviced/scheduler/strategy"
 	"github.com/control-center/serviced/scheduler/strategy/mocks"
+	"github.com/control-center/serviced/utils"
 	. "gopkg.in/check.v1"
 )
 
@@ -31,9 +32,11 @@ func newHost(cores int, memgigs uint64) *mocks.Host {
 }
 
 func newService(cores int, memgigs uint64) *mocks.ServiceConfig {
+	id, _ := utils.NewUUID36()
 	svc := &mocks.ServiceConfig{}
 	svc.On("RequestedCores").Return(cores)
 	svc.On("RequestedMemory").Return(memgigs * Gigabyte)
+	svc.On("GetServiceID").Return(id)
 	return svc
 }
 

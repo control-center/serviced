@@ -13,26 +13,24 @@
 
 package strategy
 
-type PackStrategy struct{}
+type BalanceStrategy struct{}
 
-func (s *PackStrategy) Name() string {
-	return "pack"
+func (s *BalanceStrategy) Name() string {
+	return "balance"
 }
 
-func (s *PackStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {
+func (s *BalanceStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {
 	under, over := ScoreHosts(service, hosts)
 
-	// Return the host with the least amount of free resources that can handle
-	// the service. In case of a tie, choose the one running more instances.
+	// Return the host with the greatest amount of free resources that can handle
+	// the service. In case of a tie, choose the one running fewer instances.
 	if under != nil && len(under) > 0 {
-		last := len(under) - 1
-		choice := under[last]
-		for i := last; i >= 0; i-- {
-			scored := under[i]
+		choice := under[0]
+		for _, scored := range under {
 			if scored.Score != choice.Score {
 				break
 			}
-			if len(scored.Host.RunningServices()) > len(choice.Host.RunningServices()) {
+			if len(scored.Host.RunningServices()) < len(choice.Host.RunningServices()) {
 				choice = scored
 			}
 		}

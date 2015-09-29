@@ -18,7 +18,7 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *StrategySuite) TestSimplePack(c *C) {
+func (s *StrategySuite) TestSimpleBalance(c *C) {
 
 	hostA := newHost(5, 5)
 	hostB := newHost(5, 5)
@@ -34,15 +34,15 @@ func (s *StrategySuite) TestSimplePack(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2, svc3, svc4, svc5})
 
-	strat := strategy.PackStrategy{}
+	strat := strategy.BalanceStrategy{}
 
 	host, err := strat.SelectHost(svc6, []strategy.Host{hostA, hostB})
 	c.Assert(err, IsNil)
-	c.Assert(host, Equals, hostB)
+	c.Assert(host, Equals, hostA)
 
 }
 
-func (s *StrategySuite) TestPackMoreContainers(c *C) {
+func (s *StrategySuite) TestBalanceMoreContainers(c *C) {
 	hostA := newHost(5, 5)
 	hostB := newHost(5, 5)
 
@@ -57,14 +57,14 @@ func (s *StrategySuite) TestPackMoreContainers(c *C) {
 	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
 	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2, svc3, svc4})
 
-	strat := strategy.PackStrategy{}
+	strat := strategy.BalanceStrategy{}
 
 	host, err := strat.SelectHost(svc5, []strategy.Host{hostA, hostB})
 	c.Assert(err, IsNil)
-	c.Assert(host, Equals, hostB)
+	c.Assert(host, Equals, hostA)
 }
 
-func (s *StrategySuite) TestOversubscribed(c *C) {
+func (s *StrategySuite) TestBalanceOversubscribed(c *C) {
 	hostA := newHost(2, 5)
 	hostB := newHost(2, 5)
 
@@ -76,7 +76,7 @@ func (s *StrategySuite) TestOversubscribed(c *C) {
 
 	svc3 := newService(1, 1)
 
-	strat := strategy.PackStrategy{}
+	strat := strategy.BalanceStrategy{}
 
 	host, err := strat.SelectHost(svc3, []strategy.Host{hostA, hostB})
 	c.Assert(err, IsNil)

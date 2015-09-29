@@ -13,36 +13,28 @@
 
 package strategy
 
-type PackStrategy struct{}
+type RequireSeparateStrategy struct{}
 
-func (s *PackStrategy) Name() string {
-	return "pack"
+func (s *RequireSeparateStrategy) Name() string {
+	return "require_separate"
 }
 
-func (s *PackStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {
+func (s *RequireSeparateStrategy) SelectHost(service ServiceConfig, hosts []Host) (Host, error) {
 	under, over := ScoreHosts(service, hosts)
 
-	// Return the host with the least amount of free resources that can handle
-	// the service. In case of a tie, choose the one running more instances.
 	if under != nil && len(under) > 0 {
-		last := len(under) - 1
-		choice := under[last]
-		for i := last; i >= 0; i-- {
-			scored := under[i]
-			if scored.Score != choice.Score {
-				break
-			}
-			if len(scored.Host.RunningServices()) > len(choice.Host.RunningServices()) {
-				choice = scored
+		for _, h := range under {
+			if h.NumInstances == 0 {
+				return h.Host, nil
 			}
 		}
-		return choice.Host, nil
 	}
-
-	// Return the host for which this service will least oversubscribe memory
 	if over != nil && len(over) > 0 {
-		return over[0].Host, nil
+		for _, h := range over {
+			if h.NumInstances == 0 {
+				return h.Host, nil
+			}
+		}
 	}
-
 	return nil, nil
 }

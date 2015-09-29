@@ -13,16 +13,12 @@
 
 package strategy
 
-import (
-	"sort"
-
-	"github.com/control-center/serviced/domain/servicedefinition"
-)
+import "sort"
 
 type ScoredHost struct {
-	Host      Host
-	Score     int
-	Instances int
+	Host         Host
+	Score        int
+	NumInstances int
 }
 
 type scoredHostList []*ScoredHost
@@ -59,23 +55,18 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		var (
 			usedCpu  int
 			usedMem  uint64
-			cpuScore int = 100
-			memScore int = 100
+			cpuScore int
+			memScore int
 		)
 
 		// Calculate used resources for the host
 		for _, svc := range host.RunningServices() {
 			usedCpu += svc.RequestedCores()
 			usedMem += svc.RequestedMemory()
+			// Increment a counter of number of instances, for later strategies to use
 			if svc.GetServiceID() == service.GetServiceID() {
-				scoredHost.Instances += 1
+				scoredHost.NumInstances += 1
 			}
-		}
-
-		// Throw the host away if we require separate hosts for this service
-		// and it isn't eligible
-		if service.HostPolicy() == servicedefinition.RequireSeparate && scoredHost.Instances > 0 {
-			continue
 		}
 
 		// Calculate CPU score as a percentage of used cores on the host with this service deployed
@@ -94,26 +85,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		} else {
 			scoredHost.Score = memScore
 			oversubscribed = append(oversubscribed, scoredHost)
-		}
-	}
 
-	// Add separation as a factor in the score to each host, if applicable
-	if service.HostPolicy() == servicedefinition.PreferSeparate {
-		for _, host := range undersubscribed {
-			host.Score += host.Instances * 100
-		}
-		var max int
-		for _, host := range oversubscribed {
-			if host.Instances > max {
-				max = host.Instances
-			}
-		}
-		for _, host := range oversubscribed {
-			if host.Score <= 100 {
-				host.Score += host.Instances * 100
-			} else {
-				host.Score += max * 100
-			}
 		}
 	}
 
