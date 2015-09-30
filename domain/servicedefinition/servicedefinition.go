@@ -142,13 +142,17 @@ type LogTag struct {
 type HostPolicy string
 
 const (
-	//DEFAULT policy for scheduling a service instance
+	// DEFAULT policy for scheduling a service instance
 	DEFAULT HostPolicy = ""
-	//LeastCommitted run on host w/ least committed memory
+	// LeastCommitted run on host w/ least committed resources
 	LeastCommitted = "LEAST_COMMITTED"
-	//PreferSeparate attempt to schedule instances of a service on separate hosts
+	// Balance is a synonym for LeastCommitted
+	Balance = "balance"
+	// Pack runs instance on eligible host with most committed resources
+	Pack = "pack"
+	// PreferSeparate attempt to schedule instances of a service on separate hosts
 	PreferSeparate = "PREFER_SEPARATE"
-	//RequireSeparate schedule instances of a service on separate hosts
+	// RequireSeparate schedule instances of a service on separate hosts
 	RequireSeparate = "REQUIRE_SEPARATE"
 )
 
