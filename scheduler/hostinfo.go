@@ -18,10 +18,10 @@ import (
 	"errors"
 	"sync"
 
-	"github.com/zenoss/glog"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/zenoss/glog"
 )
 
 // HostInfo provides methods for getting host information from the dao or
