@@ -91,3 +91,14 @@ func (vs *ValidationSuite) Test_IsValidHostID(c *C) {
 		}
 	}
 }
+
+func (vs *ValidationSuite) Test_ExcludeString(c *C) {
+	err := ExcludeChars("field", "team", "i")
+	c.Assert(err, IsNil)
+	err = ExcludeChars("field", "failure", "u & i")
+	c.Assert(err, NotNil)
+	err = ExcludeChars("field", "foo", "")
+	c.Assert(err, IsNil)
+	err = ExcludeChars("field", "", "")
+	c.Assert(err, IsNil)
+}
