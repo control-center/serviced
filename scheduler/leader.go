@@ -24,6 +24,9 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/scheduler/strategy"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/control-center/serviced/zzk/snapshot"
@@ -35,6 +38,7 @@ type leader struct {
 	shutdown <-chan interface{}
 	conn     coordclient.Connection
 	cpClient dao.ControlPlane
+	facade   *facade.Facade
 	poolID   string
 }
 
@@ -42,10 +46,10 @@ type leader struct {
 //    services
 //    snapshots
 //    virtual IPs
-func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, poolID string, snapshotTTL int) {
+func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao.ControlPlane, facade *facade.Facade, poolID string, snapshotTTL int) {
 
 	glog.V(0).Info("Processing leader duties")
-	leader := leader{shutdown, conn, cpClient, poolID}
+	leader := leader{shutdown, conn, cpClient, facade, poolID}
 
 	// creates a listener for the host registry
 	hostRegistry := zkservice.NewHostRegistryListener()
@@ -120,5 +124,14 @@ func (l *leader) SelectHost(s *service.Service) (*host.Host, error) {
 		return nil, fmt.Errorf("host %s not available in pool %s", hostID, l.poolID)
 	}
 
-	return NewServiceHostPolicy(s, l.cpClient).SelectHost(hosts)
+	hp := s.HostPolicy
+	if hp == "" {
+		hp = servicedefinition.Balance
+	}
+	strat, err := strategy.Get(string(hp))
+	if err != nil {
+		return nil, err
+	}
+
+	return StrategySelectHost(s, hosts, strat, l.facade)
 }

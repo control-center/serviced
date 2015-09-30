@@ -17,6 +17,8 @@ import (
 	//	"errors"
 
 	"fmt"
+	"strconv"
+
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -25,7 +27,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-	"strconv"
 )
 
 func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {
