@@ -70,13 +70,21 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		}
 
 		// Calculate CPU score as a percentage of used cores on the host with this service deployed
-		if service.RequestedCorePercent() > 0 {
-			cpuScore = (usedCpu + service.RequestedCorePercent()) / totalCpu
+		if totalCpu > 0 {
+			if service.RequestedCorePercent() > 0 {
+				cpuScore = (usedCpu + service.RequestedCorePercent()) / totalCpu
+			}
+		} else {
+			cpuScore = 100
 		}
 
 		// Calculate memory score as a percentage of used memory on the host with this service deployed
-		if service.RequestedMemoryBytes() > 0 {
-			memScore = int((usedMem + service.RequestedMemoryBytes()) * 100 / totalMem)
+		if totalMem > 0 {
+			if service.RequestedMemoryBytes() > 0 {
+				memScore = int((usedMem + service.RequestedMemoryBytes()) * 100 / totalMem)
+			}
+		} else {
+			memScore = 100
 		}
 
 		if cpuScore <= 100 && memScore <= 100 {

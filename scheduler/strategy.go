@@ -66,8 +66,9 @@ func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy
 	}
 	// Assign the services to the StrategyHosts
 	for _, s := range svcs {
-		h := hostmap[s.HostID]
-		h.services = append(h.services, &StrategyRunningService{&s})
+		if h, ok := hostmap[s.HostID]; ok {
+			h.services = append(h.services, &StrategyRunningService{&s})
+		}
 	}
 	glog.V(2).Info("Retrieved running service instances")
 
