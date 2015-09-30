@@ -41,12 +41,9 @@ func NewRunningService(service *service.Service, state *servicestate.ServiceStat
 		ImageID:         service.ImageID,
 		DesiredState:    service.DesiredState,
 		ParentServiceID: service.ParentServiceID,
-<<<<<<< HEAD
-=======
 		RAMCommitment:   service.RAMCommitment,
 		CPUCommitment:   service.CPUCommitment,
 		HostPolicy:      service.HostPolicy,
->>>>>>> 5eb2e7d... Merge pull request #2006 from control-center/feature/CC-1349
 	}
 
 	tags := map[string][]string{

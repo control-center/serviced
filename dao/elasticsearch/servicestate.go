@@ -14,14 +14,9 @@
 package elasticsearch
 
 import (
+	"fmt"
 	//	"errors"
 
-<<<<<<< HEAD
-=======
-	"fmt"
-	"strconv"
-
->>>>>>> 5eb2e7d... Merge pull request #2006 from control-center/feature/CC-1349
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
@@ -29,10 +24,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-<<<<<<< HEAD
-	"fmt"
-=======
->>>>>>> 5eb2e7d... Merge pull request #2006 from control-center/feature/CC-1349
 )
 
 func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {
