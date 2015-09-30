@@ -46,9 +46,12 @@ npmInstall:
 	fi
 
 $(controlplane_JS): src/*.js src/**/*.js
-	if [ -x "$(NODEJS)" ]; then \
+	@if [ -x "$(NODEJS)" ]; then \
+		echo "Using local nodejs to run 'gulp release'"; \
+		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
 		gulp release; \
 	else \
+		echo "Using local zenoss/serviced-build:$(BUILD_VERSION) to run 'gulp release'"; \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(UID) \
@@ -60,9 +63,12 @@ $(controlplane_JS): src/*.js src/**/*.js
 
 .PHONY: test
 test: build
-	if [ -x "$(NODEJS)" ]; then \
+	@if [ -x "$(NODEJS)" ]; then \
+		echo "Using local nodejs to run 'gulp test'"; \
+		if [ -n "$(IN_DOCKER)" ]; then ./npmLink.sh; fi; \
 		gulp test; \
 	else \
+		echo "Using local zenoss/serviced-build:$(BUILD_VERSION) to run 'gulp test'"; \
 		docker run --rm \
 		-v $(PWD):$(docker_working_DIR) \
 		-e UID_X=$(UID) \
