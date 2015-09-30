@@ -29,7 +29,7 @@ import (
 	"path"
 )
 
-type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, string, int)
+type leaderFunc func(<-chan interface{}, coordclient.Connection, dao.ControlPlane, *facade.Facade, string, int)
 
 type scheduler struct {
 	sync.Mutex                     // only one process can stop and start the scheduler at a time
@@ -270,7 +270,7 @@ func (s *scheduler) Spawn(shutdown <-chan interface{}, poolID string) {
 
 				go func() {
 					defer close(done)
-					s.zkleaderFunc(cancel, conn, s.cpDao, poolID, s.snapshotTTL)
+					s.zkleaderFunc(cancel, conn, s.cpDao, s.facade, poolID, s.snapshotTTL)
 				}()
 			}
 		} else {

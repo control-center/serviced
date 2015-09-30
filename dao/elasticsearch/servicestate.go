@@ -14,6 +14,7 @@
 package elasticsearch
 
 import (
+	"fmt"
 	//	"errors"
 
 	"github.com/control-center/serviced/coordinator/client"
@@ -23,7 +24,6 @@ import (
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
-	"fmt"
 )
 
 func (this *ControlPlaneDao) getPoolBasedConnection(serviceID string) (client.Connection, error) {

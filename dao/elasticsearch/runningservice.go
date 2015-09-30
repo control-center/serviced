@@ -57,28 +57,14 @@ func (this *ControlPlaneDao) GetRunningServices(request dao.EntityRequest, allRu
 }
 
 func (this *ControlPlaneDao) GetRunningServicesForHost(hostID string, services *[]dao.RunningService) error {
+	var err error
 	// we initialize the data container to something here in case it has not been initialized yet
 	*services = make([]dao.RunningService, 0)
-	myHost, err := this.facade.GetHost(datastore.Get(), hostID)
+	// Make the call to elastic and zookeeper
+	*services, err = this.facade.GetRunningServicesForHosts(datastore.Get(), hostID)
 	if err != nil {
-		glog.Errorf("Unable to get host %v: %v", hostID, err)
-		return err
-	} else if myHost == nil {
-		return nil
-	}
-
-	poolBasedConn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(myHost.PoolID))
-	if err != nil {
-		glog.Errorf("Error in getting a connection based on pool %v: %v", myHost.PoolID, err)
 		return err
 	}
-
-	*services, err = zkservice.LoadRunningServicesByHost(poolBasedConn, hostID)
-	if err != nil {
-		glog.Errorf("zkservice.LoadRunningServicesByHost (conn: %+v host: %v) failed: %v", poolBasedConn, hostID, err)
-		return err
-	}
-
 	return nil
 }
 
