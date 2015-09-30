@@ -57,7 +57,7 @@ type Strategy interface {
 
 func Get(name string) (Strategy, error) {
 	for _, strategy := range strategies {
-		if strategy.Name() == strings.ToLower(name) {
+		if strings.ToLower(strategy.Name()) == strings.ToLower(name) {
 			return strategy, nil
 		}
 	}
