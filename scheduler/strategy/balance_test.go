@@ -84,3 +84,30 @@ func (s *StrategySuite) TestBalanceOversubscribed(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(host, Equals, hostB)
 }
+
+func (s *StrategySuite) TestBalanceWhenOneOversubscribed(c *C) {
+	hostA := newHost(8, 32)
+	hostB := newHost(8, 32)
+	svc := newService(8, 4)
+	svc2 := newService(1, 1)
+
+	strat := strategy.BalanceStrategy{}
+
+	hostA.On("RunningServices").Return([]strategy.ServiceConfig{svc})
+
+	hostB.On("RunningServices").Return([]strategy.ServiceConfig{})
+	host, err := strat.SelectHost(svc2, []strategy.Host{hostA, hostB})
+	c.Assert(err, IsNil)
+	c.Assert(host, Equals, hostB)
+
+	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2})
+	host, err = strat.SelectHost(svc2, []strategy.Host{hostA, hostB})
+	c.Assert(err, IsNil)
+	c.Assert(host, Equals, hostB)
+
+	hostB.On("RunningServices").Return([]strategy.ServiceConfig{svc2, svc2})
+	host, err = strat.SelectHost(svc2, []strategy.Host{hostA, hostB})
+	c.Assert(err, IsNil)
+	c.Assert(host, Equals, hostB)
+
+}

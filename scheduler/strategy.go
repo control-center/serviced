@@ -37,7 +37,7 @@ type StrategyHost struct {
 }
 
 type StrategyRunningService struct {
-	svc *dao.RunningService
+	svc dao.RunningService
 }
 
 type StrategyService struct {
@@ -67,13 +67,12 @@ func StrategySelectHost(svc *service.Service, hosts []*host.Host, strat strategy
 	// Assign the services to the StrategyHosts
 	for _, s := range svcs {
 		if h, ok := hostmap[s.HostID]; ok {
-			h.services = append(h.services, &StrategyRunningService{&s})
+			h.services = append(h.services, &StrategyRunningService{s})
 		}
 	}
-	glog.V(2).Info("Retrieved running service instances")
-
 	shosts := []strategy.Host{}
 	for _, h := range hostmap {
+		glog.V(2).Infof("Host %s is running %d service instances", h.HostID(), len(h.services))
 		shosts = append(shosts, h)
 	}
 	if result, err := strat.SelectHost(&StrategyService{svc}, shosts); result == nil || err != nil {
