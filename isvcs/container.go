@@ -667,7 +667,7 @@ func (svc *IService) startupHealthcheck() <-chan error {
 					glog.Infof("Verified health status of %s after %s", svc.Name, elapsed)
 					break
 				} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
-					glog.Errorf("Could not verified health status of %s after %s. Last health check returned %#v",
+					glog.Errorf("Could not verify health status of %s after %s. Last health check returned %#v",
 					        svc.Name, svc.StartupTimeout, result)
 					break
 				}
