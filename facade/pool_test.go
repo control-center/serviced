@@ -26,7 +26,7 @@ import (
 
 func (ft *FacadeTest) Test_NewResourcePool(t *C) {
 	fmt.Println(" ##### Test_NewResourcePool: starting")
-	poolID := "Test_UpdateResourcePool"
+	poolID := "Test_NewResourcePool"
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
 	t.Assert(err, IsNil)
 	t.Assert(result, IsNil)
@@ -75,6 +75,7 @@ func (ft *FacadeTest) Test_UpdateResourcePool(t *C) {
 	result, err = ft.Facade.GetResourcePool(ft.CTX, poolID)
 	result.CreatedAt = myPool.CreatedAt
 	result.UpdatedAt = myPool.UpdatedAt
+
 	if !myPool.Equals(result) {
 		t.Errorf("%+v != %+v", myPool, result)
 		t.Fail()
@@ -84,7 +85,7 @@ func (ft *FacadeTest) Test_UpdateResourcePool(t *C) {
 
 func (ft *FacadeTest) Test_GetResourcePool(t *C) {
 	fmt.Println(" ##### Test_GetResourcePool: starting")
-	poolID := "Test_UpdateResourcePool"
+	poolID := "Test_GetResourcePool"
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
 	t.Assert(err, IsNil)
 	t.Assert(result, IsNil)
@@ -113,7 +114,7 @@ func (ft *FacadeTest) Test_GetResourcePool(t *C) {
 
 func (ft *FacadeTest) Test_RemoveResourcePool(t *C) {
 	fmt.Println(" ##### Test_RemoveResourcePool: starting")
-	poolID := "Test_UpdateResourcePool"
+	poolID := "Test_RemoveResourcePool"
 
 	result, err := ft.Facade.GetResourcePool(ft.CTX, poolID)
 	t.Assert(err, IsNil)

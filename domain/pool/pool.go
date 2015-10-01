@@ -96,7 +96,7 @@ func (a *ResourcePool) Equals(b *ResourcePool) bool {
 	if a.CreatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
-	if a.UpdatedAt.Unix() != b.CreatedAt.Unix() {
+	if a.UpdatedAt.Unix() != b.UpdatedAt.Unix() {
 		return false
 	}
 	if !a.MonitoringProfile.Equals(&b.MonitoringProfile) {
