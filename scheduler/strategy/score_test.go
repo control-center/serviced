@@ -30,6 +30,8 @@ func newHost(cores int, memgigs uint64) *mocks.Host {
 	host := &mocks.Host{}
 	host.On("TotalCores").Return(cores)
 	host.On("TotalMemory").Return(memgigs * Gigabyte)
+	id, _ := utils.NewUUID36()
+	host.On("HostID").Return(id)
 	return host
 }
 
