@@ -13,7 +13,11 @@
 
 package strategy
 
-import "sort"
+import (
+	"sort"
+
+	"github.com/zenoss/glog"
+)
 
 type ScoredHost struct {
 	Host         Host
@@ -42,6 +46,9 @@ func (l scoredHostList) Less(i, j int) bool {
 // service deployed to the host.
 func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHost) {
 
+	glog.V(2).Infof("Scoring %d hosts for service %s", len(hosts), service.GetServiceID())
+	glog.V(2).Infof("Service %s is requesting %s memory and %s percent CPU", service.GetServiceID(), service.RequestedMemoryBytes(), service.RequestedCorePercent())
+
 	undersubscribed := scoredHostList{}
 	oversubscribed := scoredHostList{}
 
@@ -52,6 +59,8 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 		totalMem := host.TotalMemory()
 		totalCpu := host.TotalCores()
 
+		glog.V(2).Infof("Host %s has %s memory and %s cores", host.HostID(), totalMem, totalCpu)
+
 		var (
 			usedCpu  int
 			usedMem  uint64
@@ -61,6 +70,7 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 
 		// Calculate used resources for the host
 		for _, svc := range host.RunningServices() {
+			glog.V(2).Infof("Host %s is running service %s (%s/%s)", host.HostID(), svc.GetServiceID(), svc.RequestedCorePercent(), svc.RequestedMemoryBytes())
 			usedCpu += svc.RequestedCorePercent()
 			usedMem += svc.RequestedMemoryBytes()
 			// Increment a counter of number of instances, for later strategies to use
@@ -87,13 +97,15 @@ func ScoreHosts(service ServiceConfig, hosts []Host) ([]*ScoredHost, []*ScoredHo
 			memScore = 100
 		}
 
+		glog.V(2).Infof("Host %s CPU score: %s, memory score: %s", host.HostID(), cpuScore, memScore)
 		if cpuScore <= 100 && memScore <= 100 {
+			glog.V(2).Infof("Host %s can run service %s", host.HostID(), service.GetServiceID())
 			scoredHost.Score = cpuScore + memScore
 			undersubscribed = append(undersubscribed, scoredHost)
 		} else {
+			glog.V(2).Infof("Host %s would be oversubscribed with service %s", host.HostID(), service.GetServiceID())
 			scoredHost.Score = memScore
 			oversubscribed = append(oversubscribed, scoredHost)
-
 		}
 	}
 
