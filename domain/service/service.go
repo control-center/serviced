@@ -491,7 +491,7 @@ func (s *Service) Equals(b *Service) bool {
 	if s.CreatedAt.Unix() != b.CreatedAt.Unix() {
 		return false
 	}
-	if s.UpdatedAt.Unix() != b.CreatedAt.Unix() {
+	if s.UpdatedAt.Unix() != b.UpdatedAt.Unix() {
 		return false
 	}
 	return true
