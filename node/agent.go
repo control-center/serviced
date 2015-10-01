@@ -678,7 +678,9 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
-		fmt.Sprintf("TZ=%s", os.Getenv("TZ")))
+		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
+		// CC-1384
+		fmt.Sprintf("DOCKER_14203_FIX=%d", time.Now().UnixNano()))
 
 	// add dns values to setup
 	for _, addr := range a.dockerDNS {
