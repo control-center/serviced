@@ -662,7 +662,13 @@ func (svc *IService) startupHealthcheck() <-chan error {
 				currentTime := time.Now()
 				result = svc.runCheckOrTimeout(checkDefinition)
 				svc.setHealthStatus(result, currentTime.Unix())
-				if result == nil || time.Since(startCheck).Seconds() > svc.StartupTimeout.Seconds() {
+				elapsed := time.Since(startCheck)
+				if result == nil {
+					glog.Infof("Verified health status of %s after %s", svc.Name, elapsed)
+					break
+				} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
+					glog.Errorf("Could not verified health status of %s after %s. Last health check returned %#v",
+					        svc.Name, svc.StartupTimeout, result)
 					break
 				}
 
