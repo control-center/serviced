@@ -18,9 +18,13 @@ package registry
 import (
 	"errors"
 	"path"
+	"testing"
 	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/coordinator/client/zookeeper"
+	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/dfs/docker/mocks"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
 
@@ -70,7 +74,80 @@ func (i *testImage) GetW(c *C, conn coordclient.Connection) (<-chan coordclient.
 	return evt, node
 }
 
-func (s *RegistrySuite) TestRegistryListener_NoNode(c *C) {
+func TestRegistryListener(t *testing.T) { TestingT(t) }
+
+type RegistryListenerSuite struct {
+	dc       *dockerclient.Client
+	zkid     string
+	conn     coordclient.Connection
+	docker   *mocks.Docker
+	listener *RegistryListener
+}
+
+var _ = Suite(&RegistryListenerSuite{})
+
+func (s *RegistryListenerSuite) SetUpSuite(c *C) {
+	var err error
+	if s.dc, err = dockerclient.NewClient(docker.DefaultSocket); err != nil {
+		c.Fatalf("Could not connect to docker client: %s", err)
+	}
+	// Start zookeeper
+	opts := dockerclient.CreateContainerOptions{}
+	opts.Config = &dockerclient.Config{Image: "jplock/zookeeper:3.4.6"}
+	ctr, err := s.dc.CreateContainer(opts)
+	if err != nil {
+		c.Fatalf("Could not initialize zookeeper: %s", err)
+	}
+	s.zkid = ctr.ID
+	hconf := &dockerclient.HostConfig{
+		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
+			"2181/tcp": []dockerclient.PortBinding{
+				{HostIP: "localhost", HostPort: "2181"},
+			},
+		},
+	}
+	if err := s.dc.StartContainer(ctr.ID, hconf); err != nil {
+		c.Fatalf("Could not start zookeeper: %s", err)
+	}
+	// Connect to the zookeeper client
+	dsn := zookeeper.NewDSN([]string{"localhost:2181"}, 15*time.Second).String()
+	zkclient, err := coordclient.New("zookeeper", dsn, "/", nil)
+	if err != nil {
+		c.Fatalf("Could not establish the zookeeper client: %s", err)
+	}
+	s.conn, err = zkclient.GetCustomConnection("/")
+	if err != nil {
+		c.Fatalf("Could not create a connection to the zookeeper client: %s", err)
+	}
+}
+
+func (s *RegistryListenerSuite) TearDownSuite(c *C) {
+	if s.conn != nil {
+		s.conn.Close()
+	}
+	s.dc.StopContainer(s.zkid, 10)
+	opts := dockerclient.RemoveContainerOptions{
+		ID:            s.zkid,
+		RemoveVolumes: true,
+		Force:         true,
+	}
+	s.dc.RemoveContainer(opts)
+}
+
+func (s *RegistryListenerSuite) SetUpTest(c *C) {
+	// Initialize the mock docker object
+	s.docker = &mocks.Docker{}
+	// Initialize the listener
+	s.listener = NewRegistryListener(s.docker, "test-server:5000", "test-host")
+	s.listener.conn = s.conn
+	// Create the base path
+	s.conn.CreateDir(zkregistrypath)
+}
+
+func (s *RegistryListenerSuite) TearDownTest(c *C) {
+	s.conn.Delete(zkregistrypath)
+}
+func (s *RegistryListenerSuite) TestRegistryListener_NoNode(c *C) {
 	shutdown := make(chan interface{})
 	done := make(chan struct{})
 	go func() {
@@ -94,7 +171,7 @@ func (s *RegistrySuite) TestRegistryListener_NoNode(c *C) {
 	}
 }
 
-func (s *RegistrySuite) TestRegistryListener_ImagePushed(c *C) {
+func (s *RegistryListenerSuite) TestRegistryListener_ImagePushed(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
 			Library: "libraryname",
@@ -129,7 +206,7 @@ func (s *RegistrySuite) TestRegistryListener_ImagePushed(c *C) {
 	}
 }
 
-func (s *RegistrySuite) TestRegistryListener_NoLocalImage(c *C) {
+func (s *RegistryListenerSuite) TestRegistryListener_NoLocalImage(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
 			Library: "libraryname",
@@ -164,7 +241,7 @@ func (s *RegistrySuite) TestRegistryListener_NoLocalImage(c *C) {
 	s.docker.AssertExpectations(c)
 }
 
-func (s *RegistrySuite) TestRegistryListener_AnotherNodePush(c *C) {
+func (s *RegistryListenerSuite) TestRegistryListener_AnotherNodePush(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
 			Library: "libraryname",
@@ -233,7 +310,7 @@ func (s *RegistrySuite) TestRegistryListener_AnotherNodePush(c *C) {
 	s.docker.AssertExpectations(c)
 }
 
-func (s *RegistrySuite) TestRegistryListener_PushFails(c *C) {
+func (s *RegistryListenerSuite) TestRegistryListener_PushFails(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
 			Library: "libraryname",
@@ -296,7 +373,7 @@ func (s *RegistrySuite) TestRegistryListener_PushFails(c *C) {
 	s.docker.AssertExpectations(c)
 }
 
-func (s *RegistrySuite) TestRegistryListener_LeadDisconnect(c *C) {
+func (s *RegistryListenerSuite) TestRegistryListener_LeadDisconnect(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
 			Library: "libraryname",
@@ -366,7 +443,7 @@ func (s *RegistrySuite) TestRegistryListener_LeadDisconnect(c *C) {
 	s.docker.AssertExpectations(c)
 }
 
-func (s *RegistrySuite) TestRegistryListener_Success(c *C) {
+func (s *RegistryListenerSuite) TestRegistryListener_Success(c *C) {
 	rImage := &testImage{
 		Image: &registry.Image{
 			Library: "libraryname",
