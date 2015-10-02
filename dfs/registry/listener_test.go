@@ -1,0 +1,429 @@
+// Copyright 2015 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +build integration
+
+package registry
+
+import (
+	"errors"
+	"path"
+	"time"
+
+	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/domain/registry"
+	dockerclient "github.com/fsouza/go-dockerclient"
+
+	. "gopkg.in/check.v1"
+)
+
+type testImage struct {
+	Image *registry.Image
+}
+
+func (i *testImage) ID() string {
+	return i.Image.Key().ID()
+}
+
+func (i *testImage) Path() string {
+	return path.Join(zkregistrypath, i.ID())
+}
+
+func (i *testImage) Address(host string) string {
+	return path.Join(host, i.Image.String())
+}
+
+func (i *testImage) Create(c *C, conn coordclient.Connection) *RegistryImageNode {
+	node := &RegistryImageNode{Image: i.Image, PushedAt: time.Unix(0, 0)}
+	c.Logf("Creating node at %s: %v", i.Path(), *i.Image)
+	err := conn.Create(i.Path(), node)
+	c.Assert(err, IsNil)
+	exists, err := conn.Exists(i.Path())
+	c.Assert(err, IsNil)
+	c.Assert(exists, Equals, true)
+	err = conn.Set(i.Path(), node)
+	c.Assert(err, IsNil)
+	err = conn.Get(i.Path(), node)
+	c.Assert(err, IsNil)
+	return node
+}
+
+func (i *testImage) Update(c *C, conn coordclient.Connection, node *RegistryImageNode) {
+	err := conn.Set(i.Path(), node)
+	c.Assert(err, IsNil)
+}
+
+func (i *testImage) GetW(c *C, conn coordclient.Connection) (<-chan coordclient.Event, *RegistryImageNode) {
+	node := &RegistryImageNode{}
+	evt, err := conn.GetW(i.Path(), node)
+	c.Assert(err, IsNil)
+	return evt, node
+}
+
+func (s *RegistrySuite) TestRegistryListener_NoNode(c *C) {
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, "keynotexists")
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+		close(shutdown)
+		select {
+		case <-time.After(5 * time.Second):
+			close(shutdown)
+			select {
+			case <-time.After(5 * time.Second):
+				c.Fatalf("listener did not shutdown within timeout!")
+			case <-done:
+				c.Errorf("listener timed out waiting to shutdown")
+			}
+		case <-done:
+		}
+	}
+}
+
+func (s *RegistrySuite) TestRegistryListener_ImagePushed(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	node := rImage.Create(c, s.conn)
+	node.PushedAt = time.Now().UTC()
+	rImage.Update(c, s.conn, node)
+	evt, _ := rImage.GetW(c, s.conn)
+
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, rImage.ID())
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+	case <-done:
+		c.Errorf("listener exited prematurely")
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+	close(shutdown)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within timeout!")
+	case <-done:
+	}
+}
+
+func (s *RegistrySuite) TestRegistryListener_NoLocalImage(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	_ = rImage.Create(c, s.conn)
+	evt, _ := rImage.GetW(c, s.conn)
+	s.docker.On("FindImage", rImage.Image.UUID).Return(nil, errors.New("image not found")).Once()
+
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, rImage.ID())
+	}()
+	select {
+	case <-time.After(5 * time.Second):
+	case <-done:
+		c.Fatalf("listener exited prematurely")
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+	close(shutdown)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within timeout!")
+	case <-done:
+	}
+	s.docker.AssertExpectations(c)
+}
+
+func (s *RegistrySuite) TestRegistryListener_AnotherNodePush(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	node := rImage.Create(c, s.conn)
+	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
+
+	// take lead of the node
+	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
+	_, err := leader.TakeLead()
+	c.Assert(err, IsNil)
+	leaders, cvt, err := s.conn.ChildrenW(rImage.Path())
+	c.Assert(err, IsNil)
+	c.Assert(leaders, HasLen, 1)
+
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, rImage.ID())
+	}()
+
+	// verify lead was attempted
+	select {
+	case <-time.After(5 * time.Second):
+		c.Errorf("listener did not try to lead")
+	case <-done:
+		c.Fatalf("listener exited prematurely!")
+	case <-cvt:
+		// assert the listener is NOT the leader
+		c.Logf("listener is acquiring lead")
+		lnode := &RegistryImageLeader{}
+		err = leader.Current(lnode)
+		c.Assert(err, IsNil)
+		c.Assert(lnode.HostID, Equals, "master")
+	}
+
+	// "push" the image
+	c.Logf("updating push")
+	node.PushedAt = time.Now().UTC()
+	rImage.Update(c, s.conn, node)
+	evt, _ := rImage.GetW(c, s.conn)
+	err = leader.ReleaseLead()
+	c.Assert(err, IsNil)
+
+	// verify the node was NOT updated
+	select {
+	case <-time.After(5 * time.Second):
+	case <-done:
+		c.Fatalf("listener exited prematurely!")
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+
+	// verify shutdown
+	close(shutdown)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within the timeout!")
+	case <-done:
+	}
+	s.docker.AssertExpectations(c)
+}
+
+func (s *RegistrySuite) TestRegistryListener_PushFails(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	_ = rImage.Create(c, s.conn)
+	evt, _ := rImage.GetW(c, s.conn)
+	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
+	_, cvt, err := s.conn.ChildrenW(rImage.Path())
+	c.Assert(err, IsNil)
+	timeoutC := make(chan time.Time)
+	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
+	s.docker.On("TagImage", rImage.Image.UUID, rImage.Address(s.listener.address)).Return(nil).Once()
+	s.docker.On("PushImage", rImage.Address(s.listener.address)).Return(errors.New("could not push image")).WaitUntil(timeoutC).Once()
+
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, rImage.ID())
+	}()
+
+	// verify lead was attempted
+	select {
+	case <-time.After(5 * time.Second):
+		c.Errorf("listener did not try to lead")
+	case <-done:
+		c.Fatalf("listener exited prematurely!")
+	case <-cvt:
+		// assert the listener IS the leader
+		c.Logf("listener is acquiring lead")
+		lnode := &RegistryImageLeader{}
+		err = leader.Current(lnode)
+		c.Assert(err, IsNil)
+		c.Assert(lnode.HostID, Equals, s.listener.hostid)
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+
+	// verify the node did NOT update
+	close(timeoutC)
+	select {
+	case <-time.After(5 * time.Second):
+	case <-done:
+		c.Fatalf("listener exited prematurely")
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+
+	// verify shutdown
+	close(shutdown)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within the timeout!")
+	case <-done:
+	}
+	s.docker.AssertExpectations(c)
+}
+
+func (s *RegistrySuite) TestRegistryListener_LeadDisconnect(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	_ = rImage.Create(c, s.conn)
+	evt, _ := rImage.GetW(c, s.conn)
+	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
+	_, cvt, err := s.conn.ChildrenW(rImage.Path())
+	c.Assert(err, IsNil)
+	timeoutC := make(chan time.Time)
+	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
+	s.docker.On("TagImage", rImage.Image.UUID, rImage.Address(s.listener.address)).Return(nil).Once()
+	s.docker.On("PushImage", rImage.Address(s.listener.address)).Return(nil).WaitUntil(timeoutC).Once()
+
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, rImage.ID())
+	}()
+
+	// verify lead was attempted
+	select {
+	case <-time.After(5 * time.Second):
+		c.Errorf("listener did not try to lead")
+	case <-done:
+		c.Fatalf("listener exited prematurely!")
+	case <-cvt:
+		// assert the listener IS the leader
+		c.Logf("listener is acquiring lead")
+		lnode := &RegistryImageLeader{}
+		err = leader.Current(lnode)
+		c.Assert(err, IsNil)
+		c.Assert(lnode.HostID, Equals, s.listener.hostid)
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+
+	// delete the leader
+	children, err := s.conn.Children(rImage.Path())
+	c.Assert(err, IsNil)
+	c.Assert(children, HasLen, 1)
+	err = s.conn.Delete(path.Join(rImage.Path(), children[0]))
+	c.Assert(err, IsNil)
+
+	// verify the node did NOT update
+	close(timeoutC)
+	select {
+	case <-time.After(5 * time.Second):
+	case <-done:
+		c.Fatalf("listener exited prematurely")
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+
+	// verify shutdown
+	close(shutdown)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within the timeout!")
+	case <-done:
+	}
+	s.docker.AssertExpectations(c)
+}
+
+func (s *RegistrySuite) TestRegistryListener_Success(c *C) {
+	rImage := &testImage{
+		Image: &registry.Image{
+			Library: "libraryname",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	_ = rImage.Create(c, s.conn)
+	evt, _ := rImage.GetW(c, s.conn)
+	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
+	_, cvt, err := s.conn.ChildrenW(rImage.Path())
+	c.Assert(err, IsNil)
+	timeoutC := make(chan time.Time)
+	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
+	s.docker.On("TagImage", rImage.Image.UUID, rImage.Address(s.listener.address)).Return(nil).Once()
+	s.docker.On("PushImage", rImage.Address(s.listener.address)).Return(nil).WaitUntil(timeoutC).Once()
+
+	shutdown := make(chan interface{})
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		s.listener.Spawn(shutdown, rImage.ID())
+	}()
+
+	// verify lead was attempted
+	select {
+	case <-time.After(5 * time.Second):
+		c.Errorf("listener did not try to lead")
+	case <-done:
+		c.Fatalf("listener exited prematurely!")
+	case <-cvt:
+		// assert the listener IS the leader
+		c.Logf("listener is acquiring lead")
+		lnode := &RegistryImageLeader{}
+		err = leader.Current(lnode)
+		c.Assert(err, IsNil)
+		c.Assert(lnode.HostID, Equals, s.listener.hostid)
+	case <-evt:
+		c.Errorf("listener updated node")
+	}
+
+	// verify the node DID update
+	close(timeoutC)
+	select {
+	case <-time.After(5 * time.Second):
+	case <-done:
+		c.Fatalf("listener exited prematurely")
+	case <-evt:
+	}
+
+	// verify shutdown
+	close(shutdown)
+	select {
+	case <-time.After(5 * time.Second):
+		c.Fatalf("listener did not shutdown within the timeout!")
+	case <-done:
+	}
+	s.docker.AssertExpectations(c)
+}
