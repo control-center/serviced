@@ -32,8 +32,7 @@ var (
             "Library":  {"type": "string", "index": "not_analyzed"},
             "Repo":     {"type": "string", "index": "not_analyzed"},
             "Tag":      {"type": "string", "index": "not_analyzed"},
-            "UUID":     {"type": "string", "index": "not_analyzed"},
-            "PushedAt": {"type": "date", "format": "dateOptionalTime"}
+            "UUID":     {"type": "string", "index": "not_analyzed"}
         }
     }
 }

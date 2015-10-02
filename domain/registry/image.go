@@ -15,17 +15,15 @@ package registry
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/control-center/serviced/datastore"
 )
 
 type Image struct {
-	Library  string
-	Repo     string
-	Tag      string
-	UUID     string
-	PushedAt time.Time
+	Library string
+	Repo    string
+	Tag     string
+	UUID    string
 	datastore.VersionedEntity
 }
 
@@ -33,6 +31,6 @@ func (image *Image) String() string {
 	return fmt.Sprintf("%s/%s:%s", image.Library, image.Repo, image.Tag)
 }
 
-func (image *Image) key() datastore.Key {
+func (image *Image) Key() datastore.Key {
 	return key(image.String())
 }

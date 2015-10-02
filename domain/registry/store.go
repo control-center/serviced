@@ -42,7 +42,7 @@ func (s *ImageRegistryStore) Get(ctx datastore.Context, id string) (*Image, erro
 
 // Put adds/updates an image to the registry
 func (s *ImageRegistryStore) Put(ctx datastore.Context, image *Image) error {
-	return s.ds.Put(ctx, image.key(), image)
+	return s.ds.Put(ctx, image.Key(), image)
 }
 
 // Delete removes an image from the registry

@@ -16,8 +16,6 @@
 package facade
 
 import (
-	"time"
-
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/registry"
 	. "gopkg.in/check.v1"
@@ -25,11 +23,10 @@ import (
 
 func (ft *FacadeTest) TestGetRegistryImage(c *C) {
 	expected := &registry.Image{
-		Library:  "library",
-		Repo:     "reponame",
-		Tag:      "tagname",
-		UUID:     "uuidvalue",
-		PushedAt: time.Unix(0, 0),
+		Library: "library",
+		Repo:    "reponame",
+		Tag:     "tagname",
+		UUID:    "uuidvalue",
 	}
 	err := ft.Facade.registryStore.Put(ft.CTX, expected)
 	c.Assert(err, IsNil)
@@ -48,11 +45,10 @@ func (ft *FacadeTest) TestGetRegistryImage_NotFound(c *C) {
 
 func (ft *FacadeTest) TestSetRegistryImage(c *C) {
 	expected := &registry.Image{
-		Library:  "library",
-		Repo:     "reponame",
-		Tag:      "tagname",
-		UUID:     "uuidvalue",
-		PushedAt: time.Unix(0, 0),
+		Library: "library",
+		Repo:    "reponame",
+		Tag:     "tagname",
+		UUID:    "uuidvalue",
 	}
 	err := ft.Facade.SetRegistryImage(ft.CTX, expected)
 	c.Assert(err, IsNil)
@@ -61,7 +57,6 @@ func (ft *FacadeTest) TestSetRegistryImage(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
 
-	expected.PushedAt = time.Now().UTC()
 	err = ft.Facade.SetRegistryImage(ft.CTX, expected)
 	c.Assert(err, IsNil)
 	expected.DatabaseVersion++
@@ -71,11 +66,10 @@ func (ft *FacadeTest) TestSetRegistryImage(c *C) {
 
 	version := expected.DatabaseVersion
 	expected = &registry.Image{
-		Library:  "library",
-		Repo:     "reponame",
-		Tag:      "tagname",
-		UUID:     "anotheruuidvalue",
-		PushedAt: time.Unix(0, 0),
+		Library: "library",
+		Repo:    "reponame",
+		Tag:     "tagname",
+		UUID:    "anotheruuidvalue",
 	}
 	err = ft.Facade.SetRegistryImage(ft.CTX, expected)
 	c.Assert(err, IsNil)
@@ -85,11 +79,10 @@ func (ft *FacadeTest) TestSetRegistryImage(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 
 	expected2 := &registry.Image{
-		Library:  "library",
-		Repo:     "reponame",
-		Tag:      "anothertagname",
-		UUID:     "anotheruuidvalue",
-		PushedAt: time.Unix(0, 0),
+		Library: "library",
+		Repo:    "reponame",
+		Tag:     "anothertagname",
+		UUID:    "anotheruuidvalue",
 	}
 	err = ft.Facade.SetRegistryImage(ft.CTX, expected2)
 	c.Assert(err, IsNil)
@@ -104,11 +97,10 @@ func (ft *FacadeTest) TestSetRegistryImage(c *C) {
 
 func (ft *FacadeTest) TestDeleteRegistryImage(c *C) {
 	expected := &registry.Image{
-		Library:  "library",
-		Repo:     "reponame",
-		Tag:      "tagname",
-		UUID:     "uuidvalue",
-		PushedAt: time.Unix(0, 0),
+		Library: "library",
+		Repo:    "reponame",
+		Tag:     "tagname",
+		UUID:    "uuidvalue",
 	}
 	err := ft.Facade.registryStore.Put(ft.CTX, expected)
 	c.Assert(err, IsNil)
@@ -126,17 +118,15 @@ func (ft *FacadeTest) TestDeleteRegistryImage(c *C) {
 func (ft *FacadeTest) TestSearchRegistryLibraryByTag(c *C) {
 	expected1 := []registry.Image{
 		{
-			Library:  "library",
-			Repo:     "reponame",
-			Tag:      "tagname",
-			UUID:     "uuidvalue",
-			PushedAt: time.Unix(0, 0),
+			Library: "library",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
 		}, {
-			Library:  "library",
-			Repo:     "anotherreponame",
-			Tag:      "tagname",
-			UUID:     "anotheruuidvalue",
-			PushedAt: time.Unix(0, 0),
+			Library: "library",
+			Repo:    "anotherreponame",
+			Tag:     "tagname",
+			UUID:    "anotheruuidvalue",
 		},
 	}
 	for i := range expected1 {
@@ -146,11 +136,10 @@ func (ft *FacadeTest) TestSearchRegistryLibraryByTag(c *C) {
 	}
 	expected2 := []registry.Image{
 		{
-			Library:  "library",
-			Repo:     "reponame",
-			Tag:      "anothertagname",
-			UUID:     "uuidvalue",
-			PushedAt: time.Unix(0, 0),
+			Library: "library",
+			Repo:    "reponame",
+			Tag:     "anothertagname",
+			UUID:    "uuidvalue",
 		},
 	}
 	for i := range expected2 {
@@ -160,11 +149,10 @@ func (ft *FacadeTest) TestSearchRegistryLibraryByTag(c *C) {
 	}
 	expected3 := []registry.Image{
 		{
-			Library:  "anotherlibrary",
-			Repo:     "reponame",
-			Tag:      "tagname",
-			UUID:     "uuidvalue",
-			PushedAt: time.Unix(0, 0),
+			Library: "anotherlibrary",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
 		},
 	}
 	for i := range expected3 {

@@ -17,7 +17,6 @@ package registry
 
 import (
 	"testing"
-	"time"
 
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
@@ -50,13 +49,12 @@ func (s *S) SetUpTest(c *C) {
 
 func (s *S) Test_ImageCRUD(c *C) {
 	expected := &Image{
-		Library:  "tenantID",
-		Repo:     "reponame",
-		Tag:      "latest",
-		UUID:     "abs123",
-		PushedAt: time.Unix(0, 0),
+		Library: "tenantID",
+		Repo:    "reponame",
+		Tag:     "latest",
+		UUID:    "abs123",
 	}
-	c.Logf("Key %s: %v", expected.String(), expected.key())
+	c.Logf("Key %s: %v", expected.String(), expected.Key())
 	actual, err := s.store.Get(s.ctx, expected.String())
 	c.Assert(err, NotNil)
 	c.Assert(actual, IsNil)
@@ -67,7 +65,6 @@ func (s *S) Test_ImageCRUD(c *C) {
 	actual, err = s.store.Get(s.ctx, expected.String())
 	c.Assert(err, IsNil)
 	c.Assert(actual, DeepEquals, expected)
-	expected.PushedAt = time.Now().UTC()
 	err = s.store.Put(s.ctx, expected)
 	expected.DatabaseVersion++
 	c.Assert(err, IsNil)
@@ -88,11 +85,10 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 
 	image := &Image{
-		Library:  "test",
-		Repo:     "busybox",
-		Tag:      "latest",
-		UUID:     "123abc",
-		PushedAt: time.Unix(0, 0),
+		Library: "test",
+		Repo:    "busybox",
+		Tag:     "latest",
+		UUID:    "123abc",
 	}
 	err = s.store.Put(s.ctx, image)
 	image.DatabaseVersion++
@@ -103,11 +99,10 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 
 	image = &Image{
-		Library:  "test",
-		Repo:     "centos",
-		Tag:      "latest",
-		UUID:     "4567dsfdsg",
-		PushedAt: time.Unix(0, 0),
+		Library: "test",
+		Repo:    "centos",
+		Tag:     "latest",
+		UUID:    "4567dsfdsg",
 	}
 	err = s.store.Put(s.ctx, image)
 	image.DatabaseVersion++
@@ -118,11 +113,10 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 	c.Assert(actual, DeepEquals, expected)
 
 	image = &Image{
-		Library:  "test2",
-		Repo:     "ogden",
-		Tag:      "latest",
-		UUID:     "4567dsfdsg",
-		PushedAt: time.Unix(0, 0),
+		Library: "test2",
+		Repo:    "ogden",
+		Tag:     "latest",
+		UUID:    "4567dsfdsg",
 	}
 	err = s.store.Put(s.ctx, image)
 	image.DatabaseVersion++
@@ -135,11 +129,10 @@ func (s *S) Test_SearchLibraryByTag(c *C) {
 	c.Assert(actual, DeepEquals, []Image{*image})
 
 	image = &Image{
-		Library:  "test",
-		Repo:     "ogden",
-		Tag:      "tuesday",
-		UUID:     "5654gge",
-		PushedAt: time.Unix(0, 0),
+		Library: "test",
+		Repo:    "ogden",
+		Tag:     "tuesday",
+		UUID:    "5654gge",
 	}
 	err = s.store.Put(s.ctx, image)
 	image.DatabaseVersion++
