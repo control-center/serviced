@@ -29,7 +29,7 @@ var Mgr *Manager
 
 const (
 	IMAGE_REPO    = "zenoss/serviced-isvcs"
-	IMAGE_TAG     = "v34"
+	IMAGE_TAG     = "v35"
 	ZK_IMAGE_REPO = "zenoss/isvcs-zookeeper"
 	ZK_IMAGE_TAG  = "v1"
 )
