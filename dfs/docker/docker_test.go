@@ -35,7 +35,7 @@ var _ = Suite(&DockerSuite{})
 
 func (s *DockerSuite) SetUpSuite(c *C) {
 	var err error
-	s.dc, err = dockerclient.NewClient(defaultSocket)
+	s.dc, err = dockerclient.NewClient(DefaultSocket)
 	if err != nil {
 		c.Fatalf("Could not connect to docker client: %s", err)
 	}

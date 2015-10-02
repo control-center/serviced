@@ -23,16 +23,32 @@ import (
 )
 
 const (
-	defaultSocket   = "unix:///var/run/docker.sock"
-	defaultRegistry = "https://index.docker.io/v1"
+	DefaultSocket   = "unix:///var/run/docker.sock"
+	DefaultRegistry = "https://index.docker.io/v1"
+	Latest          = "latest"
+	MaxLayers       = 127 - 2
 )
+
+// Docker is the docker client for the dfs
+type Docker interface {
+	FindImage(image string) (*dockerclient.Image, error)
+	SaveImages(images []string, writer io.Writer) error
+	LoadImage(reader io.Reader) error
+	PushImage(image string) error
+	PullImage(image string) error
+	TagImage(oldImage, newImage string) error
+	RemoveImage(image string) error
+	ImageHistory(image string) ([]dockerclient.ImageHistory, error)
+	FindContainer(ctr string) (*dockerclient.Container, error)
+	CommitContainer(ctr, image string) (*dockerclient.Image, error)
+}
 
 type DockerClient struct {
 	dc *dockerclient.Client
 }
 
 func NewDockerClient() (*DockerClient, error) {
-	dc, err := dockerclient.NewClient(defaultSocket)
+	dc, err := dockerclient.NewClient(DefaultSocket)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +142,7 @@ func (d *DockerClient) CommitContainer(ctr string, image string) (*dockerclient.
 
 func (d *DockerClient) fetchCreds(registry string) (auth dockerclient.AuthConfiguration) {
 	if registry = strings.TrimSpace(registry); registry == "" {
-		registry = defaultRegistry
+		registry = DefaultRegistry
 	}
 	auths, err := dockerclient.NewAuthConfigurationsFromDockerCfg()
 	if err != nil {
