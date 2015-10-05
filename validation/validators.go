@@ -109,3 +109,13 @@ func ValidPoolId(poolID string) error {
 	}
 	return nil
 }
+
+func ValidVirtualIP(bindInterface string) error {
+	// VIP names append a prefix and an index, and cannot be more than 15
+	// characters in length. See zzk/virtualips.
+	vipname := bindInterface + ":z" + "000"
+	if len(vipname) > 15 {
+		return NewViolation(fmt.Sprintf("virtual ip name too long, must be less than 16 characters: %s", vipname))
+	}
+	return nil
+}

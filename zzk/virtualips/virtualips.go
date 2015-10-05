@@ -21,6 +21,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	"github.com/zenoss/glog"
@@ -28,7 +29,7 @@ import (
 
 const (
 	zkVirtualIP            = "/virtualIPs"
-	virtualInterfacePrefix = ":zvip"
+	virtualInterfacePrefix = ":z"
 	maxRetries             = 2
 	waitTimeout            = 30 * time.Second
 )
@@ -79,7 +80,7 @@ type VirtualIPListener struct {
 	handler VirtualIPHandler
 	hostID  string
 
-	index chan int
+	index chan uint
 	ips   map[string]chan bool
 	retry map[string]int
 }
@@ -89,15 +90,18 @@ func NewVirtualIPListener(handler VirtualIPHandler, hostID string) *VirtualIPLis
 	l := &VirtualIPListener{
 		handler: handler,
 		hostID:  hostID,
-		index:   make(chan int),
+		index:   make(chan uint),
 		ips:     make(map[string]chan bool),
 	}
 
 	// Index generator for bind interface
-	go func(start int) {
+	go func(start uint) {
 		for {
 			l.index <- start
 			start++
+			if start > 238327 { // ZZZ in base 62
+				start = 0
+			}
 		}
 	}(0)
 
@@ -229,7 +233,7 @@ func (l *VirtualIPListener) Spawn(shutdown <-chan interface{}, ip string) {
 	}
 }
 
-func (l *VirtualIPListener) getIndex() int {
+func (l *VirtualIPListener) getIndex() uint {
 	return <-l.index
 }
 
@@ -244,7 +248,7 @@ func (l *VirtualIPListener) get(ip string) <-chan bool {
 	return l.ips[ip]
 }
 
-func (l *VirtualIPListener) bind(vip *pool.VirtualIP, index int) (<-chan bool, error) {
+func (l *VirtualIPListener) bind(vip *pool.VirtualIP, index uint) (<-chan bool, error) {
 	vmap, err := l.handler.VirtualInterfaceMap(virtualInterfacePrefix)
 	if err != nil {
 		return nil, err
@@ -254,7 +258,8 @@ func (l *VirtualIPListener) bind(vip *pool.VirtualIP, index int) (<-chan bool, e
 		if vip.BindInterface == "" {
 			return nil, ErrInvalidVirtualIP
 		}
-		vname := fmt.Sprintf("%s%s%d", vip.BindInterface, virtualInterfacePrefix, index)
+		postfix := fmt.Sprintf("%03s", utils.Base62(index))
+		vname := fmt.Sprintf("%s%s%s", vip.BindInterface, virtualInterfacePrefix, postfix)
 		if err := l.handler.BindVirtualIP(vip, vname); err != nil {
 			return nil, err
 		}
