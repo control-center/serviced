@@ -95,6 +95,9 @@ func NewVirtualIPListener(handler VirtualIPHandler, hostID string) *VirtualIPLis
 	}
 
 	// Index generator for bind interface
+	// Clamp the index string length to 3 base 62 digits so that validation
+	// methods can make sure the length of the VIP name doesn't exceed 15 chars.
+	// Base 62 is used so that we can pack more indices into those 3 digits.
 	go func(start uint) {
 		for {
 			l.index <- start
