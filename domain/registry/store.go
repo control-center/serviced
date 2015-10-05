@@ -34,7 +34,7 @@ type ImageRegistryStore struct {
 // Get an image by id.  Return ErrNoSuchEntity if not found
 func (s *ImageRegistryStore) Get(ctx datastore.Context, id string) (*Image, error) {
 	image := &Image{}
-	if err := s.ds.Get(ctx, key(id), image); err != nil {
+	if err := s.ds.Get(ctx, Key(id), image); err != nil {
 		return nil, err
 	}
 	return image, nil
@@ -42,12 +42,24 @@ func (s *ImageRegistryStore) Get(ctx datastore.Context, id string) (*Image, erro
 
 // Put adds/updates an image to the registry
 func (s *ImageRegistryStore) Put(ctx datastore.Context, image *Image) error {
-	return s.ds.Put(ctx, image.Key(), image)
+	return s.ds.Put(ctx, image.key(), image)
 }
 
 // Delete removes an image from the registry
 func (s *ImageRegistryStore) Delete(ctx datastore.Context, id string) error {
-	return s.ds.Delete(ctx, key(id))
+	return s.ds.Delete(ctx, Key(id))
+}
+
+// GetImages returns all the images that are in the registry
+func (s *ImageRegistryStore) GetImages(ctx datastore.Context) ([]Image, error) {
+	query := search.Query().Search("_exists_:Library")
+	search := search.Search("controlplane").Type(kind).Size("50000").Query(query)
+	q := datastore.NewQuery(ctx)
+	results, err := q.Execute(search)
+	if err != nil {
+		return nil, err
+	}
+	return convert(results)
 }
 
 // SearchLibraryByTag looks for repos that are registered under a library and tag

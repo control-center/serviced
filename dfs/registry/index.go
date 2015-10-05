@@ -33,6 +33,7 @@ type facade interface {
 	GetRegistryImage(ctx datastore.Context, image string) (*registry.Image, error)
 	SetRegistryImage(ctx datastore.Context, rImage *registry.Image) error
 	DeleteRegistryImage(ctx datastore.Context, image string) error
+	GetRegistryImages(ctx datastore.Context) ([]registry.Image, error)
 	SearchRegistryLibraryByTag(ctx datastore.Context, library, tag string) ([]registry.Image, error)
 }
 

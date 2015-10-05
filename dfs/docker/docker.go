@@ -15,6 +15,7 @@ package docker
 
 import (
 	"io"
+	"regexp"
 	"strings"
 
 	"github.com/control-center/serviced/commons"
@@ -28,6 +29,25 @@ const (
 	Latest          = "latest"
 	MaxLayers       = 127 - 2
 )
+
+// IsImageNotFound parses an err to determine whether the image is not found
+func IsImageNotFound(err error) bool {
+	if err != nil {
+		if err == dockerclient.ErrNoSuchImage {
+			return true
+		}
+		var checks = []*regexp.Regexp{
+			regexp.MustCompile("Tag .* not found in repository .*"),
+			regexp.MustCompile("Error: image .* not found"),
+		}
+		for _, check := range checks {
+			if ok := check.MatchString(err.Error()); ok {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // Docker is the docker client for the dfs
 type Docker interface {

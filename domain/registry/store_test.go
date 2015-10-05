@@ -54,7 +54,7 @@ func (s *S) Test_ImageCRUD(c *C) {
 		Tag:     "latest",
 		UUID:    "abs123",
 	}
-	c.Logf("Key %s: %v", expected.String(), expected.Key())
+	c.Logf("Key %s: %v", expected.String(), expected.key())
 	actual, err := s.store.Get(s.ctx, expected.String())
 	c.Assert(err, NotNil)
 	c.Assert(actual, IsNil)
@@ -76,6 +76,26 @@ func (s *S) Test_ImageCRUD(c *C) {
 	actual, err = s.store.Get(s.ctx, expected.String())
 	c.Assert(err, NotNil)
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
+}
+
+func (s *S) GetImages(c *C) {
+	expected := []Image{}
+	actual, err := s.store.GetImages(s.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(actual, DeepEquals, expected)
+	expected = []Image{
+		{Library: "test", Repo: "busybox", Tag: "latest", UUID: "123abc"},
+		{Library: "test", Repo: "centos", Tag: "latest", UUID: "4567dsfdsg"},
+		{Library: "test2", Repo: "ogden", Tag: "latest", UUID: "4567dfsdsg"},
+		{Library: "test", Repo: "ogden", Tag: "tuesday", UUID: "5654gge"},
+	}
+	for _, image := range expected {
+		err = s.store.Put(s.ctx, &image)
+		c.Assert(err, IsNil)
+	}
+	actual, err = s.store.GetImages(s.ctx)
+	c.Assert(err, IsNil)
+	c.Assert(actual, DeepEquals, expected)
 }
 
 func (s *S) Test_SearchLibraryByTag(c *C) {

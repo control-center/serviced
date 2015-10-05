@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -34,7 +34,9 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 	if err := f.registryStore.Put(ctx, rImage); err != nil {
 		return err
 	}
-	// TODO: update zookeeper
+	if err := zkAPI(f).SetRegistryImage(rImage); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -44,8 +46,20 @@ func (f *Facade) DeleteRegistryImage(ctx datastore.Context, image string) error 
 	if err := f.registryStore.Delete(ctx, image); err != nil {
 		return err
 	}
-	// TODO: update zookeeper
+	if err := zkAPI(f).DeleteRegistryImage(registry.Key(image).ID()); err != nil {
+		return err
+	}
 	return nil
+}
+
+// GetRegistryImages returns all the image that are in the docker registry
+// index.
+func (f *Facade) GetRegistryImages(ctx datastore.Context) ([]registry.Image, error) {
+	rImages, err := f.registryStore.GetImages(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return rImages, nil
 }
 
 // SearchRegistryLibrary searches the docker registry index for images at a
@@ -57,4 +71,32 @@ func (f *Facade) SearchRegistryLibraryByTag(ctx datastore.Context, library, tagn
 		return nil, err
 	}
 	return rImages, nil
+}
+
+// SyncRegistryImages makes sure images on es are in sync with zk.  If force is
+// enabled, all images are reset.
+func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
+	// get all the images that are currently in the index
+	rImages, err := f.GetRegistryImages(ctx)
+	if err != nil {
+		return err
+	}
+	// we aren't going to try to sync deletes because that can get too messy;
+	// only adds and updates
+	for _, rImage := range rImages {
+		img, err := zkAPI(f).GetRegistryImage(rImage.ID())
+		if err != nil {
+			return err
+		}
+		// only update the images where the uuid has changed and from the
+		// upstream only, to make sure we don't override any changes that
+		// occur out of band from the sync.  If force is set, then it is okay
+		// to blanket reset everything.
+		if force || img == nil || img.UUID != rImage.UUID {
+			if err := f.SetRegistryImage(ctx, &rImage); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

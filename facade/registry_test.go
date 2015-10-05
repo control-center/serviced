@@ -115,6 +115,42 @@ func (ft *FacadeTest) TestDeleteRegistryImage(c *C) {
 	c.Assert(datastore.IsErrNoSuchEntity(err), Equals, true)
 }
 
+func (ft *FacadeTest) TestGetRegistryImages(c *C) {
+	expected := []registry.Image{
+		{
+			Library: "library",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		}, {
+			Library: "library",
+			Repo:    "anotherreponame",
+			Tag:     "tagname",
+			UUID:    "anotheruuidvalue",
+		},
+		{
+			Library: "library",
+			Repo:    "reponame",
+			Tag:     "anothertagname",
+			UUID:    "uuidvalue",
+		},
+		{
+			Library: "anotherlibrary",
+			Repo:    "reponame",
+			Tag:     "tagname",
+			UUID:    "uuidvalue",
+		},
+	}
+	for i, image := range expected {
+		err := ft.Facade.registryStore.Put(ft.CTX, &image)
+		c.Assert(err, IsNil)
+		expected[i].DatabaseVersion++
+	}
+	actual, err := ft.Facade.GetRegistryImages(ft.CTX)
+	c.Assert(err, IsNil)
+	c.Assert(actual, DeepEquals, expected)
+}
+
 func (ft *FacadeTest) TestSearchRegistryLibraryByTag(c *C) {
 	expected1 := []registry.Image{
 		{

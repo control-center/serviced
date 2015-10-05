@@ -36,7 +36,7 @@ type testImage struct {
 }
 
 func (i *testImage) ID() string {
-	return i.Image.Key().ID()
+	return i.Image.ID()
 }
 
 func (i *testImage) Path() string {
@@ -53,12 +53,7 @@ func (i *testImage) Create(c *C, conn coordclient.Connection) *RegistryImageNode
 	err := conn.Create(i.Path(), node)
 	c.Assert(err, IsNil)
 	exists, err := conn.Exists(i.Path())
-	c.Assert(err, IsNil)
 	c.Assert(exists, Equals, true)
-	err = conn.Set(i.Path(), node)
-	c.Assert(err, IsNil)
-	err = conn.Get(i.Path(), node)
-	c.Assert(err, IsNil)
 	return node
 }
 
@@ -78,10 +73,10 @@ func TestRegistryListener(t *testing.T) { TestingT(t) }
 
 type RegistryListenerSuite struct {
 	dc       *dockerclient.Client
-	zkid     string
 	conn     coordclient.Connection
 	docker   *mocks.Docker
 	listener *RegistryListener
+	zkCtrID  string
 }
 
 var _ = Suite(&RegistryListenerSuite{})
@@ -91,14 +86,23 @@ func (s *RegistryListenerSuite) SetUpSuite(c *C) {
 	if s.dc, err = dockerclient.NewClient(docker.DefaultSocket); err != nil {
 		c.Fatalf("Could not connect to docker client: %s", err)
 	}
+	if ctr, err := s.dc.InspectContainer("zktestserver"); err == nil {
+		s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
+		opts := dockerclient.RemoveContainerOptions{
+			ID:            ctr.ID,
+			RemoveVolumes: true,
+			Force:         true,
+		}
+		s.dc.RemoveContainer(opts)
+	}
 	// Start zookeeper
-	opts := dockerclient.CreateContainerOptions{}
+	opts := dockerclient.CreateContainerOptions{Name: "zktestserver"}
 	opts.Config = &dockerclient.Config{Image: "jplock/zookeeper:3.4.6"}
 	ctr, err := s.dc.CreateContainer(opts)
 	if err != nil {
 		c.Fatalf("Could not initialize zookeeper: %s", err)
 	}
-	s.zkid = ctr.ID
+	s.zkCtrID = ctr.ID
 	hconf := &dockerclient.HostConfig{
 		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
 			"2181/tcp": []dockerclient.PortBinding{
@@ -125,9 +129,9 @@ func (s *RegistryListenerSuite) TearDownSuite(c *C) {
 	if s.conn != nil {
 		s.conn.Close()
 	}
-	s.dc.StopContainer(s.zkid, 10)
+	s.dc.StopContainer(s.zkCtrID, 10)
 	opts := dockerclient.RemoveContainerOptions{
-		ID:            s.zkid,
+		ID:            s.zkCtrID,
 		RemoveVolumes: true,
 		Force:         true,
 	}
@@ -138,7 +142,7 @@ func (s *RegistryListenerSuite) SetUpTest(c *C) {
 	// Initialize the mock docker object
 	s.docker = &mocks.Docker{}
 	// Initialize the listener
-	s.listener = NewRegistryListener(s.docker, "test-server:5000", "test-host")
+	s.listener = NewRegistryListener(s.docker, "test-server:5000", "test-host", 15*time.Second)
 	s.listener.conn = s.conn
 	// Create the base path
 	s.conn.CreateDir(zkregistrypath)
@@ -147,6 +151,7 @@ func (s *RegistryListenerSuite) SetUpTest(c *C) {
 func (s *RegistryListenerSuite) TearDownTest(c *C) {
 	s.conn.Delete(zkregistrypath)
 }
+
 func (s *RegistryListenerSuite) TestRegistryListener_NoNode(c *C) {
 	shutdown := make(chan interface{})
 	done := make(chan struct{})

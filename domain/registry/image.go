@@ -31,6 +31,10 @@ func (image *Image) String() string {
 	return fmt.Sprintf("%s/%s:%s", image.Library, image.Repo, image.Tag)
 }
 
-func (image *Image) Key() datastore.Key {
-	return key(image.String())
+func (image *Image) ID() string {
+	return image.key().ID()
+}
+
+func (image *Image) key() datastore.Key {
+	return Key(image.String())
 }

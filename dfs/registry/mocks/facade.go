@@ -71,6 +71,28 @@ func (_m *MockFacade) DeleteRegistryImage(ctx datastore.Context, image string) e
 	return r0
 }
 
+func (_m *MockFacade) GetRegistryImages(ctx datastore.Context) ([]registrystore.Image, error) {
+	ret := _m.Called(ctx)
+
+	var r0 []registrystore.Image
+	if rf, ok := ret.Get(0).(func(datastore.Context) []registrystore.Image); ok {
+		r0 = rf(ctx)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]registrystore.Image)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(datastore.Context) error); ok {
+		r1 = rf(ctx)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 func (_m *MockFacade) SearchRegistryLibraryByTag(ctx datastore.Context, library string, tag string) ([]registrystore.Image, error) {
 	ret := _m.Called(ctx, library, tag)
 

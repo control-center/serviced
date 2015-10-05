@@ -47,7 +47,15 @@ func init() {
 	}
 }
 
-func key(id string) datastore.Key {
+func Key(id string) datastore.Key {
 	enc := base64.URLEncoding.EncodeToString([]byte(id))
 	return datastore.NewKey(kind, enc)
+}
+
+func DecodeKey(id string) (string, error) {
+	dec, err := base64.URLEncoding.DecodeString(id)
+	if err != nil {
+		return "", err
+	}
+	return string(dec), nil
 }
