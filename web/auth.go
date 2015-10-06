@@ -15,9 +15,6 @@ package web
 
 //#include <stdlib.h>
 //#include <string.h>
-//#include <security/pam_appl.h>
-//#cgo LDFLAGS: -lpam
-//extern int authenticate(const char *pam_file, const char *username, const char* pass, const char* group);
 //extern int isGroupMember(const char *username, const char *group);
 import "C"
 import (
@@ -39,23 +36,6 @@ func init() {
 	if err != nil {
 		panic(fmt.Errorf("could not get current user: %s", err))
 	}
-}
-
-func oldPamValidateLogin(creds *login, group string) bool {
-	var cprog = C.CString("sudo")
-	defer C.free(unsafe.Pointer(cprog))
-	var cuser = C.CString(creds.Username)
-	defer C.free(unsafe.Pointer(cuser))
-	var cpass = C.CString(creds.Password)
-	defer C.free(unsafe.Pointer(cpass))
-	var cgroup = C.CString(group)
-	defer C.free(unsafe.Pointer(cgroup))
-	authRes := C.authenticate(cprog, cuser, cpass, cgroup)
-	glog.V(1).Infof("PAM result for user:%s group:%s was %d", creds.Username, group, authRes)
-	if authRes != 0 && currentUser.Username != creds.Username && currentUser.Uid != "0" {
-		glog.Errorf("This process must run as root to authenticate users other than %s", currentUser.Username)
-	}
-	return (authRes == 0)
 }
 
 func isGroupMember(username, group string) bool {
