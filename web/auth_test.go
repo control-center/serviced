@@ -67,7 +67,7 @@ var testCases = []testCase{
 		expectedPamResult:   true,
 		expectedGroupResult: true,
 		expectedResult:      true,
-		description:         "good user with correct password should validate",
+		description:         "good user with correct password should pass PAM, pass group check, and should validate",
 	},
 	testCase{
 		user:                testUsers["gooduser"],
@@ -76,7 +76,7 @@ var testCases = []testCase{
 		expectedPamResult:   false,
 		expectedGroupResult: true,
 		expectedResult:      false,
-		description:         "good user with empty password should fail",
+		description:         "good user with empty password should fail PAM, pass group check, and should not validate.",
 	},
 	testCase{
 		user:                testUsers["nonrootuser"],
@@ -85,7 +85,7 @@ var testCases = []testCase{
 		expectedPamResult:   true,
 		expectedGroupResult: false,
 		expectedResult:      false,
-		description:         "nonroot user should fail",
+		description:         "nonroot user should pass PAM, fail authentication, and should not validate.",
 	},
 	testCase{
 		user:                testUsers["oldbutgooduser"],
@@ -94,17 +94,21 @@ var testCases = []testCase{
 		expectedPamResult:   false,
 		expectedGroupResult: true,
 		expectedResult:      false,
-		description:         "user with expired login should fail",
+		description:         "user with expired login should pass PAM, fail group check, and should not validate.",
 	},
 }
 
 
 func TestMain(m *testing.M) {
+	if 0 != os.Geteuid() {
+		glog.Infof("Must be root to run integration tests. Exiting (no tests run).")
+		os.Exit(0)
+	}
 	err := CreateTestUsers()
 	if err != nil {
 		glog.Errorf("Error creating test user: %s\n", err)
 	}
-	glog.Infof("Running tests\n")
+	glog.Infof("Running tests - some errors expected from negative tests.\n")
 	result := m.Run()
 	glog.Infof("Removing test users\n")
 	RemoveTestUsers()
@@ -152,6 +156,8 @@ func RemoveTestUsers() {
 		err := RemoveTestUser(user.username)
 		if err != nil {
 			glog.Infof("Error deleting user %s: %s\n", user.username, err)
+		}  else {
+			glog.Infof("Successfully removed user %s\n", user.username)
 		}
 	}
 }

@@ -79,12 +79,12 @@ func pamValidateLoginOnly(creds *login, group string) bool {
 	}
 	err = t.Authenticate(0)
 	if err != nil {
-		glog.Errorf("Authentication failed for user %s: Authenticate: %s", creds.Username, err.Error())
+		glog.Errorf("Authentication failed for user %s: Authenticate error: %s", creds.Username, err.Error())
 		return false
 	}
 	err = t.AcctMgmt(pam.Silent)
 	if err != nil {
-		glog.Errorf("Authentication failed for usere %s: AcctMgmt: %s", creds.Username, err.Error())
+		glog.Errorf("Authentication failed for usere %s: AcctMgmt error: %s", creds.Username, err.Error())
 		return false
 	}
 
