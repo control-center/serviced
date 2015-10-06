@@ -199,7 +199,9 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 		return err
 	} else if err := validation.IsIP(vip.Netmask); err != nil {
 		return err
-	} else if validation.NotEmpty("Bind Interface", vip.BindInterface); err != nil {
+	} else if err := validation.NotEmpty("Bind Interface", vip.BindInterface); err != nil {
+		return err
+	} else if err := validation.ValidVirtualIP(vip.BindInterface); err != nil {
 		return err
 	}
 
