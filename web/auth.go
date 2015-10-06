@@ -64,7 +64,7 @@ func isGroupMember(username, group string) bool {
 	var cgroup = C.CString(group)
 	defer C.free(unsafe.Pointer(cgroup))
 	result := C.isGroupMember(cuser, cgroup)
-	glog.Infof("C.isGroupMember(%s, %s) returned %d.\n", username, group, result)
+	glog.V(2).Infof("C.isGroupMember(%s, %s) returned %d.\n", username, group, result)
 	return (result != 0)
 }
 

@@ -17,37 +17,34 @@ package web
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"os/user"
 	"testing"
+	"github.com/zenoss/glog"
 )
 
 var (
 	ErrTestUserExists = errors.New("test user exists. could not create new")
 )
-//var adminGroup = "sudo"
 
 const (
-	testUserName = "testuser"
 	testUserPassword = "secret"
 	testUserPasswordEncrypted = "$1$Qd8H95T5$RYSZQeoFbEB.gS19zS99A0"
 	testUserSalt = "$1$Qd8H95T5$"
 )
 
 type testUser struct {
-	username   string
-	password   string
-	group      string
-	expired    bool
-	wasCreated bool
+	username string
+	password string
+	group    string
+	expired  bool
 }
 
 var testUsers = map[string]testUser{
-	"gooduser": testUser{"ztestgooduser", "ztestgooduserpass", adminGroup, false, false},
-	"nonrootuser": testUser{"ztestplainuser", "ztestplainuserpass", "users", false, false},
-	"oldbutgooduser": testUser{"ztestolduser", "ztestolduserpass", adminGroup, true, false},
+	"gooduser": testUser{"ztestgooduser", "ztestgooduserpass", adminGroup, false},
+	"nonrootuser": testUser{"ztestplainuser", "ztestplainuserpass", "users", false},
+	"oldbutgooduser": testUser{"ztestolduser", "ztestolduserpass", adminGroup, true},
 }
 
 var createdUsers = make(map[string]testUser)
@@ -105,13 +102,13 @@ var testCases = []testCase{
 func TestMain(m *testing.M) {
 	err := CreateTestUsers()
 	if err != nil {
-		fmt.Printf("Error creating test user: %s\n", err)
+		glog.Errorf("Error creating test user: %s\n", err)
 	}
-	fmt.Printf("Running tests\n")
+	glog.Infof("Running tests\n")
 	result := m.Run()
-	fmt.Printf("Removing test users\n")
+	glog.Infof("Removing test users\n")
 	RemoveTestUsers()
-	fmt.Printf("Exiting\n")
+	glog.Infof("Exiting\n")
 	os.Exit(result)
 }
 
@@ -119,10 +116,10 @@ func CreateTestUsers() error {
 	for name, u := range (testUsers) {
 		err := createTestUser(name, &u)
 		if err != nil {
-			fmt.Printf("Error creating user %s: %s\n", name, err)
+			glog.Errorf("Error creating user %s: %s\n", name, err)
 			return err
 		}
-		fmt.Printf("Created user %s. user = %v\n", name, u )
+		glog.V(2).Infof("Created user %s. user = %v\n", name, u)
 	}
 	return nil
 }
@@ -135,18 +132,16 @@ func createTestUser(name string, userobj *testUser) error {
 	}
 	encryptedPassword := crypt(userobj.password, testUserSalt)
 	cmdName := "sudo"
-	args := []string {"useradd", userobj.username, "-p", encryptedPassword, "-G", userobj.group }
+	args := []string{"useradd", userobj.username, "-p", encryptedPassword, "-G", userobj.group }
 	if userobj.expired {
 		args = append(args, "-e", "1970-01-01")
 	}
 	command := exec.Command(cmdName, args...)
-	fmt.Printf("Creating test user %s: command is %v\n", testUserName, command)
+	glog.V(2).Infof("Creating test user %s: command is %v\n", testUserName, command)
 	output, cmderr := command.CombinedOutput()
 	if nil != cmderr {
-		fmt.Printf("Error creating testuser: %s\n", cmderr)
-		fmt.Printf("Combined output: %s\n", output)
+		glog.Errorf("Error creating testuser: %s\n%s\n", cmderr, output)
 	} else {
-		userobj.wasCreated = true
 		createdUsers[name] = *userobj
 	}
 	return cmderr
@@ -154,49 +149,35 @@ func createTestUser(name string, userobj *testUser) error {
 
 func RemoveTestUsers() {
 	for _, user := range (createdUsers) {
-		if user.wasCreated {
-			err := RemoveTestUser(user.username)
-			if err != nil {
-				fmt.Printf("Error deleting user %s: %s\n", user.username, err)
-			}
-		} else {
-			fmt.Printf("Not removing user %s - was not created by this test run\n", user.username)
+		err := RemoveTestUser(user.username)
+		if err != nil {
+			glog.Infof("Error deleting user %s: %s\n", user.username, err)
 		}
 	}
 }
 
 func RemoveTestUser(testUserName string) error {
-	fmt.Printf("RemoveTestUser(%s) invoked.\n", testUserName);
-	command := exec.Command("sudo",  "userdel", testUserName)
-	fmt.Printf("Deleting test user %s\n", testUserName)
+	glog.V(2).Infof("RemoveTestUser(%s) invoked.\n", testUserName)
+	command := exec.Command("sudo", "userdel", testUserName)
+	glog.V(2).Infof("Deleting test user %s\n", testUserName)
 
 	output, cmderr := command.CombinedOutput()
 	if nil != cmderr {
-		fmt.Printf("Error deleting test user %s: %s\n", testUserName, cmderr)
-		fmt.Printf("Combined output: %s\n", output)
+		glog.Errorf("Error deleting test user %s: %s\n%s\n", testUserName, cmderr, output)
 	}
 	return cmderr
 }
 
-
 func TestCrypt(t *testing.T) {
-	fmt.Println("TestCrypt()\n")
+	glog.V(2).Infof("TestCrypt()\n")
 	cryptResult := crypt(testUserPassword, testUserSalt)
 	if cryptResult != testUserPasswordEncrypted {
 		t.Fatal("crypt() function validation failed.")
 	}
 }
 
-func TestOldPamValidateLogin(t *testing.T) {
-	fmt.Println("TestOldPamValidateLogin()\n")
-	creds := login{Username: testUserName, Password: testUserPassword}
-	if !oldPamValidateLogin(&creds, adminGroup) {
-		t.Fatal("pam validation for user failed.")
-	}
-}
-
 func TestAuthentication(t *testing.T) {
-	fmt.Println("TestAuthentication()")
+	glog.V(2).Infof("TestAuthentication()")
 	for _, tc := range (testCases) {
 		user := tc.user
 		creds := login{Username: user.username, Password: tc.testPassword}
@@ -215,22 +196,3 @@ func TestAuthentication(t *testing.T) {
 	}
 }
 
-func TestNewPamValidateLogin(t *testing.T) {
-	fmt.Println("TestNewPamValidateLogin()\n")
-	creds := login{Username: testUserName, Password: testUserPassword}
-	if !pamValidateLogin(&creds, adminGroup) {
-		t.Fatal("pam validation for user failed.")
-	}
-	if !isGroupMember(testUserName, "sudo") {
-		t.Fatal("group membership for user failed.")
-	}
-}
-
-
-// Not validating for now - only messing with PAM validation. A good test should be done for CP Validation later.
-//func TestCPValidateLogin(t *testing.T) {
-//	creds := login{ Username: testUserName, Password: testUserPassword,}
-//	if !cpValidateLogin(&creds, client) {
-//		t.Fatal("pam validation for user failed.")
-//	}
-//}
