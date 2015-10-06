@@ -1847,16 +1847,32 @@ func executeMigrationScript(serviceID string, serviceContainer *docker.Container
 	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)
 
 	cmdMessages, err := cmd.CombinedOutput()
-	if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
-		err := fmt.Errorf("migration script failed: %s", err)
-		if cmdMessages != nil {
-			glog.Errorf("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+	// DEBUG: KWW: Examine these changes closely...
+	if cmdMessages != nil && len(cmdMessages > 0) {
+		glog.Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+	}
+	exitStatus, ok := utils.GetExitStatus(err)
+	if ok { // Command ran, reported an actual status
+		if exitStatus != 0 {
+			newErr := fmt.Errorf("migration script failed: %s", err)
+			return "", newErr
 		}
-		return "", err
+	} else { // An I/0 problem or something occurred around the execution of the command
+		if exitStatus != 0 {
+			newErr := fmt.Errorf("problem trying to execute migration script: %s", err)
+			return "", newErr
+		}
 	}
-	if cmdMessages != nil {
-		glog.V(1).Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
-	}
+	// if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
+	// 	err := fmt.Errorf("migration script failed: %s", err)
+	// 	if cmdMessages != nil {
+	// 		glog.Errorf("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+	// 	}
+	// 	return "", err
+	// }
+	// if cmdMessages != nil {
+	// 	glog.V(1).Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
+	// }
 
 	return path.Join(tmpDir, OUTPUT_FILE), nil
 }
