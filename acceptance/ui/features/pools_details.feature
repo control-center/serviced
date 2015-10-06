@@ -54,6 +54,17 @@ Feature: Resource Pool Details
       And I should see the Netmask field
       And I should see the Interface field
 
+  Scenario: Add a virtual IP with a too-long interface name
+    When I am on the resource pool page
+      And I view the details of "table://pools/defaultPool/name" in the "Resource Pools" table
+      And I click the Add Virtual IP button
+      And I fill in the IP field with "table://virtualips/ip1/ip"
+      And I fill in the Netmask field with "table://virtualips/ip1/netmask"
+      And I fill in the Interface field with "tooLongInterfaceName"
+      And I add the virtual IP
+    Then I should see "Adding pool virtual ip failed"
+      And I should see "Internal Server Error: virtual ip name too long"
+
   Scenario: Add a virtual IP with an invalid IP address
     When I am on the resource pool page
       And I view the details of "table://pools/defaultPool/name" in the "Resource Pools" table

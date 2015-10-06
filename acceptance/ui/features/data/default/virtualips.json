@@ -4,19 +4,19 @@
     "ip1": {
       "ip": "17.17.17.17",
       "netmask": "255.0.0.0",
-      "interface": "First Interface"
+      "interface": "iFirst"
     },
 
     "ip2": {
       "ip": "20.20.20.20",
       "netmask": "255.255.255.0",
-      "interface": "Another Interface"
+      "interface": "iAnother"
     },
 
     "ip3": {
       "ip": "1.2.3.4",
       "netmask": "255.255.0.0",
-      "interface": "Yet Another Interface"
+      "interface": "iAnother2"
     },
 
     "ip4": {
