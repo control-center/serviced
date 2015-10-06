@@ -18,13 +18,16 @@ package web
 //#include <security/pam_appl.h>
 //#cgo LDFLAGS: -lpam
 //extern int authenticate(const char *pam_file, const char *username, const char* pass, const char* group);
+//extern int isGroupMember(const char *username, const char *group);
 import "C"
 import (
+	"github.com/msteinert/pam"
 	"github.com/zenoss/glog"
 
 	"fmt"
 	"os/user"
 	"unsafe"
+	"errors"
 )
 
 // currently logged in user
@@ -38,7 +41,7 @@ func init() {
 	}
 }
 
-func pamValidateLogin(creds *login, group string) bool {
+func oldPamValidateLogin(creds *login, group string) bool {
 	var cprog = C.CString("sudo")
 	defer C.free(unsafe.Pointer(cprog))
 	var cuser = C.CString(creds.Username)
@@ -54,3 +57,58 @@ func pamValidateLogin(creds *login, group string) bool {
 	}
 	return (authRes == 0)
 }
+
+func isGroupMember(username, group string) bool {
+	var cuser = C.CString(username)
+	defer C.free(unsafe.Pointer(cuser))
+	var cgroup = C.CString(group)
+	defer C.free(unsafe.Pointer(cgroup))
+	result := C.isGroupMember(cuser, cgroup)
+	glog.Infof("C.isGroupMember(%s, %s) returned %d.\n", username, group, result)
+	return (result != 0)
+}
+
+func pamValidateLogin(creds *login, group string) bool {
+	return pamValidateLoginOnly(creds, group) && isGroupMember(creds.Username, group)
+}
+
+func makePamConvHandler(creds *login) func(pam.Style, string) (string, error) {
+	return   func(s pam.Style, msg string) (string, error) {
+		switch s {
+		case pam.PromptEchoOff:
+			return creds.Password, nil
+		case pam.PromptEchoOn:
+			glog.V(1).Infof("PAM Prompt: %s\n", msg)
+			return creds.Username, nil
+		case pam.ErrorMsg:
+			glog.Errorf("PAM ERROR: %s\n", msg)
+			return "", nil
+		case pam.TextInfo:
+			glog.V(1).Infof("PAM MESSAGE: %s\n", msg)
+			return "", nil
+		}
+		return "", errors.New("Unrecognized message style")
+	}
+}
+
+func pamValidateLoginOnly(creds *login, group string) bool {
+	t, err := pam.StartFunc("", "",  makePamConvHandler(creds))
+	if err != nil {
+		glog.Errorf("Start: %s", err.Error())
+		return false
+	}
+	err = t.Authenticate(0)
+	if err != nil {
+		glog.Errorf("Authentication failed for user %s: Authenticate: %s", creds.Username, err.Error())
+		return false
+	}
+	err = t.AcctMgmt(pam.Silent)
+	if err != nil {
+		glog.Errorf("Authentication failed for usere %s: AcctMgmt: %s", creds.Username, err.Error())
+		return false
+	}
+
+	return true
+}
+
+
