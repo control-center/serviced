@@ -136,7 +136,8 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 
 	var migrationDir, inputFileName, scriptFileName, outputFileName string
 	migrationDir, err = createTempMigrationDir(svc.ID)
-	defer os.RemoveAll(migrationDir)
+	// DEBUG: KWW: Restore this line
+	//defer os.RemoveAll(migrationDir)
 	if err != nil {
 		return err
 	}
@@ -180,6 +181,17 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 		outputFileName, err = executeMigrationScript(svc.ID, container, migrationDir, containerScript, inputFileName, request.SDKVersion)
 		if err != nil {
 			return err
+		}
+	}
+
+	// DEBUG: KWW: Remove this debug code
+	dirName, _ := path.Split(outputFileName)
+	dirStat, dirErr := os.Stat(dirName)
+	if dirErr != nil {
+		glog.Errorf("KWW: Output dir %s error: %s", dirName, dirErr)
+	} else {
+		if !dirStat.IsDir() {
+			glog.Errorf("KWW: Output dir %s is not a directory", dirName)
 		}
 	}
 
