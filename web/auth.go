@@ -15,7 +15,7 @@ package web
 
 //#include <stdlib.h>
 //#include <string.h>
-//extern int isGroupMember(const char *username, const char *group);
+//extern int isGroupMember(const char *username, const char *group); 
 import "C"
 import (
 	"github.com/msteinert/pam"
