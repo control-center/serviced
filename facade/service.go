@@ -1848,7 +1848,7 @@ func executeMigrationScript(serviceID string, serviceContainer *docker.Container
 
 	cmdMessages, err := cmd.CombinedOutput()
 	// DEBUG: KWW: Examine these changes closely...
-	if cmdMessages != nil && len(cmdMessages > 0) {
+	if cmdMessages != nil && len(cmdMessages) > 0 {
 		glog.Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
 	}
 	exitStatus, ok := utils.GetExitStatus(err)
