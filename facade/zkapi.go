@@ -17,8 +17,10 @@ import (
 	"fmt"
 	"time"
 
+	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
@@ -51,6 +53,9 @@ type zkfuncs interface {
 	RemoveResourcePool(poolID string) error
 	AddVirtualIP(virtualIP *pool.VirtualIP) error
 	RemoveVirtualIP(virtualIP *pool.VirtualIP) error
+	GetRegistryImage(id string) (*registry.Image, error)
+	SetRegistryImage(image *registry.Image) error
+	DeleteRegistryImage(id string) error
 }
 
 type zkf struct {
@@ -243,4 +248,28 @@ func (z *zkf) RemoveVirtualIP(virtualIP *pool.VirtualIP) error {
 		return err
 	}
 	return zkvirtualip.RemoveVirtualIP(conn, virtualIP.IP)
+}
+
+func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return nil, err
+	}
+	return zkimgregistry.GetRegistryImage(conn, id)
+}
+
+func (z *zkf) SetRegistryImage(image *registry.Image) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkimgregistry.SetRegistryImage(conn, image)
+}
+
+func (z *zkf) DeleteRegistryImage(id string) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkimgregistry.DeleteRegistryImage(conn, id)
 }
