@@ -140,7 +140,7 @@ func (c *Connection) Create(path string, node client.Node) error {
 	if err != nil {
 		return client.ErrSerialization
 	}
-	if err := c.EnsurePath(p); err != nil {
+	if err := c.EnsurePath(path); err != nil {
 		return xlateError(err)
 	}
 	if _, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
