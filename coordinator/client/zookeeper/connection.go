@@ -135,31 +135,19 @@ func (c *Connection) Create(path string, node client.Node) error {
 	if c.conn == nil {
 		return client.ErrConnectionClosed
 	}
-
 	p := join(c.basePath, path)
-
 	bytes, err := json.Marshal(node)
 	if err != nil {
 		return client.ErrSerialization
 	}
-
-	_, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll))
-	if err == zklib.ErrNoNode {
-		// Create parent node.
-		parts := strings.Split(p, "/")
-		pth := ""
-		for _, p := range parts[1:] {
-			pth += "/" + p
-			_, err = c.conn.Create(pth, []byte{}, 0, zklib.WorldACL(zklib.PermAll))
-			if err != nil && err != zklib.ErrNodeExists {
-				return xlateError(err)
-			}
-		}
+	if err := c.EnsurePath(path); err != nil {
+		return xlateError(err)
 	}
-	if err == nil {
-		node.SetVersion(&zklib.Stat{})
+	if _, err = c.conn.Create(p, bytes, 0, zklib.WorldACL(zklib.PermAll)); err != nil {
+		return xlateError(err)
 	}
-	return xlateError(err)
+	node.SetVersion(&zklib.Stat{})
+	return nil
 }
 
 // Creates the path up to and including the immediate parent of the

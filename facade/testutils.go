@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -33,8 +34,8 @@ import (
 //FacadeTest used for running tests where a facade type is needed.
 type FacadeTest struct {
 	elastic.ElasticTest
-	CTX    datastore.Context
-	Facade *Facade
+	CTX          datastore.Context
+	Facade       *Facade
 	mockRegistry *test.MockDockerRegistry
 }
 
@@ -139,5 +140,17 @@ func (z *zkMock) CheckRunningVHost(vhostName, serviceID string) error {
 }
 
 func (z *zkMock) WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
+	return nil
+}
+
+func (z *zkMock) GetRegistryImage(id string) (*registry.Image, error) {
+	return nil, nil
+}
+
+func (z *zkMock) SetRegistryImage(image *registry.Image) error {
+	return nil
+}
+
+func (z *zkMock) DeleteRegistryImage(id string) error {
 	return nil
 }
