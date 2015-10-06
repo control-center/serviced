@@ -40,8 +40,24 @@ func (s *DockerSuite) SetUpSuite(c *C) {
 		c.Fatalf("Could not connect to docker client: %s", err)
 	}
 	s.docker = &DockerClient{dc: s.dc}
+	if ctr, err := s.dc.InspectContainer("regtestserver"); err == nil {
+		s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
+		opts := dockerclient.RemoveContainerOptions{
+			ID:            ctr.ID,
+			RemoveVolumes: true,
+			Force:         true,
+		}
+		s.dc.RemoveContainer(opts)
+	} else {
+		opts := dockerclient.PullImageOptions{
+			Repository: "registry",
+			Tag:        "latest",
+		}
+		auth := dockerclient.AuthConfiguration{}
+		s.dc.PullImage(opts, auth)
+	}
 	// Start the docker registry
-	opts := dockerclient.CreateContainerOptions{}
+	opts := dockerclient.CreateContainerOptions{Name: "regtestserver"}
 	opts.Config = &dockerclient.Config{Image: "registry"}
 	ctr, err := s.dc.CreateContainer(opts)
 	if err != nil {

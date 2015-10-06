@@ -94,6 +94,13 @@ func (s *RegistryListenerSuite) SetUpSuite(c *C) {
 			Force:         true,
 		}
 		s.dc.RemoveContainer(opts)
+	} else {
+		opts := dockerclient.PullImageOptions{
+			Repository: "jplock/zookeeper",
+			Tag:        "3.4.6",
+		}
+		auth := dockerclient.AuthConfiguration{}
+		s.dc.PullImage(opts, auth)
 	}
 	// Start zookeeper
 	opts := dockerclient.CreateContainerOptions{Name: "zktestserver"}
