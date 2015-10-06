@@ -148,7 +148,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_ServicePauseFails(c *C) {
 
 	// Mock the defer call
 	st.mockFacade.
-		On("ScheduleService", st.mock_datastoreGet(), stubServices[0].ID, false, stubServices[0].DesiredState).
+		On("ScheduleService", st.mock_datastoreGet(), stubServices[0].ID, false, service.DesiredState(stubServices[0].DesiredState)).
 		Return(0, nil)
 
 	// Mock an error trying to pause the service

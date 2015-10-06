@@ -29,6 +29,14 @@ func NotEmpty(fieldName string, value string) error {
 	return nil
 }
 
+// ExcludeChars makes sure there characters in a field are valid
+func ExcludeChars(fieldName, value, chars string) error {
+	if strings.ContainsAny(value, chars) {
+		return NewViolation(fmt.Sprintf("invalid chars for %s", fieldName))
+	}
+	return nil
+}
+
 //IsIP checks to see if the value is a valid IP address. Returns an error if not valid
 func IsIP(value string) error {
 	if nil == net.ParseIP(value) {
@@ -106,6 +114,16 @@ func ValidHostID(hostID string) error {
 func ValidPoolId(poolID string) error {
 	if strings.ContainsAny(poolID, ".#") {
 		return NewViolation(fmt.Sprintf("not a valid poolid: %v", poolID))
+	}
+	return nil
+}
+
+func ValidVirtualIP(bindInterface string) error {
+	// VIP names append a prefix and an index, and cannot be more than 15
+	// characters in length. See zzk/virtualips.
+	vipname := bindInterface + ":z" + "000"
+	if len(vipname) > 15 {
+		return NewViolation(fmt.Sprintf("virtual ip name too long, must be less than 16 characters: %s", vipname))
 	}
 	return nil
 }
