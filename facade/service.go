@@ -136,8 +136,8 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 
 	var migrationDir, inputFileName, scriptFileName, outputFileName string
 	migrationDir, err = createTempMigrationDir(svc.ID)
-	// DEBUG: KWW: Restore this line
-	//defer os.RemoveAll(migrationDir)
+	// DEBUG: KWW: Comment out this line to preserve the artifacts to examine after the tests run
+	defer os.RemoveAll(migrationDir)
 	if err != nil {
 		return err
 	}
@@ -181,17 +181,6 @@ func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrat
 		outputFileName, err = executeMigrationScript(svc.ID, container, migrationDir, containerScript, inputFileName, request.SDKVersion)
 		if err != nil {
 			return err
-		}
-	}
-
-	// DEBUG: KWW: Remove this debug code
-	dirName, _ := path.Split(outputFileName)
-	dirStat, dirErr := os.Stat(dirName)
-	if dirErr != nil {
-		glog.Errorf("KWW: Output dir %s error: %s", dirName, dirErr)
-	} else {
-		if !dirStat.IsDir() {
-			glog.Errorf("KWW: Output dir %s is not a directory", dirName)
 		}
 	}
 
@@ -1856,24 +1845,25 @@ func executeMigrationScript(serviceID string, serviceContainer *docker.Container
 
 	cmd := exec.Command("docker", runArgs...)
 
-	glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)
+	// DEBUG: KWW: Restore original code
+	glog.Infof("KWW: service ID %+v: cmd: %v", serviceID, cmd)
+	//glog.V(2).Infof("Facade:executeMigrationScript: service ID %+v: cmd: %v", serviceID, cmd)
 
 	cmdMessages, err := cmd.CombinedOutput()
-	// DEBUG: KWW: Examine these changes closely...
-	if cmdMessages != nil && len(cmdMessages) > 0 {
+	// DEBUG: KWW: Examine these changes closely. (Doesn't look like we originally were always
+	// logging cmdMessages if it wasn't empty, or processing exitStatus properly)
+	if len(cmdMessages) > 0 {
 		glog.Infof("Service migration script for %s reported: %s", serviceID, string(cmdMessages))
 	}
-	exitStatus, ok := utils.GetExitStatus(err)
-	if ok { // Command ran, reported an actual status
+	exitStatus, gotStatus := utils.GetExitStatus(err)
+	if gotStatus { // Command ran, reported an actual status
 		if exitStatus != 0 {
 			newErr := fmt.Errorf("migration script failed: %s", err)
 			return "", newErr
 		}
 	} else { // An I/0 problem or something occurred around the execution of the command
-		if exitStatus != 0 {
-			newErr := fmt.Errorf("problem trying to execute migration script: %s", err)
-			return "", newErr
-		}
+		newErr := fmt.Errorf("problem trying to execute migration script: %s", err)
+		return "", newErr
 	}
 	// if exitStatus, _ := utils.GetExitStatus(err); exitStatus != 0 {
 	// 	err := fmt.Errorf("migration script failed: %s", err)
