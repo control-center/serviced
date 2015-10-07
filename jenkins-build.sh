@@ -35,7 +35,7 @@ cd $GOPATH/src/github.com/control-center/serviced
 # First, run the tests that require root
 #
 BUILD_TAGS="$(sudo bash ${DIR}/build-tags.sh) integration"
-sudo su - root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; cd $PWD/volume; GOPATH=$GOPATH godep go test -tags=\"${BUILD_TAGS}\" ./..."
+sudo su - root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; cd $PWD; GOPATH=$GOPATH godep go test -tags=\"${BUILD_TAGS}\" ./..."
 unset BUILD_TAGS    # Make sure the makefile can choose it's own build tags wihtout interference
 
 #
