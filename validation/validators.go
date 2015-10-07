@@ -29,6 +29,14 @@ func NotEmpty(fieldName string, value string) error {
 	return nil
 }
 
+// ExcludeChars makes sure there characters in a field are valid
+func ExcludeChars(fieldName, value, chars string) error {
+	if strings.ContainsAny(value, chars) {
+		return NewViolation(fmt.Sprintf("invalid chars for %s", fieldName))
+	}
+	return nil
+}
+
 //IsIP checks to see if the value is a valid IP address. Returns an error if not valid
 func IsIP(value string) error {
 	if nil == net.ParseIP(value) {
