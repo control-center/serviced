@@ -15,6 +15,7 @@ package zookeeper
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 	"os/exec"
 	lpath "path"
@@ -332,30 +333,42 @@ func (c *Connection) Set(path string, node client.Node) error {
 func EnsureZkFatjar() {
 	_, err := exec.LookPath("java")
 	if err != nil {
-		log.Fatal("Can't find java in path")
+		log.Fatal("EnsureZkFatjar: Can't find java in path")
 	}
 
-	jars, err := filepath.Glob("zookeeper-*/contrib/jar/*.jar")
+	jars, err := filepath.Glob("zookeeper-*/contrib/fatjar/*.jar")
 	if err != nil {
-		log.Fatal("Error search for files")
+		log.Fatal("EnsureZkFatjar: Error searching for jar files")
 	}
 
+	zookeeperVersion := "3.4.5"
+	zookeeperDirectory := fmt.Sprintf("zookeeper-%s", zookeeperVersion)
 	if len(jars) > 0 {
+		for _, jar := range jars {
+			subpaths := strings.Split(jar, "/")
+			if subpaths[0] != zookeeperDirectory {
+				log.Fatalf("EnsureZkFatjar: Wrong zookeeper version found. Require %s, but found %s - please remove", zookeeperVersion, jar)
+				break
+			}
+		}
 		return
 	}
 
-	err = exec.Command("curl", "-O", "https://archive.apache.org/dist/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz").Run()
+	zookeeperTarball := fmt.Sprintf("zookeeper-%s.tar.gz", zookeeperVersion)
+	log.Printf("EnsureZkFatjar: downloading %s\n", zookeeperTarball)
+	archiveURL := fmt.Sprintf("https://archive.apache.org/dist/zookeeper/%s/%s", zookeeperDirectory, zookeeperTarball)
+	err = exec.Command("curl", "-O", archiveURL).Run()
 	if err != nil {
-		log.Fatalf("Could not download jar: %s", err)
+		log.Fatalf("EnsureZkFatjar: Could not download jar from %s: %s", archiveURL, err)
 	}
 
-	err = exec.Command("tar", "-xf", "zookeeper-3.4.5.tar.gz").Run()
+	err = exec.Command("tar", "-xf", zookeeperTarball).Run()
 	if err != nil {
-		log.Fatalf("Could not unzip jar: %s", err)
+		log.Fatalf("EnsureZkFatjar: Could not unzip jar %s: %s", zookeeperTarball, err)
 	}
 
-	err = exec.Command("rm", "zookeeper-3.4.5.tar.gz").Run()
+	err = exec.Command("rm", zookeeperTarball).Run()
 	if err != nil {
-		log.Fatalf("Could not rm jar.zip: %s", err)
+		log.Fatalf("EnsureZkFatjar: Could not rm %s: %s", zookeeperTarball, err)
 	}
 }
