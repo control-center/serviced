@@ -142,7 +142,7 @@ func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
 				return err
 			} else if !exists {
 				if err := f.AddHost(ctx, &host); err != nil {
-					glog.Errorf("Could not add host %s to pool: %s", host.ID, host.PoolID, err)
+					glog.Errorf("Could not add host %s to pool %s: %s", host.ID, host.PoolID, err)
 					return err
 				}
 				glog.Infof("Restored host %s (%s) to pool %s", host.ID, host.IPAddr, host.PoolID)
