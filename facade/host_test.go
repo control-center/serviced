@@ -16,6 +16,8 @@
 package facade
 
 import (
+	"time"
+
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -91,6 +93,107 @@ func (s *FacadeTest) Test_HostCRUD(t *C) {
 	if err != nil && !datastore.IsErrNoSuchEntity(err) {
 		t.Errorf("Unexpected error: %v", err)
 	}
+}
+
+func (s *FacadeTest) TestRestoreHosts(c *C) {
+	// create pool for testing
+	resourcePool := pool.New("poolid")
+	s.Facade.AddResourcePool(s.CTX, resourcePool)
+	defer s.Facade.RemoveResourcePool(s.CTX, "poolid")
+
+	// success
+	hosts1 := []host.Host{
+		{
+			ID:      "deadb11f",
+			PoolID:  "poolid",
+			Name:    "h1",
+			IPAddr:  "192.168.0.1",
+			RPCPort: 65535,
+			IPs: []host.HostIPResource{
+				{
+					HostID:    "deadb11f",
+					IPAddress: "192.168.0.1",
+				},
+			},
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+		},
+	}
+	err := s.Facade.RestoreHosts(s.CTX, hosts1)
+	c.Assert(err, IsNil)
+	actual, err := s.Facade.GetHosts(s.CTX)
+	c.Assert(err, IsNil)
+	for i := range actual {
+		actual[i].DatabaseVersion = 0
+		actual[i].CreatedAt = time.Time{}
+		actual[i].UpdatedAt = time.Time{}
+	}
+	c.Assert(actual, DeepEquals, hosts1)
+	defer s.Facade.RemoveHost(s.CTX, "deadb11f")
+
+	// different host with the same ip
+	hosts2 := []host.Host{
+		{
+			ID:      "deadb11e",
+			PoolID:  "poolid",
+			Name:    "h2",
+			IPAddr:  "192.168.1.1",
+			RPCPort: 65535,
+			IPs: []host.HostIPResource{
+				{
+					HostID:    "deadb11e",
+					IPAddress: "192.168.1.1",
+				}, {
+					HostID:    "deadb11e",
+					IPAddress: "192.168.0.1",
+				},
+			},
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+		},
+	}
+	err = s.Facade.RestoreHosts(s.CTX, hosts2)
+	hosts2[0].DatabaseVersion++
+	actual, err = s.Facade.GetHosts(s.CTX)
+	c.Assert(err, IsNil)
+	for i := range actual {
+		actual[i].DatabaseVersion = 0
+		actual[i].CreatedAt = time.Time{}
+		actual[i].UpdatedAt = time.Time{}
+	}
+	c.Assert(actual, DeepEquals, hosts1)
+
+	// host in different pool
+	resourcePool = pool.New("poolid2")
+	s.Facade.AddResourcePool(s.CTX, resourcePool)
+	defer s.Facade.RemoveResourcePool(s.CTX, "poolid2")
+	hosts3 := []host.Host{
+		{
+			ID:      "deadb11f",
+			PoolID:  "poolid2",
+			Name:    "h1",
+			IPAddr:  "192.168.0.1",
+			RPCPort: 65535,
+			IPs: []host.HostIPResource{
+				{
+					HostID:    "deadb11f",
+					IPAddress: "192.168.0.1",
+				},
+			},
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+		},
+	}
+	err = s.Facade.RestoreHosts(s.CTX, hosts3)
+	c.Assert(err, NotNil)
+	actual, err = s.Facade.GetHosts(s.CTX)
+	c.Assert(err, IsNil)
+	for i := range actual {
+		actual[i].DatabaseVersion = 0
+		actual[i].CreatedAt = time.Time{}
+		actual[i].UpdatedAt = time.Time{}
+	}
+	c.Assert(actual, DeepEquals, hosts1)
 }
 
 func (s *FacadeTest) Test_HostRemove(t *C) {
