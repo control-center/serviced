@@ -152,7 +152,7 @@ controlplane.
     }).
     filter('prettyDate', function(){
         return function(dateString){
-            return moment(dateString).format('MMM Do YYYY, hh:mm:ss');
+            return moment(new Date(dateString)).format('MMM Do YYYY, hh:mm:ss');
         };
     }).
     // create a human readable "fromNow" string from
