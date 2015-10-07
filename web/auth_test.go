@@ -103,19 +103,19 @@ func TestMain(m *testing.M) {
 		glog.Infof("Must be root to run integration tests. Exiting (no tests run).")
 		os.Exit(0)
 	}
-	err := CreateTestUsers()
+	err := createTestUsers()
 	if err != nil {
 		glog.Errorf("Error creating test user: %s\n", err)
 	}
 	glog.Infof("Running tests - some errors expected from negative tests.\n")
 	result := m.Run()
 	glog.Infof("Removing test users\n")
-	RemoveTestUsers()
+	removeTestUsers()
 	glog.Infof("Exiting\n")
 	os.Exit(result)
 }
 
-func CreateTestUsers() error {
+func createTestUsers() error {
 	for name, u := range testUsers {
 		err := createTestUser(name, &u)
 		if err != nil {
@@ -149,9 +149,9 @@ func createTestUser(name string, userobj *testUser) error {
 	return cmderr
 }
 
-func RemoveTestUsers() {
+func removeTestUsers() {
 	for _, user := range createdUsers {
-		err := RemoveTestUser(user.username)
+		err := removeTestUser(user.username)
 		if err != nil {
 			glog.Infof("Error deleting user %s: %s\n", user.username, err)
 		} else {
@@ -160,8 +160,8 @@ func RemoveTestUsers() {
 	}
 }
 
-func RemoveTestUser(testUserName string) error {
-	glog.V(2).Infof("RemoveTestUser(%s) invoked.\n", testUserName)
+func removeTestUser(testUserName string) error {
+	glog.V(2).Infof("removeTestUser(%s) invoked.\n", testUserName)
 	command := exec.Command("sudo", "userdel", testUserName)
 	glog.V(2).Infof("Deleting test user %s\n", testUserName)
 
