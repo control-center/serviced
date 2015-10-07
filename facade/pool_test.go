@@ -140,6 +140,79 @@ func (ft *FacadeTest) Test_RemoveResourcePool(t *C) {
 	fmt.Println(" ##### Test_RemoveResourcePool: PASSED")
 }
 
+func (ft *FacadeTest) TestRestoreResourcePools(c *C) {
+	pools1 := []pool.ResourcePool{
+		{
+			ID:    "testpool-1",
+			Realm: "default",
+			VirtualIPs: []pool.VirtualIP{
+				{
+					PoolID:        "testpool-1",
+					IP:            "122.34.56.7",
+					Netmask:       "255.255.255.0",
+					BindInterface: "eth0",
+				},
+			},
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+		},
+	}
+	err := ft.Facade.RestoreResourcePools(ft.CTX, pools1)
+	c.Assert(err, IsNil)
+	actual, err := ft.Facade.GetResourcePools(ft.CTX)
+	c.Assert(err, IsNil)
+	for i := range actual {
+		actual[i].DatabaseVersion = 0
+		actual[i].CreatedAt = time.Time{}
+		actual[i].UpdatedAt = time.Time{}
+	}
+	c.Assert(actual, DeepEquals, pools1)
+	defer ft.Facade.RemoveResourcePool(ft.CTX, "testpool-1")
+
+	pools2 := []pool.ResourcePool{
+		{
+			ID:    "testpool-1",
+			Realm: "default",
+			VirtualIPs: []pool.VirtualIP{
+				{
+					PoolID:        "testpool-1",
+					IP:            "122.34.56.8",
+					Netmask:       "255.255.255.1",
+					BindInterface: "eth1",
+				},
+			},
+			CoreLimit:   1,
+			MemoryLimit: 1,
+			CreatedAt:   time.Time{},
+			UpdatedAt:   time.Time{},
+		}, {
+			ID:    "testpool-2",
+			Realm: "default",
+			VirtualIPs: []pool.VirtualIP{
+				{
+					PoolID:        "testpool-2",
+					IP:            "122.34.56.7",
+					Netmask:       "255.255.255.0",
+					BindInterface: "eth0",
+				},
+			},
+			CreatedAt: time.Time{},
+			UpdatedAt: time.Time{},
+		},
+	}
+	err = ft.Facade.RestoreResourcePools(ft.CTX, pools2)
+	c.Assert(err, IsNil)
+	actual, err = ft.Facade.GetResourcePools(ft.CTX)
+	c.Assert(err, IsNil)
+	for i := range actual {
+		actual[i].DatabaseVersion = 0
+		actual[i].CreatedAt = time.Time{}
+		actual[i].UpdatedAt = time.Time{}
+	}
+	c.Assert(actual, DeepEquals, pools2)
+	defer ft.Facade.RemoveResourcePool(ft.CTX, "testpool-2")
+}
+
 func (ft *FacadeTest) Test_GetResourcePools(t *C) {
 	result, err := ft.Facade.GetResourcePools(ft.CTX)
 	if err != nil {
