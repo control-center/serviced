@@ -95,6 +95,7 @@ func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []serv
 	}
 
 	for _, template := range templates {
+		template.DatabaseVersion = 0
 		if _, ok := curtemplates[template.ID]; ok {
 			if err := f.UpdateServiceTemplate(ctx, template); err != nil {
 				glog.Errorf("Could not update service template %s: %s", template.ID, err)
