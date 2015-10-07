@@ -38,6 +38,7 @@ BUILD_TAGS="$(sudo bash ${DIR}/build-tags.sh) integration"
 echo "Running integration tests that require root ..."
 sudo su - root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; cd $PWD/volume; GOPATH=$GOPATH godep go test -tags=\"${BUILD_TAGS}\" ./..."
 sudo su - root -c "source /home/jenkins/.gvm/scripts/gvm; gvm use go1.4.2; cd $PWD/web; GOPATH=$GOPATH godep go test -tags=\"${BUILD_TAGS}\" ./..."
+echo "Done with integration tests that require root ..."
 unset BUILD_TAGS    # Make sure the makefile can choose it's own build tags wihtout interference
 
 #

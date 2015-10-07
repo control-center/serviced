@@ -100,8 +100,8 @@ var testCases = []testCase{
 
 func TestMain(m *testing.M) {
 	if 0 != os.Geteuid() {
-		glog.Infof("Must be root to run integration tests. Exiting (no tests run).")
-		os.Exit(0)
+		glog.Errorf("Must be root to run integration tests. Exiting (no tests run).")
+		os.Exit(1)
 	}
 	err := createTestUsers()
 	if err != nil {
@@ -153,7 +153,7 @@ func removeTestUsers() {
 	for _, user := range createdUsers {
 		err := removeTestUser(user.username)
 		if err != nil {
-			glog.Infof("Error deleting user %s: %s\n", user.username, err)
+			glog.Errorf("Error deleting user %s: %s\n", user.username, err)
 		} else {
 			glog.Infof("Successfully removed user %s\n", user.username)
 		}
