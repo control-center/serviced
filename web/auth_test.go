@@ -11,17 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build root, integration
+// +build root,integration
 
 package web
 
 import (
 	"errors"
+	"github.com/zenoss/glog"
 	"os"
 	"os/exec"
 	"os/user"
 	"testing"
-	"github.com/zenoss/glog"
 )
 
 var (
@@ -29,9 +29,9 @@ var (
 )
 
 const (
-	testUserPassword = "secret"
+	testUserPassword          = "secret"
 	testUserPasswordEncrypted = "$1$Qd8H95T5$RYSZQeoFbEB.gS19zS99A0"
-	testUserSalt = "$1$Qd8H95T5$"
+	testUserSalt              = "$1$Qd8H95T5$"
 )
 
 type testUser struct {
@@ -42,8 +42,8 @@ type testUser struct {
 }
 
 var testUsers = map[string]testUser{
-	"gooduser": testUser{"ztestgooduser", "ztestgooduserpass", adminGroup, false},
-	"nonrootuser": testUser{"ztestplainuser", "ztestplainuserpass", "users", false},
+	"gooduser":       testUser{"ztestgooduser", "ztestgooduserpass", adminGroup, false},
+	"nonrootuser":    testUser{"ztestplainuser", "ztestplainuserpass", "users", false},
 	"oldbutgooduser": testUser{"ztestolduser", "ztestolduserpass", adminGroup, true},
 }
 
@@ -98,7 +98,6 @@ var testCases = []testCase{
 	},
 }
 
-
 func TestMain(m *testing.M) {
 	if 0 != os.Geteuid() {
 		glog.Infof("Must be root to run integration tests. Exiting (no tests run).")
@@ -117,7 +116,7 @@ func TestMain(m *testing.M) {
 }
 
 func CreateTestUsers() error {
-	for name, u := range (testUsers) {
+	for name, u := range testUsers {
 		err := createTestUser(name, &u)
 		if err != nil {
 			glog.Errorf("Error creating user %s: %s\n", name, err)
@@ -128,7 +127,6 @@ func CreateTestUsers() error {
 	return nil
 }
 
-
 func createTestUser(name string, userobj *testUser) error {
 	testUserName := userobj.username
 	if _, err := user.Lookup(testUserName); err == nil {
@@ -136,7 +134,7 @@ func createTestUser(name string, userobj *testUser) error {
 	}
 	encryptedPassword := crypt(userobj.password, testUserSalt)
 	cmdName := "sudo"
-	args := []string{"useradd", userobj.username, "-p", encryptedPassword, "-G", userobj.group }
+	args := []string{"useradd", userobj.username, "-p", encryptedPassword, "-G", userobj.group}
 	if userobj.expired {
 		args = append(args, "-e", "1970-01-01")
 	}
@@ -152,11 +150,11 @@ func createTestUser(name string, userobj *testUser) error {
 }
 
 func RemoveTestUsers() {
-	for _, user := range (createdUsers) {
+	for _, user := range createdUsers {
 		err := RemoveTestUser(user.username)
 		if err != nil {
 			glog.Infof("Error deleting user %s: %s\n", user.username, err)
-		}  else {
+		} else {
 			glog.Infof("Successfully removed user %s\n", user.username)
 		}
 	}
@@ -184,7 +182,7 @@ func TestCrypt(t *testing.T) {
 
 func TestAuthentication(t *testing.T) {
 	glog.V(2).Infof("TestAuthentication()")
-	for _, tc := range (testCases) {
+	for _, tc := range testCases {
 		user := tc.user
 		creds := login{Username: user.username, Password: tc.testPassword}
 		pamResult := pamValidateLoginOnly(&creds, adminGroup)
@@ -201,4 +199,3 @@ func TestAuthentication(t *testing.T) {
 		}
 	}
 }
-
