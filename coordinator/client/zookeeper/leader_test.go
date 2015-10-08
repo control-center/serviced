@@ -18,25 +18,23 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"testing"
 	"time"
 
-	zklib "github.com/control-center/go-zookeeper/zk"
+	"github.com/control-center/serviced/zzk/test"
 )
 
 func TestLeader(t *testing.T) {
 
 	/* start the cluster */
-	tc, err := zklib.StartTestCluster(1, nil, nil)
-	if err != nil {
-		t.Fatalf("could not start test zk cluster: %s", err)
+	zzkServer := &zzktest.ZZKServer{}
+	if err := zzkServer.Start(); err != nil {
+		t.Fatalf("Could not start zookeeper: %s", err)
 	}
-	defer os.RemoveAll(tc.Path)
-	defer tc.Stop()
+	defer zzkServer.Stop()
 	time.Sleep(time.Second)
 
-	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	// setup the driver
 	drv := Driver{}

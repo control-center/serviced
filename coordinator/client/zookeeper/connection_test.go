@@ -18,23 +18,14 @@ package zookeeper
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"path"
 	"testing"
 	"time"
 
-	zklib "github.com/control-center/go-zookeeper/zk"
 	coordclient "github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/zzk/test"
 	"github.com/zenoss/glog"
 )
-
-func init() {
-	EnsureZkFatjar()
-}
-
-func TestEnsureZkFatjar(t *testing.T) {
-	EnsureZkFatjar()
-}
 
 type testNodeT struct {
 	Name    string
@@ -48,16 +39,14 @@ func (n *testNodeT) SetVersion(version interface{}) {
 func (n *testNodeT) Version() interface{} { return n.version }
 
 func TestZkDriver(t *testing.T) {
-	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1, nil, nil)
-	if err != nil {
-		t.Fatalf("could not start test zk cluster: %s", err)
+	zzkServer := &zzktest.ZZKServer{}
+	if err := zzkServer.Start(); err != nil {
+		t.Fatalf("Could not start zookeeper: %s", err)
 	}
-	defer os.RemoveAll(tc.Path)
-	defer tc.Stop()
+	defer zzkServer.Stop()
 	time.Sleep(time.Second)
 
-	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
 	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
@@ -66,6 +55,7 @@ func TestZkDriver(t *testing.T) {
 	}
 	dsn := string(dsnBytes)
 
+	basePath := "/basePath"
 	conn, err := drv.GetConnection(dsn, basePath)
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
@@ -119,7 +109,6 @@ func TestZkDriver(t *testing.T) {
 	}
 
 	err = conn.Get("/foo/bar", testNode2)
-	t.Logf("testNode version: %v", testNode2.Version().(*zklib.Stat).Version)
 	testNode2.Name = "abc"
 	if err := conn.Set("/foo/bar", testNode2); err != nil {
 		t.Fatalf("Could not update testNode: %s", err)
@@ -134,16 +123,14 @@ func TestZkDriver(t *testing.T) {
 }
 
 func TestZkDriver_Multi(t *testing.T) {
-	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1, nil, nil)
-	if err != nil {
-		t.Fatalf("could not start test zk cluster: %s", err)
+	zzkServer := &zzktest.ZZKServer{}
+	if err := zzkServer.Start(); err != nil {
+		t.Fatalf("Could not start zookeeper: %s", err)
 	}
-	defer os.RemoveAll(tc.Path)
-	defer tc.Stop()
+	defer zzkServer.Stop()
 	time.Sleep(time.Second)
 
-	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
 	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
@@ -153,6 +140,7 @@ func TestZkDriver_Multi(t *testing.T) {
 
 	dsn := string(dsnBytes)
 
+	basePath := "/basePath"
 	conn, err := drv.GetConnection(dsn, basePath)
 	defer conn.Close()
 	if err != nil {
@@ -310,16 +298,14 @@ func TestZkDriver_Multi(t *testing.T) {
 }
 
 func TestZkDriver_Ephemeral(t *testing.T) {
-	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1, nil, nil)
-	if err != nil {
-		t.Fatalf("could not start test zk cluster: %s", err)
+	zzkServer := &zzktest.ZZKServer{}
+	if err := zzkServer.Start(); err != nil {
+		t.Fatalf("Could not start zookeeper: %s", err)
 	}
-	defer os.RemoveAll(tc.Path)
-	defer tc.Stop()
+	defer zzkServer.Stop()
 	time.Sleep(time.Second)
 
-	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
 	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
@@ -329,6 +315,7 @@ func TestZkDriver_Ephemeral(t *testing.T) {
 
 	dsn := string(dsnBytes)
 
+	basePath := "/basePath"
 	conn, err := drv.GetConnection(dsn, basePath)
 	defer conn.Close()
 	if err != nil {
@@ -389,16 +376,14 @@ func TestZkDriver_Ephemeral(t *testing.T) {
 }
 
 func TestZkDriver_Watch(t *testing.T) {
-	basePath := "/basePath"
-	tc, err := zklib.StartTestCluster(1, nil, nil)
-	if err != nil {
-		t.Fatalf("could not start test zk cluster: %s", err)
+	zzkServer := &zzktest.ZZKServer{}
+	if err := zzkServer.Start(); err != nil {
+		t.Fatalf("Could not start zookeeper: %s", err)
 	}
-	defer os.RemoveAll(tc.Path)
-	defer tc.Stop()
+	defer zzkServer.Stop()
 	time.Sleep(time.Second)
 
-	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	drv := Driver{}
 	dsnBytes, err := json.Marshal(DSN{Servers: servers, Timeout: time.Second * 15})
@@ -407,6 +392,7 @@ func TestZkDriver_Watch(t *testing.T) {
 	}
 	dsn := string(dsnBytes)
 
+	basePath := "/basePath"
 	conn, err := drv.GetConnection(dsn, basePath)
 	if err != nil {
 		t.Fatal("unexpected error getting connection")
