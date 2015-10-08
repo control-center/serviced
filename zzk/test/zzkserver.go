@@ -49,13 +49,22 @@ func (s *ZZKServer) Start() error {
 	containerName :=  "zktestserver"
 	if ctr, err := s.dc.InspectContainer(containerName); err == nil {
 		fmt.Printf("ZZKServer.Start(): Killing container %s ...\n", ctr.ID)
-		s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
+		err = s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
+		if err != nil {
+			return fmt.Errorf("ERROR: unable to kill container %s: %s", ctr.ID, err)
+		}
+
 		opts := dockerclient.RemoveContainerOptions{
 			ID:            ctr.ID,
 			RemoveVolumes: true,
 			Force:         true,
 		}
-		s.dc.RemoveContainer(opts)
+		err = s.dc.RemoveContainer(opts)
+		if err != nil {
+			return fmt.Errorf("ERROR: unable to remove container %s: %s", ctr.ID, err)
+		}
+	} else if _, ok := err.(*dockerclient.NoSuchContainer); !ok {
+		return fmt.Errorf("ERROR: unable to inspect container %s: %s", containerName, err)
 	} else {
 		opts := dockerclient.PullImageOptions{
 			Repository: "jplock/zookeeper",
@@ -63,7 +72,11 @@ func (s *ZZKServer) Start() error {
 		}
 		auth := dockerclient.AuthConfiguration{}
 		fmt.Printf("ZZKServer.Start(): Pulling %s:%s ...\n", opts.Repository, opts.Tag)
-		s.dc.PullImage(opts, auth)
+		err = s.dc.PullImage(opts, auth)
+		if err != nil {
+			return fmt.Errorf("Could not pull image %s:%s - %s", opts.Repository, opts.Tag, err)
+		}
+		fmt.Printf("ZZKServer.Start(): Pull finished for %s:%s ...\n", opts.Repository, opts.Tag)
 	}
 
 	// Start zookeeper
@@ -101,12 +114,19 @@ func (s *ZZKServer) Stop() {
 		return
 	}
 
-	s.dc.StopContainer(s.zkCtrID, 10)
+	err := s.dc.StopContainer(s.zkCtrID, 10)
+	if err != nil {
+		fmt.Printf("ERROR: unable to stop container %s: %s", s.zkCtrID, err)
+	}
+
 	opts := dockerclient.RemoveContainerOptions{
 		ID:            s.zkCtrID,
 		RemoveVolumes: true,
 		Force:         true,
 	}
-	s.dc.RemoveContainer(opts)
+	err = s.dc.RemoveContainer(opts)
+	if err != nil {
+		fmt.Printf("ERROR: unable to remove container %s: %s", s.zkCtrID, err)
+	}
 	s.zkCtrID = ""
 }
