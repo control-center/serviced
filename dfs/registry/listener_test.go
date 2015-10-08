@@ -23,10 +23,10 @@ import (
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
-	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/dfs/docker/mocks"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
+	"github.com/control-center/serviced/zzk/test"
 
 	. "gopkg.in/check.v1"
 )
@@ -77,49 +77,18 @@ type RegistryListenerSuite struct {
 	docker   *mocks.Docker
 	listener *RegistryListener
 	zkCtrID  string
+	zzkServer *zzktest.ZZKServer
 }
 
 var _ = Suite(&RegistryListenerSuite{})
 
 func (s *RegistryListenerSuite) SetUpSuite(c *C) {
-	var err error
-	if s.dc, err = dockerclient.NewClient(docker.DefaultSocket); err != nil {
-		c.Fatalf("Could not connect to docker client: %s", err)
-	}
-	if ctr, err := s.dc.InspectContainer("zktestserver"); err == nil {
-		s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
-		opts := dockerclient.RemoveContainerOptions{
-			ID:            ctr.ID,
-			RemoveVolumes: true,
-			Force:         true,
-		}
-		s.dc.RemoveContainer(opts)
-	} else {
-		opts := dockerclient.PullImageOptions{
-			Repository: "jplock/zookeeper",
-			Tag:        "3.4.6",
-		}
-		auth := dockerclient.AuthConfiguration{}
-		s.dc.PullImage(opts, auth)
-	}
-	// Start zookeeper
-	opts := dockerclient.CreateContainerOptions{Name: "zktestserver"}
-	opts.Config = &dockerclient.Config{Image: "jplock/zookeeper:3.4.6"}
-	ctr, err := s.dc.CreateContainer(opts)
+	s.zzkServer = &zzktest.ZZKServer{}
+	err := s.zzkServer.Start()
 	if err != nil {
-		c.Fatalf("Could not initialize zookeeper: %s", err)
-	}
-	s.zkCtrID = ctr.ID
-	hconf := &dockerclient.HostConfig{
-		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
-			"2181/tcp": []dockerclient.PortBinding{
-				{HostIP: "localhost", HostPort: "2181"},
-			},
-		},
-	}
-	if err := s.dc.StartContainer(ctr.ID, hconf); err != nil {
 		c.Fatalf("Could not start zookeeper: %s", err)
 	}
+
 	// Connect to the zookeeper client
 	dsn := zookeeper.NewDSN([]string{"localhost:2181"}, 15*time.Second).String()
 	zkclient, err := coordclient.New("zookeeper", dsn, "/", nil)
@@ -136,13 +105,7 @@ func (s *RegistryListenerSuite) TearDownSuite(c *C) {
 	if s.conn != nil {
 		s.conn.Close()
 	}
-	s.dc.StopContainer(s.zkCtrID, 10)
-	opts := dockerclient.RemoveContainerOptions{
-		ID:            s.zkCtrID,
-		RemoveVolumes: true,
-		Force:         true,
-	}
-	s.dc.RemoveContainer(opts)
+	s.zzkServer.Stop()
 }
 
 func (s *RegistryListenerSuite) SetUpTest(c *C) {
