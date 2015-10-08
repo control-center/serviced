@@ -51,27 +51,27 @@ func (s *DockerSuite) SetUpSuite(c *C) {
 	} else {
 		opts := dockerclient.PullImageOptions{
 			Repository: "registry",
-			Tag:        "latest",
+			Tag:        "2.1.1",
 		}
 		auth := dockerclient.AuthConfiguration{}
 		s.dc.PullImage(opts, auth)
 	}
 	// Start the docker registry
 	opts := dockerclient.CreateContainerOptions{Name: "regtestserver"}
-	opts.Config = &dockerclient.Config{Image: "registry"}
-	ctr, err := s.dc.CreateContainer(opts)
-	if err != nil {
-		c.Fatalf("Could not initialize docker registry: %s", err)
-	}
-	s.regid = ctr.ID
-	hconf := &dockerclient.HostConfig{
+	opts.Config = &dockerclient.Config{Image: "registry:2.1.1"}
+	opts.HostConfig = &dockerclient.HostConfig{
 		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
 			"5000/tcp": []dockerclient.PortBinding{
 				{HostIP: "localhost", HostPort: "5000"},
 			},
 		},
 	}
-	if err := s.dc.StartContainer(ctr.ID, hconf); err != nil {
+	ctr, err := s.dc.CreateContainer(opts)
+	if err != nil {
+		c.Fatalf("Could not initialize docker registry: %s", err)
+	}
+	s.regid = ctr.ID
+	if err := s.dc.StartContainer(ctr.ID, nil); err != nil {
 		c.Fatalf("Could not start docker registry: %s", err)
 	}
 }
