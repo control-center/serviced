@@ -18,6 +18,7 @@ package zzktest
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/control-center/serviced/dfs/docker"
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -25,9 +26,15 @@ import (
 
 // ZZKServer
 type ZZKServer struct {
+	Port     int
 	dc       *dockerclient.Client
 	zkCtrID  string
 }
+
+const (
+	DEFAULT_PORT = 2181
+	zzkVersion = "3.4.5"
+)
 
 // Start will start an instance of Zookeeper using a docker container.
 // If it finds that a container is running already, it will kill that container
@@ -39,7 +46,9 @@ func (s *ZZKServer) Start() error {
 	}
 
 	// Make sure we start with a fresh instance
-	if ctr, err := s.dc.InspectContainer("zktestserver"); err == nil {
+	containerName :=  "zktestserver"
+	if ctr, err := s.dc.InspectContainer(containerName); err == nil {
+		fmt.Printf("ZZKServer.Start(): Killing container %s ...\n", ctr.ID)
 		s.dc.KillContainer(dockerclient.KillContainerOptions{ID: ctr.ID})
 		opts := dockerclient.RemoveContainerOptions{
 			ID:            ctr.ID,
@@ -50,26 +59,32 @@ func (s *ZZKServer) Start() error {
 	} else {
 		opts := dockerclient.PullImageOptions{
 			Repository: "jplock/zookeeper",
-			Tag:        "3.4.6",
+			Tag:        zzkVersion,
 		}
 		auth := dockerclient.AuthConfiguration{}
+		fmt.Printf("ZZKServer.Start(): Pulling %s:%s ...\n", opts.Repository, opts.Tag)
 		s.dc.PullImage(opts, auth)
 	}
 
 	// Start zookeeper
-	opts := dockerclient.CreateContainerOptions{Name: "zktestserver"}
-	opts.Config = &dockerclient.Config{Image: "jplock/zookeeper:3.4.6"}
+	opts := dockerclient.CreateContainerOptions{Name: containerName}
+	opts.Config = &dockerclient.Config{Image: fmt.Sprintf("jplock/zookeeper:%s", zzkVersion)}
 	ctr, err := s.dc.CreateContainer(opts)
 	if err != nil {
 		return fmt.Errorf("Could not initialize zookeeper: %s", err)
 	}
 
+	if s.Port == 0 {
+		s.Port = DEFAULT_PORT
+	}
+
 	// Start the container
 	s.zkCtrID = ctr.ID
+	dockerPort := dockerclient.Port(fmt.Sprintf("%d/tcp", s.Port))
 	hconf := &dockerclient.HostConfig{
 		PortBindings: map[dockerclient.Port][]dockerclient.PortBinding{
-			"2181/tcp": []dockerclient.PortBinding{
-				{HostIP: "localhost", HostPort: "2181"},
+			dockerPort: []dockerclient.PortBinding{
+				{HostIP: "localhost", HostPort: strconv.Itoa(s.Port)},
 			},
 		},
 	}
