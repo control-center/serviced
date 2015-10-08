@@ -86,6 +86,32 @@ func (f *Facade) RemoveServiceTemplate(ctx datastore.Context, id string) error {
 	return nil
 }
 
+// RestoreServiceTemplates restores a service template, typically from a backup
+func (f *Facade) RestoreServiceTemplates(ctx datastore.Context, templates []servicetemplate.ServiceTemplate) error {
+	curtemplates, err := f.GetServiceTemplates(ctx)
+	if err != nil {
+		glog.Errorf("Could not look up service templates: %s", err)
+		return err
+	}
+
+	for _, template := range templates {
+		template.DatabaseVersion = 0
+		if _, ok := curtemplates[template.ID]; ok {
+			if err := f.UpdateServiceTemplate(ctx, template); err != nil {
+				glog.Errorf("Could not update service template %s: %s", template.ID, err)
+				return err
+			}
+		} else {
+			template.ID = ""
+			if _, err := f.AddServiceTemplate(ctx, template); err != nil {
+				glog.Errorf("Could not add service template %s: %s", template.ID, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicetemplate.ServiceTemplate, error) {
 	glog.V(2).Infof("Facade.GetServiceTemplates")
 	results, err := f.templateStore.GetServiceTemplates(ctx)
