@@ -139,6 +139,25 @@ func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.Resource
 	return nil
 }
 
+// RestoreResourcePools restores a bulk of resource pools, usually from a backup.
+func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.ResourcePool) error {
+	for _, pool := range pools {
+		pool.DatabaseVersion = 0
+		if err := f.AddResourcePool(ctx, &pool); err != nil {
+			if err == ErrPoolExists {
+				if err := f.UpdateResourcePool(ctx, &pool); err != nil {
+					glog.Errorf("Could not restore resource pool %s via update: %s", pool.ID, err)
+					return err
+				}
+			} else {
+				glog.Errorf("Could not restore resource pool %s via add: %s", pool.ID, err)
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // HasIP checks if a pool uses a particular IP address
 func (f *Facade) HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error) {
 	if exists, err := f.poolStore.HasVirtualIP(ctx, poolID, ipAddr); err != nil {
