@@ -190,7 +190,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_SnapshotFailed(c *C) {
 	mockVol := st.setupMockSnapshotVolume(c, svcs[0].ID)
 
 	errorStub := errors.New("errorStub: Snapshot() failed")
-	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string")).Return(errorStub)
+	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("[]string")).Return(errorStub)
 
 	snapshotLabel, err := st.dfs.Snapshot(testTenantID, "description")
 
@@ -201,7 +201,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_SnapshotFailed(c *C) {
 func (st *snapshotTest) TestSnapshot_Snapshot_TagFailed(c *C) {
 	svcs := st.setupWaitForServicesToBePaused(nil)
 	mockVol := st.setupMockSnapshotVolume(c, svcs[0].ID)
-	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string")).Return(nil)
+	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("[]string")).Return(nil)
 
 	mockClient := st.setupMockDockerClient()
 	errorStub := errors.New("errorStub: Tag() failed")
@@ -226,7 +226,7 @@ func (st *snapshotTest) TestSnapshot_Snapshot_WithoutDescription(c *C) {
 func (st *snapshotTest) testSnapshot(c *C, description string) {
 	svcs := st.setupWaitForServicesToBePaused(nil)
 	mockVol := st.setupMockSnapshotVolume(c, svcs[0].ID)
-	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string")).Return(nil)
+	mockVol.On("Snapshot", mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("string"), mock.AnythingOfTypeArgument("[]string")).Return(nil)
 
 	mockClient := st.setupMockDockerClient()
 	mockClient.On("ListImages", dockerclient.ListImagesOptions{All: false}).Return(nil, nil)
@@ -239,7 +239,6 @@ func (st *snapshotTest) testSnapshot(c *C, description string) {
 	c.Assert(err, IsNil)
 
 	mockVol.AssertCalled(c, "WriteMetadata", snapshotLabel, serviceJSON)
-	mockVol.AssertCalled(c, "WriteMetadata", snapshotLabel, snapshotMeta)
 }
 
 func (st *snapshotTest) TestSnapshot_ListSnapshots_GetServiceFails(c *C) {
@@ -397,7 +396,7 @@ func (st *snapshotTest) setupMockSnapshotVolume(c *C, serviceID string) *volumet
 	st.mountVolumeResponse.volume = mockVol
 	st.mountVolumeResponse.err = nil
 
-	var metafiles = []string{serviceJSON, snapshotMeta}
+	var metafiles = []string{serviceJSON}
 	for _, f := range metafiles {
 		buffer := mocks.NewNopCloser(bytes.NewBufferString(""))
 		mockVol.On("WriteMetadata", mock.AnythingOfTypeArgument("string"), f).Return(buffer, nil)
@@ -450,14 +449,12 @@ func (st *snapshotTest) setupListSnapshots(c *C, snapshotIDs, descriptions []str
 
 	// Make separate test directories for each snapshot
 	for i, id := range snapshotIDs {
-		st.makeSnapshotDir(c, id)
-
+		message := ""
 		if descriptions != nil {
-			jsonbuffer := bytes.NewBufferString(fmt.Sprintf("{ \"description\": %q}\n", descriptions[i]))
-			mockVol.On("ReadMetadata", id, snapshotMeta).Return(ioutil.NopCloser(jsonbuffer), nil)
-		} else {
-			mockVol.On("ReadMetadata", id, snapshotMeta).Return(ioutil.NopCloser(bytes.NewBufferString("")), errors.New("file not found"))
+			message = descriptions[i]
 		}
+		mockVol.On("SnapshotInfo", id).Return(&volume.SnapshotInfo{Name: id, TenantID: id, Label: id, Message: message}, nil)
+		st.makeSnapshotDir(c, id)
 	}
 }
 
