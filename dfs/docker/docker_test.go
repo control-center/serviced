@@ -130,68 +130,68 @@ func (s *DockerSuite) TestLoadImage(c *C) {
 }
 
 func (s *DockerSuite) TestPushImage(c *C) {
-	defer s.dc.RemoveImage("localhost:5000/busybox:push")
-	err := s.docker.PushImage("localhost:5000/busybox:push")
+	defer s.dc.RemoveImage("localhost:5001/busybox:push")
+	err := s.docker.PushImage("localhost:5001/busybox:push")
 	c.Assert(err, NotNil)
-	err = s.dc.TagImage("busybox", dockerclient.TagImageOptions{Repo: "localhost:5000/busybox", Tag: "push"})
+	err = s.dc.TagImage("busybox", dockerclient.TagImageOptions{Repo: "localhost:5001/busybox", Tag: "push"})
 	c.Assert(err, IsNil)
-	err = s.docker.PushImage("localhost:5000/busybox:push")
+	err = s.docker.PushImage("localhost:5001/busybox:push")
 	c.Assert(err, IsNil)
-	err = s.dc.RemoveImage("localhost:5000/busybox:push")
+	err = s.dc.RemoveImage("localhost:5001/busybox:push")
 	c.Assert(err, IsNil)
 	opts := dockerclient.PullImageOptions{
-		Repository: "localhost:5000/busybox",
-		Registry:   "localhost:5000",
+		Repository: "localhost:5001/busybox",
+		Registry:   "localhost:5001",
 		Tag:        "push",
 	}
 	auth := dockerclient.AuthConfiguration{}
 	err = s.dc.PullImage(opts, auth)
 	c.Assert(err, IsNil)
-	_, err = s.dc.InspectImage("localhost:5000/busybox:push")
+	_, err = s.dc.InspectImage("localhost:5001/busybox:push")
 	c.Assert(err, IsNil)
 }
 
 func (s *DockerSuite) TestPullImage(c *C) {
-	defer s.dc.RemoveImage("localhost:5000/busybox:pull")
-	err := s.docker.PullImage("localhost:5000/busybox:pull")
+	defer s.dc.RemoveImage("localhost:5001/busybox:pull")
+	err := s.docker.PullImage("localhost:5001/busybox:pull")
 	c.Assert(err, NotNil)
-	err = s.dc.TagImage("busybox", dockerclient.TagImageOptions{Repo: "localhost:5000/busybox", Tag: "pull"})
+	err = s.dc.TagImage("busybox", dockerclient.TagImageOptions{Repo: "localhost:5001/busybox", Tag: "pull"})
 	c.Assert(err, IsNil)
 	opts := dockerclient.PushImageOptions{
-		Name:     "localhost:5000/busybox",
+		Name:     "localhost:5001/busybox",
 		Tag:      "pull",
-		Registry: "localhost:5000",
+		Registry: "localhost:5001",
 	}
 	auth := dockerclient.AuthConfiguration{}
 	err = s.dc.PushImage(opts, auth)
 	c.Assert(err, IsNil)
-	err = s.dc.RemoveImage("localhost:5000/busybox:pull")
+	err = s.dc.RemoveImage("localhost:5001/busybox:pull")
 	c.Assert(err, IsNil)
-	err = s.docker.PullImage("localhost:5000/busybox:pull")
+	err = s.docker.PullImage("localhost:5001/busybox:pull")
 	c.Assert(err, IsNil)
-	_, err = s.dc.InspectImage("localhost:5000/busybox:pull")
+	_, err = s.dc.InspectImage("localhost:5001/busybox:pull")
 	c.Assert(err, IsNil)
 }
 
 func (s *DockerSuite) TestTagImage(c *C) {
-	defer s.dc.RemoveImage("localhost:5000/busybox:tag")
-	err := s.docker.TagImage("fakebox", "localhost:5000/busybox:tag")
+	defer s.dc.RemoveImage("localhost:5001/busybox:tag")
+	err := s.docker.TagImage("fakebox", "localhost:5001/busybox:tag")
 	c.Assert(err, NotNil)
-	err = s.docker.TagImage("busybox", "localhost:5000/busybox:tag")
+	err = s.docker.TagImage("busybox", "localhost:5001/busybox:tag")
 	c.Assert(err, IsNil)
-	_, err = s.dc.InspectImage("localhost:5000/busybox:tag")
+	_, err = s.dc.InspectImage("localhost:5001/busybox:tag")
 	c.Assert(err, IsNil)
 }
 
 func (s *DockerSuite) TestRemoveImage(c *C) {
-	defer s.dc.RemoveImage("localhost:5000/busybox:remove")
-	err := s.docker.RemoveImage("localhost:5000/busybox:remove")
+	defer s.dc.RemoveImage("localhost:5001/busybox:remove")
+	err := s.docker.RemoveImage("localhost:5001/busybox:remove")
 	c.Assert(err, NotNil)
-	err = s.dc.TagImage("busybox", dockerclient.TagImageOptions{Repo: "localhost:5000/busybox", Tag: "remove"})
+	err = s.dc.TagImage("busybox", dockerclient.TagImageOptions{Repo: "localhost:5001/busybox", Tag: "remove"})
 	c.Assert(err, IsNil)
-	err = s.docker.RemoveImage("localhost:5000/busybox:remove")
+	err = s.docker.RemoveImage("localhost:5001/busybox:remove")
 	c.Assert(err, IsNil)
-	_, err = s.dc.InspectImage("localhost:5000/busybox:remove")
+	_, err = s.dc.InspectImage("localhost:5001/busybox:remove")
 	c.Assert(err, NotNil)
 }
 
@@ -219,15 +219,15 @@ func (s *DockerSuite) TestFindContainer(c *C) {
 }
 
 func (s *DockerSuite) TestCommitContainer(c *C) {
-	defer s.dc.RemoveImage("localhost:5000/busybox:commit")
+	defer s.dc.RemoveImage("localhost:5001/busybox:commit")
 	opts := dockerclient.CreateContainerOptions{}
 	opts.Config = &dockerclient.Config{Image: "busybox"}
 	ctr, err := s.dc.CreateContainer(opts)
 	c.Assert(err, IsNil)
 	defer s.dc.RemoveContainer(dockerclient.RemoveContainerOptions{ID: ctr.ID, RemoveVolumes: true, Force: true})
-	expected, err := s.docker.CommitContainer(ctr.ID, "localhost:5000/busybox:commit")
+	expected, err := s.docker.CommitContainer(ctr.ID, "localhost:5001/busybox:commit")
 	c.Assert(err, IsNil)
-	actual, err := s.dc.InspectImage("localhost:5000/busybox:commit")
+	actual, err := s.dc.InspectImage("localhost:5001/busybox:commit")
 	c.Assert(err, IsNil)
 	c.Assert(actual.ID, DeepEquals, expected.ID)
 }
