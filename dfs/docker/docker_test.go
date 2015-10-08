@@ -88,6 +88,16 @@ func (s *DockerSuite) TearDownSuite(c *C) {
 }
 
 func (s *DockerSuite) SetUpTest(c *C) {
+	ctr, err := s.dc.InspectContainer(s.regid)
+	if err != nil {
+		c.Fatalf("Could not find registry: %s", err)
+	}
+	if !ctr.State.Running {
+		c.Logf("Container died inexplicably; restarting")
+		if err := s.dc.StartContainer(s.regid, nil); err != nil {
+			c.Fatalf("Could not start docker registry: %s", err)
+		}
+	}
 	opts := dockerclient.PullImageOptions{Repository: "busybox", Tag: "latest"}
 	auth := dockerclient.AuthConfiguration{}
 	if err := s.dc.PullImage(opts, auth); err != nil {
