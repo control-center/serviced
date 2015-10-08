@@ -21,6 +21,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"time"
 
 	"github.com/zenoss/glog"
 )
@@ -45,6 +46,15 @@ type Status struct { // see Docker - look at their status struct and borrow heav
 
 type Statuses struct {
 	StatusMap map[string]Status
+}
+
+type SnapshotInfo struct {
+	Name     string
+	TenantID string
+	Label    string
+	Tags     []string
+	Message  string
+	Created  time.Time
 }
 
 const (
@@ -122,7 +132,9 @@ type Volume interface {
 	Driver() Driver
 	// Snapshot snapshots the current state of this volume and stores it
 	// using the name <label>
-	Snapshot(label string) (err error)
+	Snapshot(label, message string, tags []string) (err error)
+	// SnapshotInfo returns general information about a particular snapshot
+	SnapshotInfo(label string) (*SnapshotInfo, error)
 	// WriteMetadata returns a handle to write metadata to a snapshot
 	WriteMetadata(label, name string) (io.WriteCloser, error)
 	// ReadMetadata returns a handle to read metadata from a snapshot

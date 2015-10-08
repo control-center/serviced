@@ -17,7 +17,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"strings"
 	"time"
 
 	"github.com/control-center/serviced/commons"
@@ -28,13 +27,8 @@ import (
 )
 
 const (
-	snapshotMeta = "snapshot.json"
-	timeFormat   = "20060102-150405.000"
+	timeFormat = "20060102-150405.000"
 )
-
-type SnapshotMetadata struct {
-	Description string
-}
 
 // Snapshot takes a snapshot of the dfs as well as the docker images for the
 // given service ID
@@ -98,17 +92,8 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 		return "", err
 	}
 
-	// dump metadata for this snapshot
-	if file, err := snapshotVolume.WriteMetadata(label, snapshotMeta); err != nil {
-		glog.Errorf("Could not write metadata %s:%s: %s", label, snapshotMeta, err)
-		return "", err
-	} else if err := exportJSON(file, SnapshotMetadata{description}); err != nil {
-		glog.Errorf("Could not export %s: %s", snapshotMeta, err)
-		return "", err
-	}
-
 	// add the snapshot to the volume
-	if err := snapshotVolume.Snapshot(label); err != nil {
+	if err := snapshotVolume.Snapshot(label, description, []string{}); err != nil {
 		glog.Errorf("Could not snapshot service %s (%s): %s", tenant.Name, tenant.ID, err)
 		return "", err
 	}
@@ -125,13 +110,22 @@ func (dfs *DistributedFilesystem) Snapshot(tenantID string, description string) 
 
 // Rollback rolls back the dfs and docker images to the state of a given snapshot
 func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool) error {
-	tenantID, timestamp, err := parseLabel(snapshotID)
+	snapshot, err := dfs.GetVolume(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not rollback snapshot %s: %s", snapshotID, err)
+		glog.Errorf("Snapshot not found %s: %s", snapshotID, err)
 		return err
 	}
-
-	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: tenantID})
+	vol, err := dfs.GetVolume(snapshot.Tenant())
+	if err != nil {
+		glog.Errorf("Could not get volume for tenant %s: %s", snapshot.Tenant(), err)
+		return err
+	}
+	info, err := vol.SnapshotInfo(snapshotID)
+	if err != nil {
+		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
+		return err
+	}
+	svcs, err := dfs.facade.GetServices(dfs.datastoreGet(), dao.ServiceRequest{TenantID: info.TenantID})
 	if err != nil {
 		glog.Errorf("Could not acquire the list of all services: %s", err)
 		return err
@@ -174,31 +168,14 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 			}
 		}
 	}
-
-	// check the snapshot
-	tenant, err := dfs.facade.GetService(dfs.datastoreGet(), tenantID)
-	if err != nil {
-		glog.Errorf("Could not find service %s: %s", tenantID, err)
-		return err
-	} else if tenant == nil {
-		glog.Errorf("Service %s not found", tenantID)
-		return fmt.Errorf("service not found")
-	}
-
-	snapshotVolume, err := dfs.GetVolume(tenant.ID)
-	if err != nil {
-		glog.Errorf("Could not find volume for service %s: %s", tenantID, err)
-		return err
-	}
-
 	err = func() error {
 		if err := dfs.networkDriver.Stop(); err != nil {
 			glog.Warningf("Could not stop network driver: %s", err)
 		}
 		defer dfs.networkDriver.Restart()
 		// rollback the dfs
-		glog.V(0).Infof("Performing rollback for %s (%s) using %s", tenant.Name, tenant.ID, snapshotID)
-		if err := snapshotVolume.Rollback(snapshotID); err != nil {
+		glog.Infof("Rolling back %s to %s", info.TenantID, info.Name)
+		if err := vol.Rollback(info.Name); err != nil {
 			glog.Errorf("Error while trying to roll back to %s: %s", snapshotID, err)
 			return err
 		}
@@ -210,14 +187,14 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 
 	// restore the tags
 	glog.V(0).Infof("Restoring image tags for %s", snapshotID)
-	if err := tag(tenantID, timestamp, docker.DockerLatest); err != nil {
-		glog.Errorf("Could not restore snapshot tags for %s (%s): %s", tenant.Name, tenant.ID, err)
+	if err := tag(info.TenantID, info.Label, docker.DockerLatest); err != nil {
+		glog.Errorf("Could not restore snapshot tags for %s at %s: %s", info.TenantID, info.Name, err)
 		return err
 	}
 
 	// restore services
 	var restore []*service.Service
-	if file, err := snapshotVolume.ReadMetadata(snapshotID, serviceJSON); err != nil {
+	if file, err := vol.ReadMetadata(snapshotID, serviceJSON); err != nil {
 		glog.Errorf("Could not read metadata %s:%s: %s", snapshotID, serviceJSON, err)
 		return err
 	} else if err := importJSON(file, &restore); err != nil {
@@ -225,12 +202,12 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string, forceRestart bool)
 		return err
 	}
 
-	if err := dfs.restoreServices(tenantID, restore); err != nil {
+	if err := dfs.restoreServices(info.TenantID, restore); err != nil {
 		glog.Errorf("Could not restore services from %s: %s", snapshotID, err)
 		return err
 	}
 
-	glog.Infof("Rollback succeeded for tenantID:%s with fsType:%s using snapshotID:%s", tenant.ID, dfs.fsType, snapshotID)
+	glog.Infof("Rollback succeeded for tenantID:%s with fsType:%s using snapshotID:%s", info.TenantID, dfs.fsType, snapshotID)
 	return nil
 }
 
@@ -247,64 +224,55 @@ func (dfs *DistributedFilesystem) ListSnapshots(tenantID string) ([]dao.Snapshot
 		return nil, fmt.Errorf("service not found")
 	}
 
-	snapshotVolume, err := dfs.GetVolume(tenant.ID)
+	vol, err := dfs.GetVolume(tenant.ID)
 	if err != nil {
 		glog.Errorf("Could not find volume for service %s (%s): %s", tenant.Name, tenant.ID, err)
 		return nil, err
 	}
 
-	snapshotIDs, err := snapshotVolume.Snapshots()
+	snapshots, err := vol.Snapshots()
 	if err != nil {
+		glog.Errorf("Could not get list of snapshots for app %s: %s", tenant.Name, err)
 		return nil, err
 	}
 
-	snapshots := make([]dao.SnapshotInfo, len(snapshotIDs))
-	for i, snapshotID := range snapshotIDs {
-		var description string
-		var metadata *SnapshotMetadata
-
-		if file, err := snapshotVolume.ReadMetadata(snapshotID, snapshotMeta); err == nil {
-			if err := importJSON(file, &metadata); err == nil {
-				description = metadata.Description
-			}
+	snapshotInfos := make([]dao.SnapshotInfo, 0)
+	for _, snapshotID := range snapshots {
+		info, err := vol.SnapshotInfo(snapshotID)
+		if err != nil {
+			glog.Warningf("Could not read info for snapshot %s: %s", snapshotID, err)
 		}
-		snapshots[i] = dao.SnapshotInfo{snapshotID, description}
+		snapshotInfos = append(snapshotInfos, dao.SnapshotInfo{info.Name, info.Message})
 	}
-
-	return snapshots, err
+	return snapshotInfos, err
 }
 
 // DeleteSnapshot deletes an existing snapshot as identified by its snapshotID
 func (dfs *DistributedFilesystem) DeleteSnapshot(snapshotID string) error {
-	tenantID, timestamp, err := parseLabel(snapshotID)
+	snapshot, err := dfs.GetVolume(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not parse snapshot ID %s: %s", snapshotID, err)
+		glog.Errorf("Could not get snapshot %s: %s", snapshotID, err)
 		return err
 	}
-
-	tenant, err := dfs.facade.GetService(dfs.datastoreGet(), tenantID)
+	vol, err := dfs.GetVolume(snapshot.Tenant())
 	if err != nil {
-		glog.Errorf("Service not found %s: %s", tenantID, err)
+		glog.Errorf("Could not get volume of snapshot %s: %s", snapshotID, err)
 		return err
-	} else if tenant == nil {
-		glog.Errorf("Service %s not found", tenantID)
-		return fmt.Errorf("service not found")
 	}
-
-	snapshotVolume, err := dfs.GetVolume(tenant.ID)
+	info, err := vol.SnapshotInfo(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not find the volume for service %s (%s): %s", tenant.Name, tenant.ID, err)
+		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
 		return err
 	}
 
 	// delete the snapshot
-	if err := snapshotVolume.RemoveSnapshot(snapshotID); err != nil {
+	if err := vol.RemoveSnapshot(snapshotID); err != nil {
 		glog.Errorf("Could not delete snapshot %s: %s", snapshotID, err)
 		return err
 	}
 
 	// update the tags
-	images, err := findImages(tenantID, timestamp)
+	images, err := findImages(info.TenantID, info.Label)
 	if err != nil {
 		glog.Errorf("Could not find images for snapshot %s: %s", snapshotID, err)
 		return err
@@ -487,14 +455,6 @@ func (dfs *DistributedFilesystem) restoreServices(tenantID string, svcs []*servi
 	}
 
 	return nil
-}
-
-func parseLabel(snapshotID string) (string, string, error) {
-	parts := strings.SplitN(snapshotID, "_", 2)
-	if len(parts) < 2 {
-		return "", "", fmt.Errorf("malformed label")
-	}
-	return parts[0], parts[1], nil
 }
 
 func exportJSON(file io.WriteCloser, v interface{}) error {

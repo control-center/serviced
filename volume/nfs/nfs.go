@@ -166,8 +166,13 @@ func (v *NFSVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
 }
 
 // Snapshot implements volume.Volume.Snapshot
-func (v *NFSVolume) Snapshot(label string) (err error) {
+func (v *NFSVolume) Snapshot(label, message string, tags []string) (err error) {
 	return ErrNotSupported
+}
+
+// SnapshotInfo implements volume.Volume.SnapshotInfo
+func (v *NFSVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	return nil, ErrNotSupported
 }
 
 // Snapshots implements volume.Volume.Snapshots
