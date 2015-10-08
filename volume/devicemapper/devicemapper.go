@@ -2,6 +2,7 @@ package devicemapper
 
 import (
 	"archive/tar"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -426,8 +427,41 @@ func unmount(mountpoint string) error {
 	return nil
 }
 
+// writeSnapshotInfo writes metadata about a snapshot
+func (v *DeviceMapperVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo) error {
+	writer, err := v.WriteMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not write meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	defer writer.Close()
+	encoder := json.NewEncoder(writer)
+	if err := encoder.Encode(info); err != nil {
+		glog.Errorf("Could not export meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	return nil
+}
+
+// SnapshotInfo returns the meta info for a snapshot
+func (v *DeviceMapperVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
+		return nil, err
+	}
+	defer reader.Close()
+	decoder := json.NewDecoder(reader)
+	var info volume.SnapshotInfo
+	if err := decoder.Decode(&info); err != nil {
+		glog.Errorf("Could not decode snapshot info for %s: %s", label, err)
+		return nil, err
+	}
+	return &info, err
+}
+
 // Snapshot implements volume.Volume.Snapshot
-func (v *DeviceMapperVolume) Snapshot(label string) error {
+func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) error {
 	glog.V(2).Infof("Snapshot() (%s) START", v.name)
 	defer glog.V(2).Infof("Snapshot() (%s) END", v.name)
 	if v.snapshotExists(label) {
@@ -447,10 +481,16 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		glog.Errorf("Unable to add devicemapper device: %s", err)
 		return err
 	}
-	// Create the metadata path
-	mdpath := filepath.Join(v.driver.MetadataDir(), label)
-	if err := os.MkdirAll(mdpath, 0755); err != nil && !os.IsExist(err) {
-		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
+	// write snapshot info
+	info := volume.SnapshotInfo{
+		Name:     label,
+		TenantID: v.Tenant(),
+		Label:    strings.TrimPrefix(label, v.Tenant()+"_"),
+		Tags:     tags,
+		Message:  message,
+		Created:  time.Now(),
+	}
+	if err := v.writeSnapshotInfo(label, &info); err != nil {
 		return err
 	}
 	// Unmount the current device and mount the new one

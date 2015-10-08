@@ -14,6 +14,7 @@
 package btrfs
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -317,8 +318,41 @@ func (v *BtrfsVolume) isSnapshot(rawLabel string) bool {
 	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
+// writeSnapshotInfo writes metadata about a snapshot
+func (v *BtrfsVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo) error {
+	writer, err := v.WriteMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not write meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	defer writer.Close()
+	encoder := json.NewEncoder(writer)
+	if err := encoder.Encode(info); err != nil {
+		glog.Errorf("Could not export meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	return nil
+}
+
+// SnapshotInfo returns the meta info for a snapshot
+func (v *BtrfsVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
+		return nil, err
+	}
+	defer reader.Close()
+	decoder := json.NewDecoder(reader)
+	var info volume.SnapshotInfo
+	if err := decoder.Decode(&info); err != nil {
+		glog.Errorf("Could not decode snapshot info for %s: %s", label, err)
+		return nil, err
+	}
+	return &info, err
+}
+
 // Snapshot implements volume.Volume.Snapshot
-func (v *BtrfsVolume) Snapshot(label string) error {
+func (v *BtrfsVolume) Snapshot(label, message string, tags []string) error {
 	path := v.snapshotPath(label)
 	if ok, err := volume.IsDir(path); err != nil {
 		return err
@@ -327,6 +361,17 @@ func (v *BtrfsVolume) Snapshot(label string) error {
 	}
 	v.Lock()
 	defer v.Unlock()
+	info := volume.SnapshotInfo{
+		Name:     v.rawSnapshotLabel(label),
+		TenantID: v.Tenant(),
+		Label:    v.prettySnapshotLabel(label),
+		Tags:     tags,
+		Message:  message,
+		Created:  time.Now(),
+	}
+	if err := v.writeSnapshotInfo(label, &info); err != nil {
+		return err
+	}
 	_, err := volume.RunBtrFSCmd(v.sudoer, "subvolume", "snapshot", "-r", v.Path(), path)
 	return err
 }
