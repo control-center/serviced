@@ -119,6 +119,7 @@ func (s *FacadeTest) TestRestoreHosts(c *C) {
 			UpdatedAt: time.Time{},
 		},
 	}
+	defer s.Facade.RemoveHost(s.CTX, "deadb11f")
 	err := s.Facade.RestoreHosts(s.CTX, hosts1)
 	c.Assert(err, IsNil)
 	actual, err := s.Facade.GetHosts(s.CTX)
@@ -129,7 +130,6 @@ func (s *FacadeTest) TestRestoreHosts(c *C) {
 		actual[i].UpdatedAt = time.Time{}
 	}
 	c.Assert(actual, DeepEquals, hosts1)
-	defer s.Facade.RemoveHost(s.CTX, "deadb11f")
 
 	// different host with the same ip
 	hosts2 := []host.Host{
@@ -153,6 +153,7 @@ func (s *FacadeTest) TestRestoreHosts(c *C) {
 		},
 	}
 	err = s.Facade.RestoreHosts(s.CTX, hosts2)
+	c.Assert(err, IsNil)
 	hosts2[0].DatabaseVersion++
 	actual, err = s.Facade.GetHosts(s.CTX)
 	c.Assert(err, IsNil)

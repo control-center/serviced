@@ -157,6 +157,7 @@ func (ft *FacadeTest) TestRestoreResourcePools(c *C) {
 			UpdatedAt: time.Time{},
 		},
 	}
+	defer ft.Facade.RemoveResourcePool(ft.CTX, "testpool-1")
 	err := ft.Facade.RestoreResourcePools(ft.CTX, pools1)
 	c.Assert(err, IsNil)
 	actual, err := ft.Facade.GetResourcePools(ft.CTX)
@@ -167,7 +168,6 @@ func (ft *FacadeTest) TestRestoreResourcePools(c *C) {
 		actual[i].UpdatedAt = time.Time{}
 	}
 	c.Assert(actual, DeepEquals, pools1)
-	defer ft.Facade.RemoveResourcePool(ft.CTX, "testpool-1")
 
 	pools2 := []pool.ResourcePool{
 		{
@@ -200,6 +200,7 @@ func (ft *FacadeTest) TestRestoreResourcePools(c *C) {
 			UpdatedAt: time.Time{},
 		},
 	}
+	defer ft.Facade.RemoveResourcePool(ft.CTX, "testpool-2")
 	err = ft.Facade.RestoreResourcePools(ft.CTX, pools2)
 	c.Assert(err, IsNil)
 	actual, err = ft.Facade.GetResourcePools(ft.CTX)
@@ -210,7 +211,6 @@ func (ft *FacadeTest) TestRestoreResourcePools(c *C) {
 		actual[i].UpdatedAt = time.Time{}
 	}
 	c.Assert(actual, DeepEquals, pools2)
-	defer ft.Facade.RemoveResourcePool(ft.CTX, "testpool-2")
 }
 
 func (ft *FacadeTest) Test_GetResourcePools(t *C) {
