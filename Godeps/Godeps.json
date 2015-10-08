@@ -299,6 +299,10 @@
 		{
 			"ImportPath": "golang.org/x/net/context",
 			"Rev": "1dfe7915deaf3f80b962c163b918868d8a6d8974"
+		},
+		{
+			"ImportPath": "golang.org/msteinert/pam",
+			"Rev": "6534f23b3984c4b8f517feba04a7d65b4da3ca57"
 		}
 	]
 }
