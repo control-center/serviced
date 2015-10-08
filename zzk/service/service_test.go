@@ -67,7 +67,7 @@ func (t *ZZKTest) TestServiceListener_NoHostState(c *C) {
 
 	// get the instance id
 	getInstances := func(svc *service.Service) []string {
-		timeout := time.After(3 * time.Minute)
+		timeout := time.After(time.Minute)
 		for {
 			var instanceIDs []string
 			stateIDs, ev, err := conn.ChildrenW(servicepath(svc.ID))
