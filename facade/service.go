@@ -123,6 +123,57 @@ func (f *Facade) UpdateService(ctx datastore.Context, svc service.Service) error
 	return f.updateService(ctx, &svc)
 }
 
+func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []service.Service) error {
+	// get pools
+	pools, err := f.GetResourcePools(ctx)
+	if err != nil {
+		glog.Errorf("Could not look up resource pools: %s", err)
+		return err
+	}
+	poolsmap := make(map[string]struct{})
+	for _, pool := range pools {
+		poolsmap[pool.ID] = struct{}{}
+	}
+	// remove services for tenant
+	if err := f.RemoveService(ctx, tenantID); err != nil {
+		return err
+	}
+	// get service tree
+	svcsmap := make(map[string][]service.Service)
+	for _, svc := range svcs {
+		svcsmap[svc.ParentServiceID] = append(svcsmap[svc.ParentServiceID], svc)
+	}
+	// add the services
+	var traverse func(parentID string) error
+	traverse = func(parentID string) error {
+		for _, svc := range svcsmap[parentID] {
+			svc.DatabaseVersion = 0
+			svc.DesiredState = int(service.SVCStop)
+			if _, ok := poolsmap[svc.PoolID]; !ok {
+				glog.Warningf("Could not find pool %s for service %s (%s).  Setting pool to default.", svc.PoolID, svc.Name, svc.ID)
+				svc.PoolID = "default"
+			}
+			if err := f.AddService(ctx, svc); err != nil {
+				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
+				return err
+			}
+			if err := f.RestoreIPs(ctx, svc); err != nil {
+				glog.Warningf("Could not restore address assignments for service %s (%s): %s", svc.Name, svc.ID, err)
+			}
+			if err := traverse(svc.ID); err != nil {
+				return err
+			}
+			glog.Infof("Restored service %s (%s)", svc.Name, svc.ID)
+		}
+		return nil
+	}
+	if err := traverse(""); err != nil {
+		glog.Errorf("Error while rolling back services: %s", err)
+		return err
+	}
+	return nil
+}
+
 // TODO: Should we use a lock to serialize migration for a given service? ditto for Add and UpdateService?
 func (f *Facade) RunMigrationScript(ctx datastore.Context, request dao.RunMigrationScriptRequest) error {
 	svc, err := f.GetService(datastore.Get(), request.ServiceID)
