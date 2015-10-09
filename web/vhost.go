@@ -135,7 +135,6 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 		return err
 	}
 
-	cancelChan := make(chan bool)
 	processVhosts := func(conn client.Connection, parentPath string, childIDs ...string) {
 		glog.V(1).Infof("processVhosts STARTING for parentPath:%s childIDs:%v", parentPath, childIDs)
 
@@ -149,6 +148,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 				cancelChan := make(chan bool)
 				vregistry.vhostWatch[vhostPath] = cancelChan
 				go func(vhostID string) {
+					defer delete(vregistry.vhostWatch, vhostPath)
 					glog.Infof("starting vhost watch: %s", vhostPath)
 					var lastChildIDs []string
 					processVhost := func(conn client.Connection, parentPath string, childIDs ...string) {
@@ -186,7 +186,17 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 							lastChildIDs = childIDs
 						}
 					}
-					vhostRegistry.WatchKey(conn, vhostID, cancelChan, processVhost, vhostWatchError)
+					// loop if error. If watch is cancelled will not return error. Blocking call
+					for {
+						err := vhostRegistry.WatchKey(conn, vhostID, cancelChan, processVhost, vhostWatchError)
+						if err == nil {
+							glog.Infof("VHostRegisty Watch %s Stopped", vhostID)
+							return
+						}
+						glog.Infof("VHostRegisty Watch %s Restarting due to %v", vhostID, err)
+						time.Sleep(500 * time.Millisecond)
+					}
+
 				}(vhostID)
 			} else {
 				glog.V(2).Infof("vhost %s already being watched", vhostPath)
@@ -196,17 +206,22 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 		//cancel watching any vhosts nodes that are no longer
 		for previousVhost, cancel := range vregistry.vhostWatch {
 			if _, found := currentVhosts[previousVhost]; !found {
-				glog.V(2).Infof("Cancelling vhost watch for %s}", previousVhost)
+				glog.Infof("Cancelling vhost watch for %s}", previousVhost)
 				delete(vregistry.vhostWatch, previousVhost)
 				cancel <- true
 				close(cancel)
 			}
 		}
 	}
-
+	cancelChan := make(chan bool)
 	for {
-		glog.V(1).Info("Running vhostRegistry.WatchRegistry")
-		vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, processVhosts, vhostWatchError)
+		glog.Info("Running vhostRegistry.WatchRegistry")
+
+		watchStopped := make(chan error)
+
+		go func() {
+			watchStopped <- vhostRegistry.WatchRegistry(poolBasedConn, cancelChan, processVhosts, vhostWatchError)
+		}()
 		select {
 		case <-shutdown:
 			close(cancelChan)
@@ -215,7 +230,12 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 				close(ch)
 			}
 			return nil
-		default:
+		case err := <-watchStopped:
+			if err != nil {
+				glog.Infof("VHostRegisty Watch Restarting due to %v", err)
+				time.Sleep(500 * time.Millisecond)
+			}
+
 		}
 	}
 }
