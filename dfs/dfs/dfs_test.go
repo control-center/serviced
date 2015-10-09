@@ -1,0 +1,50 @@
+// Copyright 2015 The Serviced Authors.
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+// http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// +build unit integration
+
+package dfs_test
+
+import (
+	"testing"
+
+	. "gopkg.in/check.v1"
+
+	storagemocks "github.com/control-center/serviced/coordinator/storage/mocks"
+	"github.com/control-center/serviced/dfs/dfs"
+	dockermocks "github.com/control-center/serviced/dfs/docker/mocks"
+	registrymocks "github.com/control-center/serviced/dfs/registry/mocks"
+	volumemocks "github.com/control-center/serviced/volume/mocks"
+)
+
+func TestDFS(t *testing.T) { TestingT(t) }
+
+var _ = Suite(DFSTestSuite{})
+
+type DFSTestSuite struct {
+	docker   *dockermocks.Docker
+	index    *registrymocks.RegistryIndex
+	registry *registrymocks.Registry
+	disk     *volumemocks.Driver
+	net      *storagemocks.StorageDriver
+	dfs      *dfs.DistributedFilesystem
+}
+
+func (s *DFSTestSuite) SetUpTest(c *C) {
+	s.docker = &dockermocks.Docker{}
+	s.index = &registrymocks.RegistryIndex{}
+	s.registry = &registrymocks.Registry{}
+	s.disk = &volumemocks.Driver{}
+	s.net = &storagemocks.StorageDriver{}
+	s.dfs = dfs.NewDistributedFilesystem(s.docker, s.index, s.registry, s.disk, s.net)
+}

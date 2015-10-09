@@ -29,6 +29,11 @@ var (
 	ErrOpTimeout = errors.New("operation timed out")
 )
 
+// Registry performs specific docker actions based on the registry index
+type Registry interface {
+	PullImage(image string) error
+}
+
 // PullImage waits for an image to be available on the docker registry so it
 // can be pulled (if it does not exist locally).
 func (l *RegistryListener) PullImage(image string) error {
