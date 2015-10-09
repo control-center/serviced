@@ -15,10 +15,7 @@ package zookeeper
 
 import (
 	"encoding/json"
-	"log"
-	"os/exec"
 	lpath "path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -326,36 +323,4 @@ func (c *Connection) Set(path string, node client.Node) error {
 	}
 	_, err = c.conn.Set(join(c.basePath, path), data, stat.Version)
 	return xlateError(err)
-}
-
-// EnsureZkFatjar downloads the zookeeper binaries for use in unit tests
-func EnsureZkFatjar() {
-	_, err := exec.LookPath("java")
-	if err != nil {
-		log.Fatal("Can't find java in path")
-	}
-
-	jars, err := filepath.Glob("zookeeper-*/contrib/jar/*.jar")
-	if err != nil {
-		log.Fatal("Error search for files")
-	}
-
-	if len(jars) > 0 {
-		return
-	}
-
-	err = exec.Command("curl", "-O", "https://archive.apache.org/dist/zookeeper/zookeeper-3.4.5/zookeeper-3.4.5.tar.gz").Run()
-	if err != nil {
-		log.Fatalf("Could not download jar: %s", err)
-	}
-
-	err = exec.Command("tar", "-xf", "zookeeper-3.4.5.tar.gz").Run()
-	if err != nil {
-		log.Fatalf("Could not unzip jar: %s", err)
-	}
-
-	err = exec.Command("rm", "zookeeper-3.4.5.tar.gz").Run()
-	if err != nil {
-		log.Fatalf("Could not rm jar.zip: %s", err)
-	}
 }
