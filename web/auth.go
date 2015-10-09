@@ -72,7 +72,7 @@ func makePamConvHandler(creds *login) func(pam.Style, string) (string, error) {
 }
 
 func pamValidateLoginOnly(creds *login, group string) bool {
-	t, err := pam.StartFunc(group, "", makePamConvHandler(creds))
+	t, err := pam.StartFunc("sudo", "", makePamConvHandler(creds))
 	if err != nil {
 		glog.Errorf("Start: %s", err.Error())
 		return false
