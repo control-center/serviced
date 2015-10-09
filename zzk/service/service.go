@@ -267,6 +267,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) b
 		// resumeInstance updates the service state ONLY if it has a PAUSED DesiredState
 		if err := resumeInstance(l.conn, state.HostID, state.ID); err != nil {
 			glog.Warningf("Could not resume paused service instance %s (%s) for service %s on host %s: %s", state.ID, state.Name, state.ServiceID, state.HostID, err)
+			return false
 		}
 	}
 
