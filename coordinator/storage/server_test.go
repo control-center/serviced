@@ -16,14 +16,13 @@
 package storage
 
 import (
-	zklib "github.com/control-center/go-zookeeper/zk"
-
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dfs/nfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
+	"github.com/control-center/serviced/zzk/test"
 	"github.com/zenoss/glog"
 
 	"encoding/json"
@@ -64,17 +63,14 @@ func (m *mockNfsDriverT) Stop() error {
 
 func TestServer(t *testing.T) {
 	t.Skip() // the zookeeper part doesnt work in this test, but does work in real life
-	zookeeper.EnsureZkFatjar()
-	basePath := ""
-	tc, err := zklib.StartTestCluster(1, nil, nil)
-	if err != nil {
-		t.Fatalf("could not start test zk cluster: %s", err)
+	zzkServer := &zzktest.ZZKServer{}
+	if err := zzkServer.Start(); err != nil {
+		t.Fatalf("Could not start zookeeper: %s", err)
 	}
-	defer os.RemoveAll(tc.Path)
-	defer tc.Stop()
+	defer zzkServer.Stop()
 	time.Sleep(time.Second)
 
-	servers := []string{fmt.Sprintf("127.0.0.1:%d", tc.Servers[0].Port)}
+	servers := []string{fmt.Sprintf("127.0.0.1:%d", zzkServer.Port)}
 
 	dsnBytes, err := json.Marshal(zookeeper.DSN{Servers: servers, Timeout: time.Second * 15})
 	if err != nil {
@@ -82,6 +78,7 @@ func TestServer(t *testing.T) {
 	}
 	dsn := string(dsnBytes)
 
+	basePath := ""
 	zClient, err := client.New("zookeeper", dsn, basePath, nil)
 	if err != nil {
 		t.Fatal("unexpected error getting zk client")
