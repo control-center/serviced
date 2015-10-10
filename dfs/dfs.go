@@ -35,7 +35,7 @@ type DFS interface {
 	// Download adds an image for an application into the registry
 	Download(image, tenantID string, upgrade bool) (registry string, err error)
 	// Commit uploads a new image into the registry
-	Commit(ctrID string) error
+	Commit(ctrID string) (tenantID string, err error)
 	// Snapshot captures application data at a specific point in time
 	Snapshot(info SnapshotInfo) (string, error)
 	// Rollback reverts application to a specific snapshot
@@ -56,7 +56,7 @@ var _ = DFS(&DistributedFilesystem{})
 
 // BackupInfo provides meta info about a backup
 type BackupInfo struct {
-	Templates  map[string]servicetemplate.ServiceTemplate
+	Templates  []servicetemplate.ServiceTemplate
 	BaseImages []string
 	Pools      []pool.ResourcePool
 	Hosts      []host.Host

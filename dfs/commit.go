@@ -27,36 +27,36 @@ var (
 
 // Commit commits a container spawned from the latest docker registry image
 // and updates the registry.  Returns the affected registry image.
-func (dfs *DistributedFilesystem) Commit(ctrID string) error {
+func (dfs *DistributedFilesystem) Commit(ctrID string) (string, error) {
 	ctr, err := dfs.docker.FindContainer(ctrID)
 	if err != nil {
 		glog.Errorf("Could not find container %s: %s", ctrID, err)
-		return err
+		return "", err
 	}
 	// do not commit if the container is running
 	if ctr.State.Running {
-		return ErrRunningContainer
+		return "", ErrRunningContainer
 	}
 	// check if the container is stale (ctr.Config.Image is the repo:tag)
 	rImage, err := dfs.index.FindImage(ctr.Config.Image)
 	if err != nil {
 		glog.Errorf("Could not find image %s in registry for container %s: %s", ctr.Config.Image, ctr.ID, err)
-		return err
+		return "", err
 	}
 	// verify that we are committing to latest (ctr.Image is the UUID)
 	if rImage.Tag != docker.Latest || rImage.UUID != ctr.Image {
-		return ErrStaleContainer
+		return "", ErrStaleContainer
 	}
 	// commit the container
 	img, err := dfs.docker.CommitContainer(ctr.ID, rImage.String())
 	if err != nil {
 		glog.Errorf("Could not commit container %s: %s", ctr.ID, err)
-		return err
+		return "", err
 	}
 	// push the image into the registry
 	if err := dfs.index.PushImage(rImage.String(), img.ID); err != nil {
 		glog.Errorf("Could not push image %s (%s): %s", rImage, img.ID, err)
-		return err
+		return "", err
 	}
-	return nil
+	return rImage.Library, nil
 }
