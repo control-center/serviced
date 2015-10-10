@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -39,7 +39,7 @@ type DFS interface {
 	// Snapshot captures application data at a specific point in time
 	Snapshot(info SnapshotInfo) (string, error)
 	// Rollback reverts application to a specific snapshot
-	Rollback(snapshotID string) error
+	Rollback(snapshotID string) (*SnapshotInfo, error)
 	// Delete deletes an application's snapshot
 	Delete(snapshotID string) error
 	// List lists snapshots for a particular application
@@ -47,7 +47,7 @@ type DFS interface {
 	// Info provides detailed info for a particular snapshot
 	Info(snapshotID string) (*SnapshotInfo, error)
 	// Backup saves and exports the current state of the system
-	Backup(cancel <-chan struct{}, info BackupInfo, w io.Writer) error
+	Backup(info BackupInfo, w io.Writer) error
 	// Restore restores the system to the state of the backup
 	Restore(r io.Reader) (*BackupInfo, error)
 }
@@ -56,10 +56,11 @@ var _ = DFS(&DistributedFilesystem{})
 
 // BackupInfo provides meta info about a backup
 type BackupInfo struct {
-	Templates map[string]servicetemplate.ServiceTemplate
-	Pools     []pool.ResourcePool
-	Hosts     []host.Host
-	Snapshots []string
+	Templates  map[string]servicetemplate.ServiceTemplate
+	BaseImages []string
+	Pools      []pool.ResourcePool
+	Hosts      []host.Host
+	Snapshots  []string
 }
 
 // SnapshotInfo provides meta info about a snapshot

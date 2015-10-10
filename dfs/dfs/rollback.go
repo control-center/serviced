@@ -15,36 +15,48 @@ package dfs
 
 import (
 	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
 
 // Rollback reverts an application to a previous snapshot.
-func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
+func (dfs *DistributedFilesystem) Rollback(snapshotID string) (*SnapshotInfo, error) {
 	vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshotID)
 	if err != nil {
-		return err
+		return nil, err
+	}
+	// load the services from the snapshot
+	r, err := vol.ReadMetadata(info.TenantID, ServicesMetadataFile)
+	if err != nil {
+		glog.Errorf("Could not receive services metadata from snapshot %s: %s", snapshotID, err)
+		return nil, err
+	}
+	var svcs []service.Service
+	if err := importJSON(r, &svcs); err != nil {
+		glog.Errorf("Could not interpret services metadata file from snapshot %s: %s", snapshotID, err)
+		return nil, err
 	}
 	// do all the images exist in the registry?
-	r, err := vol.ReadMetadata(info.TenantID, ImagesMetadataFile)
+	r, err = vol.ReadMetadata(info.TenantID, ImagesMetadataFile)
 	if err != nil {
-		glog.Errorf("Could not images metadata from snapshot %s: %s", snapshotID, err)
-		return err
+		glog.Errorf("Could not receive images metadata from snapshot %s: %s", snapshotID, err)
+		return nil, err
 	}
 	var images []string
 	if err := importJSON(r, &images); err != nil {
 		glog.Errorf("Could not interpret images metadata file from snapshot %s: %s", snapshotID, err)
-		return err
+		return nil, err
 	}
 	for _, image := range images {
 		rImage, err := dfs.index.FindImage(image)
 		if err != nil {
 			glog.Errorf("Could not find image %s from snapshot %s: %s", image, snapshotID, err)
-			return err
+			return nil, err
 		}
 		rImage.Tag = docker.Latest
 		if err := dfs.index.PushImage(rImage.String(), rImage.UUID); err != nil {
 			glog.Errorf("Could not update image %s from snapshot %s in the registry: %s", image, snapshotID, err)
-			return err
+			return nil, err
 		}
 	}
 	// TODO: remove nfs exports here
@@ -54,12 +66,12 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Deployment_Guide/s1-nfs-server-config-exports.html
 	if err := dfs.net.Stop(); err != nil {
 		glog.Errorf("Could not stop nfs server: %s", err)
-		return err
+		return nil, err
 	}
 	defer dfs.net.Restart()
 	if err := vol.Rollback(snapshotID); err != nil {
 		glog.Errorf("Could not rollback snapshot %s for tenant %s: %s", snapshotID, info.TenantID, err)
-		return err
+		return nil, err
 	}
-	return nil
+	return &SnapshotInfo{info, images, svcs}, nil
 }
