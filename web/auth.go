@@ -15,16 +15,16 @@ package web
 
 //#include <stdlib.h>
 //#include <string.h>
-//extern int isGroupMember(const char *username, const char *group); 
+//extern int isGroupMember(const char *username, const char *group);
 import "C"
 import (
 	"github.com/msteinert/pam"
 	"github.com/zenoss/glog"
 
+	"errors"
 	"fmt"
 	"os/user"
 	"unsafe"
-	"errors"
 )
 
 // currently logged in user
@@ -53,7 +53,7 @@ func pamValidateLogin(creds *login, group string) bool {
 }
 
 func makePamConvHandler(creds *login) func(pam.Style, string) (string, error) {
-	return   func(s pam.Style, msg string) (string, error) {
+	return func(s pam.Style, msg string) (string, error) {
 		switch s {
 		case pam.PromptEchoOff:
 			return creds.Password, nil
@@ -72,7 +72,7 @@ func makePamConvHandler(creds *login) func(pam.Style, string) (string, error) {
 }
 
 func pamValidateLoginOnly(creds *login, group string) bool {
-	t, err := pam.StartFunc("", "",  makePamConvHandler(creds))
+	t, err := pam.StartFunc("sudo", "", makePamConvHandler(creds))
 	if err != nil {
 		glog.Errorf("Start: %s", err.Error())
 		return false
@@ -90,5 +90,3 @@ func pamValidateLoginOnly(creds *login, group string) bool {
 
 	return true
 }
-
-
