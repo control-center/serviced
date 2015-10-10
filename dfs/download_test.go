@@ -19,7 +19,7 @@ import (
 	"errors"
 
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/dfs/dfs"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"

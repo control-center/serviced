@@ -23,6 +23,8 @@ import (
 	"github.com/zenoss/glog"
 )
 
+const timeFormat = "20060102-150405.000"
+
 // SnapshotTTLInterface is the client handler for SnapshotTTL
 type SnapshotTTLInterface interface {
 	// GetServices returns all services

@@ -21,7 +21,7 @@ import (
 	. "gopkg.in/check.v1"
 
 	storagemocks "github.com/control-center/serviced/coordinator/storage/mocks"
-	"github.com/control-center/serviced/dfs/dfs"
+	"github.com/control-center/serviced/dfs"
 	dockermocks "github.com/control-center/serviced/dfs/docker/mocks"
 	registrymocks "github.com/control-center/serviced/dfs/registry/mocks"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
