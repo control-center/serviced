@@ -14,29 +14,30 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/commons/docker"
+	"sync"
+
+	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/serviceimage"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
+
+var tenantLockLock = &sync.Mutex{}
+var tenantLockMap = make(map[string]*tenantLock)
 
 // assert interface
 var _ FacadeInterface = &Facade{}
 
-// New creates an initialized Facade instance
 func New(dockerRegistryName string) *Facade {
 	return &Facade{
 		hostStore:     host.NewStore(),
 		registryStore: registry.NewStore(),
-		imageStore:    serviceimage.NewStore(),
 		poolStore:     pool.NewStore(),
 		serviceStore:  service.NewStore(),
 		templateStore: servicetemplate.NewStore(),
-		registryName:  dockerRegistryName,
-		registry:      &docker.DockerRegistry{},
 	}
 }
 
@@ -44,10 +45,55 @@ func New(dockerRegistryName string) *Facade {
 type Facade struct {
 	hostStore     *host.HostStore
 	registryStore *registry.ImageRegistryStore
-	imageStore    *serviceimage.ServiceImageStore
 	poolStore     *pool.Store
 	templateStore *servicetemplate.Store
 	serviceStore  *service.Store
-	registryName  string
-	registry      docker.DockerRegistryInterface
+	dfs           dfs.DFS
+}
+
+func (f *Facade) SetDFS(dfs dfs.DFS) {
+	f.dfs = dfs
+}
+
+type tenantLock struct {
+	ctx      datastore.Context
+	facade   *Facade
+	rwlocker *sync.RWMutex
+	tenantID string
+}
+
+func getTenantLock(facade *Facade, tenantID string) *tenantLock {
+	tenantLockLock.Lock()
+	defer tenantLockLock.Unlock()
+	tlock := tenantLockMap[tenantID]
+	if tlock == nil {
+		tlock = &tenantLock{
+			ctx:      datastore.Get(),
+			rwlocker: &sync.RWMutex{},
+			facade:   facade,
+			tenantID: tenantID,
+		}
+		tenantLockMap[tenantID] = tlock
+	}
+	return tlock
+}
+
+func (l *tenantLock) RLock() {
+	l.rwlocker.RLock()
+}
+
+func (l *tenantLock) RUnlock() {
+	l.rwlocker.RUnlock()
+}
+
+func (l *tenantLock) Lock() error {
+	l.rwlocker.Lock()
+	// TODO: call the locker on the facade
+	return nil
+}
+
+func (l *tenantLock) Unlock() error {
+	// TODO: call the unlocker on the facade--how to handle errors???
+	l.rwlocker.Unlock()
+	return nil
 }

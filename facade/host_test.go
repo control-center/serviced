@@ -259,6 +259,7 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	if err != nil {
 		t.Fatalf("Failed to add service %+v: %s", s1, err)
 	}
+	s.dfs.On("Destroy", s1.ID).Return(nil)
 	defer s.Facade.RemoveService(s.CTX, s1.ID)
 
 	request := dao.AssignmentRequest{ServiceID: s1.ID, IPAddress: h1.IPAddr, AutoAssignment: false}

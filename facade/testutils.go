@@ -16,9 +16,9 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/control-center/serviced/dfs/mocks"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -34,9 +34,9 @@ import (
 //FacadeTest used for running tests where a facade type is needed.
 type FacadeTest struct {
 	elastic.ElasticTest
-	CTX          datastore.Context
-	Facade       *Facade
-	mockRegistry *test.MockDockerRegistry
+	CTX    datastore.Context
+	Facade *Facade
+	dfs    *mocks.DFS
 }
 
 //SetUpSuite sets up test suite
@@ -66,18 +66,8 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 
 func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
 	ft.ElasticTest.SetUpTest(c)
-}
-
-func (ft *FacadeTest) TearDownTest(c *gocheck.C) {
-	if ft.mockRegistry != nil {
-		ft.mockRegistry = nil
-		ft.Facade.registry = nil
-	}
-}
-
-func (ft *FacadeTest) setupMockRegistry() {
-	ft.mockRegistry = &test.MockDockerRegistry{}
-	ft.Facade.registry = ft.mockRegistry
+	ft.dfs = &mocks.DFS{}
+	ft.Facade.dfs = ft.dfs
 }
 
 type zkMock struct {
