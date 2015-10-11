@@ -75,12 +75,23 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
 		Pools:      pools,
 		Hosts:      hosts,
 		Snapshots:  snapshots,
+		Timestamp:  stime,
 	}
 	if err := f.dfs.Backup(data, w); err != nil {
 		glog.Errorf("Could not backup: %s", err)
 	}
 	glog.Infof("Completed backup in %s", time.Since(stime))
 	return nil
+}
+
+// BackupInfo returns metadata info about a backup
+func (f *Facade) BackupInfo(ctx datastore.Context, r io.Reader) (*dfs.BackupInfo, error) {
+	info, err := f.dfs.BackupInfo(r)
+	if err != nil {
+		glog.Errorf("Could not get info for backup: %s", err)
+		return nil, err
+	}
+	return info, nil
 }
 
 // Commit commits a container to the docker registry and takes a snapshot.
@@ -111,7 +122,7 @@ func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error 
 func (f *Facade) GetSnapshotInfo(ctx datastore.Context, snapshotID string) (*dfs.SnapshotInfo, error) {
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not get infor for snapshot %s: %s", snapshotID, err)
+		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
 		return nil, err
 	}
 	return info, nil
