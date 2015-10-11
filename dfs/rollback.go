@@ -20,43 +20,43 @@ import (
 )
 
 // Rollback reverts an application to a previous snapshot.
-func (dfs *DistributedFilesystem) Rollback(snapshotID string) (*SnapshotInfo, error) {
+func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 	vol, info, err := dfs.getSnapshotVolumeAndInfo(snapshotID)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	// load the services from the snapshot
 	r, err := vol.ReadMetadata(info.TenantID, ServicesMetadataFile)
 	if err != nil {
 		glog.Errorf("Could not receive services metadata from snapshot %s: %s", snapshotID, err)
-		return nil, err
+		return err
 	}
 	var svcs []service.Service
 	if err := importJSON(r, &svcs); err != nil {
 		glog.Errorf("Could not interpret services metadata file from snapshot %s: %s", snapshotID, err)
-		return nil, err
+		return err
 	}
 	// do all the images exist in the registry?
 	r, err = vol.ReadMetadata(info.TenantID, ImagesMetadataFile)
 	if err != nil {
 		glog.Errorf("Could not receive images metadata from snapshot %s: %s", snapshotID, err)
-		return nil, err
+		return err
 	}
 	var images []string
 	if err := importJSON(r, &images); err != nil {
 		glog.Errorf("Could not interpret images metadata file from snapshot %s: %s", snapshotID, err)
-		return nil, err
+		return err
 	}
 	for _, image := range images {
 		rImage, err := dfs.index.FindImage(image)
 		if err != nil {
 			glog.Errorf("Could not find image %s from snapshot %s: %s", image, snapshotID, err)
-			return nil, err
+			return err
 		}
 		rImage.Tag = docker.Latest
 		if err := dfs.index.PushImage(rImage.String(), rImage.UUID); err != nil {
 			glog.Errorf("Could not update image %s from snapshot %s in the registry: %s", image, snapshotID, err)
-			return nil, err
+			return err
 		}
 	}
 	// TODO: remove nfs exports here
@@ -66,12 +66,12 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) (*SnapshotInfo, er
 	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/5/html/Deployment_Guide/s1-nfs-server-config-exports.html
 	if err := dfs.net.Stop(); err != nil {
 		glog.Errorf("Could not stop nfs server: %s", err)
-		return nil, err
+		return err
 	}
 	defer dfs.net.Restart()
 	if err := vol.Rollback(snapshotID); err != nil {
 		glog.Errorf("Could not rollback snapshot %s for tenant %s: %s", snapshotID, info.TenantID, err)
-		return nil, err
+		return err
 	}
-	return &SnapshotInfo{info, images, svcs}, nil
+	return nil
 }

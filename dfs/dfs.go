@@ -39,7 +39,7 @@ type DFS interface {
 	// Snapshot captures application data at a specific point in time
 	Snapshot(info SnapshotInfo) (string, error)
 	// Rollback reverts application to a specific snapshot
-	Rollback(snapshotID string) (*SnapshotInfo, error)
+	Rollback(snapshotID string) error
 	// Delete deletes an application's snapshot
 	Delete(snapshotID string) error
 	// List lists snapshots for a particular application

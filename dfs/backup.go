@@ -20,6 +20,7 @@ import (
 	"io"
 	"path"
 
+	"github.com/control-center/serviced/commons/docker"
 	"github.com/zenoss/glog"
 )
 
@@ -50,7 +51,17 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		glog.Errorf("Could not write backup metadata: %s", err)
 		return err
 	}
-	// get the base images
+	// download the base images
+	for _, image := range data.BaseImages {
+		if _, err := dfs.docker.FindImage(image); docker.IsImageNotFound(err) {
+			if err := dfs.docker.PullImage(image); err != nil {
+				glog.Errorf("Could not pull image %s: %s", image, err)
+				return err
+			}
+		} else {
+			glog.Errorf("Could not find image %s: %s", image, err)
+		}
+	}
 	images := data.BaseImages
 	// export the snapshots
 	for _, snapshot := range data.Snapshots {
@@ -69,6 +80,12 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		if err := importJSON(r, &imgs); err != nil {
 			glog.Errorf("Could not interpret images metadata for tenant %s: %s", info.TenantID, err)
 			return err
+		}
+		for _, img := range imgs {
+			if err := dfs.reg.PullImage(img); err != nil {
+				glog.Errorf("Could not pull image %s from registry: %s", img, err)
+				return err
+			}
 		}
 		images = append(images, imgs...)
 		// export the snapshot

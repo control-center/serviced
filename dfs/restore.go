@@ -57,7 +57,8 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 				glog.Errorf("Could not create volume for tenant %s: %s", tenant, err)
 				return nil, err
 			}
-			if err := vol.Import(label, tarfile); err != nil {
+			// Lets expedite this if this restore had already imported the snapshot
+			if err := vol.Import(label, tarfile); err != nil && err != volume.ErrSnapshotExists {
 				glog.Errorf("Could not import volume for tenant %s: %s", tenant, err)
 				return nil, err
 			}
