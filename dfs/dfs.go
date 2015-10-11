@@ -15,6 +15,7 @@ package dfs
 
 import (
 	"io"
+	"time"
 
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dfs/docker"
@@ -28,6 +29,8 @@ import (
 
 // DFS is the api for the distributed filesystem
 type DFS interface {
+	// Timeout returns the dfs timeout setting
+	Timeout() time.Duration
 	// Create sets up a new application
 	Create(tenantID string) error
 	// Destroy removes an existing application
@@ -79,16 +82,23 @@ type DistributedFilesystem struct {
 	disk   volume.Driver
 	// FIXME: replace this with a NFS server, instead of restarting the
 	// daemon
-	net storage.StorageDriver
+	net     storage.StorageDriver
+	timeout time.Duration
 }
 
 // NewDistributedFilesystem instantiates a new DistributedFilsystem object
-func NewDistributedFilesystem(docker docker.Docker, index registry.RegistryIndex, reg registry.Registry, disk volume.Driver, net storage.StorageDriver) *DistributedFilesystem {
+func NewDistributedFilesystem(docker docker.Docker, index registry.RegistryIndex, reg registry.Registry, disk volume.Driver, net storage.StorageDriver, timeout time.Duration) *DistributedFilesystem {
 	return &DistributedFilesystem{
-		docker: docker,
-		index:  index,
-		reg:    reg,
-		disk:   disk,
-		net:    net,
+		docker:  docker,
+		index:   index,
+		reg:     reg,
+		disk:    disk,
+		net:     net,
+		timeout: timeout,
 	}
+}
+
+// Timeout returns the service timeout time for the distributed filesystem
+func (dfs *DistributedFilesystem) Timeout() time.Duration {
+	return dfs.timeout
 }

@@ -17,6 +17,7 @@ package dfs_test
 
 import (
 	"testing"
+	"time"
 
 	. "gopkg.in/check.v1"
 
@@ -46,5 +47,5 @@ func (s *DFSTestSuite) SetUpTest(c *C) {
 	s.registry = &registrymocks.Registry{}
 	s.disk = &volumemocks.Driver{}
 	s.net = &storagemocks.StorageDriver{}
-	s.dfs = dfs.NewDistributedFilesystem(s.docker, s.index, s.registry, s.disk, s.net)
+	s.dfs = dfs.NewDistributedFilesystem(s.docker, s.index, s.registry, s.disk, s.net, time.Minute)
 }
