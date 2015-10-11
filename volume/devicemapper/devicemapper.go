@@ -2,7 +2,9 @@ package devicemapper
 
 import (
 	"archive/tar"
+	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -647,6 +649,16 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	// Set up the file stream
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
+	// Set the driver type
+	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
+	if err := tarfile.WriteHeader(header); err != nil {
+		glog.Errorf("Could not export driver type header: %s", err)
+		return err
+	}
+	if _, err := fmt.Fprint(tarfile, v.Driver().DriverType()); err != nil {
+		glog.Errorf("Could not export driver type: %s", err)
+		return err
+	}
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 	if err := volume.ExportDirectory(tarfile, mdpath, fmt.Sprintf("%s-metadata", label)); err != nil {
@@ -702,7 +714,10 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 		v.driver.DeviceSet.Unlock()
 	}()
 	// write volume and metadata
-	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
+	driverfile := fmt.Sprintf("%s-driver", label)
+	volumedir := fmt.Sprintf("%s-volume", label)
+	metadatadir := fmt.Sprintf("%s-metadata", label)
+	var drivertype string
 	tarfile := tar.NewReader(reader)
 	for {
 		header, err := tarfile.Next()
@@ -712,7 +727,13 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 			glog.Errorf("Could not import archive: %s", err)
 			return err
 		}
-		if strings.HasPrefix(header.Name, volumedir) {
+		if header.Name == driverfile {
+			buf := bytes.NewBufferString("")
+			if _, err := buf.ReadFrom(tarfile); err != nil {
+				return err
+			}
+			drivertype = buf.String()
+		} else if strings.HasPrefix(header.Name, volumedir) {
 			header.Name = strings.Replace(header.Name, volumedir, label, 1)
 			if err := volume.ImportArchiveHeader(header, tarfile, mountpoint); err != nil {
 				return err
@@ -723,6 +744,9 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 				return err
 			}
 		}
+	}
+	if drivertype == "" {
+		return errors.New("incompatible snapshot")
 	}
 	return v.Metadata.AddSnapshot(label, device)
 }
