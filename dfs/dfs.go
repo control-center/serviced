@@ -53,6 +53,8 @@ type DFS interface {
 	Backup(info BackupInfo, w io.Writer) error
 	// Restore restores the system to the state of the backup
 	Restore(r io.Reader) (*BackupInfo, error)
+	// BackupInfo provides detailed info for a particular backup
+	BackupInfo(r io.Reader) (*BackupInfo, error)
 }
 
 var _ = DFS(&DistributedFilesystem{})
@@ -64,6 +66,7 @@ type BackupInfo struct {
 	Pools      []pool.ResourcePool
 	Hosts      []host.Host
 	Snapshots  []string
+	Timestamp  time.Time
 }
 
 // SnapshotInfo provides meta info about a snapshot

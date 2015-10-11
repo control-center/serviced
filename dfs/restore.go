@@ -33,6 +33,9 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 		if err == io.EOF {
 			glog.Infof("Finished reading backup")
 			return &data, nil
+		} else if err != nil {
+			glog.Errorf("Could not read backup: %s", err)
+			return nil, err
 		}
 		switch {
 		case header.Name == BackupMetadataFile:

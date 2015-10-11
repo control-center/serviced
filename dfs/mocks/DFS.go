@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -195,6 +195,27 @@ func (_m *DFS) Backup(info dfs.BackupInfo, w io.Writer) error {
 	return r0
 }
 func (_m *DFS) Restore(r io.Reader) (*dfs.BackupInfo, error) {
+	ret := _m.Called(r)
+
+	var r0 *dfs.BackupInfo
+	if rf, ok := ret.Get(0).(func(io.Reader) *dfs.BackupInfo); ok {
+		r0 = rf(r)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*dfs.BackupInfo)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(io.Reader) error); ok {
+		r1 = rf(r)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *DFS) BackupInfo(r io.Reader) (*dfs.BackupInfo, error) {
 	ret := _m.Called(r)
 
 	var r0 *dfs.BackupInfo
