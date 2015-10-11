@@ -61,6 +61,7 @@ func (inst instances) Swap(i, j int)      { inst[i], inst[j] = inst[j], inst[i] 
 // ServiceNode is the zookeeper client Node for services
 type ServiceNode struct {
 	*service.Service
+	Locked  bool
 	version interface{}
 }
 
@@ -71,12 +72,12 @@ func (node *ServiceNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *ServiceNode) Create(conn client.Connection) error {
-	return UpdateService(conn, *node.Service)
+	return UpdateService(conn, *node.Service, false)
 }
 
 // Update implements zzk.Node
 func (node *ServiceNode) Update(conn client.Connection) error {
-	return UpdateService(conn, *node.Service)
+	return UpdateService(conn, *node.Service, false)
 }
 
 // Version implements client.Node
@@ -135,8 +136,10 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			}
 		}
 
+		var svcnode ServiceNode
 		var svc service.Service
-		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
+		svcnode.Service = &svc
+		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &svcnode)
 		if err != nil {
 			glog.Errorf("Could not load service %s: %s", serviceID, err)
 			return
@@ -158,7 +161,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			case service.SVCStop:
 				l.stop(rss)
 			case service.SVCRun:
-				if !l.sync(&svc, rss) {
+				if !l.sync(svcnode.Locked, &svc, rss) {
 					retry = time.After(retryTimeout)
 				}
 			case service.SVCPause:
@@ -256,7 +259,7 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 }
 
 // sync synchronizes the number of running instances for this service
-func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) bool {
+func (l *ServiceListener) sync(locked bool, svc *service.Service, rss []dao.RunningService) bool {
 	// sort running services by instance ID, so that you stop instances by the
 	// lowest instance ID first and start instances with the greatest instance
 	// ID last.
@@ -287,9 +290,13 @@ func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) b
 	if netInstances > 0 {
 		// If the service lock is enabled, do not try to start any service instances
 		// This will prevent the retry restart from activating
+		if locked {
+			glog.Warningf("Could not start %d instances; service %s (%s) is locked", netInstances, svc.Name, svc.ID)
+			return true
+		}
 		if locked, err := IsServiceLocked(l.conn); err != nil {
 			glog.Errorf("Could not check service lock: %s", err)
-			return true
+			return false
 		} else if locked {
 			glog.Warningf("Could not start %d instances; service %s (%s) is locked", netInstances, svc.Name, svc.ID)
 			return true
@@ -446,11 +453,12 @@ func SyncServices(conn client.Connection, services []service.Service) error {
 }
 
 // UpdateService updates a service node if it exists, otherwise creates it
-func UpdateService(conn client.Connection, svc service.Service) error {
+func UpdateService(conn client.Connection, svc service.Service, locked bool) error {
 	var node ServiceNode
 	spath := servicepath(svc.ID)
 
 	node.Service = &service.Service{}
+	node.Locked = locked
 	if err := conn.Get(spath, &node); err != nil {
 		if err == client.ErrNoNode {
 			// Create the service node
