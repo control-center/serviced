@@ -14,89 +14,131 @@
 package elasticsearch
 
 import (
-	"github.com/control-center/serviced/dao"
-	"github.com/zenoss/glog"
+	"compress/gzip"
+	"os"
+	"path/filepath"
+	"sync"
 
-	"fmt"
+	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/datastore"
 
 	"time"
 )
 
+var backupLock sync.Mutex
+var backupFile string
 var backupError = make(chan error)
 
-// ListBackups lists the backup files in a given directory
-func (this *ControlPlaneDao) ListBackups(dirpath string, files *[]dao.BackupFile) (err error) {
-	*files, err = this.dfs.ListBackups(dirpath)
-	return
+func (this *ControlPlaneDao) BackupStatus(_ int, message *string) error {
+	return nil
 }
 
-// Backup saves templates, services, and snapshots into a tgz file
-func (this *ControlPlaneDao) Backup(dirpath string, filename *string) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	var err error
-	*filename, err = this.dfs.Backup(dirpath, 0)
+// ListBackups lists the backup files in a given directory
+func (this *ControlPlaneDao) ListBackups(dirname string, infos *[]dao.BackupFile) error {
+	*infos = []dao.BackupFile{}
+
+	// Read the contents of the directory
+	dir, err := os.Open(dirname)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+	fis, err := dir.Readdir(0)
+	for _, fi := range fis {
+		if !fi.IsDir() {
+			if fi.Name() == backupFile {
+				bf := dao.BackupFile{
+					InProgress: true,
+					FullPath:   filepath.Join(dirname, fi.Name()),
+					Name:       fi.Name(),
+					Size:       fi.Size(),
+					Mode:       fi.Mode(),
+					ModTime:    fi.ModTime(),
+				}
+				*infos = append(*infos, bf)
+				continue
+			}
+			// Try to load the backup info
+			isbackup := func(filename string) bool {
+				fh, err := os.Open(filepath.Join(dirname, filename))
+				if err != nil {
+					return false
+				}
+				defer fh.Close()
+				gz, err := gzip.NewReader(fh)
+				if err != nil {
+					return false
+				}
+				_, err = this.facade.BackupInfo(datastore.Get(), gz)
+				if err != nil {
+					return false
+				}
+				return true
+			}(fi.Name())
+			if isbackup {
+				bf := dao.BackupFile{
+					InProgress: backupFile == fi.Name(),
+					FullPath:   filepath.Join(dirname, fi.Name()),
+					Name:       fi.Name(),
+					Size:       fi.Size(),
+					Mode:       fi.Mode(),
+					ModTime:    fi.ModTime(),
+				}
+				*infos = append(*infos, bf)
+			}
+		}
+	}
+	return nil
+}
+
+// Backup saves templates, services, and snapshots into a tgz
+func (this *ControlPlaneDao) Backup(dirname string, filename *string) error {
+	backupLock.Lock()
+	defer backupLock.Unlock()
+	backupFile = time.Now().UTC().Format("backup-2006-01-02-150405.tgz")
+	*filename = backupFile
+	defer func() { backupFile = "" }()
+	fh, err := os.Create(filepath.Join(dirname, *filename))
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+	gz := gzip.NewWriter(fh)
+	defer gz.Close()
+	err = this.facade.Backup(datastore.Get(), gz)
 	return err
 }
 
 // AsyncBackup performs the backup asynchronously
 func (this *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) error {
-	// TODO: There is a risk of contention here if two backup operations are
-	// called simultaneously. We may want to move backups into a leader queue
-	// on the coordinator.
-	if locked, err := this.dfs.IsLocked(); err != nil {
-		glog.Errorf("Could not check lock on dfs: %s", err)
-		return err
-	} else if locked {
-		err := fmt.Errorf("another operation is running")
-		glog.Errorf("Another DFS operation is running, please wait and try again.")
-		return err
-	}
-
 	go func() {
 		err := this.Backup(dirpath, filename)
 		backupError <- err
 	}()
-
 	return nil
 }
 
 // Restore restores a serviced installation to the state of its backup
-func (this *ControlPlaneDao) Restore(filename string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.Restore(filename)
+func (this *ControlPlaneDao) Restore(filename string, _ *int) error {
+	fh, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+	gz, err := gzip.NewReader(fh)
+	if err != nil {
+		return err
+	}
+	defer gz.Close()
+	err = this.facade.Restore(datastore.Get(), gz)
+	return err
 }
 
 // AsyncRestore performs the restore aynchronously
-func (this *ControlPlaneDao) AsyncRestore(filename string, unused *int) error {
-	// TODO: There is a risk of contention here if two backup operations are
-	// called simultaneously. We may want to move backups into a leader queue
-	// on the coordinator.
-	if locked, err := this.dfs.IsLocked(); err != nil {
-		glog.Errorf("Could not check lock on dfs: %s", err)
-		return err
-	} else if locked {
-		err := fmt.Errorf("another operation is running")
-		glog.Errorf("Another DFS operation is running, please wait and try again.")
-		return err
-	}
-
+func (this *ControlPlaneDao) AsyncRestore(filename string, _ *int) error {
 	go func() {
-		err := this.Restore(filename, unused)
+		err := this.Restore(filename, nil)
 		backupError <- err
 	}()
-	return nil
-}
-
-// BackupStatus monitors the status of a backup or restore
-func (this *ControlPlaneDao) BackupStatus(unused int, status *string) error {
-	message := make(chan string)
-	go func() { message <- this.dfs.GetStatus(10 * time.Second) }()
-	select {
-	case *status = <-message:
-	case err := <-backupError:
-		return err
-	}
 	return nil
 }

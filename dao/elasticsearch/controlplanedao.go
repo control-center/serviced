@@ -21,42 +21,27 @@ package elasticsearch
 import (
 	"fmt"
 	"strconv"
-	"sync"
-	"time"
 
-	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/volume"
 	"github.com/control-center/serviced/zzk"
 	zkdocker "github.com/control-center/serviced/zzk/docker"
 	"github.com/zenoss/elastigo/api"
 	"github.com/zenoss/glog"
 )
 
-const (
-	DOCKER_ENDPOINT string = "unix:///var/run/docker.sock"
-)
-
 //assert interface
 var _ dao.ControlPlane = &ControlPlaneDao{}
 
 type ControlPlaneDao struct {
-	hostName       string
-	port           int
-	rpcPort        int
-	volumesPath    string
-	fsType         volume.DriverType
-	dfs            *dfs.DistributedFilesystem
-	facade         *facade.Facade
-	dockerRegistry string
-	metricClient   *metrics.Client
-	backupLock     sync.RWMutex
-	restoreLock    sync.RWMutex
+	hostName     string
+	port         int
+	rpcPort      int
+	facade       *facade.Facade
+	metricClient *metrics.Client
 }
 
 func serviceGetter(ctx datastore.Context, f *facade.Facade) service.GetService {
@@ -81,7 +66,7 @@ func childFinder(ctx datastore.Context, f *facade.Facade) service.FindChildServi
 	}
 }
 
-func (this *ControlPlaneDao) Action(request dao.AttachRequest, unused *int) error {
+func (this *ControlPlaneDao) Action(request dao.AttachRequest, _ *int) error {
 	ctx := datastore.Get()
 	svc, err := this.facade.GetService(ctx, request.Running.ServiceID)
 	if err != nil {
@@ -133,38 +118,24 @@ func NewControlPlaneDao(hostName string, port int, rpcPort int) (*ControlPlaneDa
 	return dao, nil
 }
 
-func NewControlSvc(hostName string, port int, facade *facade.Facade, volumesPath, backupsPath string, fsType volume.DriverType, rpcPort int, maxdfstimeout time.Duration, dockerRegistry string, networkDriver storage.StorageDriver) (*ControlPlaneDao, error) {
-	glog.V(2).Info("calling NewControlSvc()")
-	defer glog.V(2).Info("leaving NewControlSvc()")
-
-	s, err := NewControlPlaneDao(hostName, port, rpcPort)
+func NewControlSvc(hostName string, port, rpcport int, facade *facade.Facade) (*ControlPlaneDao, error) {
+	glog.V(2).Infof("Calling NewControlSvc()")
+	defer glog.V(2).Infof("Leaving NewControlSvc()")
+	s, err := NewControlPlaneDao(hostName, port, rpcport)
 	if err != nil {
 		return nil, err
 	}
-
-	//Used to bridge old to new
 	s.facade = facade
-
-	s.volumesPath = volumesPath
-	s.fsType = fsType
 
 	// create the account credentials
 	if err = createSystemUser(s); err != nil {
 		return nil, err
 	}
-
-	dfs, err := dfs.NewDistributedFilesystem(fsType, volumesPath, backupsPath, dockerRegistry, facade, maxdfstimeout, networkDriver)
-	if err != nil {
-		return nil, err
-	}
-	s.dfs = dfs
-
 	// initialize the metrics client
 	metricClient, err := metrics.NewClient(fmt.Sprintf("http://%s:8888", hostName))
 	if err != nil {
 		return nil, err
 	}
 	s.metricClient = metricClient
-
 	return s, nil
 }
