@@ -65,7 +65,7 @@ var internalCounterStats = []string{
 	"cgroup.cpuacct.system", "cgroup.cpuacct.user", "cgroup.memory.pgmajfault",
 }
 var internalGuageStats = []string{
-	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.rx_bytes", "net.rx_compressed",
+	"cgroup.memory.totalrss", "cgroup.memory.cache",
 }
 
 func removeInternalGraphConfigs(svc *service.Service) {
