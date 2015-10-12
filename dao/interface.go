@@ -257,6 +257,9 @@ type ControlPlane interface {
 	// SetRegistry resets the path to the docker registry
 	ResetRegistry(request EntityRequest, unused *int) error
 
+	// RepairRegistry is used to write the registry to the database for upgrades 1.0 -> 1.1 and beyond
+	RepairRegistry(_ struct{}, _ *struct{}) error
+
 	// Deletes a particular snapshot
 	DeleteSnapshot(snapshotID string, unused *int) error
 

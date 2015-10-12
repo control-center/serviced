@@ -23,6 +23,11 @@ func (this *ControlPlaneDao) ResetRegistry(request dao.EntityRequest, _ *int) er
 	return this.facade.SyncRegistryImages(datastore.Get(), true)
 }
 
+// RepairRegistry repairs the docker registry during an upgrade
+func (this *ControlPlaneDao) RepairRegistry(_ struct{}, _ *struct{}) error {
+	return this.facade.RepairRegistry(datastore.Get())
+}
+
 // DeleteSnapshot deletes a particular snapshot
 func (this *ControlPlaneDao) DeleteSnapshot(snapshotID string, _ *int) error {
 	return this.facade.DeleteSnapshot(datastore.Get(), snapshotID)
