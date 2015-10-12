@@ -477,7 +477,12 @@ func createMuxListener() (net.Listener, error) {
 			return nil, err
 		}
 
-		tlsConfig := tls.Config{Certificates: []tls.Certificate{cert}}
+		tlsConfig := tls.Config{
+			Certificates:             []tls.Certificate{cert},
+			MinVersion:               utils.MinTLS(),
+			PreferServerCipherSuites: true,
+			CipherSuites:             utils.CipherSuites(),
+		}
 		glog.V(1).Infof("TLS enabled tcp mux listening on %d", options.MuxPort)
 		return tls.Listen("tcp", fmt.Sprintf(":%d", options.MuxPort), &tlsConfig)
 
