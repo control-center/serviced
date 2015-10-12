@@ -14,6 +14,7 @@
 package web
 
 import (
+        "crypto/tls"
 	"fmt"
 	"log"
 	"mime"
@@ -30,6 +31,7 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/proxy"
 	"github.com/control-center/serviced/rpc/master"
+	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/gorilla/mux"
@@ -170,7 +172,16 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 		}
 	}()
 	go func() {
-		err := http.ListenAndServeTLS(sc.bindPort, certFile, keyFile, nil)
+		// This cipher suites and tls min version change may not be needed with golang 1.5
+		// https://github.com/golang/go/issues/10094
+		// https://github.com/golang/go/issues/9364
+		config := &tls.Config{
+			MinVersion:               utils.MinTLS(),
+			PreferServerCipherSuites: true,
+			CipherSuites:             utils.CipherSuites(),
+		}
+		server := &http.Server{Addr: sc.bindPort, TLSConfig: config}
+		err := server.ListenAndServeTLS(certFile, keyFile)
 		if err != nil {
 			glog.Fatalf("could not setup HTTPS webserver: %s", err)
 		}
