@@ -63,7 +63,7 @@ func (dfs *DistributedFilesystem) Download(image, tenantID string, upgrade bool)
 			return "", err
 		}
 	} else if err != nil {
-		glog.Errorf("Could not look up image %s: %s", rImage)
+		glog.Errorf("Could not look up image %s: %s", rImage, err)
 		return "", err
 	} else if rimg.UUID != img.ID {
 		if upgrade {

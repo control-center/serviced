@@ -73,7 +73,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		glog.Infof("Preparing images for tenant %s", info.TenantID)
 		r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 		if err != nil {
-			glog.Errorf("Could not receive images metadata for tenant %s: err", info.TenantID, err)
+			glog.Errorf("Could not receive images metadata for tenant %s: %s", info.TenantID, err)
 			return err
 		}
 		var imgs []string

@@ -184,7 +184,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 	glog.Infof("Beginning rollback of snapshot %s", snapshotID)
 	info, err := f.dfs.Info(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not get info for snapshot %s: %s")
+		glog.Errorf("Could not get info for snapshot %s: %s", snapshotID, err)
 		return err
 	}
 	tlock := getTenantLock(f, info.Info.TenantID)

@@ -31,7 +31,7 @@ var tenantLockMap = make(map[string]*tenantLock)
 // assert interface
 var _ FacadeInterface = &Facade{}
 
-func New(dockerRegistryName string) *Facade {
+func New() *Facade {
 	return &Facade{
 		hostStore:     host.NewStore(),
 		registryStore: registry.NewStore(),

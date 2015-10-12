@@ -27,7 +27,7 @@ func (dfs *DistributedFilesystem) BackupInfo(r io.Reader) (*BackupInfo, error) {
 	for {
 		header, err := tarfile.Next()
 		if err != nil {
-			glog.Errorf("Could not read backup: %s")
+			glog.Errorf("Could not read backup: %s", err)
 			return nil, err
 		}
 		if header.Name == BackupMetadataFile {
