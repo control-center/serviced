@@ -491,7 +491,10 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 	cfg.User = "root"
 	cfg.WorkingDir = "/"
-	cfg.Image = svc.ImageID
+	if cfg.Image, err = a.dockerreg.ImagePath(svc.ImageID); err != nil {
+		glog.Errorf("Could not parse image %s: %s", svc.ImageID, err)
+		return nil, nil, err
+	}
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
@@ -749,7 +752,12 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 	if len(strings.TrimSpace(containerPath)) == 0 {
 		containerPath = volume.ContainerPath
 	}
-	if err := createVolumeDir(conn, resourcePath, containerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
+	image, err := a.dockerreg.ImagePath(service.ImageID)
+	if err != nil {
+		glog.Errorf("Could not get registry image for %s: %s", service.ImageID, err)
+		return "", err
+	}
+	if err := createVolumeDir(conn, resourcePath, containerPath, image, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, containerPath, err)
 		return "", err
 	}

@@ -217,6 +217,10 @@ func (s *ControlClient) ResetRegistry(request dao.EntityRequest, unused *int) er
 	return s.rpcClient.Call("ControlPlane.ResetRegistry", request, unused, 0)
 }
 
+func (s *ControlClient) RepairRegistry(_ struct{}, _ *struct{}) error {
+	return s.rpcClient.Call("ControlPlane.RepairRegistry", struct{}{}, nil, 0)
+}
+
 func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotId, unused, 0)
 }

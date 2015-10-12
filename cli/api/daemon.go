@@ -585,6 +585,9 @@ func (d *daemon) startAgent() error {
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions, d.registry)
+		if err != nil {
+			glog.Fatalf("could not create host agent: %s", err)
+		}
 		d.hostAgent = hostAgent
 
 		d.waitGroup.Add(1)
