@@ -69,11 +69,9 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 			return err
 		}
 	}
-	glog.Infof("-----ADDING SERVICE 1 %s (%s)-----", svc.Name, svc.ID)
 	tlock := getTenantLock(f, tenantID)
 	tlock.RLock()
 	defer tlock.RUnlock()
-	glog.Infof("-----ADDING SERVICE 2 %s (%s)-----", svc.Name, svc.ID)
 	if err := f.addService(ctx, svc); err != nil {
 		return err
 	}
@@ -477,6 +475,26 @@ func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, er
 		return "", err
 	}
 	return svc.PoolID, nil
+}
+
+// GetTenantImages returns a list of images used by a particular application
+func (f *Facade) GetTenantImages(ctx datastore.Context, tenantID string) ([]string, error) {
+	svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
+	if err != nil {
+		glog.Errorf("Could not get services for tenant %s: %s", tenantID, err)
+		return nil, err
+	}
+	var imagesMap = make(map[string]struct{})
+	var images []string
+	for _, svc := range svcs {
+		if svc.ImageID != "" {
+			if _, ok := imagesMap[svc.ImageID]; !ok {
+				imagesMap[svc.ImageID] = struct{}{}
+				images = append(images, svc.ImageID)
+			}
+		}
+	}
+	return images, nil
 }
 
 // GetImageIDs returns a list of unique IDs of all the images of all the deployed services.

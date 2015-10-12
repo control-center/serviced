@@ -58,7 +58,7 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	datastore.Register(ft.Driver())
 	ft.CTX = datastore.Get()
 
-	ft.Facade = New("localhost:5000")
+	ft.Facade = New()
 
 	//mock out ZK calls to no ops
 	zkAPI = func(f *Facade) zkfuncs { return &zkMock{} }

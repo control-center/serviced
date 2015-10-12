@@ -129,11 +129,16 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 		return nil, nil, err
 	}
 	var imagesMap = make(map[string]struct{})
+	var images []string
+
 	var getImages func(sds []servicedefinition.ServiceDefinition)
 	getImages = func(sds []servicedefinition.ServiceDefinition) {
 		for _, sd := range sds {
 			if sd.ImageID != "" {
-				imagesMap[sd.ImageID] = struct{}{}
+				if _, ok := imagesMap[sd.ImageID]; !ok {
+					imagesMap[sd.ImageID] = struct{}{}
+					images = append(images, sd.ImageID)
+				}
 			}
 			getImages(sd.Services)
 		}
@@ -142,10 +147,6 @@ func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicet
 	for i, tpl := range results {
 		getImages(tpl.Services)
 		templates[i] = *tpl
-	}
-	var images []string
-	for image := range imagesMap {
-		images = append(images, image)
 	}
 	return templates, images, nil
 }

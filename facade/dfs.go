@@ -79,6 +79,7 @@ func (f *Facade) Backup(ctx datastore.Context, w io.Writer) error {
 	}
 	if err := f.dfs.Backup(data, w); err != nil {
 		glog.Errorf("Could not backup: %s", err)
+		return err
 	}
 	glog.Infof("Completed backup in %s", time.Since(stime))
 	return nil
@@ -142,6 +143,29 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 		return nil, err
 	}
 	return snapshots, nil
+}
+
+// RepairRegistry will only repair the 'latest' image (use for upgrade 1.0 -> 1.1 and above)
+func (f *Facade) RepairRegistry(ctx datastore.Context) error {
+	tenantIDs, err := f.getTenantIDs(ctx)
+	if err != nil {
+		glog.Errorf("Could not find tenants: %s", err)
+		return err
+	}
+	for _, tenantID := range tenantIDs {
+		images, err := f.GetTenantImages(ctx, tenantID)
+		if err != nil {
+			glog.Errorf("Could not get images for tenant %s: %s", tenantID, err)
+			return err
+		}
+		for _, image := range images {
+			if _, err := f.dfs.Download(image, tenantID, true); err != nil {
+				glog.Errorf("Could not repair image %s: %s", image, err)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // Restore restores application data from a backup.
