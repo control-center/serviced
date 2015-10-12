@@ -584,7 +584,7 @@ func (d *daemon) startAgent() error {
 			LogstashURL:          options.LogstashURL,
 		}
 		// creates a zClient that is not pool based!
-		hostAgent, err := node.NewHostAgent(agentOptions)
+		hostAgent, err := node.NewHostAgent(agentOptions, d.registry)
 		d.hostAgent = hostAgent
 
 		d.waitGroup.Add(1)
@@ -763,7 +763,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, options.SnapshotTTL)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.registry, options.SnapshotTTL)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return
