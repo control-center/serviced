@@ -42,6 +42,11 @@ func SetRegistryImage(conn client.Connection, rImage *registry.Image) error {
 			return err
 		}
 		defer leader.ReleaseLead()
+		if err := conn.Get(rimagepath, node); err != nil {
+			return err
+		}
+		node.Image = rImage
+		node.PushedAt = time.Unix(0, 0)
 		return conn.Set(rimagepath, node)
 	}
 	return err

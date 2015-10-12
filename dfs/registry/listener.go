@@ -138,14 +138,15 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 						}
 					}
 					// Push the image and update the registry
+					// If the push is unsuccessful, still update the timestamp,
+					// so that the push will get retriggered the next time it
+					// is needed.
 					registrypath := path.Join(l.address, node.Image.String())
 					glog.V(1).Infof("Updating registry image %s", registrypath)
 					if err := l.docker.TagImage(node.Image.UUID, registrypath); err != nil {
 						glog.Errorf("Could not tag %s as %s: %s", node.Image.UUID, registrypath, err)
-						return
 					} else if err := l.docker.PushImage(registrypath); err != nil {
 						glog.Errorf("Could not push %s: %s", registrypath, err)
-						return
 					}
 					// Set the value if I am still the leader
 					select {

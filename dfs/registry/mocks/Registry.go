@@ -31,3 +31,22 @@ func (_m *Registry) PullImage(image string) error {
 
 	return r0
 }
+func (_m *Registry) ImagePath(image string) (string, error) {
+	ret := _m.Called(image)
+
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string) string); ok {
+		r0 = rf(image)
+	} else {
+		r0 = ret.Get(0).(string)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(image)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}

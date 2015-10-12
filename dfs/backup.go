@@ -58,8 +58,9 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 				glog.Errorf("Could not pull image %s: %s", image, err)
 				return err
 			}
-		} else {
+		} else if err != nil {
 			glog.Errorf("Could not find image %s: %s", image, err)
+			return err
 		}
 	}
 	images := data.BaseImages
@@ -86,8 +87,13 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 				glog.Errorf("Could not pull image %s from registry: %s", img, err)
 				return err
 			}
+			image, err := dfs.reg.ImagePath(img)
+			if err != nil {
+				glog.Errorf("Could not get the image path from registry %s: %s", img, err)
+				return err
+			}
+			images = append(images, image)
 		}
-		images = append(images, imgs...)
 		// export the snapshot
 		if err := vol.Export(info.Label, "", buffer); err != nil {
 			glog.Errorf("Could not export tenant %s: %s", info.TenantID, err)
@@ -109,6 +115,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 	glog.Infof("Saving images to backup")
 	if err := dfs.docker.SaveImages(images, buffer); err != nil {
 		glog.Errorf("Could not save images to backup: %s", err)
+		return err
 	}
 	header = &tar.Header{Name: DockerImagesFile, Size: int64(buffer.Len())}
 	if err := tarfile.WriteHeader(header); err != nil {

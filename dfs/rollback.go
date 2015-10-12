@@ -15,7 +15,6 @@ package dfs
 
 import (
 	"github.com/control-center/serviced/dfs/docker"
-	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
 
@@ -25,19 +24,8 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 	if err != nil {
 		return err
 	}
-	// load the services from the snapshot
-	r, err := vol.ReadMetadata(info.TenantID, ServicesMetadataFile)
-	if err != nil {
-		glog.Errorf("Could not receive services metadata from snapshot %s: %s", snapshotID, err)
-		return err
-	}
-	var svcs []service.Service
-	if err := importJSON(r, &svcs); err != nil {
-		glog.Errorf("Could not interpret services metadata file from snapshot %s: %s", snapshotID, err)
-		return err
-	}
 	// do all the images exist in the registry?
-	r, err = vol.ReadMetadata(info.TenantID, ImagesMetadataFile)
+	r, err := vol.ReadMetadata(info.Label, ImagesMetadataFile)
 	if err != nil {
 		glog.Errorf("Could not receive images metadata from snapshot %s: %s", snapshotID, err)
 		return err

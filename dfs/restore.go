@@ -65,7 +65,7 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 				glog.Errorf("Could not import volume for tenant %s: %s", tenant, err)
 				return nil, err
 			}
-			glog.Infof("Loaded volume for tenant %s: %s", tenant, err)
+			glog.Infof("Loaded volume for tenant %s", tenant)
 		case header.Name == DockerImagesFile:
 			if err := dfs.docker.LoadImage(tarfile); err != nil {
 				glog.Errorf("Could not load images: %s", err)

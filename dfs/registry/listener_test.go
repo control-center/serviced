@@ -26,8 +26,8 @@ import (
 	"github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dfs/docker/mocks"
 	"github.com/control-center/serviced/domain/registry"
+	zzktest "github.com/control-center/serviced/zzk/test"
 	dockerclient "github.com/fsouza/go-dockerclient"
-	"github.com/control-center/serviced/zzk/test"
 
 	. "gopkg.in/check.v1"
 )
@@ -73,11 +73,11 @@ func (i *testImage) GetW(c *C, conn coordclient.Connection) (<-chan coordclient.
 func TestRegistryListener(t *testing.T) { TestingT(t) }
 
 type RegistryListenerSuite struct {
-	dc       *dockerclient.Client
-	conn     coordclient.Connection
-	docker   *mocks.Docker
-	listener *RegistryListener
-	zkCtrID  string
+	dc        *dockerclient.Client
+	conn      coordclient.Connection
+	docker    *mocks.Docker
+	listener  *RegistryListener
+	zkCtrID   string
 	zzkServer *zzktest.ZZKServer
 }
 
@@ -329,14 +329,14 @@ func (s *RegistryListenerSuite) TestRegistryListener_PushFails(c *C) {
 		c.Errorf("listener updated node")
 	}
 
-	// verify the node did NOT update
+	// verify the node did update
 	close(timeoutC)
 	select {
 	case <-time.After(5 * time.Second):
+		c.Errorf("listener did not update node!")
 	case <-done:
 		c.Fatalf("listener exited prematurely")
 	case <-evt:
-		c.Errorf("listener updated node")
 	}
 
 	// verify shutdown

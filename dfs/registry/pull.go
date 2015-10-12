@@ -32,6 +32,24 @@ var (
 // Registry performs specific docker actions based on the registry index
 type Registry interface {
 	PullImage(image string) error
+	ImagePath(image string) (string, error)
+}
+
+// ImagePath returns the proper path to the registry image
+func (l *RegistryListener) ImagePath(image string) (string, error) {
+	imageID, err := commons.ParseImageID(image)
+	if err != nil {
+		return "", err
+	}
+	rImage := &registry.Image{
+		Library: imageID.User,
+		Repo:    imageID.Repo,
+		Tag:     imageID.Tag,
+	}
+	if imageID.IsLatest() {
+		rImage.Tag = docker.Latest
+	}
+	return path.Join(l.address, rImage.String()), nil
 }
 
 // PullImage waits for an image to be available on the docker registry so it
@@ -45,6 +63,9 @@ func (l *RegistryListener) PullImage(image string) error {
 		Library: imageID.User,
 		Repo:    imageID.Repo,
 		Tag:     imageID.Tag,
+	}
+	if imageID.IsLatest() {
+		rImage.Tag = docker.Latest
 	}
 	idpath := path.Join(zkregistrypath, rImage.ID())
 	regaddr := path.Join(l.address, rImage.String())
