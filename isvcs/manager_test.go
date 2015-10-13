@@ -40,10 +40,11 @@ func TestManager(t *testing.T) {
 
 	if err := testManager.Start(); err != nil {
 		t.Logf("expected no error got %s", err)
-		t.Fail()
+		t.Fatal()
 	}
 
 	cd1 := IServiceDefinition{
+		ID:      "test1",
 		Name:    "test1",
 		Repo:    "ubuntu",
 		Tag:     "latest",
@@ -52,10 +53,11 @@ func TestManager(t *testing.T) {
 	container, err := NewIService(cd1)
 	if err != nil {
 		t.Logf("could not create container: %s", err)
-		t.Fail()
+		t.Fatal()
 	}
 
 	cd2 := IServiceDefinition{
+		ID:      "test2",
 		Name:    "test2",
 		Repo:    "ubuntu",
 		Tag:     "latest",
@@ -64,7 +66,7 @@ func TestManager(t *testing.T) {
 	container2, err := NewIService(cd2)
 	if err != nil {
 		t.Logf("could not create container: %s", err)
-		t.Fail()
+		t.Fatal()
 	}
 
 	if err := testManager.Register(container); err != nil {

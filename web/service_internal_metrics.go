@@ -64,8 +64,9 @@ var internalCounterStats = []string{
 	"net.tx_heartbeat_errors", "net.tx_packets", "net.tx_window_errors",
 	"cgroup.cpuacct.system", "cgroup.cpuacct.user", "cgroup.memory.pgmajfault",
 }
-var internalGuageStats = []string{
-	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.rx_bytes", "net.rx_compressed",
+var internalGaugeStats = []string{
+	"cgroup.memory.totalrss", "cgroup.memory.cache", "net.open_connections.tcp", "net.open_connections.udp",
+	"net.open_connections.raw",
 }
 
 func removeInternalGraphConfigs(svc *service.Service) {
@@ -314,7 +315,7 @@ func addInternalMetrics(config *domain.MetricConfig) {
 			})
 
 	}
-	for _, metricName := range internalGuageStats {
+	for _, metricName := range internalGaugeStats {
 		config.Metrics = append(config.Metrics,
 			domain.Metric{
 				ID:      metricName,
