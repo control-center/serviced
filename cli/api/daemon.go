@@ -301,7 +301,7 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("Could not connect to docker client: %s", err)
 	}
 
-	d.registry = registry.NewRegistryListener(d.docker, options.DockerRegistry, d.hostID, 30*time.Minute)
+	d.registry = registry.NewRegistryListener(d.docker, dockerRegistry, d.hostID, 30*time.Minute)
 
 	if !volume.Registered(options.FSType) {
 		glog.Fatalf("no driver registered for %s", options.FSType)
