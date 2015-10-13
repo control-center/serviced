@@ -67,13 +67,13 @@ func (health ESHealth) String() string {
 	return "unknown"
 }
 
-const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = 240                                             //default startup timeout in seconds (4 minutes)
-const MIN_ES_STARTUP_TIMEOUT_SECONDS = 30                                                  //minimum startup timeout in seconds
+const DEFAULT_ES_STARTUP_TIMEOUT_SECONDS = 240 //default startup timeout in seconds (4 minutes)
+const MIN_ES_STARTUP_TIMEOUT_SECONDS = 30      //minimum startup timeout in seconds
 
 var elasticsearch_logstash *IService
 var elasticsearch_serviced *IService
 
-func init() {
+func initElasticSearch() {
 	var serviceName string
 	var err error
 
@@ -95,6 +95,7 @@ func init() {
 
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
+			ID:             ElasticsearchServicedISVC.ID,
 			Name:           serviceName,
 			Repo:           IMAGE_REPO,
 			Tag:            IMAGE_TAG,
@@ -131,6 +132,7 @@ func init() {
 
 	elasticsearch_logstash, err = NewIService(
 		IServiceDefinition{
+			ID:             ElasticsearchLogStashISVC.ID,
 			Name:           serviceName,
 			Repo:           IMAGE_REPO,
 			Tag:            IMAGE_TAG,

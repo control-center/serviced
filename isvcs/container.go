@@ -113,21 +113,22 @@ type portBinding struct {
 }
 
 type IServiceDefinition struct {
-	Name          string                             // name of the service (used in naming containers)
-	Repo          string                             // the service's docker repository
-	Tag           string                             // the service's docker repository tag
-	Command       func() string                      // the command to run in the container
-	Volumes       map[string]string                  // volumes to bind mount to the container
-	PortBindings  []portBinding                      // defines how ports are exposed on the host
-	HealthChecks  map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
-	Configuration map[string]interface{}             // service specific configuration
-	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
-	PostStart     func(*IService) error              // A function to run after the initial start of the service
-	Recover       func(path string) error            // A recovery step if the service fails to start
-	HostNetwork   bool                               // enables host network in the container
-	Links         []string                           // List of links to other containers in the form of <name>:<alias>
-	StartGroup    uint16                             // Start up group number
-	StartupTimeout time.Duration					 // How long to wait for the service to start up (this is the timeout for the initial 'startup' healthcheck)
+	ID             string                             // the ID of the service associated
+	Name           string                             // name of the service (used in naming containers)
+	Repo           string                             // the service's docker repository
+	Tag            string                             // the service's docker repository tag
+	Command        func() string                      // the command to run in the container
+	Volumes        map[string]string                  // volumes to bind mount to the container
+	PortBindings   []portBinding                      // defines how ports are exposed on the host
+	HealthChecks   map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
+	Configuration  map[string]interface{}             // service specific configuration
+	Notify         func(*IService, interface{}) error // A function to run when notified of a data event
+	PostStart      func(*IService) error              // A function to run after the initial start of the service
+	Recover        func(path string) error            // A recovery step if the service fails to start
+	HostNetwork    bool                               // enables host network in the container
+	Links          []string                           // List of links to other containers in the form of <name>:<alias>
+	StartGroup     uint16                             // Start up group number
+	StartupTimeout time.Duration                      // How long to wait for the service to start up (this is the timeout for the initial 'startup' healthcheck)
 }
 
 type IService struct {
@@ -145,7 +146,7 @@ type IService struct {
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
-	if strings.TrimSpace(sd.Name) == "" || strings.TrimSpace(sd.Repo) == "" || sd.Command == nil {
+	if strings.TrimSpace(sd.Name) == "" || strings.TrimSpace(sd.Repo) == "" || strings.TrimSpace(sd.ID) == "" || sd.Command == nil {
 		return nil, ErrBadContainerSpec
 	}
 
@@ -182,7 +183,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	}
 
 	envPerService[sd.Name] = make(map[string]string)
-	envPerService[sd.Name]["CONTROLPLANE_SERVICE_ID"] = svc.Name
+	envPerService[sd.Name]["CONTROLPLANE_SERVICE_ID"] = svc.ID
 	go svc.run()
 
 	return &svc, nil
@@ -668,7 +669,7 @@ func (svc *IService) startupHealthcheck() <-chan error {
 					break
 				} else if elapsed.Seconds() > svc.StartupTimeout.Seconds() {
 					glog.Errorf("Could not verify health status of %s after %s. Last health check returned %#v",
-					        svc.Name, svc.StartupTimeout, result)
+						svc.Name, svc.StartupTimeout, result)
 					break
 				}
 
@@ -829,6 +830,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				tagmap := make(map[string]string)
 				tagmap["isvc"] = "true"
 				tagmap["isvcname"] = svc.Name
+				tagmap["controlplane_service_id"] = svc.ID
 				if metric, ok := i.(metrics.Gauge); ok {
 					stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 				} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {
