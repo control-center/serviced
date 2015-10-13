@@ -15,7 +15,10 @@
 
 package dfs_test
 
-import . "gopkg.in/check.v1"
+import (
+	volumemocks "github.com/control-center/serviced/volume/mocks"
+	. "gopkg.in/check.v1"
+)
 
 func (s *DFSTestSuite) TestCreate_NoShare(c *C) {
 	// TODO: this is a placeholder for nfs sharing
@@ -26,7 +29,8 @@ func (s *DFSTestSuite) TestCreate_ShareNotEnabled(c *C) {
 }
 
 func (s *DFSTestSuite) TestCreate_Success(c *C) {
-	s.disk.On("Create", "tenantid").Return(nil)
+	vol := &volumemocks.Volume{}
+	s.disk.On("Create", "tenantid").Return(vol, nil)
 	err := s.dfs.Create("tenantid")
 	c.Assert(err, IsNil)
 }

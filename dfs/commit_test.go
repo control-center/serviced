@@ -18,17 +18,18 @@ package dfs_test
 import (
 	"errors"
 
-	"github.com/control-center/serviced/dfs"
+	. "github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
 )
 
 func (s *DFSTestSuite) TestCommit_NotFound(c *C) {
-	s.docker.On("FindContainer", "testcontainer").Return(nil, errors.New("ctr not found"))
+	expectedErr := errors.New("ctr not found")
+	s.docker.On("FindContainer", "testcontainer").Return(nil, expectedErr)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, errors.New("ctr not found"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestCommit_Running(c *C) {
@@ -45,10 +46,11 @@ func (s *DFSTestSuite) TestCommit_Running(c *C) {
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, dfs.ErrRunningContainer)
+	c.Assert(err, Equals, ErrRunningContainer)
 }
 
 func (s *DFSTestSuite) TestCommit_ImageNotFound(c *C) {
+	expectedErr := errors.New("img not found")
 	ctr := &dockerclient.Container{
 		ID:    "testcontainer",
 		Image: "testimage",
@@ -60,10 +62,10 @@ func (s *DFSTestSuite) TestCommit_ImageNotFound(c *C) {
 		},
 	}
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
-	s.registry.On("GetImage", "localhost:5000/libraryname/reponame:tagname").Return(nil, errors.New("img not found"))
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:tagname").Return(nil, expectedErr)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, errors.New("image not found"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestCommit_Stale(c *C) {
@@ -85,10 +87,10 @@ func (s *DFSTestSuite) TestCommit_Stale(c *C) {
 		UUID:    "testimage",
 	}
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
-	s.registry.On("GetImage", "localhost:5000/libraryname/reponame:tagname").Return(nil, rImg)
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:tagname").Return(rImg, nil)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, dfs.ErrStaleContainer)
+	c.Assert(err, Equals, ErrStaleContainer)
 	// uuid is outdated
 	ctr2 := &dockerclient.Container{
 		ID:    "testcontainer2",
@@ -107,13 +109,14 @@ func (s *DFSTestSuite) TestCommit_Stale(c *C) {
 		UUID:    "testimage2",
 	}
 	s.docker.On("FindContainer", "testcontainer2").Return(ctr2, nil)
-	s.registry.On("GetImage", "localhost:5000/libraryname/reponame:latest").Return(nil, rImg2)
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg2, nil)
 	tenantID, err = s.dfs.Commit("testcontainer2")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, dfs.ErrStaleContainer)
+	c.Assert(err, Equals, ErrStaleContainer)
 }
 
 func (s *DFSTestSuite) TestCommit_NoCommit(c *C) {
+	expectedErr := errors.New("no commit")
 	ctr := &dockerclient.Container{
 		ID:    "testcontainer",
 		Image: "testimage",
@@ -131,14 +134,15 @@ func (s *DFSTestSuite) TestCommit_NoCommit(c *C) {
 		UUID:    "testimage",
 	}
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
-	s.registry.On("GetImage", "localhost:5000/libraryname/reponame:latest").Return(nil, rImg)
-	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(nil, errors.New("no commit"))
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg, nil)
+	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(nil, expectedErr)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, errors.New("no commit"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestCommit_NoPush(c *C) {
+	expectedErr := errors.New("no push")
 	ctr := &dockerclient.Container{
 		ID:    "testcontainer",
 		Image: "testimage",
@@ -159,12 +163,13 @@ func (s *DFSTestSuite) TestCommit_NoPush(c *C) {
 		ID: "testimage2",
 	}
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
-	s.registry.On("GetImage", "localhost:5000/libraryname/reponame:latest").Return(nil, rImg)
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg, nil)
 	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(img, nil)
-	s.docker.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2").Return(errors.New("no push"))
+	s.index.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2").Return(expectedErr)
+	s.index.On("PushImage", "libraryname/reponame:latest", "testimage2").Return(expectedErr)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "")
-	c.Assert(err, Equals, errors.New("no push"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestCommit_Success(c *C) {
@@ -188,9 +193,10 @@ func (s *DFSTestSuite) TestCommit_Success(c *C) {
 		ID: "testimage2",
 	}
 	s.docker.On("FindContainer", "testcontainer").Return(ctr, nil)
-	s.registry.On("GetImage", "localhost:5000/libraryname/reponame:latest").Return(nil, rImg)
+	s.index.On("FindImage", "localhost:5000/libraryname/reponame:latest").Return(rImg, nil)
 	s.docker.On("CommitContainer", "testcontainer", "localhost:5000/libraryname/reponame:latest").Return(img, nil)
-	s.docker.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2").Return(nil)
+	s.index.On("PushImage", "localhost:5000/libraryname/reponame:latest", "testimage2").Return(nil)
+	s.index.On("PushImage", "libraryname/reponame:latest", "testimage2").Return(nil)
 	tenantID, err := s.dfs.Commit("testcontainer")
 	c.Assert(tenantID, Equals, "libraryname")
 	c.Assert(err, IsNil)

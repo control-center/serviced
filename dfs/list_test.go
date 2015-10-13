@@ -22,20 +22,22 @@ import (
 	. "gopkg.in/check.v1"
 )
 
+var ErrTestNoSnapshots = errors.New("no snapshots")
+
 func (s *DFSTestSuite) TestList_NoVolume(c *C) {
-	s.disk.On("Get", "tenant").Return(nil, errors.New("no volume found"))
+	s.disk.On("Get", "tenant").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)
 	snapshots, err := s.dfs.List("tenant")
 	c.Assert(snapshots, IsNil)
-	c.Assert(err, Equals, errors.New("no volume found"))
+	c.Assert(err, Equals, ErrTestVolumeNotFound)
 }
 
 func (s *DFSTestSuite) TestList_NoSnapshots(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "tenant").Return(vol, nil)
-	vol.On("Snapshots").Return(nil, errors.New("no snapshots"))
+	vol.On("Snapshots").Return(nil, ErrTestNoSnapshots)
 	snapshots, err := s.dfs.List("tenant")
 	c.Assert(snapshots, IsNil)
-	c.Assert(err, Equals, errors.New("no snapshots"))
+	c.Assert(err, Equals, ErrTestNoSnapshots)
 }
 
 func (s *DFSTestSuite) TestList_Success(c *C) {

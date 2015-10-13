@@ -48,7 +48,7 @@ func (dfs *DistributedFilesystem) Commit(ctrID string) (string, error) {
 		return "", ErrStaleContainer
 	}
 	// commit the container
-	img, err := dfs.docker.CommitContainer(ctr.ID, rImage.String())
+	img, err := dfs.docker.CommitContainer(ctr.ID, ctr.Config.Image)
 	if err != nil {
 		glog.Errorf("Could not commit container %s: %s", ctr.ID, err)
 		return "", err

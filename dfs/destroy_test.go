@@ -25,42 +25,48 @@ import (
 )
 
 func (s *DFSTestSuite) TestDestroy_NoVolume(c *C) {
-	s.disk.On("Get", "Base").Return(nil, errors.New("volume not found"))
+	expectedErr := errors.New("volume not found")
+	s.disk.On("Get", "Base").Return(&volumemocks.Volume{}, expectedErr)
 	err := s.dfs.Destroy("Base")
-	c.Assert(err, Equals, errors.New("volume not found"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestDestroy_ErrSnapshots(c *C) {
+	expectedErr := errors.New("could not get snapshots")
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
-	vol.On("Snapshots").Return(nil, errors.New("could not get snapshots"))
+	vol.On("Snapshots").Return([]string{}, expectedErr)
 	err := s.dfs.Destroy("Base")
-	c.Assert(err, Equals, errors.New("could not get snapshots"))
+	c.Assert(err, Equals, expectedErr)
+	expectedErr = errors.New("could not get snapshot info")
 	vol = s.getVolumeFromSnapshot("Base2_Snapshot", "Base2")
 	vol.On("Snapshots").Return([]string{"Base2_Snapshot"}, nil)
-	vol.On("SnapshotInfo", "Base2_Snapshot").Return(nil, errors.New("could not get snapshot info"))
+	vol.On("SnapshotInfo", "Base2_Snapshot").Return(nil, expectedErr)
 	err = s.dfs.Destroy("Base2")
-	c.Assert(err, Equals, errors.New("could not get snapshot info"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
+	expectedErr := errors.New("could not stop server")
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
-	s.net.On("Stop").Return(errors.New("could not stop server")).Once()
+	s.net.On("Stop").Return(expectedErr).Once()
 	err := s.dfs.Destroy("Base")
-	c.Assert(err, Equals, errors.New("could not stop server"))
+	c.Assert(err, Equals, expectedErr)
+	expectedErr = errors.New("could not remove volume")
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)
-	s.disk.On("Remove", "Base").Return(errors.New("could not remove volume"))
+	s.disk.On("Remove", "Base").Return(expectedErr)
 	err = s.dfs.Destroy("Base")
-	c.Assert(err, Equals, errors.New("could not remove volume"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestDestroy_Success(c *C) {
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
+	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)

@@ -21,34 +21,50 @@ import (
 	"errors"
 	"time"
 
-	"github.com/control-center/serviced/dfs"
+	. "github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
 	. "gopkg.in/check.v1"
 )
 
+type NopCloser struct {
+	*bytes.Buffer
+}
+
+func (h *NopCloser) Close() error {
+	return nil
+}
+
+var (
+	ErrTestSnapshotNotFound   = errors.New("snapshot not found")
+	ErrTestVolumeNotFound     = errors.New("volume not found")
+	ErrTestInfoNotFound       = errors.New("info not found")
+	ErrTestNoImagesMetadata   = errors.New("no images metadata")
+	ErrTestNoServicesMetadata = errors.New("no services metadata")
+)
+
 func (s *DFSTestSuite) TestInfo_NoSnapshot(c *C) {
-	s.disk.On("Get", "test-label").Return(nil, errors.New("snapshot not found"))
+	s.disk.On("Get", "test-label").Return(&volumemocks.Volume{}, ErrTestSnapshotNotFound)
 	info, err := s.dfs.Info("test-label")
 	c.Assert(info, IsNil)
-	c.Assert(err, Equals, errors.New("snapshot not found"))
+	c.Assert(err, Equals, ErrTestSnapshotNotFound)
 	snapshot := &volumemocks.Volume{}
 	s.disk.On("Get", "test-label-2").Return(snapshot, nil)
 	snapshot.On("Tenant").Return("tenant-service")
-	s.disk.On("Get", "tenant-service").Return(nil, errors.New("volume not found"))
+	s.disk.On("Get", "tenant-service").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)
 	info, err = s.dfs.Info("test-label-2")
 	c.Assert(info, IsNil)
-	c.Assert(err, Equals, errors.New("volume not found"))
+	c.Assert(err, Equals, ErrTestVolumeNotFound)
 	snapshot = &volumemocks.Volume{}
 	s.disk.On("Get", "test-label-3").Return(snapshot, nil)
-	s.disk.On("Tenant").Return("tenant-service-2")
+	snapshot.On("Tenant").Return("tenant-service-2")
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "tenant-service-2").Return(vol, nil)
-	vol.On("SnapshotInfo", "test-label-3").Return(nil, errors.New("info not found"))
+	vol.On("SnapshotInfo", "test-label-3").Return(&volume.SnapshotInfo{}, ErrTestInfoNotFound)
 	info, err = s.dfs.Info("test-label-3")
 	c.Assert(info, IsNil)
-	c.Assert(err, Equals, errors.New("info not found"))
+	c.Assert(err, Equals, ErrTestInfoNotFound)
 }
 
 func (s *DFSTestSuite) TestInfo_NoImages(c *C) {
@@ -65,11 +81,11 @@ func (s *DFSTestSuite) TestInfo_NoImages(c *C) {
 	svcbuffer := bytes.NewBufferString("")
 	err := json.NewEncoder(svcbuffer).Encode([]service.Service{})
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", dfs.ServicesMetadataFile).Return(svcbuffer, nil)
-	vol.On("ReadMetadata", "test-snapshot-label", dfs.ImagesMetadataFile).Return(nil, errors.New("no images metadata"))
+	vol.On("ReadMetadata", "test-snapshot-label", ServicesMetadataFile).Return(&NopCloser{svcbuffer}, nil)
+	vol.On("ReadMetadata", "test-snapshot-label", ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	info, err := s.dfs.Info("test-snapshot-label")
 	c.Assert(info, IsNil)
-	c.Assert(err, Equals, errors.New("no images metadata"))
+	c.Assert(err, Equals, ErrTestNoImagesMetadata)
 }
 
 func (s *DFSTestSuite) TestInfo_NoServices(c *C) {
@@ -86,11 +102,11 @@ func (s *DFSTestSuite) TestInfo_NoServices(c *C) {
 	imgbuffer := bytes.NewBufferString("")
 	err := json.NewEncoder(imgbuffer).Encode([]string{})
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", dfs.ServicesMetadataFile).Return(nil, errors.New("no services metadata"))
-	vol.On("ReadMetadata", "test-snapshot-label", dfs.ImagesMetadataFile).Return(imgbuffer, nil)
+	vol.On("ReadMetadata", "test-snapshot-label", ServicesMetadataFile).Return(&NopCloser{}, ErrTestNoServicesMetadata)
+	vol.On("ReadMetadata", "test-snapshot-label", ImagesMetadataFile).Return(&NopCloser{imgbuffer}, nil)
 	info, err := s.dfs.Info("test-snapshot-label")
 	c.Assert(info, IsNil)
-	c.Assert(err, Equals, errors.New("no services metadata"))
+	c.Assert(err, Equals, ErrTestNoServicesMetadata)
 }
 
 func (s *DFSTestSuite) TestInfo_Success(c *C) {
@@ -106,30 +122,36 @@ func (s *DFSTestSuite) TestInfo_Success(c *C) {
 	vol.On("SnapshotInfo", "test-snapshot-label").Return(vinfo, nil)
 	svcs := []service.Service{
 		{
-			ID: "test-service-1",
+			ID:        "test-service-1",
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 		}, {
-			ID: "test-service-2",
+			ID:        "test-service-2",
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 		}, {
-			ID: "test-service-3",
+			ID:        "test-service-3",
+			CreatedAt: time.Now().UTC(),
+			UpdatedAt: time.Now().UTC(),
 		},
 	}
 	svcsbuffer := bytes.NewBufferString("")
 	err := json.NewEncoder(svcsbuffer).Encode(svcs)
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", dfs.ServicesMetadataFile).Return(svcsbuffer, nil)
+	vol.On("ReadMetadata", "test-snapshot-label", ServicesMetadataFile).Return(&NopCloser{svcsbuffer}, nil)
 	imgs := []string{"test-tenant/repo:snapshot-label"}
 	imgsbuffer := bytes.NewBufferString("")
 	err = json.NewEncoder(imgsbuffer).Encode(imgs)
 	c.Assert(err, IsNil)
-	vol.On("ReadMetadata", "test-snapshot-label", dfs.ServicesMetadataFile).Return(imgsbuffer, nil)
+	vol.On("ReadMetadata", "test-snapshot-label", ImagesMetadataFile).Return(&NopCloser{imgsbuffer}, nil)
 	info, err := s.dfs.Info("test-snapshot-label")
 	c.Assert(err, IsNil)
-	c.Assert(info, DeepEquals, &dfs.SnapshotInfo{vinfo, imgs, svcs})
+	c.Assert(info, DeepEquals, &SnapshotInfo{vinfo, imgs, svcs})
 }
 
 func (s *DFSTestSuite) getVolumeFromSnapshot(snapshotID, tenantID string) *volumemocks.Volume {
 	snapshot := &volumemocks.Volume{}
-	s.disk.On("Get", snapshot).Return(snapshotID, nil)
+	s.disk.On("Get", snapshotID).Return(snapshot, nil)
 	snapshot.On("Tenant").Return(tenantID)
 	volume := &volumemocks.Volume{}
 	s.disk.On("Get", tenantID).Return(volume, nil)

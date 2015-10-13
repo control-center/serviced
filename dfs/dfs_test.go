@@ -22,15 +22,15 @@ import (
 	. "gopkg.in/check.v1"
 
 	storagemocks "github.com/control-center/serviced/coordinator/storage/mocks"
-	"github.com/control-center/serviced/dfs"
+	. "github.com/control-center/serviced/dfs"
 	dockermocks "github.com/control-center/serviced/dfs/docker/mocks"
 	registrymocks "github.com/control-center/serviced/dfs/registry/mocks"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
 )
 
-func TestDFS(t *testing.T) { TestingT(t) }
+func Test(t *testing.T) { TestingT(t) }
 
-var _ = Suite(DFSTestSuite{})
+var _ = Suite(&DFSTestSuite{})
 
 type DFSTestSuite struct {
 	docker   *dockermocks.Docker
@@ -38,7 +38,7 @@ type DFSTestSuite struct {
 	registry *registrymocks.Registry
 	disk     *volumemocks.Driver
 	net      *storagemocks.StorageDriver
-	dfs      *dfs.DistributedFilesystem
+	dfs      *DistributedFilesystem
 }
 
 func (s *DFSTestSuite) SetUpTest(c *C) {
@@ -47,5 +47,5 @@ func (s *DFSTestSuite) SetUpTest(c *C) {
 	s.registry = &registrymocks.Registry{}
 	s.disk = &volumemocks.Driver{}
 	s.net = &storagemocks.StorageDriver{}
-	s.dfs = dfs.NewDistributedFilesystem(s.docker, s.index, s.registry, s.disk, s.net, time.Minute)
+	s.dfs = NewDistributedFilesystem(s.docker, s.index, s.registry, s.disk, s.net, time.Minute)
 }

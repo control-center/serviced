@@ -19,13 +19,13 @@ import (
 	"errors"
 	"time"
 
-	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/volume"
 	. "gopkg.in/check.v1"
 )
 
 func (s *DFSTestSuite) TestDelete_NoImages(c *C) {
+	expectedErr := errors.New("images not found")
 	vol := s.getVolumeFromSnapshot("Base_Snapshot", "Base")
 	vinfo := &volume.SnapshotInfo{
 		Name:     "Base_Snapshot",
@@ -34,13 +34,14 @@ func (s *DFSTestSuite) TestDelete_NoImages(c *C) {
 		Created:  time.Now().UTC(),
 	}
 	vol.On("SnapshotInfo", "Base_Snapshot").Return(vinfo, nil)
-	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return(nil, errors.New("images not found"))
+	s.index.On("SearchLibraryByTag", "Base", "Snapshot").Return(nil, expectedErr)
 	err := s.dfs.Delete("Base_Snapshot")
-	c.Assert(err, Equals, errors.New("images not found"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestDelete_NoRemove(c *C) {
 	// image won't delete
+	expectedErr := errors.New("could not remove image")
 	vol := s.getVolumeFromSnapshot("Base_Snapshot", "Base")
 	vinfo := &volume.SnapshotInfo{
 		Name:     "Base_Snapshot",
@@ -57,10 +58,11 @@ func (s *DFSTestSuite) TestDelete_NoRemove(c *C) {
 		},
 	}
 	s.index.On("SearchLibraryByTag", "Base", "Snapshot").Return(rImages, nil)
-	s.index.On("RemoveImage", "Base/repo:Snapshot").Return(errors.New("could not remove image"))
+	s.index.On("RemoveImage", "Base/repo:Snapshot").Return(expectedErr)
 	err := s.dfs.Delete("Base_Snapshot")
-	c.Assert(err, Equals, errors.New("could not remove image"))
+	c.Assert(err, Equals, expectedErr)
 	// volume won't delete
+	expectedErr = errors.New("could not remove volume")
 	vol = s.getVolumeFromSnapshot("Base2_Snapshot2", "Base2")
 	vinfo = &volume.SnapshotInfo{
 		Name:     "Base2_Snapshot2",
@@ -68,6 +70,7 @@ func (s *DFSTestSuite) TestDelete_NoRemove(c *C) {
 		Label:    "Snapshot2",
 		Created:  time.Now().UTC(),
 	}
+	vol.On("SnapshotInfo", "Base2_Snapshot2").Return(vinfo, nil)
 	rImages = []registry.Image{
 		{
 			Library: "Base2",
@@ -77,9 +80,9 @@ func (s *DFSTestSuite) TestDelete_NoRemove(c *C) {
 	}
 	s.index.On("SearchLibraryByTag", "Base2", "Snapshot2").Return(rImages, nil)
 	s.index.On("RemoveImage", "Base2/repo:Snapshot2").Return(nil)
-	vol.On("RemoveSnapshot", "Base2_Snapshot2").Return(errors.New("could not remove volume"))
+	vol.On("RemoveSnapshot", "Base2_Snapshot2").Return(expectedErr)
 	err = s.dfs.Delete("Base2_Snapshot2")
-	c.Assert(err, Equals, errors.New("could not remove volume"))
+	c.Assert(err, Equals, expectedErr)
 }
 
 func (s *DFSTestSuite) TestDelete_Success(c *C) {
