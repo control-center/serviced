@@ -25,11 +25,12 @@ import (
 	"time"
 )
 
+var Zookeeper IServiceDefinition
 var zookeeper *IService
 
 func initZK() {
 	var err error
-	Zookeeper := IServiceDefinition{
+	Zookeeper = IServiceDefinition{
 		ID:      ZookeeperISVC.ID,
 		Name:    "zookeeper",
 		Repo:    ZK_IMAGE_REPO,
