@@ -91,7 +91,6 @@ func (l *RegistryListener) PullImage(image string) error {
 					return err
 				}
 				// was the pull successful?
-				glog.Infof("Was the pull successful? %s (%s)", regaddr, node.Image.UUID)
 				if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
 					if node.PushedAt.Unix() > 0 {
 						// the image is definitely not in the registry, so lets
@@ -104,7 +103,6 @@ func (l *RegistryListener) PullImage(image string) error {
 							glog.Errorf("Image %s not found in the docker registry: %s", regaddr, err)
 							return err
 						}
-						glog.Infof("Reset push time")
 					}
 				} else if err != nil {
 					glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)
