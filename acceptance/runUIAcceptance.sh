@@ -14,7 +14,7 @@
 debug=false
 interactive=false
 runAsRoot=false
-DRIVER_NAME=selenium
+DRIVER_NAME=selenium_chrome
 TIMEOUT=10
 DATASET=default
 

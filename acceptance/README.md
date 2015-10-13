@@ -108,20 +108,20 @@ In the future, this step may be incorporated directly into the Cucumber tests fo
 ### Step 4 - Run the test suite
 
 Capybara uses different 'drivers' to interface with a web browser.
-The Selenium driver for Capybara is the default, and by default it executes tests againts Firefox.
+By default, `runUIAcceptance.sh` executes tests against Chrome.
 The test suite can be run against any one of several browsers by selecting different drivers.
-Both of the following commands run the test suite against Firefox:
+Both of the following commands run the test suite against Chrome:
 
 ```
 $ ./runUIAcceptance.sh -a <servicedURL> -u <userID> -p <password>
 or
-$ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
-```
-
-To run the tests against Chrome, use
-
-```
 $ ./runUIAcceptance.sh -d selenium_chrome -a <servicedURL> -u <userID> -p <password>
+```
+
+To run the tests against Firefox, use
+
+```
+$ ./runUIAcceptance.sh -d selenium -a <servicedURL> -u <userID> -p <password>
 ```
 
 To run the tests against Poltergeist/Phantomjs, use
@@ -149,7 +149,7 @@ The primary variables used by `runUIAcceptance.sh` are:
  * **`APPLICATION_URL`** - the URL of the application under test. You can set this variable with the `-a` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_USERID`** - the user id to login into the application under test. You can set this variable with the `-u` command line option for `runUIAcceptance.sh`.
  * **`APPLICATION_PASSWORD`** - the password used to login into the application under test. You can set this variable with the `-p` command line option for `runUIAcceptance.sh`.
- * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
+ * **`CAPYBARA_DRIVER`** - the name of the Capybara web driver to use. Valid values are `selenium` (which uses Firefox), `selenium_chrome`, or `poltergeist` (which uses PhantomJS). The default if not specified is `selenium_chrome`. You can set this variable with the `-d` command line option for `runUIAcceptance.sh`.
  * **`CAPYBARA_TIMEOUT`** - the timeout, in seconds, that Capybara should wait for a page or element. The default is 10 seconds. You can set this variable with the `-t` command line option for `runUIAcceptance.sh`.
  * **`CUCUMBER_OPTS`** - any of the standard command line options for Cucumber.
  * **`DATASET`** - the JSON dataset to use as test input. You can set this variable with the `--dataset` command line option for `runUIAcceptance.sh`.
