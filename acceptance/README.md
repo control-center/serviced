@@ -172,6 +172,13 @@ Cucumber supports a feature called tags which can be used to run a subset of tes
 For example, you can run tests for a single tag with a command like:
 
 ```
+$ ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password> --tags @hosts
+
+```
+
+or you can include tags as part of the `CUCUMBER_OPTS` environment variable
+
+```
 $ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a <servicedURL> -u <userid> -p <password>
 
 ```
@@ -187,10 +194,10 @@ Some of the tags defined by this project are:
  * feature tags - There is a unique tag on each Feature to allow running single features at a time or in combination. Some of the valid values are `@login`, and `@hosts`
  * login hook - The tag `@login-required` illustrates how to use hook tags to automatically execute some block of code before/after the associated feature/step. In this case, the `@login-required` tag will login the user before each feature/step decorated with the tag (remember that each Scenario executes as a new browser session).
 
- To specify one of these tags, define `--tags tagName` in CUCUMBER_OPTS. For instance, the following command will run just the tests for the hosts feature:
+ To specify one or more of these tags, add the `--tags tagName` to the command line. For instance, the following command will run just the tests for the hosts feature:
 
  ```
-$ CUCUMBER_OPTS='--tags @hosts' ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere
+$ ./runUIAcceptance.sh -a servicedURL -u yourUserID -p yourPasswordHere --tags @hosts
  ```
 
 For information about this Cucumber feature, see:
