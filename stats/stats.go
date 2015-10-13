@@ -225,6 +225,32 @@ func (sr *StatsReporter) updateHostStats() {
 	} else {
 		metrics.GetOrRegisterGauge("Serviced.OpenFileDescriptors", sr.hostRegistry).Update(openFileDescriptorCount)
 	}
+
+	// Get the disk stats and add them.  The disk name is appended onto the metric name here, but
+	// when we create the list of metric to post to the consumer, we remove the disk name from the
+	// metric name, and make it a tag instead
+	diskStats, err := linux.ReadDiskstat()
+	if err != nil {
+		glog.Errorf("unable to read disk stats: %s", err)
+	}
+	for _, statsProxy := range diskStats {
+		if statsProxy.Disk == "" {
+			glog.Warningf("encountered unnamed disk (major: %s, minor %s), skipping", statsProxy.Major, statsProxy.Minor)
+			continue
+		}
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.reads.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NReads))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.reads_merged.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NReadsMerged))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.sectors_read.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NSectorsRead))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.ms_reading.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NMsReading))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.writes.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NWrites))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.writes_merged.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NWritesMerged))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.sectors_written.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NSectorsWritten))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.ms_reading.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NMsWriting))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.io_in_progress.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NIoInProgress))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.ms_io.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NMsIo))
+		metrics.GetOrRegisterGaugeFloat64(fmt.Sprintf("disk.ms_io_weighted.%s", statsProxy.Disk), sr.hostRegistry).Update(float64(statsProxy.Stats.NMsIoWeighted))
+	}
+
 }
 
 func (sr *StatsReporter) updateStorageStats() {
@@ -298,14 +324,20 @@ func (sr *StatsReporter) gatherStats(t time.Time) []Sample {
 	// Handle the host metrics.
 	reg, _ := sr.hostRegistry.(*metrics.StandardRegistry)
 	reg.Each(func(name string, i interface{}) {
-		if metric, ok := i.(metrics.Gauge); ok {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_host_id"] = sr.hostID
-			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		tagmap := make(map[string]string)
+		tagmap["controlplane_host_id"] = sr.hostID
+
+		// disk metrics have the disk name appended to the name
+		if strings.HasPrefix(name, "disk.") && strings.Count(name, ".") >= 2 {
+			splitName := strings.Split(name, ".")
+			// get last park of name, which is the disk name
+			tagmap["controlplane_disk_name"] = splitName[len(splitName)-1]
+			// re-construct metric name, stripping the disk name off the end
+			name = strings.Join(splitName[:len(splitName)-1], ".")
 		}
-		if metricf64, ok := i.(metrics.GaugeFloat64); ok {
-			tagmap := make(map[string]string)
-			tagmap["controlplane_host_id"] = sr.hostID
+		if metric, ok := i.(metrics.Gauge); ok {
+			stats = append(stats, Sample{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
+		} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {
 			stats = append(stats, Sample{name, strconv.FormatFloat(metricf64.Value(), 'f', -1, 32), t.Unix(), tagmap})
 		}
 	})

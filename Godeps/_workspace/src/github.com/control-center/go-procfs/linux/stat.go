@@ -1,16 +1,13 @@
-
 package linux
 
 import (
 	"bufio"
-	"fmt"
 	"errors"
+	"fmt"
 	"os"
-	"strings"
 	"strconv"
+	"strings"
 )
-
-
 
 const (
 	cpuStatLineUser = iota
@@ -25,14 +22,13 @@ const (
 	cpuStatLineGuestNice
 )
 
-
 var systemHz uint8
+
 func init() {
 	systemHz = 100
 }
 
 type CpuStat []uint64
-
 
 // User returns time spent in user mode.
 func (c CpuStat) User() uint64 {
@@ -40,7 +36,7 @@ func (c CpuStat) User() uint64 {
 }
 
 // Nice returns spent in user mode with low priority (nice).
-func (c CpuStat) Nice()    uint64 {
+func (c CpuStat) Nice() uint64 {
 	return c[cpuStatLineNice]
 }
 
@@ -50,22 +46,22 @@ func (c CpuStat) System() uint64 {
 }
 
 // Idle returns time spent in idle task.
-func (c CpuStat) Idle()    uint64 {
+func (c CpuStat) Idle() uint64 {
 	return c[cpuStatLineIdle]
 }
 
 // Iowait returns time spent waiting for I/O to complete.
-func (c CpuStat) Iowait()    uint64 {
+func (c CpuStat) Iowait() uint64 {
 	return c[cpuStatLineIowait]
 }
 
 // Irq returns time spent servicing all interrupts since boot.
-func (c CpuStat) Irq()       uint64 {
+func (c CpuStat) Irq() uint64 {
 	return c[cpuStatLineIrq]
 }
 
 // Softirq returns time spent serviced all soft interrupts since boot.
-func (c CpuStat) Softirq()   uint64 {
+func (c CpuStat) Softirq() uint64 {
 	return c[cpuStatLineSoftIrq]
 }
 
@@ -75,7 +71,7 @@ func (c CpuStat) StealSupported() bool {
 }
 
 // Steal returns stolen time, which is the time spent in other operating systems when running in a virtualized environment
-func (c CpuStat) Steal()     uint64 {
+func (c CpuStat) Steal() uint64 {
 	return c[cpuStatLineSteal]
 }
 
@@ -85,7 +81,7 @@ func (c CpuStat) GuestSupported() bool {
 }
 
 // Guest returns time spent running a virtual CPU for guest operating systems under the control of the Linux kernel.
-func (c CpuStat) Guest()     uint64 {
+func (c CpuStat) Guest() uint64 {
 	return c[cpuStatLineGuest]
 }
 
@@ -99,9 +95,7 @@ func (c CpuStat) GuestNice() uint64 {
 	return c[cpuStatLineGuestNice]
 }
 
-
 var procStatFile = "/proc/stat"
-
 
 func ReadStat() (stat Stat, err error) {
 	file, err := os.Open(procStatFile)
@@ -117,27 +111,27 @@ func ReadStat() (stat Stat, err error) {
 			return stat, err
 		}
 		switch {
-			case name == "cpu":
+		case name == "cpu":
 			stat.Cpu = CpuStat(val)
-			case strings.HasPrefix(name, "cpu"):
+		case strings.HasPrefix(name, "cpu"):
 			stat.CpuX = append(stat.CpuX, CpuStat(val))
-			case name == "intr":
+		case name == "intr":
 			stat.Intr = val[0]
 			stat.IntrX = val[1:]
-			case name == "ctxt":
+		case name == "ctxt":
 			stat.Ctxt = val[0]
-			case name == "btime":
+		case name == "btime":
 			stat.Btime = val[0]
-			case name == "processes":
+		case name == "processes":
 			stat.Processes = val[0]
-			case name == "procs_running":
+		case name == "procs_running":
 			stat.ProcsRunning = val[0]
-			case name == "procs_blocked":
+		case name == "procs_blocked":
 			stat.ProcsBlocked = val[0]
-			case name == "softirq":
-			// ignoring
-			default:
-				return stat, fmt.Errorf("unexecpected stat line: %s", name)
+		case name == "softirq":
+		// ignoring
+		default:
+			return stat, fmt.Errorf("unexecpected stat line: %s", name)
 		}
 	}
 	return stat, nil
@@ -165,14 +159,13 @@ func parseStatLine(line string) (name string, vals []uint64, err error) {
 
 // Stat represents data parsed from a Linux host's /proc/stat file.
 type Stat struct {
-	Cpu CpuStat // Cpu stat averaged across all cpus.
-	CpuX []CpuStat // Cpu stats for cpus. The CpuX[0] contains cpu0 stats.
-	Intr uint64 // Total number of interrupts since boot.
-	IntrX []uint64 // Total number of interrupts for each interrupt. IntrX[0] contains interrupts for intr0.
-	Ctxt uint64 // Number of context switches since boot.
-	Btime uint64 // Boot time, in seconds since Epoch.
-	Processes uint64 // Number of forks since boot.
-	ProcsRunning uint64 // Number of processes in the running state (Linnux >= 2.5.45).
-	ProcsBlocked uint64 // Number of processes blocked waiting on I/O to complete (Linux >= 2.5.45)
+	Cpu          CpuStat   // Cpu stat averaged across all cpus.
+	CpuX         []CpuStat // Cpu stats for cpus. The CpuX[0] contains cpu0 stats.
+	Intr         uint64    // Total number of interrupts since boot.
+	IntrX        []uint64  // Total number of interrupts for each interrupt. IntrX[0] contains interrupts for intr0.
+	Ctxt         uint64    // Number of context switches since boot.
+	Btime        uint64    // Boot time, in seconds since Epoch.
+	Processes    uint64    // Number of forks since boot.
+	ProcsRunning uint64    // Number of processes in the running state (Linnux >= 2.5.45).
+	ProcsBlocked uint64    // Number of processes blocked waiting on I/O to complete (Linux >= 2.5.45)
 }
-

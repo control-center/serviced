@@ -1,11 +1,10 @@
-
 package linux
 
 import (
-	"reflect"
 	"log"
-	"runtime"
 	"path"
+	"reflect"
+	"runtime"
 	"testing"
 )
 
@@ -27,18 +26,15 @@ func init() {
 			CpuStat{158215, 2274, 45842, 2039814, 75192, 0, 1120, 0, 0, 0},
 			CpuStat{71954, 7777, 19503, 1970950, 256009, 0, 1275, 0, 0, 0},
 		},
-		Intr: 20735701,
-		IntrX: []uint64{18, 87477, 0, 0, 0, 0, 0, 0, 1, 16648, 0, 0, 3879862, 0, 0},
-		Ctxt: 60862438,
-		Btime: 1393643169,
-		Processes: 12316,
+		Intr:         20735701,
+		IntrX:        []uint64{18, 87477, 0, 0, 0, 0, 0, 0, 1, 16648, 0, 0, 3879862, 0, 0},
+		Ctxt:         60862438,
+		Btime:        1393643169,
+		Processes:    12316,
 		ProcsRunning: 1,
 		ProcsBlocked: 0,
 	}
 }
-
-
-
 
 func TestReadCpuStat(t *testing.T) {
 	s, err := ReadStat()
@@ -64,4 +60,3 @@ func BenchmarkReadCpuStat(b *testing.B) {
 		result, _ = ReadStat()
 	}
 }
-

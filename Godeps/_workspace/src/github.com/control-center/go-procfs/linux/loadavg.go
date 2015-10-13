@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"os"
-	"strconv"
 	"strings"
 )
 
@@ -17,17 +16,6 @@ type Loadavg struct {
 	RunningProcesses uint
 	TotalProcesses   uint
 	LastPID          uint
-}
-
-func readFloat32(str string, val *float32) error {
-	lval, err := strconv.ParseFloat(str, 32)
-	*val = float32(lval)
-	return err
-}
-func readUint(str string, val *uint) error {
-	lval, err := strconv.ParseUint(str, 10, 32)
-	*val = uint(lval)
-	return err
 }
 
 func ReadLoadavg() (stat Loadavg, err error) {
@@ -46,13 +34,13 @@ func ReadLoadavg() (stat Loadavg, err error) {
 		err = fmt.Errorf("expected 5 columns got %d", len(fields))
 		return
 	}
-	if err = readFloat32(fields[0], &stat.Avg1m); err != nil {
+	if err = parseFloat32Line(fields[0], &stat.Avg1m); err != nil {
 		return
 	}
-	if err = readFloat32(fields[1], &stat.Avg5m); err != nil {
+	if err = parseFloat32Line(fields[1], &stat.Avg5m); err != nil {
 		return
 	}
-	if err = readFloat32(fields[2], &stat.Avg10m); err != nil {
+	if err = parseFloat32Line(fields[2], &stat.Avg10m); err != nil {
 		return
 	}
 	parts := strings.Split(fields[3], "/")
@@ -60,13 +48,13 @@ func ReadLoadavg() (stat Loadavg, err error) {
 		err = fmt.Errorf("expected col 4 to have two one slash")
 		return
 	}
-	if err = readUint(parts[0], &stat.RunningProcesses); err != nil {
+	if err = parseIntLine(parts[0], &stat.RunningProcesses); err != nil {
 		return
 	}
-	if err = readUint(parts[1], &stat.TotalProcesses); err != nil {
+	if err = parseIntLine(parts[1], &stat.TotalProcesses); err != nil {
 		return
 	}
-	if err = readUint(fields[4], &stat.LastPID); err != nil {
+	if err = parseIntLine(fields[4], &stat.LastPID); err != nil {
 		return
 	}
 	return stat, nil

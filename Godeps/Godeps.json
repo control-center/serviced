@@ -30,7 +30,7 @@
 		},
 		{
 			"ImportPath": "github.com/control-center/go-procfs/linux",
-			"Rev": "7e0c2872bd5d0a33366858b07280ba7673896f31"
+			"Rev": "16061683a44ffe6a86adbd508858d27fd4993c6d"
 		},
 		{
 			"ImportPath": "github.com/control-center/go-zookeeper/zk",
