@@ -24,7 +24,7 @@ import (
 
 var logstash *IService
 
-func init() {
+func initLogstash() {
 	var err error
 	command := "exec /opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	localFilePortBinding := portBinding{
@@ -45,7 +45,7 @@ func init() {
 
 	logstash, err = NewIService(
 		IServiceDefinition{
-			ID:      ElasticsearchLogStashISVC.ID,
+			ID:      LogstashISVC.ID,
 			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,

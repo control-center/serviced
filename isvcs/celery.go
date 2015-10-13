@@ -19,7 +19,7 @@ import (
 
 var celery *IService
 
-func init() {
+func initCelery() {
 	var err error
 	command := "exec supervisord -n -c /opt/celery/etc/supervisor.conf"
 	celery, err = NewIService(

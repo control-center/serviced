@@ -25,7 +25,7 @@ var dockerRegistry *IService
 
 const registryPort = 5000
 
-func init() {
+func initDockerRegistry() {
 	var err error
 
 	defaultHealthCheck := healthCheckDefinition{
@@ -45,7 +45,7 @@ func init() {
 	command := `SETTINGS_FLAVOR=serviced exec /opt/registry/registry /opt/registry/registry-config.yml`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
-			ID:           DockerRegistryISVC.ID
+			ID:           DockerRegistryISVC.ID,
 			Name:         "docker-registry",
 			Repo:         IMAGE_REPO,
 			Tag:          IMAGE_TAG,

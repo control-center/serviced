@@ -1040,5 +1040,11 @@ func init() {
 		"isvc-celery":                 &CeleryIRS,
 		"isvc-dockerRegistry":         &DockerRegistryIRS,
 	}
+	initZK()
+	initOTSDB()
+	initLogstash()
+	initElasticSearch()
+	initCelery()
+	initDockerRegistry()
 
 }

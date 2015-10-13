@@ -24,7 +24,7 @@ import (
 
 var opentsdb *IService
 
-func init() {
+func initOTSDB() {
 	var err error
 	command := `cd /opt/zenoss && exec supervisord -n -c /opt/zenoss/etc/supervisor.conf`
 	opentsdbPortBinding := portBinding{
