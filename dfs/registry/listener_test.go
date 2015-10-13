@@ -40,8 +40,12 @@ func (i *testImage) ID() string {
 	return i.Image.ID()
 }
 
+func (i *testImage) LeaderPath() string {
+	return path.Join(zkregistryrepos, i.Image.Library, i.Image.Repo)
+}
+
 func (i *testImage) Path() string {
-	return path.Join(zkregistrypath, i.ID())
+	return path.Join(zkregistrytags, i.ID())
 }
 
 func (i *testImage) Address(host string) string {
@@ -49,9 +53,11 @@ func (i *testImage) Address(host string) string {
 }
 
 func (i *testImage) Create(c *C, conn coordclient.Connection) *RegistryImageNode {
+	err := conn.CreateDir(i.LeaderPath())
+	c.Assert(err, IsNil)
 	node := &RegistryImageNode{Image: i.Image, PushedAt: time.Unix(0, 0)}
 	c.Logf("Creating node at %s: %v", i.Path(), *i.Image)
-	err := conn.Create(i.Path(), node)
+	err = conn.Create(i.Path(), node)
 	c.Assert(err, IsNil)
 	exists, err := conn.Exists(i.Path())
 	c.Assert(exists, Equals, true)
@@ -116,11 +122,11 @@ func (s *RegistryListenerSuite) SetUpTest(c *C) {
 	s.listener = NewRegistryListener(s.docker, "test-server:5000", "test-host", 15*time.Second)
 	s.listener.conn = s.conn
 	// Create the base path
-	s.conn.CreateDir(zkregistrypath)
+	s.conn.CreateDir("/docker/registry")
 }
 
 func (s *RegistryListenerSuite) TearDownTest(c *C) {
-	s.conn.Delete(zkregistrypath)
+	s.conn.Delete("/docker/registry")
 }
 
 func (s *RegistryListenerSuite) TestRegistryListener_NoNode(c *C) {
@@ -230,10 +236,10 @@ func (s *RegistryListenerSuite) TestRegistryListener_AnotherNodePush(c *C) {
 	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
 
 	// take lead of the node
-	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
+	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
 	_, err := leader.TakeLead()
 	c.Assert(err, IsNil)
-	leaders, cvt, err := s.conn.ChildrenW(rImage.Path())
+	leaders, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
 	c.Assert(err, IsNil)
 	c.Assert(leaders, HasLen, 1)
 
@@ -297,13 +303,14 @@ func (s *RegistryListenerSuite) TestRegistryListener_PushFails(c *C) {
 	}
 	_ = rImage.Create(c, s.conn)
 	evt, _ := rImage.GetW(c, s.conn)
-	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
-	_, cvt, err := s.conn.ChildrenW(rImage.Path())
+	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
+	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
 	c.Assert(err, IsNil)
 	timeoutC := make(chan time.Time)
-	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
-	s.docker.On("TagImage", rImage.Image.UUID, rImage.Address(s.listener.address)).Return(nil).Once()
+	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil)
+	s.docker.On("TagImage", rImage.Image.UUID, rImage.Address(s.listener.address)).Return(nil)
 	s.docker.On("PushImage", rImage.Address(s.listener.address)).Return(errors.New("could not push image")).WaitUntil(timeoutC).Once()
+	s.docker.On("PushImage", rImage.Address(s.listener.address)).Return(nil)
 
 	shutdown := make(chan interface{})
 	done := make(chan struct{})
@@ -360,8 +367,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_LeadDisconnect(c *C) {
 	}
 	_ = rImage.Create(c, s.conn)
 	evt, _ := rImage.GetW(c, s.conn)
-	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
-	_, cvt, err := s.conn.ChildrenW(rImage.Path())
+	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
+	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
 	c.Assert(err, IsNil)
 	timeoutC := make(chan time.Time)
 	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()
@@ -393,20 +400,20 @@ func (s *RegistryListenerSuite) TestRegistryListener_LeadDisconnect(c *C) {
 	}
 
 	// delete the leader
-	children, err := s.conn.Children(rImage.Path())
+	children, err := s.conn.Children(rImage.LeaderPath())
 	c.Assert(err, IsNil)
 	c.Assert(children, HasLen, 1)
-	err = s.conn.Delete(path.Join(rImage.Path(), children[0]))
+	err = s.conn.Delete(path.Join(rImage.LeaderPath(), children[0]))
 	c.Assert(err, IsNil)
 
-	// verify the node did NOT update
+	// verify the node did update
 	close(timeoutC)
 	select {
 	case <-time.After(5 * time.Second):
+		c.Errorf("listener did not update the node")
 	case <-done:
 		c.Fatalf("listener exited prematurely")
 	case <-evt:
-		c.Errorf("listener updated node")
 	}
 
 	// verify shutdown
@@ -430,8 +437,8 @@ func (s *RegistryListenerSuite) TestRegistryListener_Success(c *C) {
 	}
 	_ = rImage.Create(c, s.conn)
 	evt, _ := rImage.GetW(c, s.conn)
-	leader := s.conn.NewLeader(rImage.Path(), &RegistryImageLeader{HostID: "master"})
-	_, cvt, err := s.conn.ChildrenW(rImage.Path())
+	leader := s.conn.NewLeader(rImage.LeaderPath(), &RegistryImageLeader{HostID: "master"})
+	_, cvt, err := s.conn.ChildrenW(rImage.LeaderPath())
 	c.Assert(err, IsNil)
 	timeoutC := make(chan time.Time)
 	s.docker.On("FindImage", rImage.Image.UUID).Return(&dockerclient.Image{ID: rImage.Image.UUID}, nil).Once()

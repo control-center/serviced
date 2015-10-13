@@ -23,7 +23,7 @@ import (
 
 // GetRegistryImage returns the registry image from the coordinator index.
 func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error) {
-	rimagepath := path.Join(zkregistrypath, id)
+	rimagepath := path.Join(zkregistrytags, id)
 	var node RegistryImageNode
 	if err := conn.Get(rimagepath, &node); err != nil {
 		return nil, err
@@ -33,32 +33,31 @@ func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error
 
 // SetRegistryImage inserts a registry image into the coordinator index.
 func SetRegistryImage(conn client.Connection, rImage *registry.Image) error {
-	rimagepath := path.Join(zkregistrypath, rImage.ID())
-	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
-	err := conn.Create(rimagepath, node)
-	if err == client.ErrNodeExists {
-		leader := conn.NewLeader(rimagepath, &RegistryImageLeader{HostID: "master"})
-		if _, err := leader.TakeLead(); err != nil {
-			return err
-		}
-		defer leader.ReleaseLead()
-		if err := conn.Get(rimagepath, node); err != nil {
-			return err
-		}
-		node.Image = rImage
-		node.PushedAt = time.Unix(0, 0)
-		return conn.Set(rimagepath, node)
+	leaderpath := path.Join(zkregistryrepos, rImage.Library, rImage.Repo)
+	leadernode := &RegistryImageLeader{HostID: "master"}
+	if err := conn.CreateDir(leaderpath); err != nil && err != client.ErrNodeExists {
+		return err
 	}
-	return err
-}
-
-// DeleteRegistryImage removes a registry image from the coordinator index.
-func DeleteRegistryImage(conn client.Connection, id string) error {
-	rimagepath := path.Join(zkregistrypath, id)
-	leader := conn.NewLeader(rimagepath, &RegistryImageLeader{HostID: "master"})
+	imagepath := path.Join(zkregistrytags, rImage.ID())
+	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
+	if err := conn.Create(imagepath, node); err != nil && err != client.ErrNodeExists {
+		return err
+	}
+	leader := conn.NewLeader(leaderpath, leadernode)
 	if _, err := leader.TakeLead(); err != nil {
 		return err
 	}
 	defer leader.ReleaseLead()
-	return conn.Delete(path.Join(zkregistrypath, id))
+	if err := conn.Get(imagepath, node); err != nil {
+		return err
+	}
+	node.Image = rImage
+	node.PushedAt = time.Unix(0, 0)
+	return conn.Set(imagepath, node)
+}
+
+// DeleteRegistryImage removes a registry image from the coordinator index.
+func DeleteRegistryImage(conn client.Connection, id string) error {
+	rimagepath := path.Join(zkregistrytags, id)
+	return conn.Delete(rimagepath)
 }

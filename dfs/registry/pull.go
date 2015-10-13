@@ -67,7 +67,7 @@ func (l *RegistryListener) PullImage(image string) error {
 	if imageID.IsLatest() {
 		rImage.Tag = docker.Latest
 	}
-	idpath := path.Join(zkregistrypath, rImage.ID())
+	idpath := path.Join(zkregistrytags, rImage.ID())
 	regaddr := path.Join(l.address, rImage.String())
 	timeout := time.After(l.pulltimeout)
 
