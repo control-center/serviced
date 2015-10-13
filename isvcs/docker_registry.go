@@ -45,6 +45,7 @@ func init() {
 	command := `SETTINGS_FLAVOR=serviced exec /opt/registry/registry /opt/registry/registry-config.yml`
 	dockerRegistry, err = NewIService(
 		IServiceDefinition{
+			ID:           DockerRegistryISVC.ID
 			Name:         "docker-registry",
 			Repo:         IMAGE_REPO,
 			Tag:          IMAGE_TAG,

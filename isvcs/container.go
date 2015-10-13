@@ -113,6 +113,7 @@ type portBinding struct {
 }
 
 type IServiceDefinition struct {
+	ID            string                             // the ID of the service associated
 	Name          string                             // name of the service (used in naming containers)
 	Repo          string                             // the service's docker repository
 	Tag           string                             // the service's docker repository tag
@@ -145,7 +146,7 @@ type IService struct {
 }
 
 func NewIService(sd IServiceDefinition) (*IService, error) {
-	if strings.TrimSpace(sd.Name) == "" || strings.TrimSpace(sd.Repo) == "" || sd.Command == nil {
+	if strings.TrimSpace(sd.Name) == "" || strings.TrimSpace(sd.Repo) == "" || string.TrimSpace(sd.ID) || sd.Command == nil {
 		return nil, ErrBadContainerSpec
 	}
 
@@ -182,7 +183,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 	}
 
 	envPerService[sd.Name] = make(map[string]string)
-	envPerService[sd.Name]["CONTROLPLANE_SERVICE_ID"] = svc.Name
+	envPerService[sd.Name]["CONTROLPLANE_SERVICE_ID"] = svc.ID
 	go svc.run()
 
 	return &svc, nil
@@ -829,6 +830,7 @@ func (svc *IService) stats(halt <-chan struct{}) {
 				tagmap := make(map[string]string)
 				tagmap["isvc"] = "true"
 				tagmap["isvcname"] = svc.Name
+				tagmap["controlplan_service_id"] = svc.ID
 				if metric, ok := i.(metrics.Gauge); ok {
 					stats = append(stats, containerStat{name, strconv.FormatInt(metric.Value(), 10), t.Unix(), tagmap})
 				} else if metricf64, ok := i.(metrics.GaugeFloat64); ok {

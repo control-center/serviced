@@ -26,6 +26,7 @@ import (
 )
 
 var Zookeeper = IServiceDefinition{
+	ID:      ZookeeperISVC.ID,
 	Name:    "zookeeper",
 	Repo:    ZK_IMAGE_REPO,
 	Tag:     ZK_IMAGE_TAG,

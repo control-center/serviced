@@ -60,6 +60,7 @@ func init() {
 
 	opentsdb, err = NewIService(
 		IServiceDefinition{
+			ID:      OpentsdbISVC.ID,
 			Name:    "opentsdb",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,

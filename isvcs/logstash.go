@@ -45,6 +45,7 @@ func init() {
 
 	logstash, err = NewIService(
 		IServiceDefinition{
+			ID:      ElasticsearchLogStashISVC.ID,
 			Name:    "logstash",
 			Repo:    IMAGE_REPO,
 			Tag:     IMAGE_TAG,

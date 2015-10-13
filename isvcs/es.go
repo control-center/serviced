@@ -95,6 +95,7 @@ func init() {
 
 	elasticsearch_serviced, err = NewIService(
 		IServiceDefinition{
+			ID:             ElasticsearchServicedISVC.ID,
 			Name:           serviceName,
 			Repo:           IMAGE_REPO,
 			Tag:            IMAGE_TAG,

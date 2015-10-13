@@ -24,6 +24,7 @@ func init() {
 	command := "exec supervisord -n -c /opt/celery/etc/supervisor.conf"
 	celery, err = NewIService(
 		IServiceDefinition{
+			ID:           CeleryISVC.ID,
 			Name:         "celery",
 			Repo:         IMAGE_REPO,
 			Tag:          IMAGE_TAG,
