@@ -23,6 +23,7 @@ The tests may be run against Firefox, Chrome, or Poltergeist/Phantomjs. It also 
     - [Watching the browser while the tests run](#watching-the-browser-while-the-tests-run)
     - [Mark a test PENDING](#mark-a-test-pending)
     - [Page Object Model](#page-object-model)
+  - [Guidelines](#guidelines)
   - [TODOs](#todos)
   - [Known Issues](#known-issues)
   - [References](#references)
@@ -51,7 +52,7 @@ the perspective of Capybara/Cucumber running inside the container, https://local
 refers to the container itself.
 
 ### Step 2 - Build the docker image (optional)
-The docker image containing Cucumber and Capybara is available on the Zenoss dockerhub repo as `zenoss/capybara:$(VERSION)`, so you do not need to build it yourself. 
+The docker image containing Cucumber and Capybara is available on the Zenoss dockerhub repo as `zenoss/capybara:$(VERSION)`, so you do not need to build it yourself.
 
 In case you do want/need to build the docker image containing Cucumber and Capybara, use the following commands:
 
@@ -240,6 +241,10 @@ For more discussion of the Page Object Model, see
 
  * [Testing Page Objects with SitePrism](http://www.sitepoint.com/testing-page-objects-siteprism/)
  * [Keeping It Dry With Page Objects](http://techblog.constantcontact.com/software-development/keeping-it-dry-with-page-objects/)
+
+
+## Guidelines
+Please follow these [guidelines](Guidelines.md) when writing or modifying tests.
 
 ## TODOs
 
