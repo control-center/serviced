@@ -71,6 +71,7 @@ import (
 	"net/http"
 	"net/rpc"
 	"net/rpc/jsonrpc"
+	"net/url"
 	"os"
 	"os/signal"
 	"path"
@@ -83,6 +84,7 @@ import (
 
 	// Needed for profiling
 
+	"net/http/httputil"
 	_ "net/http/pprof"
 )
 
@@ -213,6 +215,74 @@ func (d *daemon) startRPC() {
 	}()
 }
 
+func (d *daemon) startDockerRegistryProxy() {
+	host, port, err := net.SplitHostPort(options.DockerRegistry)
+	if err != nil {
+		glog.Fatalf("Could not parse docker registry: %s", err)
+	}
+
+	if isLocalAddress := func(host string) bool {
+		addrs, err := net.LookupIP(host)
+		if err != nil {
+			glog.Fatalf("Could not resolve ips for docker registry host %s: %s", host, err)
+		}
+		for _, addr := range addrs {
+			if addr.IsLoopback() {
+				glog.Infof("Docker registry host %s is a loopback address at %s", host, addr)
+				return true
+			}
+		}
+
+		iaddrs, err := net.InterfaceAddrs()
+		if err != nil {
+			glog.Fatalf("Could not look up interface address: %s", err)
+		}
+		for _, iaddr := range iaddrs {
+			var ip net.IP
+			switch iaddr.(type) {
+			case *net.IPNet:
+				ip = iaddr.(*net.IPNet).IP
+			case *net.IPAddr:
+				ip = iaddr.(*net.IPAddr).IP
+			default:
+				continue
+			}
+
+			if !ip.IsLoopback() {
+				glog.Infof("Checking interface address at %s", iaddr)
+				for _, addr := range addrs {
+					if addr.Equal(ip) {
+						glog.Infof("Host %s is a local address at %s", host, ip)
+						return true
+					}
+				}
+			}
+		}
+
+		glog.Infof("Host %s is not a local address", host)
+		return false
+	}(host); isLocalAddress && port == "5000" {
+		return
+	}
+
+	glog.Infof("Creating a reverse proxy for docker registry %s at %s", options.DockerRegistry, dockerRegistry)
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+		Scheme: "http",
+		Host:   options.DockerRegistry,
+	})
+	proxy.Director = func(r *http.Request) {
+		r.Host = options.DockerRegistry
+		r.URL.Host = r.Host
+		r.URL.Scheme = "http"
+	}
+	http.Handle("/", proxy)
+	go func() {
+		if err := http.ListenAndServe(dockerRegistry, nil); err != nil {
+			glog.Fatalf("Unable to bind to docker registry port (:5000) %s. Is another instance already running?", err)
+		}
+	}()
+}
+
 func (d *daemon) run() (err error) {
 	if d.hostID, err = utils.HostID(); err != nil {
 		glog.Fatalf("Could not get host ID: %s", err)
@@ -245,6 +315,7 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("Could not initialize storage driver type=%s root=%s args=%v options=%+v: %s", options.FSType, options.VolumesPath, options.StorageArgs, options.StorageOptions, err)
 	}
 	d.startRPC()
+	d.startDockerRegistryProxy()
 
 	if options.Master {
 		d.startISVCS()
