@@ -42,5 +42,5 @@ func (a *api) RegistrySync() (err error) {
 	if err != nil {
 		return err
 	}
-	return client.ResetRegistry(nil, nil)
+	return client.ResetRegistry(struct{}{}, nil)
 }

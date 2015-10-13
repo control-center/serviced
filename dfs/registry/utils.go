@@ -19,6 +19,7 @@ import (
 
 	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/domain/registry"
+	"github.com/zenoss/glog"
 )
 
 // GetRegistryImage returns the registry image from the coordinator index.
@@ -36,24 +37,29 @@ func SetRegistryImage(conn client.Connection, rImage *registry.Image) error {
 	leaderpath := path.Join(zkregistryrepos, rImage.Library, rImage.Repo)
 	leadernode := &RegistryImageLeader{HostID: "master"}
 	if err := conn.CreateDir(leaderpath); err != nil && err != client.ErrNodeExists {
+		glog.Errorf("Could not create repo path %s: %s", leaderpath, err)
 		return err
 	}
 	imagepath := path.Join(zkregistrytags, rImage.ID())
 	node := &RegistryImageNode{Image: rImage, PushedAt: time.Unix(0, 0)}
-	if err := conn.Create(imagepath, node); err != nil && err != client.ErrNodeExists {
+	if err := conn.Create(imagepath, node); err == client.ErrNodeExists {
+		leader := conn.NewLeader(leaderpath, leadernode)
+		if _, err := leader.TakeLead(); err != nil {
+			return err
+		}
+		defer leader.ReleaseLead()
+		if err := conn.Get(imagepath, node); err != nil {
+			return err
+		}
+		node.Image = rImage
+		node.PushedAt = time.Unix(0, 0)
+		return conn.Set(imagepath, node)
+	} else if err != nil {
+		glog.Errorf("Could not create tag path %s: %s", imagepath, err)
 		return err
 	}
-	leader := conn.NewLeader(leaderpath, leadernode)
-	if _, err := leader.TakeLead(); err != nil {
-		return err
-	}
-	defer leader.ReleaseLead()
-	if err := conn.Get(imagepath, node); err != nil {
-		return err
-	}
-	node.Image = rImage
-	node.PushedAt = time.Unix(0, 0)
-	return conn.Set(imagepath, node)
+	return nil
+
 }
 
 // DeleteRegistryImage removes a registry image from the coordinator index.

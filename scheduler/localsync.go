@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualips "github.com/control-center/serviced/zzk/virtualips"
@@ -38,6 +39,11 @@ retry:
 			return
 		}
 
+		if err := s.facade.SyncRegistryImages(datastore.Get(), false); err != nil {
+			glog.Errorf("Could not sync the registry: %s", err)
+			wait = time.After(minWait)
+			continue
+		}
 		pools, err := s.GetResourcePools()
 		if err != nil {
 			glog.Errorf("Could not get resource pools: %s", err)

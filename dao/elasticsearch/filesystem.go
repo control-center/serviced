@@ -19,7 +19,7 @@ import (
 )
 
 // ResetRegistry resets the docker registry
-func (this *ControlPlaneDao) ResetRegistry(request dao.EntityRequest, _ *int) error {
+func (this *ControlPlaneDao) ResetRegistry(_ struct{}, _ *struct{}) error {
 	return this.facade.SyncRegistryImages(datastore.Get(), true)
 }
 
