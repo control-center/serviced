@@ -72,6 +72,12 @@ func (d *NFSDriver) DriverType() volume.DriverType {
 	return volume.DriverTypeNFS
 }
 
+// GetTenant implements volume.Driver.GetTenant
+func (d *NFSDriver) GetTenant(volumeName string) (volume.Volume, error) {
+	// this is not supported because there are no snapshots on nfs
+	return nil, ErrNotSupported
+}
+
 // Get implements volume.Driver.Get
 func (d *NFSDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
