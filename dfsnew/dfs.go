@@ -73,7 +73,7 @@ type BackupInfo struct {
 
 // SnapshotInfo provides meta info about a snapshot
 type SnapshotInfo struct {
-	Info     *volume.SnapshotInfo
+	*volume.SnapshotInfo
 	Images   []string
 	Services []service.Service
 }

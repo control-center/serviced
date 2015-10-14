@@ -221,7 +221,7 @@ func getTenant(from string) string {
 	return parts[0]
 }
 
-// GetTenant implements volume.Driver.GetTenantVolume
+// GetTenant implements volume.Driver.GetTenant
 func (d *BtrfsDriver) GetTenant(volumeName string) (volume.Volume, error) {
 	if !d.Exists(volumeName) {
 		return nil, volume.ErrVolumeNotExists

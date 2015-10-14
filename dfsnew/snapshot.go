@@ -27,9 +27,9 @@ const (
 // Snapshot saves the current state of a particular application
 func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 	label := generateSnapshotLabel()
-	vol, err := dfs.disk.Get(data.Info.TenantID)
+	vol, err := dfs.disk.Get(data.TenantID)
 	if err != nil {
-		glog.Errorf("Could not get volume for tenant %s: %s", data.Info.TenantID, err)
+		glog.Errorf("Could not get volume for tenant %s: %s", data.TenantID, err)
 		return "", err
 	}
 	// relabel all registry tags for this snapshot
@@ -50,30 +50,30 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 	// write snapshot metadata
 	w, err := vol.WriteMetadata(label, ImagesMetadataFile)
 	if err != nil {
-		glog.Errorf("Could not create image metadata file for tenant %s: %s", data.Info.TenantID, err)
+		glog.Errorf("Could not create image metadata file for tenant %s: %s", data.TenantID, err)
 		return "", err
 	}
 	if err := exportJSON(w, images); err != nil {
-		glog.Errorf("Could not write service metadata file for tenant %s: %s", data.Info.TenantID, err)
+		glog.Errorf("Could not write service metadata file for tenant %s: %s", data.TenantID, err)
 		return "", err
 	}
 	w, err = vol.WriteMetadata(label, ServicesMetadataFile)
 	if err != nil {
-		glog.Errorf("Could not create service metadata file for tenant %s: %s", data.Info.TenantID, err)
+		glog.Errorf("Could not create service metadata file for tenant %s: %s", data.TenantID, err)
 		return "", err
 	}
 	if err := exportJSON(w, data.Services); err != nil {
-		glog.Errorf("Could not write service metadata file for tenant %s: %s", data.Info.TenantID, err)
+		glog.Errorf("Could not write service metadata file for tenant %s: %s", data.TenantID, err)
 		return "", err
 	}
 	// snapshot the volume
-	if err := vol.Snapshot(label, data.Info.Message, data.Info.Tags); err != nil {
-		glog.Errorf("Could not snapshot volume for tenant %s: %s", data.Info.TenantID, err)
+	if err := vol.Snapshot(label, data.Message, data.Tags); err != nil {
+		glog.Errorf("Could not snapshot volume for tenant %s: %s", data.TenantID, err)
 		return "", err
 	}
 	info, err := vol.SnapshotInfo(label)
 	if err != nil {
-		glog.Errorf("Could not get info for snapshot %s of tenant %s: %s", label, data.Info.TenantID, err)
+		glog.Errorf("Could not get info for snapshot %s of tenant %s: %s", label, data.TenantID, err)
 		return "", err
 	}
 	return info.Name, nil

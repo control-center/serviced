@@ -32,7 +32,7 @@ import (
 
 func (s *DFSTestSuite) TestSnapshot_VolumeNotFound(c *C) {
 	data := SnapshotInfo{
-		Info: &volume.SnapshotInfo{
+		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
 		},
 	}
@@ -44,7 +44,7 @@ func (s *DFSTestSuite) TestSnapshot_VolumeNotFound(c *C) {
 
 func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 	data := SnapshotInfo{
-		Info: &volume.SnapshotInfo{
+		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
 		},
 		Images: []string{"BASE/repo:latest"},
@@ -73,7 +73,7 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 
 func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 	data := SnapshotInfo{
-		Info: &volume.SnapshotInfo{
+		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
 		},
 		Images: []string{"BASE/repo:latest"},
@@ -108,7 +108,7 @@ func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 
 func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 	data := SnapshotInfo{
-		Info: &volume.SnapshotInfo{
+		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
 		},
 		Images: []string{"BASE/repo:latest"},
@@ -131,11 +131,11 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 	})
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
-	vol.On("Snapshot", mock.AnythingOfType("string"), data.Info.Message, data.Info.Tags).Return(ErrTestSnapshotNotCreated).Once()
+	vol.On("Snapshot", mock.AnythingOfType("string"), data.Message, data.Tags).Return(ErrTestSnapshotNotCreated).Once()
 	id, err := s.dfs.Snapshot(data)
 	c.Assert(id, Equals, "")
 	c.Assert(err, Equals, ErrTestSnapshotNotCreated)
-	vol.On("Snapshot", mock.AnythingOfType("string"), data.Info.Message, data.Info.Tags).Return(nil).Once()
+	vol.On("Snapshot", mock.AnythingOfType("string"), data.Message, data.Tags).Return(nil).Once()
 	vol.On("SnapshotInfo", mock.AnythingOfType("string")).Return(&volume.SnapshotInfo{}, ErrTestInfoNotFound)
 	id, err = s.dfs.Snapshot(data)
 	c.Assert(id, Equals, "")
@@ -144,7 +144,7 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 
 func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 	data := SnapshotInfo{
-		Info: &volume.SnapshotInfo{
+		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
 		},
 		Images: []string{"BASE/repo:latest"},
@@ -170,7 +170,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{imagesBuffer}, nil)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{servicesBuffer}, nil)
 	var name string
-	vol.On("Snapshot", mock.AnythingOfType("string"), data.Info.Message, data.Info.Tags).Return(nil).Run(func(a mock.Arguments) {
+	vol.On("Snapshot", mock.AnythingOfType("string"), data.Message, data.Tags).Return(nil).Run(func(a mock.Arguments) {
 		label := a.Get(0).(string)
 		name = "BASE_" + label
 		var actualImages []string

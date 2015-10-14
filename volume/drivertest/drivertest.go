@@ -119,6 +119,13 @@ func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args
 	c.Assert(err, IsNil)
 	fis = filterExtraFiles(fis)
 	c.Assert(fis, HasLen, 0)
+	vol2, err := driver.GetTenant(volumeName)
+	c.Assert(err, IsNil)
+	verifyFile(c, vol2.Path(), 0755|os.ModeDir, uint32(os.Getuid()), uint32(os.Getgid()))
+	fis, err = ioutil.ReadDir(vol2.Path())
+	c.Assert(err, IsNil)
+	fis = filterExtraFiles(fis)
+	c.Assert(fis, HasLen, 0)
 
 	driver.Release(volumeName)
 	c.Assert(driver.Remove(volumeName), IsNil)
