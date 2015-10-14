@@ -276,6 +276,8 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 		glog.Errorf("Could not get services under %s: %s", tenantID, err)
 		return "", err
 	}
+	imagesMap := make(map[string]struct{})
+	images := make([]string, 0)
 	serviceids := make([]string, len(svcs))
 	for i, svc := range svcs {
 		if svc.DesiredState == int(service.SVCRun) {
@@ -286,6 +288,10 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			}
 		}
 		serviceids[i] = svc.ID
+		if _, ok := imagesMap[svc.ImageID]; !ok {
+			imagesMap[svc.ImageID] = struct{}{}
+			images = append(images, svc.ImageID)
+		}
 	}
 	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), serviceids...); err != nil {
 		glog.Errorf("Could not wait for services to %s during snapshot of %s: %s", service.SVCStop, tenantID, err)
@@ -299,6 +305,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			Tags:     tags,
 		},
 		Services: svcs,
+		Images:   images,
 	}
 	snapshotID, err := f.dfs.Snapshot(data)
 	if err != nil {

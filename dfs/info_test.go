@@ -18,7 +18,6 @@ package dfs_test
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"time"
 
 	. "github.com/control-center/serviced/dfs"
@@ -26,22 +25,6 @@ import (
 	"github.com/control-center/serviced/volume"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
 	. "gopkg.in/check.v1"
-)
-
-type NopCloser struct {
-	*bytes.Buffer
-}
-
-func (h *NopCloser) Close() error {
-	return nil
-}
-
-var (
-	ErrTestSnapshotNotFound   = errors.New("snapshot not found")
-	ErrTestVolumeNotFound     = errors.New("volume not found")
-	ErrTestInfoNotFound       = errors.New("info not found")
-	ErrTestNoImagesMetadata   = errors.New("no images metadata")
-	ErrTestNoServicesMetadata = errors.New("no services metadata")
 )
 
 func (s *DFSTestSuite) TestInfo_NoSnapshot(c *C) {

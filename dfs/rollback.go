@@ -57,7 +57,7 @@ func (dfs *DistributedFilesystem) Rollback(snapshotID string) error {
 		return err
 	}
 	defer dfs.net.Restart()
-	if err := vol.Rollback(snapshotID); err != nil {
+	if err := vol.Rollback(info.Label); err != nil {
 		glog.Errorf("Could not rollback snapshot %s for tenant %s: %s", snapshotID, info.TenantID, err)
 		return err
 	}

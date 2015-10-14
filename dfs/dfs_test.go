@@ -16,6 +16,8 @@
 package dfs_test
 
 import (
+	"bytes"
+	"errors"
 	"testing"
 	"time"
 
@@ -27,6 +29,34 @@ import (
 	registrymocks "github.com/control-center/serviced/dfs/registry/mocks"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
 )
+
+// Errors returned by mocks for testing
+var (
+	ErrTestContainerNotFound  = errors.New("container not found")
+	ErrTestImageNotFound      = errors.New("image not found")
+	ErrTestNoCommit           = errors.New("container not committed")
+	ErrTestNoPush             = errors.New("image not pushed")
+	ErrTestNoPull             = errors.New("could not pull image")
+	ErrTestImageNotInRegistry = errors.New("image not in registry")
+	ErrTestImageNotRemoved    = errors.New("could not remove image")
+	ErrTestVolumeNotRemoved   = errors.New("could not remove volume")
+	ErrTestVolumeNotFound     = errors.New("volume not found")
+	ErrTestNoSnapshots        = errors.New("could not get snapshots")
+	ErrTestServerRunning      = errors.New("could not stop server")
+	ErrTestSnapshotNotFound   = errors.New("snapshot not found")
+	ErrTestInfoNotFound       = errors.New("info not found")
+	ErrTestNoImagesMetadata   = errors.New("no images metadata")
+	ErrTestNoServicesMetadata = errors.New("no services metadata")
+	ErrTestSnapshotNotCreated = errors.New("snapshot not created")
+)
+
+type NopCloser struct {
+	*bytes.Buffer
+}
+
+func (h *NopCloser) Close() error {
+	return nil
+}
 
 func Test(t *testing.T) { TestingT(t) }
 

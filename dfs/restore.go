@@ -16,6 +16,7 @@ package dfs
 import (
 	"archive/tar"
 	"encoding/json"
+	"errors"
 	"io"
 	"strings"
 
@@ -23,15 +24,21 @@ import (
 	"github.com/zenoss/glog"
 )
 
+var ErrRestoreNoInfo = errors.New("backup is missing metadata")
+
 // Restore restores application data from a backup
 func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 	var data BackupInfo
+	var foundBackupInfo bool
 	tarfile := tar.NewReader(r)
 	glog.Infof("Loading backup data")
 	for {
 		header, err := tarfile.Next()
 		if err == io.EOF {
 			glog.Infof("Finished reading backup")
+			if !foundBackupInfo {
+				return nil, ErrRestoreNoInfo
+			}
 			return &data, nil
 		} else if err != nil {
 			glog.Errorf("Could not read backup: %s", err)
@@ -43,6 +50,7 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 				glog.Errorf("Could not load backup metadata: %s", err)
 				return nil, err
 			}
+			foundBackupInfo = true
 			glog.Infof("Loaded backup metadata")
 		case strings.HasPrefix(header.Name, SnapshotsMetadataDir):
 			parts := strings.Split(header.Name, "/")

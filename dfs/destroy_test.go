@@ -16,8 +16,6 @@
 package dfs_test
 
 import (
-	"errors"
-
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
@@ -25,42 +23,37 @@ import (
 )
 
 func (s *DFSTestSuite) TestDestroy_NoVolume(c *C) {
-	expectedErr := errors.New("volume not found")
-	s.disk.On("Get", "Base").Return(&volumemocks.Volume{}, expectedErr)
+	s.disk.On("Get", "Base").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)
 	err := s.dfs.Destroy("Base")
-	c.Assert(err, Equals, expectedErr)
+	c.Assert(err, Equals, ErrTestVolumeNotFound)
 }
 
 func (s *DFSTestSuite) TestDestroy_ErrSnapshots(c *C) {
-	expectedErr := errors.New("could not get snapshots")
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
-	vol.On("Snapshots").Return([]string{}, expectedErr)
+	vol.On("Snapshots").Return([]string{}, ErrTestNoSnapshots)
 	err := s.dfs.Destroy("Base")
-	c.Assert(err, Equals, expectedErr)
-	expectedErr = errors.New("could not get snapshot info")
+	c.Assert(err, Equals, ErrTestNoSnapshots)
 	vol = s.getVolumeFromSnapshot("Base2_Snapshot", "Base2")
 	vol.On("Snapshots").Return([]string{"Base2_Snapshot"}, nil)
-	vol.On("SnapshotInfo", "Base2_Snapshot").Return(nil, expectedErr)
+	vol.On("SnapshotInfo", "Base2_Snapshot").Return(nil, ErrTestSnapshotNotFound)
 	err = s.dfs.Destroy("Base2")
-	c.Assert(err, Equals, expectedErr)
+	c.Assert(err, Equals, ErrTestSnapshotNotFound)
 }
 
 func (s *DFSTestSuite) TestDestroy_NoRemove(c *C) {
-	expectedErr := errors.New("could not stop server")
 	vol := &volumemocks.Volume{}
 	s.disk.On("Get", "Base").Return(vol, nil)
 	vol.On("Snapshots").Return([]string{}, nil)
 	s.index.On("SearchLibraryByTag", "Base", docker.Latest).Return([]registry.Image{}, nil)
-	s.net.On("Stop").Return(expectedErr).Once()
+	s.net.On("Stop").Return(ErrTestServerRunning).Once()
 	err := s.dfs.Destroy("Base")
-	c.Assert(err, Equals, expectedErr)
-	expectedErr = errors.New("could not remove volume")
+	c.Assert(err, Equals, ErrTestServerRunning)
 	s.net.On("Stop").Return(nil)
 	s.net.On("Restart").Return(nil)
-	s.disk.On("Remove", "Base").Return(expectedErr)
+	s.disk.On("Remove", "Base").Return(ErrTestVolumeNotRemoved)
 	err = s.dfs.Destroy("Base")
-	c.Assert(err, Equals, expectedErr)
+	c.Assert(err, Equals, ErrTestVolumeNotRemoved)
 }
 
 func (s *DFSTestSuite) TestDestroy_Success(c *C) {

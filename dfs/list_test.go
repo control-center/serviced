@@ -16,13 +16,9 @@
 package dfs_test
 
 import (
-	"errors"
-
 	volumemocks "github.com/control-center/serviced/volume/mocks"
 	. "gopkg.in/check.v1"
 )
-
-var ErrTestNoSnapshots = errors.New("no snapshots")
 
 func (s *DFSTestSuite) TestList_NoVolume(c *C) {
 	s.disk.On("Get", "tenant").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)

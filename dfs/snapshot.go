@@ -32,26 +32,20 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 		glog.Errorf("Could not get volume for tenant %s: %s", data.Info.TenantID, err)
 		return "", err
 	}
-	// set tags on all the images per service on the tenant
-	var imagesMap = make(map[string]struct{})
-	var images []string
-	for _, svc := range data.Services {
-		if svc.ImageID != "" {
-			rImage, err := dfs.index.FindImage(svc.ImageID)
-			if err != nil {
-				glog.Errorf("Could not find image %s from service %s for snapshot: %s", svc.ImageID, svc.ID, err)
-				return "", err
-			}
-			rImage.Tag = label
-			if _, ok := imagesMap[rImage.String()]; !ok {
-				if err := dfs.index.PushImage(rImage.String(), rImage.UUID); err != nil {
-					glog.Errorf("Could not retag image %s from service %s for snaphot: %s", svc.ImageID, svc.ID, err)
-					return "", err
-				}
-				imagesMap[rImage.String()] = struct{}{}
-				images = append(images, rImage.String())
-			}
+	// relabel all registry tags for this snapshot
+	images := make([]string, len(data.Images))
+	for i, image := range data.Images {
+		rImage, err := dfs.index.FindImage(image)
+		if err != nil {
+			glog.Errorf("Could not find image %s for snapshot: %s", image, err)
+			return "", err
 		}
+		rImage.Tag = label
+		if err := dfs.index.PushImage(rImage.String(), rImage.UUID); err != nil {
+			glog.Errorf("Could not retag image %s for snapshot: %s", image, err)
+			return "", err
+		}
+		images[i] = rImage.String()
 	}
 	// write snapshot metadata
 	w, err := vol.WriteMetadata(label, ImagesMetadataFile)

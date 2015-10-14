@@ -16,19 +16,11 @@
 package dfs_test
 
 import (
-	"errors"
-
 	"github.com/control-center/serviced/datastore"
 	. "github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"
-)
-
-var (
-	ErrTestImageNotFound      = errors.New("image not found")
-	ErrTestNoPullImage        = errors.New("could not pull image")
-	ErrTestImageNotInRegistry = errors.New("image not in registry")
 )
 
 func (s *DFSTestSuite) TestDownload_NoImage(c *C) {
@@ -40,10 +32,10 @@ func (s *DFSTestSuite) TestDownload_NoImage(c *C) {
 	c.Assert(img, Equals, "")
 	c.Assert(err, Equals, ErrTestImageNotFound)
 	s.docker.On("FindImage", "library/repo2:tag").Return(nil, dockerclient.ErrNoSuchImage)
-	s.docker.On("PullImage", "library/repo2:tag").Return(ErrTestNoPullImage)
+	s.docker.On("PullImage", "library/repo2:tag").Return(ErrTestNoPull)
 	img, err = s.dfs.Download("library/repo2:tag", "tenant", false)
 	c.Assert(img, Equals, "")
-	c.Assert(err, Equals, ErrTestNoPullImage)
+	c.Assert(err, Equals, ErrTestNoPull)
 	s.docker.On("FindImage", "library/repo3:tag").Return(nil, dockerclient.ErrNoSuchImage).Once()
 	s.docker.On("PullImage", "library/repo3:tag").Return(nil)
 	s.docker.On("FindImage", "library/repo3:tag").Return(nil, ErrTestImageNotFound)

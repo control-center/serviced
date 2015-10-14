@@ -15,6 +15,7 @@ package dfs
 
 import (
 	"io"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/coordinator/storage"
@@ -29,6 +30,7 @@ import (
 
 // DFS is the api for the distributed filesystem
 type DFS interface {
+	sync.Locker
 	// Timeout returns the dfs timeout setting
 	Timeout() time.Duration
 	// Create sets up a new application
@@ -87,6 +89,7 @@ type DistributedFilesystem struct {
 	// daemon
 	net     storage.StorageDriver
 	timeout time.Duration
+	locker  sync.Locker
 }
 
 // NewDistributedFilesystem instantiates a new DistributedFilsystem object
@@ -98,10 +101,21 @@ func NewDistributedFilesystem(docker docker.Docker, index registry.RegistryIndex
 		disk:    disk,
 		net:     net,
 		timeout: timeout,
+		locker:  &sync.Mutex{},
 	}
 }
 
 // Timeout returns the service timeout time for the distributed filesystem
 func (dfs *DistributedFilesystem) Timeout() time.Duration {
 	return dfs.timeout
+}
+
+// Lock is used to synchronize changes to the dfs
+func (dfs *DistributedFilesystem) Lock() {
+	dfs.locker.Lock()
+}
+
+// Unlock is used to synchronize changes to the dfs
+func (dfs *DistributedFilesystem) Unlock() {
+	dfs.locker.Unlock()
 }

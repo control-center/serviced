@@ -35,6 +35,12 @@ func (_m *DFS) Timeout() time.Duration {
 
 	return r0
 }
+func (_m *DFS) Lock() {
+	return
+}
+func (_m *DFS) Unlock() {
+	return
+}
 func (_m *DFS) Create(tenantID string) error {
 	ret := _m.Called(tenantID)
 
