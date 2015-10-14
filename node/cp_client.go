@@ -113,7 +113,7 @@ func (s *ControlClient) RemoveService(serviceId string, unused *int) (err error)
 	return s.rpcClient.Call("ControlPlane.RemoveService", serviceId, unused, 0)
 }
 
-func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) (err error) {
+func (s *ControlClient) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.AssignIPs", assignmentRequest, nil, 0)
 }
 
@@ -169,7 +169,7 @@ func (s *ControlClient) StopService(request dao.ScheduleServiceRequest, affected
 	return s.rpcClient.Call("ControlPlane.StopService", request, affected, 0)
 }
 
-func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *struct{}) (err error) {
+func (s *ControlClient) WaitService(request dao.WaitServiceRequest, _ *int) (err error) {
 	return s.rpcClient.Call("ControlPlane.WaitService", request, nil, 0)
 }
 

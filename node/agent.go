@@ -470,7 +470,7 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient,
+func configureContainer(a *HostAgent, client dao.ControlPlane,
 	svc *service.Service, serviceState *servicestate.ServiceState,
 	virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
