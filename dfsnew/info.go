@@ -50,14 +50,9 @@ func (dfs *DistributedFilesystem) Info(snapshotID string) (*SnapshotInfo, error)
 
 // getSnapshotVolumeAndInfo returns the parent volume and info about a snapshot.
 func (dfs *DistributedFilesystem) getSnapshotVolumeAndInfo(snapshotID string) (volume.Volume, *volume.SnapshotInfo, error) {
-	snapshot, err := dfs.disk.Get(snapshotID)
+	vol, err := dfs.disk.GetTenant(snapshotID)
 	if err != nil {
-		glog.Errorf("Could not get snapshot %s: %s", snapshotID, err)
-		return nil, nil, err
-	}
-	vol, err := dfs.disk.Get(snapshot.Tenant())
-	if err != nil {
-		glog.Errorf("Could not get tenant %s of snapshot %s: %s", snapshot.Tenant(), snapshotID, err)
+		glog.Errorf("Could not get tenant of snapshot %s: %s", snapshotID, err)
 		return nil, nil, err
 	}
 	info, err := vol.SnapshotInfo(snapshotID)

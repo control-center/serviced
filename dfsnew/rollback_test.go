@@ -28,9 +28,9 @@ import (
 )
 
 func (s *DFSTestSuite) TestRollback_NoSnapshot(c *C) {
-	s.disk.On("Get", "BASE_LABEL").Return(&volumemock.Volume{}, ErrTestVolumeNotFound)
+	s.disk.On("GetTenant", "BASE_LABEL").Return(&volumemock.Volume{}, volume.ErrVolumeNotExists)
 	err := s.dfs.Rollback("BASE_LABEL")
-	c.Assert(err, Equals, ErrTestVolumeNotFound)
+	c.Assert(err, Equals, volume.ErrVolumeNotExists)
 	vol := s.getVolumeFromSnapshot("BASE2_LABEL2", "BASE2")
 	vol.On("SnapshotInfo", "BASE2_LABEL2").Return(&volume.SnapshotInfo{}, ErrTestInfoNotFound)
 	err = s.dfs.Rollback("BASE2_LABEL2")

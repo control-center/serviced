@@ -28,24 +28,14 @@ import (
 )
 
 func (s *DFSTestSuite) TestInfo_NoSnapshot(c *C) {
-	s.disk.On("Get", "test-label").Return(&volumemocks.Volume{}, ErrTestSnapshotNotFound)
-	info, err := s.dfs.Info("test-label")
+	s.disk.On("GetTenant", "BASE_LABEL").Return(&volumemocks.Volume{}, volume.ErrVolumeNotExists).Once()
+	info, err := s.dfs.Info("BASE_LABEL")
 	c.Assert(info, IsNil)
-	c.Assert(err, Equals, ErrTestSnapshotNotFound)
-	snapshot := &volumemocks.Volume{}
-	s.disk.On("Get", "test-label-2").Return(snapshot, nil)
-	snapshot.On("Tenant").Return("tenant-service")
-	s.disk.On("Get", "tenant-service").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)
-	info, err = s.dfs.Info("test-label-2")
-	c.Assert(info, IsNil)
-	c.Assert(err, Equals, ErrTestVolumeNotFound)
-	snapshot = &volumemocks.Volume{}
-	s.disk.On("Get", "test-label-3").Return(snapshot, nil)
-	snapshot.On("Tenant").Return("tenant-service-2")
+	c.Assert(err, Equals, volume.ErrVolumeNotExists)
 	vol := &volumemocks.Volume{}
-	s.disk.On("Get", "tenant-service-2").Return(vol, nil)
-	vol.On("SnapshotInfo", "test-label-3").Return(&volume.SnapshotInfo{}, ErrTestInfoNotFound)
-	info, err = s.dfs.Info("test-label-3")
+	s.disk.On("GetTenant", "BASE_LABEL").Return(vol, nil)
+	vol.On("SnapshotInfo", "BASE_LABEL").Return(&volume.SnapshotInfo{}, ErrTestInfoNotFound)
+	info, err = s.dfs.Info("BASE_LABEL")
 	c.Assert(info, IsNil)
 	c.Assert(err, Equals, ErrTestInfoNotFound)
 }
@@ -133,10 +123,8 @@ func (s *DFSTestSuite) TestInfo_Success(c *C) {
 }
 
 func (s *DFSTestSuite) getVolumeFromSnapshot(snapshotID, tenantID string) *volumemocks.Volume {
-	snapshot := &volumemocks.Volume{}
-	s.disk.On("Get", snapshotID).Return(snapshot, nil)
-	snapshot.On("Tenant").Return(tenantID)
-	volume := &volumemocks.Volume{}
-	s.disk.On("Get", tenantID).Return(volume, nil)
-	return volume
+	vol := &volumemocks.Volume{}
+	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
+	s.disk.On("Get", tenantID).Return(vol, nil)
+	return vol
 }
