@@ -153,6 +153,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	defer l.stopInstance(&processLock, &ss)
 
 	for {
+		// Get the Host
+		var h host.Host
+		hEvt, err := l.conn.GetW(hostregpath(l.hostID), &HostNode{Host: &h})
+		if err != nil {
+			glog.Errorf("Could not load host %s", l.hostID)
+			return
+		}
 		// Get the HostState instance
 		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs)
 		if err != nil {
@@ -215,6 +222,14 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		case <-processDone:
                        glog.Infof("Process ended for instance %s for service %s (%s)", stateID, svc.Name, svc.ID)
                        processDone = nil // CC-1341 - once the process exits, don't read this channel again
+		case e := <-hEvt:
+			glog.V(3).Infof("Host %s received an event: %+v", l.hostID, e)
+			if e.Type == client.EventNodeDeleted {
+				if err := l.Ready(); err != nil {
+					glog.Errorf("Failed to add ephemeral node for host %s: %+v", l.hostID, err)
+					return
+				}
+			}
 		case e := <-hsEvt:
 			glog.V(3).Infof("Host instance %s for service %s (%s) received an event: %+v", stateID, svc.Name, svc.ID, e)
 			if e.Type == client.EventNodeDeleted {
