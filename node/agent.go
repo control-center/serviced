@@ -92,6 +92,8 @@ type HostAgent struct {
 	servicedChain        *iptables.Chain // Assigned IP rule chain
 	controllerBinary     string          // Path to the controller binary
 	logstashURL          string
+	dockerLogDriver      string
+	dockerLogConfig      []string
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -129,6 +131,8 @@ type AgentOptions struct {
 	VirtualAddressSubnet string
 	ControllerBinary     string
 	LogstashURL          string
+	DockerLogDriver      string
+	DockerLogConfig      []string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
@@ -149,6 +153,8 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.servicedChain = iptables.NewChain("SERVICED")
 	agent.controllerBinary = options.ControllerBinary
 	agent.logstashURL = options.LogstashURL
+	agent.dockerLogDriver = options.DockerLogDriver
+	agent.dockerLogConfig = options.DockerLogConfig
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers)
@@ -464,7 +470,7 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient,
+func configureContainer(a *HostAgent, client dao.ControlPlane,
 	svc *service.Service, serviceState *servicestate.ServiceState,
 	virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
@@ -716,6 +722,13 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		cfg.CPUShares = 0
 	} else {
 		cfg.CPUShares = svc.CPUShares
+	}
+
+	hcfg.LogConfig.Type = a.dockerLogDriver
+	hcfg.LogConfig.Config = make(map[string]string)
+	for _, kv := range a.dockerLogConfig {
+		keyvalue := strings.SplitN(kv, "=", 2)
+		hcfg.LogConfig.Config[keyvalue[0]] = keyvalue[1]
 	}
 
 	return cfg, hcfg, nil
