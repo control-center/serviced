@@ -79,6 +79,7 @@ var (
 	ErrRemovingSnapshot        = errors.New("could not remove snapshot")
 	ErrBadDriverShutdown       = errors.New("unable to shutdown driver")
 	ErrVolumeExists            = errors.New("volume exists")
+	ErrVolumeNotExists         = errors.New("volume does not exist")
 	ErrPathIsDriver            = errors.New("path is initialized as a driver")
 	ErrPathIsNotAbs            = errors.New("path is not absolute")
 	ErrBadMount                = errors.New("bad mount path")
@@ -104,6 +105,9 @@ type Driver interface {
 	// Remove removes an existing device. If the device doesn't exist, the
 	// removal is a no-op
 	Remove(volumeName string) error
+	// GetTenant returns the parent volume or the volume if it is the
+	// parent.
+	GetTenant(volumeName string) (Volume, error)
 	// Get returns the volume with the given name. The volume must exist.
 	Get(volumeName string) (Volume, error)
 	// Release releases any runtime resources associated with a volume (e.g.,
