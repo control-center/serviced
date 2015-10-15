@@ -90,13 +90,13 @@ func (s *DFSTestSuite) TestBackup(c *C) {
 	vol.On("ReadMetadata", "LABEL", ImagesMetadataFile).Return(&NopCloser{imagesbuf}, nil)
 	s.registry.On("PullImage", "BASE/repo:tag").Return(nil)
 	s.registry.On("ImagePath", "BASE/repo:tag").Return("testserver:5000/BASE/repo:tag", nil)
-	vol.On("Export", "LABEL", "", mock.AnythingOfType("*bytes.Buffer")).Return(nil).Run(func(a mock.Arguments) {
+	vol.On("Export", "LABEL", "", mock.AnythingOfType("*dfs.Spool")).Return(nil).Run(func(a mock.Arguments) {
 		writer := a.Get(2).(io.Writer)
 		_, err := fmt.Fprint(writer, "here is some snapshot data")
 		c.Assert(err, IsNil)
 	})
 	allImages := append(backupInfo.BaseImages, "testserver:5000/BASE/repo:tag")
-	s.docker.On("SaveImages", allImages, mock.AnythingOfType("*bytes.Buffer")).Return(nil).Run(func(a mock.Arguments) {
+	s.docker.On("SaveImages", allImages, mock.AnythingOfType("*dfs.Spool")).Return(nil).Run(func(a mock.Arguments) {
 		writer := a.Get(1).(io.Writer)
 		err := json.NewEncoder(writer).Encode(a.Get(0))
 		c.Assert(err, IsNil)

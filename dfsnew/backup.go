@@ -35,7 +35,12 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 	tarfile := tar.NewWriter(w)
 	defer tarfile.Close()
 	buffer := bytes.NewBufferString("")
-
+	spool, err := NewSpool("")
+	if err != nil {
+		glog.Errorf("Could not create spool: %s", err)
+		return err
+	}
+	defer spool.Close()
 	// write the backup metadata
 	glog.Infof("Writing backup metadata")
 	if err := json.NewEncoder(buffer).Encode(data); err != nil {
@@ -95,17 +100,17 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 			images = append(images, image)
 		}
 		// export the snapshot
-		if err := vol.Export(info.Label, "", buffer); err != nil {
+		if err := vol.Export(info.Label, "", spool); err != nil {
 			glog.Errorf("Could not export tenant %s: %s", info.TenantID, err)
 			return err
 		}
 		glog.Infof("Exporting tenant volume %s", info.TenantID)
-		header := &tar.Header{Name: path.Join(SnapshotsMetadataDir, info.TenantID, info.Label), Size: int64(buffer.Len())}
+		header := &tar.Header{Name: path.Join(SnapshotsMetadataDir, info.TenantID, info.Label), Size: spool.Size()}
 		if err := tarfile.WriteHeader(header); err != nil {
 			glog.Errorf("Could not create header for tenant %s: %s", info.TenantID, err)
 			return err
 		}
-		if _, err := buffer.WriteTo(tarfile); err != nil {
+		if _, err := spool.WriteTo(tarfile); err != nil {
 			glog.Errorf("Could not write tenant %s to backup: %s", info.TenantID, err)
 			return err
 		}
@@ -113,16 +118,16 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 	}
 	// export the images
 	glog.Infof("Saving images to backup")
-	if err := dfs.docker.SaveImages(images, buffer); err != nil {
+	if err := dfs.docker.SaveImages(images, spool); err != nil {
 		glog.Errorf("Could not save images to backup: %s", err)
 		return err
 	}
-	header = &tar.Header{Name: DockerImagesFile, Size: int64(buffer.Len())}
+	header = &tar.Header{Name: DockerImagesFile, Size: spool.Size()}
 	if err := tarfile.WriteHeader(header); err != nil {
 		glog.Errorf("Could not create docker images header for backup: %s", err)
 		return err
 	}
-	if _, err := buffer.WriteTo(tarfile); err != nil {
+	if _, err := spool.WriteTo(tarfile); err != nil {
 		glog.Errorf("Could not write docker images: %s", err)
 		return err
 	}
