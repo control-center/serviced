@@ -119,6 +119,13 @@ func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args
 	c.Assert(err, IsNil)
 	fis = filterExtraFiles(fis)
 	c.Assert(fis, HasLen, 0)
+	vol2, err := driver.GetTenant(volumeName)
+	c.Assert(err, IsNil)
+	verifyFile(c, vol2.Path(), 0755|os.ModeDir, uint32(os.Getuid()), uint32(os.Getgid()))
+	fis, err = ioutil.ReadDir(vol2.Path())
+	c.Assert(err, IsNil)
+	fis = filterExtraFiles(fis)
+	c.Assert(fis, HasLen, 0)
 
 	driver.Release(volumeName)
 	c.Assert(driver.Remove(volumeName), IsNil)
@@ -241,9 +248,19 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	// Write another file
 	writeExtra(c, driver, vol)
 
+	// Get the tenant volume of the snapshot that doesn't exist
+	tvol, err := driver.GetTenant("Base_Snap2")
+	c.Assert(err, Equals, volume.ErrVolumeNotExists)
+	c.Assert(tvol, IsNil)
+
 	// Re-snapshot with the extra file
 	err = vol.Snapshot("Snap2", "snapshot-message-1", []string{"tag1", "tag2", "tag3"})
 	c.Assert(err, IsNil)
+
+	// Get the tenant volume of the snapshot
+	tvol, err = driver.GetTenant("Base_Snap2")
+	c.Assert(err, IsNil)
+	c.Assert(tvol.Name(), Equals, "Base")
 
 	// Make sure the metadata path exists for the snapshot
 	rmetadata := make([]byte, len(wmetadata))

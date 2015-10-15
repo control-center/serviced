@@ -220,6 +220,14 @@ func getTenant(from string) string {
 	return parts[0]
 }
 
+// GetTenant implements volume.Driver.GetTenant
+func (d *RsyncDriver) GetTenant(volumeName string) (volume.Volume, error) {
+	if !d.Exists(volumeName) {
+		return nil, volume.ErrVolumeNotExists
+	}
+	return d.Get(getTenant(volumeName))
+}
+
 // Get implements volume.Driver.Get
 func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)

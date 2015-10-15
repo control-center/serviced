@@ -128,6 +128,14 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 	return vol, nil
 }
 
+// GetTenant implements volume.Driver.GetTenant
+func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error) {
+	if !d.Exists(volumeName) {
+		return nil, volume.ErrVolumeNotExists
+	}
+	return d.Get(getTenant(volumeName))
+}
+
 // Get implements volume.Driver.Get
 func (d *DeviceMapperDriver) Get(volumeName string) (volume.Volume, error) {
 	glog.V(2).Infof("Get() (%s) START", volumeName)
