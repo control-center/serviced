@@ -18,7 +18,6 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
-	"sync"
 )
 
 // Spooler is the interface for the Spool
@@ -33,7 +32,6 @@ type Spooler interface {
 // Spool calculates the size of a writer stream and tees the output to
 // another stream.
 type Spool struct {
-	locker   sync.Locker
 	file     *os.File
 	gzwriter *gzip.Writer
 	size     int64
@@ -49,14 +47,12 @@ func NewSpool(dir string) (*Spool, error) {
 	}
 	// gzip all incoming writes
 	gzwriter := gzip.NewWriter(file)
-	return &Spool{&sync.Mutex{}, file, gzwriter, 0, 1024 * 1024}, nil
+	return &Spool{file, gzwriter, 0, 1024 * 1024}, nil
 }
 
 // Write compresses byte data and writes to disk, while keeping track of the
 // total number of bytes written
 func (s *Spool) Write(p []byte) (n int, err error) {
-	s.locker.Lock()
-	defer s.locker.Unlock()
 	n, err = s.gzwriter.Write(p)
 	s.size += int64(n)
 	return
@@ -64,9 +60,7 @@ func (s *Spool) Write(p []byte) (n int, err error) {
 
 // WriteTo writes the filedata back into another writer and resets the file.
 func (s *Spool) WriteTo(w io.Writer) (n int64, err error) {
-	s.locker.Lock()
-	defer s.locker.Unlock()
-	defer s.reset()
+	defer s.Reset()
 	if err := s.gzwriter.Close(); err != nil {
 		return 0, err
 	}
@@ -97,12 +91,6 @@ func (s *Spool) WriteTo(w io.Writer) (n int64, err error) {
 
 // Reset truncates the file an resets the file
 func (s *Spool) Reset() error {
-	s.locker.Lock()
-	defer s.locker.Unlock()
-	return s.reset()
-}
-
-func (s *Spool) reset() error {
 	s.gzwriter.Close()
 	if _, err := s.file.Seek(0, 0); err != nil {
 		return err
@@ -117,16 +105,12 @@ func (s *Spool) reset() error {
 
 // Size is the current size of the file
 func (s *Spool) Size() int64 {
-	s.locker.Lock()
-	defer s.locker.Unlock()
 	return s.size
 }
 
 // Close closes the file handle and removes the file.
 func (s *Spool) Close() error {
-	s.locker.Lock()
-	defer s.locker.Unlock()
 	defer os.Remove(s.file.Name())
-	s.reset()
+	s.Reset()
 	return s.file.Close()
 }
