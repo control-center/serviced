@@ -154,10 +154,10 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 	for {
 		// Listen to the registry node
-		hEvt, err := l.conn.GetW(l.registry, &HostNode{})
+		var h host.Host
+		hEvt, err := l.conn.GetW(l.registry, &HostNode{Host: &h})
 		if err != nil {
-			glog.Errorf("Could not load host %s", l.hostID)
-			return
+			glog.Warningf("Could not load host %s: %s", l.hostID, err)
 		}
 		// Get the HostState instance
 		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs)
