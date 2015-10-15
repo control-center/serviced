@@ -151,3 +151,9 @@
 
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
+
+# Direct port of Docker --log-driver option. Values include json-file, syslog, journald, gelf, fluentd, and none.
+# DOCKER_LOG_DRIVER=json-file
+
+# Comma-separated list of key=value options, corresponding to Docker --log-opt options.
+# DOCKER_LOG_CONFIG=max-file=5,max-size=10m
