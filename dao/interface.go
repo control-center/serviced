@@ -163,7 +163,7 @@ type ControlPlane interface {
 	GetServiceEndpoints(serviceId string, response *map[string][]ApplicationEndpoint) error
 
 	// Assign IP addresses to all services at and below the provided service
-	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
+	AssignIPs(assignmentRequest AssignmentRequest, _ *int) (err error)
 
 	// Get the IP addresses assigned to an service
 	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
@@ -184,7 +184,7 @@ type ControlPlane interface {
 	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Wait for a particular service state
-	WaitService(request WaitServiceRequest, _ *struct{}) error
+	WaitService(request WaitServiceRequest, _ *int) error
 
 	// Update the service state
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error

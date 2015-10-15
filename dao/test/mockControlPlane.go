@@ -157,7 +157,7 @@ func (mcp *MockControlPlane) GetServiceEndpoints(serviceId string, response *map
 }
 
 // Assign IP addresses to all services at and below the provided service
-func (mcp *MockControlPlane) AssignIPs(assignmentRequest dao.AssignmentRequest, unused *struct{}) (err error) {
+func (mcp *MockControlPlane) AssignIPs(assignmentRequest dao.AssignmentRequest, unused *int) (err error) {
 	return mcp.Mock.Called(assignmentRequest, unused).Error(0)
 }
 
@@ -190,7 +190,7 @@ func (mcp *MockControlPlane) StopRunningInstance(request dao.HostServiceRequest,
 }
 
 // Wait for a particular service state
-func (mcp *MockControlPlane) WaitService(request dao.WaitServiceRequest, unused *struct{}) error {
+func (mcp *MockControlPlane) WaitService(request dao.WaitServiceRequest, unused *int) error {
 	return mcp.Mock.Called(request, unused).Error(0)
 }
 
