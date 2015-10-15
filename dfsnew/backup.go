@@ -21,6 +21,7 @@ import (
 	"path"
 
 	"github.com/control-center/serviced/commons/docker"
+	"github.com/control-center/serviced/dfsnew/utils"
 	"github.com/zenoss/glog"
 )
 
@@ -35,7 +36,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 	tarfile := tar.NewWriter(w)
 	defer tarfile.Close()
 	buffer := bytes.NewBufferString("")
-	spool, err := NewSpool("")
+	spool, err := utils.NewSpool("")
 	if err != nil {
 		glog.Errorf("Could not create spool: %s", err)
 		return err

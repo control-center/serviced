@@ -13,15 +13,14 @@
 
 // +build integration
 
-package dfs_test
+package utils_test
 
 import (
 	"bytes"
 	"io/ioutil"
 	"testing"
 
-	. "github.com/control-center/serviced/dfsnew"
-	// "github.com/control-center/serviced/dfsnew/spool"
+	. "github.com/control-center/serviced/dfsnew/utils"
 	. "gopkg.in/check.v1"
 )
 
