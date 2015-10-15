@@ -347,6 +347,7 @@ func (t *ZZKTest) TestHostStateListener_Spawn_StartAndStop(c *C) {
 	}
 
 	var node1, node2 ServiceStateNode
+	listener.Ready()
 	go func() {
 		listener.Spawn(shutdown, stateID)
 	}()

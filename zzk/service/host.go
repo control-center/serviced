@@ -157,15 +157,8 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 		var h host.Host
 		hEvt, err := l.conn.GetW(l.registry, &HostNode{Host: &h})
 		if err != nil {
-			if err := l.Ready(); err != nil {
-				glog.Errorf("Failed to add ephemeral node for host %s: %s", l.hostID, err)
-				return
-			}
-			hEvt, err = l.conn.GetW(l.registry, &HostNode{Host: &h})
-			if err != nil {
-				glog.Errorf("Failed to get ephemeral node for host %s: %s", l.hostID, err)
-				return
-			}
+			glog.Errorf("Failed to get ephemeral node for host %s: %s", l.hostID, err)
+			return
 		}
 		// Get the HostState instance
 		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs)
