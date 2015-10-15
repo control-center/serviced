@@ -124,28 +124,6 @@ func (_m *Docker) RemoveImage(image string) error {
 	return r0
 }
 
-func (_m *Docker) ImageHistory(image string) ([]dockerclient.ImageHistory, error) {
-	ret := _m.Called(image)
-
-	var r0 []dockerclient.ImageHistory
-	if rf, ok := ret.Get(0).(func(string) []dockerclient.ImageHistory); ok {
-		r0 = rf(image)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]dockerclient.ImageHistory)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(string) error); ok {
-		r1 = rf(image)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 func (_m *Docker) FindContainer(ctr string) (*dockerclient.Container, error) {
 	ret := _m.Called(ctr)
 

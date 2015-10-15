@@ -58,7 +58,6 @@ type Docker interface {
 	PullImage(image string) error
 	TagImage(oldImage, newImage string) error
 	RemoveImage(image string) error
-	ImageHistory(image string) ([]dockerclient.ImageHistory, error)
 	FindContainer(ctr string) (*dockerclient.Container, error)
 	CommitContainer(ctr, image string) (*dockerclient.Image, error)
 }
@@ -137,10 +136,6 @@ func (d *DockerClient) TagImage(oldImage, newImage string) error {
 
 func (d *DockerClient) RemoveImage(image string) error {
 	return d.dc.RemoveImage(image)
-}
-
-func (d *DockerClient) ImageHistory(image string) ([]dockerclient.ImageHistory, error) {
-	return d.dc.ImageHistory(image)
 }
 
 func (d *DockerClient) FindContainer(ctr string) (*dockerclient.Container, error) {
