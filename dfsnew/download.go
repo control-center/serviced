@@ -33,6 +33,7 @@ func (dfs *DistributedFilesystem) Download(image, tenantID string, upgrade bool)
 	// Is this a proper docker image?
 	imageID, err := commons.ParseImageID(image)
 	if err != nil {
+		glog.Errorf("Could not parse image %s: %s", image, err)
 		return "", err
 	}
 	// Get the registry path

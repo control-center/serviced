@@ -26,7 +26,9 @@ func (dfs *DistributedFilesystem) BackupInfo(r io.Reader) (*BackupInfo, error) {
 	tarfile := tar.NewReader(r)
 	for {
 		header, err := tarfile.Next()
-		if err != nil {
+		if err == io.EOF {
+			return nil, ErrRestoreNoInfo
+		} else if err != nil {
 			glog.Errorf("Could not read backup: %s", err)
 			return nil, err
 		}
