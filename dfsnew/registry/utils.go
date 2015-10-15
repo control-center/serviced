@@ -67,3 +67,10 @@ func DeleteRegistryImage(conn client.Connection, id string) error {
 	rimagepath := path.Join(zkregistrytags, id)
 	return conn.Delete(rimagepath)
 }
+
+// DeleteRegistryLibrary removes all of the leader nodes in the registry
+// library.
+func DeleteRegistryLibrary(conn client.Connection, library string) error {
+	leaderpath := path.Join(zkregistryrepos, library)
+	return conn.Delete(leaderpath)
+}
