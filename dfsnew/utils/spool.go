@@ -70,7 +70,6 @@ func (s *Spool) WriteTo(w io.Writer) (n int64, err error) {
 	if err := s.gzwriter.Close(); err != nil {
 		return 0, err
 	}
-	s.gzwriter.Close()
 	if _, err := s.file.Seek(0, 0); err != nil {
 		return 0, err
 	}
