@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package dfs
+package ttl
 
 import (
 	"strings"
@@ -22,6 +22,8 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
+
+const timeFormat = "20060102-150405.000"
 
 // SnapshotTTLInterface is the client handler for SnapshotTTL
 type SnapshotTTLInterface interface {

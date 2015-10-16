@@ -22,7 +22,7 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/utils"
 	"github.com/control-center/serviced/zzk"
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 	"github.com/zenoss/glog"
 
 	"encoding/json"

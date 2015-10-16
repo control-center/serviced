@@ -1,9 +1,9 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -11,15 +11,19 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-
-package elasticsearch
+package dfs
 
 import (
-	"github.com/control-center/serviced/commons/docker"
+	"encoding/json"
+	"io"
 )
 
-func (cp *ControlPlaneDao) ImageLayerCount(imageUUID string, layers* int) error {
-	history, err := docker.ImageHistory(imageUUID)
-	*layers = len(history)
-	return err
+func importJSON(r io.ReadCloser, v interface{}) error {
+	defer r.Close()
+	return json.NewDecoder(r).Decode(v)
+}
+
+func exportJSON(w io.WriteCloser, v interface{}) error {
+	defer w.Close()
+	return json.NewEncoder(w).Encode(v)
 }

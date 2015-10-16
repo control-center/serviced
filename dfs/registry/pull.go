@@ -29,6 +29,29 @@ var (
 	ErrOpTimeout = errors.New("operation timed out")
 )
 
+// Registry performs specific docker actions based on the registry index
+type Registry interface {
+	PullImage(image string) error
+	ImagePath(image string) (string, error)
+}
+
+// ImagePath returns the proper path to the registry image
+func (l *RegistryListener) ImagePath(image string) (string, error) {
+	imageID, err := commons.ParseImageID(image)
+	if err != nil {
+		return "", err
+	}
+	rImage := &registry.Image{
+		Library: imageID.User,
+		Repo:    imageID.Repo,
+		Tag:     imageID.Tag,
+	}
+	if imageID.IsLatest() {
+		rImage.Tag = docker.Latest
+	}
+	return path.Join(l.address, rImage.String()), nil
+}
+
 // PullImage waits for an image to be available on the docker registry so it
 // can be pulled (if it does not exist locally).
 func (l *RegistryListener) PullImage(image string) error {
@@ -41,7 +64,10 @@ func (l *RegistryListener) PullImage(image string) error {
 		Repo:    imageID.Repo,
 		Tag:     imageID.Tag,
 	}
-	idpath := path.Join(zkregistrypath, rImage.ID())
+	if imageID.IsLatest() {
+		rImage.Tag = docker.Latest
+	}
+	idpath := path.Join(zkregistrytags, rImage.ID())
 	regaddr := path.Join(l.address, rImage.String())
 	timeout := time.After(l.pulltimeout)
 
@@ -65,7 +91,6 @@ func (l *RegistryListener) PullImage(image string) error {
 					return err
 				}
 				// was the pull successful?
-				glog.Infof("Was the pull successful? %s (%s)", regaddr, node.Image.UUID)
 				if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
 					if node.PushedAt.Unix() > 0 {
 						// the image is definitely not in the registry, so lets
@@ -78,7 +103,6 @@ func (l *RegistryListener) PullImage(image string) error {
 							glog.Errorf("Image %s not found in the docker registry: %s", regaddr, err)
 							return err
 						}
-						glog.Infof("Reset push time")
 					}
 				} else if err != nil {
 					glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)

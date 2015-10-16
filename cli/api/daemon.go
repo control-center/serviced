@@ -16,7 +16,7 @@ package api
 import (
 	"bytes"
 
-	"github.com/control-center/serviced/commons/docker"
+	commonsdocker "github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/coordinator/storage"
@@ -24,7 +24,10 @@ import (
 	"github.com/control-center/serviced/dao/elasticsearch"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
+	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/dfs/nfs"
+	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
@@ -80,6 +83,7 @@ import (
 	"time"
 
 	// Needed for profiling
+
 	"net/http/httputil"
 	_ "net/http/pprof"
 )
@@ -93,7 +97,6 @@ type daemon struct {
 	cpDao            dao.ControlPlane
 	dsDriver         datastore.Driver
 	dsContext        datastore.Context
-	facade           *facade.Facade
 	hostID           string
 	zClient          *coordclient.Client
 	storageHandler   *storage.Server
@@ -102,11 +105,18 @@ type daemon struct {
 	shutdown         chan interface{}
 	waitGroup        *sync.WaitGroup
 	rpcServer        *rpc.Server
-	networkDriver    storage.StorageDriver
+
+	facade   *facade.Facade
+	dfs      dfs.DFS
+	docker   docker.Docker
+	registry *registry.RegistryListener
+	index    registry.RegistryIndex
+	disk     volume.Driver
+	net      storage.StorageDriver
 }
 
 func init() {
-	docker.StartKernel()
+	commonsdocker.StartKernel()
 }
 
 func newDaemon(servicedEndpoint string, staticIPs []string, masterPoolID string) (*daemon, error) {
@@ -286,6 +296,13 @@ func (d *daemon) run() (err error) {
 		glog.Fatalf("serviced requires docker >= %s", minDockerVersion)
 	}
 
+	d.docker, err = docker.NewDockerClient()
+	if err != nil {
+		glog.Fatalf("Could not connect to docker client: %s", err)
+	}
+
+	d.registry = registry.NewRegistryListener(d.docker, dockerRegistry, d.hostID, 30*time.Minute)
+
 	if !volume.Registered(options.FSType) {
 		glog.Fatalf("no driver registered for %s", options.FSType)
 	}
@@ -365,17 +382,15 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	return coordclient.New("zookeeper", dsn, "/", nil)
 }
 
-func (d *daemon) startMaster() error {
+func (d *daemon) startMaster() (err error) {
 	agentIP := options.OutboundIP
 	if agentIP == "" {
-		var err error
 		agentIP, err = utils.GetIPAddress()
 		if err != nil {
 			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
 	}
 
-	var err error
 	if err = d.initDFS(); err != nil {
 		glog.Errorf("Could not initialize DFS: %s", err)
 		return err
@@ -388,11 +403,11 @@ func (d *daemon) startMaster() error {
 		glog.Errorf("could not build host for agent IP %s: %v", agentIP, err)
 		return err
 	}
-	if d.networkDriver, err = nfs.NewServer(options.VolumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
+	if d.net, err = nfs.NewServer(options.VolumesPath, "serviced_var_volumes", "0.0.0.0/0"); err != nil {
 		glog.Errorf("Could not initialize network driver: %s", err)
 		return err
 	} else {
-		if d.storageHandler, err = storage.NewServer(d.networkDriver, thisHost, options.VolumesPath); err != nil {
+		if d.storageHandler, err = storage.NewServer(d.net, thisHost, options.VolumesPath); err != nil {
 			glog.Errorf("Could not start network server: %s", err)
 			return err
 		}
@@ -642,7 +657,10 @@ func (d *daemon) startAgent() error {
 			DockerLogConfig:      options.DockerLogConfig,
 		}
 		// creates a zClient that is not pool based!
-		hostAgent, err := node.NewHostAgent(agentOptions)
+		hostAgent, err := node.NewHostAgent(agentOptions, d.registry)
+		if err != nil {
+			glog.Fatalf("could not create host agent: %s", err)
+		}
 		d.hostAgent = hostAgent
 
 		d.waitGroup.Add(1)
@@ -728,7 +746,11 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(dockerRegistry)
+	f := facade.New()
+	d.index = registry.NewRegistryIndexClient(f)
+	timeout := time.Duration(options.MaxDFSTimeout) * time.Second
+	d.dfs = dfs.NewDistributedFilesystem(d.docker, d.index, d.registry, d.disk, d.net, timeout)
+	f.SetDFS(d.dfs)
 	return f
 }
 
@@ -751,12 +773,11 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
 	rpcPortInt, err := strconv.Atoi(options.RPCPort)
 	if err != nil {
 		return nil, err
 	}
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VolumesPath, options.BackupsPath, options.FSType, rpcPortInt, dfsTimeout, dockerRegistry, d.networkDriver)
+	return elasticsearch.NewControlSvc("localhost", 9200, rpcPortInt, d.facade)
 }
 
 func (d *daemon) initWeb() {
@@ -766,13 +787,14 @@ func (d *daemon) initWeb() {
 	go cpserver.Serve(d.shutdown)
 }
 
-func (d *daemon) initDFS() error {
+func (d *daemon) initDFS() (err error) {
 	if options.FSType == "btrfs" {
 		if !volume.IsBtrfsFilesystem(options.VolumesPath) {
 			return fmt.Errorf("volumes path at %s is not a btrfs filesystem", options.VolumesPath)
 		}
 	}
-	return nil
+	d.disk, err = volume.GetDriver(options.VolumesPath)
+	return
 }
 
 func (d *daemon) startScheduler() {
@@ -817,7 +839,7 @@ func (d *daemon) addTemplates() {
 
 func (d *daemon) runScheduler() {
 	for {
-		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, options.SnapshotTTL)
+		sched, err := scheduler.NewScheduler(d.masterPoolID, d.hostID, d.storageHandler, d.cpDao, d.facade, d.registry, options.SnapshotTTL)
 		if err != nil {
 			glog.Errorf("Could not start scheduler: %s", err)
 			return

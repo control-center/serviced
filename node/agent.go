@@ -42,6 +42,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
@@ -86,11 +87,11 @@ type HostAgent struct {
 	useTLS               bool // Whether the mux uses TLS
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string          // the docker registry to use
-	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
-	virtualAddressSubnet string          // subnet for virtual addresses
-	servicedChain        *iptables.Chain // Assigned IP rule chain
-	controllerBinary     string          // Path to the controller binary
+	dockerreg            *registry.RegistryListener // the docker registry
+	maxContainerAge      time.Duration              // maximum age for a stopped container before it is removed
+	virtualAddressSubnet string                     // subnet for virtual addresses
+	servicedChain        *iptables.Chain            // Assigned IP rule chain
+	controllerBinary     string                     // Path to the controller binary
 	logstashURL          string
 	dockerLogDriver      string
 	dockerLogConfig      []string
@@ -136,10 +137,9 @@ type AgentOptions struct {
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(options AgentOptions) (*HostAgent, error) {
+func NewHostAgent(options AgentOptions, registry *registry.RegistryListener) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
-	agent.dockerRegistry = options.DockerRegistry
 	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
@@ -168,6 +168,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	if agent.hostID, err = utils.HostID(); err != nil {
 		panic("Could not get hostid")
 	}
+	agent.dockerreg = registry
 	agent.currentServices = make(map[string]*exec.Cmd)
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
 	return agent, err
@@ -496,7 +497,10 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 
 	cfg.User = "root"
 	cfg.WorkingDir = "/"
-	cfg.Image = svc.ImageID
+	if cfg.Image, err = a.dockerreg.ImagePath(svc.ImageID); err != nil {
+		glog.Errorf("Could not parse image %s: %s", svc.ImageID, err)
+		return nil, nil, err
+	}
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
@@ -540,8 +544,14 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	}
 
 	// Make sure the image exists locally.
-	if _, err = docker.FindImage(svc.ImageID, true); err != nil {
-		glog.Errorf("can't find docker image %s: %s", svc.ImageID, err)
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not get zk connection: %s", err)
+		return nil, nil, err
+	}
+	a.dockerreg.SetConnection(conn)
+	if err := a.dockerreg.PullImage(svc.ImageID); err != nil {
+		glog.Errorf("Cannot find docker image %s: %s", svc.ImageID, err)
 		return nil, nil, err
 	}
 
@@ -749,7 +759,12 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 	if len(strings.TrimSpace(containerPath)) == 0 {
 		containerPath = volume.ContainerPath
 	}
-	if err := createVolumeDir(conn, resourcePath, containerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
+	image, err := a.dockerreg.ImagePath(service.ImageID)
+	if err != nil {
+		glog.Errorf("Could not get registry image for %s: %s", service.ImageID, err)
+		return "", err
+	}
+	if err := createVolumeDir(conn, resourcePath, containerPath, image, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, containerPath, err)
 		return "", err
 	}

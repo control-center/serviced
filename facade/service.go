@@ -1,5 +1,15 @@
 // Copyright 2014 The Serviced Authors.
-// Use of f source code is governed by a
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 
 package facade
 
@@ -51,6 +61,24 @@ const (
 
 // AddService adds a service; return error if service already exists
 func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
+	tenantID := svc.ID
+	if svc.ParentServiceID != "" {
+		var err error
+		if tenantID, err = f.GetTenantID(ctx, svc.ParentServiceID); err != nil {
+			glog.Errorf("Could not get tenant of service %s: %s", svc.ParentServiceID, err)
+			return err
+		}
+	}
+	tlock := getTenantLock(f, tenantID)
+	tlock.RLock()
+	defer tlock.RUnlock()
+	if err := f.addService(ctx, svc); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (f *Facade) addService(ctx datastore.Context, svc service.Service) error {
 	glog.V(2).Infof("Facade.AddService: %+v", svc)
 	store := f.serviceStore
 
@@ -135,7 +163,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 		poolsmap[pool.ID] = struct{}{}
 	}
 	// remove services for tenant
-	if err := f.RemoveService(ctx, tenantID); err != nil {
+	if err := f.removeService(ctx, tenantID); err != nil {
 		return err
 	}
 	// get service tree
@@ -153,7 +181,7 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 				glog.Warningf("Could not find pool %s for service %s (%s).  Setting pool to default.", svc.PoolID, svc.Name, svc.ID)
 				svc.PoolID = "default"
 			}
-			if err := f.AddService(ctx, svc); err != nil {
+			if err := f.addService(ctx, svc); err != nil {
 				glog.Errorf("Could not restore service %s (%s): %s", svc.Name, svc.ID, err)
 				return err
 			}
@@ -381,7 +409,33 @@ func (f *Facade) validateAddedMigrationServices(ctx datastore.Context, addedSvcs
 	return nil
 }
 
-func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
+func (f *Facade) RemoveService(ctx datastore.Context, serviceID string) error {
+	tenantID, err := f.GetTenantID(ctx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not get tenant for service %s: %s", serviceID, err)
+		return err
+	}
+	tlock := getTenantLock(f, tenantID)
+	if err := tlock.Lock(); err != nil {
+		glog.Errorf("Could not lock tenant %s: %s", tenantID, err)
+		return err
+	}
+	defer tlock.Unlock()
+	if err := f.removeService(ctx, serviceID); err != nil {
+		glog.Errorf("Could not remove service %s: %s", serviceID, err)
+		return err
+	}
+	if tenantID == serviceID {
+		glog.Infof("Removing volume and images for tenant %s", tenantID)
+		if err := f.dfs.Destroy(tenantID); err != nil {
+			glog.Errorf("Could not destroy volumes for tenant %s: %s", tenantID, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func (f *Facade) removeService(ctx datastore.Context, id string) error {
 	store := f.serviceStore
 
 	return f.walkServices(ctx, id, true, func(svc *service.Service) error {
@@ -421,6 +475,26 @@ func (f *Facade) GetPoolForService(ctx datastore.Context, id string) (string, er
 		return "", err
 	}
 	return svc.PoolID, nil
+}
+
+// GetTenantImages returns a list of images used by a particular application
+func (f *Facade) GetTenantImages(ctx datastore.Context, tenantID string) ([]string, error) {
+	svcs, err := f.GetServices(ctx, dao.ServiceRequest{TenantID: tenantID})
+	if err != nil {
+		glog.Errorf("Could not get services for tenant %s: %s", tenantID, err)
+		return nil, err
+	}
+	var imagesMap = make(map[string]struct{})
+	var images []string
+	for _, svc := range svcs {
+		if svc.ImageID != "" {
+			if _, ok := imagesMap[svc.ImageID]; !ok {
+				imagesMap[svc.ImageID] = struct{}{}
+				images = append(images, svc.ImageID)
+			}
+		}
+	}
+	return images, nil
 }
 
 // GetImageIDs returns a list of unique IDs of all the images of all the deployed services.
@@ -1148,6 +1222,22 @@ func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 		return results, err
 	}
 	return results, nil
+}
+
+func (f *Facade) getTenantIDs(ctx datastore.Context) ([]string, error) {
+	store := f.serviceStore
+	results, err := store.GetServices(ctx)
+	if err != nil {
+		glog.Errorf("Facade.GetServices: %s", err)
+		return nil, err
+	}
+	var svcids []string
+	for _, svc := range results {
+		if svc.ParentServiceID == "" {
+			svcids = append(svcids, svc.ID)
+		}
+	}
+	return svcids, nil
 }
 
 //

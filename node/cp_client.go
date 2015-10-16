@@ -213,8 +213,12 @@ func (s *ControlClient) GetVolume(serviceID string, volume volume.Volume) error 
 	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume, 0)
 }
 
-func (s *ControlClient) ResetRegistry(request dao.EntityRequest, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.ResetRegistry", request, unused, 0)
+func (s *ControlClient) ResetRegistry(_ struct{}, _ *struct{}) error {
+	return s.rpcClient.Call("ControlPlane.ResetRegistry", struct{}{}, nil, 0)
+}
+
+func (s *ControlClient) RepairRegistry(_ struct{}, _ *struct{}) error {
+	return s.rpcClient.Call("ControlPlane.RepairRegistry", struct{}{}, nil, 0)
 }
 
 func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {

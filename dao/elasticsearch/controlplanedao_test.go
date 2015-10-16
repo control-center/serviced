@@ -141,18 +141,18 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	err = volume.InitDriver(volume.DriverTypeRsync, tmpdir, []string{})
 	c.Assert(err, IsNil)
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, "", volume.DriverTypeRsync, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), 4979, dt.Facade)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
-	} else {
-		for i := 0; i < 10; i += 1 {
-			id := strconv.Itoa(i)
-			dt.Dao.RemoveService(id, &unused)
-		}
-		for i := 100; i < 110; i += 1 {
-			id := strconv.Itoa(i)
-			dt.Dao.RemoveService(id, &unused)
-		}
+	}
+
+	for i := 0; i < 10; i += 1 {
+		id := strconv.Itoa(i)
+		dt.Dao.RemoveService(id, &unused)
+	}
+	for i := 100; i < 110; i += 1 {
+		id := strconv.Itoa(i)
+		dt.Dao.RemoveService(id, &unused)
 	}
 }
 

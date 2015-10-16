@@ -1,9 +1,9 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -14,186 +14,108 @@
 package dfs
 
 import (
-	"fmt"
-	"strconv"
-	"strings"
+	"io"
 	"sync"
 	"time"
 
-	"github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
-	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/dfs/docker"
+	"github.com/control-center/serviced/dfs/registry"
+	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/volume"
-	"github.com/control-center/serviced/zzk"
-	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/zenoss/glog"
 )
 
-type DatastoreGetter func() datastore.Context
+// DFS is the api for the distributed filesystem
+type DFS interface {
+	sync.Locker
+	// Timeout returns the dfs timeout setting
+	Timeout() time.Duration
+	// Create sets up a new application
+	Create(tenantID string) error
+	// Destroy removes an existing application
+	Destroy(tenantID string) error
+	// Download adds an image for an application into the registry
+	Download(image, tenantID string, upgrade bool) (registry string, err error)
+	// Commit uploads a new image into the registry
+	Commit(ctrID string) (tenantID string, err error)
+	// Snapshot captures application data at a specific point in time
+	Snapshot(info SnapshotInfo) (string, error)
+	// Rollback reverts application to a specific snapshot
+	Rollback(snapshotID string) error
+	// Delete deletes an application's snapshot
+	Delete(snapshotID string) error
+	// List lists snapshots for a particular application
+	List(tenantID string) (snapshots []string, err error)
+	// Info provides detailed info for a particular snapshot
+	Info(snapshotID string) (*SnapshotInfo, error)
+	// Backup saves and exports the current state of the system
+	Backup(info BackupInfo, w io.Writer) error
+	// Restore restores the system to the state of the backup
+	Restore(r io.Reader) (*BackupInfo, error)
+	// BackupInfo provides detailed info for a particular backup
+	BackupInfo(r io.Reader) (*BackupInfo, error)
+}
 
-type ServiceVolumeGetter func(fsType volume.DriverType, volumesPath, serviceID string) (volume.Volume, error)
+var _ = DFS(&DistributedFilesystem{})
 
+// BackupInfo provides meta info about a backup
+type BackupInfo struct {
+	Templates  []servicetemplate.ServiceTemplate
+	BaseImages []string
+	Pools      []pool.ResourcePool
+	Hosts      []host.Host
+	Snapshots  []string
+	Timestamp  time.Time
+}
+
+// SnapshotInfo provides meta info about a snapshot
+type SnapshotInfo struct {
+	Info     *volume.SnapshotInfo
+	Images   []string
+	Services []service.Service
+}
+
+// DistributedFilesystem manages disk and registry data for all system
+// applications.
 type DistributedFilesystem struct {
-	fsType           volume.DriverType
-	volumesPath      string
-	backupsPath      string
-	dockerHost       string
-	dockerPort       int
-	datastoreGet     DatastoreGetter
-	getServiceVolume ServiceVolumeGetter
-	facade           facade.FacadeInterface
-	timeout          time.Duration
-	networkDriver    storage.StorageDriver
-
-	// locking
-	mutex sync.Mutex
-	lock  client.Lock
-
-	// logging
-	logger *logger
+	docker docker.Docker
+	index  registry.RegistryIndex
+	reg    registry.Registry
+	disk   volume.Driver
+	// FIXME: replace this with a NFS server, instead of restarting the
+	// daemon
+	net     storage.StorageDriver
+	timeout time.Duration
+	locker  sync.Locker
 }
 
-func NewDistributedFilesystem(fsType volume.DriverType, volumesPath, backupsPath, dockerRegistry string, facade facade.FacadeInterface, timeout time.Duration, networkDriver storage.StorageDriver) (*DistributedFilesystem, error) {
-	host, port, err := parseRegistry(dockerRegistry)
-	if err != nil {
-		return nil, err
-	}
-
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		return nil, err
-	}
-	lock := zkservice.ServiceLock(conn)
-
+// NewDistributedFilesystem instantiates a new DistributedFilsystem object
+func NewDistributedFilesystem(docker docker.Docker, index registry.RegistryIndex, reg registry.Registry, disk volume.Driver, net storage.StorageDriver, timeout time.Duration) *DistributedFilesystem {
 	return &DistributedFilesystem{
-		fsType:           fsType,
-		volumesPath:      volumesPath,
-		backupsPath:      backupsPath,
-		dockerHost:       host,
-		dockerPort:       port,
-		facade:           facade,
-		timeout:          timeout,
-		lock:             lock,
-		datastoreGet:     datastore.Get,
-		getServiceVolume: serviceVolumeGet,
-		networkDriver:    networkDriver,
-	}, nil
-}
-
-func (dfs *DistributedFilesystem) Lock() error {
-	dfs.mutex.Lock()
-
-	err := dfs.lock.Lock()
-	if err != nil {
-		glog.Warningf("Could not lock services! Operation may be unstable: %s", err)
-	}
-	dfs.logger = new(logger).init()
-	return err
-}
-
-func (dfs *DistributedFilesystem) Unlock() error {
-	defer dfs.mutex.Unlock()
-	dfs.logger.Done()
-	dfs.logger = nil
-	return dfs.lock.Unlock()
-}
-
-func (dfs *DistributedFilesystem) IsLocked() (bool, error) {
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		return false, err
-	}
-	return zkservice.IsServiceLocked(conn)
-}
-
-func (dfs *DistributedFilesystem) GetStatus(timeout time.Duration) string {
-	if dfs.logger != nil {
-		return dfs.logger.Recv(timeout)
-	}
-	return ""
-}
-
-func (dfs *DistributedFilesystem) logf(msg string, argv ...interface{}) {
-	defer glog.V(0).Infof(msg, argv...)
-	if dfs.logger != nil {
-		dfs.logger.Send(fmt.Sprintf(msg, argv...))
+		docker:  docker,
+		index:   index,
+		reg:     reg,
+		disk:    disk,
+		net:     net,
+		timeout: timeout,
+		locker:  &sync.Mutex{},
 	}
 }
 
-func parseRegistry(registry string) (host string, port int, err error) {
-	parts := strings.SplitN(registry, ":", 2)
-
-	if host = parts[0]; host == "" {
-		return "", 0, fmt.Errorf("malformed registry")
-	} else if len(parts) > 1 {
-		if port, err = strconv.Atoi(parts[1]); err != nil {
-			return "", 0, fmt.Errorf("malformed registry")
-		}
-	}
-	return host, port, nil
+// Timeout returns the service timeout time for the distributed filesystem
+func (dfs *DistributedFilesystem) Timeout() time.Duration {
+	return dfs.timeout
 }
 
-type logger struct {
-	messages chan string
-	q        []string
-	mutex    sync.Mutex
-	empty    sync.WaitGroup
+// Lock is used to synchronize changes to the dfs
+func (dfs *DistributedFilesystem) Lock() {
+	dfs.locker.Lock()
 }
 
-func (l *logger) init() *logger {
-	l = &logger{messages: make(chan string)}
-	l.empty.Add(1)
-	go l.stream()
-	return l
-}
-
-func (l *logger) stream() {
-	for {
-		m, ok := <-l.messages
-		if !ok {
-			return
-		}
-
-		l.mutex.Lock()
-		l.q = append(l.q, m)
-		if len(l.q) == 1 {
-			l.empty.Done()
-		}
-		l.mutex.Unlock()
-	}
-}
-
-func (l *logger) Send(m string) {
-	l.messages <- m
-}
-
-func (l *logger) Recv(timeout time.Duration) string {
-	ready := make(chan struct{})
-
-	go func() {
-		defer close(ready)
-		l.empty.Wait()
-	}()
-
-	select {
-	case <-time.After(timeout):
-		return "timeout"
-	case <-ready:
-	}
-
-	if len(l.q) == 0 {
-		return "EOF"
-	}
-
-	l.mutex.Lock()
-	defer l.mutex.Unlock()
-	msg := l.q[len(l.q)-1]
-	l.q = make([]string, 0)
-	l.empty.Add(1)
-	return msg
-}
-
-func (l *logger) Done() {
-	close(l.messages)
+// Unlock is used to synchronize changes to the dfs
+func (dfs *DistributedFilesystem) Unlock() {
+	dfs.locker.Unlock()
 }

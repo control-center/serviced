@@ -23,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/volume"
 )
 
 // A generic ControlPlane error
@@ -255,14 +254,11 @@ type ControlPlane interface {
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 
-	// Return the number of layers in an image
-	ImageLayerCount(imageUUID string, layers *int) error
-
-	// Volume returns a service's volume
-	GetVolume(serviceID string, volume volume.Volume) error
-
 	// SetRegistry resets the path to the docker registry
-	ResetRegistry(request EntityRequest, unused *int) error
+	ResetRegistry(_ struct{}, _ *struct{}) error
+
+	// RepairRegistry is used to write the registry to the database for upgrades 1.0 -> 1.1 and beyond
+	RepairRegistry(_ struct{}, _ *struct{}) error
 
 	// Deletes a particular snapshot
 	DeleteSnapshot(snapshotID string, unused *int) error
@@ -275,9 +271,6 @@ type ControlPlane interface {
 
 	// Snapshot takes a snapshot of the filesystem and images
 	Snapshot(request SnapshotRequest, snapshotID *string) error
-
-	// AsyncSnapshot performs a snapshot asynchronously
-	AsyncSnapshot(serviceID string, snapshotID *string) error
 
 	// ListSnapshots lists all the snapshots for a particular service
 	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) error

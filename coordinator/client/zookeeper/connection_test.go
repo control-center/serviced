@@ -23,7 +23,7 @@ import (
 	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 	"github.com/zenoss/glog"
 )
 

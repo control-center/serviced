@@ -14,136 +14,73 @@
 package elasticsearch
 
 import (
-	"fmt"
-
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/volume"
-
-	"github.com/control-center/serviced/zzk"
-	zkSnapshot "github.com/control-center/serviced/zzk/snapshot"
-	"github.com/zenoss/glog"
-
-	"errors"
 )
 
-// GetVolume gets the volume of a service
-func (this *ControlPlaneDao) GetVolume(serviceID string, volume volume.Volume) error {
-	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
-		return err
-	}
-
-	var err error
-	volume, err = this.dfs.GetVolume(tenantID)
-	return err
+// ResetRegistry resets the docker registry
+func (this *ControlPlaneDao) ResetRegistry(_ struct{}, _ *struct{}) error {
+	return this.facade.SyncRegistryImages(datastore.Get(), true)
 }
 
-// ResetRegistry resets the docker registry
-func (this *ControlPlaneDao) ResetRegistry(request dao.EntityRequest, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.ResetRegistry()
+// RepairRegistry repairs the docker registry during an upgrade
+func (this *ControlPlaneDao) RepairRegistry(_ struct{}, _ *struct{}) error {
+	return this.facade.RepairRegistry(datastore.Get())
 }
 
 // DeleteSnapshot deletes a particular snapshot
-func (this *ControlPlaneDao) DeleteSnapshot(snapshotID string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.DeleteSnapshot(snapshotID)
-}
-
-// DeleteSnapshots deletes all snapshots given a tenant
-func (this *ControlPlaneDao) DeleteSnapshots(serviceID string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.DeleteSnapshots(serviceID)
+func (this *ControlPlaneDao) DeleteSnapshot(snapshotID string, _ *int) error {
+	return this.facade.DeleteSnapshot(datastore.Get(), snapshotID)
 }
 
 // Rollback rolls back the dfs to a particular snapshot
 func (this *ControlPlaneDao) Rollback(request dao.RollbackRequest, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.Rollback(request.SnapshotID, request.ForceRestart)
+	return this.facade.Rollback(datastore.Get(), request.SnapshotID, request.ForceRestart)
 }
 
 // Snapshot takes a snapshot of the dfs and its respective images
-func (this *ControlPlaneDao) Snapshot(request dao.SnapshotRequest, snapshotID *string) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	var tenantID string
-	if err := this.GetTenantId(request.ServiceID, &tenantID); err != nil {
-		glog.Errorf("Could not snapshot %s: %s", request.ServiceID, err)
-		return err
-	}
-
-	var err error
-	*snapshotID, err = this.dfs.Snapshot(tenantID, request.Description)
-	return err
-}
-
-// AsyncSnapshot is the asynchronous call to snapshot
-func (this *ControlPlaneDao) AsyncSnapshot(serviceID string, snapshotID *string) error {
-	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
-	if err != nil {
-		glog.Errorf("Unable to get pool for service %v: %v", serviceID, err)
-		return err
-	}
-
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
-	if err != nil {
-		glog.Errorf("Cannot establish connection to zk via pool %s: %s", poolID, err)
-		return err
-	}
-
-	var ss zkSnapshot.Snapshot
-	if nodeID, err := zkSnapshot.Send(conn, serviceID); err != nil {
-		glog.Errorf("Could not submit snapshot for %s: %s", serviceID, err)
-		return err
-	} else if err := zkSnapshot.Recv(conn, nodeID, &ss); err != nil {
-		glog.Errorf("Could not receive snapshot for %s (%s): %s", serviceID, nodeID, err)
-		return err
-	}
-
-	*snapshotID = ss.Label
-	if ss.Err != "" {
-		return errors.New(ss.Err)
-	}
-	return nil
+func (this *ControlPlaneDao) Snapshot(request dao.SnapshotRequest, snapshotID *string) (err error) {
+	*snapshotID, err = this.facade.Snapshot(datastore.Get(), request.ServiceID, request.Description, []string{})
+	return
 }
 
 // ListSnapshots lists all the available snapshots for a particular service
 func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) error {
-	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.Errorf("Could not find tenant for %s: %s", serviceID, err)
-		return err
-	} else if *snapshots, err = this.dfs.ListSnapshots(tenantID); err != nil {
-		glog.Errorf("Could not get snapshots for %s (%s): %s", serviceID, tenantID, err)
+	snaps, err := this.facade.ListSnapshots(datastore.Get(), serviceID)
+	if err != nil {
 		return err
 	}
+	*snapshots = make([]dao.SnapshotInfo, len(snaps))
+	for i, snap := range snaps {
+		info, err := this.facade.GetSnapshotInfo(datastore.Get(), snap)
+		if err != nil {
+			return err
+		}
+		(*snapshots)[i] = dao.SnapshotInfo{info.Info.Name, info.Info.Message}
+	}
+	return nil
+}
 
+// DeleteSnapshots deletes all snapshots for a particular service
+func (this *ControlPlaneDao) DeleteSnapshots(serviceID string, _ *int) error {
+	snaps, err := this.facade.ListSnapshots(datastore.Get(), serviceID)
+	if err != nil {
+		return err
+	}
+	for _, snap := range snaps {
+		if err := this.facade.DeleteSnapshot(datastore.Get(), snap); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // Commit commits a container to a particular tenant and snapshots the resulting image
-func (this *ControlPlaneDao) Commit(containerID string, snapshotID *string) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	var err error
-	*snapshotID, err = this.dfs.Commit(containerID)
-	return err
+func (this *ControlPlaneDao) Commit(containerID string, snapshotID *string) (err error) {
+	*snapshotID, err = this.facade.Commit(datastore.Get(), containerID, "", []string{})
+	return
 }
 
-// ReadyDFS verifies that no other dfs operations are in progress
-func (this *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
-	if locked, err := this.dfs.IsLocked(); err != nil {
-		return err
-	} else if locked {
-		return fmt.Errorf("another dfs operation is running")
-	}
+func (this *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) error {
 	return nil
 }

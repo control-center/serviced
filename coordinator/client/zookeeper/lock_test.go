@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/control-center/serviced/zzk/test"
+	zzktest "github.com/control-center/serviced/zzk/test"
 )
 
 func TestLock(t *testing.T) {

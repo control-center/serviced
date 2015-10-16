@@ -22,7 +22,6 @@ import (
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/serviceimage"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
@@ -68,8 +67,4 @@ type FacadeInterface interface {
 	HasIP(ctx datastore.Context, poolID string, ipAddr string) (bool, error)
 
 	UpdateResourcePool(ctx datastore.Context, entity *pool.ResourcePool) error
-
-	GetServiceImage(ctx datastore.Context, imageID string) (*serviceimage.ServiceImage, error)
-
-	PushServiceImage(ctx datastore.Context, image *serviceimage.ServiceImage) error
 }
