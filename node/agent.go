@@ -545,7 +545,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		return nil, nil, err
 	}
 
-	cfg.Volumes = make(map[string]struct{})
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
 
 	if err := injectContext(svc, serviceState, client); err != nil {
@@ -566,7 +565,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 
 		resourcePath = strings.TrimSpace(resourcePath)
 		containerPath := strings.TrimSpace(volume.ContainerPath)
-		cfg.Volumes[containerPath] = struct{}{}
 		bindsMap[containerPath] = resourcePath
 	}
 
@@ -580,7 +578,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	dir, binary := filepath.Split(a.controllerBinary)
 	resourcePath := strings.TrimSpace(dir)
 	containerPath := strings.TrimSpace("/serviced")
-	cfg.Volumes[containerPath] = struct{}{}
 	bindsMap[containerPath] = resourcePath
 
 	// bind mount everything we need for logstash-forwarder
@@ -589,7 +586,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		logstashPath := utils.ResourcesDir() + "/logstash"
 		resourcePath := strings.TrimSpace(logstashPath)
 		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
-		cfg.Volumes[containerPath] = struct{}{}
 		bindsMap[containerPath] = resourcePath
 		glog.V(1).Infof("added logstash bind mount: %s", fmt.Sprintf("%s:%s", resourcePath, containerPath))
 	}
@@ -602,7 +598,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		}
 	}
 	for _, path := range tmpVolumes {
-		cfg.Volumes[path] = struct{}{}
 		glog.V(4).Infof("added temporary docker container path: %s", path)
 	}
 
@@ -650,7 +645,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 			if matchedRequestedImage {
 				hostPath = strings.TrimSpace(hostPath)
 				containerPath = strings.TrimSpace(containerPath)
-				cfg.Volumes[containerPath] = struct{}{}
 				bindsMap[containerPath] = hostPath
 			}
 		} else {
