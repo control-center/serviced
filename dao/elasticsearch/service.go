@@ -203,12 +203,12 @@ func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, aff
 }
 
 // WaitService waits for the given service IDs to reach a particular state
-func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *struct{}) (err error) {
+func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *int) (err error) {
 	return this.facade.WaitService(datastore.Get(), request.DesiredState, request.Timeout, request.ServiceIDs...)
 }
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
-func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
+func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) error {
 	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
 }
 
