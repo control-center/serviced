@@ -141,7 +141,7 @@ func (dt *DaoTest) SetUpSuite(c *C) {
 	err = volume.InitDriver(volume.DriverTypeRsync, tmpdir, []string{})
 	c.Assert(err, IsNil)
 
-	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, tmpdir, "", volume.DriverTypeRsync, 4979, time.Minute*5, "localhost:5000", MockStorageDriver{})
+	dt.Dao, err = NewControlSvc("localhost", int(dt.Port), dt.Facade, "", 4979)
 	if err != nil {
 		glog.Fatalf("Could not start es container: %s", err)
 	} else {
@@ -1308,7 +1308,10 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 		t.Fatalf("Failure creating service %+v with error: %s", service, err)
 	}
 
-	err = dt.Dao.Snapshot(dao.SnapshotRequest{service.ID, ""}, &id)
+	req := dao.SnapshotRequest{
+		ServiceID: service.ID,
+	}
+	err = dt.Dao.Snapshot(req, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}
@@ -1317,7 +1320,7 @@ func (dt *DaoTest) TestDao_NewSnapshot(t *C) {
 	}
 	glog.V(0).Infof("successfully created 1st snapshot with label:%s", id)
 
-	err = dt.Dao.Snapshot(dao.SnapshotRequest{service.ID, ""}, &id)
+	err = dt.Dao.Snapshot(req, &id)
 	if err != nil {
 		t.Fatalf("Failure creating snapshot for service %+v with error: %s", service, err)
 	}

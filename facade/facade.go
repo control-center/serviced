@@ -14,12 +14,10 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
-	"github.com/control-center/serviced/domain/serviceimage"
 	"github.com/control-center/serviced/domain/servicetemplate"
 )
 
@@ -27,16 +25,13 @@ import (
 var _ FacadeInterface = &Facade{}
 
 // New creates an initialized Facade instance
-func New(dockerRegistryName string) *Facade {
+func New() *Facade {
 	return &Facade{
 		hostStore:     host.NewStore(),
 		registryStore: registry.NewStore(),
-		imageStore:    serviceimage.NewStore(),
 		poolStore:     pool.NewStore(),
 		serviceStore:  service.NewStore(),
 		templateStore: servicetemplate.NewStore(),
-		registryName:  dockerRegistryName,
-		registry:      &docker.DockerRegistry{},
 	}
 }
 
@@ -44,10 +39,7 @@ func New(dockerRegistryName string) *Facade {
 type Facade struct {
 	hostStore     *host.HostStore
 	registryStore *registry.ImageRegistryStore
-	imageStore    *serviceimage.ServiceImageStore
 	poolStore     *pool.Store
 	templateStore *servicetemplate.Store
 	serviceStore  *service.Store
-	registryName  string
-	registry      docker.DockerRegistryInterface
 }

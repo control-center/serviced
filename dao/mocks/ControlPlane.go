@@ -1,4 +1,4 @@
-// Copyright 2015 The Serviced Authors.
+// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -10,8 +10,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
-// +build unit integration
 
 package mocks
 
@@ -25,7 +23,6 @@ import "github.com/control-center/serviced/domain/servicestate"
 import "github.com/control-center/serviced/domain/servicetemplate"
 import "github.com/control-center/serviced/domain/user"
 import "github.com/control-center/serviced/metrics"
-import "github.com/control-center/serviced/volume"
 
 type ControlPlane struct {
 	mock.Mock
@@ -43,12 +40,12 @@ func (_m *ControlPlane) GetTenantId(serviceId string, tenantId *string) error {
 
 	return r0
 }
-func (_m *ControlPlane) AddService(srv service.Service, serviceId *string) error {
-	ret := _m.Called(srv, serviceId)
+func (_m *ControlPlane) AddService(svc service.Service, serviceId *string) error {
+	ret := _m.Called(svc, serviceId)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(service.Service, *string) error); ok {
-		r0 = rf(srv, serviceId)
+		r0 = rf(svc, serviceId)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -79,12 +76,12 @@ func (_m *ControlPlane) DeployService(service dao.ServiceDeploymentRequest, serv
 
 	return r0
 }
-func (_m *ControlPlane) UpdateService(srv service.Service, unused *int) error {
-	ret := _m.Called(srv, unused)
+func (_m *ControlPlane) UpdateService(svc service.Service, unused *int) error {
+	ret := _m.Called(svc, unused)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(service.Service, *int) error); ok {
-		r0 = rf(srv, unused)
+		r0 = rf(svc, unused)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -127,12 +124,12 @@ func (_m *ControlPlane) RemoveService(serviceId string, unused *int) error {
 
 	return r0
 }
-func (_m *ControlPlane) GetService(serviceId string, srv *service.Service) error {
-	ret := _m.Called(serviceId, srv)
+func (_m *ControlPlane) GetService(serviceId string, svc *service.Service) error {
+	ret := _m.Called(serviceId, svc)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, *service.Service) error); ok {
-		r0 = rf(serviceId, srv)
+		r0 = rf(serviceId, svc)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -151,12 +148,12 @@ func (_m *ControlPlane) GetServices(request dao.ServiceRequest, services *[]serv
 
 	return r0
 }
-func (_m *ControlPlane) FindChildService(request dao.FindChildRequest, srv *service.Service) error {
-	ret := _m.Called(request, srv)
+func (_m *ControlPlane) FindChildService(request dao.FindChildRequest, svc *service.Service) error {
+	ret := _m.Called(request, svc)
 
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.FindChildRequest, *service.Service) error); ok {
-		r0 = rf(request, srv)
+		r0 = rf(request, svc)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -511,144 +508,12 @@ func (_m *ControlPlane) LogHealthCheck(result domain.HealthCheckResult, unused *
 
 	return r0
 }
-func (_m *ControlPlane) ImageLayerCount(imageUUID string, layers *int) error {
-	ret := _m.Called(imageUUID, layers)
+func (_m *ControlPlane) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
+	ret := _m.Called(IServiceNames, results)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(imageUUID, layers)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) GetVolume(serviceID string, volm volume.Volume) error {
-	ret := _m.Called(serviceID, volm)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, volume.Volume) error); ok {
-		r0 = rf(serviceID, volm)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ResetRegistry(request dao.EntityRequest, unused *int) error {
-	ret := _m.Called(request, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.EntityRequest, *int) error); ok {
-		r0 = rf(request, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) DeleteSnapshot(snapshotID string, unused *int) error {
-	ret := _m.Called(snapshotID, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(snapshotID, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) DeleteSnapshots(tenantID string, unused *int) error {
-	ret := _m.Called(tenantID, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
-		r0 = rf(tenantID, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) Rollback(request dao.RollbackRequest, unused *int) error {
-	ret := _m.Called(request, unused)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.RollbackRequest, *int) error); ok {
-		r0 = rf(request, unused)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) Snapshot(request dao.SnapshotRequest, snapshotID *string) error {
-	ret := _m.Called(request, snapshotID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.SnapshotRequest, *string) error); ok {
-		r0 = rf(request, snapshotID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) AsyncSnapshot(serviceID string, snapshotID *string) error {
-	ret := _m.Called(serviceID, snapshotID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *string) error); ok {
-		r0 = rf(serviceID, snapshotID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) error {
-	ret := _m.Called(serviceID, snapshots)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]dao.SnapshotInfo) error); ok {
-		r0 = rf(serviceID, snapshots)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) Commit(containerID string, snapshotID *string) error {
-	ret := _m.Called(containerID, snapshotID)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *string) error); ok {
-		r0 = rf(containerID, snapshotID)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ReadyDFS(_a0 bool, _a1 *int) error {
-	ret := _m.Called(_a0, _a1)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(bool, *int) error); ok {
-		r0 = rf(_a0, _a1)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) ListBackups(dirpath string, files *[]dao.BackupFile) error {
-	ret := _m.Called(dirpath, files)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *[]dao.BackupFile) error); ok {
-		r0 = rf(dirpath, files)
+	if rf, ok := ret.Get(0).(func([]string, *[]dao.IServiceHealthResult) error); ok {
+		r0 = rf(IServiceNames, results)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -703,24 +568,120 @@ func (_m *ControlPlane) AsyncRestore(filename string, unused *int) error {
 
 	return r0
 }
-func (_m *ControlPlane) BackupStatus(unused int, status *string) error {
-	ret := _m.Called(unused, status)
+func (_m *ControlPlane) ListBackups(dirpath string, files *[]dao.BackupFile) error {
+	ret := _m.Called(dirpath, files)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(int, *string) error); ok {
-		r0 = rf(unused, status)
+	if rf, ok := ret.Get(0).(func(string, *[]dao.BackupFile) error); ok {
+		r0 = rf(dirpath, files)
 	} else {
 		r0 = ret.Error(0)
 	}
 
 	return r0
 }
-func (_m *ControlPlane) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
-	ret := _m.Called(IServiceNames, results)
+func (_m *ControlPlane) BackupStatus(req dao.EntityRequest, status *string) error {
+	ret := _m.Called(req, status)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func([]string, *[]dao.IServiceHealthResult) error); ok {
-		r0 = rf(IServiceNames, results)
+	if rf, ok := ret.Get(0).(func(dao.EntityRequest, *string) error); ok {
+		r0 = rf(req, status)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) Snapshot(req dao.SnapshotRequest, snapshotID *string) error {
+	ret := _m.Called(req, snapshotID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.SnapshotRequest, *string) error); ok {
+		r0 = rf(req, snapshotID)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) Rollback(req dao.RollbackRequest, unused *int) error {
+	ret := _m.Called(req, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.RollbackRequest, *int) error); ok {
+		r0 = rf(req, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) DeleteSnapshot(snapshotID string, unused *int) error {
+	ret := _m.Called(snapshotID, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
+		r0 = rf(snapshotID, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) DeleteSnapshots(serviceID string, unused *int) error {
+	ret := _m.Called(serviceID, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
+		r0 = rf(serviceID, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) error {
+	ret := _m.Called(serviceID, snapshots)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *[]dao.SnapshotInfo) error); ok {
+		r0 = rf(serviceID, snapshots)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) ResetRegistry(req dao.EntityRequest, unused *int) error {
+	ret := _m.Called(req, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.EntityRequest, *int) error); ok {
+		r0 = rf(req, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) RepairRegistry(req dao.EntityRequest, unused *int) error {
+	ret := _m.Called(req, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.EntityRequest, *int) error); ok {
+		r0 = rf(req, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) ReadyDFS(req dao.EntityRequest, unused *int) error {
+	ret := _m.Called(req, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.EntityRequest, *int) error); ok {
+		r0 = rf(req, unused)
 	} else {
 		r0 = ret.Error(0)
 	}

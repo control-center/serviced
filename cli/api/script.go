@@ -43,7 +43,9 @@ func (a *api) ScriptParse(fileName string, config *script.Config) error {
 }
 
 func initConfig(config *script.Config, a *api) {
-	config.Snapshot = a.AddSnapshot
+	config.Snapshot = func(serviceID, message string) (string, error) {
+		return a.AddSnapshot(SnapshotConfig{ServiceID: serviceID, Message: message})
+	}
 	config.Restore = a.Rollback
 	config.TenantLookup = cliTenantLookup(a)
 	config.SvcIDFromPath = cliServiceIDFromPath(a)
@@ -52,7 +54,9 @@ func initConfig(config *script.Config, a *api) {
 	config.SvcRestart = cliServiceControl(a.RestartService)
 	config.SvcMigrate = cliServiceMigrate(a)
 	config.SvcWait = cliServiceWait(a)
-	config.Commit = a.Commit
+	config.Commit = func(containerID string) (string, error) {
+		return a.AddSnapshot(SnapshotConfig{DockerID: containerID})
+	}
 	config.SvcUse = cliServiceUse(a)
 }
 

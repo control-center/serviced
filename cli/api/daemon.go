@@ -365,20 +365,13 @@ func (d *daemon) initZK(zks []string) (*coordclient.Client, error) {
 	return coordclient.New("zookeeper", dsn, "/", nil)
 }
 
-func (d *daemon) startMaster() error {
+func (d *daemon) startMaster() (err error) {
 	agentIP := options.OutboundIP
 	if agentIP == "" {
-		var err error
 		agentIP, err = utils.GetIPAddress()
 		if err != nil {
 			glog.Fatalf("Failed to acquire ip address: %s", err)
 		}
-	}
-
-	var err error
-	if err = d.initDFS(); err != nil {
-		glog.Errorf("Could not initialize DFS: %s", err)
-		return err
 	}
 
 	// This is storage related
@@ -728,7 +721,7 @@ func (d *daemon) initDriver() (datastore.Driver, error) {
 }
 
 func (d *daemon) initFacade() *facade.Facade {
-	f := facade.New(dockerRegistry)
+	f := facade.New()
 	return f
 }
 
@@ -751,12 +744,11 @@ func (d *daemon) startLogstashPurger(initialStart, cycleTime time.Duration) {
 }
 
 func (d *daemon) initDAO() (dao.ControlPlane, error) {
-	dfsTimeout := time.Duration(options.MaxDFSTimeout) * time.Second
 	rpcPortInt, err := strconv.Atoi(options.RPCPort)
 	if err != nil {
 		return nil, err
 	}
-	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.VolumesPath, options.BackupsPath, options.FSType, rpcPortInt, dfsTimeout, dockerRegistry, d.networkDriver)
+	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt)
 }
 
 func (d *daemon) initWeb() {
@@ -764,15 +756,6 @@ func (d *daemon) initWeb() {
 	glog.V(4).Infof("Starting web server: uiport: %v; port: %v; zookeepers: %v", options.UIPort, options.Endpoint, options.Zookeepers)
 	cpserver := web.NewServiceConfig(options.UIPort, options.Endpoint, options.ReportStats, options.HostAliases, options.TLS, options.MuxPort, options.AdminGroup, options.CertPEMFile, options.KeyPEMFile)
 	go cpserver.Serve(d.shutdown)
-}
-
-func (d *daemon) initDFS() error {
-	if options.FSType == "btrfs" {
-		if !volume.IsBtrfsFilesystem(options.VolumesPath) {
-			return fmt.Errorf("volumes path at %s is not a btrfs filesystem", options.VolumesPath)
-		}
-	}
-	return nil
 }
 
 func (d *daemon) startScheduler() {

@@ -14,17 +14,12 @@
 package facade
 
 import (
-	"errors"
 	"fmt"
-	"regexp"
 	"time"
 
-	"github.com/docker/docker/pkg/parsers"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
 
-	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/service"
@@ -126,27 +121,6 @@ func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicet
 	return templateMap, nil
 }
 
-func getImageIDs(sds ...servicedefinition.ServiceDefinition) []string {
-	set := map[string]struct{}{}
-	for _, sd := range sds {
-		for _, img := range getImageIDs(sd.Services...) {
-			set[img] = struct{}{}
-		}
-		if sd.ImageID != "" {
-			set[sd.ImageID] = struct{}{}
-		}
-	}
-	result := []string{}
-	for img, _ := range set {
-		result = append(result, img)
-	}
-	return result
-}
-
-func pullTemplateImages(registry docker.DockerRegistryInterface, template *servicetemplate.ServiceTemplate) error {
-	return pullImages(registry, getImageIDs(template.Services...))
-}
-
 var deployments = make(map[string]map[string]string)
 
 // UpdateDeployTemplateStatus updates the deployment status of the service being deployed
@@ -227,12 +201,6 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 		return nil, fmt.Errorf("poolid %s not found", poolID)
 	}
 
-	UpdateDeployTemplateStatus(deploymentID, "deploy_pulling_images")
-	if err := pullTemplateImages(f.registry, template); err != nil {
-		glog.Errorf("Unable to pull one or more images")
-		return nil, err
-	}
-
 	tenantIDs := make([]string, len(template.Services))
 	for i, sd := range template.Services {
 		glog.Infof("Deploying application %s to %s", sd.Name, deploymentID)
@@ -284,18 +252,6 @@ func (f *Facade) DeployService(ctx datastore.Context, poolID, parentID string, o
 		}
 	}
 
-	// pull the images
-	if err := pullServiceImages(f.registry, &svcDef); err != nil {
-		glog.Errorf("Unable to pull one or more images")
-		return "", err
-	}
-
-	// check the images
-	if err := checkImages(f.registry, make(map[string]struct{}), svcDef); err != nil {
-		glog.Errorf("Error while validating image IDs: %s", err)
-		return "", err
-	}
-
 	return f.deployService(ctx, tenantID, svc.ID, svc.DeploymentID, poolID, overwrite, svcDef)
 }
 
@@ -331,10 +287,6 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	// set the imageID
 	if tenantID == "" {
 		tenantID = newsvc.ID
-	}
-	if err := setImageID(f.registry, f.registryName, tenantID, newsvc); err != nil {
-		glog.Errorf("Could not set image id for service %s at parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
-		return "", err
 	}
 
 	// find the service
@@ -372,66 +324,6 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 	return newsvc.ID, nil
 }
 
-func checkImages(registry docker.DockerRegistryInterface, imap map[string]struct{}, svcdef servicedefinition.ServiceDefinition) error {
-	if _, ok := imap[svcdef.ImageID]; !ok {
-		if _, err := registry.FindImage(svcdef.ImageID, false); err != nil {
-			glog.Errorf("Could not get image %s: %s", svcdef.ImageID, err)
-			return err
-		}
-		imap[svcdef.ImageID] = struct{}{}
-	}
-	for _, childDef := range svcdef.Services {
-		if err := checkImages(registry, imap, childDef); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func setImageID(registry docker.DockerRegistryInterface, registryName, tenantID string, svc *service.Service) error {
-	if svc.ImageID == "" {
-		return nil
-	}
-
-	UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_renaming_image|"+svc.Name)
-	imageID, err := renameImageID(registryName, svc.ImageID, tenantID)
-	if err != nil {
-		glog.Errorf("malformed imageID %s: %s", svc.ImageID, err)
-		return err
-	}
-
-	if _, err := registry.FindImage(imageID, false); docker.IsImageNotFound(err) {
-		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_loading_image|"+svc.Name)
-		// tagged image not found, so look for the base image
-		image, err := registry.FindImage(svc.ImageID, false)
-		if err != nil {
-			glog.Errorf("Could not search for image %s: %s", svc.ImageID, err)
-			return err
-		}
-		UpdateDeployTemplateStatus(svc.DeploymentID, "deploy_tagging_image|"+svc.Name)
-		// now tag the image
-		if _, err := image.Tag(imageID, false); err != nil {
-			glog.Errorf("Could not add tag %s to image %s: %s", imageID, svc.ImageID, err)
-			return err
-		}
-		// Push the image in the background
-		go registry.PushImage(imageID)
-	}
-	svc.ImageID = imageID
-	return nil
-}
-
-func renameImageID(registryName, imageId, tenantId string) (string, error) {
-	repo, _ := parsers.ParseRepositoryTag(imageId)
-	re := regexp.MustCompile("/?([^/]+)\\z")
-	matches := re.FindStringSubmatch(repo)
-	if matches == nil {
-		return "", errors.New("malformed imageid")
-	}
-	name := matches[1]
-	return fmt.Sprintf("%s/%s/%s", registryName, tenantId, name), nil
-}
-
 // writeLogstashConfiguration takes all the available
 // services and writes out the filters section for logstash.
 // This is required before logstash startsup
@@ -462,29 +354,6 @@ func reloadLogstashContainerImpl(ctx datastore.Context, f FacadeInterface) error
 	if err := isvcs.Mgr.Notify("restart logstash"); err != nil {
 		glog.Errorf("Could not start logstash container: %s", err)
 		return err
-	}
-	return nil
-}
-
-func pullServiceImages(registry docker.DockerRegistryInterface, svcDef *servicedefinition.ServiceDefinition) error {
-	return pullImages(registry, getImageIDs(*svcDef))
-}
-
-func pullImages(registry docker.DockerRegistryInterface, imgs []string) error {
-	for _, img := range imgs {
-		imageID, err := commons.ParseImageID(img)
-		if err != nil {
-			return err
-		}
-		tag := imageID.Tag
-		if tag == "" {
-			tag = "latest"
-		}
-		image := fmt.Sprintf("%s:%s", imageID.BaseName(), tag)
-		glog.Infof("Pulling image %s", image)
-		if err := registry.PullImage(image); err != nil {
-			glog.Warningf("Unable to pull image %s", image)
-		}
 	}
 	return nil
 }
