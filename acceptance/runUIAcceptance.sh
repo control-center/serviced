@@ -14,8 +14,9 @@
 debug=false
 interactive=false
 runAsRoot=false
-DRIVER_NAME=selenium
+DRIVER_NAME=selenium_chrome
 TIMEOUT=10
+TAGS=()
 DATASET=default
 
 set -e
@@ -36,6 +37,9 @@ while (( "$#" )); do
     elif [ "$1" == "-t" ]; then
         TIMEOUT="${2}"
         shift 2
+    elif [ "$1" == "--tags" ]; then
+        TAGS+=("${2}")
+        shift 2
     elif [ "$1" == "--dataset" ]; then
         DATASET="${2}"
         shift 2
@@ -49,12 +53,14 @@ while (( "$#" )); do
         interactive=true
         shift 1
     else
-        if [ "$1" != "-h" ]; then
+        if [ "$1" != "-h" -a "$1" != "--help" ]; then
             echo "ERROR: invalid argument '$1'"
+            echo "Try '$0 --help' for more information"
+            exit 1
         fi
         echo "USAGE: runUIAcceptance.sh.sh [-a url] [-u userid] [-p password]"
-        echo "       [-d driverName] [-t timeout] [--dataset setName]"
-        echo "       [--debug] [--root] [-i] [-h]"
+        echo "       [-d driverName] [-t timeout] [--tags tagname [--tags tagname]]"
+        echo "       [--dataset setName] [--debug] [--root] [-i] [-h, --help]"
         echo ""
         echo "where"
         echo "    -a url                the URL of the serviced application"
@@ -63,12 +69,13 @@ while (( "$#" )); do
         echo "    -d driverName         identifies the Capybara driver to use"
         echo "                          (e.g. selenium, selenium_chrome or poltergeist)"
         echo "    -t timeout            identifies the Capybara timeout to use (in seconds)"
+        echo "    --tags tagname        specifies a Cucumber tag"
         echo "    --dataset setName     identifies the dataset to use"
         echo "    --debug               opens the browser on the host's DISPLAY"
         echo "    --root                run the tests as root in the docker container"
         echo "    -i                    interactive mode. Starts a bash shell with all of the same"
         echo "                          env vars but doesn't run anything"
-        echo "    -h                    print this usage statement and exit"
+        echo "    -h, --help             print this usage statement and exit"
         exit 1
     fi
 
@@ -102,6 +109,17 @@ CALLER_GID=`id -g`
 
 if [ "$debug" == true ]; then
     DEBUG_OPTION="-e DISPLAY=unix$DISPLAY"
+fi
+
+if [ -n "${TAGS}" ]; then
+    for i in "${TAGS[@]}"
+    do
+        CUCUMBER_OPTS="${CUCUMBER_OPTS} --tags $i"
+    done
+fi
+
+if [ -n "${CUCUMBER_OPTS}" ]; then
+    echo "CUCUMBER_OPTS=${CUCUMBER_OPTS}"
 fi
 
 if [ "$interactive" == true ]; then

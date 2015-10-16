@@ -638,6 +638,8 @@ func (d *daemon) startAgent() error {
 			VirtualAddressSubnet: options.VirtualAddressSubnet,
 			ControllerBinary:     options.ControllerBinary,
 			LogstashURL:          options.LogstashURL,
+			DockerLogDriver:      options.DockerLogDriver,
+			DockerLogConfig:      options.DockerLogConfig,
 		}
 		// creates a zClient that is not pool based!
 		hostAgent, err := node.NewHostAgent(agentOptions)
