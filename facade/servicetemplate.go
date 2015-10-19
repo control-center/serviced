@@ -121,6 +121,36 @@ func (f *Facade) GetServiceTemplates(ctx datastore.Context) (map[string]servicet
 	return templateMap, nil
 }
 
+func (f *Facade) GetServiceTemplatesAndImages(ctx datastore.Context) ([]servicetemplate.ServiceTemplate, []string, error) {
+	glog.V(2).Infof("Facade.GetServiceTemplateImages")
+	results, err := f.templateStore.GetServiceTemplates(ctx)
+	if err != nil {
+		glog.Errorf("Could not get service templates: %s", err)
+		return nil, nil, err
+	}
+	var imagesMap = make(map[string]struct{})
+	var images []string
+
+	var getImages func(sds []servicedefinition.ServiceDefinition)
+	getImages = func(sds []servicedefinition.ServiceDefinition) {
+		for _, sd := range sds {
+			if sd.ImageID != "" {
+				if _, ok := imagesMap[sd.ImageID]; !ok {
+					imagesMap[sd.ImageID] = struct{}{}
+					images = append(images, sd.ImageID)
+				}
+			}
+			getImages(sd.Services)
+		}
+	}
+	templates := make([]servicetemplate.ServiceTemplate, len(results))
+	for i, tpl := range results {
+		getImages(tpl.Services)
+		templates[i] = *tpl
+	}
+	return templates, images, nil
+}
+
 var deployments = make(map[string]map[string]string)
 
 // UpdateDeployTemplateStatus updates the deployment status of the service being deployed
@@ -204,13 +234,17 @@ func (f *Facade) DeployTemplate(ctx datastore.Context, poolID string, templateID
 	tenantIDs := make([]string, len(template.Services))
 	for i, sd := range template.Services {
 		glog.Infof("Deploying application %s to %s", sd.Name, deploymentID)
-		var err error
-		if tenantIDs[i], err = f.deployService(ctx, "", "", deploymentID, poolID, false, sd); err != nil {
+		tenantID, err := f.deployService(ctx, "", "", deploymentID, poolID, false, sd)
+		if err != nil {
 			glog.Errorf("Could not deploy application %s to %s: %s", sd.Name, deploymentID, err)
 			return nil, err
 		}
+		if err := f.dfs.Create(tenantID); err != nil {
+			glog.Errorf("Could not initialize volume for tenant %s: %s", tenantID, err)
+			return nil, err
+		}
+		tenantIDs[i] = tenantID
 	}
-
 	return tenantIDs, nil
 }
 
@@ -283,12 +317,18 @@ func (f *Facade) deployService(ctx datastore.Context, tenantID string, parentSer
 		glog.Errorf("Could not evaluate endpoint templates for service %s with parent %s: %s", newsvc.Name, newsvc.ParentServiceID, err)
 		return "", err
 	}
-
-	// set the imageID
 	if tenantID == "" {
 		tenantID = newsvc.ID
 	}
-
+	if svcDef.ImageID != "" {
+		UpdateDeployTemplateStatus(newsvc.DeploymentID, "deploy_loading_image|"+newsvc.Name)
+		image, err := f.dfs.Download(svcDef.ImageID, tenantID, false)
+		if err != nil {
+			glog.Errorf("Could not download image %s: %s", svcDef.ImageID, err)
+			return "", err
+		}
+		newsvc.ImageID = image
+	}
 	// find the service
 	store := f.serviceStore
 	if svc, err := store.FindChildService(ctx, newsvc.DeploymentID, newsvc.ParentServiceID, newsvc.Name); err != nil {

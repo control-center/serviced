@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"github.com/control-center/serviced/dfsnew"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -42,4 +43,11 @@ type Facade struct {
 	poolStore     *pool.Store
 	templateStore *servicetemplate.Store
 	serviceStore  *service.Store
+
+	zzk ZZK
+	dfs dfs.DFS
 }
+
+func (f *Facade) SetZZK(zzk ZZK) { f.zzk = zzk }
+
+func (f *Facade) SetDFS(dfs dfs.DFS) { f.dfs = dfs }

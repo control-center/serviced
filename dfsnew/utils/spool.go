@@ -14,6 +14,7 @@
 package utils
 
 import (
+	"bufio"
 	"compress/gzip"
 	"io"
 	"io/ioutil"
@@ -60,7 +61,6 @@ func (s *Spool) Write(p []byte) (n int, err error) {
 
 // WriteTo writes the filedata back into another writer and resets the file.
 func (s *Spool) WriteTo(w io.Writer) (n int64, err error) {
-	defer s.Reset()
 	if err := s.gzwriter.Close(); err != nil {
 		return 0, err
 	}
@@ -71,22 +71,9 @@ func (s *Spool) WriteTo(w io.Writer) (n int64, err error) {
 	if err != nil {
 		return 0, err
 	}
+	defer s.Reset()
 	defer gzreader.Close()
-	for {
-		buf := make([]byte, s.capacity)
-		rn, rerr := gzreader.Read(buf)
-		if rerr == io.EOF || rerr == nil {
-			wn, werr := w.Write(buf[:rn])
-			n += int64(wn)
-			if werr != nil {
-				return n, werr
-			} else if rerr != nil {
-				return n, nil
-			}
-		} else {
-			return n, rerr
-		}
-	}
+	return bufio.NewReaderSize(gzreader, s.capacity).WriteTo(w)
 }
 
 // Reset truncates the file an resets the file

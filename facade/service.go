@@ -109,7 +109,7 @@ func (f *Facade) AddService(ctx datastore.Context, svc service.Service) error {
 	}
 
 	glog.V(2).Infof("Facade.AddService: calling zk.updateService for %s %d ConfigFiles", svc.Name, len(svc.ConfigFiles))
-	return zkAPI(f).UpdateService(&svc)
+	return f.zzk.UpdateService(&svc, false)
 }
 
 //
@@ -399,7 +399,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 			endpoint.RemoveAssignment()
 		}
 
-		if err := zkAPI(f).RemoveService(svc); err != nil {
+		if err := f.zzk.RemoveService(svc); err != nil {
 			glog.Errorf("Could not remove service %s (%s) from zookeeper: %s", svc.Name, svc.ID, err)
 			return err
 		}
@@ -651,12 +651,12 @@ func (f *Facade) ScheduleService(ctx datastore.Context, serviceID string, autoLa
 		case service.SVCRestart:
 			// shutdown all service instances
 			var states []servicestate.ServiceState
-			if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+			if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
 				return err
 			}
 
 			for _, state := range states {
-				if err := zkAPI(f).StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
+				if err := f.zzk.StopServiceInstance(svc.PoolID, state.HostID, state.ID); err != nil {
 					return err
 				}
 			}
@@ -691,7 +691,7 @@ func (f *Facade) GetServiceStates(ctx datastore.Context, serviceID string) ([]se
 	}
 
 	var states []servicestate.ServiceState
-	if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
 		glog.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
 	}
@@ -755,7 +755,7 @@ func (f *Facade) WaitService(ctx datastore.Context, dstate service.DesiredState,
 		}
 		processing[svc.ID] = struct{}{}
 		go func(s *service.Service) {
-			err := zkAPI(f).WaitService(s, dstate, cancel)
+			err := f.zzk.WaitService(s, dstate, cancel)
 			// this blocks until we pass a waitstatus object into the channel or we get a signal to cancel
 			select {
 			case done <- waitstatus{s.ID, err}:
@@ -1150,6 +1150,23 @@ func (f *Facade) getServices(ctx datastore.Context) ([]service.Service, error) {
 	return results, nil
 }
 
+// getTenantIDs filters the list of all tenant ids
+func (f *Facade) getTenantIDs(ctx datastore.Context) ([]string, error) {
+	store := f.serviceStore
+	results, err := store.GetServices(ctx)
+	if err != nil {
+		glog.Errorf("Facade.GetServices: %s", err)
+		return nil, err
+	}
+	var svcids []string
+	for _, svc := range results {
+		if svc.ParentServiceID == "" {
+			svcids = append(svcids, svc.ID)
+		}
+	}
+	return svcids, nil
+}
+
 //
 func (f *Facade) getTenantIDAndPath(ctx datastore.Context, svc service.Service) (string, string, error) {
 	gs := func(id string) (service.Service, error) {
@@ -1277,7 +1294,7 @@ func (f *Facade) validateService(ctx datastore.Context, serviceId string, autoLa
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh.Name, svc.ID); err != nil {
+				if err := f.zzk.CheckRunningVHost(vh.Name, svc.ID); err != nil {
 					return err
 				}
 			}
@@ -1416,15 +1433,15 @@ func (f *Facade) updateServiceDefinition(ctx datastore.Context, migrateConfigura
 
 	// Remove the service from zookeeper if the pool ID has changed
 	if oldSvc.PoolID != svc.PoolID {
-		if err := zkAPI(f).RemoveService(oldSvc); err != nil {
+		if err := f.zzk.RemoveService(oldSvc); err != nil {
 			// Synchronizer will eventually clean this service up
 			glog.Warningf("ZK: Could not delete service %s (%s) from pool %s: %s", svc.Name, svc.ID, oldSvc.PoolID, err)
 			oldSvc.DesiredState = int(service.SVCStop)
-			zkAPI(f).UpdateService(oldSvc)
+			f.zzk.UpdateService(oldSvc, false)
 		}
 	}
 
-	return zkAPI(f).UpdateService(svc)
+	return f.zzk.UpdateService(svc, false)
 }
 
 // validateServiceEndpoints traverses the service tree and checks for duplicate
@@ -1701,7 +1718,7 @@ func (f *Facade) stopServiceForUpdate(ctx datastore.Context, svc service.Service
 		for _, ep := range svc.GetServiceVHosts() {
 			for _, vh := range ep.VHostList {
 				//check that vhosts aren't already started elsewhere
-				if err := zkAPI(f).CheckRunningVHost(vh.Name, svc.ID); err != nil {
+				if err := f.zzk.CheckRunningVHost(vh.Name, svc.ID); err != nil {
 					return err
 				}
 			}
