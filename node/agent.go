@@ -332,6 +332,12 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		}
 	}
 
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not get zk connection: %s", err)
+		return err
+	}
+	a.pullreg.SetConnection(conn)
 	// create the docker client Config and HostConfig structures necessary to create and start the service
 	config, hostconfig, err := configureContainer(a, client, svc, state, a.virtualAddressSubnet)
 	if err != nil {
@@ -544,12 +550,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 	}
 
 	// Make sure the image exists locally.
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		glog.Errorf("Could not get zk connection: %s", err)
-		return nil, nil, err
-	}
-	a.pullreg.SetConnection(conn)
 	if err := a.pullreg.PullImage(svc.ImageID); err != nil {
 		glog.Errorf("Cannot find docker image %s: %s", svc.ImageID, err)
 		return nil, nil, err
