@@ -305,5 +305,5 @@ type ControlPlane interface {
 	RepairRegistry(_ EntityRequest, _ *int) (err error)
 
 	// ReadyDFS waits for the DFS to be idle when creating a service shell.
-	ReadyDFS(_ EntityRequest, _ *int) (err error)
+	ReadyDFS(serviceID string, _ *int) (err error)
 }

@@ -119,6 +119,20 @@ func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error 
 	return nil
 }
 
+// DeleteSnapshots removes all snapshots for an application.
+func (f *Facade) DeleteSnapshots(ctx datastore.Context, serviceID string) error {
+	snapshots, err := f.ListSnapshots(ctx, serviceID)
+	if err != nil {
+		return err
+	}
+	for _, snapshotID := range snapshots {
+		if err := f.DeleteSnapshot(ctx, snapshotID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // DFSLock returns the locker for the dfs
 func (f *Facade) DFSLock(ctx datastore.Context) sync.Locker {
 	return f.dfs
@@ -150,17 +164,30 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 	return snapshots, nil
 }
 
-// ResetLocks resets all the tenant locks
+// ResetLock resets locks for a specific tenant
+func (f *Facade) ResetLock(ctx datastore.Context, serviceID string) error {
+	tenantID, err := f.GetTenantID(ctx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		return err
+	}
+	mutex := getTenantLock(tenantID)
+	mutex.Lock()
+	if err := f.unlockTenant(ctx, tenantID); err != nil {
+		return err
+	}
+	return nil
+}
+
+// ResetLocks resets all tenant locks
 func (f *Facade) ResetLocks(ctx datastore.Context) error {
 	tenantIDs, err := f.getTenantIDs(ctx)
 	if err != nil {
-		glog.Errorf("Could not get tenant services: %s", err)
+		glog.Errorf("Could not get tenants: %s", err)
 		return err
 	}
 	for _, tenantID := range tenantIDs {
-		mutex := getTenantLock(tenantID)
-		mutex.Lock()
-		if err := f.unlockTenant(ctx, tenantID); err != nil {
+		if err := f.ResetLock(ctx, tenantID); err != nil {
 			return err
 		}
 	}

@@ -434,7 +434,10 @@ func StartDocker(cfg *ProcessConfig, port, controller string) (*exec.Cmd, error)
 
 	// wait for the DFS to be ready in order to start container on the latest image
 	glog.Infof("Acquiring image from the dfs...")
-	cp.ReadyDFS(false, nil)
+	if err := cp.ReadyDFS(svc.ID, nil); err != nil {
+		glog.Errorf("Could not ready dfs: %s", err)
+		return nil, err
+	}
 	glog.Infof("Acquired!  Starting shell")
 
 	glog.V(1).Infof("command: docker %+v", argv)

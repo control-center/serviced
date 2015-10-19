@@ -292,6 +292,6 @@ func (s *ControlClient) RepairRegistry(req dao.EntityRequest, unused *int) (err 
 	return s.rpcClient.Call("ControlPlane.RepairRegistry", req, unused, 0)
 }
 
-func (s *ControlClient) ReadyDFS(req dao.EntityRequest, unused *int) (err error) {
-	return s.rpcClient.Call("ControlPlane.ReadyDFS", req, unused, 0)
+func (s *ControlClient) ReadyDFS(serviceID string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.ReadyDFS", serviceID, unused, 0)
 }
