@@ -343,11 +343,11 @@ func (t ServiceAPITest) GetSnapshotsByServiceID(id string) ([]dao.SnapshotInfo, 
 	return snapshots, nil
 }
 
-func (t ServiceAPITest) AddSnapshot(id string, description string) (string, error) {
+func (t ServiceAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) {
 	if t.errs["AddSnapshot"] != nil {
 		return "", t.errs["AddSnapshot"]
 	}
-	return fmt.Sprintf("%s-snapshot description=%q", id, description), nil
+	return fmt.Sprintf("%s-snapshot description=%q", config.ServiceID, config.Message), nil
 }
 
 func TestServicedCLI_CmdServiceList_one(t *testing.T) {

@@ -20,10 +20,9 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"unsafe"
 
 	"github.com/control-center/serviced/dao"
-	daotest "github.com/control-center/serviced/dao/test"
+	daomocks "github.com/control-center/serviced/dao/mocks"
 	"github.com/control-center/serviced/domain/service"
 
 	"github.com/stretchr/testify/mock"
@@ -48,11 +47,11 @@ type serviceAPITest struct {
 	api API
 
 	//  A mock implementation of the ControlPlane interface
-	mockControlPlane *daotest.MockControlPlane
+	mockControlPlane *daomocks.ControlPlane
 }
 
 func (st *serviceAPITest) SetUpTest(c *C) {
-	st.mockControlPlane = daotest.New()
+	st.mockControlPlane = &daomocks.ControlPlane{}
 
 	apiObj := NewAPI(nil, nil, nil, st.mockControlPlane)
 	st.api = apiObj
@@ -68,13 +67,11 @@ func (st *serviceAPITest) TestGetService_works(c *C) {
 	serviceID := "test-service"
 	expected, _ := service.NewService()
 
-	st.mockControlPlane.Responses["GetService"] = (unsafe.Pointer)(expected)
-	st.mockControlPlane.
-		On("GetService", serviceID, mock.Anything).
-		Return(nil)
-
+	st.mockControlPlane.On("GetService", serviceID, mock.AnythingOfType("*service.Service")).Return(nil).Run(func(a mock.Arguments) {
+		svc := a.Get(1).(*service.Service)
+		*svc = *expected
+	})
 	actual, err := st.api.GetService(serviceID)
-
 	c.Assert(err, IsNil)
 	c.Assert(actual.ID, Equals, expected.ID)
 }
@@ -82,13 +79,8 @@ func (st *serviceAPITest) TestGetService_works(c *C) {
 func (st *serviceAPITest) TestGetService_fails(c *C) {
 	errorStub := errors.New("errorStub: GetService() failed")
 	serviceID := "test-service"
-
-	st.mockControlPlane.
-		On("GetService", serviceID, mock.Anything).
-		Return(errorStub)
-
+	st.mockControlPlane.On("GetService", serviceID, mock.AnythingOfType("*service.Service")).Return(errorStub)
 	actual, err := st.api.GetService(serviceID)
-
 	c.Assert(actual, IsNil)
 	c.Assert(err, Equals, errorStub)
 }
@@ -99,29 +91,21 @@ func (st *serviceAPITest) TestMigrateService_works(c *C) {
 	inputScript := strings.NewReader(scriptBody)
 	expected, _ := service.NewService()
 	sdkVersion := "a.b.c"
-
-	st.mockControlPlane.
-		On("RunMigrationScript", mock.Anything, mock.Anything).
-		Return(nil)
-
-	st.mockControlPlane.Responses["GetService"] = (unsafe.Pointer)(expected)
-	st.mockControlPlane.
-		On("GetService", serviceID, mock.Anything).
-		Return(nil)
-
+	st.mockControlPlane.On("GetService", serviceID, mock.AnythingOfType("*service.Service")).Return(nil).Run(func(a mock.Arguments) {
+		svc := a.Get(1).(*service.Service)
+		*svc = *expected
+	})
+	st.mockControlPlane.On("RunMigrationScript", mock.AnythingOfType("dao.RunMigrationScriptRequest"), mock.AnythingOfType("*int")).Return(nil).Run(func(a mock.Arguments) {
+		req := a.Get(0).(dao.RunMigrationScriptRequest)
+		c.Assert(req.ServiceID, Equals, serviceID)
+		c.Assert(req.ScriptBody, Equals, scriptBody)
+		c.Assert(req.DryRun, Equals, true)
+		c.Assert(req.SDKVersion, Equals, sdkVersion)
+	})
 	actual, err := st.api.RunMigrationScript(serviceID, inputScript, true, sdkVersion)
-
 	c.Assert(err, IsNil)
 	c.Assert(actual.ID, Equals, expected.ID)
-
-	args := st.mockControlPlane.GetArgsForMockCall("RunMigrationScript")
-	c.Assert(args, Not(IsNil))
-
-	request := args[0].(dao.RunMigrationScriptRequest)
-	c.Assert(request.ServiceID, Equals, serviceID)
-	c.Assert(request.ScriptBody, Equals, scriptBody)
-	c.Assert(request.DryRun, Equals, true)
-	c.Assert(request.SDKVersion, Equals, sdkVersion)
+	st.mockControlPlane.AssertExpectations(c)
 }
 
 type mockInputReader struct {
@@ -146,10 +130,12 @@ func (st *serviceAPITest) TestMigrateService_failsToReadScript(c *C) {
 	c.Assert(actual, IsNil)
 	expectedError := fmt.Errorf("could not read migration script: %s", errorStub)
 	c.Assert(err.Error(), Equals, expectedError.Error())
+	/*
 
-	// RunMigrationScript should never be called if we can't read the script
-	args := st.mockControlPlane.GetArgsForMockCall("MigrateServce")
-	c.Assert(len(args), Equals, 0)
+		// RunMigrationScript should never be called if we can't read the script
+		args := st.mockControlPlane.GetArgsForMockCall("MigrateServce")
+		c.Assert(len(args), Equals, 0)
+	*/
 }
 
 func (st *serviceAPITest) TestMigrateService_failsForEmptyScript(c *C) {
@@ -163,9 +149,11 @@ func (st *serviceAPITest) TestMigrateService_failsForEmptyScript(c *C) {
 	expectedError := fmt.Errorf("migration failed: script is empty")
 	c.Assert(err.Error(), Equals, expectedError.Error())
 
-	// RunMigrationScript should never be called if we can't read the script
-	args := st.mockControlPlane.GetArgsForMockCall("MigrateServce")
-	c.Assert(len(args), Equals, 0)
+	/*
+		// RunMigrationScript should never be called if we can't read the script
+		args := st.mockControlPlane.GetArgsForMockCall("MigrateServce")
+		c.Assert(len(args), Equals, 0)
+	*/
 }
 
 func (st *serviceAPITest) TestMigrateService_fails(c *C) {

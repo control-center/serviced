@@ -676,12 +676,12 @@ func (_m *ControlPlane) RepairRegistry(req dao.EntityRequest, unused *int) error
 
 	return r0
 }
-func (_m *ControlPlane) ReadyDFS(req dao.EntityRequest, unused *int) error {
-	ret := _m.Called(req, unused)
+func (_m *ControlPlane) ReadyDFS(serviceID string, unused *int) error {
+	ret := _m.Called(serviceID, unused)
 
 	var r0 error
-	if rf, ok := ret.Get(0).(func(dao.EntityRequest, *int) error); ok {
-		r0 = rf(req, unused)
+	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
+		r0 = rf(serviceID, unused)
 	} else {
 		r0 = ret.Error(0)
 	}

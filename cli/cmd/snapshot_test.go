@@ -84,13 +84,18 @@ func (t SnapshotAPITest) GetSnapshotsByServiceID(serviceID string) ([]dao.Snapsh
 	return snapshots, nil
 }
 
-func (t SnapshotAPITest) AddSnapshot(id string, description string) (string, error) {
+func (t SnapshotAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) {
 	if t.fail {
 		return "", ErrInvalidSnapshot
-	} else if id == NilSnapshot {
+	} else if config.ServiceID == NilSnapshot || config.DockerID == NilSnapshot {
 		return "", nil
 	}
-	return fmt.Sprintf("%s-snapshot description=%q", id, description), nil
+	var id string
+	if id = config.ServiceID; id == "" {
+		id = config.DockerID
+		return fmt.Sprintf("%s-snapshot", id), nil
+	}
+	return fmt.Sprintf("%s-snapshot description=%q", id, config.Message), nil
 }
 
 func (t SnapshotAPITest) RemoveSnapshot(id string) error {
