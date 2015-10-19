@@ -257,17 +257,11 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.Protocol = endpoint.Protocol
 	ae.ContainerIP = state.PrivateIP
 	if endpoint.PortTemplate != "" {
-		// Evaluate the PortTemplate field and use it for the port
-		t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
-		b := bytes.Buffer{}
-		err := t.Execute(&b, state)
-		if err == nil {
-			i, err := strconv.Atoi(b.String())
-			if err != nil {
-				glog.Errorf("%+v", err)
-			} else {
-				ae.ContainerPort = uint16(i)
-			}
+		port, err := state.EvalPortTemplate(endpoint.PortTemplate)
+		if err != nil {
+			glog.Errorf("%s", err)
+		} else {
+			ae.ContainerPort = port
 		}
 	} else {
 		// No dynamic port, just use the specified PortNumber
@@ -280,7 +274,7 @@ func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 		if len(pm) > 0 {
 			port, err := strconv.Atoi(pm[0].HostPort)
 			if err != nil {
-				glog.Errorf("Unable to interpret HostPort: %s", pm[0].HostPort)
+				glog.Errorf("Unable to interpret HostPort: %s: %s", pm[0].HostPort, err)
 				return ae, err
 			}
 			ae.HostPort = uint16(port)
@@ -716,10 +710,11 @@ func (c *Controller) registerExportedEndpoints() error {
 			endpoint := export.endpoint
 			for _, vhost := range export.vhosts {
 				epName := fmt.Sprintf("%s_%v", export.endpointName, export.endpoint.InstanceID)
+				glog.V(1).Infof("registerExportedEndpoints: vhost epName=%s", epName)
 				//delete any existing vhost that hasn't been cleaned up
 				vhostEndpoint := registry.NewVhostEndpoint(epName, endpoint)
 				if paths, err := vhostRegistry.GetChildren(conn, vhost); err != nil {
-					glog.V(1).Infof("error trying to clean out previous vhosts", err)
+					glog.Errorf("error trying to get previous vhosts: %s", err)
 				} else {
 					glog.V(1).Infof("cleaning vhost paths %v", paths)
 					//clean paths
@@ -747,15 +742,15 @@ func (c *Controller) registerExportedEndpoints() error {
 				}
 
 			}
-			//delete any exisiting endpoint that hasn't been cleaned up
+			// delete any existing endpoint that hasn't been cleaned up
 			if paths, err := endpointRegistry.GetChildren(conn, c.tenantID, export.endpoint.Application); err != nil {
-				glog.V(1).Infof("error trying to clean previous endpoints: %s", err)
+				glog.Errorf("error trying to get endpoints: %s", err)
 			} else {
 				glog.V(1).Infof("cleaning endpoint paths %v", paths)
 				//clean paths
 				for _, path := range paths {
 					if epn, err := endpointRegistry.GetItem(conn, path); err != nil {
-						glog.V(1).Infof("Could not read %s", path)
+						glog.Errorf("Could not read %s", path)
 					} else {
 						glog.V(4).Infof("checking instance id of %#v equal %v", epn, c.options.Service.InstanceID)
 						if strconv.Itoa(epn.InstanceID) == c.options.Service.InstanceID {

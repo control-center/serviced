@@ -18,7 +18,6 @@
 package node
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -30,7 +29,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"text/template"
 	"time"
 
 	dockerclient "github.com/fsouza/go-dockerclient"
@@ -105,12 +103,6 @@ func getZkDSN(zookeepers []string) string {
 	return dsn.String()
 }
 
-// funcmap provides template functions for evaluating PortTemplate
-var funcmap = template.FuncMap{
-	"plus": func(a, b int) int {
-		return a + b
-	},
-}
 
 type AgentOptions struct {
 	PoolID               string
@@ -503,16 +495,9 @@ func configureContainer(a *HostAgent, client *ControlClient,
 				var port uint16
 				port = endpoint.PortNumber
 				if endpoint.PortTemplate != "" {
-					t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(endpoint.PortTemplate))
-					b := bytes.Buffer{}
-					err := t.Execute(&b, serviceState)
-					if err == nil {
-						j, err := strconv.Atoi(b.String())
-						if err != nil {
-							glog.Errorf("%+v", err)
-						} else if j > 0 {
-							port = uint16(j)
-						}
+					port, err = serviceState.EvalPortTemplate(endpoint.PortTemplate)
+					if err != nil {
+						glog.Errorf("Unable to interpret ContainerPort: %s", err)
 					}
 				}
 				var p string
