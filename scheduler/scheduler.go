@@ -16,7 +16,6 @@ package scheduler
 import (
 	"sync"
 
-	"github.com/control-center/serviced/commons/docker"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
@@ -147,21 +146,16 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	// monitor the resource pool
 	monitor := zkservice.MonitorResourcePool(_shutdown, conn, s.poolID)
 
-	// load all of the images into the registry
-	go func() {
-		imageIDs, err := s.facade.GetImageIDs(datastore.Get())
-		if err != nil {
-			glog.Fatalf("Could not get images: %s", err)
-		}
-		for _, imageID := range imageIDs {
-			select {
-			case <-_shutdown:
-				return
-			default:
-				docker.PushImage(imageID)
-			}
-		}
-	}()
+	// ensure all the services are unlocked
+	glog.Infof("Resetting service locks")
+	locker := s.facade.DFSLock(datastore.Get())
+	locker.Lock()
+	if err := s.facade.ResetLocks(datastore.Get()); err != nil {
+		glog.Errorf("Could not reset dfs locks: %s", err)
+		return
+	}
+	locker.Unlock()
+	glog.Infof("DFS locks are all reset")
 
 	// start the storage server
 	wg.Add(1)
@@ -194,7 +188,7 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	go func() {
 		defer glog.Infof("Stopping pool listeners")
 		defer wg.Done()
-		zzk.Start(_shutdown, conn, s, zkservice.NewServiceLockListener())
+		zzk.Start(_shutdown, conn, s)
 		stopped <- struct{}{}
 	}()
 
