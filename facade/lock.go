@@ -14,6 +14,7 @@
 package facade
 
 import (
+	"errors"
 	"sync"
 	"time"
 
@@ -42,20 +43,6 @@ func getTenantLock(tenantID string) (mutex *sync.RWMutex) {
 	}
 	tlock.Unlock()
 	return
-}
-
-// rlockTenant sets the read lock for a given tenant
-func (f *Facade) rlockTenant(ctx datastore.Context, tenantID string) error {
-	mutex := getTenantLock(tenantID)
-	mutex.RLock()
-	return nil
-}
-
-// runlockTenant unsets the read lock for a given tenant
-func (f *Facade) runlockTenant(ctx datastore.Context, tenantID string) error {
-	mutex := getTenantLock(tenantID)
-	mutex.RUnlock()
-	return nil
 }
 
 // lockTenant sets the write lock for a given tenant and locks all services for
@@ -98,17 +85,16 @@ func (f *Facade) unlockTenant(ctx datastore.Context, tenantID string) (err error
 }
 
 // retryUnlockTenant is a persistent unlock for a given tenant
-func (f *Facade) retryUnlockTenant(ctx datastore.Context, tenantID string, cancel <-chan time.Time, interval time.Duration) {
+func (f *Facade) retryUnlockTenant(ctx datastore.Context, tenantID string, cancel <-chan time.Time, interval time.Duration) error {
 	for {
 		if err := f.unlockTenant(ctx, tenantID); err == nil {
-			return
+			return nil
 		}
 		glog.Warningf("Could not unlock, retrying in %s", interval)
 		select {
 		case <-time.After(interval):
 		case <-cancel:
-			glog.Warningf("Did not unlock, operation cancelled")
-			return
+			return errors.New("operation cancelled")
 		}
 	}
 }

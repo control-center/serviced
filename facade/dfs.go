@@ -17,6 +17,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -118,6 +119,11 @@ func (f *Facade) DeleteSnapshot(ctx datastore.Context, snapshotID string) error 
 	return nil
 }
 
+// DFSLock returns the locker for the dfs
+func (f *Facade) DFSLock(ctx datastore.Context) sync.Locker {
+	return f.dfs
+}
+
 // GetSnapshotInfo returns information about a snapshot.
 func (f *Facade) GetSnapshotInfo(ctx datastore.Context, snapshotID string) (*dfs.SnapshotInfo, error) {
 	info, err := f.dfs.Info(snapshotID)
@@ -142,6 +148,23 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 		return nil, err
 	}
 	return snapshots, nil
+}
+
+// ResetLocks resets all the tenant locks
+func (f *Facade) ResetLocks(ctx datastore.Context) error {
+	tenantIDs, err := f.getTenantIDs(ctx)
+	if err != nil {
+		glog.Errorf("Could not get tenant services: %s", err)
+		return err
+	}
+	for _, tenantID := range tenantIDs {
+		mutex := getTenantLock(tenantID)
+		mutex.Lock()
+		if err := f.unlockTenant(ctx, tenantID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // RepairRegistry will load "latest" from the docker registry and save it to the
@@ -229,7 +252,7 @@ func (f *Facade) Rollback(ctx datastore.Context, snapshotID string, force bool) 
 		if svc.DesiredState != int(service.SVCStop) {
 			if force {
 				defer f.ScheduleService(ctx, svc.ID, false, service.DesiredState(svc.DesiredState))
-				if _, err := f.ScheduleService(ctx, svc.ID, false, service.SVCStop); err != nil {
+				if _, err := f.scheduleService(ctx, svc.ID, false, service.SVCStop, true); err != nil {
 					glog.Errorf("Could not %s service %s (%s): %s", service.SVCStop, svc.Name, svc.ID, err)
 					return err
 				}
@@ -282,7 +305,7 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 	for i, svc := range svcs {
 		if svc.DesiredState == int(service.SVCRun) {
 			defer f.ScheduleService(ctx, svc.ID, false, service.DesiredState(svc.DesiredState))
-			if _, err := f.ScheduleService(ctx, svc.ID, false, service.SVCPause); err != nil {
+			if _, err := f.scheduleService(ctx, svc.ID, false, service.SVCPause, true); err != nil {
 				glog.Errorf("Could not %s service %s (%s): %s", service.SVCPause, svc.Name, svc.ID, err)
 				return "", err
 			}

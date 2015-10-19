@@ -70,8 +70,10 @@ func UnlockServices(conn client.Connection, svcs []ServiceLockNode) error {
 			glog.Infof("Could not get service %s in pool %s: %s", svc.ServiceID, svc.PoolID)
 			return err
 		}
-		node.Locked = false
-		tx.Set(svc.Path(), &node)
+		if node.Locked {
+			node.Locked = false
+			tx.Set(svc.Path(), &node)
+		}
 	}
 	return tx.Commit()
 }
