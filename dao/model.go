@@ -44,20 +44,6 @@ type AssignmentRequest struct {
 	AutoAssignment bool
 }
 
-// An exposed service endpoint
-type ApplicationEndpoint struct {
-	ServiceID      string
-	Application    string
-	ContainerPort  uint16
-	HostPort       uint16
-	HostIP         string
-	ContainerIP    string
-	Protocol       string
-	VirtualAddress string
-	InstanceID     int
-	ProxyPort      uint16
-}
-
 // A request to deploy a service template
 type ServiceTemplateDeploymentRequest struct {
 	PoolID       string // Pool Id to deploy service into

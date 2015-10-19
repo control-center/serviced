@@ -211,7 +211,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 			exp.endpointName = defep.Name
 
 			var err error
-			ep, err := buildApplicationEndpoint(state, &defep)
+			ep, err := dao.BuildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return result, err
 			}
@@ -236,7 +236,7 @@ func buildImportedEndpoints(c *Controller, conn coordclient.Connection, state *s
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "import" || defep.Purpose == "import_all" {
-			endpoint, err := buildApplicationEndpoint(state, &defep)
+			endpoint, err := dao.BuildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return err
 			}
@@ -246,46 +246,6 @@ func buildImportedEndpoints(c *Controller, conn coordclient.Connection, state *s
 		}
 	}
 	return nil
-}
-
-// buildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
-func buildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (dao.ApplicationEndpoint, error) {
-	var ae dao.ApplicationEndpoint
-
-	ae.ServiceID = state.ServiceID
-	ae.Application = endpoint.Application
-	ae.Protocol = endpoint.Protocol
-	ae.ContainerIP = state.PrivateIP
-	if endpoint.PortTemplate != "" {
-		port, err := state.EvalPortTemplate(endpoint.PortTemplate)
-		if err != nil {
-			glog.Errorf("%s", err)
-		} else {
-			ae.ContainerPort = port
-		}
-	} else {
-		// No dynamic port, just use the specified PortNumber
-		ae.ContainerPort = endpoint.PortNumber
-	}
-	ae.HostIP = state.HostIP
-	if len(state.PortMapping) > 0 {
-		pmKey := fmt.Sprintf("%d/%s", ae.ContainerPort, ae.Protocol)
-		pm := state.PortMapping[pmKey]
-		if len(pm) > 0 {
-			port, err := strconv.Atoi(pm[0].HostPort)
-			if err != nil {
-				glog.Errorf("Unable to interpret HostPort: %s: %s", pm[0].HostPort, err)
-				return ae, err
-			}
-			ae.HostPort = uint16(port)
-		}
-	}
-	ae.VirtualAddress = endpoint.VirtualAddress
-	ae.InstanceID = state.InstanceID
-
-	glog.V(2).Infof("  built ApplicationEndpoint: %+v", ae)
-
-	return ae, nil
 }
 
 // setImportedEndpoint sets an imported endpoint
