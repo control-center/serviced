@@ -16,7 +16,7 @@ package dfs
 import (
 	"errors"
 
-	"github.com/control-center/serviced/dfsnew/docker"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/zenoss/glog"
 )
 

@@ -16,7 +16,7 @@
 package dfs_test
 
 import (
-	. "github.com/control-center/serviced/dfsnew"
+	. "github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/registry"
 	dockerclient "github.com/fsouza/go-dockerclient"
 	. "gopkg.in/check.v1"

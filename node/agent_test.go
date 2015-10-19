@@ -23,7 +23,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/control-center/serviced/dao/mocks"
-	regmocks "github.com/control-center/serviced/dfsnew/registry/mocks"
+	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 )

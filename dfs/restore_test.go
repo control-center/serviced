@@ -22,7 +22,7 @@ import (
 	"path"
 	"time"
 
-	. "github.com/control-center/serviced/dfsnew"
+	. "github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/servicetemplate"

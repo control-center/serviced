@@ -20,7 +20,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/dfs/ttl"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
@@ -58,7 +58,7 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 
 	// kicks off the snapshot cleaning goroutine
 	if snapshotTTL > 0 {
-		go dfs.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
+		go ttl.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
 	}
 
 	// starts all of the listeners

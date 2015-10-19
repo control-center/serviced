@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"time"
 
-	. "github.com/control-center/serviced/dfsnew"
+	. "github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	volumemocks "github.com/control-center/serviced/volume/mocks"

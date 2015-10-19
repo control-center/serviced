@@ -16,7 +16,7 @@
 package dfs_test
 
 import (
-	"github.com/control-center/serviced/dfsnew/docker"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 	volumemocks "github.com/control-center/serviced/volume/mocks"
 	. "gopkg.in/check.v1"

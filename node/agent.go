@@ -42,7 +42,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfsnew/registry"
+	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"

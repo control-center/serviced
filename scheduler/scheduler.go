@@ -20,7 +20,7 @@ import (
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	imgreg "github.com/control-center/serviced/dfsnew/registry"
+	imgreg "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"

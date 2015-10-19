@@ -13,7 +13,7 @@
 
 package mocks
 
-import "github.com/control-center/serviced/dfsnew"
+import "github.com/control-center/serviced/dfs"
 import "github.com/stretchr/testify/mock"
 
 import "io"

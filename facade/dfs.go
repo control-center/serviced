@@ -22,7 +22,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/dfsnew"
+	"github.com/control-center/serviced/dfs"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/volume"
 	"github.com/zenoss/glog"

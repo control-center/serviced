@@ -23,7 +23,10 @@ import (
 	"github.com/zenoss/glog"
 )
 
-const zkregistrypath = "/docker/registry"
+const (
+	zkregistryrepos = "/docker/registry/repos"
+	zkregistrytags  = "/docker/registry/tags"
+)
 
 // RegistryImageNode is the registry image as it is written into the
 // coordinator.
@@ -86,7 +89,7 @@ func (l *RegistryListener) SetConnection(conn client.Connection) {
 
 // GetPath implements zzk.Listener
 func (l *RegistryListener) GetPath(nodes ...string) string {
-	return path.Join(append([]string{zkregistrypath}, nodes...)...)
+	return path.Join(append([]string{zkregistrytags}, nodes...)...)
 }
 
 // Ready implements zzk.Listener
@@ -102,7 +105,6 @@ func (l *RegistryListener) PostProcess(_ map[string]struct{}) {}
 // saved in the registry.
 func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 	imagepath := l.GetPath(id)
-	leader := l.conn.NewLeader(imagepath, &RegistryImageLeader{HostID: l.hostid})
 	for {
 		// Get the node
 		var node RegistryImageNode
@@ -111,6 +113,9 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 			glog.Errorf("Could not look up node at %s: %s", imagepath, err)
 			return
 		}
+		repopath := path.Join(zkregistryrepos, node.Image.Library, node.Image.Repo)
+		reponode := &RegistryImageLeader{HostID: l.hostid}
+		leader := l.conn.NewLeader(repopath, reponode)
 		// Has the image been pushed?
 		if node.Image != nil && node.PushedAt.Unix() <= 0 {
 			// Do I have the image?
@@ -118,7 +123,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 				glog.V(1).Infof("Found image %s locally, acquiring lead", node.Image)
 				func() {
 					// Become the leader so I can push the image
-					levt, err := leader.TakeLead()
+					_, err := leader.TakeLead()
 					if err != nil {
 						return
 					}
@@ -138,28 +143,27 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 						}
 					}
 					// Push the image and update the registry
+					// If the push is unsuccessful, still update the timestamp,
+					// so that the push will get retriggered the next time it
+					// is needed.
 					registrypath := path.Join(l.address, node.Image.String())
 					glog.V(1).Infof("Updating registry image %s", registrypath)
 					if err := l.docker.TagImage(node.Image.UUID, registrypath); err != nil {
-						glog.Errorf("Could not tag %s as %s: %s", node.Image.UUID, registrypath, err)
-						return
+						glog.Warningf("Could not tag %s as %s: %s", node.Image.UUID, registrypath, err)
+						node.PushedAt = time.Unix(0, 0)
 					} else if err := l.docker.PushImage(registrypath); err != nil {
-						glog.Errorf("Could not push %s: %s", registrypath, err)
-						return
-					}
-					// Set the value if I am still the leader
-					select {
-					case <-levt:
-						glog.Errorf("Lost lead; cannot update docker registry")
-						return
-					default:
+						glog.Warningf("Could not push %s: %s", registrypath, err)
+						node.PushedAt = time.Unix(0, 0)
+					} else {
 						node.PushedAt = time.Now().UTC()
-						l.conn.Set(imagepath, &node)
 					}
+					// The point here is to make sure the node triggers an
+					// event regardless of whether the push was successful.
+					l.conn.Set(imagepath, &node)
 				}()
 			}
 		}
-		glog.Infof("Waiting for image %s to update", node.Image)
+		glog.V(1).Infof("Waiting for image %s to update", node.Image)
 		select {
 		case <-evt:
 		case <-shutdown:

@@ -18,7 +18,7 @@ import (
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/dfsnew/docker"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/zenoss/glog"
 )

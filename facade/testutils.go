@@ -18,7 +18,7 @@ package facade
 import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
-	dfsmocks "github.com/control-center/serviced/dfsnew/mocks"
+	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"

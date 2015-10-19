@@ -20,7 +20,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	. "github.com/control-center/serviced/dfsnew/utils"
+	. "github.com/control-center/serviced/dfs/utils"
 	. "gopkg.in/check.v1"
 )
 
