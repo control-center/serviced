@@ -31,6 +31,7 @@ var (
 
 // Registry performs specific docker actions based on the registry index
 type Registry interface {
+	SetConnection(conn client.Connection)
 	PullImage(image string) error
 	ImagePath(image string) (string, error)
 }

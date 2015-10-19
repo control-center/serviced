@@ -45,5 +45,5 @@ type ZZK interface {
 }
 
 func GetFacadeZZK(f *Facade) ZZK {
-	return &zkf{f}
+	return &zkf{f: f}
 }

@@ -20,6 +20,7 @@ import (
 	"github.com/control-center/serviced/coordinator/storage"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	imgreg "github.com/control-center/serviced/dfsnew/registry"
 	"github.com/control-center/serviced/facade"
 	"github.com/control-center/serviced/zzk"
 	"github.com/control-center/serviced/zzk/registry"
@@ -45,12 +46,13 @@ type scheduler struct {
 	stopped       chan interface{}
 	registry      *registry.EndpointRegistry
 	storageServer *storage.Server
+	pushreg       *imgreg.RegistryListener
 
 	conn coordclient.Connection
 }
 
 // NewScheduler creates a new scheduler master
-func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, snapshotTTL int) (*scheduler, error) {
+func NewScheduler(poolID string, instance_id string, storageServer *storage.Server, cpDao dao.ControlPlane, facade *facade.Facade, pushreg *imgreg.RegistryListener, snapshotTTL int) (*scheduler, error) {
 	s := &scheduler{
 		cpDao:         cpDao,
 		poolID:        poolID,
@@ -61,6 +63,7 @@ func NewScheduler(poolID string, instance_id string, storageServer *storage.Serv
 		facade:        facade,
 		snapshotTTL:   snapshotTTL,
 		storageServer: storageServer,
+		pushreg:       pushreg,
 	}
 	return s, nil
 }
@@ -188,7 +191,7 @@ func (s *scheduler) mainloop(conn coordclient.Connection) {
 	go func() {
 		defer glog.Infof("Stopping pool listeners")
 		defer wg.Done()
-		zzk.Start(_shutdown, conn, s)
+		zzk.Start(_shutdown, conn, s, s.pushreg)
 		stopped <- struct{}{}
 	}()
 

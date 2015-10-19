@@ -13,12 +13,23 @@
 
 package mocks
 
-import "github.com/stretchr/testify/mock"
+import (
+	"github.com/control-center/serviced/coordinator/client"
+	"github.com/stretchr/testify/mock"
+)
 
 type Registry struct {
 	mock.Mock
 }
 
+func (_m *Registry) SetConnection(conn client.Connection) {
+	ret := _m.Called(conn)
+
+	if rf, ok := ret.Get(0).(func(client.Connection)); ok {
+		rf(conn)
+	}
+	return
+}
 func (_m *Registry) PullImage(image string) error {
 	ret := _m.Called(image)
 
