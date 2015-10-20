@@ -21,7 +21,7 @@ func (a *api) ResetRegistry() error {
 	if err != nil {
 		return err
 	}
-	return client.RepairRegistry(dao.NullRequest{}, nil)
+	return client.RepairRegistry(dao.NullRequest{}, new(int))
 }
 
 // RegistrySync walks the service tree and syncs all images from docker to local registry
@@ -30,5 +30,5 @@ func (a *api) RegistrySync() (err error) {
 	if err != nil {
 		return err
 	}
-	return client.ResetRegistry(dao.NullRequest{}, nil)
+	return client.ResetRegistry(dao.NullRequest{}, new(int))
 }
