@@ -71,6 +71,7 @@ func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
 	ft.dfs = &dfsmocks.DFS{}
 	ft.Facade.SetDFS(ft.dfs)
 	ft.setupMockZZK()
+	ft.setupMockDFS()
 }
 
 func (ft *FacadeTest) setupMockZZK() {
@@ -88,6 +89,10 @@ func (ft *FacadeTest) setupMockZZK() {
 	ft.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("LockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
 	ft.zzk.On("UnlockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
+}
+
+func (ft *FacadeTest) setupMockDFS() {
+	ft.dfs.On("Destroy", mock.AnythingOfType("string")).Return(nil)
 }
 
 func (ft *FacadeTest) TearDownTest(c *gocheck.C) {

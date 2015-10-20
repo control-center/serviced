@@ -25,7 +25,6 @@ import (
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
-	"github.com/stretchr/testify/mock"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
 )
@@ -244,7 +243,6 @@ func (s *FacadeTest) Test_HostRemove(t *C) {
 	defer s.Facade.RemoveHost(s.CTX, "host2")
 
 	//add service with address assignment
-	s.On("Destroy", mock.Anything).Return(nil)
 	s1, _ := service.NewService()
 	s1.Name = "name"
 	s1.PoolID = "poolid"
