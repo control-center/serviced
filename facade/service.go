@@ -160,7 +160,9 @@ func (f *Facade) RestoreServices(ctx datastore.Context, tenantID string, svcs []
 	}
 	// remove services for tenant
 	if err := f.removeService(ctx, tenantID); err != nil {
-		return err
+		if !datastore.IsErrNoSuchEntity(err) {
+			return err
+		}
 	}
 	// get service tree
 	svcsmap := make(map[string][]service.Service)
@@ -427,6 +429,7 @@ func (f *Facade) RemoveService(ctx datastore.Context, id string) error {
 			glog.Errorf("Could not destroy volume for tenant %s: %s", tenantID, err)
 			return err
 		}
+		f.zzk.DeleteRegistryLibrary(tenantID)
 	}
 	return nil
 }

@@ -27,7 +27,7 @@ type Spooler interface {
 	WriteTo(w io.Writer) (n int64, err error)
 	Reset() error
 	Size() int64
-	Close() error
+	Remove() error
 }
 
 // Spool calculates the size of a writer stream and tees the output to
@@ -95,8 +95,8 @@ func (s *Spool) Size() int64 {
 	return s.size
 }
 
-// Close closes the file handle and removes the file.
-func (s *Spool) Close() error {
+// Remove closes the file handle and removes the file.
+func (s *Spool) Remove() error {
 	defer os.Remove(s.file.Name())
 	s.Reset()
 	return s.file.Close()

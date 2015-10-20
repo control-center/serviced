@@ -250,6 +250,18 @@ func (_m *ZZK) DeleteRegistryImage(id string) error {
 
 	return r0
 }
+func (_m *ZZK) DeleteRegistryLibrary(id string) error {
+	ret := _m.Called(id)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string) error); ok {
+		r0 = rf(id)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ZZK) LockServices(svcs []service.Service) error {
 	ret := _m.Called(svcs)
 

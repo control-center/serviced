@@ -99,13 +99,13 @@ func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error)
 	inprogress.SetProgress(backupfilename, "backup")
 
 	// create the file and write
-	fh, err := os.Create(*filename)
+	fh, err := os.Create(backupfilename)
 	if err != nil {
 		return err
 	}
 	defer func() {
 		if err != nil {
-			os.Remove(*filename)
+			os.Remove(backupfilename)
 		}
 	}()
 	defer fh.Close()

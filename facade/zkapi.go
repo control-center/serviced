@@ -229,6 +229,14 @@ func (z *zkf) DeleteRegistryImage(id string) error {
 	return zkimgregistry.DeleteRegistryImage(conn, id)
 }
 
+func (z *zkf) DeleteRegistryLibrary(tenantID string) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkimgregistry.DeleteRegistryImage(conn, tenantID)
+}
+
 func (z *zkf) LockServices(svcs []service.Service) error {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {

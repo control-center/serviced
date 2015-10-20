@@ -72,5 +72,15 @@ func DeleteRegistryImage(conn client.Connection, id string) error {
 // library.
 func DeleteRegistryLibrary(conn client.Connection, library string) error {
 	leaderpath := path.Join(zkregistryrepos, library)
+	children, err := conn.Children(leaderpath)
+	if err != nil {
+		return err
+	}
+	for _, child := range children {
+		p := path.Join(leaderpath, child)
+		if err := conn.Delete(p); err != nil {
+			return err
+		}
+	}
 	return conn.Delete(leaderpath)
 }

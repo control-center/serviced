@@ -42,7 +42,7 @@ func (s *SpoolTestSuite) SetUpTest(c *C) {
 }
 
 func (s *SpoolTestSuite) TestWrite(c *C) {
-	defer s.spool.Close()
+	defer s.spool.Remove()
 	buf := bytes.NewBufferString("this is a test")
 	n, err := s.spool.Write(buf.Bytes())
 	c.Assert(err, IsNil)
@@ -51,7 +51,7 @@ func (s *SpoolTestSuite) TestWrite(c *C) {
 }
 
 func (s *SpoolTestSuite) TestWriteTo(c *C) {
-	defer s.spool.Close()
+	defer s.spool.Remove()
 	expected := bytes.NewBufferString("this is a test")
 	n, err := s.spool.Write(expected.Bytes())
 	c.Assert(err, IsNil)
@@ -88,7 +88,7 @@ func (s *SpoolTestSuite) TestWriteTo(c *C) {
 }
 
 func (s *SpoolTestSuite) TestReset(c *C) {
-	defer s.spool.Close()
+	defer s.spool.Remove()
 	n1, err := s.spool.Write([]byte("now we will test reset"))
 	c.Assert(err, IsNil)
 	c.Assert(s.spool.Size(), Equals, int64(n1))
@@ -113,7 +113,7 @@ func (s *SpoolTestSuite) TestReset(c *C) {
 }
 
 func (s *SpoolTestSuite) TestSize(c *C) {
-	defer s.spool.Close()
+	defer s.spool.Remove()
 	c.Assert(s.spool.Size(), DeepEquals, int64(0))
 	buf := bytes.NewBufferString("let's make sure the size is right")
 	n1, err := s.spool.Write(buf.Bytes())
@@ -149,13 +149,13 @@ func (s *SpoolTestSuite) TestSize(c *C) {
 	c.Assert(s.spool.Size(), DeepEquals, int64(0))
 }
 
-func (s *SpoolTestSuite) TestClose(c *C) {
+func (s *SpoolTestSuite) TestRemove(c *C) {
 	buf := bytes.NewBufferString("testing the closer")
 	n, err := s.spool.Write(buf.Bytes())
 	c.Assert(err, IsNil)
 	c.Assert(n, Equals, buf.Len())
 	c.Assert(s.spool.Size(), Equals, int64(buf.Len()))
-	err = s.spool.Close()
+	err = s.spool.Remove()
 	c.Assert(err, IsNil)
 	fis, err := ioutil.ReadDir(s.dir)
 	c.Assert(err, IsNil)

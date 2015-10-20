@@ -87,6 +87,7 @@ func (ft *FacadeTest) setupMockZZK() {
 	ft.zzk.On("RemoveService", mock.AnythingOfType("*service.Service")).Return(nil)
 	ft.zzk.On("SetRegistryImage", mock.AnythingOfType("*registry.Image")).Return(nil)
 	ft.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
+	ft.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("LockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
 	ft.zzk.On("UnlockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
 }

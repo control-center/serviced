@@ -41,7 +41,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 		glog.Errorf("Could not create spool: %s", err)
 		return err
 	}
-	defer spool.Close()
+	defer spool.Remove()
 	// write the backup metadata
 	glog.Infof("Writing backup metadata")
 	if err := json.NewEncoder(buffer).Encode(data); err != nil {

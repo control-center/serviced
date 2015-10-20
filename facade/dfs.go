@@ -338,9 +338,11 @@ func (f *Facade) Snapshot(ctx datastore.Context, serviceID, message string, tags
 			}
 		}
 		serviceids[i] = svc.ID
-		if _, ok := imagesMap[svc.ImageID]; !ok {
-			imagesMap[svc.ImageID] = struct{}{}
-			images = append(images, svc.ImageID)
+		if svc.ImageID != "" {
+			if _, ok := imagesMap[svc.ImageID]; !ok {
+				imagesMap[svc.ImageID] = struct{}{}
+				images = append(images, svc.ImageID)
+			}
 		}
 	}
 	if err := f.WaitService(ctx, service.SVCPause, f.dfs.Timeout(), serviceids...); err != nil {
