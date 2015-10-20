@@ -38,6 +38,7 @@ type API interface {
 	// Hosts
 	GetHosts() ([]host.Host, error)
 	GetHost(string) (*host.Host, error)
+	GetHostMap() (map[string]host.Host, error)
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
 	GetHostMemory(string) (*metrics.MemoryUsageStats, error)

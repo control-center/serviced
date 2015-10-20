@@ -30,6 +30,7 @@ import (
 	"github.com/control-center/serviced/metrics"
 
 	"github.com/pivotal-golang/bytefmt"
+	"github.com/control-center/serviced/domain/host"
 )
 
 const ()
@@ -106,13 +107,9 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 	}
 
 	// get hosts
-	hosts, err := a.GetHosts()
+	hostmap, err := a.GetHostMap()
 	if err != nil {
 		return nil, err
-	}
-	hostmap := make(map[string]string)
-	for _, host := range hosts {
-		hostmap[host.ID] = host.Name
 	}
 
 	// get status
@@ -167,7 +164,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.Status.String()
-				row["Hostname"] = hostmap[stat.State.HostID]
+				row["Hostname"] = hostmap[stat.State.HostID].Name
 				row["DockerID"] = fmt.Sprintf("%.12s", stat.State.DockerID)
 				row["Uptime"] = uptime.String()
 
@@ -462,4 +459,16 @@ func (a *api) AssignIP(config IPConfig) error {
 	}
 
 	return nil
+}
+
+func (a *api) GetHostMap() (map[string]host.Host, error) {
+	hosts, err := a.GetHosts()
+	if err != nil {
+		return nil, err
+	}
+	hostmap := make(map[string]host.Host)
+	for _, host := range hosts {
+		hostmap[host.ID] = host
+	}
+	return hostmap, nil
 }

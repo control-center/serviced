@@ -30,7 +30,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
@@ -1060,13 +1059,9 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return nil, err
 	}
 
-	hosts, err := c.driver.GetHosts()
+	hostmap, err := c.driver.GetHostMap()
 	if err != nil {
 		return nil, err
-	}
-	hostmap := make(map[string]host.Host)
-	for _, host := range hosts {
-		hostmap[host.ID] = host
 	}
 
 	pathmap, err := c.buildRunningServicePaths(rss)
@@ -1149,13 +1144,9 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	}
 
 	if rs.HostID != myHostID {
-		hosts, err := c.driver.GetHosts()
+		hostmap, err := c.driver.GetHostMap()
 		if err != nil {
 			return err
-		}
-		hostmap := make(map[string]host.Host)
-		for _, host := range hosts {
-			hostmap[host.ID] = host
 		}
 
 		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
@@ -1259,13 +1250,9 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	}
 
 	if rs.HostID != myHostID {
-		hosts, err := c.driver.GetHosts()
+		hostmap, err := c.driver.GetHostMap()
 		if err != nil {
 			return err
-		}
-		hostmap := make(map[string]host.Host)
-		for _, host := range hosts {
-			hostmap[host.ID] = host
 		}
 
 		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
