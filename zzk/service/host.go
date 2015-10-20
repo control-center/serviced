@@ -82,6 +82,7 @@ type HostStateListener struct {
 	hostID   string
 	registry string
 	nodelock sync.Mutex
+	done     bool
 }
 
 // NewHostListener instantiates a HostListener object
@@ -90,6 +91,7 @@ func NewHostStateListener(handler HostStateHandler, hostID string) *HostStateLis
 		handler:  handler,
 		hostID:   hostID,
 		nodelock: sync.Mutex{},
+		done:     false,
 	}
 }
 
@@ -105,6 +107,9 @@ func (l *HostStateListener) GetPath(nodes ...string) string {
 func (l *HostStateListener) Ready() error {
 	l.nodelock.Lock()
 	defer l.nodelock.Unlock()
+	if l.done {
+		return nil
+	}
 	// get the host node
 	var host host.Host
 	if err := l.conn.Get(hostpath(l.hostID), &HostNode{Host: &host}); err != nil {
@@ -127,6 +132,9 @@ func (l *HostStateListener) Ready() error {
 
 // Done removes the ephemeral node from the host registry
 func (l *HostStateListener) Done() {
+	l.nodelock.Lock()
+	defer l.nodelock.Unlock()
+	l.done = true
 	if err := l.conn.Delete(l.registry); err != nil {
 		glog.Warningf("Could not unregister host %s: %s", l.hostID, err)
 	}
