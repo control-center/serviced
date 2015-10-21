@@ -371,6 +371,7 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 
 	if err := ctr.Start(time.Hour); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+		started.Done()
 		a.removeInstance(state.ID, ctr)
 		return err
 	}
