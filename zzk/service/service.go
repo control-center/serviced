@@ -77,7 +77,7 @@ func (node *ServiceNode) Create(conn client.Connection) error {
 
 // Update implements zzk.Node
 func (node *ServiceNode) Update(conn client.Connection) error {
-	return UpdateService(conn, *node.Service, false)
+	return conn.Set(servicepath(node.ID), node)
 }
 
 // Version implements client.Node
@@ -124,18 +124,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		var retry <-chan time.Time
 		var err error
 
-		// set up the global lock
-		var glock <-chan client.Event
-		if exists, err := l.conn.Exists(zkServiceLock); err != nil && err != client.ErrNoNode {
-			glog.Errorf("Could not monitor service lock: %s", err)
-			return
-		} else if exists {
-			if _, glock, err = l.conn.ChildrenW(zkServiceLock); err != nil {
-				glog.Errorf("Could not monitor service lock: %s", err)
-				return
-			}
-		}
-
 		var svcnode ServiceNode
 		var svc service.Service
 		svcnode.Service = &svc
@@ -174,9 +162,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		glog.V(2).Infof("Service %s (%s) waiting for event", svc.Name, svc.ID)
 
 		select {
-		case <-glock:
-			// passthrough
-			glog.V(3).Infof("Receieved a global lock event, resyncing")
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
@@ -294,13 +279,6 @@ func (l *ServiceListener) sync(locked bool, svc *service.Service, rss []dao.Runn
 			glog.Warningf("Could not start %d instances; service %s (%s) is locked", netInstances, svc.Name, svc.ID)
 			return true
 		}
-		if locked, err := IsServiceLocked(l.conn); err != nil {
-			glog.Errorf("Could not check service lock: %s", err)
-			return false
-		} else if locked {
-			glog.Warningf("Could not start %d instances; service %s (%s) is locked", netInstances, svc.Name, svc.ID)
-			return true
-		}
 		// the number of running instances is *less* than the number of
 		// instances that need to be running, so schedule instances to start
 		glog.V(2).Infof("Starting %d instances of service %s (%s)", netInstances, svc.Name, svc.ID)
@@ -348,16 +326,6 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 			l.Lock()
 			defer l.Unlock()
 
-			// If the service lock is enabled, do not try to start the service instance
-			glog.V(2).Infof("Scheduler lock acquired for service %s (%s); checking service lock", svc.Name, svc.ID)
-			if locked, err := IsServiceLocked(l.conn); err != nil {
-				glog.Errorf("Could not check service lock: %s", err)
-				return false
-			} else if locked {
-				glog.Warningf("Could not start instance %d; service %s (%s) is locked", instanceID, svc.Name, svc.ID)
-				return false
-			}
-			glog.V(2).Infof("Service is not locked, selecting a host for service %s (%s) #%d", svc.Name, svc.ID, id)
 			host, err := l.handler.SelectHost(svc)
 			if err != nil {
 				glog.Warningf("Could not assign a host to service %s (%s): %s", svc.Name, svc.ID, err)

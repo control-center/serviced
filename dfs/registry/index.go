@@ -28,6 +28,8 @@ type RegistryIndex interface {
 	SearchLibraryByTag(library string, tag string) ([]registry.Image, error)
 }
 
+var _ = RegistryIndex(&RegistryIndexClient{})
+
 // facade has the index for this docker registry
 type facade interface {
 	GetRegistryImage(ctx datastore.Context, image string) (*registry.Image, error)
@@ -41,6 +43,14 @@ type facade interface {
 type RegistryIndexClient struct {
 	ctx    datastore.Context
 	facade facade
+}
+
+// NewRegistryIndexClient creates a new client for the registry index.
+func NewRegistryIndexClient(f facade) *RegistryIndexClient {
+	return &RegistryIndexClient{
+		ctx:    datastore.Get(),
+		facade: f,
+	}
 }
 
 // parseImage trims the registry host:port
