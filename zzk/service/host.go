@@ -277,8 +277,10 @@ func (l *HostStateListener) terminateInstance(locker sync.Locker, done chan<- st
 func (l *HostStateListener) startInstance(locker sync.Locker, svc *service.Service, state *servicestate.ServiceState) (<-chan struct{}, error) {
 	done := make(chan struct{})
 	locker.Lock()
-	if err := l.handler.StartService(svc, state, l.terminateInstance(locker, done)); err != nil {
+	onExitFunction := l.terminateInstance(locker, done)
+	if err := l.handler.StartService(svc, state, onExitFunction); err != nil {
 		glog.Errorf("Error trying to start service instance %s for service %s (%s): %s", state.ID, svc.Name, svc.ID, err)
+		onExitFunction(state.ID)
 		return nil, err
 	}
 	return done, UpdateServiceState(l.conn, state)
