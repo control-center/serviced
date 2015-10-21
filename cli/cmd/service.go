@@ -1336,7 +1336,11 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		return
 	}
 
-	if snapshot, err := c.driver.AddSnapshot(svc.ID, description); err != nil {
+	cfg := api.SnapshotConfig{
+		ServiceID: svc.ID,
+		Message:   description,
+	}
+	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
 	} else if snapshot == "" {

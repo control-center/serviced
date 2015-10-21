@@ -20,7 +20,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/dfs"
+	"github.com/control-center/serviced/dfs/ttl"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/service"
@@ -29,7 +29,6 @@ import (
 	"github.com/control-center/serviced/scheduler/strategy"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
-	"github.com/control-center/serviced/zzk/snapshot"
 	"github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
 )
@@ -54,26 +53,16 @@ func Lead(shutdown <-chan interface{}, conn coordclient.Connection, cpClient dao
 	// creates a listener for the host registry
 	hostRegistry := zkservice.NewHostRegistryListener()
 
-	// creates a listener for snapshots with a function call to take snapshots
-	// and return the label and error message
-	snapshotListener := snapshot.NewSnapshotListener(&leader)
-
 	// creates a listener for services
 	serviceListener := zkservice.NewServiceListener(&leader)
 
 	// kicks off the snapshot cleaning goroutine
 	if snapshotTTL > 0 {
-		go dfs.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
+		go ttl.RunSnapshotTTL(cpClient, shutdown, time.Minute, time.Duration(snapshotTTL)*time.Hour)
 	}
 
 	// starts all of the listeners
-	zzk.Start(shutdown, conn, serviceListener, hostRegistry, snapshotListener)
-}
-
-func (l *leader) TakeSnapshot(serviceID string) (string, error) {
-	var label string
-	err := l.cpClient.Snapshot(dao.SnapshotRequest{serviceID, ""}, &label)
-	return label, err
+	zzk.Start(shutdown, conn, serviceListener, hostRegistry)
 }
 
 // SelectHost chooses a host from the pool for the specified service. If the service
