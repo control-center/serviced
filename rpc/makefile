@@ -11,18 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GO ?= $(shell which go)
+
 .PHONY: build test clean
 
 default: build
 
 build:
-	cd agent && go build
-	cd master && go build
+	cd agent && $(GO) build
+	cd master && $(GO) build
 
 test: build
-	cd agent && go test $(GOTEST_FLAGS)
-	cd master && go test $(GOTEST_FLAGS)
+	cd agent && $(GO) test $(GOTEST_FLAGS)
+	cd master && $(GO) test $(GOTEST_FLAGS)
 
 clean:
-	cd agent && go clean
-	cd master && go clean
+	cd agent && $(GO) clean
+	cd master && $(GO) clean

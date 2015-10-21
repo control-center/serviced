@@ -11,19 +11,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GO ?= $(shell which go)
+
 .PHONY: build test clean
 
 default: build
 
 build:
-	cd elastic && go build
-	go build
+	cd elastic && $(GO) build
+	$(GO) build
 
 test: build
-	cd elastic && go test $(GOTEST_FLAGS)
-	cd integration_test && go test $(GOTEST_FLAGS)
-	go test $(GOTEST_FLAGS)
+	cd elastic && $(GO) test $(GOTEST_FLAGS)
+	cd integration_test && $(GO) test $(GOTEST_FLAGS)
+	$(GO) test $(GOTEST_FLAGS)
 
 clean:
-	cd elastic && go clean
-	go clean
+	cd elastic && $(GO) clean
+	$(GO) clean

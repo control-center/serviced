@@ -11,39 +11,41 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GO ?= $(shell which go)
+
 .PHONY: build test clean
 
 default: build
 
 build:
-	go build
-	cd host && go build
-	cd pool && go build
-	cd servicedefinition && go build
-	cd servicetemplate && go build
-	cd service && go build
-	cd servicestate && go build
-	cd addressassignment && go build
-	cd serviceconfigfile && go build
+	$(GO) build
+	cd host && $(GO) build
+	cd pool && $(GO) build
+	cd servicedefinition && $(GO) build
+	cd servicetemplate && $(GO) build
+	cd service && $(GO) build
+	cd servicestate && $(GO) build
+	cd addressassignment && $(GO) build
+	cd serviceconfigfile && $(GO) build
 
 test: build
-	go test $(GOTEST_FLAGS)
-	cd host && go test $(GOTEST_FLAGS)
-	cd pool && go test $(GOTEST_FLAGS)
-	cd servicedefinition && go test $(GOTEST_FLAGS)
-	cd servicetemplate && go test $(GOTEST_FLAGS)
-	cd service && go test $(GOTEST_FLAGS)
-	cd servicestate && go test $(GOTEST_FLAGS)
-	cd addressassignment && go test $(GOTEST_FLAGS)
-	cd serviceconfigfile && go test $(GOTEST_FLAGS)
+	$(GO) test $(GOTEST_FLAGS)
+	cd host && $(GO) test $(GOTEST_FLAGS)
+	cd pool && $(GO) test $(GOTEST_FLAGS)
+	cd servicedefinition && $(GO) test $(GOTEST_FLAGS)
+	cd servicetemplate && $(GO) test $(GOTEST_FLAGS)
+	cd service && $(GO) test $(GOTEST_FLAGS)
+	cd servicestate && $(GO) test $(GOTEST_FLAGS)
+	cd addressassignment && $(GO) test $(GOTEST_FLAGS)
+	cd serviceconfigfile && $(GO) test $(GOTEST_FLAGS)
 
 clean:
-	go clean
-	cd host && go clean
-	cd pool && go clean
-	cd servicedefinition && go clean
-	cd servicetemplate && go clean
-	cd service && go clean
-	cd servicestate && go clean
-	cd addressassignment && go clean
-	cd serviceconfigfile && go clean
+	$(GO) clean
+	cd host && $(GO) clean
+	cd pool && $(GO) clean
+	cd servicedefinition && $(GO) clean
+	cd servicetemplate && $(GO) clean
+	cd service && $(GO) clean
+	cd servicestate && $(GO) clean
+	cd addressassignment && $(GO) clean
+	cd serviceconfigfile && $(GO) clean
