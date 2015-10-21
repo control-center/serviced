@@ -507,7 +507,29 @@
             }
         };
 
-        $scope.routeToService = function(id){
+        $scope.routeToService = function(id, e){
+            // if an event is present, we may
+            // need to prevent it from performing
+            // default navigation behavior
+            if(e){
+                // ctrl click opens in new tab,
+                // so allow that to happen and don't
+                // bother routing the current view
+                if(e.ctrlKey){
+                    return;
+                }
+
+                // if middle click, don't update
+                // current view
+                if(e.button === 1){
+                    return;
+                }
+
+                // otherwise, prevent default so
+                // we can handle the view routing
+                e.preventDefault();
+            }
+
             $location.update_path("/services/"+id, true);
             $scope.params.serviceId = id;
             $scope.services.current = servicesFactory.get($scope.params.serviceId);
