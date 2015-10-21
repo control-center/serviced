@@ -81,13 +81,17 @@ type HostStateListener struct {
 	handler  HostStateHandler
 	hostID   string
 	registry string
+	nodelock sync.Mutex
+	done     bool
 }
 
 // NewHostListener instantiates a HostListener object
 func NewHostStateListener(handler HostStateHandler, hostID string) *HostStateListener {
 	return &HostStateListener{
-		handler: handler,
-		hostID:  hostID,
+		handler:  handler,
+		hostID:   hostID,
+		nodelock: sync.Mutex{},
+		done:     false,
 	}
 }
 
@@ -101,6 +105,11 @@ func (l *HostStateListener) GetPath(nodes ...string) string {
 
 // Ready adds an ephemeral node to the host registry
 func (l *HostStateListener) Ready() error {
+	l.nodelock.Lock()
+	defer l.nodelock.Unlock()
+	if l.done {
+		return nil
+	}
 	// get the host node
 	var host host.Host
 	if err := l.conn.Get(hostpath(l.hostID), &HostNode{Host: &host}); err != nil {
@@ -123,6 +132,9 @@ func (l *HostStateListener) Ready() error {
 
 // Done removes the ephemeral node from the host registry
 func (l *HostStateListener) Done() {
+	l.nodelock.Lock()
+	defer l.nodelock.Unlock()
+	l.done = true
 	if err := l.conn.Delete(l.registry); err != nil {
 		glog.Warningf("Could not unregister host %s: %s", l.hostID, err)
 	}
@@ -153,6 +165,13 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 	defer l.stopInstance(&processLock, &ss)
 
 	for {
+		// Listen to the registry node
+		var h host.Host
+		hEvt, err := l.conn.GetW(l.registry, &HostNode{Host: &h})
+		if err != nil {
+			glog.Errorf("Failed to get ephemeral node for host %s: %s", l.hostID, err)
+			return
+		}
 		// Get the HostState instance
 		hsEvt, err := l.conn.GetW(hostpath(l.hostID, stateID), &hs)
 		if err != nil {
@@ -213,8 +232,16 @@ func (l *HostStateListener) Spawn(shutdown <-chan interface{}, stateID string) {
 
 		select {
 		case <-processDone:
-                       glog.Infof("Process ended for instance %s for service %s (%s)", stateID, svc.Name, svc.ID)
-                       processDone = nil // CC-1341 - once the process exits, don't read this channel again
+			glog.Infof("Process ended for instance %s for service %s (%s)", stateID, svc.Name, svc.ID)
+			processDone = nil // CC-1341 - once the process exits, don't read this channel again
+		case e := <-hEvt:
+			glog.V(3).Infof("Host %s received an event: %+v", l.hostID, e)
+			if e.Type == client.EventNodeDeleted {
+				if err := l.Ready(); err != nil {
+					glog.Errorf("Failed to add ephemeral node for host %s: %+v", l.hostID, err)
+					return
+				}
+			}
 		case e := <-hsEvt:
 			glog.V(3).Infof("Host instance %s for service %s (%s) received an event: %+v", stateID, svc.Name, svc.ID, e)
 			if e.Type == client.EventNodeDeleted {
