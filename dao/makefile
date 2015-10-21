@@ -11,18 +11,20 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GO ?= $(shell which go)
+
 .PHONY: build test clean
 
 default: build
 
 build:
-	cd elasticsearch && make build
-	go build
+	cd elasticsearch && make "GO=$(GO)" build
+	$(GO) build
 
 test: build
-	cd elasticsearch && make test
-	go test $(GOTEST_FLAGS)
+	cd elasticsearch && make "GO=$(GO)" test
+	$(GO) test $(GOTEST_FLAGS)
 
 clean:
-	cd elasticsearch && make clean
-	go clean
+	cd elasticsearch && make "GO=$(GO)" clean
+	$(GO) clean

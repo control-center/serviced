@@ -11,15 +11,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+GO ?= $(shell which go)
+
 .PHONY: build test clean
 
 default: build
 
 build:
-	go build
+	$(GO) build
 
 test: build
-	go test $(GOTEST_FLAGS)
+	$(GO) test $(GOTEST_FLAGS)
 
 clean:
-	go clean
+	$(GO) clean

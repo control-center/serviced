@@ -1,60 +1,137 @@
 {
 	"ImportPath": "github.com/control-center/serviced",
-	"GoVersion": "go1.2",
-	"Packages": [
-		"./..."
-	],
+	"GoVersion": "go1.4.2",
 	"Deps": [
-		{
-			"ImportPath": "github.com/mattn/go-shellwords",
-			"Rev": "f4e566c536cf69158e808ec28ef4182a37fdc981"
-		},
-		{
-			"ImportPath": "golang.org/x/crypto/ssh/terminal",
-			"Comment": "null-187",
-			"Rev": "1351f936d976c60a0a48d728281922cf63eafb8d"
-		},
-		{
-			"ImportPath": "github.com/kr/pretty",
-			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
-		},
-		{
-			"ImportPath": "github.com/zenoss/go-json-rest",
-			"Rev": "a533e72f5f1d6e4129feda0dadb0804bf47ed36a"
-		},
-		{
-			"ImportPath": "github.com/googollee/go-socket.io",
-			"Rev": "7a2b443286222187f996ceede5d353469be6853a"
-		},
-		{
-			"ImportPath": "github.com/araddon/gou",
-			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
-		},
 		{
 			"ImportPath": "code.google.com/p/go.net/websocket",
 			"Comment": "null-139",
 			"Rev": "98fd1f5506373df1033b67a1881078705456e2ee"
 		},
 		{
+			"ImportPath": "github.com/araddon/gou",
+			"Rev": "60fd543d979a4ad532fafb8bc24426d4f48181c4"
+		},
+		{
+			"ImportPath": "github.com/codegangsta/cli",
+			"Comment": "1.0.0-72-gbb91895",
+			"Rev": "bb9189510af1f49580c073c9e59e8bf288f0df27"
+		},
+		{
+			"ImportPath": "github.com/control-center/go-procfs/linux",
+			"Rev": "7e0c2872bd5d0a33366858b07280ba7673896f31"
+		},
+		{
+			"ImportPath": "github.com/control-center/go-zookeeper/zk",
+			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/dockerversion",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/engine",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/fileutils",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/httputils",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/ioutils",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/log",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/mount",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/parsers",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/proxy",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/tarsum",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/term",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/timeutils",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/pkg/units",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/registry",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/utils",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
+			"Comment": "v1.3.2",
+			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+		},
+		{
+			"ImportPath": "github.com/googollee/go-socket.io",
+			"Rev": "7a2b443286222187f996ceede5d353469be6853a"
+		},
+		{
+			"ImportPath": "github.com/gorilla/context",
+			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
+		},
+		{
 			"ImportPath": "github.com/gorilla/mux",
 			"Rev": "9ede152210fa25c1377d33e867cb828c19316445"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/pkg/proxy",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"ImportPath": "github.com/kr/pretty",
+			"Comment": "go.weekly.2011-12-22-18-gbc9499c",
+			"Rev": "bc9499caa0f45ee5edb2f0209fbd61fbf3d9018f"
 		},
 		{
-			"ImportPath": "github.com/syndtr/gocapability/capability",
-			"Rev": "3454319be2ebde8481aa0804a801f4d07de705b5"
+			"ImportPath": "github.com/kr/text",
+			"Rev": "6807e777504f54ad073ecef66747de158294b639"
 		},
 		{
-			"ImportPath": "github.com/coreos/go-systemd/activation",
-			"Rev": "219f3f19eea4de69bd7261b3b1ef4848f652f790"
+			"ImportPath": "github.com/mattn/go-shellwords",
+			"Rev": "f4e566c536cf69158e808ec28ef4182a37fdc981"
 		},
 		{
-			"ImportPath": "github.com/godbus/dbus",
-			"Rev": "cb98efbb933d8389ab549a060e880ea3c375d213"
+			"ImportPath": "github.com/rcrowley/go-metrics",
+			"Rev": "6ffbdf30ba7072d9f9e2afe57ad651a75a544a83"
 		},
 		{
 			"ImportPath": "github.com/zenoss/elastigo/api",
@@ -77,61 +154,21 @@
 			"Rev": "43bd4e6d53ee382fd09bb6ede8b4029247444945"
 		},
 		{
-			"ImportPath": "github.com/control-center/go-zookeeper/zk",
-			"Rev": "34c03e01311eb52816e48da2da97b5681bfbb1be"
-		},
-		{
 			"ImportPath": "github.com/zenoss/glog",
 			"Rev": "09a83f7c5c0f425c00cb1e063e9179698579f296"
 		},
 		{
-			"ImportPath": "github.com/rcrowley/go-metrics",
-			"Rev": "6ffbdf30ba7072d9f9e2afe57ad651a75a544a83"
-		},
-		{
-			"ImportPath": "github.com/control-center/go-procfs/linux",
-			"Rev": "7e0c2872bd5d0a33366858b07280ba7673896f31"
-		},
-		{
 			"ImportPath": "github.com/zenoss/go-dockerclient",
+			"Comment": "0.2.1-203-g1efa6e2",
 			"Rev": "1efa6e22d8f0d84f1c4d1e533e986b195e0f4335"
 		},
 		{
-			"ImportPath": "github.com/codegangsta/cli",
-			"Rev": "bb9189510af1f49580c073c9e59e8bf288f0df27"
+			"ImportPath": "github.com/zenoss/go-json-rest",
+			"Rev": "a533e72f5f1d6e4129feda0dadb0804bf47ed36a"
 		},
 		{
-			"ImportPath": "github.com/docker/docker/dockerversion",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/term",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/pkg/units",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/utils",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
-		},
-		{
-			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
-			"Comment": "v1.3.2-39fa2fa",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
-		},
-		{
-			"ImportPath": "github.com/gorilla/context",
-			"Rev": "14f550f51af52180c2eefed15e5fd18d63c0a64a"
-		},
-		{
-			"ImportPath": "github.com/kr/text",
-			"Rev": "6807e777504f54ad073ecef66747de158294b639"
+			"ImportPath": "golang.org/x/crypto/ssh/terminal",
+			"Rev": "1351f936d976c60a0a48d728281922cf63eafb8d"
 		},
 		{
 			"ImportPath": "gopkg.in/check.v1",

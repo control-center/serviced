@@ -11,7 +11,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-GO = $(shell which go)
+GO ?= $(shell which go)
 
 javascript_TARGETS       = $(controlplane_JS) $(controlplane_MINIFIED_JS)
 controlplane_JS          = $(javascript_BLDDIR)/controlplane.js
@@ -26,13 +26,12 @@ default: build
 
 .PHONY: build 
 build: build_js
-	./godep restore
-	go build
+	$(GO) build
 
 .PHONY: test
 test: build
-	go test -i ;\
-	go test $(GOTEST_FLAGS)
+	$(GO) test -i ;\
+	$(GO) test $(GOTEST_FLAGS)
 
 .PHONY: build_js build-js
 build_js build-js: $(javascript_TARGETS)

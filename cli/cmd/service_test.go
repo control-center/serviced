@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	//	"sort"
 	"strings"
 	"testing"
@@ -473,10 +474,10 @@ func ExampleServicedCLI_CmdServiceEdit() {
 }
 
 func ExampleServicedCLI_CmdServiceEdit_usage() {
-	// In the output, under OPTIONS, if you see a 'vim' or 'emacs',
-	// it is because you have the following
-	// environment vairable set: GIT_EDITOR
-	// echo $GIT_EDITOR
+	// Having $EDITOR or $GIT_EDITOR defined in the environment can
+	// make this test fail, so remove them.
+	os.Unsetenv("EDITOR")
+	os.Unsetenv("GIT_EDITOR")
 	InitServiceAPITest("serviced", "service", "edit")
 
 	// Output:
