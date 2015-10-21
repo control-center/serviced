@@ -721,7 +721,9 @@ func (c *Controller) registerExportedEndpoints() error {
 				}
 			}
 			glog.Infof("Registering exported endpoint[%s]: %+v", key, endpoint)
-			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, c.hostID, c.dockerID, endpoint))
+			endpoint.HostID = c.hostID
+			endpoint.ContainerID = c.dockerID
+			path, err := endpointRegistry.SetItem(conn, registry.NewEndpointNode(c.tenantID, export.endpoint.Application, endpoint))
 			if err != nil {
 				glog.Errorf("  unable to add endpoint: %+v %v", endpoint, err)
 				return err

@@ -20,19 +20,22 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/zenoss/glog"
+	"strings"
 )
 
 // An exposed service endpoint
 type ApplicationEndpoint struct {
 	ServiceID      string
+	InstanceID     int
 	Application    string
-	ContainerPort  uint16
-	HostPort       uint16
+	HostID         string
 	HostIP         string
+	HostPort       uint16
+	ContainerID    string
 	ContainerIP    string
+	ContainerPort  uint16
 	Protocol       string
 	VirtualAddress string
-	InstanceID     int
 	ProxyPort      uint16
 }
 
@@ -43,6 +46,7 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.ServiceID = state.ServiceID
 	ae.Application = endpoint.Application
 	ae.Protocol = endpoint.Protocol
+	ae.ContainerID = state.DockerID
 	ae.ContainerIP = state.PrivateIP
 	if endpoint.PortTemplate != "" {
 		port, err := state.EvalPortTemplate(endpoint.PortTemplate)
@@ -55,6 +59,7 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 		// No dynamic port, just use the specified PortNumber
 		ae.ContainerPort = endpoint.PortNumber
 	}
+	ae.HostID = state.HostID
 	ae.HostIP = state.HostIP
 	if len(state.PortMapping) > 0 {
 		pmKey := fmt.Sprintf("%d/%s", ae.ContainerPort, ae.Protocol)
@@ -74,4 +79,22 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	glog.V(2).Infof("  built ApplicationEndpoint: %+v", ae)
 
 	return ae, nil
+}
+
+
+// ApplicationEndpointSlice is an ApplicationEndpoint array sortable by ServiceID, InstanceID, and Application
+type ApplicationEndpointSlice []ApplicationEndpoint
+
+func (s ApplicationEndpointSlice) Len() int {
+	return len(s)
+}
+
+func (s ApplicationEndpointSlice) Less(i, j int) bool {
+	keyI := fmt.Sprintf("%s/%d %s", s[i].ServiceID, s[i].InstanceID, s[i].Application)
+	keyJ := fmt.Sprintf("%s/%d %s", s[j].ServiceID, s[j].InstanceID, s[j].Application)
+	return strings.ToLower(keyI) < strings.ToLower(keyJ)
+}
+
+func (s ApplicationEndpointSlice) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
 }
