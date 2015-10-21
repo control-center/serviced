@@ -118,7 +118,7 @@ build_isvcs:
 
 .PHONY: build_js
 build_js:
-	cd web && make clean build_js
+	cd web && make "GO=$(GO)" clean build_js
 
 # Download godep source to $GOPATH/src/.
 $(GOSRC)/$(godep_SRC):
@@ -433,7 +433,7 @@ docker_ok:
 
 .PHONY: clean_js
 clean_js:
-	cd web && make clean
+	cd web && make "GO=$(GO)" clean
 
 .PHONY: clean_serviced
 clean_serviced: $(GODEP)
@@ -448,7 +448,7 @@ clean_serviced: $(GODEP)
 
 .PHONY: clean_pkg
 clean_pkg:
-	cd pkg && make clean
+	cd pkg && make "GO=$(GO)" clean
 
 .PHONY: clean_dao
 clean_dao: $(GODEP)
