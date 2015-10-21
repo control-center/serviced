@@ -232,12 +232,12 @@ func (f *Facade) Restore(ctx datastore.Context, r io.Reader) error {
 		glog.Errorf("Could not restore service templates from backup: %s", err)
 		return err
 	}
-	glog.Infof("Loaded service templates")
+	glog.Infof("Restored service templates")
 	if err := f.RestoreResourcePools(ctx, data.Pools); err != nil {
 		glog.Errorf("Could not restore resource pools from backup: %s", err)
 		return err
 	}
-	glog.Infof("Loaded resource pools")
+	glog.Infof("Restored resource pools")
 	if err := f.RestoreHosts(ctx, data.Hosts); err != nil {
 		glog.Errorf("Could not restore hosts from backup: %s", err)
 		return err
