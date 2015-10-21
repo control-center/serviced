@@ -80,7 +80,8 @@ func (t *ZZKTest) TestWaitServiceLockPost(c *C) {
 	c.Assert(err, IsNil)
 
 	// Check that it took about one second
-	expected := 200 * time.Millisecond
+	// FIXME: getting Jenkins to run perf tests consistently is a losing battle.
+	expected := 400 * time.Millisecond
 	if dt < wait-expected || dt > wait+expected {
 		c.Errorf("Failed to wait for service lock.  Expected wait %v; actual %v", wait, dt)
 	}
