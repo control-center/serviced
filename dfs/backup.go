@@ -36,7 +36,7 @@ func (dfs *DistributedFilesystem) Backup(data BackupInfo, w io.Writer) error {
 	tarfile := tar.NewWriter(w)
 	defer tarfile.Close()
 	buffer := bytes.NewBufferString("")
-	spool, err := utils.NewSpool("")
+	spool, err := utils.NewSpool(dfs.tmp)
 	if err != nil {
 		glog.Errorf("Could not create spool: %s", err)
 		return err

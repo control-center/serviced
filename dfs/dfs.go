@@ -90,6 +90,7 @@ type DistributedFilesystem struct {
 	net     storage.StorageDriver
 	timeout time.Duration
 	locker  sync.Locker
+	tmp     string // tmp directory where backups are temporarily spooled
 }
 
 // NewDistributedFilesystem instantiates a new DistributedFilsystem object
@@ -118,4 +119,9 @@ func (dfs *DistributedFilesystem) Lock() {
 // Unlock is used to synchronize changes to the dfs
 func (dfs *DistributedFilesystem) Unlock() {
 	dfs.locker.Unlock()
+}
+
+// SetTmp sets the temp directory for the spooler
+func (dfs *DistributedFilesystem) SetTmp(tmp string) {
+	dfs.tmp = tmp
 }
