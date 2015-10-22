@@ -121,7 +121,7 @@ func (dfs *DistributedFilesystem) Unlock() {
 	dfs.locker.Unlock()
 }
 
-// SetSpoolTemp sets the temp directory for the spooler
+// SetTmp sets the temp directory for the spooler
 func (dfs *DistributedFilesystem) SetTmp(tmp string) {
 	dfs.tmp = tmp
 }
