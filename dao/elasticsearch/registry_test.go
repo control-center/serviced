@@ -85,9 +85,11 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 
 	aep := dao.ApplicationEndpoint{
 		ServiceID:     "epn_service",
+		ContainerID:   "epn_container",
 		ContainerIP:   "192.168.0.1",
 		ContainerPort: 54321,
 		ProxyPort:     54321,
+		HostID:        "epn_host1",
 		HostIP:        "192.168.0.2",
 		HostPort:      12345,
 		Protocol:      "epn_tcp",
@@ -97,8 +99,6 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		ApplicationEndpoint: aep,
 		TenantID:            "epn_tenant",
 		EndpointID:          "epn_endpoint",
-		HostID:              "epn_host1",
-		ContainerID:         "epn_container",
 	}
 	t.Logf("Creating a new node: %+v", epn1)
 

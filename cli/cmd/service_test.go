@@ -44,6 +44,7 @@ var DefaultServiceAPITest = ServiceAPITest{
 	pools:           DefaultTestPools,
 	hosts:           DefaultTestHosts,
 	snapshots:       DefaultTestSnapshots,
+	endpoints:       DefaultEndpoints,
 }
 
 var DefaultTestServices = []service.Service{
@@ -132,6 +133,32 @@ var DefaultTestRunningServices = []dao.RunningService{
 	},
 }
 
+var DefaultEndpoints = map[string][]dao.ApplicationEndpoint{
+	"test-service-2": []dao.ApplicationEndpoint{
+		{
+			ServiceID:     "test-service-2",
+			InstanceID:    1,
+			Application:   "endpointName1",
+			HostID:        "hostID1",
+			HostIP:        "hostIP1",
+			HostPort:      10,
+			ContainerID:   "containerID1",
+			ContainerIP:   "containerIP1",
+			ContainerPort: 100,
+		}, {
+			ServiceID:     "test-service-2",
+			InstanceID:    2,
+			Application:   "endpointName2",
+			HostID:        "hostID2",
+			HostIP:        "hostIP2",
+			HostPort:      20,
+			ContainerID:   "containerID2",
+			ContainerIP:   "containerIP2",
+			ContainerPort: 200,
+		},
+	},
+}
+
 var (
 	ErrNoServiceFound        = errors.New("no service found")
 	ErrNoRunningServiceFound = errors.New("no matches found")
@@ -148,6 +175,7 @@ type ServiceAPITest struct {
 	pools           []pool.ResourcePool
 	hosts           []host.Host
 	snapshots       []dao.SnapshotInfo
+	endpoints       map[string][]dao.ApplicationEndpoint
 }
 
 func InitServiceAPITest(args ...string) {
@@ -182,6 +210,20 @@ func (t ServiceAPITest) GetHosts() ([]host.Host, error) {
 		return nil, t.errs["GetHosts"]
 	}
 	return t.hosts, nil
+}
+
+func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error)  {
+	if t.errs["GetHostMap"] != nil {
+		return nil, t.errs["GetHostMap"]
+	}
+	return make(map[string]host.Host), nil
+}
+
+func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]dao.ApplicationEndpoint, error)  {
+	if t.errs["GetEndpoints"] != nil {
+		return nil, t.errs["GetEndpoints"]
+	}
+	return t.endpoints, nil
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
@@ -1039,4 +1081,47 @@ func ExampleServicedCLI_CmdServiceSnapshot_err() {
 
 	// Output:
 	// service not found
+}
+
+
+func ExampleServicedCLI_CmdServiceEndpoints_usage() {
+	InitServiceAPITest("serviced", "service", "endpoints")
+
+	// Output:
+	// Incorrect Usage.
+	//
+	// NAME:
+	//    endpoints - List the endpoints defined for the service
+	//
+	// USAGE:
+	//    command endpoints [command options] [arguments...]
+	//
+	// DESCRIPTION:
+	//    serviced service endpoints SERVICEID
+	//
+	// OPTIONS:
+
+}
+
+func ExampleServicedCLI_CmdServiceEndpoints_err() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-0")
+
+	// Output:
+	// service not found
+}
+
+func ExampleServicedCLI_CmdServiceEndpoints_worksNoEndpoints() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-1")
+
+	// Output:
+	// Zenoss - no endpoints defined
+}
+
+func ExampleServicedCLI_CmdServiceEndpoints_works() {
+	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-2")
+
+	// Output:
+	// Name    ServiceID         Endpoint         Host       HostIP     HostPort    ContainerID     ContainerIP     ContainerPort
+	// Zope    test-service-2    endpointName1    hostID1    hostIP1    10          containerID1    containerIP1    100
+	// Zope    test-service-2    endpointName2    hostID2    hostIP2    20          containerID2    containerIP2    200
 }

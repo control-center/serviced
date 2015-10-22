@@ -227,6 +227,21 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 }
 
+// Get all of the exported endpoints
+func (a *api) GetEndpoints(serviceID string) (map[string][]dao.ApplicationEndpoint, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	endpoints := make(map[string][]dao.ApplicationEndpoint)
+	if err := client.GetServiceEndpoints(serviceID, &endpoints); err != nil {
+		return nil, err
+	}
+
+	return endpoints, nil
+}
+
 // Gets all of the available services
 func (a *api) GetServiceStates(serviceID string) ([]servicestate.ServiceState, error) {
 	client, err := a.connectDAO()

@@ -184,3 +184,31 @@ func (st *serviceAPITest) TestMigrateService_fails(c *C) {
 	expectedError := fmt.Errorf("migration failed: %s", errorStub)
 	c.Assert(err.Error(), Equals, expectedError.Error())
 }
+
+func (st *serviceAPITest) TestGeEndpoints_fails(c *C) {
+	errorStub := errors.New("errorStub: GetServiceEndpoints() failed")
+	serviceID := "test-service"
+
+	st.mockControlPlane.
+	On("GetServiceEndpoints", serviceID, mock.Anything).
+	Return(errorStub)
+
+	actual, err := st.api.GetEndpoints(serviceID)
+
+	c.Assert(actual, IsNil)
+	c.Assert(err, Equals, errorStub)
+}
+
+func (st *serviceAPITest) TestGeEndpoints_works(c *C) {
+	serviceID := "test-service"
+
+	st.mockControlPlane.
+	On("GetServiceEndpoints", serviceID, mock.Anything).
+	Return(nil)
+
+	actual, err := st.api.GetEndpoints(serviceID)
+
+	c.Assert(err, IsNil)
+	c.Assert(actual, NotNil)
+	c.Assert(len(actual), Equals, 0)
+}

@@ -17,6 +17,7 @@ package facade
 
 import (
 	"github.com/control-center/serviced/commons/docker/test"
+	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	"github.com/control-center/serviced/domain/addressassignment"
@@ -152,5 +153,9 @@ func (z *zkMock) SetRegistryImage(image *registry.Image) error {
 }
 
 func (z *zkMock) DeleteRegistryImage(id string) error {
+	return nil
+}
+
+func (z *zkMock) GetServiceEndpoints(tenantID, serviceID string, endpoints *[]dao.ApplicationEndpoint) error {
 	return nil
 }

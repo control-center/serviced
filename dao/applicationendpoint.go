@@ -81,6 +81,60 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	return ae, nil
 }
 
+// Returns a string which uniquely identifies an endpoint instance
+func (endpoint *ApplicationEndpoint) GetID() string {
+	return strings.ToLower(fmt.Sprintf("%s/%d %s", endpoint.ServiceID, endpoint.InstanceID, endpoint.Application))
+}
+
+// Find the entry in endpoints which matches the specified endpoint
+func (endpoint *ApplicationEndpoint) Find(endpoints []ApplicationEndpoint) *ApplicationEndpoint {
+	// Yes, this is brute-force linear search, but in practice the lists should be small, few 10s at most
+	endpointID := endpoint.GetID()
+	for _, entry := range endpoints {
+		if entry.GetID() == endpointID {
+			return &entry
+		}
+	}
+	return nil
+}
+
+// Equals verifies whether two endpoint objects are equal
+func (a *ApplicationEndpoint) Equals(b *ApplicationEndpoint) bool {
+	if a.ServiceID != b.ServiceID {
+		return false
+	}
+	if a.InstanceID != b.InstanceID {
+		return false
+	}
+	if a.Application != b.Application {
+		return false
+	}
+	if a.HostID != b.HostID {
+		return false
+	}
+	if a.HostIP != b.HostIP {
+		return false
+	}
+	if a.HostPort != b.HostPort {
+		return false
+	}
+	if a.ContainerID != b.ContainerID {
+		return false
+	}
+	if a.ContainerIP != b.ContainerIP {
+		return false
+	}
+	if a.ContainerPort != b.ContainerPort {
+		return false
+	}
+	if a.Protocol != b.Protocol {
+		return false
+	}
+	if a.VirtualAddress != b.VirtualAddress {
+		return false
+	}
+	return true
+}
 
 // ApplicationEndpointSlice is an ApplicationEndpoint array sortable by ServiceID, InstanceID, and Application
 type ApplicationEndpointSlice []ApplicationEndpoint
@@ -90,9 +144,7 @@ func (s ApplicationEndpointSlice) Len() int {
 }
 
 func (s ApplicationEndpointSlice) Less(i, j int) bool {
-	keyI := fmt.Sprintf("%s/%d %s", s[i].ServiceID, s[i].InstanceID, s[i].Application)
-	keyJ := fmt.Sprintf("%s/%d %s", s[j].ServiceID, s[j].InstanceID, s[j].Application)
-	return strings.ToLower(keyI) < strings.ToLower(keyJ)
+	return s[i].GetID() < s[j].GetID()
 }
 
 func (s ApplicationEndpointSlice) Swap(i, j int) {

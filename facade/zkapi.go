@@ -29,6 +29,7 @@ import (
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
+	"github.com/control-center/serviced/dao"
 )
 
 func getZKAPI(f *Facade) zkfuncs {
@@ -56,6 +57,7 @@ type zkfuncs interface {
 	GetRegistryImage(id string) (*registry.Image, error)
 	SetRegistryImage(image *registry.Image) error
 	DeleteRegistryImage(id string) error
+	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]dao.ApplicationEndpoint) error
 }
 
 type zkf struct {
@@ -272,4 +274,30 @@ func (z *zkf) DeleteRegistryImage(id string) error {
 		return err
 	}
 	return zkimgregistry.DeleteRegistryImage(conn, id)
+}
+
+// Get a list of exported endpoints for the specified service from the Zookeeper namespace
+func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]dao.ApplicationEndpoint) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could get connection to zookeeper: %s", err)
+		return err
+	}
+
+	endpointRegisty, err := zkregistry.CreateEndpointRegistry(conn)
+	if err != nil {
+		glog.Errorf("Error getting endpoint registry: %s", err)
+		return err
+	}
+
+	serviceEndpoints, err := endpointRegisty.GetServiceEndpoints(conn, tenantID, serviceID)
+	if err != nil {
+		glog.Errorf("Error getting endpoints: %s", err)
+		return err
+	}
+
+	for _, endpoint := range serviceEndpoints {
+		*result = append(*result, endpoint.ApplicationEndpoint)
+	}
+	return nil
 }
