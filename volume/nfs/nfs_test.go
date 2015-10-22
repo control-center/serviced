@@ -77,6 +77,10 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 		c.Error(err)
 	}
 
+	vol, err = driver.GetTenant("volume")
+	c.Assert(vol, IsNil)
+	c.Assert(err, Equals, ErrNotSupported)
+
 	volname := "testvolume"
 	vol, err = driver.Get(volname)
 	c.Assert(vol, NotNil)
@@ -94,7 +98,11 @@ func (s *NFSSuite) TestNFSDriver(c *C) {
 	c.Assert(rc, IsNil)
 	c.Assert(err, Equals, ErrNotSupported)
 
-	c.Assert(vol.Snapshot(""), Equals, ErrNotSupported)
+	c.Assert(vol.Snapshot("", "", []string{}), Equals, ErrNotSupported)
+
+	info, err := vol.SnapshotInfo("")
+	c.Assert(info, IsNil)
+	c.Assert(err, Equals, ErrNotSupported)
 
 	snaps, err := vol.Snapshots()
 	c.Assert(snaps, IsNil)

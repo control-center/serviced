@@ -28,7 +28,6 @@ import (
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/metrics"
 	"github.com/control-center/serviced/rpc/rpcutils"
-	"github.com/control-center/serviced/volume"
 )
 
 // A serviced client.
@@ -209,74 +208,6 @@ func (s *ControlClient) RemoveServiceTemplate(serviceTemplateID string, unused *
 	return s.rpcClient.Call("ControlPlane.RemoveServiceTemplate", serviceTemplateID, unused, 0)
 }
 
-func (s *ControlClient) GetVolume(serviceID string, volume volume.Volume) error {
-	return s.rpcClient.Call("ControlPlane.GetVolume", serviceID, volume, 0)
-}
-
-func (s *ControlClient) ResetRegistry(request dao.EntityRequest, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.ResetRegistry", request, unused, 0)
-}
-
-func (s *ControlClient) DeleteSnapshot(snapshotId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotId, unused, 0)
-}
-
-func (s *ControlClient) DeleteSnapshots(serviceId string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceId, unused, 0)
-}
-
-func (s *ControlClient) Rollback(request dao.RollbackRequest, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Rollback", request, unused, 0)
-}
-
-func (s *ControlClient) Snapshot(request dao.SnapshotRequest, label *string) error {
-	return s.rpcClient.Call("ControlPlane.Snapshot", request, label, 0)
-}
-
-func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.AsyncSnapshot", serviceId, label, 0)
-}
-
-func (s *ControlClient) ListSnapshots(serviceId string, snapshots *[]dao.SnapshotInfo) error {
-	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceId, snapshots, 0)
-}
-
-func (s *ControlClient) Commit(containerId string, label *string) error {
-	return s.rpcClient.Call("ControlPlane.Commit", containerId, label, 0)
-}
-
-func (s *ControlClient) ReadyDFS(unused bool, unusedint *int) error {
-	return s.rpcClient.Call("ControlPlane.ReadyDFS", unused, unusedint, 0)
-}
-
-func (s *ControlClient) ListBackups(backupDirectory string, backupFiles *[]dao.BackupFile) error {
-	return s.rpcClient.Call("ControlPlane.ListBackups", backupDirectory, backupFiles, 0)
-}
-
-func (s *ControlClient) Backup(backupDirectory string, backupFilePath *string) error {
-	return s.rpcClient.Call("ControlPlane.Backup", backupDirectory, backupFilePath, 0)
-}
-
-func (s *ControlClient) AsyncBackup(backupDirectory string, backupFilePath *string) error {
-	return s.rpcClient.Call("ControlPlane.AsyncBackup", backupDirectory, backupFilePath, 0)
-}
-
-func (s *ControlClient) Restore(backupFilePath string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.Restore", backupFilePath, unused, 0)
-}
-
-func (s *ControlClient) AsyncRestore(backupFilePath string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.AsyncRestore", backupFilePath, unused, 0)
-}
-
-func (s *ControlClient) BackupStatus(notUsed int, backupStatus *string) error {
-	return s.rpcClient.Call("ControlPlane.BackupStatus", notUsed, backupStatus, 0)
-}
-
-func (s *ControlClient) ImageLayerCount(imageUUID string, layers *int) error {
-	return s.rpcClient.Call("ControlPlane.ImageLayerCount", imageUUID, layers, 0)
-}
-
 func (s *ControlClient) ValidateCredentials(user user.User, result *bool) error {
 	return s.rpcClient.Call("ControlPlane.ValidateCredentials", user, result, 0)
 }
@@ -307,4 +238,60 @@ func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *
 
 func (s *ControlClient) ServicedHealthCheck(IServiceNames []string, results *[]dao.IServiceHealthResult) error {
 	return s.rpcClient.Call("ControlPlane.ServicedHealthCheck", IServiceNames, results, 0)
+}
+
+func (s *ControlClient) Backup(dirpath string, filename *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.Backup", dirpath, filename, 0)
+}
+
+func (s *ControlClient) AsyncBackup(dirpath string, filename *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.AsyncBackup", dirpath, filename, 0)
+}
+
+func (s *ControlClient) Restore(filename string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.Restore", filename, unused, 0)
+}
+
+func (s *ControlClient) AsyncRestore(filename string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.AsyncRestore", filename, unused, 0)
+}
+
+func (s *ControlClient) ListBackups(dirpath string, files *[]dao.BackupFile) (err error) {
+	return s.rpcClient.Call("ControlPlane.ListBackups", dirpath, files, 0)
+}
+
+func (s *ControlClient) BackupStatus(req dao.EntityRequest, status *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.BackupStatus", req, status, 0)
+}
+
+func (s *ControlClient) Snapshot(req dao.SnapshotRequest, snapshotID *string) (err error) {
+	return s.rpcClient.Call("ControlPlane.Snapshot", req, snapshotID, 0)
+}
+
+func (s *ControlClient) Rollback(req dao.RollbackRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.Rollback", req, unused, 0)
+}
+
+func (s *ControlClient) DeleteSnapshot(snapshotID string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.DeleteSnapshot", snapshotID, unused, 0)
+}
+
+func (s *ControlClient) DeleteSnapshots(serviceID string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.DeleteSnapshots", serviceID, unused, 0)
+}
+
+func (s *ControlClient) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) (err error) {
+	return s.rpcClient.Call("ControlPlane.ListSnapshots", serviceID, snapshots, 0)
+}
+
+func (s *ControlClient) ResetRegistry(req dao.EntityRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.ResetRegistry", req, unused, 0)
+}
+
+func (s *ControlClient) RepairRegistry(req dao.EntityRequest, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.RepairRegistry", req, unused, 0)
+}
+
+func (s *ControlClient) ReadyDFS(serviceID string, unused *int) (err error) {
+	return s.rpcClient.Call("ControlPlane.ReadyDFS", serviceID, unused, 0)
 }

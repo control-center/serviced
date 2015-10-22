@@ -76,7 +76,7 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		return err
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
 		return err
-	} else if err = zkAPI(f).AddResourcePool(entity); err != nil {
+	} else if err = f.zzk.AddResourcePool(entity); err != nil {
 		return err
 	}
 
@@ -132,10 +132,29 @@ func (f *Facade) UpdateResourcePool(ctx datastore.Context, entity *pool.Resource
 		return err
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
 		return err
-	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
+	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
 		return err
 	}
 
+	return nil
+}
+
+// RestoreResourcePools restores a bulk of resource pools, usually from a backup.
+func (f *Facade) RestoreResourcePools(ctx datastore.Context, pools []pool.ResourcePool) error {
+	for _, pool := range pools {
+		pool.DatabaseVersion = 0
+		if err := f.AddResourcePool(ctx, &pool); err != nil {
+			if err == ErrPoolExists {
+				if err := f.UpdateResourcePool(ctx, &pool); err != nil {
+					glog.Errorf("Could not restore resource pool %s via update: %s", pool.ID, err)
+					return err
+				}
+			} else {
+				glog.Errorf("Could not restore resource pool %s via add: %s", pool.ID, err)
+				return err
+			}
+		}
+	}
 	return nil
 }
 
@@ -180,7 +199,7 @@ func (f *Facade) AddVirtualIP(ctx datastore.Context, vip pool.VirtualIP) error {
 		return err
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
 		return err
-	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
+	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
 		return err
 	}
 
@@ -212,7 +231,7 @@ func (f *Facade) addVirtualIP(ctx datastore.Context, vip *pool.VirtualIP) error 
 	}
 
 	// add virtual ip to zookeeper
-	return zkAPI(f).AddVirtualIP(vip)
+	return f.zzk.AddVirtualIP(vip)
 }
 
 // RemoveVirtualIP removes a virtual ip from a pool
@@ -249,7 +268,7 @@ func (f *Facade) RemoveVirtualIP(ctx datastore.Context, vip pool.VirtualIP) erro
 		return err
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
 		return err
-	} else if err = zkAPI(f).UpdateResourcePool(entity); err != nil {
+	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
 		return err
 	}
 
@@ -275,7 +294,7 @@ func (f *Facade) removeVirtualIP(ctx datastore.Context, poolID, ipAddr string) e
 		return ErrIPNotExists
 	}
 
-	return zkAPI(f).RemoveVirtualIP(&pool.VirtualIP{PoolID: poolID, IP: ipAddr})
+	return f.zzk.RemoveVirtualIP(&pool.VirtualIP{PoolID: poolID, IP: ipAddr})
 }
 
 // RemoveResourcePool removes a ResourcePool
@@ -298,7 +317,7 @@ func (f *Facade) RemoveResourcePool(ctx datastore.Context, id string) error {
 		return err
 	}
 
-	return zkAPI(f).RemoveResourcePool(id)
+	return f.zzk.RemoveResourcePool(id)
 }
 
 //GetResourcePools Returns a list of all ResourcePools

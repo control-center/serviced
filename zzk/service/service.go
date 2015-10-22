@@ -61,6 +61,7 @@ func (inst instances) Swap(i, j int)      { inst[i], inst[j] = inst[j], inst[i] 
 // ServiceNode is the zookeeper client Node for services
 type ServiceNode struct {
 	*service.Service
+	Locked  bool
 	version interface{}
 }
 
@@ -71,12 +72,12 @@ func (node *ServiceNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *ServiceNode) Create(conn client.Connection) error {
-	return UpdateService(conn, *node.Service)
+	return UpdateService(conn, *node.Service, false)
 }
 
 // Update implements zzk.Node
 func (node *ServiceNode) Update(conn client.Connection) error {
-	return UpdateService(conn, *node.Service)
+	return conn.Set(servicepath(node.ID), node)
 }
 
 // Version implements client.Node
@@ -123,20 +124,10 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		var retry <-chan time.Time
 		var err error
 
-		// set up the global lock
-		var glock <-chan client.Event
-		if exists, err := l.conn.Exists(zkServiceLock); err != nil && err != client.ErrNoNode {
-			glog.Errorf("Could not monitor service lock: %s", err)
-			return
-		} else if exists {
-			if _, glock, err = l.conn.ChildrenW(zkServiceLock); err != nil {
-				glog.Errorf("Could not monitor service lock: %s", err)
-				return
-			}
-		}
-
+		var svcnode ServiceNode
 		var svc service.Service
-		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &ServiceNode{Service: &svc})
+		svcnode.Service = &svc
+		serviceEvent, err := l.conn.GetW(l.GetPath(serviceID), &svcnode)
 		if err != nil {
 			glog.Errorf("Could not load service %s: %s", serviceID, err)
 			return
@@ -158,7 +149,7 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 			case service.SVCStop:
 				l.stop(rss)
 			case service.SVCRun:
-				if !l.sync(&svc, rss) {
+				if !l.sync(svcnode.Locked, &svc, rss) {
 					retry = time.After(retryTimeout)
 				}
 			case service.SVCPause:
@@ -171,9 +162,6 @@ func (l *ServiceListener) Spawn(shutdown <-chan interface{}, serviceID string) {
 		glog.V(2).Infof("Service %s (%s) waiting for event", svc.Name, svc.ID)
 
 		select {
-		case <-glock:
-			// passthrough
-			glog.V(3).Infof("Receieved a global lock event, resyncing")
 		case e := <-serviceEvent:
 			if e.Type == client.EventNodeDeleted {
 				glog.V(2).Infof("Shutting down service %s (%s) due to node delete", svc.Name, svc.ID)
@@ -256,7 +244,7 @@ func (l *ServiceListener) getServiceStates(svc *service.Service, stateIDs []stri
 }
 
 // sync synchronizes the number of running instances for this service
-func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) bool {
+func (l *ServiceListener) sync(locked bool, svc *service.Service, rss []dao.RunningService) bool {
 	// sort running services by instance ID, so that you stop instances by the
 	// lowest instance ID first and start instances with the greatest instance
 	// ID last.
@@ -287,10 +275,7 @@ func (l *ServiceListener) sync(svc *service.Service, rss []dao.RunningService) b
 	if netInstances > 0 {
 		// If the service lock is enabled, do not try to start any service instances
 		// This will prevent the retry restart from activating
-		if locked, err := IsServiceLocked(l.conn); err != nil {
-			glog.Errorf("Could not check service lock: %s", err)
-			return true
-		} else if locked {
+		if locked {
 			glog.Warningf("Could not start %d instances; service %s (%s) is locked", netInstances, svc.Name, svc.ID)
 			return true
 		}
@@ -341,16 +326,6 @@ func (l *ServiceListener) start(svc *service.Service, instanceIDs []int) int {
 			l.Lock()
 			defer l.Unlock()
 
-			// If the service lock is enabled, do not try to start the service instance
-			glog.V(2).Infof("Scheduler lock acquired for service %s (%s); checking service lock", svc.Name, svc.ID)
-			if locked, err := IsServiceLocked(l.conn); err != nil {
-				glog.Errorf("Could not check service lock: %s", err)
-				return false
-			} else if locked {
-				glog.Warningf("Could not start instance %d; service %s (%s) is locked", instanceID, svc.Name, svc.ID)
-				return false
-			}
-			glog.V(2).Infof("Service is not locked, selecting a host for service %s (%s) #%d", svc.Name, svc.ID, id)
 			host, err := l.handler.SelectHost(svc)
 			if err != nil {
 				glog.Warningf("Could not assign a host to service %s (%s): %s", svc.Name, svc.ID, err)
@@ -446,11 +421,12 @@ func SyncServices(conn client.Connection, services []service.Service) error {
 }
 
 // UpdateService updates a service node if it exists, otherwise creates it
-func UpdateService(conn client.Connection, svc service.Service) error {
+func UpdateService(conn client.Connection, svc service.Service, locked bool) error {
 	var node ServiceNode
 	spath := servicepath(svc.ID)
 
 	node.Service = &service.Service{}
+	node.Locked = locked
 	if err := conn.Get(spath, &node); err != nil {
 		if err == client.ErrNoNode {
 			// Create the service node

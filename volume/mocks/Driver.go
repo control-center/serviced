@@ -48,6 +48,14 @@ func (m *Driver) Remove(volumeName string) error {
 
 	return r0
 }
+func (m *Driver) GetTenant(volumeName string) (volume.Volume, error) {
+	ret := m.Called(volumeName)
+
+	r0 := ret.Get(0).(volume.Volume)
+	r1 := ret.Error(1)
+
+	return r0, r1
+}
 func (m *Driver) Get(volumeName string) (volume.Volume, error) {
 	ret := m.Called(volumeName)
 

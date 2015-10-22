@@ -2,6 +2,9 @@ package devicemapper
 
 import (
 	"archive/tar"
+	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -123,6 +126,14 @@ func (d *DeviceMapperDriver) newVolume(volumeName string) (*DeviceMapperVolume, 
 		Metadata: metadata,
 	}
 	return vol, nil
+}
+
+// GetTenant implements volume.Driver.GetTenant
+func (d *DeviceMapperDriver) GetTenant(volumeName string) (volume.Volume, error) {
+	if !d.Exists(volumeName) {
+		return nil, volume.ErrVolumeNotExists
+	}
+	return d.Get(getTenant(volumeName))
 }
 
 // Get implements volume.Driver.Get
@@ -426,8 +437,41 @@ func unmount(mountpoint string) error {
 	return nil
 }
 
+// writeSnapshotInfo writes metadata about a snapshot
+func (v *DeviceMapperVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo) error {
+	writer, err := v.WriteMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not write meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	defer writer.Close()
+	encoder := json.NewEncoder(writer)
+	if err := encoder.Encode(info); err != nil {
+		glog.Errorf("Could not export meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	return nil
+}
+
+// SnapshotInfo returns the meta info for a snapshot
+func (v *DeviceMapperVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
+		return nil, err
+	}
+	defer reader.Close()
+	decoder := json.NewDecoder(reader)
+	var info volume.SnapshotInfo
+	if err := decoder.Decode(&info); err != nil {
+		glog.Errorf("Could not decode snapshot info for %s: %s", label, err)
+		return nil, err
+	}
+	return &info, err
+}
+
 // Snapshot implements volume.Volume.Snapshot
-func (v *DeviceMapperVolume) Snapshot(label string) error {
+func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) error {
 	glog.V(2).Infof("Snapshot() (%s) START", v.name)
 	defer glog.V(2).Infof("Snapshot() (%s) END", v.name)
 	if v.snapshotExists(label) {
@@ -447,10 +491,16 @@ func (v *DeviceMapperVolume) Snapshot(label string) error {
 		glog.Errorf("Unable to add devicemapper device: %s", err)
 		return err
 	}
-	// Create the metadata path
-	mdpath := filepath.Join(v.driver.MetadataDir(), label)
-	if err := os.MkdirAll(mdpath, 0755); err != nil && !os.IsExist(err) {
-		glog.Errorf("Unable to create snapshot metadata directory at %s", mdpath)
+	// write snapshot info
+	info := volume.SnapshotInfo{
+		Name:     label,
+		TenantID: v.Tenant(),
+		Label:    strings.TrimPrefix(label, v.Tenant()+"_"),
+		Tags:     tags,
+		Message:  message,
+		Created:  time.Now(),
+	}
+	if err := v.writeSnapshotInfo(label, &info); err != nil {
 		return err
 	}
 	// Unmount the current device and mount the new one
@@ -607,6 +657,16 @@ func (v *DeviceMapperVolume) Export(label, parent string, writer io.Writer) erro
 	// Set up the file stream
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
+	// Set the driver type
+	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
+	if err := tarfile.WriteHeader(header); err != nil {
+		glog.Errorf("Could not export driver type header: %s", err)
+		return err
+	}
+	if _, err := fmt.Fprint(tarfile, v.Driver().DriverType()); err != nil {
+		glog.Errorf("Could not export driver type: %s", err)
+		return err
+	}
 	// Write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 	if err := volume.ExportDirectory(tarfile, mdpath, fmt.Sprintf("%s-metadata", label)); err != nil {
@@ -662,7 +722,10 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 		v.driver.DeviceSet.Unlock()
 	}()
 	// write volume and metadata
-	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
+	driverfile := fmt.Sprintf("%s-driver", label)
+	volumedir := fmt.Sprintf("%s-volume", label)
+	metadatadir := fmt.Sprintf("%s-metadata", label)
+	var drivertype string
 	tarfile := tar.NewReader(reader)
 	for {
 		header, err := tarfile.Next()
@@ -672,7 +735,13 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 			glog.Errorf("Could not import archive: %s", err)
 			return err
 		}
-		if strings.HasPrefix(header.Name, volumedir) {
+		if header.Name == driverfile {
+			buf := bytes.NewBufferString("")
+			if _, err := buf.ReadFrom(tarfile); err != nil {
+				return err
+			}
+			drivertype = buf.String()
+		} else if strings.HasPrefix(header.Name, volumedir) {
 			header.Name = strings.Replace(header.Name, volumedir, label, 1)
 			if err := volume.ImportArchiveHeader(header, tarfile, mountpoint); err != nil {
 				return err
@@ -683,6 +752,9 @@ func (v *DeviceMapperVolume) Import(label string, reader io.Reader) error {
 				return err
 			}
 		}
+	}
+	if drivertype == "" {
+		return errors.New("incompatible snapshot")
 	}
 	return v.Metadata.AddSnapshot(label, device)
 }

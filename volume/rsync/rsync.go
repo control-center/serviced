@@ -15,6 +15,8 @@ package rsync
 
 import (
 	"archive/tar"
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -218,6 +220,14 @@ func getTenant(from string) string {
 	return parts[0]
 }
 
+// GetTenant implements volume.Driver.GetTenant
+func (d *RsyncDriver) GetTenant(volumeName string) (volume.Volume, error) {
+	if !d.Exists(volumeName) {
+		return nil, volume.ErrVolumeNotExists
+	}
+	return d.Get(getTenant(volumeName))
+}
+
 // Get implements volume.Driver.Get
 func (d *RsyncDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
@@ -363,8 +373,41 @@ func (v *RsyncVolume) isSnapshot(rawLabel string) bool {
 	return strings.HasPrefix(rawLabel, v.getSnapshotPrefix())
 }
 
+// writeSnapshotInfo writes metadata about a snapshot
+func (v *RsyncVolume) writeSnapshotInfo(label string, info *volume.SnapshotInfo) error {
+	writer, err := v.WriteMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not write meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	defer writer.Close()
+	encoder := json.NewEncoder(writer)
+	if err := encoder.Encode(info); err != nil {
+		glog.Errorf("Could not export meta info for snapshot %s: %s", label, err)
+		return err
+	}
+	return nil
+}
+
+// SnapshotInfo returns the meta info for a snapshot
+func (v *RsyncVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	reader, err := v.ReadMetadata(label, ".SNAPSHOTINFO")
+	if err != nil {
+		glog.Errorf("Could not get info for snapshot %s: %s", label, err)
+		return nil, err
+	}
+	defer reader.Close()
+	decoder := json.NewDecoder(reader)
+	var info volume.SnapshotInfo
+	if err := decoder.Decode(&info); err != nil {
+		glog.Errorf("Could not decode snapshot info for %s: %s", label, err)
+		return nil, err
+	}
+	return &info, err
+}
+
 // Snapshot implements volume.Volume.Snapshot
-func (v *RsyncVolume) Snapshot(label string) (err error) {
+func (v *RsyncVolume) Snapshot(label, message string, tags []string) (err error) {
 	v.Lock()
 	defer v.Unlock()
 	label = v.rawSnapshotLabel(label)
@@ -376,7 +419,18 @@ func (v *RsyncVolume) Snapshot(label string) (err error) {
 		}
 		return err
 	}
-
+	// write snapshot info
+	info := volume.SnapshotInfo{
+		Name:     v.rawSnapshotLabel(label),
+		TenantID: v.Tenant(),
+		Label:    v.prettySnapshotLabel(label),
+		Tags:     tags,
+		Message:  message,
+		Created:  time.Now(),
+	}
+	if err := v.writeSnapshotInfo(label, &info); err != nil {
+		return err
+	}
 	exe, err := exec.LookPath("rsync")
 	if err != nil {
 		return err
@@ -485,6 +539,16 @@ func (v *RsyncVolume) Export(label, parent string, writer io.Writer) error {
 	label = v.rawSnapshotLabel(label)
 	tarfile := tar.NewWriter(writer)
 	defer tarfile.Close()
+	// Set the driver type
+	header := &tar.Header{Name: fmt.Sprintf("%s-driver", label), Size: int64(len([]byte(v.Driver().DriverType())))}
+	if err := tarfile.WriteHeader(header); err != nil {
+		glog.Errorf("Could not export driver type header: %s", err)
+		return err
+	}
+	if _, err := fmt.Fprint(tarfile, v.Driver().DriverType()); err != nil {
+		glog.Errorf("Could not export driver type: %s", err)
+		return err
+	}
 	// write metadata
 	mdpath := filepath.Join(v.driver.MetadataDir(), label)
 	if err := volume.ExportDirectory(tarfile, mdpath, fmt.Sprintf("%s-metadata", label)); err != nil {
@@ -508,7 +572,10 @@ func (v *RsyncVolume) Import(label string, reader io.Reader) error {
 	} else if exists {
 		return volume.ErrSnapshotExists
 	}
-	volumedir, metadatadir := fmt.Sprintf("%s-volume", label), fmt.Sprintf("%s-metadata", label)
+	driverfile := fmt.Sprintf("%s-driver", label)
+	volumedir := fmt.Sprintf("%s-volume", label)
+	metadatadir := fmt.Sprintf("%s-metadata", label)
+	var drivertype string
 	tarfile := tar.NewReader(reader)
 	for {
 		header, err := tarfile.Next()
@@ -518,7 +585,13 @@ func (v *RsyncVolume) Import(label string, reader io.Reader) error {
 			glog.Errorf("Could not import archive: %s", err)
 			return err
 		}
-		if strings.HasPrefix(header.Name, volumedir) {
+		if header.Name == driverfile {
+			buf := bytes.NewBufferString("")
+			if _, err := buf.ReadFrom(tarfile); err != nil {
+				return err
+			}
+			drivertype = buf.String()
+		} else if strings.HasPrefix(header.Name, volumedir) {
 			header.Name = strings.Replace(header.Name, volumedir, label, 1)
 			if err := volume.ImportArchiveHeader(header, tarfile, v.driver.Root()); err != nil {
 				return err
@@ -529,6 +602,9 @@ func (v *RsyncVolume) Import(label string, reader io.Reader) error {
 				return err
 			}
 		}
+	}
+	if drivertype == "" {
+		return errors.New("incompatible snapshot")
 	}
 	return nil
 }
