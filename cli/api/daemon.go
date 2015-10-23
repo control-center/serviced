@@ -779,6 +779,9 @@ func (d *daemon) initDAO() (dao.ControlPlane, error) {
 	if err != nil {
 		return nil, err
 	}
+	if err := os.MkdirAll(options.BackupsPath, 0777); err != nil && !os.IsExist(err) {
+		glog.Fatalf("Could not create default backup path at %s: %s", options.BackupsPath, err)
+	}
 	return elasticsearch.NewControlSvc("localhost", 9200, d.facade, options.BackupsPath, rpcPortInt)
 }
 
