@@ -16,7 +16,6 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
 	dfsmocks "github.com/control-center/serviced/dfs/mocks"
@@ -91,6 +90,7 @@ func (ft *FacadeTest) setupMockZZK() {
 	ft.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)
 	ft.zzk.On("LockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
 	ft.zzk.On("UnlockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
+
 }
 
 func (ft *FacadeTest) setupMockDFS() {
@@ -98,8 +98,4 @@ func (ft *FacadeTest) setupMockDFS() {
 }
 
 func (ft *FacadeTest) TearDownTest(c *gocheck.C) {
-}
-
-func (z *zkMock) GetServiceEndpoints(tenantID, serviceID string, endpoints *[]dao.ApplicationEndpoint) error {
-	return nil
 }

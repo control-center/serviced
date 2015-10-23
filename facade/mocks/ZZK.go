@@ -15,6 +15,7 @@ package mocks
 
 import "github.com/stretchr/testify/mock"
 
+import "github.com/control-center/serviced/dao"
 import "github.com/control-center/serviced/domain/host"
 import "github.com/control-center/serviced/domain/pool"
 import "github.com/control-center/serviced/domain/registry"
@@ -280,6 +281,19 @@ func (_m *ZZK) UnlockServices(svcs []service.Service) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func([]service.Service) error); ok {
 		r0 = rf(svcs)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+func (_m *ZZK) GetServiceEndpoints(tenantID, serviceID string, endpoints *[]dao.ApplicationEndpoint) error {
+	ret := _m.Called(tenantID, serviceID, endpoints)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, string, *[]dao.ApplicationEndpoint) error); ok {
+		r0 = rf(tenantID, serviceID, endpoints)
 	} else {
 		r0 = ret.Error(0)
 	}

@@ -664,7 +664,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (m
 	}
 
 	var states []servicestate.ServiceState
-	if err := zkAPI(f).GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
+	if err := f.zzk.GetServiceStates(svc.PoolID, &states, svc.ID); err != nil {
 		err = fmt.Errorf("Could not get service states for service %s (%s): %s", svc.Name, svc.ID, err)
 		return nil, err
 	}
@@ -739,7 +739,7 @@ func (f *Facade) getEndpointsFromZK(ctx datastore.Context, serviceID string) ([]
 	}
 
 	var endpoints []dao.ApplicationEndpoint
-	err = zkAPI(f).GetServiceEndpoints(tenantID, serviceID, &endpoints)
+	err = f.zzk.GetServiceEndpoints(tenantID, serviceID, &endpoints)
 	if err != nil {
 		glog.Errorf("GetServiceEndpoints failed - %s", err)
 		return nil, err
