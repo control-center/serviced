@@ -117,7 +117,7 @@ build_isvcs:
 	cd isvcs && make
 
 .PHONY: build_js
-build_js:
+build_js: $(GODEP)
 	cd web && make "GO=$(GO)" clean build_js
 
 # Download godep source to $GOPATH/src/.
