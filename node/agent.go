@@ -40,6 +40,7 @@ import (
 	coordclient "github.com/control-center/serviced/coordinator/client"
 	coordzk "github.com/control-center/serviced/coordinator/client/zookeeper"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/pool"
@@ -84,12 +85,14 @@ type HostAgent struct {
 	useTLS               bool // Whether the mux uses TLS
 	proxyRegistry        proxy.ProxyRegistry
 	zkClient             *coordclient.Client
-	dockerRegistry       string          // the docker registry to use
 	maxContainerAge      time.Duration   // maximum age for a stopped container before it is removed
 	virtualAddressSubnet string          // subnet for virtual addresses
 	servicedChain        *iptables.Chain // Assigned IP rule chain
 	controllerBinary     string          // Path to the controller binary
 	logstashURL          string
+	dockerLogDriver      string
+	dockerLogConfig      []string
+	pullreg              registry.Registry
 }
 
 func getZkDSN(zookeepers []string) string {
@@ -121,13 +124,14 @@ type AgentOptions struct {
 	VirtualAddressSubnet string
 	ControllerBinary     string
 	LogstashURL          string
+	DockerLogDriver      string
+	DockerLogConfig      []string
 }
 
 // NewHostAgent creates a new HostAgent given a connection string
-func NewHostAgent(options AgentOptions) (*HostAgent, error) {
+func NewHostAgent(options AgentOptions, reg registry.Registry) (*HostAgent, error) {
 	// save off the arguments
 	agent := &HostAgent{}
-	agent.dockerRegistry = options.DockerRegistry
 	agent.poolID = options.PoolID
 	agent.master = options.Master
 	agent.uiport = options.UIPort
@@ -141,6 +145,8 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	agent.servicedChain = iptables.NewChain("SERVICED")
 	agent.controllerBinary = options.ControllerBinary
 	agent.logstashURL = options.LogstashURL
+	agent.dockerLogDriver = options.DockerLogDriver
+	agent.dockerLogConfig = options.DockerLogConfig
 
 	var err error
 	dsn := getZkDSN(options.Zookeepers)
@@ -156,6 +162,7 @@ func NewHostAgent(options AgentOptions) (*HostAgent, error) {
 	}
 	agent.currentServices = make(map[string]*exec.Cmd)
 	agent.proxyRegistry = proxy.NewDefaultProxyRegistry()
+	agent.pullreg = reg
 	return agent, err
 }
 
@@ -317,6 +324,12 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		}
 	}
 
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		glog.Errorf("Could not get zk connection: %s", err)
+		return err
+	}
+	a.pullreg.SetConnection(conn)
 	// create the docker client Config and HostConfig structures necessary to create and start the service
 	config, hostconfig, err := configureContainer(a, client, svc, state, a.virtualAddressSubnet)
 	if err != nil {
@@ -357,6 +370,7 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 
 	if err := ctr.Start(time.Hour); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
+		started.Done()
 		a.removeInstance(state.ID, ctr)
 		return err
 	}
@@ -456,7 +470,7 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 // configureContainer creates and populates two structures, a docker client Config and a docker client HostConfig structure
 // that are used to create and start a container respectively. The information used to populate the structures is pulled from
 // the service, serviceState, and conn values that are passed into configureContainer.
-func configureContainer(a *HostAgent, client *ControlClient,
+func configureContainer(a *HostAgent, client dao.ControlPlane,
 	svc *service.Service, serviceState *servicestate.ServiceState,
 	virtualAddressSubnet string) (*dockerclient.Config, *dockerclient.HostConfig, error) {
 	cfg := &dockerclient.Config{}
@@ -482,7 +496,10 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 	cfg.User = "root"
 	cfg.WorkingDir = "/"
-	cfg.Image = svc.ImageID
+	if cfg.Image, err = a.pullreg.ImagePath(svc.ImageID); err != nil {
+		glog.Errorf("Could not parse image %s: %s", svc.ImageID, err)
+		return nil, nil, err
+	}
 
 	// get the endpoints
 	cfg.ExposedPorts = make(map[dockerclient.Port]struct{})
@@ -519,12 +536,11 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	// Make sure the image exists locally.
-	if _, err = docker.FindImage(svc.ImageID, true); err != nil {
-		glog.Errorf("can't find docker image %s: %s", svc.ImageID, err)
+	if err := a.pullreg.PullImage(svc.ImageID); err != nil {
+		glog.Errorf("Cannot find docker image %s: %s", svc.ImageID, err)
 		return nil, nil, err
 	}
 
-	cfg.Volumes = make(map[string]struct{})
 	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
 
 	if err := injectContext(svc, serviceState, client); err != nil {
@@ -545,7 +561,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 		resourcePath = strings.TrimSpace(resourcePath)
 		containerPath := strings.TrimSpace(volume.ContainerPath)
-		cfg.Volumes[containerPath] = struct{}{}
 		bindsMap[containerPath] = resourcePath
 	}
 
@@ -559,7 +574,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	dir, binary := filepath.Split(a.controllerBinary)
 	resourcePath := strings.TrimSpace(dir)
 	containerPath := strings.TrimSpace("/serviced")
-	cfg.Volumes[containerPath] = struct{}{}
 	bindsMap[containerPath] = resourcePath
 
 	// bind mount everything we need for logstash-forwarder
@@ -568,7 +582,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		logstashPath := utils.ResourcesDir() + "/logstash"
 		resourcePath := strings.TrimSpace(logstashPath)
 		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
-		cfg.Volumes[containerPath] = struct{}{}
 		bindsMap[containerPath] = resourcePath
 		glog.V(1).Infof("added logstash bind mount: %s", fmt.Sprintf("%s:%s", resourcePath, containerPath))
 	}
@@ -581,7 +594,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		}
 	}
 	for _, path := range tmpVolumes {
-		cfg.Volumes[path] = struct{}{}
 		glog.V(4).Infof("added temporary docker container path: %s", path)
 	}
 
@@ -629,7 +641,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 			if matchedRequestedImage {
 				hostPath = strings.TrimSpace(hostPath)
 				containerPath = strings.TrimSpace(containerPath)
-				cfg.Volumes[containerPath] = struct{}{}
 				bindsMap[containerPath] = hostPath
 			}
 		} else {
@@ -703,6 +714,13 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		cfg.CPUShares = svc.CPUShares
 	}
 
+	hcfg.LogConfig.Type = a.dockerLogDriver
+	hcfg.LogConfig.Config = make(map[string]string)
+	for _, kv := range a.dockerLogConfig {
+		keyvalue := strings.SplitN(kv, "=", 2)
+		hcfg.LogConfig.Config[keyvalue[0]] = keyvalue[1]
+	}
+
 	return cfg, hcfg, nil
 }
 
@@ -727,7 +745,12 @@ func (a *HostAgent) setupVolume(tenantID string, service *service.Service, volum
 	if len(strings.TrimSpace(containerPath)) == 0 {
 		containerPath = volume.ContainerPath
 	}
-	if err := createVolumeDir(conn, resourcePath, containerPath, service.ImageID, volume.Owner, volume.Permission); err != nil {
+	image, err := a.pullreg.ImagePath(service.ImageID)
+	if err != nil {
+		glog.Errorf("Could not get registry image for %s: %s", service.ImageID, err)
+		return "", err
+	}
+	if err := createVolumeDir(conn, resourcePath, containerPath, image, volume.Owner, volume.Permission); err != nil {
 		glog.Errorf("Error populating resource path: %s with container path: %s, %v", resourcePath, containerPath, err)
 		return "", err
 	}

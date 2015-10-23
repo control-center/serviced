@@ -16,28 +16,30 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/commons/docker/test"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/datastore/elastic"
+	dfsmocks "github.com/control-center/serviced/dfs/mocks"
 	"github.com/control-center/serviced/domain/addressassignment"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
-	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
+	zzkmocks "github.com/control-center/serviced/facade/mocks"
+	"github.com/stretchr/testify/mock"
 	gocheck "gopkg.in/check.v1"
 )
 
 //FacadeTest used for running tests where a facade type is needed.
 type FacadeTest struct {
 	elastic.ElasticTest
-	CTX          datastore.Context
-	Facade       *Facade
-	mockRegistry *test.MockDockerRegistry
+	CTX    datastore.Context
+	Facade *Facade
+	zzk    *zzkmocks.ZZK
+	dfs    *dfsmocks.DFS
 }
 
 //SetUpSuite sets up test suite
@@ -54,106 +56,48 @@ func (ft *FacadeTest) SetUpSuite(c *gocheck.C) {
 	ft.Mappings = append(ft.Mappings, addressassignment.MAPPING)
 	ft.Mappings = append(ft.Mappings, serviceconfigfile.MAPPING)
 	ft.Mappings = append(ft.Mappings, user.MAPPING)
+	ft.Mappings = append(ft.Mappings, registry.MAPPING)
 
 	ft.ElasticTest.SetUpSuite(c)
 	datastore.Register(ft.Driver())
 	ft.CTX = datastore.Get()
 
-	ft.Facade = New("localhost:5000")
-
-	//mock out ZK calls to no ops
-	zkAPI = func(f *Facade) zkfuncs { return &zkMock{} }
+	ft.Facade = New()
 }
 
 func (ft *FacadeTest) SetUpTest(c *gocheck.C) {
 	ft.ElasticTest.SetUpTest(c)
+	ft.zzk = &zzkmocks.ZZK{}
+	ft.Facade.SetZZK(ft.zzk)
+	ft.dfs = &dfsmocks.DFS{}
+	ft.Facade.SetDFS(ft.dfs)
+	ft.setupMockZZK()
+	ft.setupMockDFS()
+}
+
+func (ft *FacadeTest) setupMockZZK() {
+	ft.zzk.On("AddResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
+	ft.zzk.On("UpdateResourcePool", mock.AnythingOfType("*pool.ResourcePool")).Return(nil)
+	ft.zzk.On("RemoveResourcePool", mock.AnythingOfType("string")).Return(nil)
+	ft.zzk.On("AddVirtualIP", mock.AnythingOfType("*pool.VirtualIP")).Return(nil)
+	ft.zzk.On("RemoveVirtualIP", mock.AnythingOfType("*pool.VirtualIP")).Return(nil)
+	ft.zzk.On("AddHost", mock.AnythingOfType("*host.Host")).Return(nil)
+	ft.zzk.On("UpdateHost", mock.AnythingOfType("*host.Host")).Return(nil)
+	ft.zzk.On("RemoveHost", mock.AnythingOfType("*host.Host")).Return(nil)
+	ft.zzk.On("UpdateService", mock.AnythingOfType("*service.Service"), mock.AnythingOfType("bool")).Return(nil)
+	ft.zzk.On("RemoveService", mock.AnythingOfType("*service.Service")).Return(nil)
+	ft.zzk.On("SetRegistryImage", mock.AnythingOfType("*registry.Image")).Return(nil)
+	ft.zzk.On("DeleteRegistryImage", mock.AnythingOfType("string")).Return(nil)
+	ft.zzk.On("DeleteRegistryLibrary", mock.AnythingOfType("string")).Return(nil)
+	ft.zzk.On("LockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
+	ft.zzk.On("UnlockServices", mock.AnythingOfType("[]service.Service")).Return(nil)
+}
+
+func (ft *FacadeTest) setupMockDFS() {
+	ft.dfs.On("Destroy", mock.AnythingOfType("string")).Return(nil)
 }
 
 func (ft *FacadeTest) TearDownTest(c *gocheck.C) {
-	if ft.mockRegistry != nil {
-		ft.mockRegistry = nil
-		ft.Facade.registry = nil
-	}
-}
-
-func (ft *FacadeTest) setupMockRegistry() {
-	ft.mockRegistry = &test.MockDockerRegistry{}
-	ft.Facade.registry = ft.mockRegistry
-}
-
-type zkMock struct {
-}
-
-func (z *zkMock) UpdateService(svc *service.Service) error {
-	return nil
-}
-
-func (z *zkMock) RemoveService(svc *service.Service) error {
-	return nil
-}
-
-func (z *zkMock) GetServiceStates(poolID string, serviceStates *[]servicestate.ServiceState, serviceIds ...string) error {
-	return nil
-}
-
-func (z *zkMock) StopServiceInstance(poolID, hostID, stateID string) error {
-	return nil
-}
-
-func (z *zkMock) AddHost(h *host.Host) error {
-	return nil
-}
-
-func (z *zkMock) UpdateHost(h *host.Host) error {
-	return nil
-}
-
-func (z *zkMock) RemoveHost(h *host.Host) error {
-	return nil
-}
-
-func (z *zkMock) GetActiveHosts(poolID string, hosts *[]string) error {
-	return nil
-}
-
-func (z *zkMock) AddVirtualIP(vip *pool.VirtualIP) error {
-	return nil
-}
-
-func (z *zkMock) RemoveVirtualIP(vip *pool.VirtualIP) error {
-	return nil
-}
-
-func (z *zkMock) AddResourcePool(pool *pool.ResourcePool) error {
-	return nil
-}
-
-func (z *zkMock) UpdateResourcePool(pool *pool.ResourcePool) error {
-	return nil
-}
-
-func (z *zkMock) RemoveResourcePool(poolID string) error {
-	return nil
-}
-
-func (z *zkMock) CheckRunningVHost(vhostName, serviceID string) error {
-	return nil
-}
-
-func (z *zkMock) WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
-	return nil
-}
-
-func (z *zkMock) GetRegistryImage(id string) (*registry.Image, error) {
-	return nil, nil
-}
-
-func (z *zkMock) SetRegistryImage(image *registry.Image) error {
-	return nil
-}
-
-func (z *zkMock) DeleteRegistryImage(id string) error {
-	return nil
 }
 
 func (z *zkMock) GetServiceEndpoints(tenantID, serviceID string, endpoints *[]dao.ApplicationEndpoint) error {

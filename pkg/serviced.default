@@ -3,6 +3,10 @@
 # Need to set $HOME so Docker client can find .dockercfg
 # HOME=/root
 
+# Need to set $TMP so backups can have a place to spool snapshots and images
+# for backup
+# TMP=/tmp
+
 # Set the number of processors used by serviced
 # GOMAXPROCS=4
 
@@ -151,3 +155,9 @@
 
 # Arbitrary serviced daemon args
 # SERVICED_OPTS=
+
+# Direct port of Docker --log-driver option. Values include json-file, syslog, journald, gelf, fluentd, and none.
+# DOCKER_LOG_DRIVER=json-file
+
+# Comma-separated list of key=value options, corresponding to Docker --log-opt options.
+# DOCKER_LOG_CONFIG=max-file=5,max-size=10m

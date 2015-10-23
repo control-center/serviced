@@ -25,8 +25,6 @@ func (this *ControlPlaneDao) AddService(svc service.Service, serviceId *string) 
 	if err := this.facade.AddService(datastore.Get(), svc); err != nil {
 		return err
 	}
-
-	this.createTenantVolume(svc.ID)
 	*serviceId = svc.ID
 	return nil
 }
@@ -54,38 +52,17 @@ func (this *ControlPlaneDao) CloneService(request dao.ServiceCloneRequest, clone
 
 //
 func (this *ControlPlaneDao) UpdateService(svc service.Service, unused *int) error {
-	if err := this.facade.UpdateService(datastore.Get(), svc); err != nil {
-		return err
-	}
-
-	this.createTenantVolume(svc.ID)
-	return nil
+	return this.facade.UpdateService(datastore.Get(), svc)
 }
 
 //
 func (this *ControlPlaneDao) RunMigrationScript(request dao.RunMigrationScriptRequest, unused *int) error {
-	glog.V(2).Infof("ControlPlaneDao.RunMigrationScript: start migration for service id %+v", request.ServiceID)
-	if err := this.facade.RunMigrationScript(datastore.Get(), request); err != nil {
-		glog.Errorf("ControlPlaneDao.RunMigrationScript: migration failed for id %+v: %s", request.ServiceID, err)
-		return err
-	}
-
-	glog.Infof("ControlPlaneDao.RunMigrationScript: migrated service %+v (dry-run=%v)", request.ServiceID, request.DryRun)
-	if !request.DryRun {
-		this.createTenantVolume(request.ServiceID)
-	}
-	return nil
+	return this.facade.RunMigrationScript(datastore.Get(), request)
 }
 
 //
 func (this *ControlPlaneDao) MigrateServices(request dao.ServiceMigrationRequest, unused *int) error {
-	if err := this.facade.MigrateServices(datastore.Get(), request); err != nil {
-		return err
-	}
-	if !request.DryRun {
-		this.createTenantVolume(request.ServiceID)
-	}
-	return nil
+	return this.facade.MigrateServices(datastore.Get(), request)
 }
 
 func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]service.Service) error {
@@ -103,21 +80,7 @@ func (this *ControlPlaneDao) GetServiceList(serviceID string, services *[]servic
 
 //
 func (this *ControlPlaneDao) RemoveService(id string, unused *int) error {
-	var tenantID string
-	if err := this.GetTenantId(id, &tenantID); err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", id, err)
-		return err
-	}
-	if err := this.facade.RemoveService(datastore.Get(), id); err != nil {
-		return err
-	}
-	if tenantID == id {
-		// We're deleting the top-level service, so there may be snapshots
-		if err := this.DeleteSnapshots(id, unused); err != nil {
-			return err
-		}
-	}
-	return nil
+	return this.facade.RemoveService(datastore.Get(), id)
 }
 
 // GetService gets a service.
@@ -203,20 +166,11 @@ func (this *ControlPlaneDao) StopService(request dao.ScheduleServiceRequest, aff
 }
 
 // WaitService waits for the given service IDs to reach a particular state
-func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *struct{}) (err error) {
+func (this *ControlPlaneDao) WaitService(request dao.WaitServiceRequest, _ *int) (err error) {
 	return this.facade.WaitService(datastore.Get(), request.DesiredState, request.Timeout, request.ServiceIDs...)
 }
 
 // assign an IP address to a service (and all its child services) containing non default AddressResourceConfig
-func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *struct{}) error {
+func (this *ControlPlaneDao) AssignIPs(assignmentRequest dao.AssignmentRequest, _ *int) error {
 	return this.facade.AssignIPs(datastore.Get(), assignmentRequest)
-}
-
-// Create the tenant volume
-func (this *ControlPlaneDao) createTenantVolume(serviceID string) {
-	if tenantID, err := this.facade.GetTenantID(datastore.Get(), serviceID); err != nil {
-		glog.Warningf("Could not get tenant for service %s: %s", serviceID, err)
-	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
-		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
-	}
 }

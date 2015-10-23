@@ -23,7 +23,6 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/domain/user"
 	"github.com/control-center/serviced/metrics"
-	"github.com/control-center/serviced/volume"
 )
 
 // A generic ControlPlane error
@@ -102,7 +101,9 @@ type FindChildRequest struct {
 
 type SnapshotRequest struct {
 	ServiceID   string
-	Description string
+	Message     string
+	Tags        []string
+	ContainerID string
 }
 
 type RollbackRequest struct {
@@ -163,7 +164,7 @@ type ControlPlane interface {
 	GetServiceEndpoints(serviceId string, response *map[string][]ApplicationEndpoint) error
 
 	// Assign IP addresses to all services at and below the provided service
-	AssignIPs(assignmentRequest AssignmentRequest, _ *struct{}) (err error)
+	AssignIPs(assignmentRequest AssignmentRequest, _ *int) (err error)
 
 	// Get the IP addresses assigned to an service
 	GetServiceAddressAssignments(serviceID string, addresses *[]addressassignment.AddressAssignment) error
@@ -184,7 +185,7 @@ type ControlPlane interface {
 	StopRunningInstance(request HostServiceRequest, unused *int) error
 
 	// Wait for a particular service state
-	WaitService(request WaitServiceRequest, _ *struct{}) error
+	WaitService(request WaitServiceRequest, _ *int) error
 
 	// Update the service state
 	UpdateServiceState(state servicestate.ServiceState, unused *int) error
@@ -255,57 +256,54 @@ type ControlPlane interface {
 	// Register a health check result
 	LogHealthCheck(result domain.HealthCheckResult, unused *int) error
 
-	// Return the number of layers in an image
-	ImageLayerCount(imageUUID string, layers *int) error
-
-	// Volume returns a service's volume
-	GetVolume(serviceID string, volume volume.Volume) error
-
-	// SetRegistry resets the path to the docker registry
-	ResetRegistry(request EntityRequest, unused *int) error
-
-	// Deletes a particular snapshot
-	DeleteSnapshot(snapshotID string, unused *int) error
-
-	// Deletes all snapshots for a specific tenant
-	DeleteSnapshots(tenantID string, unused *int) error
-
-	// Rollback a service to a particular snapshot
-	Rollback(request RollbackRequest, unused *int) error
-
-	// Snapshot takes a snapshot of the filesystem and images
-	Snapshot(request SnapshotRequest, snapshotID *string) error
-
-	// AsyncSnapshot performs a snapshot asynchronously
-	AsyncSnapshot(serviceID string, snapshotID *string) error
-
-	// ListSnapshots lists all the snapshots for a particular service
-	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) error
-
-	// Commit commits a docker container to a service image
-	Commit(containerID string, snapshotID *string) error
-
-	// ReadyDFS notifies whether there are any running operations
-	ReadyDFS(bool, *int) error
-
-	// ListBackups lists the backup files for a particular directory
-	ListBackups(dirpath string, files *[]BackupFile) error
-
-	// Backup backs up dfs and imagesWrite a tgz file containing all templates and services
-	Backup(dirpath string, filename *string) error
-
-	// AsyncBackup performs asynchronous backups
-	AsyncBackup(dirpath string, filename *string) error
-
-	// Restore templates and services from a tgz file (inverse of Backup)
-	Restore(filename string, unused *int) error
-
-	// AsyncRestore performs an asynchronous restore
-	AsyncRestore(filename string, unused *int) error
-
-	// BackupStatus monitors the status of a backup or restore
-	BackupStatus(unused int, status *string) error
-
 	// Check the health of control center
 	ServicedHealthCheck(IServiceNames []string, results *[]IServiceHealthResult) error
+
+	// -----------------------------------------------------------------------
+	// Filesystem CRUD
+
+	// Backup captures the state of the application stack and writes the output
+	// to disk.
+	Backup(dirpath string, filename *string) (err error)
+
+	// AsyncBackup is the same as backup but asynchronous
+	AsyncBackup(dirpath string, filename *string) (err error)
+
+	// Restore reverts the full application stack from a backup file
+	Restore(filename string, _ *int) (err error)
+
+	// AsyncRestore is the same as restore but asynchronous
+	AsyncRestore(filename string, _ *int) (err error)
+
+	// ListBackups returns the list of backups
+	ListBackups(dirpath string, files *[]BackupFile) (err error)
+
+	// BackupStatus returns the current status of a running backup or restore
+	BackupStatus(_ EntityRequest, status *string) (err error)
+
+	// Snapshot captures the state of a single application
+	Snapshot(req SnapshotRequest, snapshotID *string) (err error)
+
+	// Rollback reverts a single application to the state of a snapshot
+	Rollback(req RollbackRequest, _ *int) (err error)
+
+	// DeleteSnapshot deletes a single snapshot
+	DeleteSnapshot(snapshotID string, _ *int) (err error)
+
+	// DeleteSnapshots deletes all snapshots for a service
+	DeleteSnapshots(serviceID string, _ *int) (err error)
+
+	// ListSnapshots returns a list of all snapshots for a service
+	ListSnapshots(serviceID string, snapshots *[]SnapshotInfo) (err error)
+
+	// ResetRegistry prompts all images to be re-pushed into the docker
+	// registry.
+	ResetRegistry(_ EntityRequest, _ *int) (err error)
+
+	// RepairRegistry will try to recover the latest image of all service
+	// images from the docker registry and save it to the index.
+	RepairRegistry(_ EntityRequest, _ *int) (err error)
+
+	// ReadyDFS waits for the DFS to be idle when creating a service shell.
+	ReadyDFS(serviceID string, _ *int) (err error)
 }

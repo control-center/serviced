@@ -195,16 +195,6 @@ func (s *DockerSuite) TestRemoveImage(c *C) {
 	c.Assert(err, NotNil)
 }
 
-func (s *DockerSuite) TestImageHistory(c *C) {
-	_, err := s.dc.ImageHistory("fakebox")
-	c.Assert(err, NotNil)
-	expected, err := s.dc.ImageHistory("busybox")
-	c.Assert(err, IsNil)
-	actual, err := s.docker.ImageHistory("busybox")
-	c.Assert(err, IsNil)
-	c.Assert(actual, DeepEquals, expected)
-}
-
 func (s *DockerSuite) TestFindContainer(c *C) {
 	_, err := s.docker.FindContainer("fakecontainer")
 	c.Assert(err, NotNil)

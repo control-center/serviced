@@ -34,7 +34,7 @@ func (f *Facade) SetRegistryImage(ctx datastore.Context, rImage *registry.Image)
 	if err := f.registryStore.Put(ctx, rImage); err != nil {
 		return err
 	}
-	if err := zkAPI(f).SetRegistryImage(rImage); err != nil {
+	if err := f.zzk.SetRegistryImage(rImage); err != nil {
 		return err
 	}
 	return nil
@@ -46,7 +46,7 @@ func (f *Facade) DeleteRegistryImage(ctx datastore.Context, image string) error 
 	if err := f.registryStore.Delete(ctx, image); err != nil {
 		return err
 	}
-	if err := zkAPI(f).DeleteRegistryImage(registry.Key(image).ID()); err != nil {
+	if err := f.zzk.DeleteRegistryImage(registry.Key(image).ID()); err != nil {
 		return err
 	}
 	return nil
@@ -84,7 +84,7 @@ func (f *Facade) SyncRegistryImages(ctx datastore.Context, force bool) error {
 	// we aren't going to try to sync deletes because that can get too messy;
 	// only adds and updates
 	for _, rImage := range rImages {
-		img, err := zkAPI(f).GetRegistryImage(rImage.ID())
+		img, err := f.zzk.GetRegistryImage(rImage.ID())
 		if err != nil {
 			return err
 		}

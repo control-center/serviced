@@ -83,9 +83,8 @@ type API interface {
 	// Snapshots
 	GetSnapshots() ([]dao.SnapshotInfo, error)
 	GetSnapshotsByServiceID(string) ([]dao.SnapshotInfo, error)
-	AddSnapshot(string, string) (string, error)
+	AddSnapshot(SnapshotConfig) (string, error)
 	RemoveSnapshot(string) error
-	Commit(string) (string, error)
 	Rollback(string, bool) error
 
 	// Templates
@@ -102,7 +101,6 @@ type API interface {
 
 	// Docker
 	ResetRegistry() error
-	Squash(imageName, downToLayer, newName, tempDir string) (string, error)
 	RegistrySync() error
 
 	// Logs
