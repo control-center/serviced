@@ -39,7 +39,7 @@ type InProgress struct {
 func (p *InProgress) SetProgress(filename, op string) {
 	p.locker.Lock()
 	defer p.locker.Unlock()
-	p.running = false
+	p.running = true
 	p.filename = filename
 	p.op = op
 }

@@ -16,7 +16,7 @@
         <td data-title="'file_name'|translate" sortable="'full_path'">{{fileInfo.full_path}}</td>
         <td data-title="'modified'|translate" sortable="'mod_time'">{{fileInfo.mod_time | date: 'medium'}}</td>
         <td data-title="'actions'|translate">
-            <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.name)">
+            <button ng-hide="fileInfo.in_progress" class="btn btn-link action" ng-click="restoreBackup(fileInfo.full_path)">
                 <span class="glyphicon glyphicon-refresh"></span>
                 <span translate>backup_restore</span>
             </button>
