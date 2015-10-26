@@ -21,8 +21,11 @@ import (
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/serviceconfigfile"
 	"github.com/control-center/serviced/domain/servicedefinition"
+	"github.com/control-center/serviced/domain/servicestate"
 
+	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
+	"fmt"
 )
 
 func (ft *FacadeTest) TestFacade_validateServiceEndpoints_noDupsInOneService(t *C) {
@@ -210,6 +213,112 @@ func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
 		t.Assert(conf.ConfFile.Filename, Not(Equals), "addedConfig")
 		t.Assert(expectedConfigFiles[conf.ConfFile.Filename], Equals, conf.ConfFile)
 	}
+}
+
+func (ft *FacadeTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, "undefined")
+
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "Could not find service undefined.*")
+	t.Assert(endpointMap, IsNil)
+}
+
+func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t *C) {
+	svc, err := ft.setupServiceWithEndpoints(t)
+	t.Assert(err, IsNil)
+	serviceIDs := []string{svc.ID}
+	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
+	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(errorStub)
+
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+
+	t.Assert(err, NotNil)
+	t.Assert(err, ErrorMatches, "Could not get service states for service .*")
+	t.Assert(endpointMap, IsNil)
+}
+
+func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
+	svc, err := ft.setupServiceWithEndpoints(t)
+	t.Assert(err, IsNil)
+	serviceIDs := []string{svc.ID}
+	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(nil)
+
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+
+	t.Assert(err, IsNil)
+	t.Assert(endpointMap, NotNil)
+	t.Assert(len(endpointMap), Equals, 1)
+
+	endpoints, ok := endpointMap[svc.ID]
+	t.Assert(ok, Equals, true)
+	t.Assert(len(endpoints), Equals, 2)
+	t.Assert(endpoints[0].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[0].InstanceID, Equals, 0)
+	t.Assert(endpoints[0].Application, Equals, "test_ep_1")
+	t.Assert(endpoints[1].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[1].InstanceID, Equals, 0)
+	t.Assert(endpoints[1].Application, Equals, "test_ep_2")
+}
+
+func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
+	svc, err := ft.setupServiceWithEndpoints(t)
+	t.Assert(err, IsNil)
+	serviceIDs := []string{svc.ID}
+	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).
+		Return(nil).Run(func(args mock.Arguments) {
+			// Mock results for 2 running instances
+			statesArg := args.Get(1).(*[]servicestate.ServiceState)
+			*statesArg = []servicestate.ServiceState{
+				{ServiceID: svc.ID, InstanceID: 0, Endpoints: svc.Endpoints},
+				{ServiceID: svc.ID, InstanceID: 1, Endpoints: svc.Endpoints},
+			}
+			t.Assert(true, Equals, true)
+		})
+	// don't worry about mocking the ZK validation
+	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]dao.ApplicationEndpoint")).Return(nil)
+
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+
+	t.Assert(err, IsNil)
+	t.Assert(endpointMap, NotNil)
+	t.Assert(len(endpointMap), Equals, 1)
+
+	endpoints, ok := endpointMap[svc.ID]
+	t.Assert(ok, Equals, true)
+	t.Assert(len(endpoints), Equals, 4)
+	t.Assert(endpoints[0].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[0].InstanceID, Equals, 0)
+	t.Assert(endpoints[0].Application, Equals, "test_ep_1")
+	t.Assert(endpoints[1].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[1].InstanceID, Equals, 0)
+	t.Assert(endpoints[1].Application, Equals, "test_ep_2")
+	t.Assert(endpoints[2].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[2].InstanceID, Equals, 1)
+	t.Assert(endpoints[2].Application, Equals, "test_ep_1")
+	t.Assert(endpoints[3].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[3].InstanceID, Equals, 1)
+	t.Assert(endpoints[3].Application, Equals, "test_ep_2")
+}
+
+func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) {
+	svc := service.Service{
+		ID:           "svc1",
+		Name:         "TestFacade_GetServiceEndpoints",
+		DeploymentID: "deployment_id",
+		PoolID:       "pool_id",
+		Launch:       "auto",
+		DesiredState: int(service.SVCStop),
+		Endpoints: []service.ServiceEndpoint{
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_2", Application: "test_ep_2", Purpose: "export"}),
+			service.BuildServiceEndpoint(servicedefinition.EndpointDefinition{Name: "test_ep_1", Application: "test_ep_1", Purpose: "export"}),
+		},
+	}
+
+	if err := ft.Facade.AddService(ft.CTX, svc); err != nil {
+		t.Errorf("Setup failed; could not add svc %s: %s", svc.ID, err)
+		return nil, err
+	}
+	return &svc, nil
 }
 
 func (ft *FacadeTest) setupMigrationServices(t *C, originalConfigs map[string]servicedefinition.ConfigFile) (*service.Service, *service.Service, error) {
