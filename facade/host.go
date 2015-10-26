@@ -80,7 +80,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
 		return err
 	}
-	err = zkAPI(f).AddHost(entity)
+	err = f.zzk.AddHost(entity)
 	return err
 }
 
@@ -114,7 +114,7 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 		return err
 	}
 
-	err = zkAPI(f).UpdateHost(entity)
+	err = f.zzk.UpdateHost(entity)
 	return err
 }
 
@@ -173,7 +173,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	}
 
 	//remove host from zookeeper
-	if err = zkAPI(f).RemoveHost(_host); err != nil {
+	if err = f.zzk.RemoveHost(_host); err != nil {
 		return err
 	}
 
@@ -239,7 +239,7 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	}
 	for _, p := range pools {
 		var active []string
-		if err := zkAPI(f).GetActiveHosts(p.ID, &active); err != nil {
+		if err := f.zzk.GetActiveHosts(p.ID, &active); err != nil {
 			glog.Errorf("Could not get active host ids for pool: %v", err)
 			return nil, err
 		}
