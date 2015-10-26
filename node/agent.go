@@ -314,6 +314,13 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 
 // StartService starts a new instance of the specified service and updates the control center state accordingly.
 func (a *HostAgent) StartService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
+	handlerInstalled := false
+	defer func() {
+		if !handlerInstalled {
+			exited(state.ID)
+		}
+	}()
+
 	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
@@ -369,12 +376,17 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		a.removeInstance(state.ID, ctr)
 	})
 
-	if err := ctr.Start(time.Hour); err != nil {
+	if expectDockerEvents, err := ctr.Start(); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		started.Done()
-		a.removeInstance(state.ID, ctr)
+		if !expectDockerEvents {
+			// The Docker event handlers we just registered won't get called, so perform those cleanup steps here
+			glog.Infof("Cleaning up after start failure for service state %s (%s) for service %s (%s)", state.ID, ctr.ID, svc.Name, svc.ID)
+			started.Done()
+			a.removeInstance(state.ID, ctr)
+		}
 		return err
 	}
+	handlerInstalled = true
 
 	started.Wait()
 	if err := updateInstance(state, ctr); err != nil {
