@@ -25,7 +25,7 @@ import (
 
 const (
 	DefaultSocket   = "unix:///var/run/docker.sock"
-	DefaultRegistry = "https://index.docker.io/v1"
+	DefaultRegistry = "https://index.docker.io/v1/"
 	Latest          = "latest"
 	MaxLayers       = 127 - 2
 )
