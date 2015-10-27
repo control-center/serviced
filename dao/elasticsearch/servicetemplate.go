@@ -17,12 +17,10 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain/servicetemplate"
-	"github.com/zenoss/glog"
 )
 
-func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateID *string) error {
-	id, err := this.facade.AddServiceTemplate(datastore.Get(), serviceTemplate)
-	*templateID = id
+func (this *ControlPlaneDao) AddServiceTemplate(serviceTemplate servicetemplate.ServiceTemplate, templateID *string) (err error) {
+	*templateID, err = this.facade.AddServiceTemplate(datastore.Get(), serviceTemplate)
 	return err
 }
 
@@ -44,18 +42,9 @@ func (this *ControlPlaneDao) GetServiceTemplates(unused int, templates *map[stri
 	return err
 }
 
-func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) error {
-	var err error
+func (this *ControlPlaneDao) DeployTemplate(request dao.ServiceTemplateDeploymentRequest, tenantIDs *[]string) (err error) {
 	*tenantIDs, err = this.facade.DeployTemplate(datastore.Get(), request.PoolID, request.TemplateID, request.DeploymentID)
-
-	// Create the tenant volume
-	for _, tenantID := range *tenantIDs {
-		if err := this.dfs.CreateVolume(tenantID); err != nil {
-			glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
-		}
-	}
-
-	return err
+	return
 }
 
 func (this *ControlPlaneDao) DeployTemplateStatus(request dao.ServiceTemplateDeploymentRequest, deployTemplateStatus *string) error {
@@ -73,19 +62,7 @@ func (this *ControlPlaneDao) DeployTemplateActive(notUsed string, active *[]map[
 	return err
 }
 
-func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) error {
-	var err error
+func (this *ControlPlaneDao) DeployService(request dao.ServiceDeploymentRequest, serviceID *string) (err error) {
 	*serviceID, err = this.facade.DeployService(datastore.Get(), request.PoolID, request.ParentID, request.Overwrite, request.Service)
-	if err != nil {
-		glog.Errorf("Could not deploy service %s to %s: %s", request.Service.Name, request.ParentID, err)
-		return err
-	}
-
-	// Create the tenant volume
-	if tenantID, err := this.facade.GetTenantID(datastore.Get(), *serviceID); err != nil {
-		glog.Warningf("Could not get tenant for service %s: %s", *serviceID, err)
-	} else if _, err := this.dfs.GetVolume(tenantID); err != nil {
-		glog.Warningf("Could not create volume for tenant %s: %s", tenantID, err)
-	}
-	return nil
+	return
 }

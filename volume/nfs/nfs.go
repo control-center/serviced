@@ -72,6 +72,12 @@ func (d *NFSDriver) DriverType() volume.DriverType {
 	return volume.DriverTypeNFS
 }
 
+// GetTenant implements volume.Driver.GetTenant
+func (d *NFSDriver) GetTenant(volumeName string) (volume.Volume, error) {
+	// this is not supported because there are no snapshots on nfs
+	return nil, ErrNotSupported
+}
+
 // Get implements volume.Driver.Get
 func (d *NFSDriver) Get(volumeName string) (volume.Volume, error) {
 	volumePath := filepath.Join(d.root, volumeName)
@@ -166,8 +172,13 @@ func (v *NFSVolume) ReadMetadata(label, name string) (io.ReadCloser, error) {
 }
 
 // Snapshot implements volume.Volume.Snapshot
-func (v *NFSVolume) Snapshot(label string) (err error) {
+func (v *NFSVolume) Snapshot(label, message string, tags []string) (err error) {
 	return ErrNotSupported
+}
+
+// SnapshotInfo implements volume.Volume.SnapshotInfo
+func (v *NFSVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
+	return nil, ErrNotSupported
 }
 
 // Snapshots implements volume.Volume.Snapshots

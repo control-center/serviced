@@ -18,6 +18,7 @@ import (
 	"os"
 
 	"github.com/codegangsta/cli"
+	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 )
 
@@ -152,9 +153,11 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 		cli.ShowCommandHelp(ctx, "add")
 		return
 	}
-
-	description := ctx.String("description")
-	if snapshot, err := c.driver.AddSnapshot(ctx.Args().First(), description); err != nil {
+	cfg := api.SnapshotConfig{
+		ServiceID: ctx.Args().First(),
+		Message:   ctx.String("description"),
+	}
+	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		c.exit(1)
 	} else if snapshot == "" {
@@ -191,8 +194,11 @@ func (c *ServicedCli) cmdSnapshotCommit(ctx *cli.Context) {
 		cli.ShowCommandHelp(ctx, "commit")
 		return
 	}
+	cfg := api.SnapshotConfig{
+		DockerID: args[0],
+	}
 
-	if snapshot, err := c.driver.Commit(args[0]); err != nil {
+	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else if snapshot == "" {
 		fmt.Fprintln(os.Stderr, "received nil snapshot")
