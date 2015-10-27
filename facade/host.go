@@ -80,7 +80,7 @@ func (f *Facade) AddHost(ctx datastore.Context, entity *host.Host) error {
 	if err = f.hostStore.Put(ctx, host.HostKey(entity.ID), entity); err != nil {
 		return err
 	}
-	err = zkAPI(f).AddHost(entity)
+	err = f.zzk.AddHost(entity)
 	return err
 }
 
@@ -114,8 +114,44 @@ func (f *Facade) UpdateHost(ctx datastore.Context, entity *host.Host) error {
 		return err
 	}
 
-	err = zkAPI(f).UpdateHost(entity)
+	err = f.zzk.UpdateHost(entity)
 	return err
+}
+
+// RestoreHosts restores a list of hosts, typically from a backup
+func (f *Facade) RestoreHosts(ctx datastore.Context, hosts []host.Host) error {
+	var exists bool
+	var err error
+
+	for _, host := range hosts {
+		host.DatabaseVersion = 0
+		// check all the static ips on this host
+		for _, ip := range host.IPs {
+			if exists, err = f.HasIP(ctx, host.PoolID, ip.IPAddress); err != nil {
+				glog.Errorf("Could no check ip %s in pool %s while restoring host %s: %s", ip.IPAddress, host.PoolID, ip.HostID, err)
+				return err
+			} else if exists {
+				glog.Warningf("Could not restore host %s (%s): ip already exists", ip.HostID, ip.IPAddress)
+				break
+			}
+		}
+		if !exists {
+			// check the primary ip on this host
+			if exists, err := f.HasIP(ctx, host.PoolID, host.IPAddr); err != nil {
+				glog.Errorf("Could not check ip %s in pool %s while restoring host %s: %s", host.IPAddr, host.PoolID, host.ID, err)
+				return err
+			} else if !exists {
+				if err := f.AddHost(ctx, &host); err != nil {
+					glog.Errorf("Could not add host %s to pool %s: %s", host.ID, host.PoolID, err)
+					return err
+				}
+				glog.Infof("Restored host %s (%s) to pool %s", host.ID, host.IPAddr, host.PoolID)
+			} else {
+				glog.Warningf("Could not restore host %s (%s): ip already exists", host.ID, host.IPAddr)
+			}
+		}
+	}
+	return nil
 }
 
 // RemoveHost removes a Host from serviced
@@ -137,7 +173,7 @@ func (f *Facade) RemoveHost(ctx datastore.Context, hostID string) (err error) {
 	}
 
 	//remove host from zookeeper
-	if err = zkAPI(f).RemoveHost(_host); err != nil {
+	if err = f.zzk.RemoveHost(_host); err != nil {
 		return err
 	}
 
@@ -203,7 +239,7 @@ func (f *Facade) GetActiveHostIDs(ctx datastore.Context) ([]string, error) {
 	}
 	for _, p := range pools {
 		var active []string
-		if err := zkAPI(f).GetActiveHosts(p.ID, &active); err != nil {
+		if err := f.zzk.GetActiveHosts(p.ID, &active); err != nil {
 			glog.Errorf("Could not get active host ids for pool: %v", err)
 			return nil, err
 		}

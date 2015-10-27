@@ -85,9 +85,13 @@ func arrayContains(array []string, element string) bool {
 }
 
 // filter out the lost+found directory created on ext4 filesystems
-func filterLostAndFound(fis []os.FileInfo) (filtered []os.FileInfo) {
+// filter out the .SNAPSHOTINFO file that gets created when a new snapshot is
+// taken
+func filterExtraFiles(fis []os.FileInfo) (filtered []os.FileInfo) {
 	for _, fi := range fis {
-		if !fi.IsDir() || fi.Name() != "lost+found" {
+		switch fi.Name() {
+		case "lost+found", ".SNAPSHOTINFO":
+		default:
 			filtered = append(filtered, fi)
 		}
 	}
@@ -113,7 +117,14 @@ func DriverTestCreateEmpty(c *C, drivername volume.DriverType, root string, args
 	verifyFile(c, vol.Path(), 0755|os.ModeDir, uint32(os.Getuid()), uint32(os.Getgid()))
 	fis, err := ioutil.ReadDir(vol.Path())
 	c.Assert(err, IsNil)
-	fis = filterLostAndFound(fis)
+	fis = filterExtraFiles(fis)
+	c.Assert(fis, HasLen, 0)
+	vol2, err := driver.GetTenant(volumeName)
+	c.Assert(err, IsNil)
+	verifyFile(c, vol2.Path(), 0755|os.ModeDir, uint32(os.Getuid()), uint32(os.Getgid()))
+	fis, err = ioutil.ReadDir(vol2.Path())
+	c.Assert(err, IsNil)
+	fis = filterExtraFiles(fis)
 	c.Assert(fis, HasLen, 0)
 
 	driver.Release(volumeName)
@@ -164,7 +175,7 @@ func verifyBase(c *C, driver *Driver, vol volume.Volume) {
 	checkBase(c, driver, vol)
 	fis, err := ioutil.ReadDir(vol.Path())
 	c.Assert(err, IsNil)
-	fis = filterLostAndFound(fis)
+	fis = filterExtraFiles(fis)
 	c.Assert(fis, HasLen, 2)
 }
 
@@ -176,7 +187,7 @@ func verifyBaseWithExtra(c *C, driver *Driver, vol volume.Volume) {
 
 	fis, err := ioutil.ReadDir(vol.Path())
 	c.Assert(err, IsNil)
-	fis = filterLostAndFound(fis)
+	fis = filterExtraFiles(fis)
 	c.Assert(fis, HasLen, 3)
 }
 
@@ -218,19 +229,38 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(err, IsNil)
 
 	// Snapshot with the verified base
-	err = vol.Snapshot("Snap")
+	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"tagA"})
 	c.Assert(err, IsNil)
 
 	snaps, err := vol.Snapshots()
 	c.Assert(err, IsNil)
 	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
 
+	info, err := vol.SnapshotInfo("Base_Snap")
+	c.Assert(err, IsNil)
+	c.Assert(info, NotNil)
+	c.Check(info.Name, Equals, "Base_Snap")
+	c.Check(info.Label, Equals, "Snap")
+	c.Check(info.TenantID, Equals, "Base")
+	c.Check(info.Message, Equals, "snapshot-message-0")
+	c.Check(info.Tags, DeepEquals, []string{"tagA"})
+
 	// Write another file
 	writeExtra(c, driver, vol)
 
+	// Get the tenant volume of the snapshot that doesn't exist
+	tvol, err := driver.GetTenant("Base_Snap2")
+	c.Assert(err, Equals, volume.ErrVolumeNotExists)
+	c.Assert(tvol, IsNil)
+
 	// Re-snapshot with the extra file
-	err = vol.Snapshot("Snap2")
+	err = vol.Snapshot("Snap2", "snapshot-message-1", []string{"tag1", "tag2", "tag3"})
 	c.Assert(err, IsNil)
+
+	// Get the tenant volume of the snapshot
+	tvol, err = driver.GetTenant("Base_Snap2")
+	c.Assert(err, IsNil)
+	c.Assert(tvol.Name(), Equals, "Base")
 
 	// Make sure the metadata path exists for the snapshot
 	rmetadata := make([]byte, len(wmetadata))
@@ -261,11 +291,11 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(arrayContains(snaps, "Base_Snap2"), Equals, true)
 
 	// Snapshot using an existing label and make sure it errors properly
-	err = vol.Snapshot("Snap")
+	err = vol.Snapshot("Snap", "snapshot-message-2", []string{"tag4"})
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotExists.Error())
 
 	// Resnapshot using the raw label and make sure it is equivalent
-	err = vol.Snapshot("Base_Snap")
+	err = vol.Snapshot("Base_Snap", "snapshot-message-3", []string{"tag5", "tag6"})
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotExists.Error())
 
 	c.Assert(driver.Remove("Base"), IsNil)
@@ -296,7 +326,7 @@ func DriverTestExportImport(c *C, drivername volume.DriverType, exportfs, import
 	c.Assert(err, IsNil)
 
 	// Export the snapshot
-	c.Assert(vol.Snapshot("Backup"), IsNil)
+	c.Assert(vol.Snapshot("Backup", "", []string{}), IsNil)
 	err = vol.Export("Base_Backup", "", buffer)
 	c.Assert(err, IsNil)
 
