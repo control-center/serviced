@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -15,135 +15,323 @@ package elasticsearch
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/control-center/serviced/dao"
+	"compress/gzip"
+	"path/filepath"
+	"sync"
+	"time"
+
+	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
-	"github.com/control-center/serviced/volume"
-
-	"github.com/control-center/serviced/zzk"
-	zkSnapshot "github.com/control-center/serviced/zzk/snapshot"
 	"github.com/zenoss/glog"
-
-	"errors"
 )
 
-// GetVolume gets the volume of a service
-func (this *ControlPlaneDao) GetVolume(serviceID string, volume volume.Volume) error {
-	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
-		return err
+// InProgress prompts which backup is currently backing up or restoring
+type InProgress struct {
+	locker   *sync.RWMutex
+	running  bool
+	filename string
+	op       string
+	err      error
+}
+
+// SetProgress sets the current operation
+func (p *InProgress) SetProgress(filename, op string) {
+	p.locker.Lock()
+	defer p.locker.Unlock()
+	p.running = true
+	p.filename = filename
+	p.op = op
+}
+
+// SetError sets the error returned from the current operation
+func (p *InProgress) SetError(err error) {
+	p.locker.Lock()
+	defer p.locker.Unlock()
+	p.running = false
+	p.err = err
+}
+
+// Reset resets the progress indicator
+func (p *InProgress) Reset() {
+	p.locker.Lock()
+	defer p.locker.Unlock()
+	p.running = false
+	p.filename = ""
+	p.op = ""
+	p.err = nil
+}
+
+// UnsetProgress unsets the current operation
+func (p *InProgress) UnsetProgress(err error) {
+	p.locker.Lock()
+	defer p.locker.Unlock()
+	p.filename = ""
+	p.op = ""
+	p.err = err
+}
+
+// GetProgress returns the progress of the current running backup or restore.
+func (p *InProgress) GetProgress() (bool, string, string, error) {
+	p.locker.RLock()
+	defer p.locker.RUnlock()
+	return p.running, p.filename, p.op, p.err
+}
+
+var inprogress = &InProgress{locker: &sync.RWMutex{}}
+
+// Backup takes a backup of the full application stack and returns the filename
+// that it is written to.
+func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	// set the progress of the backup file
+	*filename = time.Now().UTC().Format("backup-2006-01-02-150405.tgz")
+	backupfilename := filepath.Join(dirpath, *filename)
+	if dirpath == "" {
+		backupfilename = filepath.Join(dao.backupsPath, *filename)
 	}
-
-	var err error
-	volume, err = this.dfs.GetVolume(tenantID)
-	return err
-}
-
-// ResetRegistry resets the docker registry
-func (this *ControlPlaneDao) ResetRegistry(request dao.EntityRequest, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.ResetRegistry()
-}
-
-// DeleteSnapshot deletes a particular snapshot
-func (this *ControlPlaneDao) DeleteSnapshot(snapshotID string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.DeleteSnapshot(snapshotID)
-}
-
-// DeleteSnapshots deletes all snapshots given a tenant
-func (this *ControlPlaneDao) DeleteSnapshots(serviceID string, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.DeleteSnapshots(serviceID)
-}
-
-// Rollback rolls back the dfs to a particular snapshot
-func (this *ControlPlaneDao) Rollback(request dao.RollbackRequest, unused *int) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-	return this.dfs.Rollback(request.SnapshotID, request.ForceRestart)
-}
-
-// Snapshot takes a snapshot of the dfs and its respective images
-func (this *ControlPlaneDao) Snapshot(request dao.SnapshotRequest, snapshotID *string) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	var tenantID string
-	if err := this.GetTenantId(request.ServiceID, &tenantID); err != nil {
-		glog.Errorf("Could not snapshot %s: %s", request.ServiceID, err)
-		return err
-	}
-
-	var err error
-	*snapshotID, err = this.dfs.Snapshot(tenantID, request.Description)
-	return err
-}
-
-// AsyncSnapshot is the asynchronous call to snapshot
-func (this *ControlPlaneDao) AsyncSnapshot(serviceID string, snapshotID *string) error {
-	poolID, err := this.facade.GetPoolForService(datastore.Get(), serviceID)
+	inprogress.SetProgress(backupfilename, "backup")
+	defer func() {
+		if err != nil {
+			glog.Errorf("Backup failed with error: %s", err)
+			os.Remove(backupfilename)
+		}
+		inprogress.SetError(err)
+	}()
+	// create the file and write
+	fh, err := os.Create(backupfilename)
 	if err != nil {
-		glog.Errorf("Unable to get pool for service %v: %v", serviceID, err)
-		return err
+		glog.Errorf("Could not create backup file at %s: %s", backupfilename, err)
+		return
 	}
+	defer fh.Close()
+	gz := gzip.NewWriter(fh)
+	defer gz.Close()
+	err = dao.facade.Backup(ctx, gz)
+	return
+}
 
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(poolID))
+// AsyncBackup is the same as backup, but asynchronous
+func (dao *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) (err error) {
+	go dao.Backup(dirpath, filename)
+	return
+}
+
+// Restore restores the full application stack from a backup file.
+func (dao *ControlPlaneDao) Restore(filename string, _ *int) error {
+	ctx := datastore.Get()
+
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+	inprogress.SetProgress(filename, "restore")
+
+	fh, err := os.Open(filename)
 	if err != nil {
-		glog.Errorf("Cannot establish connection to zk via pool %s: %s", poolID, err)
 		return err
 	}
-
-	var ss zkSnapshot.Snapshot
-	if nodeID, err := zkSnapshot.Send(conn, serviceID); err != nil {
-		glog.Errorf("Could not submit snapshot for %s: %s", serviceID, err)
-		return err
-	} else if err := zkSnapshot.Recv(conn, nodeID, &ss); err != nil {
-		glog.Errorf("Could not receive snapshot for %s (%s): %s", serviceID, nodeID, err)
+	defer fh.Close()
+	gz, err := gzip.NewReader(fh)
+	if err != nil {
 		return err
 	}
-
-	*snapshotID = ss.Label
-	if ss.Err != "" {
-		return errors.New(ss.Err)
-	}
-	return nil
-}
-
-// ListSnapshots lists all the available snapshots for a particular service
-func (this *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]dao.SnapshotInfo) error {
-	var tenantID string
-	if err := this.GetTenantId(serviceID, &tenantID); err != nil {
-		glog.Errorf("Could not find tenant for %s: %s", serviceID, err)
-		return err
-	} else if *snapshots, err = this.dfs.ListSnapshots(tenantID); err != nil {
-		glog.Errorf("Could not get snapshots for %s (%s): %s", serviceID, tenantID, err)
-		return err
-	}
-
-	return nil
-}
-
-// Commit commits a container to a particular tenant and snapshots the resulting image
-func (this *ControlPlaneDao) Commit(containerID string, snapshotID *string) error {
-	this.dfs.Lock()
-	defer this.dfs.Unlock()
-
-	var err error
-	*snapshotID, err = this.dfs.Commit(containerID)
+	defer gz.Close()
+	err = dao.facade.Restore(ctx, gz)
+	inprogress.SetError(err)
 	return err
 }
 
-// ReadyDFS verifies that no other dfs operations are in progress
-func (this *ControlPlaneDao) ReadyDFS(unused bool, unusedint *int) (err error) {
-	if locked, err := this.dfs.IsLocked(); err != nil {
-		return err
-	} else if locked {
-		return fmt.Errorf("another dfs operation is running")
+// AsyncRestore is the same as restore, but asynchronous.
+func (dao *ControlPlaneDao) AsyncRestore(filename string, unused *int) (err error) {
+	go dao.Restore(filename, unused)
+	return
+}
+
+// ListBackups returns the list of backups
+func (dao *ControlPlaneDao) ListBackups(dirpath string, files *[]model.BackupFile) (err error) {
+	*files = []model.BackupFile{}
+
+	// Read the contents of the directory
+	if dirpath == "" {
+		dirpath = dao.backupsPath
 	}
-	return nil
+	dir, err := os.Open(dirpath)
+	if err != nil {
+		return err
+	}
+	defer dir.Close()
+
+	fis, err := dir.Readdir(0)
+	if err != nil {
+		return err
+	}
+	// What is currently running?
+	running, fp, _, _ := inprogress.GetProgress()
+
+	for _, fi := range fis {
+		if !fi.IsDir() {
+			// Set up the backup file
+			fullpath := filepath.Join(dirpath, fi.Name())
+			bf := model.BackupFile{
+				InProgress: running && fullpath == fp,
+				FullPath:   fullpath,
+				Name:       fi.Name(),
+				Size:       fi.Size(),
+				Mode:       fi.Mode(),
+				ModTime:    fi.ModTime(),
+			}
+			// If it is not running, make sure the backup is legit
+			if !bf.InProgress {
+				isbackup := func(filename string) bool {
+					fh, err := os.Open(fullpath)
+					if err != nil {
+						return false
+					}
+					defer fh.Close()
+					gz, err := gzip.NewReader(fh)
+					if err != nil {
+						return false
+					}
+					defer gz.Close()
+					_, err = dao.facade.BackupInfo(datastore.Get(), gz)
+					if err != nil {
+						return false
+					}
+					return true
+				}(fullpath)
+				if !isbackup {
+					continue
+				}
+			}
+			// Add the file to the list
+			*files = append(*files, bf)
+		}
+	}
+	return
+}
+
+// BackupStatus returns the current status of the backup or restore that is
+// running.
+func (dao *ControlPlaneDao) BackupStatus(_ model.EntityRequest, status *string) (err error) {
+	running, filename, op, err := inprogress.GetProgress()
+	if running {
+		*status = fmt.Sprintf("Performing a %s on %s", op, filename)
+	} else {
+		if err != nil {
+			*status = fmt.Sprintf("Completed a %s on %s with error: %s", op, filename, err)
+		} else {
+			inprogress.Reset()
+			*status = ""
+		}
+	}
+	return
+}
+
+// Snapshot captures the current state of a single application
+func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *string) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+	if req.ContainerID != "" {
+		*snapshotID, err = dao.facade.Commit(ctx, req.ContainerID, req.Message, req.Tags)
+	} else {
+		*snapshotID, err = dao.facade.Snapshot(ctx, req.ServiceID, req.Message, req.Tags)
+	}
+	return
+}
+
+// Rollback reverts a single application to a particular state
+func (dao *ControlPlaneDao) Rollback(req model.RollbackRequest, _ *int) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+	err = dao.facade.Rollback(ctx, req.SnapshotID, req.ForceRestart)
+	return
+}
+
+// DeleteSnapshot deletes a single snapshot
+func (dao *ControlPlaneDao) DeleteSnapshot(snapshotID string, _ *int) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+	err = dao.facade.DeleteSnapshot(ctx, snapshotID)
+	return
+}
+
+// DeleteSnapshots deletes all snapshots for a service
+func (dao *ControlPlaneDao) DeleteSnapshots(serviceID string, _ *int) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+	err = dao.facade.DeleteSnapshots(ctx, serviceID)
+	return
+}
+
+// ListSnapshots returns a list of all snapshots for a service
+func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.SnapshotInfo) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	*snapshots = make([]model.SnapshotInfo, 0)
+	snapshotIDs, err := dao.facade.ListSnapshots(ctx, serviceID)
+	if err != nil {
+		return err
+	}
+	for _, snapshotID := range snapshotIDs {
+		info, err := dao.facade.GetSnapshotInfo(ctx, snapshotID)
+		if err != nil {
+			return err
+		}
+		*snapshots = append(*snapshots, model.SnapshotInfo{info.Name, info.Message})
+	}
+	return
+}
+
+// ResetRegistry prompts all images to be pushed back into the docker registry
+func (dao *ControlPlaneDao) ResetRegistry(_ model.EntityRequest, _ *int) (err error) {
+	err = dao.facade.SyncRegistryImages(datastore.Get(), true)
+	return
+}
+
+// RepairRegistry will try to recover the latest image of all service images
+// from the docker registry and save it to the index.
+func (dao *ControlPlaneDao) RepairRegistry(_ model.EntityRequest, _ *int) (err error) {
+	err = dao.facade.RepairRegistry(datastore.Get())
+	return
+}
+
+// ReadyDFS locks until it receives notice that the dfs is idle
+func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	err = dao.facade.ResetLock(ctx, serviceID)
+	return
 }

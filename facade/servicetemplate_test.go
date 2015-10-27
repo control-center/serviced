@@ -66,16 +66,3 @@ func (ft *FacadeTest) TestDaoInvalidServiceForStart(t *C) {
 		t.Error("Services should have failed validation for starting...")
 	}
 }
-
-func (ft *FacadeTest) TestRenameImageID(t *C) {
-	imageId, err := renameImageID("localhost:5000", "quay.io/zenossinc/daily-zenoss5-core:5.0.0_123", "X")
-	if err != nil {
-		t.Errorf("unexpected failure renamingImageID: %s", err)
-		t.FailNow()
-	}
-	expected := "localhost:5000/X/daily-zenoss5-core"
-	if imageId != expected {
-		t.Errorf("expected image '%s' got '%s'", expected, imageId)
-		t.FailNow()
-	}
-}

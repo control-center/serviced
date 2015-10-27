@@ -17,8 +17,10 @@ import (
 	"fmt"
 	"time"
 
+	zkimgregistry "github.com/control-center/serviced/dfs/registry"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
+	"github.com/control-center/serviced/domain/registry"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/zzk"
@@ -29,85 +31,51 @@ import (
 	"github.com/zenoss/glog"
 )
 
-func getZKAPI(f *Facade) zkfuncs {
+func getZZK(f *Facade) ZZK {
 	return &zkf{f}
-}
-
-var zkAPI func(f *Facade) zkfuncs = getZKAPI
-
-type zkfuncs interface {
-	UpdateService(service *service.Service) error
-	RemoveService(service *service.Service) error
-	WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error
-	GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error
-	StopServiceInstance(poolID, hostID, stateID string) error
-	CheckRunningVHost(vhostName, serviceID string) error
-	AddHost(host *host.Host) error
-	UpdateHost(host *host.Host) error
-	RemoveHost(host *host.Host) error
-	GetActiveHosts(poolID string, hosts *[]string) error
-	AddResourcePool(pool *pool.ResourcePool) error
-	UpdateResourcePool(pool *pool.ResourcePool) error
-	RemoveResourcePool(poolID string) error
-	AddVirtualIP(virtualIP *pool.VirtualIP) error
-	RemoveVirtualIP(virtualIP *pool.VirtualIP) error
 }
 
 type zkf struct {
 	f *Facade
 }
 
-func (zk *zkf) UpdateService(service *service.Service) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
+func (zk *zkf) UpdateService(svc *service.Service, locked bool) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		return err
 	}
-
-	if err := zkservice.UpdateService(conn, *service); err != nil {
+	if err := zkservice.UpdateService(conn, *svc, locked); err != nil {
 		return err
 	}
-
 	rootconn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		return err
 	}
-
-	return zkservice.UpdateServiceVhosts(rootconn, service)
+	return zkservice.UpdateServiceVhosts(rootconn, svc)
 }
 
-func (zk *zkf) RemoveService(service *service.Service) error {
+func (zk *zkf) RemoveService(svc *service.Service) error {
 	// acquire the service lock to prevent that service from being scheduled
 	// as it is being deleted
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		return err
 	}
-
 	// remove the global list of all vhosts deployed
 	if rootconn, err := zzk.GetLocalConnection("/"); err != nil {
 		return err
-	} else if err := zkservice.RemoveServiceVhosts(rootconn, service); err != nil {
+	} else if err := zkservice.RemoveServiceVhosts(rootconn, svc); err != nil {
 		return err
 	}
-
-	// Ensure that the service's pool is locked for the duration
-	finish := make(chan interface{})
-	defer close(finish)
-	if err := zkservice.EnsureServiceLock(nil, finish, conn); err != nil {
-		return err
-	}
-
-	// FIXME: this may be a long-running operation, should we institute a timeout?
-	return zkservice.RemoveService(conn, service.ID)
+	return zkservice.RemoveService(conn, svc.ID)
 }
 
-func (zk *zkf) WaitService(service *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
-	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(service.PoolID))
+func (zk *zkf) WaitService(svc *service.Service, state service.DesiredState, cancel <-chan interface{}) error {
+	conn, err := zzk.GetLocalConnection(zzk.GeneratePoolPath(svc.PoolID))
 	if err != nil {
 		return err
 	}
-
-	return zkservice.WaitService(cancel, conn, service.ID, state)
+	return zkservice.WaitService(cancel, conn, svc.ID, state)
 }
 
 func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceState, serviceIDs ...string) error {
@@ -115,7 +83,6 @@ func (zk *zkf) GetServiceStates(poolID string, states *[]servicestate.ServiceSta
 	if err != nil {
 		return err
 	}
-
 	*states, err = zkservice.GetServiceStates(conn, serviceIDs...)
 	return err
 }
@@ -125,7 +92,6 @@ func (zk *zkf) StopServiceInstance(poolID, hostID, stateID string) error {
 	if err != nil {
 		return err
 	}
-
 	return zkservice.StopServiceInstance(conn, hostID, stateID)
 }
 
@@ -134,26 +100,22 @@ func (z *zkf) CheckRunningVHost(vhostName, serviceID string) error {
 	if err != nil {
 		return err
 	}
-
 	vr, err := zkregistry.VHostRegistry(rootBasedConnection)
 	if err != nil {
 		glog.Errorf("Error getting vhost registry: %v", err)
 		return err
 	}
-
 	vhostEphemeralNodes, err := vr.GetVHostKeyChildren(rootBasedConnection, vhostName)
 	if err != nil {
 		glog.Errorf("GetVHostKeyChildren failed %v: %v", vhostName, err)
 		return err
 	}
-
 	if len(vhostEphemeralNodes) > 0 {
 		if vhost := vhostEphemeralNodes[0]; vhost.ServiceID != serviceID {
 			err := fmt.Errorf("virtual host %s is already running under service %s", vhostName, vhost.ServiceID)
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -180,19 +142,17 @@ func (z *zkf) RemoveHost(host *host.Host) error {
 	if err != nil {
 		return err
 	}
-
+	locker := zkservice.ServiceLock(conn)
+	if err := locker.Lock(); err != nil {
+		glog.Errorf("Could not disable service scheduling for pool %s: %s", host.PoolID, err)
+		return err
+	}
+	defer locker.Unlock()
 	cancel := make(chan interface{})
 	go func() {
 		defer close(cancel)
 		<-time.After(2 * time.Minute)
 	}()
-
-	// Ensure that the service's pool is locked for the duration
-	finish := make(chan interface{})
-	defer close(finish)
-	if err := zkservice.EnsureServiceLock(cancel, finish, conn); err != nil {
-		return err
-	}
 	return zkhost.RemoveHost(cancel, conn, host.ID)
 }
 
@@ -243,4 +203,66 @@ func (z *zkf) RemoveVirtualIP(virtualIP *pool.VirtualIP) error {
 		return err
 	}
 	return zkvirtualip.RemoveVirtualIP(conn, virtualIP.IP)
+}
+
+func (z *zkf) GetRegistryImage(id string) (*registry.Image, error) {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return nil, err
+	}
+	return zkimgregistry.GetRegistryImage(conn, id)
+}
+
+func (z *zkf) SetRegistryImage(image *registry.Image) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkimgregistry.SetRegistryImage(conn, image)
+}
+
+func (z *zkf) DeleteRegistryImage(id string) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkimgregistry.DeleteRegistryImage(conn, id)
+}
+
+func (z *zkf) DeleteRegistryLibrary(tenantID string) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	return zkimgregistry.DeleteRegistryImage(conn, tenantID)
+}
+
+func (z *zkf) LockServices(svcs []service.Service) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	nodes := make([]zkservice.ServiceLockNode, len(svcs))
+	for i, svc := range svcs {
+		nodes[i] = zkservice.ServiceLockNode{
+			PoolID:    svc.PoolID,
+			ServiceID: svc.ID,
+		}
+	}
+	return zkservice.LockServices(conn, nodes)
+}
+
+func (z *zkf) UnlockServices(svcs []service.Service) error {
+	conn, err := zzk.GetLocalConnection("/")
+	if err != nil {
+		return err
+	}
+	nodes := make([]zkservice.ServiceLockNode, len(svcs))
+	for i, svc := range svcs {
+		nodes[i] = zkservice.ServiceLockNode{
+			PoolID:    svc.PoolID,
+			ServiceID: svc.ID,
+		}
+	}
+	return zkservice.UnlockServices(conn, nodes)
 }

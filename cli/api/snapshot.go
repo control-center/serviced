@@ -19,9 +19,12 @@ import (
 	"github.com/control-center/serviced/dao"
 )
 
-const ()
-
-var ()
+type SnapshotConfig struct {
+	ServiceID string
+	Message   string
+	Tags      []string
+	DockerID  string
+}
 
 // Lists all snapshots on the DFS
 func (a *api) GetSnapshots() ([]dao.SnapshotInfo, error) {
@@ -60,14 +63,19 @@ func (a *api) GetSnapshotsByServiceID(serviceID string) ([]dao.SnapshotInfo, err
 }
 
 // Snapshots a service
-func (a *api) AddSnapshot(serviceID string, description string) (string, error) {
+func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return "", err
 	}
-
+	req := dao.SnapshotRequest{
+		ServiceID:   cfg.ServiceID,
+		Message:     cfg.Message,
+		Tags:        cfg.Tags,
+		ContainerID: cfg.DockerID,
+	}
 	var snapshotID string
-	if err := client.Snapshot(dao.SnapshotRequest{serviceID, description}, &snapshotID); err != nil {
+	if err := client.Snapshot(req, &snapshotID); err != nil {
 		return "", err
 	}
 
@@ -86,21 +94,6 @@ func (a *api) RemoveSnapshot(snapshotID string) error {
 	}
 
 	return nil
-}
-
-// Commit creates a snapshot and commits it as the service's image
-func (a *api) Commit(dockerID string) (string, error) {
-	client, err := a.connectDAO()
-	if err != nil {
-		return "", err
-	}
-
-	var snapshotID string
-	if err := client.Commit(dockerID, &snapshotID); err != nil {
-		return "", err
-	}
-
-	return snapshotID, nil
 }
 
 // Rollback rolls back the system to the state of the given snapshot

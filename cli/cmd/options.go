@@ -95,6 +95,7 @@ func getDefaultOptions(config utils.ConfigReader) api.Options {
 		tmpvarpath := getDefaultVarPath("")
 		options.IsvcsPath = filepath.Join(varpath, "isvcs")
 		options.VolumesPath = filepath.Join(tmpvarpath, "volumes")
+		options.BackupsPath = filepath.Join(varpath, "backups")
 	}
 
 	return options

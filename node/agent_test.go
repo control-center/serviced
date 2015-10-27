@@ -17,11 +17,13 @@ package node
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
+
 	"github.com/control-center/serviced/dao/mocks"
+	regmocks "github.com/control-center/serviced/dfs/registry/mocks"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 )
@@ -116,15 +118,22 @@ func TestParseContainerState(t *testing.T) {
 func TestConfigureContainer_DockerLog(t *testing.T) {
 	assert := assert.New(t)
 
+	// Create a fake pull registry that doesn't pull images
+	fakeRegistry := &regmocks.Registry{}
+	fakeRegistry.On("SetConnection", mock.Anything).Return(nil)
+	fakeRegistry.On("ImagePath", mock.Anything).Return("someimage", nil)
+	fakeRegistry.On("PullImage", mock.Anything).Return(nil)
+
 	// Create a fake HostAgent
 	fakeHostAgent := &HostAgent{
 		dockerLogDriver:      "fakejson-log",
 		dockerLogConfig:      []string{"alpha=one", "bravo=two", "charlie=three"},
 		virtualAddressSubnet: "0.0.0.0",
+		pullreg:              fakeRegistry,
 	}
 
 	// Create a fake client that won't make any RPC calls
-	fakeClient := new(mocks.ControlPlane)
+	fakeClient := &mocks.ControlPlane{}
 
 	// Create a fake service.Service
 	fakeService := &service.Service{
