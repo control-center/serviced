@@ -41,13 +41,13 @@ func (vs *ScriptSuite) Test_description(t *C) {
 
 func (vs *ScriptSuite) Test_NoArgs(t *C) {
 	ctx := newParseContext()
-	ctx.line = SNAPSHOT
-	cmd, err := nodeFactories[SNAPSHOT](ctx, SNAPSHOT, []string{})
+	ctx.line = REQUIRE_SVC
+	cmd, err := nodeFactories[REQUIRE_SVC](ctx, REQUIRE_SVC, []string{})
 	t.Assert(err, IsNil)
-	t.Assert(cmd, DeepEquals, node{cmd: SNAPSHOT, line: SNAPSHOT, args: []string{}})
+	t.Assert(cmd, DeepEquals, node{cmd: REQUIRE_SVC, line: REQUIRE_SVC, args: []string{}})
 
-	ctx.line = "SNAPSHOT 1"
-	cmd, err = nodeFactories[SNAPSHOT](ctx, SNAPSHOT, []string{"1"})
+	ctx.line = "REQUIRE_SVC 1"
+	cmd, err = nodeFactories[REQUIRE_SVC](ctx, REQUIRE_SVC, []string{"1"})
 	t.Assert(err, NotNil)
 }
 
@@ -66,6 +66,23 @@ func (vs *ScriptSuite) Test_OneArg(t *C) {
 
 	ctx.line = "DEPENDENCY"
 	cmd, err = nodeFactories[DEPENDENCY](ctx, DEPENDENCY, []string{})
+	t.Assert(err, NotNil)
+}
+
+func (vs *ScriptSuite) Test_snapshot(t *C) {
+	ctx := newParseContext()
+	ctx.line = SNAPSHOT
+	cmd, err := nodeFactories[SNAPSHOT](ctx, SNAPSHOT, []string{})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SNAPSHOT, line: SNAPSHOT, args: []string{}})
+
+	ctx.line = "SNAPSHOT 1"
+	cmd, err = nodeFactories[SNAPSHOT](ctx, SNAPSHOT, []string{"1"})
+	t.Assert(err, IsNil)
+	t.Assert(cmd, DeepEquals, node{cmd: SNAPSHOT, line: ctx.line, args: []string{"1"}})
+
+	ctx.line = "SNAPSHOT 1 1"
+	cmd, err = nodeFactories[SNAPSHOT](ctx, SNAPSHOT, []string{"1", "1"})
 	t.Assert(err, NotNil)
 }
 

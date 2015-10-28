@@ -15,7 +15,7 @@ import (
 type TenantIDLookup func(service string) (string, error)
 
 // Snapshot an application
-type Snapshot func(serviceID string, description string) (string, error)
+type Snapshot func(serviceID string, description string, tags []string) (string, error)
 
 // Commit a container
 type ContainerCommit func(containerID string) (string, error)
@@ -83,7 +83,7 @@ func noOpRestore(snapshotID string, forceRestart bool) error {
 	return nil
 }
 
-func noOpSnapshot(serviceID string, description string) (string, error) {
+func noOpSnapshot(serviceID string, description string, tags []string) (string, error) {
 	return "no_op_snapshot", nil
 }
 
