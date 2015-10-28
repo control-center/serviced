@@ -16,9 +16,7 @@ import (
 	"fmt"
 	"sync/atomic"
 	"time"
-//	"sync"
 )
-
 
 // Queue is a bounded blocking queue
 type Queue interface {
@@ -27,7 +25,7 @@ type Queue interface {
 
 	// TakeChan pops an item off the head of the queue, waits time.Duration. If duration <0 waits indefinitely
 	// Return chan interface for item in quey, and error chan for timeout
-	TakeChan(time.Duration) (<- chan interface{}, <- chan error)
+	TakeChan(time.Duration) (<-chan interface{}, <-chan error)
 
 	// Poll removes item off the head of the queue, returns immediately. Returns item, bool is true if item was in
 	// deque, false otherwise
@@ -63,7 +61,7 @@ type chanQueue struct {
 	size     int32
 }
 
-func (q *chanQueue) TakeChan(timeout time.Duration) (<- chan interface{}, <-chan error) {
+func (q *chanQueue) TakeChan(timeout time.Duration) (<-chan interface{}, <-chan error) {
 	timeoutChan := make(chan error, 1)
 	resultChan := make(chan interface{}, 1)
 	go func() {
@@ -71,7 +69,7 @@ func (q *chanQueue) TakeChan(timeout time.Duration) (<- chan interface{}, <-chan
 			item := <-q.qChan
 			atomic.AddInt32(&q.size, -1)
 			resultChan <- item
-		}else {
+		} else {
 			select {
 			case item := <-q.qChan:
 				atomic.AddInt32(&q.size, -1)

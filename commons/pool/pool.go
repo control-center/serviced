@@ -14,12 +14,13 @@
 package pool
 
 import (
-	"time"
 	"errors"
-	"github.com/control-center/serviced/commons/queue"
-	"sync/atomic"
-	"sync"
 	"fmt"
+	"sync"
+	"sync/atomic"
+	"time"
+
+	"github.com/control-center/serviced/commons/queue"
 )
 
 type PoolItem struct {
@@ -66,10 +67,9 @@ func NewPool(capacity int, itemFactory ItemFactory) (Pool, error) {
 	return &pool, nil
 }
 
-
 type itemPool struct {
-	itemMap     map[uint64]*PoolItem
-	itemQ       queue.Queue
+	itemMap map[uint64]*PoolItem
+	itemQ   queue.Queue
 
 	idCounter   uint64
 	capacity    int
@@ -77,21 +77,16 @@ type itemPool struct {
 	poolLock    sync.RWMutex
 }
 
-
-func (p *itemPool)  BorrowWait(timeout time.Duration) (*PoolItem, error) {
-	fmt.Println("BorrowWait")
+func (p *itemPool) BorrowWait(timeout time.Duration) (*PoolItem, error) {
 	item, found := p.itemQ.Poll()
 	if found {
-		fmt.Println("BorrowWait FOUND")
 		return p.checkout(item), nil
 	}
-	fmt.Println("BorrowWait not found")
 	if !found {
 		newItem, err := p.newItem()
 		if err != nil && err != ITEM_UNAVAIABLE {
 			return nil, err
-		}else if err == nil {
-			fmt.Printf("BorrowWait new item %#v\n", newItem)
+		} else if err == nil {
 			return p.checkout(newItem), nil
 		}
 	}
@@ -105,30 +100,27 @@ func (p *itemPool)  BorrowWait(timeout time.Duration) (*PoolItem, error) {
 	}
 }
 
-
-func (p *itemPool)  Borrow() (*PoolItem, error) {
+func (p *itemPool) Borrow() (*PoolItem, error) {
 	return p.BorrowWait(0)
 }
 
-func (p *itemPool)  Return(item *PoolItem) error {
-	id := p.nextID()
-	fmt.Println("RETURN: ", id)
-	err := func() error{
+func (p *itemPool) Return(item *PoolItem) error {
+	err := func() error {
 		p.poolLock.RLock()
 		defer p.poolLock.RUnlock()
 		if pooledItem, found := p.itemMap[item.id]; !found {
 			return fmt.Errorf("Pool Return error, item not found")
-		}    else if pooledItem != item {  //check same object (pointer compare)
+		} else if pooledItem != item { //check same object (pointer compare)
 			return fmt.Errorf("Pool Return error, item not in pool")
-		}    else if !item.checkedOut {
+		} else if !item.checkedOut {
 			return fmt.Errorf("Pool Return error, item not checked out")
 		}
-		fmt.Printf("RETURN %d setting checkedout false\n", id)
 		item.checkedOut = false
 		return nil
 	}()
-	fmt.Printf("RETURN %d err: %s \n", id,  err)
-	if err != nil {return err}
+	if err != nil {
+		return err
+	}
 
 	if !p.itemQ.Offer(item) {
 		return p.Remove(item)
@@ -136,15 +128,15 @@ func (p *itemPool)  Return(item *PoolItem) error {
 	return nil
 }
 
-func (p *itemPool)  Remove(item *PoolItem) error {
+func (p *itemPool) Remove(item *PoolItem) error {
 	p.poolLock.Lock()
 	defer p.poolLock.Unlock()
 
 	if pooledItem, found := p.itemMap[item.id]; !found {
 		return fmt.Errorf("Pool Remove error, item not found")
-	}    else if pooledItem != item {  //check same object (pointer compare)
+	} else if pooledItem != item { //check same object (pointer compare)
 		return fmt.Errorf("Pool Remove error, item not in pool")
-	}    else if !item.checkedOut {
+	} else if !item.checkedOut {
 		return fmt.Errorf("Pool Remove error, item not checked out")
 	}
 
@@ -166,13 +158,12 @@ func (p *itemPool) Borrowed() int {
 	return count
 }
 
-////Returns the current number of items in the pool (not borrowed)
+// Idle Returns the current number of items in the pool (not borrowed)
 func (p *itemPool) Idle() int {
 	p.poolLock.RLock()
 	defer p.poolLock.RUnlock()
 	count := 0
 	for _, item := range p.itemMap {
-		fmt.Printf("Idle: %#v\n", item)
 		if !item.checkedOut {
 			count += 1
 		}
@@ -180,7 +171,7 @@ func (p *itemPool) Idle() int {
 	return count
 }
 
-func (p *itemPool)  checkout(item interface{}) *PoolItem {
+func (p *itemPool) checkout(item interface{}) *PoolItem {
 	poolItem := item.(*PoolItem)
 	poolItem.checkedOut = true
 	poolItem.checkoutTime = time.Now()
@@ -189,22 +180,17 @@ func (p *itemPool)  checkout(item interface{}) *PoolItem {
 
 // creates a new Item if it can
 func (p *itemPool) newItem() (*PoolItem, error) {
-	fmt.Println("newItem")
 	p.poolLock.Lock()
 	defer p.poolLock.Unlock()
-	fmt.Printf("newItem  %d capacity, %d size\n", p.capacity, len(p.itemMap))
-	if len(p.itemMap) >= p.capacity{
+	if len(p.itemMap) >= p.capacity {
 		return nil, ITEM_UNAVAIABLE
 	}
 	i, err := p.itemFactory()
 	if err != nil {
-		fmt.Printf("newItem  itemFactory err  %#v\n", err)
 		return nil, err
 	}
-	fmt.Printf("newItem  is %v\n", i)
 
 	pItem := &PoolItem{id: p.nextID(), Item: i}
-	//p.itemQ.Put(pItem)
 	p.itemMap[pItem.id] = pItem
 	return pItem, nil
 }
@@ -212,6 +198,3 @@ func (p *itemPool) newItem() (*PoolItem, error) {
 func (p *itemPool) nextID() uint64 {
 	return atomic.AddUint64(&p.idCounter, 1)
 }
-
-
-

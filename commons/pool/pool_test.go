@@ -13,18 +13,18 @@
 package pool
 
 import (
-	"testing"
-	"sync/atomic"
-
-	. "gopkg.in/check.v1"
 	"fmt"
 	"sync"
+	"sync/atomic"
+	"testing"
 	"time"
+
+	. "gopkg.in/check.v1"
 )
 
 func Test(t *testing.T) { TestingT(t) }
 
-type MySuite struct {}
+type MySuite struct{}
 
 var _ = Suite(&MySuite{})
 
@@ -33,10 +33,9 @@ var factoryCount = int32(0)
 func Factory(maxCreate int) ItemFactory {
 	factoryCount = 0
 	return func() (interface{}, error) {
-		fmt.Printf("itemFactory\n")
 		val := int(factoryCount)
 		x := atomic.AddInt32(&factoryCount, 1)
-		if x> int32(maxCreate) {
+		if x > int32(maxCreate) {
 			return nil, fmt.Errorf("Tried to create %d items, max is %d", x, maxCreate)
 		}
 		return val, nil
@@ -53,34 +52,32 @@ func (s *MySuite) BLAMTestBorrowReturnRemove(c *C) {
 	c.Assert(err, IsNil)
 
 	items := []*PoolItem{}
-	for i := 0; i<capacity; i++ {
-		fmt.Printf("\n\nLOOP\n")
+	for i := 0; i < capacity; i++ {
 		x, err := p.Borrow()
 		c.Assert(int(factoryCount), Equals, i+1)
 		c.Assert(err, IsNil)
 		c.Assert(x, NotNil)
-		fmt.Printf("Item is %v\n", x.Item)
 		c.Assert(x.Item, Equals, i)
 		items = append(items, x)
 		c.Assert(p.Idle(), Equals, 0) //items are lazily created
-		c.Assert(p.Borrowed(), Equals, i +1)
+		c.Assert(p.Borrowed(), Equals, i+1)
 	}
 	c.Assert(p.Idle(), Equals, 0)
 	c.Assert(p.Borrowed(), Equals, capacity)
 
-	_, err=p.Borrow()
+	_, err = p.Borrow()
 	c.Assert(err, Equals, ITEM_UNAVAIABLE)
 
 	for idx, item := range items {
 		p.Return(item)
 		c.Assert(p.Idle(), Equals, idx+1)
-		c.Assert(p.Borrowed(), Equals, capacity - idx -1)
+		c.Assert(p.Borrowed(), Equals, capacity-idx-1)
 	}
 
 	c.Assert(p.Idle(), Equals, capacity)
 	c.Assert(p.Borrowed(), Equals, 0)
 
-	for i := 0; i<capacity; i++ {
+	for i := 0; i < capacity; i++ {
 		item, err := p.Borrow()
 		c.Assert(err, IsNil)
 		c.Assert(item, NotNil)
@@ -94,14 +91,14 @@ func (s *MySuite) BLAMTestBorrowReturnRemove(c *C) {
 	c.Assert(item.Item, Equals, capacity)
 
 	//test that error from factory will get propagated.
-	_, err=p.Borrow()
+	_, err = p.Borrow()
 
 	c.Assert(fmt.Sprintf("%s", err), Matches, fmt.Sprintf("Tried to create %d items,ds max is %d", capacity+2, capacity+1))
 }
 
 func (s *MySuite) TestWait(c *C) {
 
-	waitTime := 250*time.Millisecond
+	waitTime := 250 * time.Millisecond
 	capacity := 1
 	p, err := NewPool(capacity, Factory(capacity))
 	c.Assert(err, IsNil)
@@ -120,7 +117,7 @@ func (s *MySuite) TestWait(c *C) {
 	wg.Add(1)
 	go func() {
 		wg.Done()
-		time.Sleep(waitTime	)
+		time.Sleep(waitTime)
 		p.Return(item)
 	}()
 	wg.Wait()
@@ -130,7 +127,6 @@ func (s *MySuite) TestWait(c *C) {
 	if elapsed < waitTime {
 		c.Errorf("elapsed wait less than %s", waitTime)
 	}
-
 
 }
 
@@ -146,21 +142,20 @@ func (s *MySuite) TestConcurrent(c *C) {
 	found := int32(0)
 	notAVail := int32(0)
 	wg := sync.WaitGroup{}
-	start := make(chan struct {})
+	start := make(chan struct{})
 	startWG := sync.WaitGroup{}
 
-	for i := 0; i<capacity * 2; i++ {
+	for i := 0; i < capacity*2; i++ {
 		wg.Add(1)
 		startWG.Add(1)
 		go func() {
 			startWG.Done()
 			<-start
-			fmt.Printf("\n\nLOOP\n")
 			if x, err := p.Borrow(); err == ITEM_UNAVAIABLE {
 				atomic.AddInt32(&notAVail, 1)
-			}else if err != nil {
+			} else if err != nil {
 				c.Errorf("Unexpected error %v", err)
-			}else if x != nil {
+			} else if x != nil {
 				atomic.AddInt32(&found, 1)
 				itemLock.Lock()
 				items = append(items, x)
@@ -170,8 +165,8 @@ func (s *MySuite) TestConcurrent(c *C) {
 		}()
 	}
 	startWG.Wait() //wait for the go routines to be ready
-	close(start)  //start the go routines
-	wg.Wait() //wait for go routines to finish
+	close(start)   //start the go routines
+	wg.Wait()      //wait for go routines to finish
 
 	c.Assert(int(found), Equals, capacity)
 	//tried to get 2*capacity co not found should equal capacity
@@ -182,17 +177,15 @@ func (s *MySuite) TestConcurrent(c *C) {
 
 	c.Assert(len(items), Equals, capacity)
 
-	start = make(chan struct {})
+	start = make(chan struct{})
 	for idx, _ := range items {
 		item := items[idx]
-		i := idx
 		wg.Add(1)
 		startWG.Add(1)
 
 		go func() {
 			startWG.Done()
 			<-start
-			fmt.Println("RETURNING ITEM ", i)
 			err := p.Return(item)
 			c.Assert(err, IsNil)
 			wg.Done()
@@ -202,41 +195,38 @@ func (s *MySuite) TestConcurrent(c *C) {
 	close(start)
 	wg.Wait()
 
-	fmt.Printf("%+#v\n", p)
 	c.Assert(p.Idle(), Equals, capacity)
 	c.Assert(p.Borrowed(), Equals, 0)
 
-
 	found = int32(0)
 	notAVail = int32(0)
-	start = make(chan struct {})
+	start = make(chan struct{})
 
 	//mix borrow and returns
-	for i := 0; i<capacity * 2; i++ {
+	for i := 0; i < capacity*2; i++ {
 		wg.Add(1)
 		startWG.Add(1)
 		go func() {
 			startWG.Done()
 			<-start
-			if x, err := p.BorrowWait(5*time.Second); err == ITEM_UNAVAIABLE {
+			if x, err := p.BorrowWait(5 * time.Second); err == ITEM_UNAVAIABLE {
 				atomic.AddInt32(&notAVail, 1)
-			}else if err != nil {
+			} else if err != nil {
 				c.Errorf("Unexpected error %v", err)
-			}else if x != nil {
+			} else if x != nil {
 				atomic.AddInt32(&found, 1)
-				time.Sleep(500*time.Millisecond)
+				time.Sleep(500 * time.Millisecond)
 				p.Return(x)
 			}
 			wg.Done()
 		}()
 	}
 	startWG.Wait() //wait for the go routines to be ready
-	close(start)  //start the go routines
-	wg.Wait() //wait for go routines to finish
-	c.Assert(int(found), Equals, capacity * 2)
+	close(start)   //start the go routines
+	wg.Wait()      //wait for go routines to finish
+	c.Assert(int(found), Equals, capacity*2)
 	//tried to get 2*capacity co not found should equal capacity
 	c.Assert(int(notAVail), Equals, 0)
 	c.Assert(p.Idle(), Equals, capacity)
 	c.Assert(p.Borrowed(), Equals, 0)
 }
-

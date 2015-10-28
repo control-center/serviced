@@ -14,16 +14,16 @@ package queue
 
 import (
 	"math"
-	"testing"
 	"sync"
 	"sync/atomic"
+	"testing"
 
 	. "gopkg.in/check.v1"
 )
 
 func Test(t *testing.T) { TestingT(t) }
 
-type MySuite struct {}
+type MySuite struct{}
 
 var _ = Suite(&MySuite{})
 
@@ -49,12 +49,12 @@ func (s *MySuite) TestPutTake(c *C) {
 
 	for i := 0; i < cap; i++ {
 		q.Put(i)
-		c.Assert(q.Size() , Equals, int32(min(i+1, cap)))
+		c.Assert(q.Size(), Equals, int32(min(i+1, cap)))
 	}
 
 	for i := 0; i < cap; i++ {
 		x := q.Take().(int)
-		c.Assert(x , Equals, i)
+		c.Assert(x, Equals, i)
 	}
 }
 
@@ -66,14 +66,14 @@ func (s *MySuite) TestOffer(c *C) {
 	}
 	for i := 0; i < cap*2; i++ {
 		q.Offer(i)
-		c.Assert(q.Size() , Equals, int32(min(i+1, cap)))
+		c.Assert(q.Size(), Equals, int32(min(i+1, cap)))
 	}
-	for i := 0; i < cap *2; i++ {
+	for i := 0; i < cap*2; i++ {
 		x, found := q.Poll()
-		if !found && i <cap {
+		if !found && i < cap {
 			c.Errorf("expected to find %s", i)
 		}
-		if found  {
+		if found {
 			c.Assert(i, Equals, x)
 		}
 	}
@@ -86,7 +86,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 		c.Fail()
 	}
 	wg := sync.WaitGroup{}
-	for i := 0; i < cap * 2; i++ {
+	for i := 0; i < cap*2; i++ {
 		wg.Add(1)
 		val := i
 		go func() {
@@ -98,7 +98,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 	c.Assert(q.Size(), Equals, int32(cap))
 
 	numberFound := int32(0)
-	for i := 0; i < cap * 2; i++ {
+	for i := 0; i < cap*2; i++ {
 		wg.Add(1)
 		go func() {
 			if _, found := q.Poll(); found {
