@@ -15,8 +15,8 @@ package registry
 
 import (
 	"github.com/control-center/serviced/commons"
-	"github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 )
 
@@ -60,7 +60,7 @@ func (client *RegistryIndexClient) parseImage(image string) (string, error) {
 		return "", err
 	}
 	if imageID.IsLatest() {
-		imageID.Tag = docker.DockerLatest
+		imageID.Tag = docker.Latest
 	}
 	image = commons.ImageID{
 		User: imageID.User,
@@ -86,7 +86,7 @@ func (client *RegistryIndexClient) PushImage(image, uuid string) error {
 		return err
 	}
 	if imageID.IsLatest() {
-		imageID.Tag = docker.DockerLatest
+		imageID.Tag = docker.Latest
 	}
 	rImage := &registry.Image{
 		Library: imageID.User,
