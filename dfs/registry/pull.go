@@ -81,35 +81,28 @@ func (l *RegistryListener) PullImage(image string) error {
 			}
 			return err
 		}
-		if node.Image != nil {
-			// check if the image exists locally
-			glog.Infof("Looking up image %s", regaddr)
+		// check if the image exists locally
+		glog.Infof("Looking up image %s", regaddr)
+		if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
+			// cannot find the image, so let's try to pull
+			glog.Infof("Pulling image %s from the docker registry", regaddr)
+			if err := l.docker.PullImage(regaddr); err != nil && !docker.IsImageNotFound(err) {
+				glog.Errorf("Could not pull %s: %s", regaddr, err)
+				return err
+			}
+			// was the pull successful?
 			if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
-				// cannot find the image, so let's try to pull
-				glog.Infof("Pulling image %s from the docker registry", regaddr)
-				if err := l.docker.PullImage(regaddr); err != nil && !docker.IsImageNotFound(err) {
-					glog.Errorf("Could not pull %s: %s", regaddr, err)
-					return err
-				}
-				// was the pull successful?
-				if err := l.docker.TagImage(node.Image.UUID, regaddr); docker.IsImageNotFound(err) {
-					if node.PushedAt.Unix() > 0 {
-						// the image is definitely not in the registry, so lets
-						// get that push started.
-						// also, more than one client may try to update this node
-						// at the same time, so there might be a version conflict
-						// error; let's just ignore those here.
-						node.PushedAt = time.Unix(0, 0)
-						if err := l.conn.Set(idpath, &node); err != nil && err != client.ErrBadVersion {
-							glog.Errorf("Image %s not found in the docker registry: %s", regaddr, err)
-							return err
-						}
+				if node.PushedAt.Unix() > 0 {
+					// the image is definitely not in the registry, so lets
+					// get that push started.
+					// also, more than one client may try to update this node
+					// at the same time, so there might be a version conflict
+					// error; let's just ignore those here.
+					node.PushedAt = time.Unix(0, 0)
+					if err := l.conn.Set(idpath, &node); err != nil && err != client.ErrBadVersion {
+						glog.Errorf("Image %s not found in the docker registry: %s", regaddr, err)
+						return err
 					}
-				} else if err != nil {
-					glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)
-					return err
-				} else {
-					return nil
 				}
 			} else if err != nil {
 				glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)
@@ -117,6 +110,11 @@ func (l *RegistryListener) PullImage(image string) error {
 			} else {
 				return nil
 			}
+		} else if err != nil {
+			glog.Errorf("Could not update tag %s for image %s: %s", regaddr, node.Image.UUID, err)
+			return err
+		} else {
+			return nil
 		}
 		glog.Infof("Waiting for image %s to be uploaded into the docker registry", regaddr)
 		select {
