@@ -31,7 +31,7 @@ const (
 // RegistryImageNode is the registry image as it is written into the
 // coordinator.
 type RegistryImageNode struct {
-	Image    *registry.Image
+	Image    registry.Image
 	PushedAt time.Time
 	version  interface{}
 }
@@ -117,7 +117,8 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 		reponode := &RegistryImageLeader{HostID: l.hostid}
 		leader := l.conn.NewLeader(repopath, reponode)
 		// Has the image been pushed?
-		if node.Image != nil && node.PushedAt.Unix() <= 0 {
+		glog.V(1).Infof("Spawn id=%s node: %s:%s %s", id, node.Image.Repo, node.Image.Tag, node.Image.Tag)
+		if node.PushedAt.Unix() == 0 {
 			// Do I have the image?
 			if img, err := l.docker.FindImage(node.Image.UUID); err == nil {
 				glog.V(1).Infof("Found image %s locally, acquiring lead", node.Image)
@@ -125,6 +126,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					// Become the leader so I can push the image
 					_, err := leader.TakeLead()
 					if err != nil {
+						glog.Errorf("Could not take lead %s: %s", imagepath, err)
 						return
 					}
 					defer leader.ReleaseLead()
@@ -135,9 +137,10 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					default:
 						// Did the image change (or get pushed) before I got the lead?
 						if err := l.conn.Get(imagepath, &node); err != nil {
+							glog.Errorf("Could not get %s: %s", imagepath, err)
 							return
 						}
-						if node.Image == nil || img.ID != node.Image.UUID || node.PushedAt.Unix() > 0 {
+						if img.ID != node.Image.UUID || node.PushedAt.Unix() > 0 {
 							glog.V(1).Infof("Image %s changed, cancelling push", node.Image)
 							return
 						}
@@ -147,7 +150,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					// so that the push will get retriggered the next time it
 					// is needed.
 					registrypath := path.Join(l.address, node.Image.String())
-					glog.V(1).Infof("Updating registry image %s", registrypath)
+					glog.V(1).Infof("Updating registry image %s from path=%s", node.Image.UUID, registrypath)
 					if err := l.docker.TagImage(node.Image.UUID, registrypath); err != nil {
 						glog.Warningf("Could not tag %s as %s: %s", node.Image.UUID, registrypath, err)
 						node.PushedAt = time.Unix(0, 0)
@@ -161,6 +164,8 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					// event regardless of whether the push was successful.
 					l.conn.Set(imagepath, &node)
 				}()
+			} else {
+				glog.Errorf("Could not find image %s: %s", node.Image.UUID, err)
 			}
 		}
 		glog.V(1).Infof("Waiting for image %s to update", node.Image)

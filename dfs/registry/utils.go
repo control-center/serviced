@@ -29,11 +29,11 @@ func GetRegistryImage(conn client.Connection, id string) (*registry.Image, error
 	if err := conn.Get(rimagepath, &node); err != nil {
 		return nil, err
 	}
-	return node.Image, nil
+	return &node.Image, nil
 }
 
 // SetRegistryImage inserts a registry image into the coordinator index.
-func SetRegistryImage(conn client.Connection, rImage *registry.Image) error {
+func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 	leaderpath := path.Join(zkregistryrepos, rImage.Library, rImage.Repo)
 	leadernode := &RegistryImageLeader{HostID: "master"}
 	if err := conn.CreateDir(leaderpath); err != nil && err != client.ErrNodeExists {
