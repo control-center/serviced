@@ -292,46 +292,42 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 
 	// Tag tests:
 	var (
-		taggedInfo *volume.SnapshotInfo
-		err        error
+		newTags []string
+		err     error
 	)
 	// Add an extra tag to the snapshot
-	taggedInfo, err = vol.TagSnapshot("Base_Snap", []string{"tagB"})
+	newTags, err = vol.TagSnapshot("Base_Snap", []string{"tagB"})
 	c.Assert(err, IsNil)
-	c.Assert(taggedInfo.Tags, DeepEquals, []string{"tagA", "tagB"})
+	c.Assert(newTags, DeepEquals, []string{"tagA", "tagB"})
 
 	// Add more tags to the snapshot, some duplicates
-	taggedInfo, err = vol.TagSnapshot("Base_Snap", []string{"tagB", "tagC", "tagD", "tagC"})
+	newTags, err = vol.TagSnapshot("Base_Snap", []string{"tagB", "tagC", "tagD", "tagC"})
 	c.Assert(err, IsNil)
-	c.Assert(taggedInfo.Tags, DeepEquals, []string{"tagA", "tagB", "tagC", "tagD"})
-	c.Assert(taggedInfo, DeepEquals, vol.SnapshotInfo("Base_Snap"))
+	c.Assert(newTags, DeepEquals, []string{"tagA", "tagB", "tagC", "tagD"})
 
 	// Remove some tags
-	taggedInfo, err = vol.RemoveSnapshotTags("Base_Snap", []string{"tagB", "tagC", "tagD", "tagC"})
+	newTags, err = vol.RemoveSnapshotTags("Base_Snap", []string{"tagB", "tagC", "tagD", "tagC"})
 	c.Assert(err, IsNil)
-	c.Assert(taggedInfo.Tags, DeepEquals, []string{"tagA"})
-	c.Assert(taggedInfo, DeepEquals, vol.SnapshotInfo("Base_Snap"))
+	c.Assert(newTags, DeepEquals, []string{"tagA"})
 
 	// Remove all tags
-	taggedInfo, err = vol.RemoveAllSnapshotTags("Base_Snap")
+	err = vol.RemoveAllSnapshotTags("Base_Snap")
 	c.Assert(err, IsNil)
-	c.Assert(taggedInfo.Tags, DeepEquals, []string{})
-	c.Assert(taggedInfo, DeepEquals, vol.SnapshotInfo("Base_Snap"))
+	c.Assert(vol.SnapshotInfo("Base_Snap").Tags, DeepEquals, []string{})
 
 	// Attempt to tag a snapshot that doesn't exist and make sure it errors properly
-	taggedInfo, err = vol.TagSnapshot("nonexistantlabel", []string{"someTag"})
+	newTags, err = vol.TagSnapshot("nonexistantlabel", []string{"someTag"})
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
-	c.Assert(info, IsNil)
+	c.Assert(newTags, IsNil)
 
 	//Attempt to remove a tag from a snapshot that doesn't exist and make sure it errors properly
-	taggedInfo, err = vol.RemoveSnapshotTags("nonexistantlabel", []string{"someTag"})
+	newTags, err = vol.RemoveSnapshotTags("nonexistantlabel", []string{"someTag"})
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
-	c.Assert(info, IsNil)
+	c.Assert(newTags, IsNil)
 
 	//Attempt to remove all tags from a snapshot that doesn't exist and make sure it errors properly
-	taggedInfo, err = vol.RemoveAllSnapshotTags("nonexistantlabel")
+	err = vol.RemoveAllSnapshotTags("nonexistantlabel")
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
-	c.Assert(info, IsNil)
 
 	// Snapshot using an existing label and make sure it errors properly
 	err = vol.Snapshot("Snap", "snapshot-message-2", []string{"tag4"})
