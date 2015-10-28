@@ -10,6 +10,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.package rpcutils
+
 package queue
 
 import (
@@ -48,7 +49,7 @@ type Queue interface {
 func NewChannelQueue(capacity int) (Queue, error) {
 	cap := int32(capacity)
 	if capacity <= 0 {
-		return nil, fmt.Errorf("Invalid size for queue: %s", capacity)
+		return nil, fmt.Errorf("Invalid size for queue: %d", capacity)
 	}
 	qChan := make(chan interface{}, cap)
 

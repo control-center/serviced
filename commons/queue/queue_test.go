@@ -71,7 +71,7 @@ func (s *MySuite) TestOffer(c *C) {
 	for i := 0; i < cap*2; i++ {
 		x, found := q.Poll()
 		if !found && i < cap {
-			c.Errorf("expected to find %s", i)
+			c.Errorf("expected to find %d", i)
 		}
 		if found {
 			c.Assert(i, Equals, x)

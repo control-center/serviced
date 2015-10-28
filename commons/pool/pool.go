@@ -23,27 +23,30 @@ import (
 	"github.com/control-center/serviced/commons/queue"
 )
 
-type PoolItem struct {
+// Item wrapper type for items stored in pool
+type Item struct {
 	Item         interface{}
 	checkedOut   bool
 	checkoutTime time.Time
 	id           uint64
 }
 
-var ITEM_UNAVAIABLE = errors.New("Pool Item not avaialable")
+// ErrItemUnavailable Error when an item cannot be allocated fromt the pool
+var ErrItemUnavailable = errors.New("Pool Item not avaialable")
 
+// Pool interface for pooling arbitrary objects
 type Pool interface {
-	// Borrow item from pool, returns ITEM_UNAVAIABLE if none available
-	Borrow() (*PoolItem, error)
+	// Borrow item from pool, returns ErrItemUnavailable if none available
+	Borrow() (*Item, error)
 
-	// Borrow item from pool, wait timeout. If timeout < 0 wait indefinitely. Returns ITEM_UNAVAIABLE if object not available
-	BorrowWait(timeout time.Duration) (*PoolItem, error)
+	// Borrow item from pool, wait timeout. If timeout < 0 wait indefinitely. Returns ErrItemUnavailable if object not available
+	BorrowWait(timeout time.Duration) (*Item, error)
 
 	// Return item back to pool
-	Return(item *PoolItem) error
+	Return(item *Item) error
 
 	// Remove removes the object from the pool
-	Remove(item *PoolItem) error
+	Remove(item *Item) error
 
 	//Returns the current number of items borrowed
 	Borrowed() int
@@ -52,9 +55,10 @@ type Pool interface {
 	Idle() int
 }
 
-// Factory function to create an item for the pool
+// ItemFactory function to create an item for the pool
 type ItemFactory func() (interface{}, error)
 
+// NewPool create a pool with a capacity and factory for creating items.
 func NewPool(capacity int, itemFactory ItemFactory) (Pool, error) {
 
 	q, err := queue.NewChannelQueue(capacity)
@@ -62,13 +66,13 @@ func NewPool(capacity int, itemFactory ItemFactory) (Pool, error) {
 		return nil, err
 	}
 
-	itemMap := make(map[uint64]*PoolItem)
+	itemMap := make(map[uint64]*Item)
 	pool := itemPool{itemMap: itemMap, itemQ: q, capacity: capacity, itemFactory: itemFactory}
 	return &pool, nil
 }
 
 type itemPool struct {
-	itemMap map[uint64]*PoolItem
+	itemMap map[uint64]*Item
 	itemQ   queue.Queue
 
 	idCounter   uint64
@@ -77,14 +81,14 @@ type itemPool struct {
 	poolLock    sync.RWMutex
 }
 
-func (p *itemPool) BorrowWait(timeout time.Duration) (*PoolItem, error) {
+func (p *itemPool) BorrowWait(timeout time.Duration) (*Item, error) {
 	item, found := p.itemQ.Poll()
 	if found {
 		return p.checkout(item), nil
 	}
 	if !found {
 		newItem, err := p.newItem()
-		if err != nil && err != ITEM_UNAVAIABLE {
+		if err != nil && err != ErrItemUnavailable {
 			return nil, err
 		} else if err == nil {
 			return p.checkout(newItem), nil
@@ -96,15 +100,15 @@ func (p *itemPool) BorrowWait(timeout time.Duration) (*PoolItem, error) {
 	case item = <-itemChan:
 		return p.checkout(item), nil
 	case <-timeoutChan:
-		return nil, ITEM_UNAVAIABLE
+		return nil, ErrItemUnavailable
 	}
 }
 
-func (p *itemPool) Borrow() (*PoolItem, error) {
+func (p *itemPool) Borrow() (*Item, error) {
 	return p.BorrowWait(0)
 }
 
-func (p *itemPool) Return(item *PoolItem) error {
+func (p *itemPool) Return(item *Item) error {
 	err := func() error {
 		p.poolLock.RLock()
 		defer p.poolLock.RUnlock()
@@ -128,7 +132,7 @@ func (p *itemPool) Return(item *PoolItem) error {
 	return nil
 }
 
-func (p *itemPool) Remove(item *PoolItem) error {
+func (p *itemPool) Remove(item *Item) error {
 	p.poolLock.Lock()
 	defer p.poolLock.Unlock()
 
@@ -152,7 +156,7 @@ func (p *itemPool) Borrowed() int {
 	count := 0
 	for _, item := range p.itemMap {
 		if item.checkedOut {
-			count += 1
+			count++
 		}
 	}
 	return count
@@ -165,32 +169,32 @@ func (p *itemPool) Idle() int {
 	count := 0
 	for _, item := range p.itemMap {
 		if !item.checkedOut {
-			count += 1
+			count++
 		}
 	}
 	return count
 }
 
-func (p *itemPool) checkout(item interface{}) *PoolItem {
-	poolItem := item.(*PoolItem)
+func (p *itemPool) checkout(item interface{}) *Item {
+	poolItem := item.(*Item)
 	poolItem.checkedOut = true
 	poolItem.checkoutTime = time.Now()
 	return poolItem
 }
 
 // creates a new Item if it can
-func (p *itemPool) newItem() (*PoolItem, error) {
+func (p *itemPool) newItem() (*Item, error) {
 	p.poolLock.Lock()
 	defer p.poolLock.Unlock()
 	if len(p.itemMap) >= p.capacity {
-		return nil, ITEM_UNAVAIABLE
+		return nil, ErrItemUnavailable
 	}
 	i, err := p.itemFactory()
 	if err != nil {
 		return nil, err
 	}
 
-	pItem := &PoolItem{id: p.nextID(), Item: i}
+	pItem := &Item{id: p.nextID(), Item: i}
 	p.itemMap[pItem.id] = pItem
 	return pItem, nil
 }

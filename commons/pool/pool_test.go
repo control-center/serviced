@@ -51,7 +51,7 @@ func (s *MySuite) BLAMTestBorrowReturnRemove(c *C) {
 	p, err := NewPool(capacity, Factory(capacity+1))
 	c.Assert(err, IsNil)
 
-	items := []*PoolItem{}
+	items := []*Item{}
 	for i := 0; i < capacity; i++ {
 		x, err := p.Borrow()
 		c.Assert(int(factoryCount), Equals, i+1)
@@ -66,7 +66,7 @@ func (s *MySuite) BLAMTestBorrowReturnRemove(c *C) {
 	c.Assert(p.Borrowed(), Equals, capacity)
 
 	_, err = p.Borrow()
-	c.Assert(err, Equals, ITEM_UNAVAIABLE)
+	c.Assert(err, Equals, ErrItemUnavailable)
 
 	for idx, item := range items {
 		p.Return(item)
@@ -107,7 +107,7 @@ func (s *MySuite) TestWait(c *C) {
 	start := time.Now()
 	x, err := p.BorrowWait(waitTime)
 	c.Assert(x, IsNil)
-	c.Assert(err, Equals, ITEM_UNAVAIABLE)
+	c.Assert(err, Equals, ErrItemUnavailable)
 	elapsed := time.Now().Sub(start)
 	if elapsed < waitTime {
 		c.Errorf("elapsed wait less than %s", waitTime)
@@ -137,7 +137,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 	p, err := NewPool(capacity, Factory(capacity))
 	c.Assert(err, IsNil)
 
-	items := []*PoolItem{}
+	items := []*Item{}
 	itemLock := sync.Mutex{}
 	found := int32(0)
 	notAVail := int32(0)
@@ -151,7 +151,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 		go func() {
 			startWG.Done()
 			<-start
-			if x, err := p.Borrow(); err == ITEM_UNAVAIABLE {
+			if x, err := p.Borrow(); err == ErrItemUnavailable {
 				atomic.AddInt32(&notAVail, 1)
 			} else if err != nil {
 				c.Errorf("Unexpected error %v", err)
@@ -178,7 +178,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 	c.Assert(len(items), Equals, capacity)
 
 	start = make(chan struct{})
-	for idx, _ := range items {
+	for idx := range items {
 		item := items[idx]
 		wg.Add(1)
 		startWG.Add(1)
@@ -209,7 +209,7 @@ func (s *MySuite) TestConcurrent(c *C) {
 		go func() {
 			startWG.Done()
 			<-start
-			if x, err := p.BorrowWait(5 * time.Second); err == ITEM_UNAVAIABLE {
+			if x, err := p.BorrowWait(5 * time.Second); err == ErrItemUnavailable {
 				atomic.AddInt32(&notAVail, 1)
 			} else if err != nil {
 				c.Errorf("Unexpected error %v", err)
