@@ -371,15 +371,16 @@ func (c *Container) Restart(timeout time.Duration) error {
 }
 
 // Start uses the information provided in the container definition cd to start a new Docker
-// container. If a container can't be started before the timeout expires an error is returned.
-func (c *Container) Start(timeout time.Duration) error {
+// container. If a container can't be completely started an error is returned. The bool returned
+// specifies whether the caller should expect a events (Start, Die, ...) from the Docker subsystem.
+func (c *Container) Start() (bool, error) {
 	if c.State.Running != false {
-		return nil
+		return false, nil
 	}
 
 	dc, err := getDockerClient()
 	if err != nil {
-		return err
+		return false, err
 	}
 
 	args := struct {
@@ -391,29 +392,29 @@ func (c *Container) Start(timeout time.Duration) error {
 	ctr, err := dc.InspectContainer(args.id)
 	if err != nil {
 		glog.V(1).Infof("unable to inspect container %s prior to starting it: %v", args.id, err)
-		return err
+		return false, err
 	}
 
 	if ctr.State.Running {
-		return ErrAlreadyStarted
+		return false, ErrAlreadyStarted
 	}
 
 	glog.V(2).Infof("starting container %s: %+v", args.id, args.hostConfig)
 	err = dc.StartContainer(args.id, args.hostConfig)
 	if err != nil {
 		glog.V(2).Infof("unable to start %s: %v", args.id, err)
-		return err
+		return false, err
 	}
 
 	glog.V(2).Infof("update container %s state post start", args.id)
 	ctr, err = dc.InspectContainer(args.id)
 	if err != nil {
 		glog.V(2).Infof("failed to update container %s state post start: %v", args.id, err)
-		return err
+		return true, err
 	}
 	c.Container = ctr
 
-	return nil
+	return true, nil
 }
 
 // Stop stops the container specified by the id. If the container can't be stopped before the timeout
