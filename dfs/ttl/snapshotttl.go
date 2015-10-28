@@ -67,18 +67,21 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 			}
 
 			for _, s := range snapshots {
-				// check the age of the snapshot
-				if parts := strings.Split(s.SnapshotID, "_"); len(parts) == 2 {
-					if ts, err := time.Parse(timeFormat, parts[1]); err == nil {
-						if timeToLive := ts.Sub(expire); timeToLive <= 0 {
-							if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
-								glog.Errorf("Could not delete snapshot %s for tenant service %s (%s): %s", s.SnapshotID, svc.Name, svc.ID, err)
-								return 0, err
+				//ignore snapshots that have any tag
+				if len(s.Tags) == 0 {
+					// check the age of the snapshot
+					if parts := strings.Split(s.SnapshotID, "_"); len(parts) == 2 {
+						if ts, err := time.Parse(timeFormat, parts[1]); err == nil {
+							if timeToLive := ts.Sub(expire); timeToLive <= 0 {
+								if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
+									glog.Errorf("Could not delete snapshot %s for tenant service %s (%s): %s", s.SnapshotID, svc.Name, svc.ID, err)
+									return 0, err
+								}
+							} else if timeToLive < age {
+								// set the new time to live based on the age of the
+								// oldest non-expired snapshot.
+								age = timeToLive
 							}
-						} else if timeToLive < age {
-							// set the new time to live based on the age of the
-							// oldest non-expired snapshot.
-							age = timeToLive
 						}
 					}
 				}

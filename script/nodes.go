@@ -40,7 +40,7 @@ func init() {
 		DESCRIPTION: atMost(1, parseArgCount(min(1), buildNode)),
 		VERSION:     atMost(1, parseArgCount(equals(1), buildNode)),
 		REQUIRE_SVC: atMost(1, parseArgCount(equals(0), buildNode)),
-		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseArgCount(equals(0), buildNode)),
+		SNAPSHOT:    require([]string{REQUIRE_SVC}, parseArgCount(max(1), buildNode)),
 		USE:         require([]string{REQUIRE_SVC}, parseImageID(parseArgCount(equals(1), buildNode))),
 		SVC_RUN:     require([]string{REQUIRE_SVC}, parseArgCount(min(2), buildNode)),
 		// eg., SVC_EXEC NO_COMMIT Zenoss.core/Zope /run/my/script.sh --arg1 arg2

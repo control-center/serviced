@@ -305,7 +305,15 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 		if err != nil {
 			return err
 		}
-		*snapshots = append(*snapshots, model.SnapshotInfo{info.Name, info.Message})
+
+		newInfo := model.SnapshotInfo{
+			SnapshotID:		info.Name,
+			Description:	info.Message,
+			Tags:			info.Tags,
+
+		}
+
+		*snapshots = append(*snapshots, newInfo)
 	}
 	return
 }
@@ -334,4 +342,46 @@ func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
 
 	err = dao.facade.ResetLock(ctx, serviceID)
 	return
+}
+
+// TagSnapshot tags an existing snapshot with 1 or more strings
+func (dao *ControlPlaneDao) TagSnapshot(request model.TagSnapshotRequest, newTagList *[]string) error {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	var err error
+	*newTagList, err = dao.facade.TagSnapshot(request.SnapshotID, request.TagNames)
+	return err
+}
+
+// RemoveSnapshotTags removes specific tags from an existing snapshot
+func (dao *ControlPlaneDao) RemoveSnapshotTags(request model.TagSnapshotRequest, newTagList *[]string) error {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	var err error
+	*newTagList, err = dao.facade.RemoveSnapshotTags(request.SnapshotID, request.TagNames)
+	return err
+}
+
+// RemoveAllSnapshotTags removes all tags from an existing snapshot
+func (dao *ControlPlaneDao) RemoveAllSnapshotTags(snapshotID string, _ *int) error {
+	ctx := datastore.Get()
+
+	// synchronize the dfs
+	dfslocker := dao.facade.DFSLock(ctx)
+	dfslocker.Lock()
+	defer dfslocker.Unlock()
+
+	var err error
+	err = dao.facade.RemoveAllSnapshotTags(snapshotID)
+	return err
 }
