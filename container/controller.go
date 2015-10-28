@@ -478,14 +478,23 @@ func (c *Controller) rpcHealthCheck() (chan struct{}, error) {
 }
 
 func isNFSMountStale(mountpoint string) bool {
+	// See http://stackoverflow.com/questions/17612004/linux-shell-script-how-to-detect-nfs-mount-point-or-the-server-is-dead
+	// for explanation of the following command.
 	if err := exec.Command("/bin/bash", "-c", fmt.Sprintf("read -t1 < <(stat -t '%s' 2>&-)", mountpoint)).Run(); err != nil {
-		if status, iscode := utils.GetExitStatus(err); iscode && status == 142 {
-			// EREMDEV; wait for NFS to come back
-			glog.Infof("Distributed storage temporarily unavailable. Waiting for it to return.")
-			return false
-
+		status, iscode := utils.GetExitStatus(err)
+		if iscode {
+			if status == 142 {
+				// EREMDEV; read timed out, wait for NFS to come back.
+				glog.Infof("Distributed storage temporarily unavailable (EREMDEV). Waiting for it to return.")
+				return false
+			}
+			if status == 10 {
+				// ECHILD: No child processes, not sure what causes this, but appears to be spurious.
+				glog.Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
+				return false
+			}
 		}
-		glog.Errorf("Mount point %s check had error (%s); considering stale", mountpoint, err)
+		glog.Errorf("Mount point %s check had error (%d, %s); considering stale.", mountpoint, status, err)
 		return true
 	}
 	return false
