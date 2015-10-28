@@ -473,6 +473,111 @@ func (v *RsyncVolume) Snapshot(label, message string, tags []string) (err error)
 	return err
 }
 
+// TagSnapshot implements volume.Volume.TagSnapshot
+func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, error) {
+	v.Lock()
+	defer v.Unlock()
+
+	//get the current info for the snapshot
+	info, err := v.SnapshotInfo(label)
+	if err != nil {
+		glog.Errorf("Unable to retrieve info for existing snapshot: %s", err)
+		return nil, err
+	}
+
+	//add the new tag names
+	for _, name := range tagNames{
+		//only add the tag if it doesn't already exist
+		exists := false
+		for _, t := range info.Tags {
+			if(t == name) {
+				exists = true
+				break
+			}
+		}
+
+		//add the new tag 
+		if !exists {
+			info.Tags = append(info.Tags, name)
+		}
+	}
+
+	//write out the updated info
+	if err := v.writeSnapshotInfo(label, info); err != nil {
+		glog.Errorf("Error writing updated snapshot info with new tag: %s", err)
+		return nil, err
+	}
+
+	return info.Tags, nil
+}
+
+// RemoveSnapshotTags implements volume.Volume.RemoveSnapshotTags
+func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]string, error) {
+	v.Lock()
+	defer v.Unlock()
+
+	//get the current info for the snapshot
+	info, err := v.SnapshotInfo(label)
+	if err != nil {
+		glog.Errorf("Unable to retrieve info for existing snapshot: %s", err)
+		return nil, err
+	}
+
+	newTagList := []string{}
+
+	//add the tag names that aren't in the list to remove
+	for _, name := range info.Tags{
+		//only add the tag if it doesn't exist in the tagNames list
+		exists := false
+		for _, t := range tagNames {
+			if(t == name) {
+				exists = true
+				break
+			}
+		}
+
+		//add the tag to the new list
+		if !exists {
+			newTagList = append(newTagList, name)
+		}
+	}
+
+	//Replace the tag list with the new one
+	info.Tags = newTagList
+
+	//write out the updated info
+	if err := v.writeSnapshotInfo(label, info); err != nil {
+		glog.Errorf("Error writing updated snapshot info with removed tags: %s", err)
+		return nil, err
+	}
+
+	return info.Tags, nil
+}
+
+// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
+func (v *RsyncVolume) RemoveAllSnapshotTags(label string) (error) {
+	v.Lock()
+	defer v.Unlock()
+
+	//get the current info for the snapshot
+	info, err := v.SnapshotInfo(label)
+	if err != nil {
+		glog.Errorf("Unable to retrieve info for existing snapshot: %s", err)
+		return err
+	}
+
+	//Replace the tag list with an empty one
+	info.Tags = []string{}
+
+	//write out the updated info
+	if err := v.writeSnapshotInfo(label, info); err != nil {
+		glog.Errorf("Error writing updated snapshot info with no tags: %s", err)
+		return err
+	}
+
+	return nil
+}
+
 // Snapshots implements volume.Volume.Snapshots
 func (v *RsyncVolume) Snapshots() ([]string, error) {
 	v.Lock()
