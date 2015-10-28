@@ -48,6 +48,9 @@ var (
 	ErrTestNoImagesMetadata   = errors.New("no images metadata")
 	ErrTestNoServicesMetadata = errors.New("no services metadata")
 	ErrTestSnapshotNotCreated = errors.New("snapshot not created")
+	ErrTestTagSnapshotFailed	 	  = errors.New("unable to tag snapshot")
+	ErrTestRemoveSnapshotTagsFailed	  = errors.New("unable to remove tag from snapshot")
+	ErrTestRemoveAllSnapshotTagsFailed	  = errors.New("unable to remove all tags from snapshot")
 )
 
 type NopCloser struct {

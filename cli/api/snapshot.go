@@ -109,3 +109,47 @@ func (a *api) Rollback(snapshotID string, forceRestart bool) error {
 
 	return nil
 }
+
+// TagSnapshot tags an existing snapshot with 1 or more strings
+func (a *api) TagSnapshot(snapshotID string, tagNames []string) ([]string, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var newTagList []string
+	if err := client.TagSnapshot(dao.TagSnapshotRequest{snapshotID, tagNames}, &newTagList); err != nil {
+		return newTagList, err
+	}
+
+	return newTagList, nil
+}
+
+// RemoveSnapshotTags removes specific tags from an existing snapshot
+func (a *api) RemoveSnapshotTags(snapshotID string, tagNames []string) ([]string, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var newTagList []string
+	if err := client.RemoveSnapshotTags(dao.TagSnapshotRequest{snapshotID, tagNames}, &newTagList); err != nil {
+		return newTagList, err
+	}
+
+	return newTagList, nil
+}
+
+// RemoveAllSnapshotTags removes all tags from an existing snapshot
+func (a *api) RemoveAllSnapshotTags(snapshotID string) (error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return err
+	}
+
+	if err := client.RemoveAllSnapshotTags(snapshotID, &unusedInt); err != nil {
+		return err
+	}
+
+	return nil
+}
