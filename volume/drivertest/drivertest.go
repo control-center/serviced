@@ -291,10 +291,8 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(arrayContains(snaps, "Base_Snap2"), Equals, true)
 
 	// Tag tests:
-	var (
-		newTags []string
-		err     error
-	)
+	var newTags []string
+
 	// Add an extra tag to the snapshot
 	newTags, err = vol.TagSnapshot("Base_Snap", []string{"tagB"})
 	c.Assert(err, IsNil)
@@ -313,7 +311,9 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	// Remove all tags
 	err = vol.RemoveAllSnapshotTags("Base_Snap")
 	c.Assert(err, IsNil)
-	c.Assert(vol.SnapshotInfo("Base_Snap").Tags, DeepEquals, []string{})
+	err, info = vol.SnapshotInfo("Base_Snap")
+	c.Assert(err, IsNil)
+	c.Assert(info.Tags, DeepEquals, []string{})
 
 	// Attempt to tag a snapshot that doesn't exist and make sure it errors properly
 	newTags, err = vol.TagSnapshot("nonexistantlabel", []string{"someTag"})
