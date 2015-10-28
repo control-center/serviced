@@ -185,7 +185,7 @@ func (f *Facade) RemoveSnapshotTags(snapshotID string, tagNames []string) ([]str
 }
 
 // RemoveAllSnapshotTags removes all tags from an existing snapshot
-func (f *Facade) RemoveAllSnapshotTags(snapshotID string) (error) {
+func (f *Facade) RemoveAllSnapshotTags(snapshotID string) error {
 	err := f.dfs.RemoveAllTags(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not remove all tags from snapshot %s: %s", snapshotID, err)
