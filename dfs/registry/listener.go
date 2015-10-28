@@ -126,7 +126,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					// Become the leader so I can push the image
 					_, err := leader.TakeLead()
 					if err != nil {
-						glog.Errorf("coud not take lead %s: %s", imagepath, err)
+						glog.Errorf("Could not take lead %s: %s", imagepath, err)
 						return
 					}
 					defer leader.ReleaseLead()
@@ -137,7 +137,7 @@ func (l *RegistryListener) Spawn(shutdown <-chan interface{}, id string) {
 					default:
 						// Did the image change (or get pushed) before I got the lead?
 						if err := l.conn.Get(imagepath, &node); err != nil {
-							glog.Errorf("coud not get %s: %s", imagepath, err)
+							glog.Errorf("Could not get %s: %s", imagepath, err)
 							return
 						}
 						if img.ID != node.Image.UUID || node.PushedAt.Unix() > 0 {
