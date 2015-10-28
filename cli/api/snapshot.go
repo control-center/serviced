@@ -141,7 +141,7 @@ func (a *api) RemoveSnapshotTags(snapshotID string, tagNames []string) ([]string
 }
 
 // RemoveAllSnapshotTags removes all tags from an existing snapshot
-func (a *api) RemoveAllSnapshotTags(snapshotID string) (error) {
+func (a *api) RemoveAllSnapshotTags(snapshotID string) error {
 	client, err := a.connectDAO()
 	if err != nil {
 		return err

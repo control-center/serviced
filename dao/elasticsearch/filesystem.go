@@ -307,10 +307,9 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 		}
 
 		newInfo := model.SnapshotInfo{
-			SnapshotID:		info.Name,
-			Description:	info.Message,
-			Tags:			info.Tags,
-
+			SnapshotID:  info.Name,
+			Description: info.Message,
+			Tags:        info.Tags,
 		}
 
 		*snapshots = append(*snapshots, newInfo)
