@@ -389,6 +389,15 @@ func (v *BtrfsVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 	v.Lock()
 	defer v.Unlock()
 
+	//make sure the snapshot exists
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, volume.ErrSnapshotDoesNotExist
+		}
+	}
+
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
 	if err != nil {
@@ -426,6 +435,15 @@ func (v *BtrfsVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 func (v *BtrfsVolume) RemoveSnapshotTags(label string, tagNames []string) ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
+
+	//make sure the snapshot exists
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, volume.ErrSnapshotDoesNotExist
+		}
+	}
 
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
@@ -469,6 +487,15 @@ func (v *BtrfsVolume) RemoveSnapshotTags(label string, tagNames []string) ([]str
 func (v *BtrfsVolume) RemoveAllSnapshotTags(label string) error {
 	v.Lock()
 	defer v.Unlock()
+
+	//make sure the snapshot exists
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
+		if err != nil {
+			return err
+		} else {
+			return volume.ErrSnapshotDoesNotExist
+		}
+	}
 
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)

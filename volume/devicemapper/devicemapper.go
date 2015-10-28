@@ -541,6 +541,11 @@ func (v *DeviceMapperVolume) TagSnapshot(label string, tagNames []string) ([]str
 	v.Lock()
 	defer v.Unlock()
 
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
 	if err != nil {
@@ -578,6 +583,11 @@ func (v *DeviceMapperVolume) TagSnapshot(label string, tagNames []string) ([]str
 func (v *DeviceMapperVolume) RemoveSnapshotTags(label string, tagNames []string) ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
+
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
 
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
@@ -621,6 +631,11 @@ func (v *DeviceMapperVolume) RemoveSnapshotTags(label string, tagNames []string)
 func (v *DeviceMapperVolume) RemoveAllSnapshotTags(label string) error {
 	v.Lock()
 	defer v.Unlock()
+
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return volume.ErrSnapshotDoesNotExist
+	}
 
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
