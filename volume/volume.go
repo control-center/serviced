@@ -155,7 +155,7 @@ type Volume interface {
 	//RemoveSnapshotTags removes tagNames from the snapshot's tag list
 	RemoveSnapshotTags(label string, tagNames []string) ([]string, error)
 	//RemoveAllSnapshotTags removes all strings from the snapshot's tag list
-	RemoveAllSnapshotTags(label string) (error)
+	RemoveAllSnapshotTags(label string) error
 	// Export exports the snapshot stored as <label> to <filename>
 	Export(label, parent string, writer io.Writer) error
 	// Import imports the exported snapshot at <filename> as <label>

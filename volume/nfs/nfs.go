@@ -187,7 +187,7 @@ func (v *NFSVolume) RemoveSnapshotTags(label string, tagNames []string) ([]strin
 }
 
 // RemoveAllSnapshotTags implements volume.Volume.RemoveAllSnapshotTags
-func (v *NFSVolume) RemoveAllSnapshotTags(label string) (error) {
+func (v *NFSVolume) RemoveAllSnapshotTags(label string) error {
 	return ErrNotSupported
 }
 

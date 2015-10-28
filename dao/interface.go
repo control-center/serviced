@@ -107,8 +107,8 @@ type SnapshotRequest struct {
 }
 
 type TagSnapshotRequest struct {
-	SnapshotID 	string
-	TagNames 	[]string
+	SnapshotID string
+	TagNames   []string
 }
 
 type RollbackRequest struct {

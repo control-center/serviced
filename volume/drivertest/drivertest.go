@@ -245,7 +245,6 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Check(info.Message, Equals, "snapshot-message-0")
 	c.Check(info.Tags, DeepEquals, []string{"tagA"})
 
-
 	// Write another file
 	writeExtra(c, driver, vol)
 
@@ -293,8 +292,8 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 
 	// Tag tests:
 	var (
-		taggedInfo	*volume.SnapshotInfo,
-		err 		error,
+		taggedInfo *volume.SnapshotInfo
+		err        error
 	)
 	// Add an extra tag to the snapshot
 	taggedInfo, err = vol.TagSnapshot("Base_Snap", []string{"tagB"})
@@ -333,7 +332,6 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	taggedInfo, err = vol.RemoveAllSnapshotTags("nonexistantlabel")
 	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
 	c.Assert(info, IsNil)
-
 
 	// Snapshot using an existing label and make sure it errors properly
 	err = vol.Snapshot("Snap", "snapshot-message-2", []string{"tag4"})

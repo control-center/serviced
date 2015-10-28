@@ -133,7 +133,7 @@ func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagNames []string) ([]st
 		return nil, ErrInvalidSnapshot
 	}
 
-	result:= []string{}
+	result := []string{}
 	for _, s := range t.snapshots {
 		if s.SnapshotID == snapshotID {
 			result = append(s.Tags, tagNames...)
@@ -149,7 +149,7 @@ func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string
 		return nil, ErrInvalidSnapshot
 	}
 
-	result:= []string{}
+	result := []string{}
 	for _, s := range t.snapshots {
 		if s.SnapshotID == snapshotID {
 			for _, tag := range s.Tags {
@@ -171,7 +171,7 @@ func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string
 	return nil, ErrNoSnapshotFound
 }
 
-func (t SnapshotAPITest) RemoveAllSnapshotTags(snapshotID string) (error) {
+func (t SnapshotAPITest) RemoveAllSnapshotTags(snapshotID string) error {
 	if t.fail {
 		return ErrInvalidSnapshot
 	}
@@ -421,7 +421,7 @@ func ExampleServicedCLI_CmdSnapshotRemove_nomatch() {
 func ExampleServicedCLI_CmdSnapshotRemove_error() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest,"serviced", "snapshot", "remove", "test-service-1-snapshot-1")
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-1-snapshot-1")
 
 	// Output:
 	// invalid snapshot

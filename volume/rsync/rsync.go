@@ -486,17 +486,17 @@ func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 	}
 
 	//add the new tag names
-	for _, name := range tagNames{
+	for _, name := range tagNames {
 		//only add the tag if it doesn't already exist
 		exists := false
 		for _, t := range info.Tags {
-			if(t == name) {
+			if t == name {
 				exists = true
 				break
 			}
 		}
 
-		//add the new tag 
+		//add the new tag
 		if !exists {
 			info.Tags = append(info.Tags, name)
 		}
@@ -526,11 +526,11 @@ func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]str
 	newTagList := []string{}
 
 	//add the tag names that aren't in the list to remove
-	for _, name := range info.Tags{
+	for _, name := range info.Tags {
 		//only add the tag if it doesn't exist in the tagNames list
 		exists := false
 		for _, t := range tagNames {
-			if(t == name) {
+			if t == name {
 				exists = true
 				break
 			}
@@ -555,7 +555,7 @@ func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]str
 }
 
 // RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
-func (v *RsyncVolume) RemoveAllSnapshotTags(label string) (error) {
+func (v *RsyncVolume) RemoveAllSnapshotTags(label string) error {
 	v.Lock()
 	defer v.Unlock()
 
