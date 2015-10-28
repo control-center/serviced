@@ -16,7 +16,7 @@ package dfs
 import "github.com/zenoss/glog"
 
 // RemoveTags removes 1 or more tags from an existing snapshot
-func (dfs *DistributedFilesystem) RemoveAllTags(snapshotID string) (error) {
+func (dfs *DistributedFilesystem) RemoveAllTags(snapshotID string) error {
 	vol, err := dfs.disk.GetTenant(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not get tenant of snapshot %s: %s", snapshotID, err)

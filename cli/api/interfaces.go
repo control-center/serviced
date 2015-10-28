@@ -88,7 +88,7 @@ type API interface {
 	RemoveSnapshot(string) error
 	Rollback(string, bool) error
 	TagSnapshot(string, []string) ([]string, error)
-	RemoveAllSnapshotTags(string) (error)
+	RemoveAllSnapshotTags(string) error
 	RemoveSnapshotTags(string, []string) ([]string, error)
 
 	// Templates
