@@ -195,3 +195,42 @@ func TestSnapshotTTL_Purge_Delete(t *testing.T) {
 		t.Errorf("Snaps should have been deleted")
 	}
 }
+
+func TestSnapshotTTL_Purge_DontDeleteTaggedSnap(t *testing.T) {
+	snapIDToPurge := "snapshottag_" + time.Now().Add(-5*time.Minute).UTC().Format(timeFormat)
+	snapIDToSave := "snapshottag_" + time.Now().Add(-6*time.Minute).UTC().Format(timeFormat)
+	iface := &TestSnapshotTTLInterface{
+		svcs: []service.Service{
+			{
+				ParentServiceID: "",
+				ID:              "test service id",
+			},
+		},
+		snaps: []dao.SnapshotInfo{
+			{SnapshotID: snapIDToPurge},
+			{SnapshotID: snapIDToSave, Tags: []string{"some tag"}},
+		},
+	}
+	ttl := &SnapshotTTL{iface}
+	if age, err := ttl.Purge(time.Minute); err != nil {
+		t.Errorf("Unexpected error: %s", err)
+	} else if age != time.Minute {
+		t.Errorf("Expected %d; got %d", time.Minute, age)
+	}
+
+	if len(iface.snaps) > 1 {
+		t.Errorf("1 Snap should have been deleted")
+	}
+
+	if len(iface.snaps) < 1 {
+		t.Errorf("Only 1 Snap should have been deleted")
+	}
+
+	if iface.snaps[0].SnapshotID != snapIDToSave {
+		t.Errorf("Wrong snapshot deleted")
+	}
+
+	if len(iface.snaps[0].Tags) < 1 {
+		t.Errorf("Tags missing from remaning snapshot")
+	}
+}
