@@ -43,8 +43,8 @@ func (a *api) ScriptParse(fileName string, config *script.Config) error {
 }
 
 func initConfig(config *script.Config, a *api) {
-	config.Snapshot = func(serviceID, message string) (string, error) {
-		return a.AddSnapshot(SnapshotConfig{ServiceID: serviceID, Message: message})
+	config.Snapshot = func(serviceID, message string, tags []string) (string, error) {
+		return a.AddSnapshot(SnapshotConfig{ServiceID: serviceID, Message: message, Tags: tags})
 	}
 	config.Restore = a.Rollback
 	config.TenantLookup = cliTenantLookup(a)
