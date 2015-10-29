@@ -166,6 +166,7 @@ deb: stage_deb
 		-d nfs-common \
 		-d 'docker-engine (= 1.8.2-0~trusty)' \
 		-d logrotate \
+		-d rsync \
 		-t deb \
 		-a x86_64 \
 		-C $(PKGROOT) \
@@ -199,6 +200,7 @@ rpm: stage_rpm
 		-d device-mapper-libs \
 		-d 'docker-engine = 1.8.2' \
 		-d logrotate \
+		-d rsync \
 		-t rpm \
 		-a x86_64 \
 		-C $(PKGROOT) \
