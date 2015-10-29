@@ -45,7 +45,12 @@ func (dfs *DistributedFilesystem) Snapshot(data SnapshotInfo) (string, error) {
 			glog.Errorf("Could not retag image %s for snapshot: %s", image, err)
 			return "", err
 		}
-		images[i] = rImage.String()
+		fullImagePath, err := dfs.reg.ImagePath(rImage.String())
+		if err != nil {
+			glog.Errorf("Could not get the full image path for image %s: %s", image, err)
+			return "", err
+		}
+		images[i] = fullImagePath
 	}
 	// write snapshot metadata
 	w, err := vol.WriteMetadata(label, ImagesMetadataFile)
