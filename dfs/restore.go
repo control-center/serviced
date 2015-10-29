@@ -30,6 +30,7 @@ var ErrRestoreNoInfo = errors.New("backup is missing metadata")
 func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 	var data BackupInfo
 	var foundBackupInfo bool
+	var registryImages []string
 	tarfile := tar.NewReader(r)
 	glog.Infof("Loading backup data")
 	for {
@@ -38,6 +39,9 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 			glog.Infof("Finished reading backup")
 			if !foundBackupInfo {
 				return nil, ErrRestoreNoInfo
+			}
+			if err := dfs.loadRegistry(registryImages); err != nil {
+				return nil, err
 			}
 			return &data, nil
 		} else if err != nil {
@@ -69,11 +73,28 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 				return nil, err
 			}
 			// Lets expedite this if this restore had already imported the snapshot
-			if err := vol.Import(label, tarfile); err != nil && err != volume.ErrSnapshotExists {
-				defer vol.RemoveSnapshot(label)
+			// But delete the snapshot if it doesn't have the right information
+			defer func() {
+				if err != nil {
+					vol.RemoveSnapshot(label)
+				}
+			}()
+			if err = vol.Import(label, tarfile); err != nil && err != volume.ErrSnapshotExists {
 				glog.Errorf("Could not import volume for tenant %s: %s", tenant, err)
 				return nil, err
 			}
+			// Get all the images for this snapshot for the docker registry
+			r, err := vol.ReadMetadata(label, ImagesMetadataFile)
+			if err != nil {
+				glog.Errorf("Could not receive images metadata from snapshot %s: %s", label, err)
+				return nil, err
+			}
+			var images []string
+			if err = importJSON(r, &images); err != nil {
+				glog.Errorf("Could not interpret images metadata file from snapshot %s: %s", label, err)
+				return nil, err
+			}
+			registryImages = append(registryImages, images...)
 			glog.Infof("Loaded volume for tenant %s", tenant)
 		case header.Name == DockerImagesFile:
 			if err := dfs.docker.LoadImage(tarfile); err != nil {
@@ -85,4 +106,21 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 			glog.Warningf("Unrecognized file %s", header.Name)
 		}
 	}
+}
+
+// loadRegistry reads snapshot images and pushes them into the registry with
+// the correct registry labeling
+func (dfs *DistributedFilesystem) loadRegistry(images []string) error {
+	for _, image := range images {
+		img, err := dfs.docker.FindImage(image)
+		if err != nil {
+			glog.Errorf("Could not load image %s into the registry: %s", image, err)
+			return err
+		}
+		if err := dfs.index.PushImage(image, img.ID); err != nil {
+			glog.Errorf("Could not push image %s into the registry: %s", image, err)
+			return err
+		}
+	}
+	return nil
 }
