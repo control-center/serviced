@@ -74,25 +74,26 @@ func (dfs *DistributedFilesystem) Restore(r io.Reader) (*BackupInfo, error) {
 			}
 			// Lets expedite this if this restore had already imported the snapshot
 			// But delete the snapshot if it doesn't have the right information
+			var snapshotErr error
 			defer func() {
-				if err != nil {
+				if snapshotErr != nil {
 					vol.RemoveSnapshot(label)
 				}
 			}()
-			if err = vol.Import(label, tarfile); err != nil && err != volume.ErrSnapshotExists {
-				glog.Errorf("Could not import volume for tenant %s: %s", tenant, err)
-				return nil, err
+			if snapshotErr = vol.Import(label, tarfile); snapshotErr != nil && snapshotErr != volume.ErrSnapshotExists {
+				glog.Errorf("Could not import volume for tenant %s: %s", tenant, snapshotErr)
+				return nil, snapshotErr
 			}
 			// Get all the images for this snapshot for the docker registry
-			r, err := vol.ReadMetadata(label, ImagesMetadataFile)
-			if err != nil {
-				glog.Errorf("Could not receive images metadata from snapshot %s: %s", label, err)
-				return nil, err
+			r, snapshotErr := vol.ReadMetadata(label, ImagesMetadataFile)
+			if snapshotErr != nil {
+				glog.Errorf("Could not receive images metadata from snapshot %s: %s", label, snapshotErr)
+				return nil, snapshotErr
 			}
 			var images []string
-			if err = importJSON(r, &images); err != nil {
-				glog.Errorf("Could not interpret images metadata file from snapshot %s: %s", label, err)
-				return nil, err
+			if snapshotErr = importJSON(r, &images); snapshotErr != nil {
+				glog.Errorf("Could not interpret images metadata file from snapshot %s: %s", label, snapshotErr)
+				return nil, snapshotErr
 			}
 			registryImages = append(registryImages, images...)
 			glog.Infof("Loaded volume for tenant %s", tenant)
