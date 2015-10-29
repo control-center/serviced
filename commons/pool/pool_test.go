@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -113,14 +113,11 @@ func (s *MySuite) TestWait(c *C) {
 		c.Errorf("elapsed wait less than %s", waitTime)
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
 	go func() {
-		wg.Done()
 		time.Sleep(waitTime)
 		p.Return(item)
 	}()
-	wg.Wait()
+
 	item, err = p.BorrowWait(waitTime * 2)
 	c.Assert(err, IsNil)
 	c.Assert(item, NotNil)

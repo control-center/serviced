@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+// Copyright 2015 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -37,6 +37,7 @@ func (s *MySuite) TestNewQueue(c *C) {
 
 	q, err = NewChannelQueue(1)
 	c.Assert(q.Capacity(), Equals, int32(1))
+	c.Assert(q.Size(), Equals, int32(0))
 
 	q, err = NewChannelQueue(math.MaxInt8)
 
@@ -65,7 +66,9 @@ func (s *MySuite) TestOffer(c *C) {
 		c.Fail()
 	}
 	for i := 0; i < cap*2; i++ {
-		q.Offer(i)
+		if q.Offer(i) && i >=cap{
+			c.Fail()
+		}
 		c.Assert(q.Size(), Equals, int32(min(i+1, cap)))
 	}
 	for i := 0; i < cap*2; i++ {
