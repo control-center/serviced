@@ -10,6 +10,9 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+
+// +build unit
+
 package queue
 
 import (
@@ -66,7 +69,7 @@ func (s *MySuite) TestOffer(c *C) {
 		c.Fail()
 	}
 	for i := 0; i < cap*2; i++ {
-		if q.Offer(i) && i >=cap{
+		if q.Offer(i) && i >= cap {
 			c.Fail()
 		}
 		c.Assert(q.Size(), Equals, int32(min(i+1, cap)))
