@@ -93,6 +93,7 @@ func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid").Return(nil).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
+		s.registry.On("ImagePath", newRegistryImage).Return("test:5000/"+newRegistryImage, nil)
 	})
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{}, ErrTestNoImagesMetadata)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
@@ -128,6 +129,7 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid").Return(nil).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
+		s.registry.On("ImagePath", newRegistryImage).Return("test:5000/"+newRegistryImage, nil)
 	})
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ImagesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
 	vol.On("WriteMetadata", mock.AnythingOfType("string"), ServicesMetadataFile).Return(&NopCloser{bytes.NewBufferString("")}, nil)
@@ -164,6 +166,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 	s.index.On("PushImage", mock.AnythingOfType("string"), "testuuid").Return(nil).Run(func(a mock.Arguments) {
 		newRegistryImage := a.Get(0).(string)
 		c.Assert(strings.HasPrefix(newRegistryImage, "BASE/repo:"), Equals, true)
+		s.registry.On("ImagePath", newRegistryImage).Return("test:5000/"+newRegistryImage, nil)
 	})
 	imagesBuffer := bytes.NewBufferString("")
 	servicesBuffer := bytes.NewBufferString("")
@@ -176,7 +179,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 		var actualImages []string
 		err := json.NewDecoder(imagesBuffer).Decode(&actualImages)
 		c.Assert(err, IsNil)
-		c.Assert(actualImages, DeepEquals, []string{"BASE/repo:" + label})
+		c.Assert(actualImages, DeepEquals, []string{"test:5000/BASE/repo:" + label})
 		var actualServices []service.Service
 		err = json.NewDecoder(servicesBuffer).Decode(&actualServices)
 		c.Assert(err, IsNil)
