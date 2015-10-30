@@ -23,6 +23,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/utils"
+	"github.com/control-center/serviced/volume/btrfs"
 )
 
 const (
@@ -45,6 +46,7 @@ var (
 type SnapshotAPITest struct {
 	api.API
 	fail      bool
+	btrfsFail	bool
 	snapshots []dao.SnapshotInfo
 }
 
@@ -131,6 +133,8 @@ func (t SnapshotAPITest) Rollback(id string, f bool) error {
 func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagNames []string) ([]string, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
+	} else if t.btrfsFail {
+		return nil, btrfs.ErrBtrfsModifySnapshotMetadata
 	}
 
 	result := []string{}
@@ -147,6 +151,8 @@ func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagNames []string) ([]st
 func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string) ([]string, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
+	} else if t.btrfsFail {
+		return nil, btrfs.ErrBtrfsModifySnapshotMetadata
 	}
 
 	result := []string{}
@@ -174,6 +180,8 @@ func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string
 func (t SnapshotAPITest) RemoveAllSnapshotTags(snapshotID string) error {
 	if t.fail {
 		return ErrInvalidSnapshot
+	} else if t.btrfsFail {
+		return btrfs.ErrBtrfsModifySnapshotMetadata
 	}
 
 	for _, s := range t.snapshots {
@@ -378,7 +386,7 @@ func ExampleServicedCLI_CmdSnapshotRemove_All_NoForce() {
 	InitSnapshotAPITest("serviced", "snapshot", "remove")
 
 	// Output:
-	// Incorrect usage:
+	// Incorrect Usage.
 	// Use
 	//    serviced snapshot remove -f
 	// to delete all snapshots, or
@@ -553,6 +561,16 @@ func ExampleServicedCLI_CmdSnapshotTag_fail() {
 	// invalid snapshot
 }
 
+
+func ExampleServicedCLI_CmdSnapshotTag_btrfsFail() {
+	DefaultSnapshotAPITest.btrfsFail = true
+	defer func() { DefaultSnapshotAPITest.btrfsFail = false }()
+	InitSnapshotAPITest("serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A")
+
+	// Output:
+	// Modifying snapshot tags is not allowed on btrfs.
+}
+
 func ExampleServicedCLI_CmdSnapshotRemoveTags_All() {
 	InitSnapshotAPITest("serviced", "snapshot", "removetags", "test-service-1-snapshot-1")
 
@@ -581,4 +599,13 @@ func ExampleServicedCLI_CmdRemoveTags_fail() {
 
 	// Output:
 	// invalid snapshot
+}
+
+func ExampleServicedCLI_CmdRemoveTags_btrfsFail() {
+	DefaultSnapshotAPITest.btrfsFail = true
+	defer func() { DefaultSnapshotAPITest.btrfsFail = false }()
+	InitSnapshotAPITest("serviced", "snapshot", "removetags", "test-service-1-snapshot-1")
+
+	// Output:
+	// Modifying snapshot tags is not allowed on btrfs.
 }

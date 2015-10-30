@@ -538,9 +538,13 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 
 // TagSnapshot implements volume.Volume.TagSnapshot
 func (v *DeviceMapperVolume) TagSnapshot(label string, tagNames []string) ([]string, error) {
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
 	v.Lock()
 	defer v.Unlock()
-
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
 	if err != nil {
@@ -576,9 +580,13 @@ func (v *DeviceMapperVolume) TagSnapshot(label string, tagNames []string) ([]str
 
 // RemoveSnapshotTags implements volume.Volume.RemoveSnapshotTags
 func (v *DeviceMapperVolume) RemoveSnapshotTags(label string, tagNames []string) ([]string, error) {
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
 	v.Lock()
 	defer v.Unlock()
-
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
 	if err != nil {
@@ -619,9 +627,13 @@ func (v *DeviceMapperVolume) RemoveSnapshotTags(label string, tagNames []string)
 
 // RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
 func (v *DeviceMapperVolume) RemoveAllSnapshotTags(label string) error {
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return volume.ErrSnapshotDoesNotExist
+	}
+
 	v.Lock()
 	defer v.Unlock()
-
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
 	if err != nil {

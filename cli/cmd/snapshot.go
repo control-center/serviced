@@ -21,6 +21,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/volume/btrfs"
 )
 
 // initSnapshot is the initializer for serviced snapshot
@@ -296,7 +297,7 @@ func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
 	if len(args) < 1 {
 		deleteAll = true
 		if !force {
-			fmt.Printf("Incorrect usage:\nUse\n   serviced snapshot remove -f\nto delete all snapshots, or\n   serviced snapshot remove -h\nfor help with this command.\n")
+			fmt.Printf("Incorrect Usage.\nUse\n   serviced snapshot remove -f\nto delete all snapshots, or\n   serviced snapshot remove -h\nfor help with this command.\n")
 			return
 		}
 	}
@@ -391,6 +392,9 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 
 	if newTags, err = c.driver.TagSnapshot(args[0], args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
+		if err == btrfs.ErrBtrfsModifySnapshotMetadata{
+			fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
+		}
 		return
 	}
 
@@ -414,12 +418,18 @@ func (c *ServicedCli) cmdSnapshotRemoveTags(ctx *cli.Context) {
 		//remove all tags
 		if err = c.driver.RemoveAllSnapshotTags(args[0]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			if err == btrfs.ErrBtrfsModifySnapshotMetadata{
+				fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
+			}
 			return
 		}
 	} else {
 		//remove specified tags
 		if newTags, err = c.driver.RemoveSnapshotTags(args[0], args[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
+			if err == btrfs.ErrBtrfsModifySnapshotMetadata{
+				fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
+			}
 			return
 		}
 	}
