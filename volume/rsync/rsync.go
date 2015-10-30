@@ -478,6 +478,12 @@ func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 	v.Lock()
 	defer v.Unlock()
 
+	//make sure the snapshot exists
+	path := v.snapshotPath(label)
+	if exists, _ := volume.IsDir(path); !exists {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
 	if err != nil {
@@ -515,6 +521,12 @@ func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
+
+	//make sure the snapshot exists
+	path := v.snapshotPath(label)
+	if exists, _ := volume.IsDir(path); !exists {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
 
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
@@ -558,6 +570,12 @@ func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]str
 func (v *RsyncVolume) RemoveAllSnapshotTags(label string) error {
 	v.Lock()
 	defer v.Unlock()
+
+	//make sure the snapshot exists
+	path := v.snapshotPath(label)
+	if exists, _ := volume.IsDir(path); !exists {
+		return volume.ErrSnapshotDoesNotExist
+	}
 
 	//get the current info for the snapshot
 	info, err := v.SnapshotInfo(label)
