@@ -482,7 +482,7 @@ func isNFSMountStale(mountpoint string) bool {
 	// for explanation of the following command.
 	if err := exec.Command("/bin/bash", "-c", fmt.Sprintf("read -t1 < <(stat -t '%s' 2>&-)", mountpoint)).Run(); err != nil {
 		if err.Error() == "wait: no child processes" {
-			glog.Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
+			glog.V(2).Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
 			return false
 		}
 		status, iscode := utils.GetExitStatus(err)
@@ -494,7 +494,7 @@ func isNFSMountStale(mountpoint string) bool {
 			}
 			if status == 10 {
 				// ECHILD: No child processes, not sure what causes this, but appears to be spurious.
-				glog.Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
+				glog.V(2).Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
 				return false
 			}
 		}
