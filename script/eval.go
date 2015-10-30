@@ -21,6 +21,21 @@ func evalEmpty(r *runner, n node) error {
 func evalSnapshot(r *runner, n node) error {
 	glog.V(0).Info("performing snapshot")
 
+	tagList := []string{}
+
+	if len(n.args) > 0 {
+		tagStr := n.args[0]
+		//Remove spaces around commas and at the end
+		tagStr = strings.Replace(tagStr, ", ", ",", -1)
+		tagStr = strings.Replace(tagStr, " ,", ",", -1)
+		tagStr = strings.Trim(tagStr, " ")
+		tagStr = strings.Trim(tagStr, ",")
+
+		if len(tagStr) > 0 {
+			tagList = strings.Split(tagStr, ",")
+		}
+	}
+
 	if r.snapshot == nil {
 		return fmt.Errorf("no snapshot function provided for %s", SNAPSHOT)
 	}
@@ -33,7 +48,7 @@ func evalSnapshot(r *runner, n node) error {
 		return fmt.Errorf("no service tenant id specified for %s", SNAPSHOT)
 	}
 
-	mySnapshotID, err := r.snapshot(tID, "")
+	mySnapshotID, err := r.snapshot(tID, "", tagList)
 	if err != nil {
 		return err
 	}
