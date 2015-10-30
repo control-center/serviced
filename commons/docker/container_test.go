@@ -53,7 +53,7 @@ func TestContainerCommit(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	_, err = ctr.Start()
+	err = ctr.Start()
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -98,7 +98,7 @@ func TestOnContainerStart(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	_, err = ctr.Start()
+	err = ctr.Start()
 	if err != nil {
 		t.Fatal("can't start container: ", err)
 	}
@@ -368,7 +368,7 @@ func TestInspectContainer(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	if _, err := ctr.Start(); err != nil {
+	if err := ctr.Start(); err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
@@ -415,7 +415,7 @@ func TestRepeatedStart(t *testing.T) {
 		sc <- struct{}{}
 	})
 
-	if _, err := ctr.Start(); err != nil {
+	if err := ctr.Start(); err != nil {
 		t.Fatal("can't start container: ", err)
 	}
 
@@ -426,7 +426,7 @@ func TestRepeatedStart(t *testing.T) {
 		t.Fatal("timed out waiting for container to start")
 	}
 
-	if _, err := ctr.Start(); err == nil {
+	if err := ctr.Start(); err == nil {
 		t.Fatal("expecting ErrAlreadyStarted")
 	}
 
@@ -622,7 +622,7 @@ func TestFindContainer(t *testing.T) {
 		t.Fatal("can't delete container: ", err)
 	}
 
-	if _, err = FindContainer(cid); err == nil {
+	if err = FindContainer(cid); err == nil {
 		t.Fatal("should not have found container: ", cid)
 	}
 }

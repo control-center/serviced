@@ -369,11 +369,10 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		return err
 	}
 
-	startLock := &sync.Mutex{}
-	startLock.Lock()
+	startBarrier := make(chan struct{}, 2)
 	ctr.OnEvent(docker.Start, func(cid string) {
 		glog.Infof("Instance %s (%s) for %s (%s) has started", state.ID, ctr.ID, svc.Name, svc.ID)
-		startLock.Unlock()
+		startBarrier <- struct{}{}
 	})
 
 	ctr.OnEvent(docker.Die, func(cid string) {
@@ -383,19 +382,16 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		a.removeInstance(state.ID, ctr)
 	})
 
-	if expectDockerEvents, err := ctr.Start(); err != nil {
+	if err := ctr.Start(); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		if !expectDockerEvents {
-			// The Docker event handlers we just registered won't get called, so perform those cleanup steps here
-			glog.Infof("Cleaning up after start failure for service state %s (%s) for service %s (%s)", state.ID, ctr.ID, svc.Name, svc.ID)
-			startLock.Unlock()
-			a.removeInstance(state.ID, ctr)
-		}
+		startBarrier <- struct{}{}
+		a.removeInstance(state.ID, ctr)
 		return err
 	}
+
 	handlerInstalled = true
 
-	startLock.Lock()
+	<-startBarrier
 	if err := updateInstance(state, ctr); err != nil {
 		glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
 		ctr.Stop(45 * time.Second)
