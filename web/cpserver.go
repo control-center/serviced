@@ -14,7 +14,7 @@
 package web
 
 import (
-        "crypto/tls"
+	"crypto/tls"
 	"fmt"
 	"log"
 	"mime"
@@ -106,7 +106,7 @@ func (sc *ServiceConfig) Serve(shutdown <-chan (interface{})) {
 			return svcs, found
 		}
 
-		httphost := r.Host
+		httphost := strings.Split(r.Host, ":")[0]
 		parts := strings.Split(httphost, ".")
 		subdomain := parts[0]
 		glog.V(2).Infof("httphost: '%s'  subdomain: '%s'", httphost, subdomain)
