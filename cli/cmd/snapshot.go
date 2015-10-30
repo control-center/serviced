@@ -392,7 +392,7 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 
 	if newTags, err = c.driver.TagSnapshot(args[0], args[1:]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
-		if err == btrfs.ErrBtrfsModifySnapshotMetadata{
+		if err == btrfs.ErrBtrfsModifySnapshotMetadata {
 			fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
 		}
 		return
@@ -418,7 +418,7 @@ func (c *ServicedCli) cmdSnapshotRemoveTags(ctx *cli.Context) {
 		//remove all tags
 		if err = c.driver.RemoveAllSnapshotTags(args[0]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			if err == btrfs.ErrBtrfsModifySnapshotMetadata{
+			if err == btrfs.ErrBtrfsModifySnapshotMetadata {
 				fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
 			}
 			return
@@ -427,7 +427,7 @@ func (c *ServicedCli) cmdSnapshotRemoveTags(ctx *cli.Context) {
 		//remove specified tags
 		if newTags, err = c.driver.RemoveSnapshotTags(args[0], args[1:]); err != nil {
 			fmt.Fprintln(os.Stderr, err)
-			if err == btrfs.ErrBtrfsModifySnapshotMetadata{
+			if err == btrfs.ErrBtrfsModifySnapshotMetadata {
 				fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
 			}
 			return
