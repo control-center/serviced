@@ -622,7 +622,7 @@ func TestFindContainer(t *testing.T) {
 		t.Fatal("can't delete container: ", err)
 	}
 
-	if err = FindContainer(cid); err == nil {
+	if _, err = FindContainer(cid); err == nil {
 		t.Fatal("should not have found container: ", cid)
 	}
 }
