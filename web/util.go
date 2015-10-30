@@ -138,7 +138,7 @@ func licenses(w *rest.ResponseWriter, r *rest.Request) {
 	http.ServeFile(
 		w.ResponseWriter,
 		r.Request,
-		staticRoot()+"/doc/licenses.html")
+		staticRoot()+"/licenses.html")
 }
 
 /*
