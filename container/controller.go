@@ -481,6 +481,10 @@ func isNFSMountStale(mountpoint string) bool {
 	// See http://stackoverflow.com/questions/17612004/linux-shell-script-how-to-detect-nfs-mount-point-or-the-server-is-dead
 	// for explanation of the following command.
 	if err := exec.Command("/bin/bash", "-c", fmt.Sprintf("read -t1 < <(stat -t '%s' 2>&-)", mountpoint)).Run(); err != nil {
+		if err.Error() == "wait: no child processes" {
+			glog.Infof("Distributed storage check hit probably spurious ECHILD. Ignoring.")
+			return false
+		}
 		status, iscode := utils.GetExitStatus(err)
 		if iscode {
 			if status == 142 {
