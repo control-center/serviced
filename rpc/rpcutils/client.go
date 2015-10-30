@@ -42,8 +42,9 @@ func connectRPC(addr string) (*rpc.Client, error) {
 	return jsonrpc.NewClient(conn), nil
 }
 
-// newClient that will create at most max active rpc connections at any given time
-func newClient(addr string, max int, fn connectRPCFn) (Client, error) {
+// newClient that will create at most max active rpc connections at any given time. discardClientTimeout timeout for
+// discarding client from pool if a call takes too long, call will not be cancelled; assures liveliness of pool
+func newClient(addr string, max int, discardClientTimeout time.Duration, fn connectRPCFn) (Client, error) {
 
 	rpcClientFactory := func() (interface{}, error) {
 		return fn(addr)
@@ -52,20 +53,21 @@ func newClient(addr string, max int, fn connectRPCFn) (Client, error) {
 	if err != nil {
 		return nil, err
 	}
-	rc := &reconnectingClient{addr: addr, pool: rpcPool}
+	rc := &reconnectingClient{addr: addr, pool: rpcPool, discardClientTimeout: discardClientTimeout}
 	return rc, nil
 }
 
 // Client to limit the number of underlying rpc connections. Reuses connections and discards connections on error
 type reconnectingClient struct {
-	addr              string
-	pool              pool.Pool
-	activeConnections int32
+	addr                 string
+	pool                 pool.Pool
+	activeConnections    int32
+	discardClientTimeout time.Duration
 }
 
 func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply interface{}, timeout time.Duration) error {
 	if timeout <= 0 {
-		timeout = 10 * time.Minute
+		timeout = 365 * 24 * time.Hour
 	}
 
 	start := time.Now()
@@ -99,22 +101,40 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		errChan <- rpcErr
 	}()
 	wg.Wait()
-	select {
-	case e := <-errChan:
-		if e != nil {
+	clientRemoved := false
+	start = time.Now()
+	timeoutChan := time.After(timeout)
+	for {
+		select {
+		case e := <-errChan:
+			if e != nil {
+				rpcClient.Close()
+				rc.pool.Remove(item)
+				item = nil
+				return e
+			}
+			if clientRemoved {
+				rpcClient.Close()
+			} else {
+				rc.pool.Return(item)
+			}
+			item = nil
+			return e
+		case <-timeoutChan:
+			err = fmt.Errorf("RPC call to %s timed out after %s", serviceMethod, timeout)
 			rpcClient.Close()
 			rc.pool.Remove(item)
-		} else {
-			rc.pool.Return(item)
+			item = nil
+			return err
+		case <-time.After(rc.discardClientTimeout):
+			//log long calls and remove from pool to prevent blocks
+			//glog.V(2).Infof("Long Running Call %s %s", serviceMethod, time.Now().Sub(start))
+			if !clientRemoved {
+				//glog.V(1).("Long Running Call removing client from pool %s after %s\n", serviceMethod, time.Now().Sub(start))
+				rc.pool.Remove(item)
+				clientRemoved = true
+			}
 		}
-		item = nil
-		return e
-	case <-time.After(timeout):
-		err = fmt.Errorf("RPC call to %s timed out after %s", serviceMethod, timeout)
-		rpcClient.Close()
-		rc.pool.Remove(item)
-		item = nil
-		return err
 	}
 }
 

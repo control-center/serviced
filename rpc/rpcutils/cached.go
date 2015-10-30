@@ -21,6 +21,9 @@ import (
 // RPC_CLIENT_SIZE max number of rpc clients per address
 var RPC_CLIENT_SIZE = 1
 
+// DiscardClientTimeout timeout for removing client from pool if a call is taking too long. Does not interrupt call.
+var DiscardClientTimeout = 30 * time.Second
+
 //map of address to client
 var clientCache = make(map[string]Client)
 var cacheLock = sync.RWMutex{}
@@ -72,7 +75,7 @@ func setAndGetClient(addr string) (Client, error) {
 	defer addrLock.Unlock()
 	client, found := clientCache[addr]
 	if !found {
-		client, err = newClient(addr, RPC_CLIENT_SIZE, connectRPC)
+		client, err = newClient(addr, RPC_CLIENT_SIZE, DiscardClientTimeout, connectRPC)
 		if err != nil {
 			return nil, err
 		}

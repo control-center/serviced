@@ -22,9 +22,9 @@ var _ = Suite(&MySuite{})
 
 type RPCTestType int
 
-func (rtt *RPCTestType) Sleep(seconds *int, reply *int) error {
-	time.Sleep(time.Duration(*seconds) * time.Second)
-	*reply = *seconds
+func (rtt *RPCTestType) Sleep(sleep time.Duration, reply *time.Duration) error {
+	time.Sleep(sleep)
+	*reply = sleep
 	return nil
 }
 
@@ -50,49 +50,81 @@ func (s *MySuite) SetUpSuite(c *C) {
 
 func (s *MySuite) TestConcurrentTimeout(c *C) {
 
-	client, err := newClient("localhost:32111", 1, connectRPC)
+	sleepTime := 100 * time.Millisecond
+	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 	c.Assert(err, IsNil)
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		var reply, seconds int
+		var reply time.Duration
 		wg.Done()
-		// Sleep for one second, timeout after two. Shouldn't error.
-		seconds = 1
-		err := client.Call("RPCTestType.Sleep", &seconds, &reply, 2*time.Second)
+		// Sleep, timeout after two. Shouldn't error.
+		err := client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*sleepTime)
 		c.Assert(err, IsNil)
-		c.Assert(reply, Equals, seconds)
+		c.Assert(reply, Equals, sleepTime)
 	}()
 	wg.Wait()
-	var reply, seconds int
-	seconds = 3
+	var reply time.Duration
 	// should time out wating for client
-	err = client.Call("RPCTestType.Sleep", &seconds, &reply, 50*time.Millisecond)
+	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, sleepTime/2)
 	c.Assert(err, Equals, pool.ErrItemUnavailable)
 }
 
 func (s *MySuite) TestTimeout(c *C) {
 
-	client, err := newClient("localhost:32111", 2, connectRPC)
+	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
 
-	var reply, seconds int
+	sleepTime := 100 * time.Millisecond
+
+	var reply time.Duration
 
 	// Sleep for one second, timeout after two. Shouldn't error.
-	seconds = 1
-	err = client.Call("RPCTestType.Sleep", &seconds, &reply, 2*time.Second)
+	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*time.Second)
 	c.Assert(err, IsNil)
-	c.Assert(reply, Equals, seconds)
+	c.Assert(reply, Equals, sleepTime)
 
-	// Sleep for one second, never timeout. Shouldn't error.
-	seconds = 2
-	err = client.Call("RPCTestType.Sleep", &seconds, &reply, -1)
+	// Sleep, never timeout. Shouldn't error.
+	sleepTime = sleepTime * 2
+	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, 0)
 	c.Assert(err, IsNil)
-	c.Assert(reply, Equals, seconds)
+	c.Assert(reply, Equals, sleepTime)
 
-	// Sleep for two seconds, timeout after one. Should error.
-	seconds = 2
-	err = client.Call("RPCTestType.Sleep", &seconds, &reply, 1*time.Second)
+	// Sleep and timeout after half sleep. Should error.
+	err = client.Call("RPCTestType.Sleep", &sleepTime, &reply, sleepTime/2)
 	c.Assert(err, NotNil)
 	c.Assert(err, ErrorMatches, "RPC call to RPCTestType.Sleep timed out after .+")
+}
+
+func (s *MySuite) TestLongCall(c *C) {
+	client, err := newClient("localhost:32111", 1, 250*time.Millisecond, connectRPC)
+	c.Assert(err, IsNil)
+
+	startWg := sync.WaitGroup{}
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	startWg.Add(1)
+	go func() {
+		var reply time.Duration
+		startWg.Done()
+		// Sleep for time , timeout after twice as much. Shouldn't error but underlying client will be invalidated
+		sleepTime := 750 * time.Millisecond
+		err := client.Call("RPCTestType.Sleep", sleepTime, &reply, 2*sleepTime)
+		c.Assert(err, IsNil)
+		c.Assert(reply, Equals, sleepTime)
+		wg.Done()
+
+	}()
+	startWg.Wait()
+	//after 250ms the previous call should have caused the the client to go stale
+	time.Sleep(500 * time.Millisecond)
+	var reply time.Duration
+	sleepTime := 10 * time.Millisecond
+	// should not time out wating for client
+	err = client.Call("RPCTestType.Sleep", sleepTime, &reply, 20*time.Millisecond)
+	c.Assert(err, IsNil)
+	c.Assert(reply, Equals, sleepTime)
+	wg.Wait() //wait for go routine to run asserts
+
 }
