@@ -179,6 +179,10 @@ test_service_shell() {
 test_service_run() {
     set -x
 
+    # Make sure we start with no snapshots, othewise the checks below may pass for the wrong reason
+    SNAPSHOT_COUNT=`${SERVICED} service list-snapshots s2 | wc -l`
+    [ "${SNAPSHOT_COUNT}" == "0" ] || return 1
+
     local rc=""
     ${SERVICED} service run s2 exit0; rc="$?"
     [ "$rc" -eq 0 ] || return "$rc"
