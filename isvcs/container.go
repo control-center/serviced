@@ -385,7 +385,7 @@ func (svc *IService) start() (<-chan int, error) {
 	ctr.OnEvent(docker.Die, func(cid string) { svc.remove(notify) })
 
 	// start the container
-	if err := ctr.Start(10 * time.Second); err != nil && err != docker.ErrAlreadyStarted {
+	if err := ctr.Start(); err != nil && err != docker.ErrAlreadyStarted {
 		svc.setStoppedHealthStatus(fmt.Errorf("could not start service: %s", err))
 		return nil, err
 	}

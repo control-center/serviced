@@ -55,7 +55,7 @@ func (i *testImage) Address(host string) string {
 func (i *testImage) Create(c *C, conn coordclient.Connection) *RegistryImageNode {
 	err := conn.CreateDir(i.LeaderPath())
 	c.Assert(err, IsNil)
-	node := &RegistryImageNode{Image: i.Image, PushedAt: time.Unix(0, 0)}
+	node := &RegistryImageNode{Image: *i.Image, PushedAt: time.Unix(0, 0)}
 	c.Logf("Creating node at %s: %v", i.Path(), *i.Image)
 	err = conn.Create(i.Path(), node)
 	c.Assert(err, IsNil)

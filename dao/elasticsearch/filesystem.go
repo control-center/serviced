@@ -24,6 +24,7 @@ import (
 
 	model "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/zenoss/glog"
 )
 
 // InProgress prompts which backup is currently backing up or restoring
@@ -39,7 +40,7 @@ type InProgress struct {
 func (p *InProgress) SetProgress(filename, op string) {
 	p.locker.Lock()
 	defer p.locker.Unlock()
-	p.running = false
+	p.running = true
 	p.filename = filename
 	p.op = op
 }
@@ -97,23 +98,24 @@ func (dao *ControlPlaneDao) Backup(dirpath string, filename *string) (err error)
 		backupfilename = filepath.Join(dao.backupsPath, *filename)
 	}
 	inprogress.SetProgress(backupfilename, "backup")
-
+	defer func() {
+		if err != nil {
+			glog.Errorf("Backup failed with error: %s", err)
+			os.Remove(backupfilename)
+		}
+		inprogress.SetError(err)
+	}()
 	// create the file and write
 	fh, err := os.Create(backupfilename)
 	if err != nil {
-		return err
+		glog.Errorf("Could not create backup file at %s: %s", backupfilename, err)
+		return
 	}
-	defer func() {
-		if err != nil {
-			os.Remove(backupfilename)
-		}
-	}()
 	defer fh.Close()
 	gz := gzip.NewWriter(fh)
 	defer gz.Close()
 	err = dao.facade.Backup(ctx, gz)
-	inprogress.SetError(err)
-	return err
+	return
 }
 
 // AsyncBackup is the same as backup, but asynchronous

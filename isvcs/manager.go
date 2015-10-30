@@ -214,7 +214,7 @@ func (m *Manager) wipe() error {
 		ctr.Delete(true)
 	})
 
-	return ctr.Start(10 * time.Second)
+	return ctr.Start()
 }
 
 // loadImages() loads all the images defined in the registered services

@@ -307,6 +307,13 @@ func chownConfFile(filename, owner, permissions string, dockerImage string) erro
 
 // StartService starts a new instance of the specified service and updates the control center state accordingly.
 func (a *HostAgent) StartService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
+	handlerInstalled := false
+	defer func() {
+		if !handlerInstalled {
+			exited(state.ID)
+		}
+	}()
+
 	glog.V(2).Infof("About to start service %s with name %s", svc.ID, svc.Name)
 	client, err := NewControlClient(a.master)
 	if err != nil {
@@ -354,11 +361,11 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		return err
 	}
 
-	var started sync.WaitGroup
-	started.Add(1)
+	startLock := &sync.Mutex{}
+	startLock.Lock()
 	ctr.OnEvent(docker.Start, func(cid string) {
 		glog.Infof("Instance %s (%s) for %s (%s) has started", state.ID, ctr.ID, svc.Name, svc.ID)
-		started.Done()
+		startLock.Unlock()
 	})
 
 	ctr.OnEvent(docker.Die, func(cid string) {
@@ -368,14 +375,14 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		a.removeInstance(state.ID, ctr)
 	})
 
-	if err := ctr.Start(time.Hour); err != nil {
+	if err := ctr.Start(); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
-		started.Done()
 		a.removeInstance(state.ID, ctr)
 		return err
 	}
+	handlerInstalled = true
 
-	started.Wait()
+	startLock.Lock()
 	if err := updateInstance(state, ctr); err != nil {
 		glog.Errorf("Could not update instance %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
 		ctr.Stop(45 * time.Second)

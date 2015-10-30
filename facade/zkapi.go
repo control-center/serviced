@@ -219,7 +219,7 @@ func (z *zkf) SetRegistryImage(image *registry.Image) error {
 	if err != nil {
 		return err
 	}
-	return zkimgregistry.SetRegistryImage(conn, image)
+	return zkimgregistry.SetRegistryImage(conn, *image)
 }
 
 func (z *zkf) DeleteRegistryImage(id string) error {
