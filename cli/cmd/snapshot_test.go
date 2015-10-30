@@ -46,7 +46,7 @@ var (
 type SnapshotAPITest struct {
 	api.API
 	fail      bool
-	btrfsFail	bool
+	btrfsFail bool
 	snapshots []dao.SnapshotInfo
 }
 
@@ -560,7 +560,6 @@ func ExampleServicedCLI_CmdSnapshotTag_fail() {
 	// Output:
 	// invalid snapshot
 }
-
 
 func ExampleServicedCLI_CmdSnapshotTag_btrfsFail() {
 	DefaultSnapshotAPITest.btrfsFail = true

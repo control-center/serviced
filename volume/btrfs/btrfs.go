@@ -35,11 +35,11 @@ import (
 )
 
 var (
-	ErrBtrfsInvalidFilesystem = errors.New("not a btrfs filesystem")
-	ErrBtrfsInvalidDriver     = errors.New("invalid driver")
-	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
-	ErrBtrfsInvalidLabel      = errors.New("invalid label")
-	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
+	ErrBtrfsInvalidFilesystem      = errors.New("not a btrfs filesystem")
+	ErrBtrfsInvalidDriver          = errors.New("invalid driver")
+	ErrBtrfsCreatingSubvolume      = errors.New("could not create subvolume")
+	ErrBtrfsInvalidLabel           = errors.New("invalid label")
+	ErrBtrfsListingSnapshots       = errors.New("couldn't list snapshots")
 	ErrBtrfsModifySnapshotMetadata = errors.New("can't modify snapshot metadata on btrfs")
 )
 
@@ -286,7 +286,7 @@ func (v *BtrfsVolume) WriteMetadata(label, name string) (io.WriteCloser, error) 
 		glog.Errorf("Could not create path for file %s: %s", name, err)
 		return nil, err
 	}
-	
+
 	return os.Create(filePath)
 }
 
@@ -374,7 +374,7 @@ func (v *BtrfsVolume) Snapshot(label, message string, tags []string) error {
 	info := volume.SnapshotInfo{
 		Name:     v.rawSnapshotLabel(label),
 		TenantID: v.Tenant(),
-		Label:     v.prettySnapshotLabel(label),
+		Label:    v.prettySnapshotLabel(label),
 		Tags:     tags,
 		Message:  message,
 		Created:  time.Now(),
