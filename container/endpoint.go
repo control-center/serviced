@@ -27,7 +27,7 @@ import (
 	"time"
 
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/node"
@@ -54,7 +54,7 @@ var funcmap = template.FuncMap{
 }
 
 type export struct {
-	endpoint     dao.ApplicationEndpoint
+	endpoint     applicationendpoint.ApplicationEndpoint
 	vhosts       []string
 	endpointName string
 }
@@ -211,7 +211,7 @@ func buildExportedEndpoints(conn coordclient.Connection, tenantID string, state 
 			exp.endpointName = defep.Name
 
 			var err error
-			ep, err := dao.BuildApplicationEndpoint(state, &defep)
+			ep, err := applicationendpoint.BuildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return result, err
 			}
@@ -236,7 +236,7 @@ func buildImportedEndpoints(c *Controller, conn coordclient.Connection, state *s
 
 	for _, defep := range state.Endpoints {
 		if defep.Purpose == "import" || defep.Purpose == "import_all" {
-			endpoint, err := dao.BuildApplicationEndpoint(state, &defep)
+			endpoint, err := applicationendpoint.BuildApplicationEndpoint(state, &defep)
 			if err != nil {
 				return err
 			}
@@ -436,7 +436,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 	tenantEndpointID := parts[len(parts)-1]
 
 	if ep := c.getMatchingEndpoint(tenantEndpointID); ep != nil {
-		endpoints := make([]dao.ApplicationEndpoint, len(hostContainerIDs))
+		endpoints := make([]applicationendpoint.ApplicationEndpoint, len(hostContainerIDs))
 		for ii, hostContainerID := range hostContainerIDs {
 			path := fmt.Sprintf("%s/%s", parentPath, hostContainerID)
 			endpointNode, err := endpointRegistry.GetItem(conn, path)
@@ -458,7 +458,7 @@ func (c *Controller) processTenantEndpoint(conn coordclient.Connection, parentPa
 }
 
 // setProxyAddresses tells the proxies to update with addresses
-func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.ApplicationEndpoint, importVirtualAddress, purpose string) {
+func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []applicationendpoint.ApplicationEndpoint, importVirtualAddress, purpose string) {
 	glog.V(1).Info("starting setProxyAddresses(tenantEndpointID: %s, purpose: %s)", tenantEndpointID, purpose)
 	proxiesLock.Lock()
 	defer proxiesLock.Unlock()
@@ -531,7 +531,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 	for instanceID, proxyKey := range proxyKeys {
 		prxy, ok := proxies[proxyKey]
 		if !ok {
-			var endpoint dao.ApplicationEndpoint
+			var endpoint applicationendpoint.ApplicationEndpoint
 			if purpose == "import" {
 				endpoint = endpoints[0]
 			} else {
@@ -575,7 +575,7 @@ func (c *Controller) setProxyAddresses(tenantEndpointID string, endpoints []dao.
 }
 
 // createNewProxy creates a new proxy
-func createNewProxy(tenantEndpointID string, endpoint dao.ApplicationEndpoint, allowDirect bool) (*proxy, error) {
+func createNewProxy(tenantEndpointID string, endpoint applicationendpoint.ApplicationEndpoint, allowDirect bool) (*proxy, error) {
 	glog.Infof("Attempting port map for: %s -> %+v", tenantEndpointID, endpoint)
 
 	// setup a new proxy
