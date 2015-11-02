@@ -27,6 +27,7 @@ import (
 
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
@@ -54,8 +55,8 @@ func (a *HostAgent) Ping(waitFor time.Duration, timestamp *time.Time) error {
 	return nil
 }
 
-func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
-	myList := make(map[string][]dao.ApplicationEndpoint)
+func (a *HostAgent) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
+	myList := make(map[string][]applicationendpoint.ApplicationEndpoint)
 
 	a.addControlPlaneEndpoint(myList)
 	a.addControlPlaneConsumerEndpoint(myList)
@@ -203,9 +204,9 @@ func (a *HostAgent) LogHealthCheck(result domain.HealthCheckResult, unused *int)
 }
 
 // addControlPlaneEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
+func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
 	key := "tcp" + a.uiport
-	endpoint := dao.ApplicationEndpoint{}
+	endpoint := applicationendpoint.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane"
 	endpoint.Application = "controlplane"
 	endpoint.ContainerIP = "127.0.0.1"
@@ -223,9 +224,9 @@ func (a *HostAgent) addControlPlaneEndpoint(endpoints map[string][]dao.Applicati
 }
 
 // addControlPlaneConsumerEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
+func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
 	key := "tcp:8444"
-	endpoint := dao.ApplicationEndpoint{}
+	endpoint := applicationendpoint.ApplicationEndpoint{}
 	endpoint.ServiceID = "controlplane_consumer"
 	endpoint.Application = "controlplane_consumer"
 	endpoint.ContainerIP = "127.0.0.1"
@@ -238,8 +239,8 @@ func (a *HostAgent) addControlPlaneConsumerEndpoint(endpoints map[string][]dao.A
 }
 
 // addLogstashEndpoint adds an application endpoint mapping for the master control center api
-func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEndpoint) {
-	tcp_endpoint := dao.ApplicationEndpoint{
+func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
+	tcp_endpoint := applicationendpoint.ApplicationEndpoint{
 		ServiceID:     "controlplane_logstash_tcp",
 		Application:   "controlplane_logstash_tcp",
 		ContainerIP:   "127.0.0.1",
@@ -251,7 +252,7 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEn
 	}
 	a.addEndpoint("tcp:5042", tcp_endpoint, endpoints)
 
-	ljack_endpoint := dao.ApplicationEndpoint{
+	ljack_endpoint := applicationendpoint.ApplicationEndpoint{
 		ServiceID:     "controlplane_logstash_lumberjack",
 		Application:   "controlplane_logstash_lumberjack",
 		ContainerIP:   "127.0.0.1",
@@ -265,9 +266,9 @@ func (a *HostAgent) addLogstashEndpoint(endpoints map[string][]dao.ApplicationEn
 }
 
 // addEndpoint adds a mapping to defined application, if a mapping does not exist this method creates the list and adds the first element
-func (a *HostAgent) addEndpoint(key string, endpoint dao.ApplicationEndpoint, endpoints map[string][]dao.ApplicationEndpoint) {
+func (a *HostAgent) addEndpoint(key string, endpoint applicationendpoint.ApplicationEndpoint, endpoints map[string][]applicationendpoint.ApplicationEndpoint) {
 	if _, ok := endpoints[key]; !ok {
-		endpoints[key] = make([]dao.ApplicationEndpoint, 0)
+		endpoints[key] = make([]applicationendpoint.ApplicationEndpoint, 0)
 	} else {
 		if len(endpoints[key]) > 0 {
 			glog.Warningf("Service %s has duplicate internal endpoint for key %s len(endpointList)=%d", endpoint.ServiceID, key, len(endpoints[key]))

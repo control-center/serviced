@@ -26,6 +26,7 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
@@ -656,7 +657,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 }
 
 // Get the exported endpoints for a service
-func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (map[string][]dao.ApplicationEndpoint, error) {
+func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -670,7 +671,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (m
 	}
 
 	someInstancesActive := false
-	var endpoints []dao.ApplicationEndpoint
+	var endpoints []applicationendpoint.ApplicationEndpoint
 	if len(states) == 0 {
 		endpoints = append(endpoints, getEndpointsFromServiceDefinition(svc)...)
 	} else {
@@ -683,24 +684,24 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (m
 		}
 	}
 
-	sort.Sort(dao.ApplicationEndpointSlice(endpoints))
+	sort.Sort(applicationendpoint.ApplicationEndpointSlice(endpoints))
 	if len(endpoints) > 0 && someInstancesActive {
 		f.validateEndpoints(ctx, serviceID, endpoints)
 	}
-	result := make(map[string][]dao.ApplicationEndpoint)
+	result := make(map[string][]applicationendpoint.ApplicationEndpoint)
 	result[svc.ID] = endpoints
 	return result, nil
 }
 
 // Get a list of exported endpoints defined for the service
-func getEndpointsFromServiceDefinition(service *service.Service) []dao.ApplicationEndpoint {
-	var endpoints []dao.ApplicationEndpoint
+func getEndpointsFromServiceDefinition(service *service.Service) []applicationendpoint.ApplicationEndpoint {
+	var endpoints []applicationendpoint.ApplicationEndpoint
 	for _, serviceEndpoint := range service.Endpoints {
 		if serviceEndpoint.Purpose == "import" {
 			continue
 		}
 
-		endpoint := dao.ApplicationEndpoint{}
+		endpoint := applicationendpoint.ApplicationEndpoint{}
 		endpoint.ServiceID = service.ID
 		endpoint.Application = serviceEndpoint.Application
 		endpoint.Protocol = serviceEndpoint.Protocol
@@ -712,14 +713,14 @@ func getEndpointsFromServiceDefinition(service *service.Service) []dao.Applicati
 }
 
 // Get a list of exported endpoints for all service instances based just on the current ServiceState
-func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState) []dao.ApplicationEndpoint {
-	var endpoints []dao.ApplicationEndpoint
+func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState) []applicationendpoint.ApplicationEndpoint {
+	var endpoints []applicationendpoint.ApplicationEndpoint
 	for _, serviceEndpoint := range state.Endpoints {
 		if serviceEndpoint.Purpose == "import" {
 			continue
 		}
 
-		applicationEndpoint, err := dao.BuildApplicationEndpoint(&state, &serviceEndpoint)
+		applicationEndpoint, err := applicationendpoint.BuildApplicationEndpoint(&state, &serviceEndpoint)
 		if err != nil {
 			glog.Errorf("Unable to build endpoint: %s", err)
 			continue
@@ -731,14 +732,14 @@ func getEndpointsFromServiceState(service *service.Service, state servicestate.S
 }
 
 // Get a list of exported endpoints for the specified service from the Zookeeper namespace
-func (f *Facade) getEndpointsFromZK(ctx datastore.Context, serviceID string) ([]dao.ApplicationEndpoint, error) {
+func (f *Facade) getEndpointsFromZK(ctx datastore.Context, serviceID string) ([]applicationendpoint.ApplicationEndpoint, error) {
 	tenantID, err := f.GetTenantID(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("GetTenantID failed - %s", err)
 		return nil, err
 	}
 
-	var endpoints []dao.ApplicationEndpoint
+	var endpoints []applicationendpoint.ApplicationEndpoint
 	err = f.zzk.GetServiceEndpoints(tenantID, serviceID, &endpoints)
 	if err != nil {
 		glog.Errorf("GetServiceEndpoints failed - %s", err)
@@ -748,7 +749,7 @@ func (f *Facade) getEndpointsFromZK(ctx datastore.Context, serviceID string) ([]
 	return endpoints, nil
 }
 
-func (f *Facade) validateEndpoints(ctx datastore.Context, serviceID string, endpoints []dao.ApplicationEndpoint) {
+func (f *Facade) validateEndpoints(ctx datastore.Context, serviceID string, endpoints []applicationendpoint.ApplicationEndpoint) {
 	zkEndpoints, err := f.getEndpointsFromZK(ctx, serviceID)
 	if err != nil {
 		glog.Errorf("Unable to retrieve endpoints directly from ZK: %s", err)

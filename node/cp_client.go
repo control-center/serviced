@@ -22,6 +22,7 @@ import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -56,7 +57,7 @@ func (s *ControlClient) Close() (err error) {
 	return s.rpcClient.Close()
 }
 
-func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]dao.ApplicationEndpoint) (err error) {
+func (s *ControlClient) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
 	return s.rpcClient.Call("ControlPlane.GetServiceEndpoints", serviceId, response, 0)
 }
 

@@ -27,6 +27,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -133,8 +134,8 @@ var DefaultTestRunningServices = []dao.RunningService{
 	},
 }
 
-var DefaultEndpoints = map[string][]dao.ApplicationEndpoint{
-	"test-service-2": []dao.ApplicationEndpoint{
+var DefaultEndpoints = map[string][]applicationendpoint.ApplicationEndpoint{
+	"test-service-2": []applicationendpoint.ApplicationEndpoint{
 		{
 			ServiceID:     "test-service-2",
 			InstanceID:    1,
@@ -175,7 +176,7 @@ type ServiceAPITest struct {
 	pools           []pool.ResourcePool
 	hosts           []host.Host
 	snapshots       []dao.SnapshotInfo
-	endpoints       map[string][]dao.ApplicationEndpoint
+	endpoints       map[string][]applicationendpoint.ApplicationEndpoint
 }
 
 func InitServiceAPITest(args ...string) {
@@ -219,7 +220,7 @@ func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error)  {
 	return make(map[string]host.Host), nil
 }
 
-func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]dao.ApplicationEndpoint, error)  {
+func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error)  {
 	if t.errs["GetEndpoints"] != nil {
 		return nil, t.errs["GetEndpoints"]
 	}

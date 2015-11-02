@@ -20,7 +20,7 @@ import (
 	"path"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/zzk/registry"
 	"github.com/zenoss/glog"
 	. "gopkg.in/check.v1"
@@ -83,7 +83,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 	epr, err := registry.CreateEndpointRegistry(dt.zkConn)
 	t.Assert(err, IsNil)
 
-	aep := dao.ApplicationEndpoint{
+	aep := applicationendpoint.ApplicationEndpoint{
 		ServiceID:     "epn_service",
 		ContainerID:   "epn_container",
 		ContainerIP:   "192.168.0.1",

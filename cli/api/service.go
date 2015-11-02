@@ -24,6 +24,7 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
@@ -228,13 +229,13 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 }
 
 // Get all of the exported endpoints
-func (a *api) GetEndpoints(serviceID string) (map[string][]dao.ApplicationEndpoint, error) {
+func (a *api) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
 	client, err := a.connectDAO()
 	if err != nil {
 		return nil, err
 	}
 
-	endpoints := make(map[string][]dao.ApplicationEndpoint)
+	endpoints := make(map[string][]applicationendpoint.ApplicationEndpoint)
 	if err := client.GetServiceEndpoints(serviceID, &endpoints); err != nil {
 		return nil, err
 	}

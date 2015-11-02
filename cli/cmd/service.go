@@ -31,6 +31,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
@@ -1409,7 +1410,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 	}
 }
 
-func noEndpointsDefined(serviceID string, endpointsByService map[string][]dao.ApplicationEndpoint) bool {
+func noEndpointsDefined(serviceID string, endpointsByService map[string][]applicationendpoint.ApplicationEndpoint) bool {
 	if len(endpointsByService) == 0 {
 		return true
 	} else if serviceEndpoints, ok := endpointsByService[serviceID]; !ok || len(serviceEndpoints) == 0 {

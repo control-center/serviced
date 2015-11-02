@@ -275,7 +275,7 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 			t.Assert(true, Equals, true)
 		})
 	// don't worry about mocking the ZK validation
-	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]dao.ApplicationEndpoint")).Return(nil)
+	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
 	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
 

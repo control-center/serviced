@@ -16,6 +16,7 @@ package elasticsearch
 import (
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/datastore"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/zenoss/glog"
 )
@@ -138,7 +139,7 @@ func (this *ControlPlaneDao) GetTenantId(serviceID string, tenantId *string) err
 }
 
 // Get a service endpoint.
-func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]dao.ApplicationEndpoint) (err error) {
+func (this *ControlPlaneDao) GetServiceEndpoints(serviceID string, response *map[string][]applicationendpoint.ApplicationEndpoint) (err error) {
 	if result, err := this.facade.GetServiceEndpoints(datastore.Get(), serviceID); err == nil {
 		*response = result
 		return nil

@@ -23,7 +23,7 @@ package registry
 
 import (
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/validation"
 	"github.com/zenoss/glog"
 
@@ -43,13 +43,13 @@ func vhostPath(nodes ...string) string {
 }
 
 // NewVhostEndpoint creates a new VhostEndpoint
-func NewVhostEndpoint(endpointName string, appEndpoint dao.ApplicationEndpoint) VhostEndpoint {
+func NewVhostEndpoint(endpointName string, appEndpoint applicationendpoint.ApplicationEndpoint) VhostEndpoint {
 	return VhostEndpoint{ApplicationEndpoint: appEndpoint, EndpointName: endpointName}
 }
 
 // VhostEndpoint contains information about a vhost
 type VhostEndpoint struct {
-	dao.ApplicationEndpoint
+	applicationendpoint.ApplicationEndpoint
 	EndpointName string
 	version      interface{}
 }

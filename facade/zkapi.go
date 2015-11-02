@@ -18,6 +18,7 @@ import (
 	"time"
 
 	zkimgregistry "github.com/control-center/serviced/dfs/registry"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -29,7 +30,6 @@ import (
 	zkservice "github.com/control-center/serviced/zzk/service"
 	zkvirtualip "github.com/control-center/serviced/zzk/virtualips"
 	"github.com/zenoss/glog"
-	"github.com/control-center/serviced/dao"
 )
 
 func getZZK(f *Facade) ZZK {
@@ -269,7 +269,7 @@ func (z *zkf) UnlockServices(svcs []service.Service) error {
 }
 
 // Get a list of exported endpoints for the specified service from the Zookeeper namespace
-func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]dao.ApplicationEndpoint) error {
+func (zk *zkf) GetServiceEndpoints(tenantID, serviceID string, result *[]applicationendpoint.ApplicationEndpoint) error {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("Could get connection to zookeeper: %s", err)

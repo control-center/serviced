@@ -49,7 +49,7 @@ import (
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
 )
@@ -65,7 +65,7 @@ func zkEndpointsPath(nodes ...string) string {
 }
 
 // NewEndpointNode returns a new EndpointNode given tenantID, endpointID, hostID, containerID, ApplicationEndpoint
-func NewEndpointNode(tenantID, endpointID string, endpoint dao.ApplicationEndpoint) EndpointNode {
+func NewEndpointNode(tenantID, endpointID string, endpoint applicationendpoint.ApplicationEndpoint) EndpointNode {
 	return EndpointNode{
 		ApplicationEndpoint: endpoint,
 		TenantID:            tenantID,
@@ -75,7 +75,7 @@ func NewEndpointNode(tenantID, endpointID string, endpoint dao.ApplicationEndpoi
 
 // EndpointNode is a node for the exported ApplicationEndpoint
 type EndpointNode struct {
-	dao.ApplicationEndpoint
+	applicationendpoint.ApplicationEndpoint
 	TenantID    string
 	EndpointID  string
 	version     interface{}

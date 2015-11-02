@@ -14,7 +14,7 @@
 package facade
 
 import (
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/registry"
@@ -44,7 +44,7 @@ type ZZK interface {
 	DeleteRegistryLibrary(tenantID string) error
 	LockServices(svcs []service.Service) error
 	UnlockServices(svcs []service.Service) error
-	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]dao.ApplicationEndpoint) error
+	GetServiceEndpoints(tenantID, serviceID string, endpoints *[]applicationendpoint.ApplicationEndpoint) error
 }
 
 func GetFacadeZZK(f *Facade) ZZK {

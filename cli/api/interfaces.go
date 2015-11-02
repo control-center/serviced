@@ -17,6 +17,7 @@ import (
 	"io"
 
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -68,7 +69,7 @@ type API interface {
 	RestartService(SchedulerConfig) (int, error)
 	StopService(SchedulerConfig) (int, error)
 	AssignIP(IPConfig) error
-	GetEndpoints(string) (map[string][]dao.ApplicationEndpoint, error)
+	GetEndpoints(string) (map[string][]applicationendpoint.ApplicationEndpoint, error)
 
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]dao.RunningService, error)
