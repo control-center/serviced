@@ -173,7 +173,7 @@ func (st *serviceAPITest) TestMigrateService_fails(c *C) {
 	c.Assert(err.Error(), Equals, expectedError.Error())
 }
 
-func (st *serviceAPITest) TestGeEndpoints_fails(c *C) {
+func (st *serviceAPITest) TestGetEndpoints_fails(c *C) {
 	errorStub := errors.New("errorStub: GetServiceEndpoints() failed")
 	serviceID := "test-service"
 
@@ -187,7 +187,7 @@ func (st *serviceAPITest) TestGeEndpoints_fails(c *C) {
 	c.Assert(err, Equals, errorStub)
 }
 
-func (st *serviceAPITest) TestGeEndpoints_works(c *C) {
+func (st *serviceAPITest) TestGetEndpoints_works(c *C) {
 	serviceID := "test-service"
 
 	st.mockControlPlane.
