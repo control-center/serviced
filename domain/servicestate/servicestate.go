@@ -86,17 +86,23 @@ func (ss ServiceState) ValidEntity() error {
 	return nil
 }
 
-func (ss *ServiceState) evalPortTemplate(portTemplate string) (int, error) {
+func (ss *ServiceState) EvalPortTemplate(portTemplate string) (uint16, error) {
 	t := template.Must(template.New("PortTemplate").Funcs(funcmap).Parse(portTemplate))
 	b := bytes.Buffer{}
 	if err := t.Execute(&b, ss); err != nil {
+		err = fmt.Errorf("Unable to interpret port template %q: %s", portTemplate, err)
 		return 0, err
 	}
 	i, err := strconv.Atoi(b.String())
 	if err != nil {
+		err = fmt.Errorf("For port template %q, could not convert %q to integer: %s", portTemplate,  b, err)
 		return 0, err
 	}
-	return i, nil
+	if i < 0 {
+		err = fmt.Errorf("For port template %q, the value %d is invalid: must be non-negative", portTemplate,  i)
+		return 0, err
+	}
+	return uint16(i), nil
 }
 
 //A new service instance (ServiceState)
@@ -111,11 +117,11 @@ func BuildFromService(service *service.Service, hostId string) (serviceState *Se
 		serviceState.Endpoints = service.Endpoints
 		for j, ep := range serviceState.Endpoints {
 			if ep.PortTemplate != "" {
-				port, err := serviceState.evalPortTemplate(ep.PortTemplate)
+				port, err := serviceState.EvalPortTemplate(ep.PortTemplate)
 				if err != nil {
 					return nil, err
 				}
-				ep.PortNumber = uint16(port)
+				ep.PortNumber = port
 				serviceState.Endpoints[j] = ep
 			}
 		}
@@ -130,12 +136,12 @@ func (ss *ServiceState) GetHostEndpointInfo(applicationRegex *regexp.Regexp) (ho
 		if ep.Purpose == "export" {
 			if applicationRegex.MatchString(ep.Application) {
 				if ep.PortTemplate != "" {
-					port, err := ss.evalPortTemplate(ep.PortTemplate)
+					port, err := ss.EvalPortTemplate(ep.PortTemplate)
 					if err != nil {
-						glog.Errorf("%+v", err)
+						glog.Errorf("%s", err)
 						break
 					}
-					ep.PortNumber = uint16(port)
+					ep.PortNumber = port
 				}
 				portS := fmt.Sprintf("%d/%s", ep.PortNumber, strings.ToLower(ep.Protocol))
 

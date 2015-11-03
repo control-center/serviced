@@ -14,8 +14,8 @@
 package node
 
 import (
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/zenoss/glog"
@@ -61,7 +61,7 @@ func (a *LBClient) SendLogMessage(serviceLogInfo ServiceLogInfo, _ *struct{}) er
 }
 
 // GetServiceEndpoints returns a list of endpoints for the given service endpoint request.
-func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]dao.ApplicationEndpoint) error {
+func (a *LBClient) GetServiceEndpoints(serviceId string, endpoints *map[string][]applicationendpoint.ApplicationEndpoint) error {
 	glog.V(4).Infof("ControlPlaneAgent.GetServiceEndpoints()")
 	return a.rpcClient.Call("ControlPlaneAgent.GetServiceEndpoints", serviceId, endpoints, 0)
 }

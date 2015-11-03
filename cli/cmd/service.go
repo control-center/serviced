@@ -21,6 +21,7 @@ import (
 	"os/signal"
 	"path"
 	"sort"
+	"strconv"
 	"strings"
 	"syscall"
 	"text/template"
@@ -30,7 +31,7 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/host"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
@@ -205,6 +206,12 @@ func (c *ServicedCli) initService() {
 				Flags: []cli.Flag{
 					cli.StringFlag{"description, d", "", "a description of the snapshot"},
 				},
+			}, {
+				Name:         "endpoints",
+				Usage:        "List the endpoints defined for the service",
+				Description:  "serviced service endpoints SERVICEID",
+				BashComplete: c.printServicesFirst,
+				Action:       c.cmdServiceEndpoints,
 			},
 		},
 	})
@@ -1060,13 +1067,9 @@ func (c *ServicedCli) searchForRunningService(keyword string) (*dao.RunningServi
 		return nil, err
 	}
 
-	hosts, err := c.driver.GetHosts()
+	hostmap, err := c.driver.GetHostMap()
 	if err != nil {
 		return nil, err
-	}
-	hostmap := make(map[string]host.Host)
-	for _, host := range hosts {
-		hostmap[host.ID] = host
 	}
 
 	pathmap, err := c.buildRunningServicePaths(rss)
@@ -1149,13 +1152,9 @@ func (c *ServicedCli) cmdServiceAttach(ctx *cli.Context) error {
 	}
 
 	if rs.HostID != myHostID {
-		hosts, err := c.driver.GetHosts()
+		hostmap, err := c.driver.GetHostMap()
 		if err != nil {
 			return err
-		}
-		hostmap := make(map[string]host.Host)
-		for _, host := range hosts {
-			hostmap[host.ID] = host
 		}
 
 		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "attach", args[0]}
@@ -1259,13 +1258,9 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	}
 
 	if rs.HostID != myHostID {
-		hosts, err := c.driver.GetHosts()
+		hostmap, err := c.driver.GetHostMap()
 		if err != nil {
 			return err
-		}
-		hostmap := make(map[string]host.Host)
-		for _, host := range hosts {
-			hostmap[host.ID] = host
 		}
 
 		cmd := []string{"/usr/bin/ssh", "-t", hostmap[rs.HostID].IPAddr, "--", "serviced", "--endpoint", api.GetOptionsRPCEndpoint(), "service", "logs", args[0]}
@@ -1349,4 +1344,77 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	} else {
 		fmt.Println(snapshot)
 	}
+}
+
+// serviced service endpoints SERVICEID
+func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
+	nArgs := len(ctx.Args())
+	if nArgs < 1 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "endpoints")
+		return
+	}
+
+	svc, err := c.searchForService(ctx.Args().First())
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	}
+
+	if endpointsByService, err := c.driver.GetEndpoints(svc.ID); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return
+	} else if noEndpointsDefined(svc.ID, endpointsByService) {
+		fmt.Fprintf(os.Stderr, "%s - no endpoints defined\n", svc.Name)
+		return
+	} else {
+		hostmap, err := c.driver.GetHostMap()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Unable to get host info, printing host IDs instead of names: %s", err)
+		}
+
+		t := NewTable("Name,ServiceID,Endpoint,Host,HostIP,HostPort,ContainerID,ContainerIP,ContainerPort")
+		t.Padding = 4
+		for _, serviceEndpoints := range endpointsByService {
+			for _, endpoint := range serviceEndpoints {
+				serviceName := svc.Name
+				if svc.Instances > 1 && endpoint.ContainerID != "" {
+					serviceName = fmt.Sprintf("%s/%d", serviceName, endpoint.InstanceID)
+				}
+
+				host := endpoint.HostID
+				hostinfo, ok := hostmap[endpoint.HostID]
+				if ok {
+					host = hostinfo.Name
+				}
+
+				var hostPort string
+				if endpoint.HostPort != 0 {
+					hostPort = strconv.Itoa(int(endpoint.HostPort))
+				}
+
+				t.AddRow(map[string]interface{}{
+					"Name":           serviceName,
+					"ServiceID":      svc.ID,
+					"Endpoint":       endpoint.Application,
+					"Host":           host,
+					"HostIP":         endpoint.HostIP,
+					"HostPort":       hostPort,
+					"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.ContainerID),
+					"ContainerIP":    endpoint.ContainerIP,
+					"ContainerPort":  endpoint.ContainerPort,
+				})
+			}
+		}
+		t.Print()
+	}
+}
+
+func noEndpointsDefined(serviceID string, endpointsByService map[string][]applicationendpoint.ApplicationEndpoint) bool {
+	if len(endpointsByService) == 0 {
+		return true
+	} else if serviceEndpoints, ok := endpointsByService[serviceID]; !ok || len(serviceEndpoints) == 0 {
+		return true
+	}
+	return false
 }
