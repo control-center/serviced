@@ -118,12 +118,6 @@ func NewContainer(cd *ContainerDefinition, start bool, timeout time.Duration, on
 	if err != nil {
 		return nil, err
 	}
-
-	if _, err := FindImage(iid.String(), true); err != nil {
-		glog.Errorf("Could not get image %s: %s", iid.String(), err)
-		return nil, err
-	}
-
 	glog.V(2).Infof("creating container: %#v", *args.containerOptions)
 	ctr, err := dc.CreateContainer(*args.containerOptions)
 	switch {
