@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"github.com/control-center/serviced/coordinator/client"
+	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 	"github.com/zenoss/glog"
 )
@@ -65,6 +66,14 @@ func SetRegistryImage(conn client.Connection, rImage registry.Image) error {
 // DeleteRegistryImage removes a registry image from the coordinator index.
 func DeleteRegistryImage(conn client.Connection, id string) error {
 	rimagepath := path.Join(zkregistrytags, id)
+	var node RegistryImageNode
+	if err := conn.Get(rimagepath, &node); err != nil {
+		return err
+	}
+	if node.Image.Tag == docker.Latest {
+		leaderpath := path.Join(zkregistryrepos, node.Image.Library, node.Image.Repo)
+		conn.Delete(leaderpath)
+	}
 	return conn.Delete(rimagepath)
 }
 
@@ -72,15 +81,5 @@ func DeleteRegistryImage(conn client.Connection, id string) error {
 // library.
 func DeleteRegistryLibrary(conn client.Connection, library string) error {
 	leaderpath := path.Join(zkregistryrepos, library)
-	children, err := conn.Children(leaderpath)
-	if err != nil {
-		return err
-	}
-	for _, child := range children {
-		p := path.Join(leaderpath, child)
-		if err := conn.Delete(p); err != nil {
-			return err
-		}
-	}
 	return conn.Delete(leaderpath)
 }
