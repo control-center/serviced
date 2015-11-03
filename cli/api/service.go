@@ -24,12 +24,14 @@ import (
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/metrics"
 
 	"github.com/pivotal-golang/bytefmt"
+	"github.com/control-center/serviced/domain/host"
 )
 
 const ()
@@ -106,13 +108,9 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 	}
 
 	// get hosts
-	hosts, err := a.GetHosts()
+	hostmap, err := a.GetHostMap()
 	if err != nil {
 		return nil, err
-	}
-	hostmap := make(map[string]string)
-	for _, host := range hosts {
-		hostmap[host.ID] = host.Name
 	}
 
 	// get status
@@ -167,7 +165,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 				row["RAM"] = bytefmt.ByteSize(svc.RAMCommitment.Value)
 				row["Status"] = stat.Status.String()
-				row["Hostname"] = hostmap[stat.State.HostID]
+				row["Hostname"] = hostmap[stat.State.HostID].Name
 				row["DockerID"] = fmt.Sprintf("%.12s", stat.State.DockerID)
 				row["Uptime"] = uptime.String()
 
@@ -228,6 +226,21 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 
 	return rowmap, nil
 
+}
+
+// Get all of the exported endpoints
+func (a *api) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	endpoints := make(map[string][]applicationendpoint.ApplicationEndpoint)
+	if err := client.GetServiceEndpoints(serviceID, &endpoints); err != nil {
+		return nil, err
+	}
+
+	return endpoints, nil
 }
 
 // Gets all of the available services
@@ -462,4 +475,16 @@ func (a *api) AssignIP(config IPConfig) error {
 	}
 
 	return nil
+}
+
+func (a *api) GetHostMap() (map[string]host.Host, error) {
+	hosts, err := a.GetHosts()
+	if err != nil {
+		return nil, err
+	}
+	hostmap := make(map[string]host.Host)
+	for _, host := range hosts {
+		hostmap[host.ID] = host
+	}
+	return hostmap, nil
 }

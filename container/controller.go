@@ -17,8 +17,8 @@ import (
 	"github.com/control-center/serviced/commons/proc"
 	"github.com/control-center/serviced/commons/subprocess"
 	coordclient "github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicedefinition"
 	"github.com/control-center/serviced/node"
@@ -889,11 +889,11 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
 	//		We should rename it and clean up the filtering code below.
 
-	epchan := make(chan map[string][]dao.ApplicationEndpoint)
+	epchan := make(chan map[string][]applicationendpoint.ApplicationEndpoint)
 	timeout := make(chan struct{})
 
-	go func(c *node.LBClient, svcid string, epc chan map[string][]dao.ApplicationEndpoint, timeout chan struct{}) {
-		var endpoints map[string][]dao.ApplicationEndpoint
+	go func(c *node.LBClient, svcid string, epc chan map[string][]applicationendpoint.ApplicationEndpoint, timeout chan struct{}) {
+		var endpoints map[string][]applicationendpoint.ApplicationEndpoint
 	RetryGetServiceEndpoints:
 		for {
 			err = c.GetServiceEndpoints(svcid, &endpoints)
@@ -925,7 +925,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		}
 	}(client, c.options.Service.ID, epchan, timeout)
 
-	var endpoints map[string][]dao.ApplicationEndpoint
+	var endpoints map[string][]applicationendpoint.ApplicationEndpoint
 	select {
 	case <-time.After(1 * time.Minute):
 		close(epchan)
@@ -941,7 +941,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	}
 
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
-	tmp := make(map[string][]dao.ApplicationEndpoint)
+	tmp := make(map[string][]applicationendpoint.ApplicationEndpoint)
 	for key, endpointList := range endpoints {
 		if len(endpointList) <= 0 {
 			glog.Warningf("ignoring key: %s with empty endpointList", key)

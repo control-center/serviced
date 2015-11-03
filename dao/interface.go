@@ -18,6 +18,7 @@ import (
 
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/domain/addressassignment"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/domain/servicestate"
 	"github.com/control-center/serviced/domain/servicetemplate"
@@ -171,7 +172,8 @@ type ControlPlane interface {
 	GetTaggedServices(request ServiceRequest, services *[]service.Service) error
 
 	// Find all service endpoint matches
-	GetServiceEndpoints(serviceId string, response *map[string][]ApplicationEndpoint) error
+
+	GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) error
 
 	// Assign IP addresses to all services at and below the provided service
 	AssignIPs(assignmentRequest AssignmentRequest, _ *int) (err error)
