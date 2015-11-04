@@ -19,6 +19,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/container"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -60,6 +61,8 @@ func CmdServiceProxy(ctx *cli.Context) {
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
+
+	rpcutils.RPC_CLIENT_SIZE = 2
 
 	if err := StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)

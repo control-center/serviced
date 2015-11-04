@@ -877,7 +877,6 @@ func (c *Controller) handleHealthCheck(name string, script string, interval, tim
 func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	// this function is currently needed to handle special control center imports
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
-
 	// get service endpoints
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
@@ -885,7 +884,6 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		return err
 	}
 	defer client.Close()
-
 	// TODO: instead of getting all endpoints, via GetServiceEndpoints(), create a new call
 	//       that returns only special "controlplane" imported endpoints
 	//	Note: GetServiceEndpoints has been modified to return only special controlplane endpoints.
