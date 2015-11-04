@@ -135,6 +135,7 @@ def visitApplicationsPage()
     @applications_page = Applications.new
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
+    closeDeployWizard
 end
 
 def fillInDeploymentID(id)
@@ -157,3 +158,23 @@ def addTemplate(dir)
     `sleep 1`
     return `[ -z "$(/capybara/serviced template list #{id})" ] && return 1`
 end
+
+def closeDeployWizard()
+    # if the deploy wizard is on the page
+    # and visible, it should be closed. if
+    # not, we can just ignore the exception
+    # that the cabybara finder throws
+    begin
+        el = find("#addApp")
+        # found it!
+        if el.visible?
+            el.find(".modal-header .close").click()
+        end
+        true
+    rescue
+        # couldn't find the deploy wizard,
+        # but that's ok. we all make mistakes
+        true
+    end
+end
+

@@ -36,6 +36,9 @@ def visitLoginPage()
     @login_page.load
     expect(@login_page).to be_displayed
     Capybara.default_wait_time = wait
+
+    # wait till loading animation clears
+    @login_page.has_no_css?(".loading_wrapper")
 end
 
 def fillInDefaultUserID()

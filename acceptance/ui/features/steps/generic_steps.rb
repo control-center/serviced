@@ -3,6 +3,10 @@ Given (/^(?:|that )the admin user is logged in$/) do
     fillInDefaultUserID()
     fillInDefaultPassword()
     clickSignInButton()
+    # login redirects to application page, but
+    # deploy wizard may appears, so automatically
+    # close it
+    closeDeployWizard()
 end
 
 When (/^I fill in "([^"]*)" with "([^"]*)"$/) do |element, text|
