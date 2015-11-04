@@ -34,11 +34,11 @@
             // TODO - use a separate controller for deploy wizard
             $timeout(function(){
                 $('#addApp').modal('show');
-            });
 
-            // don't auto-show this wizard again
-            // NOTE: $cookies can only deal with string values
-            $cookies.autoRunWizardHasRun = "true";
+                // don't auto-show this wizard again
+                // NOTE: $cookies can only deal with string values
+                $cookies.autoRunWizardHasRun = "true";
+            });
         };
 
         $scope.modal_addTemplate = function() {

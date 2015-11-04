@@ -92,12 +92,7 @@ end
 
 def visitHostsPage()
     @hosts_page = Hosts.new
-    #
-    # FIXME: For some reason the following load fails on Chrome for this page,
-    #                even though the same syntax works on FF
-    # @hosts_page.load
-    # expect(@hosts_page).to be_displayed
-    @hosts_page.navbar.hosts.click()
+    @hosts_page.load
     expect(@hosts_page).to be_displayed
 end
 
