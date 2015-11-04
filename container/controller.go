@@ -879,6 +879,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	// from GetServiceEndpoints() that does not exist in endpoints from getServiceState
 	glog.V(1).Infof("handleControlCenterImports")
 	// get service endpoints
+	glog.V(1).Infof("handleControlCenterImports")
 	client, err := node.NewLBClient(c.options.ServicedEndpoint)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", c.options.ServicedEndpoint, err)
@@ -895,9 +896,12 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 	timeout := make(chan struct{})
 
 	go func(c *node.LBClient, svcid string, epc chan map[string][]dao.ApplicationEndpoint, timeout chan struct{}) {
+	   glog.V(1).Infof("handleControlCenterImports: go func")
+
 		var endpoints map[string][]dao.ApplicationEndpoint
 	RetryGetServiceEndpoints:
 		for {
+			glog.V(1).Infof("handleControlCenterImports: getservice endpoint loop")
 			err = c.GetServiceEndpoints(svcid, &endpoints)
 			if err != nil {
 				select {
@@ -911,6 +915,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 			}
 			break
 		}
+		glog.V(1).Infof("handleControlCenterImports: getservice endpoint loop done: %#v", endpoints)
 
 		// deal with the race between the one minute timeout in handleControlCenterImports() and the
 		// call to GetServiceEndpoint() - the timeout may happen between GetServiceEndpoint() completing
@@ -923,18 +928,22 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 			glog.V(3).Info("Endpoint channel closed, giving up")
 			return
 		default:
+			glog.V(1).Infof("handleControlCenterImports: writing to epc")
 			epc <- endpoints
+			glog.V(1).Infof("handleControlCenterImports: done writing to epc")
 		}
 	}(client, c.options.Service.ID, epchan, timeout)
 
 	var endpoints map[string][]dao.ApplicationEndpoint
 	select {
 	case <-time.After(1 * time.Minute):
+		glog.V(1).Infof("handleControlCenterImports: select 1 minute timeout")
 		close(epchan)
 		timeout <- struct{}{}
 		client.SendLogMessage(node.ServiceLogInfo{ServiceID: c.options.Service.ID, Message: "unable to retrieve service endpoints"}, nil)
 		return ErrNoServiceEndpoints
 	case <-rpcdead:
+		glog.V(1).Infof("handleControlCenterImports: rpc dead")
 		close(epchan)
 		timeout <- struct{}{}
 		return fmt.Errorf("RPC Service has gone away")
@@ -942,6 +951,7 @@ func (c *Controller) handleControlCenterImports(rpcdead chan struct{}) error {
 		glog.Infof("Got service endpoints for %s: %+v", c.options.Service.ID, endpoints)
 	}
 
+	glog.V(1).Infof("handleControlCenterImports: select done")
 	// convert keys set by GetServiceEndpoints to tenantID_endpointID
 	tmp := make(map[string][]dao.ApplicationEndpoint)
 	for key, endpointList := range endpoints {

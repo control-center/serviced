@@ -1,4 +1,4 @@
-// Copyright 2014 The Serviced Authors.
+	// Copyright 2014 The Serviced Authors.
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -69,12 +69,14 @@ type importedEndpoint struct {
 
 // getAgentZkInfo retrieves the agent's zookeeper dsn
 func getAgentZkInfo(lbClientPort string) (node.ZkInfo, error) {
+	glog.V(1).Infof("GetZkInfo: start")
 	var zkInfo node.ZkInfo
 	client, err := node.NewLBClient(lbClientPort)
 	if err != nil {
 		glog.Errorf("Could not create a client to endpoint: %s, %s", lbClientPort, err)
 		return zkInfo, err
 	}
+	glog.V(1).Infof("GetZkInfo: got lb client")
 	defer client.Close()
 
 	err = client.GetZkInfo(&zkInfo)
@@ -353,22 +355,24 @@ func (c *Controller) watchRemotePorts() {
 		glog.Errorf("Invalid zk info: %v", err)
 		return
 	}
+	glog.V(2).Infof("watchRemotePorts: got zk info")
 
 	zkConn, err := zzk.GetLocalConnection("/")
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
 	}
-
+	glog.V(2).Infof("watchRemotePorts: got local connection")
 	endpointRegistry, err := registry.CreateEndpointRegistry(zkConn)
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting vhost registry: %v", err)
 		return
 	}
-
+	glog.V(2).Infof("watchRemotePorts: enddpoint registry created")
 	//translate closing call to endpoint cancel
 	cancelEndpointWatch := make(chan bool)
 	go func() {
+		glog.V(2).Infof("watchRemotePorts: waiting for close")
 		select {
 		case errc := <-c.closing:
 			glog.Infof("Closing endpoint watchers")
@@ -457,7 +461,7 @@ func (c *Controller) watchRemotePorts() {
 		}
 
 	}
-
+	glog.V(2).Infof("watchRemotePorts: watching endpoint registiry")
 	glog.V(2).Infof("watching endpointRegistry")
 	go endpointRegistry.WatchRegistry(zkConn, endpointsWatchCanceller, processTenantEndpoints, endpointWatchError)
 }
