@@ -57,6 +57,7 @@ func CmdServiceProxy(ctx *cli.Context) {
 	options.LogstashURL = cfg.StringVal("LOG_ADDRESS", options.LogstashURL)
 	options.VirtualAddressSubnet = cfg.StringVal("VIRTUAL_ADDRESS_SUBNET", options.VirtualAddressSubnet)
 
+	glog.SetVerbosity(4)
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
