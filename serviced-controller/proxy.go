@@ -19,6 +19,7 @@ import (
 
 	"github.com/codegangsta/cli"
 	"github.com/control-center/serviced/container"
+	"github.com/control-center/serviced/rpc/rpcutils"
 	"github.com/control-center/serviced/utils"
 	"github.com/zenoss/glog"
 )
@@ -57,10 +58,11 @@ func CmdServiceProxy(ctx *cli.Context) {
 	options.LogstashURL = cfg.StringVal("LOG_ADDRESS", options.LogstashURL)
 	options.VirtualAddressSubnet = cfg.StringVal("VIRTUAL_ADDRESS_SUBNET", options.VirtualAddressSubnet)
 
-	glog.SetVerbosity(4)
 	if ctx.IsSet("logtostderr") {
 		glog.SetToStderr(ctx.GlobalBool("logtostderr"))
 	}
+
+	rpcutils.RPC_CLIENT_SIZE = 2
 
 	if err := StartProxy(options); err != nil {
 		fmt.Fprintln(os.Stderr, err)

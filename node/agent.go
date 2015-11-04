@@ -696,7 +696,6 @@ func configureContainer(a *HostAgent, client dao.ControlPlane,
 		fmt.Sprintf("SERVICED_MAX_RPC_CLIENTS=1"),
 		fmt.Sprintf("SERVICED_RPC_PORT=%s", a.rpcport),
 		fmt.Sprintf("SERVICED_LOG_ADDRESS=%s", a.logstashURL),
-		fmt.Sprintf("SERVICED_LOG_LEVEL=%d", 2),
 		fmt.Sprintf("TZ=%s", os.Getenv("TZ")),
 		// CC-1384
 		fmt.Sprintf("DOCKER_14203_FIX=%d", time.Now().UnixNano()))
