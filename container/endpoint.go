@@ -359,13 +359,11 @@ func (c *Controller) watchRemotePorts() {
 		glog.Errorf("watchRemotePorts - error getting zk connection: %v", err)
 		return
 	}
-
 	endpointRegistry, err := registry.CreateEndpointRegistry(zkConn)
 	if err != nil {
 		glog.Errorf("watchRemotePorts - error getting vhost registry: %v", err)
 		return
 	}
-
 	//translate closing call to endpoint cancel
 	cancelEndpointWatch := make(chan bool)
 	go func() {
@@ -457,7 +455,6 @@ func (c *Controller) watchRemotePorts() {
 		}
 
 	}
-
 	glog.V(2).Infof("watching endpointRegistry")
 	go endpointRegistry.WatchRegistry(zkConn, endpointsWatchCanceller, processTenantEndpoints, endpointWatchError)
 }

@@ -86,7 +86,7 @@ func (s *MySuite) TestOffer(c *C) {
 }
 
 func (s *MySuite) TestConcurrent(c *C) {
-	cap := math.MaxInt16
+	cap := 32
 	q, _ := NewChannelQueue(cap)
 	if q == nil {
 		c.Fail()

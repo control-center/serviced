@@ -46,9 +46,9 @@ func Factory(maxCreate int) ItemFactory {
 
 }
 
-func (s *MySuite) BLAMTestBorrowReturnRemove(c *C) {
+func (s *MySuite) TestBorrowReturnRemove(c *C) {
 
-	capacity := 10
+	capacity := 1
 
 	//Allow creation of one more item than capacity
 	p, err := NewPool(capacity, Factory(capacity+1))
@@ -85,18 +85,49 @@ func (s *MySuite) BLAMTestBorrowReturnRemove(c *C) {
 		c.Assert(err, IsNil)
 		c.Assert(item, NotNil)
 		p.Remove(item)
-		c.Assert(p.Idle(), Equals, capacity-i-1)
+		c.Assert(p.Idle(), Equals, capacity-i)
 		c.Assert(p.Borrowed(), Equals, 0)
 	}
 
-	// Test that item factory will get called when everything removed
+	// Test that one more than capacity is available
 	item, err := p.Borrow()
 	c.Assert(item.Item, Equals, capacity)
 
-	//test that error from factory will get propagated.
-	_, err = p.Borrow()
+	c.Assert(p.Idle(), Equals, 0)
+	item, err = p.Borrow()
+	c.Assert(item, IsNil)
+	c.Assert(err, Equals, ErrItemUnavailable)
+}
 
-	c.Assert(fmt.Sprintf("%s", err), Matches, fmt.Sprintf("Tried to create %d items,ds max is %d", capacity+2, capacity+1))
+func (s *MySuite) TestWaitOnRemove(c *C) {
+	capacity := 1
+
+	//Allow creation of one more item than capacity
+	p, err := NewPool(capacity, Factory(capacity+1))
+	c.Assert(err, IsNil)
+
+	item, err := p.Borrow()
+	c.Assert(err, IsNil)
+	c.Assert(item, NotNil)
+
+	startedWG := sync.WaitGroup{}
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	startedWG.Add(1)
+	var newItem *Item
+	go func() {
+		defer wg.Done()
+		startedWG.Done()
+		newItem, err = p.BorrowWait(3 * time.Second)
+		c.Assert(err, IsNil)
+		//second item created should be int 1
+		c.Assert(newItem.Item, Equals, 1)
+	}()
+	startedWG.Wait()
+	time.Sleep(250 * time.Millisecond)
+	p.Remove(item)
+	wg.Wait()
+	c.Assert(item, Not(Equals), newItem)
 }
 
 func (s *MySuite) TestWait(c *C) {
