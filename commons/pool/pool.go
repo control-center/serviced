@@ -205,8 +205,6 @@ func (p *itemPool) checkout(item interface{}) *Item {
 
 // creates a new Item if it can
 func (p *itemPool) newItem() (*Item, error) {
-	//	p.poolLock.Lock()
-	//	defer p.poolLock.Unlock()
 	if len(p.itemMap) >= p.capacity {
 		return nil, ErrItemUnavailable
 	}
