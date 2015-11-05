@@ -124,6 +124,7 @@ type SnapshotInfo struct {
 	SnapshotID  string
 	Description string
 	Tags        []string
+	Created 	time.Time
 }
 
 func (s SnapshotInfo) String() string {
@@ -132,15 +133,6 @@ func (s SnapshotInfo) String() string {
 	} else {
 		return s.SnapshotID + " " + s.Description
 	}
-}
-
-func (s SnapshotInfo) HasTag(tag string) bool {
-	for _, t := range s.Tags {
-		if t == tag {
-			return true
-		}
-	}
-	return false
 }
 
 type IServiceHealthResult struct {

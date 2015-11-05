@@ -17,6 +17,7 @@ import "github.com/control-center/serviced/dfs"
 import "github.com/stretchr/testify/mock"
 
 import "io"
+
 import "time"
 
 type DFS struct {
@@ -36,10 +37,10 @@ func (_m *DFS) Timeout() time.Duration {
 	return r0
 }
 func (_m *DFS) Lock() {
-	return
+       return
 }
 func (_m *DFS) Unlock() {
-	return
+       return
 }
 func (_m *DFS) Create(tenantID string) error {
 	ret := _m.Called(tenantID)
@@ -242,12 +243,12 @@ func (_m *DFS) BackupInfo(r io.Reader) (*dfs.BackupInfo, error) {
 
 	return r0, r1
 }
-func (_m *DFS) Tag(snapshotID string, tagNames []string) ([]string, error) {
-	ret := _m.Called(snapshotID, tagNames)
+func (_m *DFS) Tag(snapshotID string, tagName string) ([]string, error) {
+	ret := _m.Called(snapshotID, tagName)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func(string, []string) []string); ok {
-		r0 = rf(snapshotID, tagNames)
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(snapshotID, tagName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -255,20 +256,20 @@ func (_m *DFS) Tag(snapshotID string, tagNames []string) ([]string, error) {
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, []string) error); ok {
-		r1 = rf(snapshotID, tagNames)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(snapshotID, tagName)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
 }
-func (_m *DFS) RemoveTags(snapshotID string, tagNames []string) ([]string, error) {
-	ret := _m.Called(snapshotID, tagNames)
+func (_m *DFS) RemoveTag(snapshotID string, tagName string) ([]string, error) {
+	ret := _m.Called(snapshotID, tagName)
 
 	var r0 []string
-	if rf, ok := ret.Get(0).(func(string, []string) []string); ok {
-		r0 = rf(snapshotID, tagNames)
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(snapshotID, tagName)
 	} else {
 		if ret.Get(0) != nil {
 			r0 = ret.Get(0).([]string)
@@ -276,23 +277,32 @@ func (_m *DFS) RemoveTags(snapshotID string, tagNames []string) ([]string, error
 	}
 
 	var r1 error
-	if rf, ok := ret.Get(1).(func(string, []string) error); ok {
-		r1 = rf(snapshotID, tagNames)
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(snapshotID, tagName)
 	} else {
 		r1 = ret.Error(1)
 	}
 
 	return r0, r1
 }
-func (_m *DFS) RemoveAllTags(snapshotID string) error {
-	ret := _m.Called(snapshotID)
+func (_m *DFS) GetSnapshotWithTag(tenantID string, tagName string) (string, error) {
+	ret := _m.Called(tenantID, tagName)
 
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string) error); ok {
-		r0 = rf(snapshotID)
+	var r0 string
+	if rf, ok := ret.Get(0).(func(string, string) string); ok {
+		r0 = rf(tenantID, tagName)
 	} else {
-		r0 = ret.Error(0)
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(string)
+		}
 	}
 
-	return r0
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(tenantID, tagName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
 }

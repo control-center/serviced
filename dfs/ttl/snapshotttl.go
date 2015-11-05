@@ -14,7 +14,6 @@
 package ttl
 
 import (
-	"strings"
 	"time"
 
 	"github.com/control-center/serviced/dao"
@@ -50,7 +49,6 @@ func RunSnapshotTTL(client SnapshotTTLInterface, cancel <-chan interface{}, min,
 // Implements utils.TTL
 func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 	expire := time.Now().Add(-age)
-
 	var svcs []service.Service
 	if err := ttl.client.GetServices(dao.ServiceRequest{}, &svcs); err != nil {
 		glog.Errorf("Could not look up services: %s", err)
@@ -65,24 +63,19 @@ func (ttl *SnapshotTTL) Purge(age time.Duration) (time.Duration, error) {
 				glog.Errorf("Could not look up snapshots for tenant service %s (%s): %s", svc.Name, svc.ID, err)
 				return 0, err
 			}
-
 			for _, s := range snapshots {
 				//ignore snapshots that have any tag
 				if len(s.Tags) == 0 {
 					// check the age of the snapshot
-					if parts := strings.Split(s.SnapshotID, "_"); len(parts) == 2 {
-						if ts, err := time.Parse(timeFormat, parts[1]); err == nil {
-							if timeToLive := ts.Sub(expire); timeToLive <= 0 {
-								if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
-									glog.Errorf("Could not delete snapshot %s for tenant service %s (%s): %s", s.SnapshotID, svc.Name, svc.ID, err)
-									return 0, err
-								}
-							} else if timeToLive < age {
-								// set the new time to live based on the age of the
-								// oldest non-expired snapshot.
-								age = timeToLive
-							}
+					if timeToLive := s.Created.Sub(expire); timeToLive <= 0 {
+						if err := ttl.client.DeleteSnapshot(s.SnapshotID, nil); err != nil {
+							glog.Errorf("Could not delete snapshot %s for tenant service %s (%s): %s", s.SnapshotID, svc.Name, svc.ID, err)
+							return 0, err
 						}
+					} else if timeToLive < age {
+						// set the new time to live based on the age of the
+						// oldest non-expired snapshot.
+						age = timeToLive
 					}
 				}
 			}

@@ -391,14 +391,7 @@ func (t ServiceAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) {
 		return "", t.errs["AddSnapshot"]
 	}
 
-	tagstr := ""
-
-	for _, tag := range config.Tags {
-		tagstr += tag + ","
-	}
-	tagstr = strings.Trim(tagstr, ",")
-
-	return fmt.Sprintf("%s-snapshot description=%q tagCount=%d tags=%q", config.ServiceID, config.Message, len(config.Tags), tagstr), nil
+	return fmt.Sprintf("%s-snapshot description=%q tags=%q", config.ServiceID, config.Message, config.Tag), nil
 }
 
 func TestServicedCLI_CmdServiceList_one(t *testing.T) {
@@ -1066,21 +1059,21 @@ func ExampleServicedCLI_CmdServiceSnapshot() {
 	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2")
 
 	// Output:
-	// test-service-2-snapshot description="" tagCount=0 tags=""
+	// test-service-2-snapshot description="" tags=""
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_withDescription() {
 	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2", "-d", "some description")
 
 	// Output:
-	// test-service-2-snapshot description="some description" tagCount=0 tags=""
+	// test-service-2-snapshot description="some description" tags=""
 }
 
-func ExampleServicedCLI_CmdServiceSnapshot_withDescriptionAndTags() {
-	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2", "-d", "some description", "-t", "tag1, tag2,tag3")
+func ExampleServicedCLI_CmdServiceSnapshot_withDescriptionAndTag() {
+	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2", "-d", "some description", "-t", "tag1")
 
 	// Output:
-	// test-service-2-snapshot description="some description" tagCount=3 tags="tag1,tag2,tag3"
+	// test-service-2-snapshot description="some description" tags="tag1"
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_usage() {
@@ -1100,7 +1093,7 @@ func ExampleServicedCLI_CmdServiceSnapshot_usage() {
 	//
 	// OPTIONS:
 	//    --description, -d 	a description of the snapshot
-	//    --tags, -t 		a comma-delimited list of tags for the snapshot
+	//    --tag, -t 		a unique tag for the snapshot
 
 }
 

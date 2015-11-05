@@ -103,13 +103,18 @@ type FindChildRequest struct {
 type SnapshotRequest struct {
 	ServiceID   string
 	Message     string
-	Tags        []string
+	Tag         string
 	ContainerID string
 }
 
 type TagSnapshotRequest struct {
 	SnapshotID string
-	TagNames   []string
+	TagName    string
+}
+
+type SnapshotByTagRequest struct {
+	ServiceID string
+	TagName	  string
 }
 
 type RollbackRequest struct {
@@ -285,11 +290,11 @@ type ControlPlane interface {
 	// Adds 1 or more tags to an existing snapshot
 	TagSnapshot(request TagSnapshotRequest, newTagList *[]string) error
 
-	// Removes specific tags from an existing snapshot
-	RemoveSnapshotTags(request TagSnapshotRequest, newTagList *[]string) error
+	// Removes a specific tag from an existing snapshot
+	RemoveSnapshotTag(request TagSnapshotRequest, newTagList *[]string) error
 
-	// Removes all tags from an existing snapshot
-	RemoveAllSnapshotTags(snapshotID string, _ *int) error
+	// Gets the snapshot from a specific service with a specific tag
+	GetSnapshotByServiceIDAndTag(request SnapshotByTagRequest, snapshotID *string) error
 
 	// ListBackups returns the list of backups
 	ListBackups(dirpath string, files *[]BackupFile) (err error)

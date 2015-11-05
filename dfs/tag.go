@@ -16,16 +16,16 @@ package dfs
 import "github.com/zenoss/glog"
 
 // Tag adds tags to an existing snapshot
-func (dfs *DistributedFilesystem) Tag(snapshotID string, tagNames []string) ([]string, error) {
+func (dfs *DistributedFilesystem) Tag(snapshotID string, tagName string) ([]string, error) {
 	vol, err := dfs.disk.GetTenant(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not get tenant of snapshot %s: %s", snapshotID, err)
 		return nil, err
 	}
 
-	newTags, err := vol.TagSnapshot(snapshotID, tagNames)
+	newTags, err := vol.TagSnapshot(snapshotID, tagName)
 	if err != nil {
-		glog.Errorf("Could not add tags %v to snapshot %s: %s", tagNames, snapshotID, err)
+		glog.Errorf("Could not add tag %v to snapshot %s: %s", tagName, snapshotID, err)
 		return nil, err
 	}
 

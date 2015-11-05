@@ -15,17 +15,17 @@ package dfs
 
 import "github.com/zenoss/glog"
 
-// RemoveTags removes 1 or more tags from an existing snapshot
-func (dfs *DistributedFilesystem) RemoveTags(snapshotID string, tagNames []string) ([]string, error) {
+// RemoveTags removes a specific tag from an existing snapshot
+func (dfs *DistributedFilesystem) RemoveTag(snapshotID string, tagName string) ([]string, error) {
 	vol, err := dfs.disk.GetTenant(snapshotID)
 	if err != nil {
 		glog.Errorf("Could not get tenant of snapshot %s: %s", snapshotID, err)
 		return nil, err
 	}
 
-	newTags, err := vol.RemoveSnapshotTags(snapshotID, tagNames)
+	newTags, err := vol.RemoveSnapshotTag(snapshotID, tagName)
 	if err != nil {
-		glog.Errorf("Could not remove tags %v from snapshot %s: %s", tagNames, snapshotID, err)
+		glog.Errorf("Could not remove tag %v from snapshot %s: %s", tagName, snapshotID, err)
 		return nil, err
 	}
 

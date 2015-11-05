@@ -84,6 +84,7 @@ var (
 	ErrPathIsNotAbs            = errors.New("path is not absolute")
 	ErrBadMount                = errors.New("bad mount path")
 	ErrInsufficientPermissions = errors.New("insufficient permissions to run command")
+	ErrTagAlreadyExists		   = errors.New("a snapshot with the given tag already exists")
 )
 
 func init() {
@@ -150,12 +151,12 @@ type Volume interface {
 	// Rollback replaces the current state of the volume with that snapshotted
 	// as <label>
 	Rollback(label string) error
-	//TagSnapshot adds tagNames to the snapshot's tag list
-	TagSnapshot(label string, tagNames []string) ([]string, error)
-	//RemoveSnapshotTags removes tagNames from the snapshot's tag list
-	RemoveSnapshotTags(label string, tagNames []string) ([]string, error)
-	//RemoveAllSnapshotTags removes all strings from the snapshot's tag list
-	RemoveAllSnapshotTags(label string) error
+	// TagSnapshot adds a tagName to the snapshot's tag list
+	TagSnapshot(label string, tagName string) ([]string, error)
+	// RemoveSnapshotTag removes a tagName from the snapshot's tag list
+	RemoveSnapshotTag(label string, tagName string) ([]string, error)
+	// GetSnapshotWithTag returns info about the snapshot with the given tag, or nil if there isn't one
+	GetSnapshotWithTag(tagName string) (*SnapshotInfo, error)
 	// Export exports the snapshot stored as <label> to <filename>
 	Export(label, parent string, writer io.Writer) error
 	// Import imports the exported snapshot at <filename> as <label>

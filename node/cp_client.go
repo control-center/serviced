@@ -230,12 +230,12 @@ func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, newTagList *
 	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, newTagList, 0)
 }
 
-func (s *ControlClient) RemoveSnapshotTags(request dao.TagSnapshotRequest, newTagList *[]string) error {
-	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTags", request, newTagList, 0)
+func (s *ControlClient) RemoveSnapshotTag(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTag", request, newTagList, 0)
 }
 
-func (s *ControlClient) RemoveAllSnapshotTags(snapshotID string, unused *int) error {
-	return s.rpcClient.Call("ControlPlane.RemoveAllSnapshotTags", snapshotID, unused, 0)
+func (s *ControlClient) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
+	return s.rpcClient.Call("ControlPlane.GetSnapshotByServiceIDAndTag", request, snapshotID, 0)
 }
 
 func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {

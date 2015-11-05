@@ -410,8 +410,10 @@ func (v *RsyncVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
 func (v *RsyncVolume) Snapshot(label, message string, tags []string) (err error) {
 	v.Lock()
 	defer v.Unlock()
+
 	label = v.rawSnapshotLabel(label)
 	dest := v.snapshotPath(label)
+
 	if exists, err := volume.IsDir(dest); exists || err != nil {
 		if exists {
 			glog.Errorf("Snapshot exists: %s", v.rawSnapshotLabel(label))
@@ -419,6 +421,18 @@ func (v *RsyncVolume) Snapshot(label, message string, tags []string) (err error)
 		}
 		return err
 	}
+
+	//make sure none of the tags already exist
+	for _, tagName := range tags {
+		if info, err := v.GetSnapshotWithTag(tagName); err != nil {
+			glog.Errorf("Error checking for tag conflicts: %v", err)
+			return err
+		} else if info != nil {
+			glog.Errorf("Can not create snapshot %s, tag '%s' already exists", label, tagName)
+			return volume.ErrTagAlreadyExists
+		}
+	}
+
 	// write snapshot info
 	info := volume.SnapshotInfo{
 		Name:     v.rawSnapshotLabel(label),
@@ -474,7 +488,7 @@ func (v *RsyncVolume) Snapshot(label, message string, tags []string) (err error)
 }
 
 // TagSnapshot implements volume.Volume.TagSnapshot
-func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, error) {
+func (v *RsyncVolume) TagSnapshot(label string, tagName string) ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -482,6 +496,14 @@ func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 	path := v.snapshotPath(label)
 	if exists, _ := volume.IsDir(path); !exists {
 		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
+	//make sure the tag doesn't already exist
+	if info, err := v.GetSnapshotWithTag(tagName); err != nil {
+		return nil, err
+	} else if info != nil {
+		glog.Errorf("Tag '%s', is already used by snapshot %s", tagName, info.Label)
+		return nil, volume.ErrTagAlreadyExists
 	}
 
 	//get the current info for the snapshot
@@ -492,22 +514,8 @@ func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 	}
 
 	//add the new tag names
-	for _, name := range tagNames {
-		//only add the tag if it doesn't already exist
-		exists := false
-		for _, t := range info.Tags {
-			if t == name {
-				exists = true
-				break
-			}
-		}
-
-		//add the new tag
-		if !exists {
-			info.Tags = append(info.Tags, name)
-		}
-	}
-
+	info.Tags = append(info.Tags, tagName)
+	
 	//write out the updated info
 	if err := v.writeSnapshotInfo(label, info); err != nil {
 		glog.Errorf("Error writing updated snapshot info with new tag: %s", err)
@@ -517,8 +525,8 @@ func (v *RsyncVolume) TagSnapshot(label string, tagNames []string) ([]string, er
 	return info.Tags, nil
 }
 
-// RemoveSnapshotTags implements volume.Volume.RemoveSnapshotTags
-func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]string, error) {
+// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
+func (v *RsyncVolume) RemoveSnapshotTag(label string, tagName string) ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
 
@@ -537,19 +545,10 @@ func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]str
 
 	newTagList := []string{}
 
-	//add the tag names that aren't in the list to remove
+	//add the tag names that don't match the one we are removing
 	for _, name := range info.Tags {
 		//only add the tag if it doesn't exist in the tagNames list
-		exists := false
-		for _, t := range tagNames {
-			if t == name {
-				exists = true
-				break
-			}
-		}
-
-		//add the tag to the new list
-		if !exists {
+		if name != tagName {
 			newTagList = append(newTagList, name)
 		}
 	}
@@ -566,40 +565,48 @@ func (v *RsyncVolume) RemoveSnapshotTags(label string, tagNames []string) ([]str
 	return info.Tags, nil
 }
 
-// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
-func (v *RsyncVolume) RemoveAllSnapshotTags(label string) error {
-	v.Lock()
-	defer v.Unlock()
+// GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
+func (v *RsyncVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
+	var (
+		snaps 	[]string
+		info 	*volume.SnapshotInfo
+		err 	error
+	)
 
-	//make sure the snapshot exists
-	path := v.snapshotPath(label)
-	if exists, _ := volume.IsDir(path); !exists {
-		return volume.ErrSnapshotDoesNotExist
+	if snaps, err = v.getSnapshotList(); err != nil {
+		glog.Errorf("Could not get current snapshot list : %v", err)
+		return nil, err
+	} else {
+		for _, snaplabel := range snaps {
+			if info, err = v.SnapshotInfo(snaplabel); err != nil {
+				glog.Errorf("Could not get info for %s: %v", snaplabel, err)
+				if os.IsNotExist(err) {
+					//there is no info, so there are no tags, just continue with the next snapshot
+					continue	
+				} else {
+					return nil, err
+				}
+			}
+
+			for _, t := range info.Tags {
+				if t == tagName {
+					return info, nil
+				}
+			} 
+		}
 	}
-
-	//get the current info for the snapshot
-	info, err := v.SnapshotInfo(label)
-	if err != nil {
-		glog.Errorf("Unable to retrieve info for existing snapshot: %s", err)
-		return err
-	}
-
-	//Replace the tag list with an empty one
-	info.Tags = []string{}
-
-	//write out the updated info
-	if err := v.writeSnapshotInfo(label, info); err != nil {
-		glog.Errorf("Error writing updated snapshot info with no tags: %s", err)
-		return err
-	}
-
-	return nil
+	return nil, nil
 }
 
 // Snapshots implements volume.Volume.Snapshots
 func (v *RsyncVolume) Snapshots() ([]string, error) {
 	v.Lock()
 	defer v.Unlock()
+	return v.getSnapshotList()
+}
+
+// Internal method for retrieving the snapshot list without obtaining a lock.  Assumes caller has already obtained a lock on the volume.
+func (v* RsyncVolume) getSnapshotList()([]string, error) {
 	files, err := ioutil.ReadDir(v.driver.MetadataDir())
 	if err != nil {
 		return nil, err
@@ -643,9 +650,9 @@ func (v *RsyncVolume) Rollback(label string) (err error) {
 		return err
 	}
 	rsync := exec.Command("rsync", "-a", "--del", "--force", src+"/", v.Path()+"/")
-	glog.V(4).Infof("About to execute: %s", rsync)
+	glog.V(0).Infof("About to execute: %s", rsync)
 	if output, err := rsync.CombinedOutput(); err != nil {
-		glog.V(2).Infof("Could not perform rsync: %s", string(output))
+		glog.V(0).Infof("Could not perform rsync: %s", string(output))
 		return err
 	}
 	return nil

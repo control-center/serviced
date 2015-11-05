@@ -33,20 +33,22 @@ const (
 var DefaultSnapshotAPITest = SnapshotAPITest{snapshots: DefaultTestSnapshots}
 
 var DefaultTestSnapshots = []dao.SnapshotInfo{
-	dao.SnapshotInfo{"test-service-1-snapshot-1", "description 1", []string{"tag-1"}},
-	dao.SnapshotInfo{"test-service-1-snapshot-2", "description 2", []string{"tag-2", "tag-3"}},
-	dao.SnapshotInfo{"test-service-2-snapshot-1", "", []string{""}},
+	dao.SnapshotInfo{SnapshotID: "test-service-1-snapshot-1", Description: "description 1", Tags: []string{"tag-1"}},
+	dao.SnapshotInfo{SnapshotID: "test-service-1-snapshot-2", Description: "description 2", Tags: []string{"tag-2", "tag-3"}},
+	dao.SnapshotInfo{SnapshotID: "test-service-2-snapshot-1", Description: "", Tags: []string{""}},
 }
 
 var (
 	ErrNoSnapshotFound = errors.New("no snapshot found")
 	ErrInvalidSnapshot = errors.New("invalid snapshot")
+	ErrGetByTagFailed = errors.New("unable to retrieve snapshot by tag name")
 )
 
 type SnapshotAPITest struct {
 	api.API
 	fail      bool
 	btrfsFail bool
+	getByTagFail bool
 	snapshots []dao.SnapshotInfo
 }
 
@@ -92,20 +94,14 @@ func (t SnapshotAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) 
 	} else if config.ServiceID == NilSnapshot || config.DockerID == NilSnapshot {
 		return "", nil
 	}
+
 	var id string
 	if id = config.ServiceID; id == "" {
 		id = config.DockerID
 		return fmt.Sprintf("%s-snapshot", id), nil
 	}
 
-	tagstr := ""
-
-	for _, tag := range config.Tags {
-		tagstr += tag + ","
-	}
-	tagstr = strings.Trim(tagstr, ",")
-
-	return fmt.Sprintf("%s-snapshot description=%q tagCount=%d tags=%q", id, config.Message, len(config.Tags), tagstr), nil
+	return fmt.Sprintf("%s-snapshot description=%q tags=%q", id, config.Message, config.Tag), nil
 }
 
 func (t SnapshotAPITest) RemoveSnapshot(id string) error {
@@ -115,6 +111,25 @@ func (t SnapshotAPITest) RemoveSnapshot(id string) error {
 		return ErrNoSnapshotFound
 	}
 	return nil
+}
+
+func (t SnapshotAPITest) GetSnapshotByServiceIDAndTag(serviceID string, tagName string) (string, error) {
+	if t.getByTagFail {
+		return "", ErrGetByTagFailed
+	}
+
+	for _, s := range t.snapshots {
+		if strings.HasPrefix(s.SnapshotID, serviceID) {
+			for _, t := range s.Tags {
+				if t == tagName {
+					return s.SnapshotID, nil
+				}
+			}
+		}
+
+	}
+
+	return "", nil
 }
 
 func (t SnapshotAPITest) Commit(dockerID string) (string, error) {
@@ -130,7 +145,7 @@ func (t SnapshotAPITest) Rollback(id string, f bool) error {
 	return t.RemoveSnapshot(id)
 }
 
-func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagNames []string) ([]string, error) {
+func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagName string) ([]string, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
 	} else if t.btrfsFail {
@@ -140,7 +155,7 @@ func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagNames []string) ([]st
 	result := []string{}
 	for _, s := range t.snapshots {
 		if s.SnapshotID == snapshotID {
-			result = append(s.Tags, tagNames...)
+			result = append(s.Tags, tagName)
 			return result, nil
 		}
 	}
@@ -148,7 +163,7 @@ func (t SnapshotAPITest) TagSnapshot(snapshotID string, tagNames []string) ([]st
 	return nil, ErrNoSnapshotFound
 }
 
-func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string) ([]string, error) {
+func (t SnapshotAPITest) RemoveSnapshotTag(snapshotID string, tagName string) ([]string, error) {
 	if t.fail {
 		return nil, ErrInvalidSnapshot
 	} else if t.btrfsFail {
@@ -159,14 +174,7 @@ func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string
 	for _, s := range t.snapshots {
 		if s.SnapshotID == snapshotID {
 			for _, tag := range s.Tags {
-				remove := false
-				for _, removeTag := range tagNames {
-					if tag == removeTag {
-						remove = true
-						break
-					}
-				}
-				if !remove {
+				if tag != tagName {
 					result = append(result, tag)
 				}
 			}
@@ -175,22 +183,6 @@ func (t SnapshotAPITest) RemoveSnapshotTags(snapshotID string, tagNames []string
 	}
 
 	return nil, ErrNoSnapshotFound
-}
-
-func (t SnapshotAPITest) RemoveAllSnapshotTags(snapshotID string) error {
-	if t.fail {
-		return ErrInvalidSnapshot
-	} else if t.btrfsFail {
-		return btrfs.ErrBtrfsModifySnapshotMetadata
-	}
-
-	for _, s := range t.snapshots {
-		if s.SnapshotID == snapshotID {
-			return nil
-		}
-	}
-
-	return ErrNoSnapshotFound
 }
 
 func ExampleServicedCLI_CmdSnapshotList() {
@@ -291,21 +283,21 @@ func ExampleServicedCLI_CmdSnapshotAdd() {
 	InitSnapshotAPITest("serviced", "snapshot", "add", "test-service-99")
 
 	// Output:
-	// test-service-99-snapshot description="" tagCount=0 tags=""
+	// test-service-99-snapshot description="" tags=""
 }
 
 func ExampleServicedCLI_CmdSnapshotAdd_withDescription() {
 	InitSnapshotAPITest("serviced", "snapshot", "add", "test-service-99", "-d", "some description")
 
 	// Output:
-	// test-service-99-snapshot description="some description" tagCount=0 tags=""
+	// test-service-99-snapshot description="some description" tags=""
 }
 
 func ExampleServicedCLI_CmdSnapshotAdd_withDescriptionAndTags() {
-	InitSnapshotAPITest("serviced", "snapshot", "add", "test-service-99", "-d", "some description", "-t", "tag1, tag2,tag3")
+	InitSnapshotAPITest("serviced", "snapshot", "add", "test-service-99", "-d", "some description", "-t", "unusedTag")
 
 	// Output:
-	// test-service-99-snapshot description="some description" tagCount=3 tags="tag1,tag2,tag3"
+	// test-service-99-snapshot description="some description" tags="unusedTag"
 }
 
 func ExampleServicedCLI_CmdSnapshotAdd_usage() {
@@ -325,7 +317,7 @@ func ExampleServicedCLI_CmdSnapshotAdd_usage() {
 	//
 	// OPTIONS:
 	//    --description, -d 	a description of the snapshot
-	//    --tags, -t 		a comma-delimited list of tags for the snapshot
+	//    --tag, -t 		a unique tag for the snapshot
 
 }
 
@@ -368,18 +360,10 @@ func ExampleServicedCLI_CmdSnapshotRemove_All() {
 }
 
 func ExampleServicedCLI_CmdSnapshotRemove_Tag() {
-	InitSnapshotAPITest("serviced", "snapshot", "remove", "-f", "tag-1")
+	InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-1", "tag-1")
 
 	// Output:
 	// test-service-1-snapshot-1
-}
-
-func ExampleServicedCLI_CmdSnapshotRemove_TagAndID() {
-	InitSnapshotAPITest("serviced", "snapshot", "remove", "-f", "tag-1", "test-service-1-snapshot-2")
-
-	// Output:
-	// test-service-1-snapshot-1
-	// test-service-1-snapshot-2
 }
 
 func ExampleServicedCLI_CmdSnapshotRemove_All_NoForce() {
@@ -394,13 +378,6 @@ func ExampleServicedCLI_CmdSnapshotRemove_All_NoForce() {
 	// for help with this command.
 }
 
-func ExampleServicedCLI_CmdSnapshotRemove_Tags_NoForce() {
-	InitSnapshotAPITest("serviced", "snapshot", "remove", "tag-1")
-
-	// Output:
-	// Incorrect Usage.  '-f' required to force deletion based on tags
-}
-
 func ExampleServicedCLI_CmdSnapshotRemove_usage() {
 	InitSnapshotAPITest("serviced", "snapshot", "remove", "--help")
 
@@ -412,15 +389,23 @@ func ExampleServicedCLI_CmdSnapshotRemove_usage() {
 	//    command remove [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced snapshot remove [SNAPSHOTID | TAG-NAME] ...
+	//    serviced snapshot remove [SNAPSHOTID | SERVICED TAG-NAME]
 	//
 	// OPTIONS:
-	//    --force, -f	deletes all matching snapshots without prompt, required for deleting all snapshots or deleting by tag
+	//    --force, -f	required for deleting all snapshots
+
 
 }
 
-func ExampleServicedCLI_CmdSnapshotRemove_nomatch() {
-	InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-0-snapshot")
+func ExampleServicedCLI_CmdSnapshotRemove_BadID() {
+	pipeStderr(InitSnapshotAPITest,"serviced", "snapshot", "remove", "test-service-0-snapshot")
+
+	// Output:
+	// no snapshot found
+}
+
+func ExampleServicedCLI_CmdSnapshotRemove_nomatch_Tag() {
+	InitSnapshotAPITest("serviced", "snapshot", "remove", "test-service-2", "Tag-1")
 
 	// Output:
 	// No matching snapshots found.
@@ -433,6 +418,15 @@ func ExampleServicedCLI_CmdSnapshotRemove_error() {
 
 	// Output:
 	// invalid snapshot
+}
+
+func ExampleServicedCLI_CmdSnapshotRemove_errorGetByTag() {
+	DefaultSnapshotAPITest.getByTagFail = true
+	defer func() { DefaultSnapshotAPITest.getByTagFail = false }()
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-1", "tag-1")
+
+	// Output:
+	// unable to retrieve snapshot by tag name
 }
 
 func ExampleServicedCLI_CmdSnapshotCommit() {
@@ -519,15 +513,16 @@ func ExampleServicedCLI_CmdSnapshotTag_usage() {
 	// 	Incorrect Usage.
 	//
 	// NAME:
-	//    tag - Tags an existing snapshot with 1 or more TAG-NAMEs
+	//    tag - Tags an existing snapshot with TAG-NAME
 	//
 	// USAGE:
 	//    command tag [command options] [arguments...]
 	//
 	// DESCRIPTION:
-	//    serviced snapshot tag SNAPSHOTID TAG-NAME ...
+	//    serviced snapshot tag SNAPSHOTID TAG-NAME
 	//
 	// OPTIONS:
+
 
 }
 
@@ -536,13 +531,6 @@ func ExampleServicedCLI_CmdSnapshotTag() {
 
 	// Output:
 	// test-service-1-snapshot-1 TAGS: [tag-1 tag-A]
-}
-
-func ExampleServicedCLI_CmdSnapshotTag_Multiple() {
-	InitSnapshotAPITest("serviced", "snapshot", "tag", "test-service-1-snapshot-1", "tag-A", "tag-B")
-
-	// Output:
-	// test-service-1-snapshot-1 TAGS: [tag-1 tag-A tag-B]
 }
 
 func ExampleServicedCLI_CmdSnapshotTag_err() {
@@ -570,40 +558,33 @@ func ExampleServicedCLI_CmdSnapshotTag_btrfsFail() {
 	// Modifying snapshot tags is not allowed on btrfs.
 }
 
-func ExampleServicedCLI_CmdSnapshotRemoveTags_All() {
-	InitSnapshotAPITest("serviced", "snapshot", "removetags", "test-service-1-snapshot-1")
-
-	// Output:
-	// test-service-1-snapshot-1 TAGS: []
-}
-
-func ExampleServicedCLI_CmdRemoveTags_Multiple() {
-	InitSnapshotAPITest("serviced", "snapshot", "removetags", "test-service-1-snapshot-2", "tag-A", "tag-2")
+func ExampleServicedCLI_CmdSnapshotUntag() {
+	InitSnapshotAPITest("serviced", "snapshot", "untag", "test-service-1-snapshot-2", "tag-2")
 
 	// Output:
 	// test-service-1-snapshot-2 TAGS: [tag-3]
 }
 
-func ExampleServicedCLI_CmdRemoveTags_err() {
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "removetags", "test-service-0-snapshot")
+func ExampleServicedCLI_CmdSnapshotUntag_err() {
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "untag", "test-service-0-snapshot", "tag-A")
 
 	// Output:
 	// no snapshot found
 }
 
-func ExampleServicedCLI_CmdRemoveTags_fail() {
+func ExampleServicedCLI_CmdSnapshotUntag_fail() {
 	DefaultSnapshotAPITest.fail = true
 	defer func() { DefaultSnapshotAPITest.fail = false }()
-	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "removetags", "test-service-1-snapshot-1")
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "untag", "test-service-1-snapshot-2", "tag-2")
 
 	// Output:
 	// invalid snapshot
 }
 
-func ExampleServicedCLI_CmdRemoveTags_btrfsFail() {
+func ExampleServicedCLI_CmdSnapshotUntag_btrfsFail() {
 	DefaultSnapshotAPITest.btrfsFail = true
 	defer func() { DefaultSnapshotAPITest.btrfsFail = false }()
-	InitSnapshotAPITest("serviced", "snapshot", "removetags", "test-service-1-snapshot-1")
+	InitSnapshotAPITest("serviced", "snapshot", "untag", "test-service-1-snapshot-1", "tag-A")
 
 	// Output:
 	// Modifying snapshot tags is not allowed on btrfs.

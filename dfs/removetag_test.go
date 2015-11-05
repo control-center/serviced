@@ -21,33 +21,40 @@ import (
 	. "gopkg.in/check.v1"
 )
 
-func (s *DFSTestSuite) TestRemoveAllTags_FailGetVolume(c *C) {
+func (s *DFSTestSuite) TestRemoveTag_FailGetVolume(c *C) {
 	snapshotID := "SnapID"
+	tag := "tag1"
 	s.disk.On("GetTenant", snapshotID).Return(&volumemocks.Volume{}, volume.ErrVolumeNotExists).Once()
-	err := s.dfs.RemoveAllTags(snapshotID)
+	newTagList, err := s.dfs.RemoveTag(snapshotID, tag)
+	c.Assert(newTagList, IsNil)
 	c.Assert(err, Equals, volume.ErrVolumeNotExists)
 }
 
-func (s *DFSTestSuite) TestRemoveAllTags_FailRemoveAllSnapshotTags(c *C) {
+func (s *DFSTestSuite) TestRemoveTag_FailRemoveTags(c *C) {
 	snapshotID := "SnapID"
+	tag := "tag1"
 
 	vol := &volumemocks.Volume{}
 
 	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
-	vol.On("RemoveAllSnapshotTags", snapshotID).Return(ErrTestRemoveAllSnapshotTagsFailed).Once()
+	vol.On("RemoveSnapshotTag", snapshotID, tag).Return(nil, ErrTestRemoveSnapshotTagFailed).Once()
 
-	err := s.dfs.RemoveAllTags(snapshotID)
-	c.Assert(err, Equals, ErrTestRemoveAllSnapshotTagsFailed)
+	newTagList, err := s.dfs.RemoveTag(snapshotID, tag)
+	c.Assert(newTagList, IsNil)
+	c.Assert(err, Equals, ErrTestRemoveSnapshotTagFailed)
 }
 
-func (s *DFSTestSuite) TestRemoveAllTags_Success(c *C) {
+func (s *DFSTestSuite) TestRemoveTag_Success(c *C) {
 	snapshotID := "SnapID"
+	tag := "tag1"
+	expectedTags := []string{"tag2"}
 
 	vol := &volumemocks.Volume{}
 
 	s.disk.On("GetTenant", snapshotID).Return(vol, nil)
-	vol.On("RemoveAllSnapshotTags", snapshotID).Return(nil).Once()
+	vol.On("RemoveSnapshotTag", snapshotID, tag).Return(expectedTags, nil).Once()
 
-	err := s.dfs.RemoveAllTags(snapshotID)
+	newTagList, err := s.dfs.RemoveTag(snapshotID, tag)
+	c.Assert(newTagList, DeepEquals, expectedTags)
 	c.Assert(err, IsNil)
 }

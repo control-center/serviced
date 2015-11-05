@@ -48,17 +48,17 @@ func (c *ServicedCli) initSnapshot() {
 				Action:       c.cmdSnapshotAdd,
 				Flags: []cli.Flag{
 					cli.StringFlag{"description, d", "", "a description of the snapshot"},
-					cli.StringFlag{"tags, t", "", "a comma-delimited list of tags for the snapshot"},
+					cli.StringFlag{"tag, t", "", "a unique tag for the snapshot"},
 				},
 			}, {
 				Name:         "remove",
 				ShortName:    "rm",
 				Usage:        "Removes an existing snapshot",
-				Description:  "serviced snapshot remove [SNAPSHOTID | TAG-NAME] ...",
-				BashComplete: c.printSnapshotsAndTagsAll,
+				Description:  "serviced snapshot remove [SNAPSHOTID | SERVICED TAG-NAME]",
+				BashComplete: c.printServicesFirst,
 				Action:       c.cmdSnapshotRemove,
 				Flags: []cli.Flag{
-					cli.BoolFlag{"force, f", "deletes all matching snapshots without prompt, required for deleting all snapshots or deleting by tag"},
+					cli.BoolFlag{"force, f", "required for deleting all snapshots"},
 				},
 			}, {
 				Name:        "commit",
@@ -76,17 +76,16 @@ func (c *ServicedCli) initSnapshot() {
 				Action:       c.cmdSnapshotRollback,
 			}, {
 				Name:         "tag",
-				Usage:        "Tags an existing snapshot with 1 or more TAG-NAMEs",
-				Description:  "serviced snapshot tag SNAPSHOTID TAG-NAME ...",
-				BashComplete: c.printSnapshotsFirstThenTags,
+				Usage:        "Tags an existing snapshot with TAG-NAME",
+				Description:  "serviced snapshot tag SNAPSHOTID TAG-NAME",
+				BashComplete: c.printSnapshotsFirst,
 				Action:       c.cmdSnapshotTag,
 			}, {
-				Name:         "removetags",
-				ShortName:    "rmtags",
-				Usage:        "Removes tags from an existing snapshot",
-				Description:  "serviced snapshot removetags SNAPSHOTID [TAG-NAME ...]",
+				Name:         "untag",
+				Usage:        "Removes a tag from an existing snapshot",
+				Description:  "serviced snapshot untag SNAPSHOTID TAG-NAME",
 				BashComplete: c.printSnapshotsFirstThenTags,
-				Action:       c.cmdSnapshotRemoveTags,
+				Action:       c.cmdSnapshotRemoveTag,
 			},
 		},
 	})
@@ -140,44 +139,22 @@ func (c *ServicedCli) printSnapshotsAll(ctx *cli.Context) {
 	}
 }
 
-// Bash-completion command that prints all the snapshot ids and all used tag names as all arguments.
-func (c *ServicedCli) printSnapshotsAndTagsAll(ctx *cli.Context) {
-	args := ctx.Args()
-
-	suggestionList := []string{}
-	for _, snap := range c.snapshots("") {
-		suggestionList = append(suggestionList, snap.SnapshotID)
-		suggestionList = append(suggestionList, snap.Tags...)
-	}
-
-	for _, s := range suggestionList {
-		for _, a := range args {
-			if s == a {
-				goto next
-			}
-			fmt.Println(s)
-		next:
-		}
-	}
-}
-
-// Bash-completion command that prints all the snapshot ids as the first argument and all used tag names as all other arguments.
+// Bash-completion command that prints all the snapshot ids as the first argument and all tags associated with the snapshot ID in the first argument as the second.
 func (c *ServicedCli) printSnapshotsFirstThenTags(ctx *cli.Context) {
 	args := ctx.Args()
+
+	if len(args) > 2 {
+		return
+	}
+
 	snapshots := c.snapshots("")
 
 	for _, s := range snapshots {
 		if len(args) == 0 {
 			fmt.Println(s.SnapshotID)
-		} else {
+		} else if s.SnapshotID == args[0]{
 			for _, t := range s.Tags {
-				for _, a := range args {
-					if t == a {
-						goto next
-					}
-				}
 				fmt.Println(t)
-			next:
 			}
 		}
 	}
@@ -209,13 +186,8 @@ func (c *ServicedCli) cmdSnapshotList(ctx *cli.Context) {
 		if showTags { //print a table of snapshot, description, tag list
 			t := NewTable("Snapshot,Description,Tags")
 			for _, s := range snapshots {
-				//built a comma-delimted list of the tags
-				var tags string
-
-				for _, tag := range s.Tags {
-					tags += tag + ","
-				}
-				tags = strings.Trim(tags, ",")
+				//build a comma-delimited list of the tags
+				tags := strings.Join(s.Tags, ",")
 
 				//make the row and add it to the table
 				row := make(map[string]interface{})
@@ -245,25 +217,10 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 		return
 	}
 
-	//get the tags (if any)
-	tags := ctx.String("tags")
-	//Remove spaces around commas and at the end
-	tags = strings.Replace(tags, ", ", ",", -1)
-	tags = strings.Replace(tags, " ,", ",", -1)
-	tags = strings.Trim(tags, " ")
-	tags = strings.Trim(tags, ",")
-
-	var tagList []string
-	if len(tags) > 0 {
-		tagList = strings.Split(tags, ",")
-	} else {
-		tagList = []string{}
-	}
-
 	cfg := api.SnapshotConfig{
 		ServiceID: ctx.Args().First(),
 		Message:   ctx.String("description"),
-		Tags:      tagList,
+		Tag:      ctx.String("tag"),
 	}
 	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -276,61 +233,58 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 	}
 }
 
-// serviced snapshot remove [SNAPSHOTID | TAG-NAME] ...
+// serviced snapshot remove [SNAPSHOTID | SERVICED TAG-NAME]
 func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
-	var (
-		snapshots         []dao.SnapshotInfo
-		snapshotsToDelete []string
-		err               error
-	)
-
+	
 	args := ctx.Args()
 	force := ctx.Bool("force")
 
-	if snapshots, err = c.driver.GetSnapshots(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	snapshotsToDelete := []string{}
+
+	if len(args) > 2 {
+		fmt.Printf("Incorrect Usage.\n\n")
+		cli.ShowCommandHelp(ctx, "remove")
 		return
 	}
 
-	deleteAll := false
-
-	if len(args) < 1 {
-		deleteAll = true
+	if len(args) == 0 {
+		// user wants to delete all snapshots, but check for -f first
 		if !force {
 			fmt.Printf("Incorrect Usage.\nUse\n   serviced snapshot remove -f\nto delete all snapshots, or\n   serviced snapshot remove -h\nfor help with this command.\n")
 			return
-		}
-	}
-
-	for _, snapshot := range snapshots {
-		if deleteAll {
-			snapshotsToDelete = append(snapshotsToDelete, snapshot.SnapshotID)
 		} else {
-			//compare to args
-			for _, arg := range args {
-				if arg == snapshot.SnapshotID {
-					snapshotsToDelete = append(snapshotsToDelete, snapshot.SnapshotID)
-					break
-				} else if snapshot.HasTag(arg) {
-					if !force {
-						fmt.Printf("Incorrect Usage.  '-f' required to force deletion based on tags\n")
-						return
-					}
-					snapshotsToDelete = append(snapshotsToDelete, snapshot.SnapshotID)
-					break
-				}
+			//delete all snapshots
+			snapshots, err := c.driver.GetSnapshots();
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return
 			}
+			for _, snapshot := range snapshots {
+				snapshotsToDelete = append(snapshotsToDelete, snapshot.SnapshotID)
+			}
+		}
+	} else if len(args) == 1 {
+		//Delete the snapshot specified in the argument
+		snapshotsToDelete = []string{args[0]}
+	} else {
+		//Find the snapshot with the given tag and service
+		if snapshot, err := c.driver.GetSnapshotByServiceIDAndTag(args[0], args[1]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return
+		} else if snapshot != "" {
+			snapshotsToDelete = []string{snapshot}
 		}
 	}
 
 	if len(snapshotsToDelete) == 0 {
 		fmt.Println("No matching snapshots found.")
+		return
 	}
 
 	//Delete the chosen snapshots
 	for _, id := range snapshotsToDelete {
-		if err = c.driver.RemoveSnapshot(id); err != nil {
-			fmt.Fprintf(os.Stderr, "%s: %s\n", id, err)
+		if err := c.driver.RemoveSnapshot(id); err != nil {
+			fmt.Fprintln(os.Stderr, err)
 		} else {
 			fmt.Println(id)
 		}
@@ -375,7 +329,7 @@ func (c *ServicedCli) cmdSnapshotRollback(ctx *cli.Context) {
 	}
 }
 
-// serviced snapshot tag SNAPSHOTID TAG-NAME ...
+// serviced snapshot tag SNAPSHOTID TAG-NAME
 func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 	args := ctx.Args()
 
@@ -384,13 +338,13 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 		err     error
 	)
 
-	if len(args) < 2 {
+	if len(args) != 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "tag")
 		return
 	}
 
-	if newTags, err = c.driver.TagSnapshot(args[0], args[1:]); err != nil {
+	if newTags, err = c.driver.TagSnapshot(args[0], args[1]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		if err == btrfs.ErrBtrfsModifySnapshotMetadata {
 			fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
@@ -401,8 +355,8 @@ func (c *ServicedCli) cmdSnapshotTag(ctx *cli.Context) {
 	fmt.Printf("%v TAGS: %v\n", args[0], newTags)
 }
 
-// serviced snapshot removetags SNAPSHOTID [TAG-NAME ...]
-func (c *ServicedCli) cmdSnapshotRemoveTags(ctx *cli.Context) {
+// serviced snapshot untag SNAPSHOTID TAG-NAME
+func (c *ServicedCli) cmdSnapshotRemoveTag(ctx *cli.Context) {
 	args := ctx.Args()
 
 	var (
@@ -410,28 +364,19 @@ func (c *ServicedCli) cmdSnapshotRemoveTags(ctx *cli.Context) {
 		err     error
 	)
 
-	if len(args) < 1 {
+	if len(args) != 2 {
 		fmt.Printf("Incorrect Usage.\n\n")
-		cli.ShowCommandHelp(ctx, "removetags")
+		cli.ShowCommandHelp(ctx, "untag")
 		return
-	} else if len(args) == 1 {
-		//remove all tags
-		if err = c.driver.RemoveAllSnapshotTags(args[0]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			if err == btrfs.ErrBtrfsModifySnapshotMetadata {
-				fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
-			}
-			return
+	} 
+	
+	//remove specified tag
+	if newTags, err = c.driver.RemoveSnapshotTag(args[0], args[1]); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		if err == btrfs.ErrBtrfsModifySnapshotMetadata {
+			fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
 		}
-	} else {
-		//remove specified tags
-		if newTags, err = c.driver.RemoveSnapshotTags(args[0], args[1:]); err != nil {
-			fmt.Fprintln(os.Stderr, err)
-			if err == btrfs.ErrBtrfsModifySnapshotMetadata {
-				fmt.Printf("Modifying snapshot tags is not allowed on btrfs.\n")
-			}
-			return
-		}
+		return
 	}
 
 	fmt.Printf("%v TAGS: %v\n", args[0], newTags)

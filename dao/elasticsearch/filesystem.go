@@ -242,10 +242,16 @@ func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *stri
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock()
 	defer dfslocker.Unlock()
+
+	tagList := []string{}
+	if len(req.Tag) > 0 {
+		tagList = []string{req.Tag}
+	}
+
 	if req.ContainerID != "" {
-		*snapshotID, err = dao.facade.Commit(ctx, req.ContainerID, req.Message, req.Tags)
+		*snapshotID, err = dao.facade.Commit(ctx, req.ContainerID, req.Message, tagList)
 	} else {
-		*snapshotID, err = dao.facade.Snapshot(ctx, req.ServiceID, req.Message, req.Tags)
+		*snapshotID, err = dao.facade.Snapshot(ctx, req.ServiceID, req.Message, tagList)
 	}
 	return
 }
@@ -310,6 +316,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 			SnapshotID:  info.Name,
 			Description: info.Message,
 			Tags:        info.Tags,
+			Created:	 info.Created,
 		}
 
 		*snapshots = append(*snapshots, newInfo)
@@ -343,44 +350,25 @@ func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
 	return
 }
 
-// TagSnapshot tags an existing snapshot with 1 or more strings
+// TagSnapshot adds a tag to an existing snapshot
 func (dao *ControlPlaneDao) TagSnapshot(request model.TagSnapshotRequest, newTagList *[]string) error {
-	ctx := datastore.Get()
-
-	// synchronize the dfs
-	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
-	defer dfslocker.Unlock()
-
 	var err error
-	*newTagList, err = dao.facade.TagSnapshot(request.SnapshotID, request.TagNames)
+	*newTagList, err = dao.facade.TagSnapshot(request.SnapshotID, request.TagName)
 	return err
 }
 
-// RemoveSnapshotTags removes specific tags from an existing snapshot
-func (dao *ControlPlaneDao) RemoveSnapshotTags(request model.TagSnapshotRequest, newTagList *[]string) error {
-	ctx := datastore.Get()
-
-	// synchronize the dfs
-	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
-	defer dfslocker.Unlock()
-
+// RemoveSnapshotTag removes a tag from an existing snapshot
+func (dao *ControlPlaneDao) RemoveSnapshotTag(request model.TagSnapshotRequest, newTagList *[]string) error {
 	var err error
-	*newTagList, err = dao.facade.RemoveSnapshotTags(request.SnapshotID, request.TagNames)
+	*newTagList, err = dao.facade.RemoveSnapshotTag(request.SnapshotID, request.TagName)
 	return err
 }
 
-// RemoveAllSnapshotTags removes all tags from an existing snapshot
-func (dao *ControlPlaneDao) RemoveAllSnapshotTags(snapshotID string, _ *int) error {
+// GetSnapshotByServiceIDAndTag Gets the snapshot from a specific service with a specific tag
+func (dao *ControlPlaneDao)	GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshotID *string) error {
 	ctx := datastore.Get()
-
-	// synchronize the dfs
-	dfslocker := dao.facade.DFSLock(ctx)
-	dfslocker.Lock()
-	defer dfslocker.Unlock()
-
+	
 	var err error
-	err = dao.facade.RemoveAllSnapshotTags(snapshotID)
+	*snapshotID, err = dao.facade.GetSnapshotByServiceIDAndTag(ctx, request.ServiceID, request.TagName)
 	return err
 }

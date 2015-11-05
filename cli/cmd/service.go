@@ -208,7 +208,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceSnapshot,
 				Flags: []cli.Flag{
 					cli.StringFlag{"description, d", "", "a description of the snapshot"},
-					cli.StringFlag{"tags, t", "", "a comma-delimited list of tags for the snapshot"},
+					cli.StringFlag{"tag, t", "", "a unique tag for the snapshot"},
 				},
 			}, {
 				Name:         "endpoints",
@@ -1313,12 +1313,7 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 			t := NewTable("Snapshot,Description,Tags")
 			for _, s := range snapshots {
 				//build a comma-delimited list of the tags
-				var tags string
-
-				for _, tag := range s.Tags {
-					tags += tag + ","
-				}
-				tags = strings.Trim(tags, ",")
+				tags := strings.Join(s.Tags, ",")
 
 				//make the row and add it to the table
 				row := make(map[string]interface{})
@@ -1360,24 +1355,12 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	}
 
 	//get the tags (if any)
-	tags := ctx.String("tags")
-	//Remove spaces around commas and at the end
-	tags = strings.Replace(tags, ", ", ",", -1)
-	tags = strings.Replace(tags, " ,", ",", -1)
-	tags = strings.Trim(tags, " ")
-	tags = strings.Trim(tags, ",")
-
-	var tagList []string
-	if len(tags) > 0 {
-		tagList = strings.Split(tags, ",")
-	} else {
-		tagList = []string{}
-	}
-
+	tag := ctx.String("tag")
+	
 	cfg := api.SnapshotConfig{
 		ServiceID: svc.ID,
 		Message:   description,
-		Tags:      tagList,
+		Tag:      tag,
 	}
 	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
