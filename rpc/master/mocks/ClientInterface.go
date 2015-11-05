@@ -308,15 +308,15 @@ func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.ApplicationEndpoint, error) {
+func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	ret := _m.Called(serviceIDs, validate)
 
-	var r0 []applicationendpoint.ApplicationEndpoint
-	if rf, ok := ret.Get(0).(func([]string, bool) []applicationendpoint.ApplicationEndpoint); ok {
+	var r0 []applicationendpoint.EndpointReport
+	if rf, ok := ret.Get(0).(func([]string, bool) []applicationendpoint.EndpointReport); ok {
 		r0 = rf(serviceIDs, validate)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]applicationendpoint.ApplicationEndpoint)
+			r0 = ret.Get(0).([]applicationendpoint.EndpointReport)
 		}
 	}
 

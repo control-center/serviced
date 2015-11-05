@@ -229,7 +229,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 }
 
 // Get all of the exported endpoints
-func (a *api) GetEndpoints(serviceID string) ([]applicationendpoint.ApplicationEndpoint, error) {
+func (a *api) GetEndpoints(serviceID string) ([]applicationendpoint.EndpointReport, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err

@@ -96,5 +96,5 @@ type ClientInterface interface {
 	// Endpoint Management Functions
 
 	// GetServiceEndpoints gets the endpoints for one or more services
-	GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.ApplicationEndpoint, error)
+	GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.EndpointReport, error)
 }

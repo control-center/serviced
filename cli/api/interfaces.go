@@ -69,7 +69,7 @@ type API interface {
 	RestartService(SchedulerConfig) (int, error)
 	StopService(SchedulerConfig) (int, error)
 	AssignIP(IPConfig) error
-	GetEndpoints(string) ([]applicationendpoint.ApplicationEndpoint, error)
+	GetEndpoints(string) ([]applicationendpoint.EndpointReport, error)
 
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]dao.RunningService, error)

@@ -197,7 +197,7 @@ func (st *serviceAPITest) TestGetEndpoints_works(c *C) {
 
 	st.mockMasterClient.
 		On("GetServiceEndpoints", []string{serviceID}, true).
-		Return([]applicationendpoint.ApplicationEndpoint{}, nil)
+		Return([]applicationendpoint.EndpointReport{}, nil)
 
 	actual, err := st.api.GetEndpoints(serviceID)
 

@@ -1376,31 +1376,31 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		t.Padding = 4
 		for _, endpoint := range endpoints {
 			serviceName := svc.Name
-			if svc.Instances > 1 && endpoint.ContainerID != "" {
-				serviceName = fmt.Sprintf("%s/%d", serviceName, endpoint.InstanceID)
+			if svc.Instances > 1 && endpoint.Endpoint.ContainerID != "" {
+				serviceName = fmt.Sprintf("%s/%d", serviceName, endpoint.Endpoint.InstanceID)
 			}
 
-			host := endpoint.HostID
-			hostinfo, ok := hostmap[endpoint.HostID]
+			host := endpoint.Endpoint.HostID
+			hostinfo, ok := hostmap[endpoint.Endpoint.HostID]
 			if ok {
 				host = hostinfo.Name
 			}
 
 			var hostPort string
-			if endpoint.HostPort != 0 {
-				hostPort = strconv.Itoa(int(endpoint.HostPort))
+			if endpoint.Endpoint.HostPort != 0 {
+				hostPort = strconv.Itoa(int(endpoint.Endpoint.HostPort))
 			}
 
 			t.AddRow(map[string]interface{}{
 				"Name":           serviceName,
-				"ServiceID":      svc.ID,
-				"Endpoint":       endpoint.Application,
+				"ServiceID":      endpoint.Endpoint.ServiceID,
+				"Endpoint":       endpoint.Endpoint.Application,
 				"Host":           host,
-				"HostIP":         endpoint.HostIP,
+				"HostIP":         endpoint.Endpoint.HostIP,
 				"HostPort":       hostPort,
-				"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.ContainerID),
-				"ContainerIP":    endpoint.ContainerIP,
-				"ContainerPort":  endpoint.ContainerPort,
+				"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.Endpoint.ContainerID),
+				"ContainerIP":    endpoint.Endpoint.ContainerIP,
+				"ContainerPort":  endpoint.Endpoint.ContainerPort,
 			})
 		}
 		t.Print()

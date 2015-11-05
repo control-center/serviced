@@ -657,7 +657,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 }
 
 // Get the exported endpoints for a service
-func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([]applicationendpoint.ApplicationEndpoint, error) {
+func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([]applicationendpoint.EndpointReport, error) {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -671,24 +671,24 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([
 	}
 
 	someInstancesActive := false
-	endpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
+	appEndpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
 	if len(states) == 0 {
-		endpoints = append(endpoints, getEndpointsFromServiceDefinition(svc)...)
+		appEndpoints = append(appEndpoints, getEndpointsFromServiceDefinition(svc)...)
 	} else {
 		for _, state := range states {
 			instanceEndpoints := getEndpointsFromServiceState(svc, state)
-			endpoints = append(endpoints, instanceEndpoints...)
+			appEndpoints = append(appEndpoints, instanceEndpoints...)
 			if state.IsRunning() || state.IsPaused() {
 				someInstancesActive = true
 			}
 		}
 	}
 
-	sort.Sort(applicationendpoint.ApplicationEndpointSlice(endpoints))
-	if len(endpoints) > 0 && someInstancesActive {
-		f.validateEndpoints(ctx, serviceID, endpoints)
+	sort.Sort(applicationendpoint.ApplicationEndpointSlice(appEndpoints))
+	if len(appEndpoints) > 0 && someInstancesActive {
+		f.validateEndpoints(ctx, serviceID, appEndpoints)
 	}
-	return endpoints, nil
+	return applicationendpoint.BuildEndpointReports(appEndpoints), nil
 }
 
 // Get a list of exported endpoints defined for the service
@@ -765,15 +765,14 @@ func (f *Facade) validateEndpoints(ctx datastore.Context, serviceID string, endp
 		}
 	}
 
+	// FIXME: This needs to go somewhere else because it's a different kind of validation
 	// If an endpoint exists in ZK, make sure it matches an item in the list
-	for _, zkEndpoint := range zkEndpoints {
-		endpoint := zkEndpoint.Find(endpoints)
-		if endpoint == nil {
-			glog.Errorf("ZK Endpoint %v not found in endpoints %v", zkEndpoint, endpoints)
-		} else if !zkEndpoint.Equals(endpoint) {
-			glog.Errorf("ZK endpoint mismatch: %v vs %v", endpoint, zkEndpoint)
-		}
-	}
+	// for _, zkEndpoint := range zkEndpoints {
+	// 	endpoint := zkEndpoint.Find(endpoints)
+	// 	if endpoint == nil {
+	// 		glog.Errorf("ZK Endpoint %v not found in endpoints %v", zkEndpoint, endpoints)
+	// 	}
+	// }
 }
 
 // FindChildService walks services below the service specified by serviceId, checking to see

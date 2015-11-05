@@ -24,9 +24,9 @@ type EndpointRequest struct {
 }
 
 // GetServiceEndpoints gets the endpoints for one or more services
-func (c *Client) GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.ApplicationEndpoint, error) {
+func (c *Client) GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	request := &EndpointRequest{ServiceIDs: serviceIDs, Validate: validate}
-	result := make([]applicationendpoint.ApplicationEndpoint, 0)
+	result := make([]applicationendpoint.EndpointReport, 0)
 	err := c.call("GetServiceEndpoints", request, &result)
 	if err != nil {
 		return nil, err

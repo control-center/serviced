@@ -18,7 +18,7 @@ import (
 )
 
 // Get the endpoints for one or more services
-func (s *Server) GetServiceEndpoints(request *EndpointRequest, reply *[]applicationendpoint.ApplicationEndpoint) error {
+func (s *Server) GetServiceEndpoints(request *EndpointRequest, reply *[]applicationendpoint.EndpointReport) error {
 	if endpoints, err := s.f.GetServiceEndpoints(s.context(), request.ServiceIDs[0]); err != nil {
 		return err
 	} else {

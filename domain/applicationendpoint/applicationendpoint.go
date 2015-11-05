@@ -39,6 +39,13 @@ type ApplicationEndpoint struct {
 	ProxyPort      uint16
 }
 
+type EndpointReport struct {
+	Endpoint ApplicationEndpoint
+
+	// FIXME: Refactor into some kind of array of typed messages (e.g. info, warn and error)
+	Messages []string
+}
+
 // BuildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
 func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (ApplicationEndpoint, error) {
 	var ae ApplicationEndpoint
@@ -79,6 +86,15 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	glog.V(2).Infof("  built ApplicationEndpoint: %+v", ae)
 
 	return ae, nil
+}
+
+// BuildEndpointReports converts an array of ApplicationEndpoints to an array of EndpointReports
+func BuildEndpointReports(appEndpoints []ApplicationEndpoint) []EndpointReport {
+	endpoints := make([]EndpointReport, 0)
+	for _, appEndpoint := range appEndpoints {
+		endpoints = append(endpoints, EndpointReport{Endpoint: appEndpoint, Messages: []string{}})
+	}
+	return endpoints
 }
 
 // Returns a string which uniquely identifies an endpoint instance
