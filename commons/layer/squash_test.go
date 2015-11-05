@@ -14,12 +14,12 @@
 package layer
 
 import (
-	"github.com/zenoss/go-dockerclient"
-
 	"fmt"
 	"io"
 	"os"
 	"testing"
+
+	docker "github.com/fsouza/go-dockerclient"
 )
 
 var errUnimplemented = fmt.Errorf("unimplemented")
