@@ -1150,6 +1150,8 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 	return f.walkServices(ctx, request.ServiceID, true, visitor)
 }
 
+// ServiceUse will tag a new image (imageName) in a given registry for a given tenant
+// to latest, making sure to push changes to the registry
 func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registryName string, noOp bool) (string, error) {
 	result, err := docker.ServiceUse(serviceID, imageName, registryName, noOp)
 	if err != nil {
