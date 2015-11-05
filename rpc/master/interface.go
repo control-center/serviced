@@ -24,6 +24,11 @@ import (
 
 // The RPC interface is the API for a serviced master.
 type ClientInterface interface {
+
+	//--------------------------------------------------------------------------
+	// RPC Management Functions
+	Close() (err error)
+
 	//--------------------------------------------------------------------------
 	// Host Management Functions
 	
