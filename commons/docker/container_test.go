@@ -20,7 +20,7 @@ import (
 	"testing"
 	"time"
 
-	dockerclient "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/fsouza/go-dockerclient"
 )
 
 func TestContainerCommit(t *testing.T) {

@@ -22,8 +22,8 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/rpc/agent"
 	"github.com/control-center/serviced/rpc/master"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 var options Options

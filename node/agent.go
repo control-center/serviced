@@ -33,8 +33,8 @@ import (
 	"text/template"
 	"time"
 
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
@@ -207,8 +207,8 @@ func injectContext(s *service.Service, svcState *servicestate.ServiceState, cp d
 func (a *HostAgent) AttachService(svc *service.Service, state *servicestate.ServiceState, exited func(string)) error {
 	ctr, err := docker.FindContainer(state.DockerID)
 	if err != nil {
-		glog.Infof("Can not find docker container %s for service %s (%s) ServiceStateID=%s", state.DockerID, svc.Name, svc.ID,  state.ID)
-		state.DockerID = ""             // CC-1341 - don't try to find this container again.
+		glog.Infof("Can not find docker container %s for service %s (%s) ServiceStateID=%s", state.DockerID, svc.Name, svc.ID, state.ID)
+		state.DockerID = "" // CC-1341 - don't try to find this container again.
 		return err
 	}
 
@@ -509,7 +509,7 @@ func updateInstance(state *servicestate.ServiceState, ctr *docker.Container) err
 	for k, v := range ctr.NetworkSettings.Ports {
 		pm := []domain.HostIPAndPort{}
 		for _, pb := range v {
-			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIp, HostPort: pb.HostPort})
+			pm = append(pm, domain.HostIPAndPort{HostIP: pb.HostIP, HostPort: pb.HostPort})
 			state.PortMapping[string(k)] = pm
 		}
 	}
@@ -721,7 +721,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	for _, addr := range a.dockerDNS {
 		_addr := strings.TrimSpace(addr)
 		if len(_addr) > 0 {
-			cfg.Dns = append(cfg.Dns, addr)
+			cfg.DNS = append(cfg.DNS, addr)
 		}
 	}
 
@@ -750,9 +750,9 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	if svc.CPUShares < 0 {
-		cfg.CpuShares = 0
+		cfg.CPUShares = 0
 	} else {
-		cfg.CpuShares = svc.CPUShares
+		cfg.CPUShares = svc.CPUShares
 	}
 
 	return cfg, hcfg, nil
