@@ -593,13 +593,14 @@ func configureContainer(a *HostAgent, client *ControlClient,
 	}
 
 	cfg.Volumes = make(map[string]struct{})
-	hcfg.Binds = []string{}
+	bindsMap := make(map[string]string)  // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
 
 	if err := injectContext(svc, serviceState, client); err != nil {
 		glog.Errorf("Error injecting context: %s", err)
 		return nil, nil, err
 	}
 
+	// iterate svc.Volumes - create bindings for non-dfs volumes
 	for _, volume := range svc.Volumes {
 		if volume.Type != "" && volume.Type != "dfs" {
 			continue
@@ -610,28 +611,34 @@ func configureContainer(a *HostAgent, client *ControlClient,
 			return nil, nil, err
 		}
 
-		binding := fmt.Sprintf("%s:%s", resourcePath, volume.ContainerPath)
-		cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-		hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
+		resourcePath = strings.TrimSpace(resourcePath)
+		containerPath := strings.TrimSpace(volume.ContainerPath)
+		cfg.Volumes[containerPath] = struct {}{}
+		bindsMap[containerPath] = resourcePath
 	}
 
+
+	// mount serviced path 
 	dir, binary, err := ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return nil, nil, err
 	}
-	volumeBinding := fmt.Sprintf("%s:/serviced", dir)
-	cfg.Volumes[strings.Split(volumeBinding, ":")[1]] = struct{}{}
-	hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(volumeBinding))
+	
+	resourcePath := strings.TrimSpace(dir)
+	containerPath := strings.TrimSpace("/serviced")
+	cfg.Volumes[containerPath] = struct{}{}
+	bindsMap[containerPath] = resourcePath
 
 	// bind mount everything we need for logstash-forwarder
 	if len(svc.LogConfigs) != 0 {
 		const LOGSTASH_CONTAINER_DIRECTORY = "/usr/local/serviced/resources/logstash"
 		logstashPath := utils.ResourcesDir() + "/logstash"
-		binding := fmt.Sprintf("%s:%s", logstashPath, LOGSTASH_CONTAINER_DIRECTORY)
-		cfg.Volumes[LOGSTASH_CONTAINER_DIRECTORY] = struct{}{}
-		hcfg.Binds = append(hcfg.Binds, binding)
-		glog.V(1).Infof("added logstash bind mount: %s", binding)
+		resourcePath := strings.TrimSpace(logstashPath)
+		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
+		cfg.Volumes[containerPath] = struct{}{}
+		bindsMap[containerPath] = resourcePath
+		glog.V(1).Infof("added logstash bind mount: %s", fmt.Sprintf("%s:%s", resourcePath, containerPath))
 	}
 
 	// specify temporary volume paths for docker to create
@@ -688,14 +695,23 @@ func configureContainer(a *HostAgent, client *ControlClient,
 			}
 
 			if matchedRequestedImage {
-				binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
-				cfg.Volumes[strings.Split(binding, ":")[1]] = struct{}{}
-				hcfg.Binds = append(hcfg.Binds, strings.TrimSpace(binding))
+				hostPath = strings.TrimSpace(hostPath)
+				containerPath = strings.TrimSpace(containerPath)
+				cfg.Volumes[containerPath] = struct{}{}
+				bindsMap[containerPath] = hostPath
 			}
 		} else {
 			glog.Warningf("Could not bind mount the following: %s", bindMountString)
 		}
 	}
+
+	// transfer bindsMap to hcfg.Binds
+	hcfg.Binds = []string{}
+	for containerPath, hostPath := range(bindsMap) {
+		binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
+		hcfg.Binds = append(hcfg.Binds, binding)
+	}
+
 
 	// Get host IP
 	ips, err := utils.GetIPv4Addresses()
