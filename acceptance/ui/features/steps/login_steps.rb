@@ -29,6 +29,10 @@ When (/^I click the sign-in button$/) do
     clickSignInButton()
 end
 
+And (/^I close the deploy wizard if present$/) do
+    closeDeployWizard()
+end
+
 def visitLoginPage()
     wait = Capybara.default_wait_time
     Capybara.default_wait_time = 180
