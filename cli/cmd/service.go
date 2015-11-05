@@ -31,7 +31,6 @@ import (
 	"github.com/control-center/serviced/cli/api"
 	dockerclient "github.com/control-center/serviced/commons/docker"
 	"github.com/control-center/serviced/dao"
-	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/service"
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/utils"
@@ -1361,10 +1360,10 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		return
 	}
 
-	if endpointsByService, err := c.driver.GetEndpoints(svc.ID); err != nil {
+	if endpoints, err := c.driver.GetEndpoints(svc.ID); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
-	} else if noEndpointsDefined(svc.ID, endpointsByService) {
+	} else if len(endpoints) == 0 {
 		fmt.Fprintf(os.Stderr, "%s - no endpoints defined\n", svc.Name)
 		return
 	} else {
@@ -1375,46 +1374,35 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 
 		t := NewTable("Name,ServiceID,Endpoint,Host,HostIP,HostPort,ContainerID,ContainerIP,ContainerPort")
 		t.Padding = 4
-		for _, serviceEndpoints := range endpointsByService {
-			for _, endpoint := range serviceEndpoints {
-				serviceName := svc.Name
-				if svc.Instances > 1 && endpoint.ContainerID != "" {
-					serviceName = fmt.Sprintf("%s/%d", serviceName, endpoint.InstanceID)
-				}
-
-				host := endpoint.HostID
-				hostinfo, ok := hostmap[endpoint.HostID]
-				if ok {
-					host = hostinfo.Name
-				}
-
-				var hostPort string
-				if endpoint.HostPort != 0 {
-					hostPort = strconv.Itoa(int(endpoint.HostPort))
-				}
-
-				t.AddRow(map[string]interface{}{
-					"Name":           serviceName,
-					"ServiceID":      svc.ID,
-					"Endpoint":       endpoint.Application,
-					"Host":           host,
-					"HostIP":         endpoint.HostIP,
-					"HostPort":       hostPort,
-					"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.ContainerID),
-					"ContainerIP":    endpoint.ContainerIP,
-					"ContainerPort":  endpoint.ContainerPort,
-				})
+		for _, endpoint := range endpoints {
+			serviceName := svc.Name
+			if svc.Instances > 1 && endpoint.ContainerID != "" {
+				serviceName = fmt.Sprintf("%s/%d", serviceName, endpoint.InstanceID)
 			}
+
+			host := endpoint.HostID
+			hostinfo, ok := hostmap[endpoint.HostID]
+			if ok {
+				host = hostinfo.Name
+			}
+
+			var hostPort string
+			if endpoint.HostPort != 0 {
+				hostPort = strconv.Itoa(int(endpoint.HostPort))
+			}
+
+			t.AddRow(map[string]interface{}{
+				"Name":           serviceName,
+				"ServiceID":      svc.ID,
+				"Endpoint":       endpoint.Application,
+				"Host":           host,
+				"HostIP":         endpoint.HostIP,
+				"HostPort":       hostPort,
+				"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.ContainerID),
+				"ContainerIP":    endpoint.ContainerIP,
+				"ContainerPort":  endpoint.ContainerPort,
+			})
 		}
 		t.Print()
 	}
-}
-
-func noEndpointsDefined(serviceID string, endpointsByService map[string][]applicationendpoint.ApplicationEndpoint) bool {
-	if len(endpointsByService) == 0 {
-		return true
-	} else if serviceEndpoints, ok := endpointsByService[serviceID]; !ok || len(serviceEndpoints) == 0 {
-		return true
-	}
-	return false
 }

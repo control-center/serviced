@@ -91,4 +91,10 @@ type ClientInterface interface {
 
 	// GetVolumeStatus gets status information for the given volume or nil
 	GetVolumeStatus() (*volume.Statuses, error)
+
+	//--------------------------------------------------------------------------
+	// Endpoint Management Functions
+
+	// GetServiceEndpoints gets the endpoints for one or more services
+	GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.ApplicationEndpoint, error)
 }

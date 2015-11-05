@@ -243,16 +243,12 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
 	serviceIDs := []string{svc.ID}
 	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(nil)
 
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
 
 	t.Assert(err, IsNil)
-	t.Assert(endpointMap, NotNil)
-	t.Assert(len(endpointMap), Equals, 1)
-
-	endpoints, ok := endpointMap[svc.ID]
-	t.Assert(ok, Equals, true)
+	t.Assert(endpoints, NotNil)
 	t.Assert(len(endpoints), Equals, 2)
-	t.Assert(endpoints[0].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[0].ServiceID, Equals, svc.ID)
 	t.Assert(endpoints[0].InstanceID, Equals, 0)
 	t.Assert(endpoints[0].Application, Equals, "test_ep_1")
 	t.Assert(endpoints[1].ServiceID, Equals, "svc1")
@@ -277,16 +273,12 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
 
 	t.Assert(err, IsNil)
-	t.Assert(endpointMap, NotNil)
-	t.Assert(len(endpointMap), Equals, 1)
-
-	endpoints, ok := endpointMap[svc.ID]
-	t.Assert(ok, Equals, true)
+	t.Assert(endpoints, NotNil)
 	t.Assert(len(endpoints), Equals, 4)
-	t.Assert(endpoints[0].ServiceID, Equals, "svc1")
+	t.Assert(endpoints[0].ServiceID, Equals, svc.ID)
 	t.Assert(endpoints[0].InstanceID, Equals, 0)
 	t.Assert(endpoints[0].Application, Equals, "test_ep_1")
 	t.Assert(endpoints[1].ServiceID, Equals, "svc1")

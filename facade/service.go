@@ -657,7 +657,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 }
 
 // Get the exported endpoints for a service
-func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
+func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([]applicationendpoint.ApplicationEndpoint, error) {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -671,7 +671,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (m
 	}
 
 	someInstancesActive := false
-	var endpoints []applicationendpoint.ApplicationEndpoint
+	endpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
 	if len(states) == 0 {
 		endpoints = append(endpoints, getEndpointsFromServiceDefinition(svc)...)
 	} else {
@@ -688,9 +688,7 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (m
 	if len(endpoints) > 0 && someInstancesActive {
 		f.validateEndpoints(ctx, serviceID, endpoints)
 	}
-	result := make(map[string][]applicationendpoint.ApplicationEndpoint)
-	result[svc.ID] = endpoints
-	return result, nil
+	return endpoints, nil
 }
 
 // Get a list of exported endpoints defined for the service

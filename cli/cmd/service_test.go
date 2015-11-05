@@ -134,29 +134,27 @@ var DefaultTestRunningServices = []dao.RunningService{
 	},
 }
 
-var DefaultEndpoints = map[string][]applicationendpoint.ApplicationEndpoint{
-	"test-service-2": []applicationendpoint.ApplicationEndpoint{
-		{
-			ServiceID:     "test-service-2",
-			InstanceID:    1,
-			Application:   "endpointName1",
-			HostID:        "hostID1",
-			HostIP:        "hostIP1",
-			HostPort:      10,
-			ContainerID:   "containerID1",
-			ContainerIP:   "containerIP1",
-			ContainerPort: 100,
-		}, {
-			ServiceID:     "test-service-2",
-			InstanceID:    2,
-			Application:   "endpointName2",
-			HostID:        "hostID2",
-			HostIP:        "hostIP2",
-			HostPort:      20,
-			ContainerID:   "containerID2",
-			ContainerIP:   "containerIP2",
-			ContainerPort: 200,
-		},
+var DefaultEndpoints = []applicationendpoint.ApplicationEndpoint{
+	{
+		ServiceID:     "test-service-2",
+		InstanceID:    1,
+		Application:   "endpointName1",
+		HostID:        "hostID1",
+		HostIP:        "hostIP1",
+		HostPort:      10,
+		ContainerID:   "containerID1",
+		ContainerIP:   "containerIP1",
+		ContainerPort: 100,
+	}, {
+		ServiceID:     "test-service-2",
+		InstanceID:    2,
+		Application:   "endpointName2",
+		HostID:        "hostID2",
+		HostIP:        "hostIP2",
+		HostPort:      20,
+		ContainerID:   "containerID2",
+		ContainerIP:   "containerIP2",
+		ContainerPort: 200,
 	},
 }
 
@@ -176,7 +174,7 @@ type ServiceAPITest struct {
 	pools           []pool.ResourcePool
 	hosts           []host.Host
 	snapshots       []dao.SnapshotInfo
-	endpoints       map[string][]applicationendpoint.ApplicationEndpoint
+	endpoints       []applicationendpoint.ApplicationEndpoint
 }
 
 func InitServiceAPITest(args ...string) {
@@ -220,11 +218,13 @@ func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error)  {
 	return make(map[string]host.Host), nil
 }
 
-func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error)  {
+func (t ServiceAPITest) GetEndpoints(serviceID string) ([]applicationendpoint.ApplicationEndpoint, error)  {
 	if t.errs["GetEndpoints"] != nil {
 		return nil, t.errs["GetEndpoints"]
+	} else if serviceID == "test-service-2" {
+		return t.endpoints, nil
 	}
-	return t.endpoints, nil
+	return []applicationendpoint.ApplicationEndpoint{}, nil
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
