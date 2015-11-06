@@ -135,7 +135,7 @@ def visitApplicationsPage()
     @applications_page = Applications.new
     @applications_page.navbar.applications.click()
     expect(@applications_page).to be_displayed
-    closeDeployWizard
+    closeDeployWizard()
 end
 
 def fillInDeploymentID(id)
@@ -169,6 +169,8 @@ def closeDeployWizard()
         # found it!
         if el.visible?
             el.find(".modal-header .close").click()
+            # wait till it is no longer visible
+            find("#addApp", :count => 0)
         end
         true
     rescue

@@ -162,11 +162,21 @@ controlplane.
             return moment(date).fromNow();
         };
     })
-    .run(function($rootScope, $window){
+    .run(function($rootScope, $window, $location){
         // scroll to top of page on navigation
         $rootScope.$on("$routeChangeSuccess", function (event, currentRoute, previousRoute) {
             $window.scrollTo(0, 0);
         });
+
+        var queryParams = $location.search(),
+            disableAnimation = false;
+
+        // option to disable animation for
+        // acceptance tests
+        if(queryParams["disable-animation"] === "true"){
+            disableAnimation = true;
+            $("body").addClass("no-animation");
+        }
 
         var loaderEl = $(".loading_wrapper"),
             isCleared = false;
@@ -174,13 +184,18 @@ controlplane.
         $rootScope.$on("ready", function(){
             setTimeout(function(){
                 if(!isCleared){
-                    loaderEl.addClass("hide_it").one("transitionend", function(){
-                        loaderEl.remove();
-                        $("body").removeClass("loading");
-                        isCleared = true;
-                    });
+                    if(disableAnimation){
+                        clearLoader();
+                    } else {
+                        loaderEl.addClass("hide_it").one("transitionend", clearLoader);
+                    }
                 }
             }, 1000);
-        });
 
+            var clearLoader = function(){
+                loaderEl.remove();
+                $("body").removeClass("loading");
+                isCleared = true;
+            };
+        });
     });
