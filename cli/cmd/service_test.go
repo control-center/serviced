@@ -213,14 +213,14 @@ func (t ServiceAPITest) GetHosts() ([]host.Host, error) {
 	return t.hosts, nil
 }
 
-func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error)  {
+func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error) {
 	if t.errs["GetHostMap"] != nil {
 		return nil, t.errs["GetHostMap"]
 	}
 	return make(map[string]host.Host), nil
 }
 
-func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error)  {
+func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
 	if t.errs["GetEndpoints"] != nil {
 		return nil, t.errs["GetEndpoints"]
 	}
@@ -1112,7 +1112,6 @@ func ExampleServicedCLI_CmdServiceSnapshot_err() {
 	// Output:
 	// service not found
 }
-
 
 func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 	InitServiceAPITest("serviced", "service", "endpoints")

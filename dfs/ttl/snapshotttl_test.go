@@ -129,7 +129,7 @@ func TestSnapshotTTL_Purge_NoSnapshot(t *testing.T) {
 }
 
 func TestSnapshotTTL_Purge_NewTTL(t *testing.T) {
-	snapTime := time.Now().UTC().Add(-5*time.Second)
+	snapTime := time.Now().UTC().Add(-5 * time.Second)
 	iface := &TestSnapshotTTLInterface{
 		svcs: []service.Service{
 			{
@@ -150,7 +150,7 @@ func TestSnapshotTTL_Purge_NewTTL(t *testing.T) {
 }
 
 func TestSnapshotTTL_Purge_Delete(t *testing.T) {
-	snapTime := time.Now().UTC().Add(-5*time.Minute)
+	snapTime := time.Now().UTC().Add(-5 * time.Minute)
 	iface := &TestSnapshotTTLInterface{
 		svcs: []service.Service{
 			{
@@ -175,20 +175,20 @@ func TestSnapshotTTL_Purge_Delete(t *testing.T) {
 }
 
 func TestSnapshotTTL_Purge_DontDeleteTaggedSnap(t *testing.T) {
-	timeCreated1 := time.Now().UTC().Add(-5*time.Minute)
-	timeCreated2 := time.Now().UTC().Add(-6*time.Minute)
+	timeCreated1 := time.Now().UTC().Add(-5 * time.Minute)
+	timeCreated2 := time.Now().UTC().Add(-6 * time.Minute)
 
 	snapToPurge := dao.SnapshotInfo{
 		SnapshotID: "snapshottag_" + timeCreated1.Format(timeFormat),
-		Created:	timeCreated1,
+		Created:    timeCreated1,
 	}
 
 	snapToSave := dao.SnapshotInfo{
 		SnapshotID: "snapshottag_" + timeCreated2.Format(timeFormat),
-		Created:	timeCreated2,
-		Tags: []string{"some tag"},
+		Created:    timeCreated2,
+		Tags:       []string{"some tag"},
 	}
-	
+
 	iface := &TestSnapshotTTLInterface{
 		svcs: []service.Service{
 			{

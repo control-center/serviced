@@ -69,8 +69,8 @@ func (a *api) GetSnapshotByServiceIDAndTag(serviceID string, tag string) (string
 		return "", err
 	}
 	req := dao.SnapshotByTagRequest{
-		ServiceID:	serviceID,
-		TagName:	tag,
+		ServiceID: serviceID,
+		TagName:   tag,
 	}
 
 	var snapshot string
@@ -90,7 +90,7 @@ func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 	req := dao.SnapshotRequest{
 		ServiceID:   cfg.ServiceID,
 		Message:     cfg.Message,
-		Tag:        cfg.Tag,
+		Tag:         cfg.Tag,
 		ContainerID: cfg.DockerID,
 	}
 	var snapshotID string

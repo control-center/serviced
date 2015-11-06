@@ -114,7 +114,7 @@ type TagSnapshotRequest struct {
 
 type SnapshotByTagRequest struct {
 	ServiceID string
-	TagName	  string
+	TagName   string
 }
 
 type RollbackRequest struct {

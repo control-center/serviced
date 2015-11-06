@@ -34,7 +34,7 @@ func (s *DFSTestSuite) TestSnapshot_VolumeNotFound(c *C) {
 	data := SnapshotInfo{
 		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
-			Tags: []string{"tag1"},
+			Tags:     []string{"tag1"},
 		},
 	}
 	s.disk.On("Get", "BASE").Return(&volumemocks.Volume{}, ErrTestVolumeNotFound)
@@ -47,7 +47,7 @@ func (s *DFSTestSuite) TestSnapshot_NoPush(c *C) {
 	data := SnapshotInfo{
 		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
-			Tags: []string{"tag1"},
+			Tags:     []string{"tag1"},
 		},
 		Images: []string{"BASE/repo:latest"},
 	}
@@ -77,7 +77,7 @@ func (s *DFSTestSuite) TestSnapshot_NoWriteMetadata(c *C) {
 	data := SnapshotInfo{
 		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
-			Tags: []string{"tag1"},
+			Tags:     []string{"tag1"},
 		},
 		Images: []string{"BASE/repo:latest"},
 		Services: []service.Service{
@@ -114,7 +114,7 @@ func (s *DFSTestSuite) TestSnapshot_NoSnapshot(c *C) {
 	data := SnapshotInfo{
 		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
-			Tags: []string{"tag1"},
+			Tags:     []string{"tag1"},
 		},
 		Images: []string{"BASE/repo:latest"},
 		Services: []service.Service{
@@ -152,7 +152,7 @@ func (s *DFSTestSuite) TestSnapshot_Success(c *C) {
 	data := SnapshotInfo{
 		SnapshotInfo: &volume.SnapshotInfo{
 			TenantID: "BASE",
-			Tags: []string{"tag1"},
+			Tags:     []string{"tag1"},
 		},
 		Images: []string{"BASE/repo:latest"},
 		Services: []service.Service{

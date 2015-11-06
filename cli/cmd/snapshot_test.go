@@ -41,15 +41,15 @@ var DefaultTestSnapshots = []dao.SnapshotInfo{
 var (
 	ErrNoSnapshotFound = errors.New("no snapshot found")
 	ErrInvalidSnapshot = errors.New("invalid snapshot")
-	ErrGetByTagFailed = errors.New("unable to retrieve snapshot by tag name")
+	ErrGetByTagFailed  = errors.New("unable to retrieve snapshot by tag name")
 )
 
 type SnapshotAPITest struct {
 	api.API
-	fail      bool
-	btrfsFail bool
+	fail         bool
+	btrfsFail    bool
 	getByTagFail bool
-	snapshots []dao.SnapshotInfo
+	snapshots    []dao.SnapshotInfo
 }
 
 func InitSnapshotAPITest(args ...string) {
@@ -394,11 +394,10 @@ func ExampleServicedCLI_CmdSnapshotRemove_usage() {
 	// OPTIONS:
 	//    --force, -f	required for deleting all snapshots
 
-
 }
 
 func ExampleServicedCLI_CmdSnapshotRemove_BadID() {
-	pipeStderr(InitSnapshotAPITest,"serviced", "snapshot", "remove", "test-service-0-snapshot")
+	pipeStderr(InitSnapshotAPITest, "serviced", "snapshot", "remove", "test-service-0-snapshot")
 
 	// Output:
 	// no snapshot found
@@ -522,7 +521,6 @@ func ExampleServicedCLI_CmdSnapshotTag_usage() {
 	//    serviced snapshot tag SNAPSHOTID TAG-NAME
 	//
 	// OPTIONS:
-
 
 }
 

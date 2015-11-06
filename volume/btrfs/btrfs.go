@@ -433,16 +433,16 @@ func (v *BtrfsVolume) RemoveSnapshotTag(label string, tagName string) ([]string,
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
 func (v *BtrfsVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
 	var (
-		snaps 	[]string
-		info 	*volume.SnapshotInfo
-		err 	error
+		snaps []string
+		info  *volume.SnapshotInfo
+		err   error
 	)
 
 	if snaps, err = v.Snapshots(); err != nil {
 		glog.Errorf("Could not get current snapshot list : %v", err)
 		return nil, ErrBtrfsListingSnapshots
-	} 
-	
+	}
+
 	for _, snaplabel := range snaps {
 		if info, err = v.SnapshotInfo(snaplabel); err != nil {
 			glog.Errorf("Could not get info for %s: %v", snaplabel, err)
@@ -452,9 +452,9 @@ func (v *BtrfsVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, 
 			if t == tagName {
 				return info, nil
 			}
-		} 
+		}
 	}
-	
+
 	return nil, nil
 }
 

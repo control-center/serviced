@@ -124,7 +124,7 @@ type SnapshotInfo struct {
 	SnapshotID  string
 	Description string
 	Tags        []string
-	Created 	time.Time
+	Created     time.Time
 }
 
 func (s SnapshotInfo) String() string {

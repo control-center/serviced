@@ -144,7 +144,7 @@ func (s *ControlClient) StopRunningInstance(request dao.HostServiceRequest, unus
 }
 
 func (s *ControlClient) GetRunningServices(request dao.EntityRequest, runningServices *[]dao.RunningService) (err error) {
-	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices, 10 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetRunningServices", request, runningServices, 10*time.Second)
 }
 
 func (s *ControlClient) GetServiceState(request dao.ServiceStateRequest, state *servicestate.ServiceState) error {
@@ -224,7 +224,7 @@ func (s *ControlClient) Action(req dao.AttachRequest, unused *int) error {
 }
 
 func (s *ControlClient) GetHostMemoryStats(req dao.MetricRequest, stats *metrics.MemoryUsageStats) error {
-	return s.rpcClient.Call("ControlPlane.GetHostMemoryStats", req, stats, 5 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetHostMemoryStats", req, stats, 5*time.Second)
 }
 func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
 	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, newTagList, 0)
@@ -243,11 +243,11 @@ func (s *ControlClient) AsyncSnapshot(serviceId string, label *string) error {
 }
 
 func (s *ControlClient) GetServiceMemoryStats(req dao.MetricRequest, stats *metrics.MemoryUsageStats) error {
-	return s.rpcClient.Call("ControlPlane.GetServiceMemoryStats", req, stats, 5 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetServiceMemoryStats", req, stats, 5*time.Second)
 }
 
 func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]metrics.MemoryUsageStats) error {
-	return s.rpcClient.Call("ControlPlane.GetInstanceMemoryStats", req, stats, 5 * time.Second)
+	return s.rpcClient.Call("ControlPlane.GetInstanceMemoryStats", req, stats, 5*time.Second)
 }
 
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {

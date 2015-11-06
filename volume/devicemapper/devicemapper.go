@@ -477,7 +477,7 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
 	}
-	
+
 	//make sure none of the tags already exist
 	for _, tagName := range tags {
 		if info, err := v.GetSnapshotWithTag(tagName); err != nil {
@@ -572,9 +572,9 @@ func (v *DeviceMapperVolume) TagSnapshot(label string, tagName string) ([]string
 		return nil, err
 	}
 
-	//add the new tag name	
+	//add the new tag name
 	info.Tags = append(info.Tags, tagName)
-	
+
 	//write out the updated info
 	if err := v.writeSnapshotInfo(label, info); err != nil {
 		glog.Errorf("Error writing updated snapshot info with new tag: %s", err)
@@ -625,9 +625,9 @@ func (v *DeviceMapperVolume) RemoveSnapshotTag(label string, tagName string) ([]
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
 func (v *DeviceMapperVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
 	var (
-		snaps 	[]string
-		info 	*volume.SnapshotInfo
-		err 	error
+		snaps []string
+		info  *volume.SnapshotInfo
+		err   error
 	)
 
 	if snaps, err = v.Snapshots(); err != nil {
@@ -644,7 +644,7 @@ func (v *DeviceMapperVolume) GetSnapshotWithTag(tagName string) (*volume.Snapsho
 				if t == tagName {
 					return info, nil
 				}
-			} 
+			}
 		}
 	}
 	return nil, nil

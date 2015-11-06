@@ -84,7 +84,7 @@ var (
 	ErrPathIsNotAbs            = errors.New("path is not absolute")
 	ErrBadMount                = errors.New("bad mount path")
 	ErrInsufficientPermissions = errors.New("insufficient permissions to run command")
-	ErrTagAlreadyExists		   = errors.New("a snapshot with the given tag already exists")
+	ErrTagAlreadyExists        = errors.New("a snapshot with the given tag already exists")
 )
 
 func init() {

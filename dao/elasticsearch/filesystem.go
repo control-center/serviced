@@ -316,7 +316,7 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 			SnapshotID:  info.Name,
 			Description: info.Message,
 			Tags:        info.Tags,
-			Created:	 info.Created,
+			Created:     info.Created,
 		}
 
 		*snapshots = append(*snapshots, newInfo)
@@ -365,9 +365,9 @@ func (dao *ControlPlaneDao) RemoveSnapshotTag(request model.TagSnapshotRequest, 
 }
 
 // GetSnapshotByServiceIDAndTag Gets the snapshot from a specific service with a specific tag
-func (dao *ControlPlaneDao)	GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshotID *string) error {
+func (dao *ControlPlaneDao) GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshotID *string) error {
 	ctx := datastore.Get()
-	
+
 	var err error
 	*snapshotID, err = dao.facade.GetSnapshotByServiceIDAndTag(ctx, request.ServiceID, request.TagName)
 	return err

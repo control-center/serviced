@@ -1356,11 +1356,11 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 
 	//get the tags (if any)
 	tag := ctx.String("tag")
-	
+
 	cfg := api.SnapshotConfig{
 		ServiceID: svc.ID,
 		Message:   description,
-		Tag:      tag,
+		Tag:       tag,
 	}
 	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -1421,15 +1421,15 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 				}
 
 				t.AddRow(map[string]interface{}{
-					"Name":           serviceName,
-					"ServiceID":      svc.ID,
-					"Endpoint":       endpoint.Application,
-					"Host":           host,
-					"HostIP":         endpoint.HostIP,
-					"HostPort":       hostPort,
-					"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.ContainerID),
-					"ContainerIP":    endpoint.ContainerIP,
-					"ContainerPort":  endpoint.ContainerPort,
+					"Name":          serviceName,
+					"ServiceID":     svc.ID,
+					"Endpoint":      endpoint.Application,
+					"Host":          host,
+					"HostIP":        endpoint.HostIP,
+					"HostPort":      hostPort,
+					"ContainerID":   fmt.Sprintf("%-12.12s", endpoint.ContainerID),
+					"ContainerIP":   endpoint.ContainerIP,
+					"ContainerPort": endpoint.ContainerPort,
 				})
 			}
 		}

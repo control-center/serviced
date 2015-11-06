@@ -515,7 +515,7 @@ func (v *RsyncVolume) TagSnapshot(label string, tagName string) ([]string, error
 
 	//add the new tag names
 	info.Tags = append(info.Tags, tagName)
-	
+
 	//write out the updated info
 	if err := v.writeSnapshotInfo(label, info); err != nil {
 		glog.Errorf("Error writing updated snapshot info with new tag: %s", err)
@@ -568,9 +568,9 @@ func (v *RsyncVolume) RemoveSnapshotTag(label string, tagName string) ([]string,
 // GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
 func (v *RsyncVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
 	var (
-		snaps 	[]string
-		info 	*volume.SnapshotInfo
-		err 	error
+		snaps []string
+		info  *volume.SnapshotInfo
+		err   error
 	)
 
 	if snaps, err = v.getSnapshotList(); err != nil {
@@ -582,7 +582,7 @@ func (v *RsyncVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, 
 				glog.Errorf("Could not get info for %s: %v", snaplabel, err)
 				if os.IsNotExist(err) {
 					//there is no info, so there are no tags, just continue with the next snapshot
-					continue	
+					continue
 				} else {
 					return nil, err
 				}
@@ -592,7 +592,7 @@ func (v *RsyncVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, 
 				if t == tagName {
 					return info, nil
 				}
-			} 
+			}
 		}
 	}
 	return nil, nil
@@ -606,7 +606,7 @@ func (v *RsyncVolume) Snapshots() ([]string, error) {
 }
 
 // Internal method for retrieving the snapshot list without obtaining a lock.  Assumes caller has already obtained a lock on the volume.
-func (v* RsyncVolume) getSnapshotList()([]string, error) {
+func (v *RsyncVolume) getSnapshotList() ([]string, error) {
 	files, err := ioutil.ReadDir(v.driver.MetadataDir())
 	if err != nil {
 		return nil, err

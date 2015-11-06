@@ -152,7 +152,7 @@ func (c *ServicedCli) printSnapshotsFirstThenTags(ctx *cli.Context) {
 	for _, s := range snapshots {
 		if len(args) == 0 {
 			fmt.Println(s.SnapshotID)
-		} else if s.SnapshotID == args[0]{
+		} else if s.SnapshotID == args[0] {
 			for _, t := range s.Tags {
 				fmt.Println(t)
 			}
@@ -220,7 +220,7 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 	cfg := api.SnapshotConfig{
 		ServiceID: ctx.Args().First(),
 		Message:   ctx.String("description"),
-		Tag:      ctx.String("tag"),
+		Tag:       ctx.String("tag"),
 	}
 	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -235,7 +235,7 @@ func (c *ServicedCli) cmdSnapshotAdd(ctx *cli.Context) {
 
 // serviced snapshot remove [SNAPSHOTID | SERVICED TAG-NAME]
 func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
-	
+
 	args := ctx.Args()
 	force := ctx.Bool("force")
 
@@ -254,7 +254,7 @@ func (c *ServicedCli) cmdSnapshotRemove(ctx *cli.Context) {
 			return
 		} else {
 			//delete all snapshots
-			snapshots, err := c.driver.GetSnapshots();
+			snapshots, err := c.driver.GetSnapshots()
 			if err != nil {
 				fmt.Fprintln(os.Stderr, err)
 				return
@@ -368,8 +368,8 @@ func (c *ServicedCli) cmdSnapshotRemoveTag(ctx *cli.Context) {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "untag")
 		return
-	} 
-	
+	}
+
 	//remove specified tag
 	if newTags, err = c.driver.RemoveSnapshotTag(args[0], args[1]); err != nil {
 		fmt.Fprintln(os.Stderr, err)
