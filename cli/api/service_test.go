@@ -186,7 +186,7 @@ func (st *serviceAPITest) TestGetEndpoints_fails(c *C) {
 		On("GetServiceEndpoints", []string{serviceID}, true).
 		Return(nil, errorStub)
 
-	actual, err := st.api.GetEndpoints(serviceID)
+	actual, err := st.api.GetEndpoints(serviceID, true, true, true)
 
 	c.Assert(actual, IsNil)
 	c.Assert(err, Equals, errorStub)
@@ -199,7 +199,7 @@ func (st *serviceAPITest) TestGetEndpoints_works(c *C) {
 		On("GetServiceEndpoints", []string{serviceID}, true).
 		Return([]applicationendpoint.EndpointReport{}, nil)
 
-	actual, err := st.api.GetEndpoints(serviceID)
+	actual, err := st.api.GetEndpoints(serviceID, true, true, true)
 
 	c.Assert(err, IsNil)
 	c.Assert(actual, NotNil)

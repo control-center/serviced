@@ -20,12 +20,19 @@ import (
 // Defines a request to get a list of endpoints for one or more services
 type EndpointRequest struct {
 	ServiceIDs []string
+	ReportImports bool
+	ReportExports bool
 	Validate   bool
 }
 
 // GetServiceEndpoints gets the endpoints for one or more services
-func (c *Client) GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.EndpointReport, error) {
-	request := &EndpointRequest{ServiceIDs: serviceIDs, Validate: validate}
+func (c *Client) GetServiceEndpoints(serviceIDs []string, reportImports, reportExports bool, validate bool) ([]applicationendpoint.EndpointReport, error) {
+	request := &EndpointRequest{
+		ServiceIDs:    serviceIDs,
+		ReportImports: reportImports,
+		ReportExports: reportExports,
+		Validate:      validate,
+	}
 	result := make([]applicationendpoint.EndpointReport, 0)
 	err := c.call("GetServiceEndpoints", request, &result)
 	if err != nil {

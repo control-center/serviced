@@ -211,6 +211,11 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service endpoints SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceEndpoints,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"imports, i", "include only imported endpoints"},
+					cli.BoolFlag{"all, a", "include all endpoints (imports and exports)"},
+					cli.BoolFlag{"verify, v", "verify endpoints"},
+				},
 			},
 		},
 	})
@@ -1360,7 +1365,19 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 		return
 	}
 
-	if endpoints, err := c.driver.GetEndpoints(svc.ID); err != nil {
+	var reportExports, reportImports bool
+	if ctx.Bool("all") {
+		reportImports = true
+		reportExports = true
+	} else if ctx.Bool("imports") {
+		reportImports = true
+		reportExports = false
+	} else {
+		reportImports = false
+		reportExports = true
+	}
+
+	if endpoints, err := c.driver.GetEndpoints(svc.ID, reportImports, reportExports, ctx.Bool("verify")); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		return
 	} else if len(endpoints) == 0 {
@@ -1372,7 +1389,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 			fmt.Fprintf(os.Stderr, "Unable to get host info, printing host IDs instead of names: %s", err)
 		}
 
-		t := NewTable("Name,ServiceID,Endpoint,Host,HostIP,HostPort,ContainerID,ContainerIP,ContainerPort")
+		t := NewTable("Name,ServiceID,Endpoint,Purpose,Host,HostIP,HostPort,ContainerID,ContainerIP,ContainerPort")
 		t.Padding = 4
 		for _, endpoint := range endpoints {
 			serviceName := svc.Name
@@ -1395,6 +1412,7 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 				"Name":           serviceName,
 				"ServiceID":      endpoint.Endpoint.ServiceID,
 				"Endpoint":       endpoint.Endpoint.Application,
+				"Purpose":        endpoint.Endpoint.Purpose,
 				"Host":           host,
 				"HostIP":         endpoint.Endpoint.HostIP,
 				"HostPort":       hostPort,

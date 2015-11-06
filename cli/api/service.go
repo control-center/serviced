@@ -229,7 +229,7 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 }
 
 // Get all of the exported endpoints
-func (a *api) GetEndpoints(serviceID string) ([]applicationendpoint.EndpointReport, error) {
+func (a *api) GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
@@ -237,7 +237,7 @@ func (a *api) GetEndpoints(serviceID string) ([]applicationendpoint.EndpointRepo
 
 	serviceIDs := make([]string, 0)
 	serviceIDs = append(serviceIDs, serviceID)
-	if endpoints, err := client.GetServiceEndpoints(serviceIDs, true); err != nil {
+	if endpoints, err := client.GetServiceEndpoints(serviceIDs, reportImports, reportExports, validate); err != nil {
 		return nil, err
 	} else {
 		return endpoints, nil

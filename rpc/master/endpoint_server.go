@@ -19,10 +19,11 @@ import (
 
 // Get the endpoints for one or more services
 func (s *Server) GetServiceEndpoints(request *EndpointRequest, reply *[]applicationendpoint.EndpointReport) error {
-	if endpoints, err := s.f.GetServiceEndpoints(s.context(), request.ServiceIDs[0]); err != nil {
+	endpoints, err := s.f.GetServiceEndpoints(s.context(), request.ServiceIDs[0], request.ReportImports, request.ReportExports, request.Validate)
+	if err != nil {
 		return err
-	} else {
-		*reply = endpoints
-		return nil
 	}
+
+	*reply = endpoints
+	return nil
 }

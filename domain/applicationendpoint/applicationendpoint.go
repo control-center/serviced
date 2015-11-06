@@ -28,6 +28,7 @@ type ApplicationEndpoint struct {
 	ServiceID      string
 	InstanceID     int
 	Application    string
+	Purpose        string
 	HostID         string
 	HostIP         string
 	HostPort       uint16
@@ -53,6 +54,7 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.ServiceID = state.ServiceID
 	ae.Application = endpoint.Application
 	ae.Protocol = endpoint.Protocol
+	ae.Purpose = endpoint.Purpose
 	ae.ContainerID = state.DockerID
 	ae.ContainerIP = state.PrivateIP
 	if endpoint.PortTemplate != "" {
@@ -99,7 +101,7 @@ func BuildEndpointReports(appEndpoints []ApplicationEndpoint) []EndpointReport {
 
 // Returns a string which uniquely identifies an endpoint instance
 func (endpoint *ApplicationEndpoint) GetID() string {
-	return strings.ToLower(fmt.Sprintf("%s/%d %s", endpoint.ServiceID, endpoint.InstanceID, endpoint.Application))
+	return strings.ToLower(fmt.Sprintf("%s/%d %s %s", endpoint.ServiceID, endpoint.InstanceID, endpoint.Purpose, endpoint.Application))
 }
 
 // Find the entry in endpoints which matches the specified endpoint
@@ -123,6 +125,9 @@ func (a *ApplicationEndpoint) Equals(b *ApplicationEndpoint) bool {
 		return false
 	}
 	if a.Application != b.Application {
+		return false
+	}
+	if a.Purpose != b.Purpose {
 		return false
 	}
 	if a.HostID != b.HostID {

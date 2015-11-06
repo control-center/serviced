@@ -657,7 +657,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 }
 
 // Get the exported endpoints for a service
-func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([]applicationendpoint.EndpointReport, error) {
+func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -673,10 +673,10 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([
 	someInstancesActive := false
 	appEndpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
 	if len(states) == 0 {
-		appEndpoints = append(appEndpoints, getEndpointsFromServiceDefinition(svc)...)
+		appEndpoints = append(appEndpoints, getEndpointsFromServiceDefinition(svc, reportImports, reportExports)...)
 	} else {
 		for _, state := range states {
-			instanceEndpoints := getEndpointsFromServiceState(svc, state)
+			instanceEndpoints := getEndpointsFromServiceState(svc, state, reportImports, reportExports)
 			appEndpoints = append(appEndpoints, instanceEndpoints...)
 			if state.IsRunning() || state.IsPaused() {
 				someInstancesActive = true
@@ -685,23 +685,26 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) ([
 	}
 
 	sort.Sort(applicationendpoint.ApplicationEndpointSlice(appEndpoints))
-	if len(appEndpoints) > 0 && someInstancesActive {
+	if validate && len(appEndpoints) > 0 && someInstancesActive {
 		f.validateEndpoints(ctx, serviceID, appEndpoints)
 	}
 	return applicationendpoint.BuildEndpointReports(appEndpoints), nil
 }
 
 // Get a list of exported endpoints defined for the service
-func getEndpointsFromServiceDefinition(service *service.Service) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromServiceDefinition(service *service.Service, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
 	for _, serviceEndpoint := range service.Endpoints {
-		if serviceEndpoint.Purpose == "import" {
+		if !reportImports && strings.HasPrefix(serviceEndpoint.Purpose, "import") {
+			continue
+		} else if !reportExports && strings.HasPrefix(serviceEndpoint.Purpose, "export") {
 			continue
 		}
 
 		endpoint := applicationendpoint.ApplicationEndpoint{}
 		endpoint.ServiceID = service.ID
 		endpoint.Application = serviceEndpoint.Application
+		endpoint.Purpose = serviceEndpoint.Purpose
 		endpoint.Protocol = serviceEndpoint.Protocol
 		endpoint.ContainerPort = serviceEndpoint.PortNumber
 		endpoint.VirtualAddress = serviceEndpoint.VirtualAddress
@@ -711,10 +714,12 @@ func getEndpointsFromServiceDefinition(service *service.Service) []applicationen
 }
 
 // Get a list of exported endpoints for all service instances based just on the current ServiceState
-func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
 	for _, serviceEndpoint := range state.Endpoints {
-		if serviceEndpoint.Purpose == "import" {
+		if !reportImports && strings.HasPrefix(serviceEndpoint.Purpose, "import") {
+			continue
+		} else if !reportExports && strings.HasPrefix(serviceEndpoint.Purpose, "export") {
 			continue
 		}
 

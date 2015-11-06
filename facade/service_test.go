@@ -216,7 +216,7 @@ func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
 }
 
 func (ft *FacadeTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, "undefined")
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, "undefined", true, true, true)
 
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "Could not find service undefined.*")
@@ -230,7 +230,7 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t *C) {
 	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
 	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(errorStub)
 
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "Could not get service states for service .*")
@@ -243,7 +243,7 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
 	serviceIDs := []string{svc.ID}
 	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(nil)
 
-	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
 	t.Assert(err, IsNil)
 	t.Assert(endpoints, NotNil)
@@ -273,7 +273,7 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
-	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
 	t.Assert(err, IsNil)
 	t.Assert(endpoints, NotNil)

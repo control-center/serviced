@@ -308,7 +308,7 @@ func (_m *ClientInterface) GetVolumeStatus() (*volume.Statuses, error) {
 
 	return r0, r1
 }
-func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, validate bool) ([]applicationendpoint.EndpointReport, error) {
+func (_m *ClientInterface) GetServiceEndpoints(serviceIDs []string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	ret := _m.Called(serviceIDs, validate)
 
 	var r0 []applicationendpoint.EndpointReport
