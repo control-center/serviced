@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# This script helps extract and examine Go stack traces.
+# This script helps extract and examine Go stack traces (debug=2 format).
 
 import argparse
 
@@ -21,17 +21,25 @@ import gostack
 
 
 def parse_args():
-    argparser = argparse.ArgumentParser(description='Performs analysis on a go stack trace.')
+    argparser = argparse.ArgumentParser(description='Performs analysis on a Go stack trace (debug=2 format).')
     argparser.add_argument('ANALYSIS', choices=['count', 'echo'], help='The type of analysis to perform.')
-    argparser.add_argument('FILE', help='Name of the file containing the stack trace.')
+    argparser.add_argument('SOURCE', help='Either the path to a file containing a Go stack trace, ' +
+                                          'or the URL of a service that supports the Go pprof package.')
     return argparser.parse_args()
 
 def main():
     args = parse_args()
 
+    source = args.SOURCE
+    # If an http or https URL, extend it to the listener and options we need for the proper stack trace
+    if source.startswith('http'):
+        if source[len(source)-1] != '/':
+            source += '/'
+        source += 'debug/pprof/goroutine?debug=2'
+
     # Read in the stack trace file
     goParser = gostack.Parser()
-    goParser.parse(args.FILE)
+    goParser.parse(source)
     stacktrace = goParser.stacktrace
 
     # Perform the analysis requested by the user
