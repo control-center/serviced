@@ -164,6 +164,42 @@ func (f *Facade) ListSnapshots(ctx datastore.Context, serviceID string) ([]strin
 	return snapshots, nil
 }
 
+// TagSnapshot adds tags to an existing snapshot
+func (f *Facade) TagSnapshot(snapshotID string, tagName string) ([]string, error) {
+	newTagList, err := f.dfs.Tag(snapshotID, tagName)
+	if err != nil {
+		glog.Errorf("Could not add tag to snapshot %s: %s", snapshotID, err)
+		return nil, err
+	}
+	return newTagList, nil
+}
+
+// RemoveSnapshotTag removes a specific tag from an existing snapshot
+func (f *Facade) RemoveSnapshotTag(snapshotID string, tagName string) ([]string, error) {
+	newTagList, err := f.dfs.RemoveTag(snapshotID, tagName)
+	if err != nil {
+		glog.Errorf("Could not remove tag %s from snapshot %s: %s", tagName, snapshotID, err)
+		return nil, err
+	}
+	return newTagList, nil
+}
+
+// GetSnapshotByServiceIDAndTag finds the existing snapshot for a given service with a specific tag
+func (f *Facade) GetSnapshotByServiceIDAndTag(ctx datastore.Context, serviceID string, tagName string) (string, error) {
+	tenantID, err := f.GetTenantID(ctx, serviceID)
+	if err != nil {
+		glog.Errorf("Could not find tenant for service %s: %s", serviceID, err)
+		return "", err
+	}
+
+	snapshotID, err := f.dfs.GetSnapshotWithTag(tenantID, tagName)
+	if err != nil {
+		glog.Errorf("Could not retrieve snapshot with serviceID %s and tag %s: %s", serviceID, tagName, err)
+		return "", err
+	}
+	return snapshotID, nil
+}
+
 // ResetLock resets locks for a specific tenant
 func (f *Facade) ResetLock(ctx datastore.Context, serviceID string) error {
 	tenantID, err := f.GetTenantID(ctx, serviceID)

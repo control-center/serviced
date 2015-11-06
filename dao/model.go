@@ -123,6 +123,8 @@ type BackupFile struct {
 type SnapshotInfo struct {
 	SnapshotID  string
 	Description string
+	Tags        []string
+	Created     time.Time
 }
 
 func (s SnapshotInfo) String() string {

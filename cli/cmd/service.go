@@ -197,6 +197,9 @@ func (c *ServicedCli) initService() {
 				Description:  "serviced service list-snapshots SERVICEID",
 				BashComplete: c.printServicesFirst,
 				Action:       c.cmdServiceListSnapshots,
+				Flags: []cli.Flag{
+					cli.BoolFlag{"show-tags, t", "shows the tags associated with each snapshot"},
+				},
 			}, {
 				Name:         "snapshot",
 				Usage:        "Takes a snapshot of the service",
@@ -205,6 +208,7 @@ func (c *ServicedCli) initService() {
 				Action:       c.cmdServiceSnapshot,
 				Flags: []cli.Flag{
 					cli.StringFlag{"description, d", "", "a description of the snapshot"},
+					cli.StringFlag{"tag, t", "", "a unique tag for the snapshot"},
 				},
 			}, {
 				Name:         "endpoints",
@@ -1285,8 +1289,9 @@ func (c *ServicedCli) cmdServiceLogs(ctx *cli.Context) error {
 	return fmt.Errorf("serviced service logs")
 }
 
-// serviced service list-snapshot SERVICEID
+// serviced service list-snapshot SERVICEID [--show-tags]
 func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
+	showTags := ctx.Bool("show-tags")
 	if len(ctx.Args()) < 1 {
 		fmt.Printf("Incorrect Usage.\n\n")
 		cli.ShowCommandHelp(ctx, "list-snapshots")
@@ -1304,13 +1309,31 @@ func (c *ServicedCli) cmdServiceListSnapshots(ctx *cli.Context) {
 	} else if snapshots == nil || len(snapshots) == 0 {
 		fmt.Fprintln(os.Stderr, "no snapshots found")
 	} else {
-		for _, s := range snapshots {
-			fmt.Println(s)
+		if showTags { //print a table of snapshot, description, tag list
+			t := NewTable("Snapshot,Description,Tags")
+			for _, s := range snapshots {
+				//build a comma-delimited list of the tags
+				tags := strings.Join(s.Tags, ",")
+
+				//make the row and add it to the table
+				row := make(map[string]interface{})
+				row["Snapshot"] = s.SnapshotID
+				row["Description"] = s.Description
+				row["Tags"] = tags
+				t.Padding = 6
+				t.AddRow(row)
+			}
+			//print the table
+			t.Print()
+		} else { //just print a list of snapshots
+			for _, s := range snapshots {
+				fmt.Println(s)
+			}
 		}
 	}
 }
 
-// serviced service snapshot SERVICEID
+// serviced service snapshot SERVICEID [--tags=<tag1>,<tag2>...]
 func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 	nArgs := len(ctx.Args())
 	if nArgs < 1 {
@@ -1331,9 +1354,13 @@ func (c *ServicedCli) cmdServiceSnapshot(ctx *cli.Context) {
 		return
 	}
 
+	//get the tags (if any)
+	tag := ctx.String("tag")
+
 	cfg := api.SnapshotConfig{
 		ServiceID: svc.ID,
 		Message:   description,
+		Tag:       tag,
 	}
 	if snapshot, err := c.driver.AddSnapshot(cfg); err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -1394,15 +1421,15 @@ func (c *ServicedCli) cmdServiceEndpoints(ctx *cli.Context) {
 				}
 
 				t.AddRow(map[string]interface{}{
-					"Name":           serviceName,
-					"ServiceID":      svc.ID,
-					"Endpoint":       endpoint.Application,
-					"Host":           host,
-					"HostIP":         endpoint.HostIP,
-					"HostPort":       hostPort,
-					"ContainerID":    fmt.Sprintf("%-12.12s", endpoint.ContainerID),
-					"ContainerIP":    endpoint.ContainerIP,
-					"ContainerPort":  endpoint.ContainerPort,
+					"Name":          serviceName,
+					"ServiceID":     svc.ID,
+					"Endpoint":      endpoint.Application,
+					"Host":          host,
+					"HostIP":        endpoint.HostIP,
+					"HostPort":      hostPort,
+					"ContainerID":   fmt.Sprintf("%-12.12s", endpoint.ContainerID),
+					"ContainerIP":   endpoint.ContainerIP,
+					"ContainerPort": endpoint.ContainerPort,
 				})
 			}
 		}

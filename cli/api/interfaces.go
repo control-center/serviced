@@ -84,9 +84,12 @@ type API interface {
 	// Snapshots
 	GetSnapshots() ([]dao.SnapshotInfo, error)
 	GetSnapshotsByServiceID(string) ([]dao.SnapshotInfo, error)
+	GetSnapshotByServiceIDAndTag(string, string) (string, error)
 	AddSnapshot(SnapshotConfig) (string, error)
 	RemoveSnapshot(string) error
 	Rollback(string, bool) error
+	TagSnapshot(string, string) ([]string, error)
+	RemoveSnapshotTag(string, string) ([]string, error)
 
 	// Templates
 	GetServiceTemplates() ([]template.ServiceTemplate, error)

@@ -10,7 +10,6 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-
 package mocks
 
 import "github.com/control-center/serviced/dao"
@@ -683,6 +682,42 @@ func (_m *ControlPlane) ReadyDFS(serviceID string, unused *int) error {
 	var r0 error
 	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
 		r0 = rf(serviceID, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	ret := _m.Called(request, newTagList)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *[]string) error); ok {
+		r0 = rf(request, newTagList)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) RemoveSnapshotTag(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	ret := _m.Called(request, newTagList)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *[]string) error); ok {
+		r0 = rf(request, newTagList)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
+	ret := _m.Called(request, snapshotID)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.SnapshotByTagRequest, *string) error); ok {
+		r0 = rf(request, snapshotID)
 	} else {
 		r0 = ret.Error(0)
 	}

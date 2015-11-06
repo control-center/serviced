@@ -21,6 +21,12 @@ func evalEmpty(r *runner, n node) error {
 func evalSnapshot(r *runner, n node) error {
 	glog.V(0).Info("performing snapshot")
 
+	tagName := ""
+
+	if len(n.args) == 1 {
+		tagName = n.args[0]
+	}
+
 	if r.snapshot == nil {
 		return fmt.Errorf("no snapshot function provided for %s", SNAPSHOT)
 	}
@@ -33,7 +39,7 @@ func evalSnapshot(r *runner, n node) error {
 		return fmt.Errorf("no service tenant id specified for %s", SNAPSHOT)
 	}
 
-	mySnapshotID, err := r.snapshot(tID, "")
+	mySnapshotID, err := r.snapshot(tID, "", tagName)
 	if err != nil {
 		return err
 	}

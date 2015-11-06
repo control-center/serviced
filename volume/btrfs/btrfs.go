@@ -35,11 +35,12 @@ import (
 )
 
 var (
-	ErrBtrfsInvalidFilesystem = errors.New("not a btrfs filesystem")
-	ErrBtrfsInvalidDriver     = errors.New("invalid driver")
-	ErrBtrfsCreatingSubvolume = errors.New("could not create subvolume")
-	ErrBtrfsInvalidLabel      = errors.New("invalid label")
-	ErrBtrfsListingSnapshots  = errors.New("couldn't list snapshots")
+	ErrBtrfsInvalidFilesystem      = errors.New("not a btrfs filesystem")
+	ErrBtrfsInvalidDriver          = errors.New("invalid driver")
+	ErrBtrfsCreatingSubvolume      = errors.New("could not create subvolume")
+	ErrBtrfsInvalidLabel           = errors.New("invalid label")
+	ErrBtrfsListingSnapshots       = errors.New("couldn't list snapshots")
+	ErrBtrfsModifySnapshotMetadata = errors.New("can't modify snapshot metadata on btrfs")
 )
 
 func init() {
@@ -285,6 +286,7 @@ func (v *BtrfsVolume) WriteMetadata(label, name string) (io.WriteCloser, error) 
 		glog.Errorf("Could not create path for file %s: %s", name, err)
 		return nil, err
 	}
+
 	return os.Create(filePath)
 }
 
@@ -361,12 +363,25 @@ func (v *BtrfsVolume) SnapshotInfo(label string) (*volume.SnapshotInfo, error) {
 
 // Snapshot implements volume.Volume.Snapshot
 func (v *BtrfsVolume) Snapshot(label, message string, tags []string) error {
+	//make sure the label doesn't already exist
 	path := v.snapshotPath(label)
 	if ok, err := volume.IsDir(path); err != nil {
 		return err
 	} else if ok {
 		return volume.ErrSnapshotExists
 	}
+
+	//make sure none of the tags already exist
+	for _, tagName := range tags {
+		if info, err := v.GetSnapshotWithTag(tagName); err != nil {
+			glog.Errorf("Error checking for tag conflicts: %v", err)
+			return err
+		} else if info != nil {
+			glog.Errorf("Can not create snapshot %s, tag '%s' already exists", label, tagName)
+			return volume.ErrTagAlreadyExists
+		}
+	}
+
 	v.Lock()
 	defer v.Unlock()
 	info := volume.SnapshotInfo{
@@ -382,6 +397,65 @@ func (v *BtrfsVolume) Snapshot(label, message string, tags []string) error {
 	}
 	_, err := volume.RunBtrFSCmd(v.sudoer, "subvolume", "snapshot", "-r", v.Path(), path)
 	return err
+}
+
+// TagSnapshot implements volume.Volume.TagSnapshot
+func (v *BtrfsVolume) TagSnapshot(label string, tagName string) ([]string, error) {
+	//make sure the snapshot exists
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, volume.ErrSnapshotDoesNotExist
+		}
+	}
+
+	//now throw an error because we can't change snapshot metadata in btrfs
+	return nil, ErrBtrfsModifySnapshotMetadata
+
+}
+
+// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
+func (v *BtrfsVolume) RemoveSnapshotTag(label string, tagName string) ([]string, error) {
+	//make sure the snapshot exists
+	if exists, err := v.snapshotExists(label); err != nil || !exists {
+		if err != nil {
+			return nil, err
+		} else {
+			return nil, volume.ErrSnapshotDoesNotExist
+		}
+	}
+
+	//now throw an error because we can't change snapshot metadata in btrfs
+	return nil, ErrBtrfsModifySnapshotMetadata
+}
+
+// GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
+func (v *BtrfsVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
+	var (
+		snaps []string
+		info  *volume.SnapshotInfo
+		err   error
+	)
+
+	if snaps, err = v.Snapshots(); err != nil {
+		glog.Errorf("Could not get current snapshot list : %v", err)
+		return nil, ErrBtrfsListingSnapshots
+	}
+
+	for _, snaplabel := range snaps {
+		if info, err = v.SnapshotInfo(snaplabel); err != nil {
+			glog.Errorf("Could not get info for %s: %v", snaplabel, err)
+			return nil, err
+		}
+		for _, t := range info.Tags {
+			if t == tagName {
+				return info, nil
+			}
+		}
+	}
+
+	return nil, nil
 }
 
 // Snapshots implements volume.Volume.Snapshots
