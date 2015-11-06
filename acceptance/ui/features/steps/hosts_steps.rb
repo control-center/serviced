@@ -91,9 +91,15 @@ end
 
 
 def visitHostsPage()
+    wait = Capybara.default_wait_time
+    Capybara.default_wait_time = 180
     @hosts_page = Hosts.new
     @hosts_page.load
     expect(@hosts_page).to be_displayed
+    Capybara.default_wait_time = wait
+
+    # wait till loading animation clears
+    @hosts_page.has_no_css?(".loading_wrapper")
 end
 
 def fillInHostAndPort(host)
