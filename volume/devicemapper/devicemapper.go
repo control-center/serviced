@@ -477,6 +477,18 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 	if v.snapshotExists(label) {
 		return volume.ErrSnapshotExists
 	}
+
+	//make sure none of the tags already exist
+	for _, tagName := range tags {
+		if info, err := v.GetSnapshotWithTag(tagName); err != nil {
+			glog.Errorf("Error checking for tag conflicts: %v", err)
+			return err
+		} else if info != nil {
+			glog.Errorf("Can not create snapshot %s, tag '%s' already exists", label, tagName)
+			return volume.ErrTagAlreadyExists
+		}
+	}
+
 	label = v.rawSnapshotLabel(label)
 	v.Lock()
 	defer v.Unlock()
@@ -534,6 +546,108 @@ func (v *DeviceMapperVolume) Snapshot(label, message string, tags []string) erro
 		return err
 	}
 	return nil
+}
+
+// TagSnapshot implements volume.Volume.TagSnapshot
+func (v *DeviceMapperVolume) TagSnapshot(label string, tagName string) ([]string, error) {
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
+	//make sure the tag doesn't already exist
+	if info, err := v.GetSnapshotWithTag(tagName); err != nil {
+		return nil, err
+	} else if info != nil {
+		glog.Errorf("Tag '%s', is already used by snapshot %s", tagName, info.Label)
+		return nil, volume.ErrTagAlreadyExists
+	}
+
+	v.Lock()
+	defer v.Unlock()
+	//get the current info for the snapshot
+	info, err := v.SnapshotInfo(label)
+	if err != nil {
+		glog.Errorf("Unable to retrieve info for existing snapshot: %s", err)
+		return nil, err
+	}
+
+	//add the new tag name
+	info.Tags = append(info.Tags, tagName)
+
+	//write out the updated info
+	if err := v.writeSnapshotInfo(label, info); err != nil {
+		glog.Errorf("Error writing updated snapshot info with new tag: %s", err)
+		return nil, err
+	}
+
+	return info.Tags, nil
+}
+
+// RemoveSnapshotTag implements volume.Volume.RemoveSnapshotTag
+func (v *DeviceMapperVolume) RemoveSnapshotTag(label string, tagName string) ([]string, error) {
+	//make sure the snapshot exists
+	if !v.snapshotExists(label) {
+		return nil, volume.ErrSnapshotDoesNotExist
+	}
+
+	v.Lock()
+	defer v.Unlock()
+	//get the current info for the snapshot
+	info, err := v.SnapshotInfo(label)
+	if err != nil {
+		glog.Errorf("Unable to retrieve info for existing snapshot: %s", err)
+		return nil, err
+	}
+
+	newTagList := []string{}
+
+	//add the tag names that don't match the one we are removing
+	for _, name := range info.Tags {
+		//add the tag to the new list
+		if name != tagName {
+			newTagList = append(newTagList, name)
+		}
+	}
+
+	//Replace the tag list with the new one
+	info.Tags = newTagList
+
+	//write out the updated info
+	if err := v.writeSnapshotInfo(label, info); err != nil {
+		glog.Errorf("Error writing updated snapshot info with removed tag: %s", err)
+		return nil, err
+	}
+
+	return info.Tags, nil
+}
+
+// GetSnapshotWithTag implements volume.Volume.GetSnapshotWithTag
+func (v *DeviceMapperVolume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
+	var (
+		snaps []string
+		info  *volume.SnapshotInfo
+		err   error
+	)
+
+	if snaps, err = v.Snapshots(); err != nil {
+		glog.Errorf("Could not get current snapshot list : %v", err)
+		return nil, err
+	} else {
+		for _, snaplabel := range snaps {
+			if info, err = v.SnapshotInfo(snaplabel); err != nil {
+				glog.Errorf("Could not get info for %s: %v", snaplabel, err)
+				return nil, err
+			}
+
+			for _, t := range info.Tags {
+				if t == tagName {
+					return info, nil
+				}
+			}
+		}
+	}
+	return nil, nil
 }
 
 // Snapshots implements volume.Volume.Snapshots

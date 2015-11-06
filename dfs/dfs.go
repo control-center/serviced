@@ -57,6 +57,12 @@ type DFS interface {
 	Restore(r io.Reader) (*BackupInfo, error)
 	// BackupInfo provides detailed info for a particular backup
 	BackupInfo(r io.Reader) (*BackupInfo, error)
+	// Tag adds a tag to an existing snapshot
+	Tag(snapshotID string, tagName string) ([]string, error)
+	// RemoveTags removes a tag from an existing snapshot
+	RemoveTag(snapshotID string, tagName string) ([]string, error)
+	// GetSnapshotWithTag finds the snapshot of the specified tenant with the specified tag.
+	GetSnapshotWithTag(tenantID string, tagName string) (string, error)
 }
 
 var _ = DFS(&DistributedFilesystem{})
