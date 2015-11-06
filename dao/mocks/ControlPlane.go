@@ -617,6 +617,42 @@ func (_m *ControlPlane) Rollback(req dao.RollbackRequest, unused *int) error {
 
 	return r0
 }
+func (_m *ControlPlane) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	ret := _m.Called(request, newTagList)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *[]string) error); ok {
+		r0 = rf(request, newTagList)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) RemoveSnapshotTags(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	ret := _m.Called(request, newTagList)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(dao.TagSnapshotRequest, *[]string) error); ok {
+		r0 = rf(request, newTagList)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+func (_m *ControlPlane) RemoveAllSnapshotTags(snapshotID string, unused *int) error {
+	ret := _m.Called(snapshotID, unused)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(string, *int) error); ok {
+		r0 = rf(snapshotID, unused)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
 func (_m *ControlPlane) DeleteSnapshot(snapshotID string, unused *int) error {
 	ret := _m.Called(snapshotID, unused)
 

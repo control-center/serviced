@@ -107,6 +107,11 @@ type SnapshotRequest struct {
 	ContainerID string
 }
 
+type TagSnapshotRequest struct {
+	SnapshotID string
+	TagNames   []string
+}
+
 type RollbackRequest struct {
 	SnapshotID   string
 	ForceRestart bool
@@ -276,6 +281,15 @@ type ControlPlane interface {
 
 	// AsyncRestore is the same as restore but asynchronous
 	AsyncRestore(filename string, _ *int) (err error)
+
+	// Adds 1 or more tags to an existing snapshot
+	TagSnapshot(request TagSnapshotRequest, newTagList *[]string) error
+
+	// Removes specific tags from an existing snapshot
+	RemoveSnapshotTags(request TagSnapshotRequest, newTagList *[]string) error
+
+	// Removes all tags from an existing snapshot
+	RemoveAllSnapshotTags(snapshotID string, _ *int) error
 
 	// ListBackups returns the list of backups
 	ListBackups(dirpath string, files *[]BackupFile) (err error)

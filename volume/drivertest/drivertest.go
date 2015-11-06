@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/btrfs"
 	. "gopkg.in/check.v1"
 )
 
@@ -289,6 +290,70 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(err, IsNil)
 	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
 	c.Assert(arrayContains(snaps, "Base_Snap2"), Equals, true)
+
+	// Tag tests:
+	var newTags []string
+
+	// Add an extra tag to the snapshot
+	newTags, err = vol.TagSnapshot("Base_Snap", []string{"tagB"})
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, IsNil)
+		c.Assert(newTags, DeepEquals, []string{"tagA", "tagB"})
+		info, err = vol.SnapshotInfo("Base_Snap")
+		c.Assert(err, IsNil)
+		c.Assert(info.Tags, DeepEquals, newTags)
+	}
+
+	// Add more tags to the snapshot, some duplicates
+	newTags, err = vol.TagSnapshot("Base_Snap", []string{"tagB", "tagC", "tagD", "tagC"})
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, IsNil)
+		c.Assert(newTags, DeepEquals, []string{"tagA", "tagB", "tagC", "tagD"})
+		info, err = vol.SnapshotInfo("Base_Snap")
+		c.Assert(err, IsNil)
+		c.Assert(info.Tags, DeepEquals, newTags)
+	}
+
+	// Remove some tags
+	newTags, err = vol.RemoveSnapshotTags("Base_Snap", []string{"tagB", "tagC", "tagD", "tagC"})
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, IsNil)
+		c.Assert(newTags, DeepEquals, []string{"tagA"})
+		info, err = vol.SnapshotInfo("Base_Snap")
+		c.Assert(err, IsNil)
+		c.Assert(info.Tags, DeepEquals, newTags)
+	}
+
+	// Remove all tags
+	err = vol.RemoveAllSnapshotTags("Base_Snap")
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, IsNil)
+		info, err = vol.SnapshotInfo("Base_Snap")
+		c.Assert(err, IsNil)
+		c.Assert(info.Tags, DeepEquals, []string{})
+	}
+
+	// Attempt to tag a snapshot that doesn't exist and make sure it errors properly
+	newTags, err = vol.TagSnapshot("nonexistantlabel", []string{"someTag"})
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
+	c.Assert(newTags, IsNil)
+
+	//Attempt to remove a tag from a snapshot that doesn't exist and make sure it errors properly
+	newTags, err = vol.RemoveSnapshotTags("nonexistantlabel", []string{"someTag"})
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
+	c.Assert(newTags, IsNil)
+
+	//Attempt to remove all tags from a snapshot that doesn't exist and make sure it errors properly
+	err = vol.RemoveAllSnapshotTags("nonexistantlabel")
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
 
 	// Snapshot using an existing label and make sure it errors properly
 	err = vol.Snapshot("Snap", "snapshot-message-2", []string{"tag4"})
