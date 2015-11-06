@@ -14,6 +14,7 @@
 from __future__ import print_function
 
 import sys
+import urllib
 
 from goroutine import Goroutine
 from stackframe import StackFrame
@@ -34,26 +35,24 @@ class Parser:
         self.errors = 0
         self.warnings = 0
 
-    def parse(self, filepath):
+    def parse(self, url):
         self.linenum = 0
         self.stacktrace = StackTrace()
         self.errors = 0
         self.warnings = 0
 
-        self.filepath = filepath
-        self.infile = open(filepath, 'r')
-        
+        data = urllib.urlopen(url)
+
         try:
             self.state = State.findGoroutine
 
-            for line in self.infile:
-                self.linenum = self.linenum + 1
+            for line in data:
+                self.linenum += 1
                 self.processLine(line.strip())
 
             if self.state != State.findGoroutine:
                 self.finishGoroutine(True)
         finally:
-            self.infile.close()
             self.parsed = True
 
     def processLine(self, line):
