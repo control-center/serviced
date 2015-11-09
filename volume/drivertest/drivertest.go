@@ -23,6 +23,7 @@ import (
 	"syscall"
 
 	"github.com/control-center/serviced/volume"
+	"github.com/control-center/serviced/volume/btrfs"
 	. "gopkg.in/check.v1"
 )
 
@@ -229,7 +230,7 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(err, IsNil)
 
 	// Snapshot with the verified base
-	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"tagA"})
+	err = vol.Snapshot("Snap", "snapshot-message-0", []string{"SnapTag", "tagA"})
 	c.Assert(err, IsNil)
 
 	snaps, err := vol.Snapshots()
@@ -243,7 +244,7 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Check(info.Label, Equals, "Snap")
 	c.Check(info.TenantID, Equals, "Base")
 	c.Check(info.Message, Equals, "snapshot-message-0")
-	c.Check(info.Tags, DeepEquals, []string{"tagA"})
+	c.Check(info.Tags, DeepEquals, []string{"SnapTag", "tagA"})
 
 	// Write another file
 	writeExtra(c, driver, vol)
@@ -254,7 +255,7 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(tvol, IsNil)
 
 	// Re-snapshot with the extra file
-	err = vol.Snapshot("Snap2", "snapshot-message-1", []string{"tag1", "tag2", "tag3"})
+	err = vol.Snapshot("Snap2", "snapshot-message-1", []string{"Snap2Tag", "tag1", "tag2", "tag3"})
 	c.Assert(err, IsNil)
 
 	// Get the tenant volume of the snapshot
@@ -289,6 +290,69 @@ func DriverTestSnapshots(c *C, drivername volume.DriverType, root string, args [
 	c.Assert(err, IsNil)
 	c.Assert(arrayContains(snaps, "Base_Snap"), Equals, true)
 	c.Assert(arrayContains(snaps, "Base_Snap2"), Equals, true)
+
+	// Tag tests:
+	var newTags []string
+
+	// Add an extra tag to a snapshot
+	newTags, err = vol.TagSnapshot("Base_Snap", "tagB")
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, IsNil)
+		c.Check(newTags, DeepEquals, []string{"SnapTag", "tagA", "tagB"})
+		info, err = vol.SnapshotInfo("Base_Snap")
+		c.Assert(err, IsNil)
+		c.Check(info.Tags, DeepEquals, newTags)
+	}
+
+	// Remove a tag
+	newTags, err = vol.RemoveSnapshotTag("Base_Snap", "tagA")
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, IsNil)
+		c.Check(newTags, DeepEquals, []string{"SnapTag", "tagB"})
+		info, err = vol.SnapshotInfo("Base_Snap")
+		c.Assert(err, IsNil)
+		c.Check(info.Tags, DeepEquals, newTags)
+	}
+
+	// Get a snapshot by tag
+	info1, err1 := vol.GetSnapshotWithTag("Snap2Tag")
+	c.Assert(err1, IsNil)
+	c.Assert(info1, NotNil)
+	info2, err2 := vol.SnapshotInfo("Base_Snap2")
+	c.Assert(err2, IsNil)
+	c.Check(info1, DeepEquals, info2)
+
+	// Try to get a snapshot with a tag that doesn't exist
+	info, err = vol.GetSnapshotWithTag("nonexistantTag")
+	c.Assert(err, IsNil)
+	c.Assert(info, IsNil)
+
+	// Attempt to create a new snapshot with an existing tag
+	err = vol.Snapshot("Snap3", "snapshot-message-1", []string{"tagZ", "SnapTag"})
+	c.Assert(err, ErrorMatches, volume.ErrTagAlreadyExists.Error())
+
+	// Attempt to tag a snapshot that doesn't exist and make sure it errors properly
+	newTags, err = vol.TagSnapshot("nonexistantlabel", "someTag")
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
+	c.Assert(newTags, IsNil)
+
+	//Attempt to remove a tag from a snapshot that doesn't exist and make sure it errors properly
+	newTags, err = vol.RemoveSnapshotTag("nonexistantlabel", "someTag")
+	c.Assert(err, ErrorMatches, volume.ErrSnapshotDoesNotExist.Error())
+	c.Assert(newTags, IsNil)
+
+	// Attempt to tag a snapshot using a tag that already exists and make sure it errors properly
+	newTags, err = vol.TagSnapshot("Base_Snap2", "SnapTag")
+	if driver.DriverType() == volume.DriverTypeBtrFS {
+		c.Assert(err, ErrorMatches, btrfs.ErrBtrfsModifySnapshotMetadata.Error())
+	} else {
+		c.Assert(err, ErrorMatches, volume.ErrTagAlreadyExists.Error())
+		c.Assert(newTags, IsNil)
+	}
 
 	// Snapshot using an existing label and make sure it errors properly
 	err = vol.Snapshot("Snap", "snapshot-message-2", []string{"tag4"})

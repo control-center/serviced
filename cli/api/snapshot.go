@@ -22,7 +22,7 @@ import (
 type SnapshotConfig struct {
 	ServiceID string
 	Message   string
-	Tags      []string
+	Tag       string
 	DockerID  string
 }
 
@@ -62,6 +62,25 @@ func (a *api) GetSnapshotsByServiceID(serviceID string) ([]dao.SnapshotInfo, err
 	return snapshots, nil
 }
 
+// Get the ID of the snapshot for serviceID that has the given tag
+func (a *api) GetSnapshotByServiceIDAndTag(serviceID string, tag string) (string, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return "", err
+	}
+	req := dao.SnapshotByTagRequest{
+		ServiceID: serviceID,
+		TagName:   tag,
+	}
+
+	var snapshot string
+	if err := client.GetSnapshotByServiceIDAndTag(req, &snapshot); err != nil {
+		return "", err
+	}
+
+	return snapshot, nil
+}
+
 // Snapshots a service
 func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 	client, err := a.connectDAO()
@@ -71,7 +90,7 @@ func (a *api) AddSnapshot(cfg SnapshotConfig) (string, error) {
 	req := dao.SnapshotRequest{
 		ServiceID:   cfg.ServiceID,
 		Message:     cfg.Message,
-		Tags:        cfg.Tags,
+		Tag:         cfg.Tag,
 		ContainerID: cfg.DockerID,
 	}
 	var snapshotID string
@@ -108,4 +127,34 @@ func (a *api) Rollback(snapshotID string, forceRestart bool) error {
 	}
 
 	return nil
+}
+
+// TagSnapshot tags an existing snapshot with 1 or more strings
+func (a *api) TagSnapshot(snapshotID string, tagName string) ([]string, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var newTagList []string
+	if err := client.TagSnapshot(dao.TagSnapshotRequest{snapshotID, tagName}, &newTagList); err != nil {
+		return newTagList, err
+	}
+
+	return newTagList, nil
+}
+
+// RemoveSnapshotTag removes a specific tag from an existing snapshot
+func (a *api) RemoveSnapshotTag(snapshotID string, tagName string) ([]string, error) {
+	client, err := a.connectDAO()
+	if err != nil {
+		return nil, err
+	}
+
+	var newTagList []string
+	if err := client.RemoveSnapshotTag(dao.TagSnapshotRequest{snapshotID, tagName}, &newTagList); err != nil {
+		return newTagList, err
+	}
+
+	return newTagList, nil
 }

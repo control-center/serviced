@@ -232,6 +232,18 @@ func (s *ControlClient) GetInstanceMemoryStats(req dao.MetricRequest, stats *[]m
 	return s.rpcClient.Call("ControlPlane.GetInstanceMemoryStats", req, stats, 5)
 }
 
+func (s *ControlClient) TagSnapshot(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	return s.rpcClient.Call("ControlPlane.TagSnapshot", request, newTagList, 0)
+}
+
+func (s *ControlClient) RemoveSnapshotTag(request dao.TagSnapshotRequest, newTagList *[]string) error {
+	return s.rpcClient.Call("ControlPlane.RemoveSnapshotTag", request, newTagList, 0)
+}
+
+func (s *ControlClient) GetSnapshotByServiceIDAndTag(request dao.SnapshotByTagRequest, snapshotID *string) error {
+	return s.rpcClient.Call("ControlPlane.GetSnapshotByServiceIDAndTag", request, snapshotID, 0)
+}
+
 func (s *ControlClient) LogHealthCheck(result domain.HealthCheckResult, unused *int) error {
 	return s.rpcClient.Call("ControlPlane.LogHealthCheck", result, unused, 0)
 }

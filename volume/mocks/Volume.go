@@ -174,6 +174,69 @@ func (_m *Volume) Rollback(label string) error {
 
 	return r0
 }
+func (_m *Volume) TagSnapshot(label string, tagName string) ([]string, error) {
+	ret := _m.Called(label, tagName)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(label, tagName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(label, tagName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Volume) RemoveSnapshotTag(label string, tagName string) ([]string, error) {
+	ret := _m.Called(label, tagName)
+
+	var r0 []string
+	if rf, ok := ret.Get(0).(func(string, string) []string); ok {
+		r0 = rf(label, tagName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]string)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string, string) error); ok {
+		r1 = rf(label, tagName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+func (_m *Volume) GetSnapshotWithTag(tagName string) (*volume.SnapshotInfo, error) {
+	ret := _m.Called(tagName)
+
+	var r0 *volume.SnapshotInfo
+	if rf, ok := ret.Get(0).(func(string) *volume.SnapshotInfo); ok {
+		r0 = rf(tagName)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*volume.SnapshotInfo)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(tagName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
 func (_m *Volume) Export(label string, parent string, writer io.Writer) error {
 	ret := _m.Called(label, parent, writer)
 
