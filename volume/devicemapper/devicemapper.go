@@ -260,7 +260,7 @@ func (d *DeviceMapperDriver) Remove(volumeName string) error {
 		glog.V(1).Infof("Error releasing device: %s", err)
 	}
 	glog.V(1).Infof("Removing volume %s", volumeName)
-	if err := d.DeviceSet.DeleteDevice(v.volumeDevice()); err != nil {
+	if err := d.DeviceSet.DeleteDevice(v.volumeDevice(), false); err != nil {
 		glog.Errorf("Could not delete device %s: %s", volumeName, err)
 		return err
 	}
@@ -324,7 +324,7 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 		return err
 	}
 	if d.DeviceSet == nil {
-		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options)
+		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options, nil, nil)
 		if err != nil {
 			return err
 		}
@@ -682,7 +682,7 @@ func (v *DeviceMapperVolume) RemoveSnapshot(label string) error {
 		glog.V(2).Infof("Error deactivating device (%s): %s", device, err)
 	}
 	v.driver.DeviceSet.Unlock()
-	if err := v.driver.DeviceSet.DeleteDevice(device); err != nil {
+	if err := v.driver.DeviceSet.DeleteDevice(device, false); err != nil {
 		glog.Errorf("Error removing snapshot: %v", err)
 		return volume.ErrRemovingSnapshot
 	}
@@ -729,7 +729,7 @@ func (v *DeviceMapperVolume) Rollback(label string) error {
 	}
 	v.driver.DeviceSet.Unlock()
 	glog.V(2).Infof("Deleting old head device %s", current)
-	if err := v.driver.DeviceSet.DeleteDevice(current); err != nil {
+	if err := v.driver.DeviceSet.DeleteDevice(current, false); err != nil {
 		glog.Warningf("Error cleaning up device %s: %s", current, err)
 	}
 	return v.Metadata.SetCurrentDevice(newHead)
