@@ -1,3 +1,4 @@
+// Package registry contains client primitives to interact with a remote Docker registry.
 package registry
 
 import (
@@ -19,7 +20,7 @@ import (
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/autogen/dockerversion"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/tlsconfig"
 	"github.com/docker/docker/pkg/useragent"
@@ -38,16 +39,20 @@ var dockerUserAgent string
 
 func init() {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
-	httpVersion = append(httpVersion, useragent.VersionInfo{"docker", dockerversion.VERSION})
-	httpVersion = append(httpVersion, useragent.VersionInfo{"go", runtime.Version()})
-	httpVersion = append(httpVersion, useragent.VersionInfo{"git-commit", dockerversion.GITCOMMIT})
+	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: dockerversion.Version})
+	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})
+	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "git-commit", Version: dockerversion.GitCommit})
 	if kernelVersion, err := kernel.GetKernelVersion(); err == nil {
-		httpVersion = append(httpVersion, useragent.VersionInfo{"kernel", kernelVersion.String()})
+		httpVersion = append(httpVersion, useragent.VersionInfo{Name: "kernel", Version: kernelVersion.String()})
 	}
-	httpVersion = append(httpVersion, useragent.VersionInfo{"os", runtime.GOOS})
-	httpVersion = append(httpVersion, useragent.VersionInfo{"arch", runtime.GOARCH})
+	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "os", Version: runtime.GOOS})
+	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "arch", Version: runtime.GOARCH})
 
 	dockerUserAgent = useragent.AppendVersions("", httpVersion...)
+
+	if runtime.GOOS != "linux" {
+		V2Only = true
+	}
 }
 
 func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
@@ -57,7 +62,7 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 	tlsConfig.InsecureSkipVerify = !isSecure
 
 	if isSecure {
-		hostDir := filepath.Join(CertsDir, hostname)
+		hostDir := filepath.Join(CertsDir, cleanPath(hostname))
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(&tlsConfig, hostDir); err != nil {
 			return nil, err
@@ -185,7 +190,7 @@ func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Reque
 func shouldV2Fallback(err errcode.Error) bool {
 	logrus.Debugf("v2 error: %T %v", err, err)
 	switch err.Code {
-	case v2.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
+	case errcode.ErrorCodeUnauthorized, v2.ErrorCodeManifestUnknown:
 		return true
 	}
 	return false
