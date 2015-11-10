@@ -657,7 +657,7 @@ func (f *Facade) GetTenantID(ctx datastore.Context, serviceID string) (string, e
 }
 
 // Get the exported endpoints for a service
-func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
+func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
 	svc, err := f.GetService(ctx, serviceID)
 	if err != nil {
 		err = fmt.Errorf("Could not find service %s: %s", serviceID, err)
@@ -671,39 +671,40 @@ func (f *Facade) GetServiceEndpoints(ctx datastore.Context, serviceID string) (m
 	}
 
 	someInstancesActive := false
-	var endpoints []applicationendpoint.ApplicationEndpoint
+	appEndpoints := make([]applicationendpoint.ApplicationEndpoint, 0)
 	if len(states) == 0 {
-		endpoints = append(endpoints, getEndpointsFromServiceDefinition(svc)...)
+		appEndpoints = append(appEndpoints, getEndpointsFromServiceDefinition(svc, reportImports, reportExports)...)
 	} else {
 		for _, state := range states {
-			instanceEndpoints := getEndpointsFromServiceState(svc, state)
-			endpoints = append(endpoints, instanceEndpoints...)
+			instanceEndpoints := getEndpointsFromServiceState(svc, state, reportImports, reportExports)
+			appEndpoints = append(appEndpoints, instanceEndpoints...)
 			if state.IsRunning() || state.IsPaused() {
 				someInstancesActive = true
 			}
 		}
 	}
 
-	sort.Sort(applicationendpoint.ApplicationEndpointSlice(endpoints))
-	if len(endpoints) > 0 && someInstancesActive {
-		f.validateEndpoints(ctx, serviceID, endpoints)
+	sort.Sort(applicationendpoint.ApplicationEndpointSlice(appEndpoints))
+	if validate && len(appEndpoints) > 0 && someInstancesActive {
+		f.validateEndpoints(ctx, serviceID, appEndpoints)
 	}
-	result := make(map[string][]applicationendpoint.ApplicationEndpoint)
-	result[svc.ID] = endpoints
-	return result, nil
+	return applicationendpoint.BuildEndpointReports(appEndpoints), nil
 }
 
 // Get a list of exported endpoints defined for the service
-func getEndpointsFromServiceDefinition(service *service.Service) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromServiceDefinition(service *service.Service, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
 	for _, serviceEndpoint := range service.Endpoints {
-		if serviceEndpoint.Purpose == "import" {
+		if !reportImports && strings.HasPrefix(serviceEndpoint.Purpose, "import") {
+			continue
+		} else if !reportExports && strings.HasPrefix(serviceEndpoint.Purpose, "export") {
 			continue
 		}
 
 		endpoint := applicationendpoint.ApplicationEndpoint{}
 		endpoint.ServiceID = service.ID
 		endpoint.Application = serviceEndpoint.Application
+		endpoint.Purpose = serviceEndpoint.Purpose
 		endpoint.Protocol = serviceEndpoint.Protocol
 		endpoint.ContainerPort = serviceEndpoint.PortNumber
 		endpoint.VirtualAddress = serviceEndpoint.VirtualAddress
@@ -713,10 +714,12 @@ func getEndpointsFromServiceDefinition(service *service.Service) []applicationen
 }
 
 // Get a list of exported endpoints for all service instances based just on the current ServiceState
-func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState) []applicationendpoint.ApplicationEndpoint {
+func getEndpointsFromServiceState(service *service.Service, state servicestate.ServiceState, reportImports, reportExports bool) []applicationendpoint.ApplicationEndpoint {
 	var endpoints []applicationendpoint.ApplicationEndpoint
 	for _, serviceEndpoint := range state.Endpoints {
-		if serviceEndpoint.Purpose == "import" {
+		if !reportImports && strings.HasPrefix(serviceEndpoint.Purpose, "import") {
+			continue
+		} else if !reportExports && strings.HasPrefix(serviceEndpoint.Purpose, "export") {
 			continue
 		}
 
@@ -767,15 +770,14 @@ func (f *Facade) validateEndpoints(ctx datastore.Context, serviceID string, endp
 		}
 	}
 
+	// FIXME: This needs to go somewhere else because it's a different kind of validation
 	// If an endpoint exists in ZK, make sure it matches an item in the list
-	for _, zkEndpoint := range zkEndpoints {
-		endpoint := zkEndpoint.Find(endpoints)
-		if endpoint == nil {
-			glog.Errorf("ZK Endpoint %v not found in endpoints %v", zkEndpoint, endpoints)
-		} else if !zkEndpoint.Equals(endpoint) {
-			glog.Errorf("ZK endpoint mismatch: %v vs %v", endpoint, zkEndpoint)
-		}
-	}
+	// for _, zkEndpoint := range zkEndpoints {
+	// 	endpoint := zkEndpoint.Find(endpoints)
+	// 	if endpoint == nil {
+	// 		glog.Errorf("ZK Endpoint %v not found in endpoints %v", zkEndpoint, endpoints)
+	// 	}
+	// }
 }
 
 // FindChildService walks services below the service specified by serviceId, checking to see
@@ -1150,6 +1152,8 @@ func (f *Facade) AssignIPs(ctx datastore.Context, request dao.AssignmentRequest)
 	return f.walkServices(ctx, request.ServiceID, true, visitor)
 }
 
+// ServiceUse will tag a new image (imageName) in a given registry for a given tenant
+// to latest, making sure to push changes to the registry
 func (f *Facade) ServiceUse(ctx datastore.Context, serviceID string, imageName string, registryName string, noOp bool) (string, error) {
 	result, err := docker.ServiceUse(serviceID, imageName, registryName, noOp)
 	if err != nil {

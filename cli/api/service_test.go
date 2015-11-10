@@ -24,9 +24,11 @@ import (
 	"github.com/control-center/serviced/dao"
 	daomocks "github.com/control-center/serviced/dao/mocks"
 	"github.com/control-center/serviced/domain/service"
+	"github.com/control-center/serviced/rpc/master/mocks"
 
 	"github.com/stretchr/testify/mock"
 	. "gopkg.in/check.v1"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 )
 
 var tGlobal *testing.T
@@ -48,12 +50,15 @@ type serviceAPITest struct {
 
 	//  A mock implementation of the ControlPlane interface
 	mockControlPlane *daomocks.ControlPlane
+
+	mockMasterClient *mocks.ClientInterface
 }
 
 func (st *serviceAPITest) SetUpTest(c *C) {
 	st.mockControlPlane = &daomocks.ControlPlane{}
+	st.mockMasterClient = &mocks.ClientInterface{}
 
-	apiObj := NewAPI(nil, nil, nil, st.mockControlPlane)
+	apiObj := NewAPI(st.mockMasterClient, nil, nil, st.mockControlPlane)
 	st.api = apiObj
 }
 
@@ -177,11 +182,11 @@ func (st *serviceAPITest) TestGetEndpoints_fails(c *C) {
 	errorStub := errors.New("errorStub: GetServiceEndpoints() failed")
 	serviceID := "test-service"
 
-	st.mockControlPlane.
-	On("GetServiceEndpoints", serviceID, mock.Anything).
-	Return(errorStub)
+	st.mockMasterClient.
+		On("GetServiceEndpoints", []string{serviceID}, true).
+		Return(nil, errorStub)
 
-	actual, err := st.api.GetEndpoints(serviceID)
+	actual, err := st.api.GetEndpoints(serviceID, true, true, true)
 
 	c.Assert(actual, IsNil)
 	c.Assert(err, Equals, errorStub)
@@ -190,11 +195,11 @@ func (st *serviceAPITest) TestGetEndpoints_fails(c *C) {
 func (st *serviceAPITest) TestGetEndpoints_works(c *C) {
 	serviceID := "test-service"
 
-	st.mockControlPlane.
-	On("GetServiceEndpoints", serviceID, mock.Anything).
-	Return(nil)
+	st.mockMasterClient.
+		On("GetServiceEndpoints", []string{serviceID}, true).
+		Return([]applicationendpoint.EndpointReport{}, nil)
 
-	actual, err := st.api.GetEndpoints(serviceID)
+	actual, err := st.api.GetEndpoints(serviceID, true, true, true)
 
 	c.Assert(err, IsNil)
 	c.Assert(actual, NotNil)
