@@ -216,7 +216,7 @@ func (ft *FacadeTest) TestFacade_migrateService_withUserConfigChanges(t *C) {
 }
 
 func (ft *FacadeTest) TestFacade_GetServiceEndpoints_UndefinedService(t *C) {
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, "undefined")
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, "undefined", true, true, true)
 
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "Could not find service undefined.*")
@@ -230,7 +230,7 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ZKUnavailable(t *C) {
 	errorStub := fmt.Errorf("Stub for cannot-connect-to-zookeeper")
 	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(errorStub)
 
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
 	t.Assert(err, NotNil)
 	t.Assert(err, ErrorMatches, "Could not get service states for service .*")
@@ -243,21 +243,17 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceNotRunning(t *C) {
 	serviceIDs := []string{svc.ID}
 	ft.zzk.On("GetServiceStates", svc.PoolID, mock.AnythingOfType("*[]servicestate.ServiceState"), serviceIDs).Return(nil)
 
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
 	t.Assert(err, IsNil)
-	t.Assert(endpointMap, NotNil)
-	t.Assert(len(endpointMap), Equals, 1)
-
-	endpoints, ok := endpointMap[svc.ID]
-	t.Assert(ok, Equals, true)
+	t.Assert(endpoints, NotNil)
 	t.Assert(len(endpoints), Equals, 2)
-	t.Assert(endpoints[0].ServiceID, Equals, "svc1")
-	t.Assert(endpoints[0].InstanceID, Equals, 0)
-	t.Assert(endpoints[0].Application, Equals, "test_ep_1")
-	t.Assert(endpoints[1].ServiceID, Equals, "svc1")
-	t.Assert(endpoints[1].InstanceID, Equals, 0)
-	t.Assert(endpoints[1].Application, Equals, "test_ep_2")
+	t.Assert(endpoints[0].Endpoint.ServiceID, Equals, svc.ID)
+	t.Assert(endpoints[0].Endpoint.InstanceID, Equals, 0)
+	t.Assert(endpoints[0].Endpoint.Application, Equals, "test_ep_1")
+	t.Assert(endpoints[1].Endpoint.ServiceID, Equals, "svc1")
+	t.Assert(endpoints[1].Endpoint.InstanceID, Equals, 0)
+	t.Assert(endpoints[1].Endpoint.Application, Equals, "test_ep_2")
 }
 
 func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
@@ -277,27 +273,23 @@ func (ft *FacadeTest) TestFacade_GetServiceEndpoints_ServiceRunning(t *C) {
 	// don't worry about mocking the ZK validation
 	ft.zzk.On("GetServiceEndpoints", svc.ID, svc.ID, mock.AnythingOfType("*[]applicationendpoint.ApplicationEndpoint")).Return(nil)
 
-	endpointMap, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID)
+	endpoints, err := ft.Facade.GetServiceEndpoints(ft.CTX, svc.ID, true, true, true)
 
 	t.Assert(err, IsNil)
-	t.Assert(endpointMap, NotNil)
-	t.Assert(len(endpointMap), Equals, 1)
-
-	endpoints, ok := endpointMap[svc.ID]
-	t.Assert(ok, Equals, true)
+	t.Assert(endpoints, NotNil)
 	t.Assert(len(endpoints), Equals, 4)
-	t.Assert(endpoints[0].ServiceID, Equals, "svc1")
-	t.Assert(endpoints[0].InstanceID, Equals, 0)
-	t.Assert(endpoints[0].Application, Equals, "test_ep_1")
-	t.Assert(endpoints[1].ServiceID, Equals, "svc1")
-	t.Assert(endpoints[1].InstanceID, Equals, 0)
-	t.Assert(endpoints[1].Application, Equals, "test_ep_2")
-	t.Assert(endpoints[2].ServiceID, Equals, "svc1")
-	t.Assert(endpoints[2].InstanceID, Equals, 1)
-	t.Assert(endpoints[2].Application, Equals, "test_ep_1")
-	t.Assert(endpoints[3].ServiceID, Equals, "svc1")
-	t.Assert(endpoints[3].InstanceID, Equals, 1)
-	t.Assert(endpoints[3].Application, Equals, "test_ep_2")
+	t.Assert(endpoints[0].Endpoint.ServiceID, Equals, svc.ID)
+	t.Assert(endpoints[0].Endpoint.InstanceID, Equals, 0)
+	t.Assert(endpoints[0].Endpoint.Application, Equals, "test_ep_1")
+	t.Assert(endpoints[1].Endpoint.ServiceID, Equals, "svc1")
+	t.Assert(endpoints[1].Endpoint.InstanceID, Equals, 0)
+	t.Assert(endpoints[1].Endpoint.Application, Equals, "test_ep_2")
+	t.Assert(endpoints[2].Endpoint.ServiceID, Equals, "svc1")
+	t.Assert(endpoints[2].Endpoint.InstanceID, Equals, 1)
+	t.Assert(endpoints[2].Endpoint.Application, Equals, "test_ep_1")
+	t.Assert(endpoints[3].Endpoint.ServiceID, Equals, "svc1")
+	t.Assert(endpoints[3].Endpoint.InstanceID, Equals, 1)
+	t.Assert(endpoints[3].Endpoint.Application, Equals, "test_ep_2")
 }
 
 func (ft *FacadeTest) setupServiceWithEndpoints(t *C) (*service.Service, error) {
