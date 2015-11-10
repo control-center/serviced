@@ -22,6 +22,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fsouza/go-dockerclient/external/github.com/hashicorp/go-cleanhttp"
 )
 
 func TestStateString(t *testing.T) {
@@ -238,7 +240,8 @@ func TestInspectContainer(t *testing.T) {
                "PublishAllPorts": false,
                "CgroupParent": "/mesos",
                "Memory": 17179869184,
-               "MemorySwap": 34359738368
+               "MemorySwap": 34359738368,
+               "GroupAdd": ["fake", "12345"]
              }
 }`
 	var expected Container
@@ -1087,6 +1090,52 @@ func TestAttachToContainerNilStderr(t *testing.T) {
 	}
 }
 
+func TestAttachToContainerStdinOnly(t *testing.T) {
+	var reader = strings.NewReader("send value")
+	serverFinished := make(chan struct{})
+	clientFinished := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			t.Fatal("cannot hijack server connection")
+		}
+		conn, _, err := hj.Hijack()
+		if err != nil {
+			t.Fatal(err)
+		}
+		// wait for client to indicate it's finished
+		<-clientFinished
+		// inform test that the server has finished
+		close(serverFinished)
+		conn.Close()
+	}))
+	defer server.Close()
+	client, _ := NewClient(server.URL)
+	client.SkipServerVersionCheck = true
+	success := make(chan struct{})
+	opts := AttachToContainerOptions{
+		Container:   "a123456",
+		InputStream: reader,
+		Stdin:       true,
+		Stdout:      false,
+		Stderr:      false,
+		Stream:      true,
+		RawTerminal: false,
+		Success:     success,
+	}
+	go func() {
+		if err := client.AttachToContainer(opts); err != nil {
+			t.Error(err)
+		}
+		// client's attach session is over
+		close(clientFinished)
+	}()
+	success <- <-success
+	// wait for server to finish handling attach
+	<-serverFinished
+}
+
 func TestAttachToContainerRawTerminalFalse(t *testing.T) {
 	input := strings.NewReader("send value")
 	var req http.Request
@@ -1370,7 +1419,8 @@ func TestExportContainerViaUnixSocket(t *testing.T) {
 	endpoint := "unix://" + tempSocket
 	u, _ := parseEndpoint(endpoint, false)
 	client := Client{
-		HTTPClient:             http.DefaultClient,
+		HTTPClient:             cleanhttp.DefaultClient(),
+		Dialer:                 &net.Dialer{},
 		endpoint:               endpoint,
 		endpointURL:            u,
 		SkipServerVersionCheck: true,
@@ -1426,17 +1476,60 @@ func TestExportContainerNoId(t *testing.T) {
 	}
 }
 
+func TestUploadToContainer(t *testing.T) {
+	content := "File content"
+	in := stdinMock{bytes.NewBufferString(content)}
+	fakeRT := &FakeRoundTripper{status: http.StatusOK}
+	client := newTestClient(fakeRT)
+	opts := UploadToContainerOptions{
+		Path:        "abc",
+		InputStream: in,
+	}
+	err := client.UploadToContainer("a123456", opts)
+	if err != nil {
+		t.Errorf("UploadToContainer: caught error %#v while uploading archive to container, expected nil", err)
+	}
+
+	req := fakeRT.requests[0]
+
+	if req.Method != "PUT" {
+		t.Errorf("UploadToContainer{Path:abc}: Wrong HTTP method.  Want PUT. Got %s", req.Method)
+	}
+
+	if pathParam := req.URL.Query().Get("path"); pathParam != "abc" {
+		t.Errorf("ListImages({Path:abc}): Wrong parameter. Want path=abc.  Got path=%s", pathParam)
+	}
+
+}
+
+func TestDownloadFromContainer(t *testing.T) {
+	filecontent := "File content"
+	client := newTestClient(&FakeRoundTripper{message: filecontent, status: http.StatusOK})
+
+	var out bytes.Buffer
+	opts := DownloadFromContainerOptions{
+		OutputStream: &out,
+	}
+	err := client.DownloadFromContainer("a123456", opts)
+	if err != nil {
+		t.Errorf("DownloadFromContainer: caught error %#v while downloading from container, expected nil", err.Error())
+	}
+	if out.String() != filecontent {
+		t.Errorf("DownloadFromContainer: wrong stdout. Want %#v. Got %#v.", filecontent, out.String())
+	}
+}
+
 func TestCopyFromContainer(t *testing.T) {
 	content := "File content"
 	out := stdoutMock{bytes.NewBufferString(content)}
 	client := newTestClient(&FakeRoundTripper{status: http.StatusOK})
 	opts := CopyFromContainerOptions{
 		Container:    "a123456",
-		OutputStream: out,
+		OutputStream: &out,
 	}
 	err := client.CopyFromContainer(opts)
 	if err != nil {
-		t.Errorf("CopyFromContainer: caugh error %#v while copying from container, expected nil", err.Error())
+		t.Errorf("CopyFromContainer: caught error %#v while copying from container, expected nil", err.Error())
 	}
 	if out.String() != content {
 		t.Errorf("CopyFromContainer: wrong stdout. Want %#v. Got %#v.", content, out.String())
@@ -1584,7 +1677,6 @@ func TestTopContainerWithPsArgs(t *testing.T) {
 }
 
 func TestStatsTimeout(t *testing.T) {
-
 	l, err := net.Listen("unix", "/tmp/docker_test.sock")
 	if err != nil {
 		t.Fatal(err)
@@ -1594,7 +1686,7 @@ func TestStatsTimeout(t *testing.T) {
 	go func() {
 		l.Accept()
 		received = true
-		time.Sleep(time.Millisecond * 250)
+		time.Sleep(time.Second)
 	}()
 	client, _ := NewClient("unix:///tmp/docker_test.sock")
 	client.SkipServerVersionCheck = true

@@ -1,6 +1,8 @@
 # This is the official list of go-dockerclient authors for copyright purposes.
 
+Abhishek Chanda <abhishek.becs@gmail.com>
 Adam Bell-Hanssen <adamb@aller.no>
+Adrien Kohlbecker <adrien.kohlbecker@gmail.com>
 Aldrin Leal <aldrin@leal.eng.br>
 Andreas Jaekle <andreas@jaekle.net>
 Andrews Medina <andrewsmedina@gmail.com>
@@ -11,11 +13,14 @@ Ben McCann <benmccann.com>
 Brendan Fosberry <brendan@codeship.com>
 Brian Lalor <blalor@bravo5.org>
 Brian Palmer <brianp@instructure.com>
+Bryan Boreham <bjboreham@gmail.com>
 Burke Libbey <burke@libbey.me>
 Carlos Diaz-Padron <cpadron@mozilla.com>
+Cesar Wong <cewong@redhat.com>
 Cezar Sa Espinola <cezar.sa@corp.globo.com>
 Cheah Chu Yeow <chuyeow@gmail.com>
 cheneydeng <cheneydeng@qq.com>
+Chris Bednarski <banzaimonkey@gmail.com>
 CMGS <ilskdw@gmail.com>
 Craig Jellick <craig@rancher.com>
 Dan Williams <dcbw@redhat.com>
@@ -27,6 +32,8 @@ David Huie <dahuie@gmail.com>
 Dawn Chen <dawnchen@google.com>
 Dinesh Subhraveti <dinesh@gemini-systems.net>
 Ed <edrocksit@gmail.com>
+Elias G. Schneevoigt <eliasgs@gmail.com>
+Erez Horev <erez.horev@elastifile.com>
 Eric Anderson <anderson@copperegg.com>
 Ewout Prangsma <ewout@prangsma.net>
 Fabio Rehm <fgrehm@gmail.com>
@@ -44,6 +51,7 @@ Jawher Moussa <jawher.moussa@gmail.com>
 Jean-Baptiste Dalido <jeanbaptiste@appgratis.com>
 Jeff Mitchell <jeffrey.mitchell@gmail.com>
 Jeffrey Hulten <jhulten@gmail.com>
+Jen Andre <jandre@gmail.com>
 Johan Euphrosine <proppy@google.com>
 Kamil Domanski <kamil@domanski.co>
 Karan Misra <kidoman@gmail.com>
@@ -51,11 +59,14 @@ Kim, Hirokuni <hirokuni.kim@kvh.co.jp>
 Kyle Allan <kallan357@gmail.com>
 Liron Levin <levinlir@gmail.com>
 Liu Peng <vslene@gmail.com>
+Lorenz Leutgeb <lorenz.leutgeb@gmail.com>
 Lucas Clemente <lucas@clemente.io>
 Lucas Weiblen <lucasweiblen@gmail.com>
+Lyon Hill <lyondhill@gmail.com>
 Mantas Matelis <mmatelis@coursera.org>
 Martin Sweeney <martin@sweeney.io>
 Máximo Cuadros Ortiz <mcuadros@gmail.com>
+Michael Schmatz <michaelschmatz@gmail.com>
 Michal Fojtik <mfojtik@redhat.com>
 Mike Dillon <mike.dillon@synctree.com>
 Mrunal Patel <mrunalp@gmail.com>
@@ -74,6 +85,9 @@ Rob Miller <rob@kalistra.com>
 Robert Williamson <williamson.robert@gmail.com>
 Salvador Gironès <salvadorgirones@gmail.com>
 Sam Rijs <srijs@airpost.net>
+Sami Wagiaalla <swagiaal@redhat.com>
+Samuel Karp <skarp@amazon.com>
+Silas Sewell <silas@sewell.org>
 Simon Eskildsen <sirup@sirupsen.com>
 Simon Menke <simon.menke@gmail.com>
 Skolos <skolos@gopherlab.com>
@@ -90,4 +104,5 @@ Victor Marmol <vmarmol@google.com>
 Vincenzo Prignano <vincenzo.prignano@gmail.com>
 Wiliam Souza <wiliamsouza83@gmail.com>
 Ye Yin <eyniy@qq.com>
+Yu, Zou <zouyu7@huawei.com>
 Yuriy Bogdanov <chinsay@gmail.com>
