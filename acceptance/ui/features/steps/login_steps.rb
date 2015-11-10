@@ -29,6 +29,10 @@ When (/^I click the sign-in button$/) do
     clickSignInButton()
 end
 
+And (/^I close the deploy wizard if present$/) do
+    closeDeployWizard()
+end
+
 def visitLoginPage()
     wait = Capybara.default_wait_time
     Capybara.default_wait_time = 180
@@ -36,6 +40,9 @@ def visitLoginPage()
     @login_page.load
     expect(@login_page).to be_displayed
     Capybara.default_wait_time = wait
+
+    # wait till loading animation clears
+    @login_page.has_no_css?(".loading_wrapper")
 end
 
 def fillInDefaultUserID()
