@@ -267,7 +267,7 @@ func (sc *ServiceConfig) getClient() (c *node.ControlClient, err error) {
 	return
 }
 
-func (sc *ServiceConfig) getMasterClient() (*master.Client, error) {
+func (sc *ServiceConfig) getMasterClient() (master.ClientInterface, error) {
 	glog.V(2).Infof("start getMasterClient ... sc.agentPort: %+v", sc.agentPort)
 	c, err := master.NewClient(sc.agentPort)
 	if err != nil {
@@ -309,14 +309,14 @@ func (sc *ServiceConfig) noAuth(realfunc ctxhandlerFunc) handlerFunc {
 
 type requestContext struct {
 	sc     *ServiceConfig
-	master *master.Client
+	master master.ClientInterface
 }
 
 func newRequestContext(sc *ServiceConfig) *requestContext {
 	return &requestContext{sc: sc}
 }
 
-func (ctx *requestContext) getMasterClient() (*master.Client, error) {
+func (ctx *requestContext) getMasterClient() (master.ClientInterface, error) {
 	if ctx.master == nil {
 		c, err := ctx.sc.getMasterClient()
 		if err != nil {

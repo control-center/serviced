@@ -26,13 +26,13 @@ import (
 func TestApplicationEndpointGetID_EmptyObject(t *testing.T) {
 	endpoint := &ApplicationEndpoint{}
 
-	assert.Equal(t, endpoint.GetID(), "/0 ")
+	assert.Equal(t, endpoint.GetID(), "/0  ")
 }
 
 func TestApplicationEndpointGetID_ValidObject(t *testing.T) {
 	endpoint := buildApplicationEndpoint()
 
-	assert.Equal(t, endpoint.GetID(), "serviceid1/1 application1")
+	assert.Equal(t, endpoint.GetID(), "serviceid1/1 purpose1 application1")
 }
 
 
@@ -188,6 +188,14 @@ func TestApplicationEndpointEquals_VirtualAddressDiffers(t *testing.T) {
 	assert.False(t, endpoint1.Equals(endpoint2))
 }
 
+func TestApplicationEndpointEquals_PurposeDiffers(t *testing.T) {
+	endpoint1 := buildApplicationEndpoint()
+	endpoint2 := buildApplicationEndpoint()
+	endpoint2.Purpose = "purpose2"
+
+	assert.False(t, endpoint1.Equals(endpoint2))
+}
+
 func TestApplicationEndpointEquals_IngoresProxyPort(t *testing.T) {
 	endpoint1 := buildApplicationEndpoint()
 	endpoint2 := buildApplicationEndpoint()
@@ -201,6 +209,7 @@ func buildApplicationEndpoint() *ApplicationEndpoint {
 		ServiceID:      "serviceID1",
 		InstanceID:     1,
 		Application:    "application1",
+		Purpose:        "purpose1",
 		HostID:         "hostID1",
 		HostIP:         "hostIP1",
 		HostPort:       1,
