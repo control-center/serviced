@@ -96,7 +96,8 @@ func (p *itemPool) BorrowWait(timeout time.Duration) (*Item, error) {
 			return
 		}
 		if !found {
-			newItem, err := p.newItem()
+			var newItem *Item
+			newItem, err = p.newItem()
 			if err != nil && err != ErrItemUnavailable {
 				return
 			} else if err == nil {

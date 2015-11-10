@@ -46,6 +46,16 @@ func Factory(maxCreate int) ItemFactory {
 
 }
 
+func (s *MySuite) TestBorrowReturnsFactoryFailure(c *C) {
+	// Setup a factory that fails on every borrow attempt
+	p, err := NewPool(1, Factory(0))
+	c.Assert(err, IsNil)
+
+	item, err := p.Borrow()
+	c.Assert(item, IsNil)
+	c.Assert(err, ErrorMatches, "Tried to create.*")
+}
+
 func (s *MySuite) TestBorrowReturnRemove(c *C) {
 
 	capacity := 1
