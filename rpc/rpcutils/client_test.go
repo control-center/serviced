@@ -126,5 +126,18 @@ func (s *MySuite) TestLongCall(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(reply, Equals, sleepTime)
 	wg.Wait() //wait for go routine to run asserts
+}
 
+func (s *MySuite) TestInvalidAddress(c *C) {
+	orig := dialTimeoutSecs
+	dialTimeoutSecs = 1
+	defer func() {
+		dialTimeoutSecs = orig
+	}()
+	defer func() {
+		c.Assert(recover(), IsNil)
+	}()
+	client, _ := newClient("1.2.3.4:1234", 1, 1, connectRPC)
+	// CC-1570: Client is lazy, so have to make a call to cause a panic
+	client.Call("whatever", nil, nil, 1)
 }
