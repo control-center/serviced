@@ -91,14 +91,15 @@ end
 
 
 def visitHostsPage()
+    wait = Capybara.default_wait_time
+    Capybara.default_wait_time = 180
     @hosts_page = Hosts.new
-    #
-    # FIXME: For some reason the following load fails on Chrome for this page,
-    #                even though the same syntax works on FF
-    # @hosts_page.load
-    # expect(@hosts_page).to be_displayed
-    @hosts_page.navbar.hosts.click()
+    @hosts_page.load
     expect(@hosts_page).to be_displayed
+    Capybara.default_wait_time = wait
+
+    # wait till loading animation clears
+    @hosts_page.has_no_css?(".loading_wrapper")
 end
 
 def fillInHostAndPort(host)
