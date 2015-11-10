@@ -82,9 +82,11 @@ type itemPool struct {
 }
 
 func (p *itemPool) BorrowWait(timeout time.Duration) (*Item, error) {
-	var item *Item
-	var err error
-	itemOrError := true
+	var (
+		item, newItem *Item
+		err           error
+		itemOrError   = true
+	)
 
 	// function for locking purposes
 	func() {
@@ -96,7 +98,7 @@ func (p *itemPool) BorrowWait(timeout time.Duration) (*Item, error) {
 			return
 		}
 		if !found {
-			newItem, err := p.newItem()
+			newItem, err = p.newItem()
 			if err != nil && err != ErrItemUnavailable {
 				return
 			} else if err == nil {
