@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -9,7 +10,7 @@ import (
 	"github.com/docker/distribution"
 	ctxu "github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
-	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	"github.com/gorilla/handlers"
@@ -31,11 +32,16 @@ func imageManifestDispatcher(ctx *Context, r *http.Request) http.Handler {
 		imageManifestHandler.Digest = dgst
 	}
 
-	return handlers.MethodHandler{
-		"GET":    http.HandlerFunc(imageManifestHandler.GetImageManifest),
-		"PUT":    http.HandlerFunc(imageManifestHandler.PutImageManifest),
-		"DELETE": http.HandlerFunc(imageManifestHandler.DeleteImageManifest),
+	mhandler := handlers.MethodHandler{
+		"GET": http.HandlerFunc(imageManifestHandler.GetImageManifest),
 	}
+
+	if !ctx.readOnly {
+		mhandler["PUT"] = http.HandlerFunc(imageManifestHandler.PutImageManifest)
+		mhandler["DELETE"] = http.HandlerFunc(imageManifestHandler.DeleteImageManifest)
+	}
+
+	return mhandler
 }
 
 // imageManifestHandler handles http operations on image manifests.
@@ -56,7 +62,7 @@ func (imh *imageManifestHandler) GetImageManifest(w http.ResponseWriter, r *http
 		return
 	}
 
-	var sm *manifest.SignedManifest
+	var sm *schema1.SignedManifest
 	if imh.Tag != "" {
 		sm, err = manifests.GetByTag(imh.Tag)
 	} else {
@@ -112,10 +118,14 @@ func (imh *imageManifestHandler) PutImageManifest(w http.ResponseWriter, r *http
 		return
 	}
 
-	dec := json.NewDecoder(r.Body)
+	var jsonBuf bytes.Buffer
+	if err := copyFullPayload(w, r, &jsonBuf, imh, "image manifest PUT", &imh.Errors); err != nil {
+		// copyFullPayload reports the error if necessary
+		return
+	}
 
-	var manifest manifest.SignedManifest
-	if err := dec.Decode(&manifest); err != nil {
+	var manifest schema1.SignedManifest
+	if err := json.Unmarshal(jsonBuf.Bytes(), &manifest); err != nil {
 		imh.Errors = append(imh.Errors, v2.ErrorCodeManifestInvalid.WithDetail(err))
 		return
 	}
@@ -149,12 +159,16 @@ func (imh *imageManifestHandler) PutImageManifest(w http.ResponseWriter, r *http
 	if err := manifests.Put(&manifest); err != nil {
 		// TODO(stevvooe): These error handling switches really need to be
 		// handled by an app global mapper.
+		if err == distribution.ErrUnsupported {
+			imh.Errors = append(imh.Errors, errcode.ErrorCodeUnsupported)
+			return
+		}
 		switch err := err.(type) {
 		case distribution.ErrManifestVerification:
 			for _, verificationError := range err {
 				switch verificationError := verificationError.(type) {
 				case distribution.ErrManifestBlobUnknown:
-					imh.Errors = append(imh.Errors, v2.ErrorCodeBlobUnknown.WithDetail(verificationError.Digest))
+					imh.Errors = append(imh.Errors, v2.ErrorCodeManifestBlobUnknown.WithDetail(verificationError.Digest))
 				case distribution.ErrManifestUnverified:
 					imh.Errors = append(imh.Errors, v2.ErrorCodeManifestUnverified)
 				default:
@@ -205,14 +219,12 @@ func (imh *imageManifestHandler) DeleteImageManifest(w http.ResponseWriter, r *h
 			return
 		case distribution.ErrBlobUnknown:
 			imh.Errors = append(imh.Errors, v2.ErrorCodeManifestUnknown)
-			w.WriteHeader(http.StatusNotFound)
 			return
 		case distribution.ErrUnsupported:
-			imh.Errors = append(imh.Errors, v2.ErrorCodeUnsupported)
-			w.WriteHeader(http.StatusMethodNotAllowed)
+			imh.Errors = append(imh.Errors, errcode.ErrorCodeUnsupported)
+			return
 		default:
 			imh.Errors = append(imh.Errors, errcode.ErrorCodeUnknown)
-			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 	}
@@ -222,7 +234,7 @@ func (imh *imageManifestHandler) DeleteImageManifest(w http.ResponseWriter, r *h
 
 // digestManifest takes a digest of the given manifest. This belongs somewhere
 // better but we'll wait for a refactoring cycle to find that real somewhere.
-func digestManifest(ctx context.Context, sm *manifest.SignedManifest) (digest.Digest, error) {
+func digestManifest(ctx context.Context, sm *schema1.SignedManifest) (digest.Digest, error) {
 	p, err := sm.Payload()
 	if err != nil {
 		if !strings.Contains(err.Error(), "missing signature key") {

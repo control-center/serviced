@@ -24,6 +24,10 @@ import (
 // offset. Any unhashed bytes remaining less than the given offset are hashed
 // from the content uploaded so far.
 func (bw *blobWriter) resumeDigestAt(ctx context.Context, offset int64) error {
+	if !bw.resumableDigestEnabled {
+		return errResumableDigestNotAvailable
+	}
+
 	if offset < 0 {
 		return fmt.Errorf("cannot resume hash at negative offset: %d", offset)
 	}
@@ -87,6 +91,7 @@ func (bw *blobWriter) resumeDigestAt(ctx context.Context, offset int64) error {
 		if err != nil {
 			return err
 		}
+		defer fr.Close()
 
 		if _, err = fr.Seek(int64(h.Len()), os.SEEK_SET); err != nil {
 			return fmt.Errorf("unable to seek to layer reader offset %d: %s", h.Len(), err)
@@ -107,12 +112,13 @@ type hashStateEntry struct {
 
 // getStoredHashStates returns a slice of hashStateEntries for this upload.
 func (bw *blobWriter) getStoredHashStates(ctx context.Context) ([]hashStateEntry, error) {
-	uploadHashStatePathPrefix, err := bw.blobStore.pm.path(uploadHashStatePathSpec{
+	uploadHashStatePathPrefix, err := pathFor(uploadHashStatePathSpec{
 		name: bw.blobStore.repository.Name(),
 		id:   bw.id,
 		alg:  bw.digester.Digest().Algorithm(),
 		list: true,
 	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -143,17 +149,22 @@ func (bw *blobWriter) getStoredHashStates(ctx context.Context) ([]hashStateEntry
 }
 
 func (bw *blobWriter) storeHashState(ctx context.Context) error {
+	if !bw.resumableDigestEnabled {
+		return errResumableDigestNotAvailable
+	}
+
 	h, ok := bw.digester.Hash().(resumable.Hash)
 	if !ok {
 		return errResumableDigestNotAvailable
 	}
 
-	uploadHashStatePath, err := bw.blobStore.pm.path(uploadHashStatePathSpec{
+	uploadHashStatePath, err := pathFor(uploadHashStatePathSpec{
 		name:   bw.blobStore.repository.Name(),
 		id:     bw.id,
 		alg:    bw.digester.Digest().Algorithm(),
 		offset: int64(h.Len()),
 	})
+
 	if err != nil {
 		return err
 	}

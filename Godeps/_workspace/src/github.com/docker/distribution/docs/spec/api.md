@@ -1,8 +1,8 @@
 <!--[metadata]>
 +++
-title = "Docker Registry HTTP API V2"
-description = "This is a specification for the API."
-keywords = ["registry, service, driver, images, storage,  api"]
+title = "HTTP API V2"
+description = "Specification for the Registry API."
+keywords = ["registry, on-prem, images, tags, repository, distribution, api, advanced"]
 [menu.main]
 parent="smn_registry_ref"
 +++
@@ -21,7 +21,7 @@ of this API, known as _Docker Registry HTTP API V2_.
 While the V1 registry protocol is usable, there are several problems with the
 architecture that have led to this new version. The main driver of this
 specification these changes to the docker the image format, covered in
-docker/docker#8093. The new, self-contained image manifest simplifies image
+[docker/docker#8093](https://github.com/docker/docker/issues/8093). The new, self-contained image manifest simplifies image
 definition and improves security. This specification will build on that work,
 leveraging new properties of the manifest format to improve performance,
 reduce bandwidth usage and decrease the likelihood of backend corruption.
@@ -175,7 +175,6 @@ identify a set of modifications.
       <li>Added error code for unsupported operations.</li>
     </ul>
   </dd>
-
 </dl>
 
 ## Overview
@@ -278,7 +277,7 @@ API. When this header is omitted, clients may fallback to an older API version.
 
 This API design is driven heavily by [content addressability](http://en.wikipedia.org/wiki/Content-addressable_storage).
 The core of this design is the concept of a content addressable identifier. It
-uniquely identifies content by taking a collision-resistent hash of the bytes.
+uniquely identifies content by taking a collision-resistant hash of the bytes.
 Such an identifier can be independently calculated and verified by selection
 of a common _algorithm_. If such an identifier can be communicated in a secure
 manner, one can retrieve the content from an insecure source, calculate it
@@ -727,7 +726,8 @@ delete may be issued with the following request format:
 
     DELETE /v2/<name>/blobs/<digest>
 
-If the blob exists and has been successfully deleted, the following response will be issued:
+If the blob exists and has been successfully deleted, the following response
+will be issued:
 
     202 Accepted
     Content-Length: None
@@ -735,6 +735,8 @@ If the blob exists and has been successfully deleted, the following response wil
 If the blob had already been deleted or did not exist, a `404 Not Found`
 response will be issued instead.
 
+If a layer is deleted which is referenced by a manifest in the registry,
+then the complete images will not be resolvable.
 
 #### Pushing an Image Manifest
 
@@ -789,7 +791,7 @@ Images are stored in collections, known as a _repository_, which is keyed by a
 contain several repositories. The list of available repositories is made
 available through the _catalog_.
 
-The catalog for a given registry can be retrived with the following request:
+The catalog for a given registry can be retrieved with the following request:
 
 ```
 GET /v2/_catalog
@@ -873,7 +875,7 @@ To get the next result set, a client would issue the request as follows, using
 the URL encoded in the described `Link` header:
 
 ```
-GET /v2/_catalog?n=<n from the request>&last=<last repostory value from previous response>
+GET /v2/_catalog?n=<n from the request>&last=<last repository value from previous response>
 ```
 
 The above process should then be repeated until the `Link` header is no longer
@@ -1016,13 +1018,13 @@ A list of methods and URIs are covered in the table below:
 | PUT | `/v2/<name>/manifests/<reference>` | Manifest | Put the manifest identified by `name` and `reference` where `reference` can be a tag or digest. |
 | DELETE | `/v2/<name>/manifests/<reference>` | Manifest | Delete the manifest identified by `name` and `reference`. Note that a manifest can _only_ be deleted by `digest`. |
 | GET | `/v2/<name>/blobs/<digest>` | Blob | Retrieve the blob from the registry identified by `digest`. A `HEAD` request can also be issued to this endpoint to obtain resource information without receiving all data. |
-| POST | `/v2/<name>/blobs/uploads/` | Intiate Blob Upload | Initiate a resumable blob upload. If successful, an upload location will be provided to complete the upload. Optionally, if the `digest` parameter is present, the request body will be used to complete the upload in a single request. |
+| DELETE | `/v2/<name>/blobs/<digest>` | Blob | Delete the blob identified by `name` and `digest` |
+| POST | `/v2/<name>/blobs/uploads/` | Initiate Blob Upload | Initiate a resumable blob upload. If successful, an upload location will be provided to complete the upload. Optionally, if the `digest` parameter is present, the request body will be used to complete the upload in a single request. |
 | GET | `/v2/<name>/blobs/uploads/<uuid>` | Blob Upload | Retrieve status of upload identified by `uuid`. The primary purpose of this endpoint is to resolve the current status of a resumable upload. |
 | PATCH | `/v2/<name>/blobs/uploads/<uuid>` | Blob Upload | Upload a chunk of data for the specified upload. |
 | PUT | `/v2/<name>/blobs/uploads/<uuid>` | Blob Upload | Complete the upload specified by `uuid`, optionally appending the body as the final chunk. |
 | DELETE | `/v2/<name>/blobs/uploads/<uuid>` | Blob Upload | Cancel outstanding upload processes, releasing associated resources. If this is not called, the unfinished uploads will eventually timeout. |
 | GET | `/v2/_catalog` | Catalog | Retrieve a sorted, json list of repositories available in the registry. |
-| DELETE | `/v2/<name>/blobs/<digest>` | Blob delete | Delete the blob identified by `name` and `digest`|
 
 
 The detail for each endpoint is covered in the following sections.
@@ -1045,14 +1047,15 @@ The error codes encountered via the API are enumerated in the following table:
  `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry.
  `SIZE_INVALID` | provided length did not match content length | When a layer is uploaded, the provided size will be checked against the uploaded content. If they do not match, this error will be returned.
  `TAG_INVALID` | manifest tag did not match URI | During a manifest upload, if the tag in the manifest does not match the uri tag, this error will be returned.
- `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status.
+ `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate.
+ `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource.
  `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters.
 
 
 
 ### Base
 
-Base V2 API route. Typically, this can be used for lightweight version checks and to validate registry authorization.
+Base V2 API route. Typically, this can be used for lightweight version checks and to validate registry authentication.
 
 
 
@@ -1092,11 +1095,22 @@ The API implements V2 protocol and is accessible.
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Not Found
+
+```
+404 Not Found
+```
+
+The registry does not implement the V2 API.
+
+
+
+###### On Failure: Authentication Required
 
 ```
 401 Unauthorized
 WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1111,13 +1125,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client is not authorized to access the registry.
+The client is not authenticated.
 
 The following headers will be returned on the response:
 
 |Name|Description|
 |----|-----------|
 |`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1125,17 +1140,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
-###### On Failure: Not Found
-
-```
-404 Not Found
-```
-
-The registry does not implement the V2 API.
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
 
 
 
@@ -1201,10 +1206,50 @@ The following headers will be returned with the response:
 
 
 
-###### On Failure: Not Found
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
 
 ```
 404 Not Found
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1221,6 +1266,12 @@ Content-Type: application/json; charset=utf-8
 
 The repository is not known to the registry.
 
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
 
 
 The error codes that may be included in the response body are enumerated below:
@@ -1231,10 +1282,11 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Access Denied
 
 ```
-401 Unauthorized
+403 Forbidden
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1249,7 +1301,13 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client does not have access to the repository.
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1257,7 +1315,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -1310,10 +1368,50 @@ The following headers will be returned with the response:
 
 
 
-###### On Failure: Not Found
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
 
 ```
 404 Not Found
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1330,6 +1428,12 @@ Content-Type: application/json; charset=utf-8
 
 The repository is not known to the registry.
 
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
 
 
 The error codes that may be included in the response body are enumerated below:
@@ -1340,10 +1444,11 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Access Denied
 
 ```
-401 Unauthorized
+403 Forbidden
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1358,7 +1463,13 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client does not have access to the repository.
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1366,7 +1477,7 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -1374,7 +1485,7 @@ The error codes that may be included in the response body are enumerated below:
 
 ### Manifest
 
-Create, update and retrieve manifests.
+Create, update, delete and retrieve manifests.
 
 
 
@@ -1427,7 +1538,7 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The manifest idenfied by `name` and `reference`. The contents can be used to identify and resolve resources required to run the specified image.
+The manifest identified by `name` and `reference`. The contents can be used to identify and resolve resources required to run the specified image.
 
 The following headers will be returned with the response:
 
@@ -1469,10 +1580,12 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Authentication Required
 
 ```
 401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1487,7 +1600,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client does not have access to the repository.
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1495,14 +1615,15 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
 
 
 
-###### On Failure: Not Found
+###### On Failure: No Such Repository Error
 
 ```
 404 Not Found
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1517,7 +1638,13 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The named manifest is not known to the registry.
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1526,7 +1653,43 @@ The error codes that may be included in the response body are enumerated below:
 |Code|Message|Description|
 |----|-------|-----------|
 | `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
-| `MANIFEST_UNKNOWN` | manifest unknown | This error is returned when the manifest, identified by name and tag is unknown to the repository. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -1629,10 +1792,12 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Authentication Required
 
 ```
 401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
 Content-Type: application/json; charset=utf-8
 
 {
@@ -1647,7 +1812,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client does not have permission to push to the repository.
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1655,7 +1827,81 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -1690,34 +1936,13 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Not allowed
 
 ```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": <error code>,
-            "message": "<error message>",
-            "detail": ...
-        },
-        ...
-    ]
-}
+405 Method Not Allowed
 ```
 
-
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
+Manifest put is not allowed because the registry is configured as a pull-through cache or for some other reason
 
 
 
@@ -1725,13 +1950,12 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
 
 #### DELETE Manifest
-
 
 Delete the manifest identified by `name` and `reference`. Note that a manifest can _only_ be deleted by `digest`.
 
@@ -1800,7 +2024,7 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Authentication Required
 
 ```
 401 Unauthorized
@@ -1820,14 +2044,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-
+The client is not authenticated.
 
 The following headers will be returned on the response:
 
 |Name|Description|
 |----|-----------|
 |`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -1835,7 +2059,81 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -1870,11 +2168,29 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
+###### On Failure: Not allowed
+
+```
+405 Method Not Allowed
+```
+
+Manifest delete is not allowed because the registry is configured as a pull-through cache or `delete` has been disabled.
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+
+
+
 
 
 ### Blob
 
-Fetch the blob identified by `name` and `digest`. Used to fetch layers by digest.
+Operations on blobs identified by `name` and `digest`. Used to fetch or delete layers by digest.
 
 
 
@@ -1977,45 +2293,6 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
 ###### On Failure: Not Found
 
 ```
@@ -2044,6 +2321,119 @@ The error codes that may be included in the response body are enumerated below:
 |----|-------|-----------|
 | `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
 | `BLOB_UNKNOWN` | blob unknown to registry | This error may be returned when a blob is unknown to the registry in a specified repository. This can be returned with a standard get or if a manifest references an unknown layer during upload. |
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -2126,45 +2516,6 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
 ###### On Failure: Not Found
 
 ```
@@ -2206,15 +2557,369 @@ The range specification cannot be satisfied for the requested content. This can 
 
 
 
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
 
 
-### Intiate Blob Upload
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
+
+
+
+
+#### DELETE Blob
+
+Delete the blob identified by `name` and `digest`
+
+
+
+```
+DELETE /v2/<name>/blobs/<digest>
+Host: <registry host>
+Authorization: <scheme> <token>
+```
+
+
+
+
+The following parameters should be specified on the request:
+
+|Name|Kind|Description|
+|----|----|-----------|
+|`Host`|header|Standard HTTP Host Header. Should be set to the registry host.|
+|`Authorization`|header|An RFC7235 compliant authorization header.|
+|`name`|path|Name of the target repository.|
+|`digest`|path|Digest of desired blob.|
+
+
+
+
+###### On Success: Accepted
+
+```
+202 Accepted
+Content-Length: 0
+Docker-Content-Digest: <digest>
+```
+
+
+
+The following headers will be returned with the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|0|
+|`Docker-Content-Digest`|Digest of the targeted content for the request.|
+
+
+
+
+###### On Failure: Invalid Name or Digest
+
+```
+400 Bad Request
+```
+
+
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DIGEST_INVALID` | provided digest did not match uploaded content | When a blob is uploaded, the registry will check that the content matches the digest provided by the client. The error may include a detail structure with the key "digest", including the invalid digest string. This error may also be returned when a manifest includes an invalid layer digest. |
+| `NAME_INVALID` | invalid repository name | Invalid repository name encountered either during manifest validation or any API operation. |
+
+
+
+###### On Failure: Not Found
+
+```
+404 Not Found
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The blob, identified by `name` and `digest`, is unknown to the registry.
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+| `BLOB_UNKNOWN` | blob unknown to registry | This error may be returned when a blob is unknown to the registry in a specified repository. This can be returned with a standard get or if a manifest references an unknown layer during upload. |
+
+
+
+###### On Failure: Method Not Allowed
+
+```
+405 Method Not Allowed
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+Blob delete is not allowed because the registry is configured as a pull-through cache or `delete` has been disabled
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
+
+
+
+
+
+### Initiate Blob Upload
 
 Initiate a blob upload. This endpoint can be used to create resumable uploads or monolithic uploads.
 
 
 
-#### POST Intiate Blob Upload
+#### POST Initiate Blob Upload
 
 Initiate a resumable blob upload. If successful, an upload location will be provided to complete the upload. Optionally, if the `digest` parameter is present, the request body will be used to complete the upload in a single request.
 
@@ -2288,7 +2993,25 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Not allowed
+
+```
+405 Method Not Allowed
+```
+
+Blob upload is not allowed because the registry is configured as a pull-through cache or for some other reason
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
+
+
+
+###### On Failure: Authentication Required
 
 ```
 401 Unauthorized
@@ -2299,8 +3022,8 @@ Content-Type: application/json; charset=utf-8
 {
 	"errors:" [
 	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
+            "code": <error code>,
+            "message": "<error message>",
             "detail": ...
         },
         ...
@@ -2308,14 +3031,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client does not have access to push to the repository.
+The client is not authenticated.
 
 The following headers will be returned on the response:
 
 |Name|Description|
 |----|-----------|
 |`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -2323,7 +3046,81 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -2394,7 +3191,7 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
+###### On Failure: Authentication Required
 
 ```
 401 Unauthorized
@@ -2405,8 +3202,8 @@ Content-Type: application/json; charset=utf-8
 {
 	"errors:" [
 	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
+            "code": <error code>,
+            "message": "<error message>",
             "detail": ...
         },
         ...
@@ -2414,14 +3211,14 @@ Content-Type: application/json; charset=utf-8
 }
 ```
 
-The client does not have access to push to the repository.
+The client is not authenticated.
 
 The following headers will be returned on the response:
 
 |Name|Description|
 |----|-----------|
 |`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
+|`Content-Length`|Length of the JSON response body.|
 
 
 
@@ -2429,7 +3226,81 @@ The error codes that may be included in the response body are enumerated below:
 
 |Code|Message|Description|
 |----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -2522,45 +3393,6 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
 ###### On Failure: Not Found
 
 ```
@@ -2588,6 +3420,119 @@ The error codes that may be included in the response body are enumerated below:
 |Code|Message|Description|
 |----|-------|-----------|
 | `BLOB_UPLOAD_UNKNOWN` | blob upload unknown to registry | If a blob upload has been cancelled or was never started, this error code may be returned. |
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -2679,45 +3624,6 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to push to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
 ###### On Failure: Not Found
 
 ```
@@ -2745,6 +3651,119 @@ The error codes that may be included in the response body are enumerated below:
 |Code|Message|Description|
 |----|-------|-----------|
 | `BLOB_UPLOAD_UNKNOWN` | blob upload unknown to registry | If a blob upload has been cancelled or was never started, this error code may be returned. |
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -2834,45 +3853,6 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to push to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
 ###### On Failure: Not Found
 
 ```
@@ -2910,6 +3890,119 @@ The error codes that may be included in the response body are enumerated below:
 ```
 
 The `Content-Range` specification cannot be accepted, either because it does not overlap with the current progress or it is invalid.
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -3000,45 +4093,7 @@ The error codes that may be included in the response body are enumerated below:
 | `DIGEST_INVALID` | provided digest did not match uploaded content | When a blob is uploaded, the registry will check that the content matches the digest provided by the client. The error may include a detail structure with the key "digest", including the invalid digest string. This error may also be returned when a manifest includes an invalid layer digest. |
 | `NAME_INVALID` | invalid repository name | Invalid repository name encountered either during manifest validation or any API operation. |
 | `BLOB_UPLOAD_INVALID` | blob upload invalid | The blob upload encountered an error and can no longer proceed. |
-
-
-
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to push to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
+| `UNSUPPORTED` | The operation is unsupported. | The operation was unsupported due to a missing implementation or invalid set of parameters. |
 
 
 
@@ -3069,6 +4124,119 @@ The error codes that may be included in the response body are enumerated below:
 |Code|Message|Description|
 |----|-------|-----------|
 | `BLOB_UPLOAD_UNKNOWN` | blob upload unknown to registry | If a blob upload has been cancelled or was never started, this error code may be returned. |
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 
@@ -3151,45 +4319,6 @@ The error codes that may be included in the response body are enumerated below:
 
 
 
-###### On Failure: Unauthorized
-
-```
-401 Unauthorized
-WWW-Authenticate: <scheme> realm="<realm>", ..."
-Content-Length: <length>
-Content-Type: application/json; charset=utf-8
-
-{
-	"errors:" [
-	    {
-            "code": "UNAUTHORIZED",
-            "message": "access to the requested resource is not authorized",
-            "detail": ...
-        },
-        ...
-    ]
-}
-```
-
-The client does not have access to the repository.
-
-The following headers will be returned on the response:
-
-|Name|Description|
-|----|-----------|
-|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
-|`Content-Length`|Length of the JSON error response body.|
-
-
-
-The error codes that may be included in the response body are enumerated below:
-
-|Code|Message|Description|
-|----|-------|-----------|
-| `UNAUTHORIZED` | access to the requested resource is not authorized | The access controller denied access for the operation on a resource. Often this will be accompanied by a 401 Unauthorized response status. |
-
-
-
 ###### On Failure: Not Found
 
 ```
@@ -3217,6 +4346,119 @@ The error codes that may be included in the response body are enumerated below:
 |Code|Message|Description|
 |----|-------|-----------|
 | `BLOB_UPLOAD_UNKNOWN` | blob upload unknown to registry | If a blob upload has been cancelled or was never started, this error code may be returned. |
+
+
+
+###### On Failure: Authentication Required
+
+```
+401 Unauthorized
+WWW-Authenticate: <scheme> realm="<realm>", ..."
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client is not authenticated.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`WWW-Authenticate`|An RFC7235 compliant authentication challenge header.|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `UNAUTHORIZED` | authentication required | The access controller was unable to authenticate the client. Often this will be accompanied by a Www-Authenticate HTTP response header indicating how to authenticate. |
+
+
+
+###### On Failure: No Such Repository Error
+
+```
+404 Not Found
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The repository is not known to the registry.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `NAME_UNKNOWN` | repository name not known to registry | This is returned if the name used during an operation is unknown to the registry. |
+
+
+
+###### On Failure: Access Denied
+
+```
+403 Forbidden
+Content-Length: <length>
+Content-Type: application/json; charset=utf-8
+
+{
+	"errors:" [
+	    {
+            "code": <error code>,
+            "message": "<error message>",
+            "detail": ...
+        },
+        ...
+    ]
+}
+```
+
+The client does not have required access to the repository.
+
+The following headers will be returned on the response:
+
+|Name|Description|
+|----|-----------|
+|`Content-Length`|Length of the JSON response body.|
+
+
+
+The error codes that may be included in the response body are enumerated below:
+
+|Code|Message|Description|
+|----|-------|-----------|
+| `DENIED` | requested access to the resource is denied | The access controller denied access for the operation on a resource. |
 
 
 

@@ -19,16 +19,21 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/configuration"
+	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest"
+	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/api/v2"
 	_ "github.com/docker/distribution/registry/storage/driver/inmemory"
 	"github.com/docker/distribution/testutil"
 	"github.com/docker/libtrust"
 	"github.com/gorilla/handlers"
-	"golang.org/x/net/context"
 )
+
+var headerConfig = http.Header{
+	"X-Content-Type-Options": []string{"nosniff"},
+}
 
 // TestCheckAPI hits the base endpoint (/v2/) ensures we return the specified
 // 200 OK response.
@@ -215,6 +220,7 @@ func TestURLPrefix(t *testing.T) {
 		},
 	}
 	config.HTTP.Prefix = "/test/"
+	config.HTTP.Headers = headerConfig
 
 	env := newTestEnvWithConfig(t, &config)
 
@@ -627,6 +633,54 @@ func TestDeleteDisabled(t *testing.T) {
 	checkResponse(t, "deleting layer with delete disabled", resp, http.StatusMethodNotAllowed)
 }
 
+func TestDeleteReadOnly(t *testing.T) {
+	env := newTestEnv(t, true)
+
+	imageName := "foo/bar"
+	// "build" our layer file
+	layerFile, tarSumStr, err := testutil.CreateRandomTarFile()
+	if err != nil {
+		t.Fatalf("error creating random layer file: %v", err)
+	}
+
+	layerDigest := digest.Digest(tarSumStr)
+	layerURL, err := env.builder.BuildBlobURL(imageName, layerDigest)
+	if err != nil {
+		t.Fatalf("Error building blob URL")
+	}
+	uploadURLBase, _ := startPushLayer(t, env.builder, imageName)
+	pushLayer(t, env.builder, imageName, layerDigest, uploadURLBase, layerFile)
+
+	env.app.readOnly = true
+
+	resp, err := httpDelete(layerURL)
+	if err != nil {
+		t.Fatalf("unexpected error deleting layer: %v", err)
+	}
+
+	checkResponse(t, "deleting layer in read-only mode", resp, http.StatusMethodNotAllowed)
+}
+
+func TestStartPushReadOnly(t *testing.T) {
+	env := newTestEnv(t, true)
+	env.app.readOnly = true
+
+	imageName := "foo/bar"
+
+	layerUploadURL, err := env.builder.BuildBlobUploadURL(imageName)
+	if err != nil {
+		t.Fatalf("unexpected error building layer upload url: %v", err)
+	}
+
+	resp, err := http.Post(layerUploadURL, "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error starting layer push: %v", err)
+	}
+	defer resp.Body.Close()
+
+	checkResponse(t, "starting push in read-only mode", resp, http.StatusMethodNotAllowed)
+}
+
 func httpDelete(url string) (*http.Response, error) {
 	req, err := http.NewRequest("DELETE", url, nil)
 	if err != nil {
@@ -643,7 +697,7 @@ func httpDelete(url string) (*http.Response, error) {
 
 type manifestArgs struct {
 	imageName      string
-	signedManifest *manifest.SignedManifest
+	signedManifest *schema1.SignedManifest
 	dgst           digest.Digest
 }
 
@@ -736,13 +790,13 @@ func testManifestAPI(t *testing.T, env *testEnv, args manifestArgs) (*testEnv, m
 
 	// --------------------------------
 	// Attempt to push unsigned manifest with missing layers
-	unsignedManifest := &manifest.Manifest{
+	unsignedManifest := &schema1.Manifest{
 		Versioned: manifest.Versioned{
 			SchemaVersion: 1,
 		},
 		Name: imageName,
 		Tag:  tag,
-		FSLayers: []manifest.FSLayer{
+		FSLayers: []schema1.FSLayer{
 			{
 				BlobSum: "asdf",
 			},
@@ -750,18 +804,44 @@ func testManifestAPI(t *testing.T, env *testEnv, args manifestArgs) (*testEnv, m
 				BlobSum: "qwer",
 			},
 		},
+		History: []schema1.History{
+			{
+				V1Compatibility: "",
+			},
+			{
+				V1Compatibility: "",
+			},
+		},
 	}
 
 	resp = putManifest(t, "putting unsigned manifest", manifestURL, unsignedManifest)
 	defer resp.Body.Close()
-	checkResponse(t, "posting unsigned manifest", resp, http.StatusBadRequest)
-	_, p, counts := checkBodyHasErrorCodes(t, "getting unknown manifest tags", resp,
-		v2.ErrorCodeManifestUnverified, v2.ErrorCodeBlobUnknown, v2.ErrorCodeDigestInvalid)
+	checkResponse(t, "putting unsigned manifest", resp, http.StatusBadRequest)
+	_, p, counts := checkBodyHasErrorCodes(t, "getting unknown manifest tags", resp, v2.ErrorCodeManifestInvalid)
 
 	expectedCounts := map[errcode.ErrorCode]int{
-		v2.ErrorCodeManifestUnverified: 1,
-		v2.ErrorCodeBlobUnknown:        2,
-		v2.ErrorCodeDigestInvalid:      2,
+		v2.ErrorCodeManifestInvalid: 1,
+	}
+
+	if !reflect.DeepEqual(counts, expectedCounts) {
+		t.Fatalf("unexpected number of error codes encountered: %v\n!=\n%v\n---\n%s", counts, expectedCounts, string(p))
+	}
+
+	// sign the manifest and still get some interesting errors.
+	sm, err := schema1.Sign(unsignedManifest, env.pk)
+	if err != nil {
+		t.Fatalf("error signing manifest: %v", err)
+	}
+
+	resp = putManifest(t, "putting signed manifest with errors", manifestURL, sm)
+	defer resp.Body.Close()
+	checkResponse(t, "putting signed manifest with errors", resp, http.StatusBadRequest)
+	_, p, counts = checkBodyHasErrorCodes(t, "putting signed manifest with errors", resp,
+		v2.ErrorCodeManifestBlobUnknown, v2.ErrorCodeDigestInvalid)
+
+	expectedCounts = map[errcode.ErrorCode]int{
+		v2.ErrorCodeManifestBlobUnknown: 2,
+		v2.ErrorCodeDigestInvalid:       2,
 	}
 
 	if !reflect.DeepEqual(counts, expectedCounts) {
@@ -792,7 +872,7 @@ func testManifestAPI(t *testing.T, env *testEnv, args manifestArgs) (*testEnv, m
 
 	// -------------------
 	// Push the signed manifest with all layers pushed.
-	signedManifest, err := manifest.Sign(unsignedManifest, env.pk)
+	signedManifest, err := schema1.Sign(unsignedManifest, env.pk)
 	if err != nil {
 		t.Fatalf("unexpected error signing manifest: %v", err)
 	}
@@ -839,7 +919,7 @@ func testManifestAPI(t *testing.T, env *testEnv, args manifestArgs) (*testEnv, m
 		"ETag":                  []string{fmt.Sprintf(`"%s"`, dgst)},
 	})
 
-	var fetchedManifest manifest.SignedManifest
+	var fetchedManifest schema1.SignedManifest
 	dec := json.NewDecoder(resp.Body)
 	if err := dec.Decode(&fetchedManifest); err != nil {
 		t.Fatalf("error decoding fetched manifest: %v", err)
@@ -861,7 +941,7 @@ func testManifestAPI(t *testing.T, env *testEnv, args manifestArgs) (*testEnv, m
 		"ETag":                  []string{fmt.Sprintf(`"%s"`, dgst)},
 	})
 
-	var fetchedManifestByDigest manifest.SignedManifest
+	var fetchedManifestByDigest schema1.SignedManifest
 	dec = json.NewDecoder(resp.Body)
 	if err := dec.Decode(&fetchedManifestByDigest); err != nil {
 		t.Fatalf("error decoding fetched manifest: %v", err)
@@ -926,6 +1006,19 @@ func testManifestAPI(t *testing.T, env *testEnv, args manifestArgs) (*testEnv, m
 	if tagsResponse.Tags[0] != tag {
 		t.Fatalf("tag not as expected: %q != %q", tagsResponse.Tags[0], tag)
 	}
+
+	// Attempt to put a manifest with mismatching FSLayer and History array cardinalities
+
+	unsignedManifest.History = append(unsignedManifest.History, schema1.History{
+		V1Compatibility: "",
+	})
+	invalidSigned, err := schema1.Sign(unsignedManifest, env.pk)
+	if err != nil {
+		t.Fatalf("error signing manifest")
+	}
+
+	resp = putManifest(t, "putting invalid signed manifest", manifestDigestURL, invalidSigned)
+	checkResponse(t, "putting invalid signed manifest", resp, http.StatusBadRequest)
 
 	return env, args
 }
@@ -1001,6 +1094,21 @@ type testEnv struct {
 	builder *v2.URLBuilder
 }
 
+func newTestEnvMirror(t *testing.T, deleteEnabled bool) *testEnv {
+	config := configuration.Configuration{
+		Storage: configuration.Storage{
+			"inmemory": configuration.Parameters{},
+			"delete":   configuration.Parameters{"enabled": deleteEnabled},
+		},
+		Proxy: configuration.Proxy{
+			RemoteURL: "http://example.com",
+		},
+	}
+
+	return newTestEnvWithConfig(t, &config)
+
+}
+
 func newTestEnv(t *testing.T, deleteEnabled bool) *testEnv {
 	config := configuration.Configuration{
 		Storage: configuration.Storage{
@@ -1009,13 +1117,15 @@ func newTestEnv(t *testing.T, deleteEnabled bool) *testEnv {
 		},
 	}
 
+	config.HTTP.Headers = headerConfig
+
 	return newTestEnvWithConfig(t, &config)
 }
 
 func newTestEnvWithConfig(t *testing.T, config *configuration.Configuration) *testEnv {
 	ctx := context.Background()
 
-	app := NewApp(ctx, *config)
+	app := NewApp(ctx, config)
 	server := httptest.NewServer(handlers.CombinedLoggingHandler(os.Stderr, app))
 	builder, err := v2.NewURLBuilderFromString(server.URL + config.HTTP.Prefix)
 
@@ -1040,7 +1150,7 @@ func newTestEnvWithConfig(t *testing.T, config *configuration.Configuration) *te
 
 func putManifest(t *testing.T, msg, url string, v interface{}) *http.Response {
 	var body []byte
-	if sm, ok := v.(*manifest.SignedManifest); ok {
+	if sm, ok := v.(*schema1.SignedManifest); ok {
 		body = sm.Raw
 	} else {
 		var err error
@@ -1225,6 +1335,16 @@ func checkResponse(t *testing.T, msg string, resp *http.Response, expectedStatus
 
 		t.FailNow()
 	}
+
+	// We expect the headers included in the configuration, unless the
+	// status code is 405 (Method Not Allowed), which means the handler
+	// doesn't even get called.
+	if resp.StatusCode != 405 && !reflect.DeepEqual(resp.Header["X-Content-Type-Options"], []string{"nosniff"}) {
+		t.Logf("missing or incorrect header X-Content-Type-Options %s", msg)
+		maybeDumpResponse(t, resp)
+
+		t.FailNow()
+	}
 }
 
 // checkBodyHasErrorCodes ensures the body is an error body and has the
@@ -1323,18 +1443,20 @@ func checkErr(t *testing.T, err error, msg string) {
 }
 
 func createRepository(env *testEnv, t *testing.T, imageName string, tag string) {
-	unsignedManifest := &manifest.Manifest{
+	unsignedManifest := &schema1.Manifest{
 		Versioned: manifest.Versioned{
 			SchemaVersion: 1,
 		},
 		Name: imageName,
 		Tag:  tag,
-		FSLayers: []manifest.FSLayer{
+		FSLayers: []schema1.FSLayer{
 			{
 				BlobSum: "asdf",
 			},
+		},
+		History: []schema1.History{
 			{
-				BlobSum: "qwer",
+				V1Compatibility: "",
 			},
 		},
 	}
@@ -1357,7 +1479,7 @@ func createRepository(env *testEnv, t *testing.T, imageName string, tag string) 
 		pushLayer(t, env.builder, imageName, dgst, uploadURLBase, rs)
 	}
 
-	signedManifest, err := manifest.Sign(unsignedManifest, env.pk)
+	signedManifest, err := schema1.Sign(unsignedManifest, env.pk)
 	if err != nil {
 		t.Fatalf("unexpected error signing manifest: %v", err)
 	}
@@ -1377,4 +1499,89 @@ func createRepository(env *testEnv, t *testing.T, imageName string, tag string) 
 		"Location":              []string{manifestDigestURL},
 		"Docker-Content-Digest": []string{dgst.String()},
 	})
+}
+
+// Test mutation operations on a registry configured as a cache.  Ensure that they return
+// appropriate errors.
+func TestRegistryAsCacheMutationAPIs(t *testing.T) {
+	deleteEnabled := true
+	env := newTestEnvMirror(t, deleteEnabled)
+
+	imageName := "foo/bar"
+	tag := "latest"
+	manifestURL, err := env.builder.BuildManifestURL(imageName, tag)
+	if err != nil {
+		t.Fatalf("unexpected error building base url: %v", err)
+	}
+
+	// Manifest upload
+	m := &schema1.Manifest{
+		Versioned: manifest.Versioned{
+			SchemaVersion: 1,
+		},
+		Name:     imageName,
+		Tag:      tag,
+		FSLayers: []schema1.FSLayer{},
+		History:  []schema1.History{},
+	}
+
+	sm, err := schema1.Sign(m, env.pk)
+	if err != nil {
+		t.Fatalf("error signing manifest: %v", err)
+	}
+
+	resp := putManifest(t, "putting unsigned manifest", manifestURL, sm)
+	checkResponse(t, "putting signed manifest to cache", resp, errcode.ErrorCodeUnsupported.Descriptor().HTTPStatusCode)
+
+	// Manifest Delete
+	resp, err = httpDelete(manifestURL)
+	checkResponse(t, "deleting signed manifest from cache", resp, errcode.ErrorCodeUnsupported.Descriptor().HTTPStatusCode)
+
+	// Blob upload initialization
+	layerUploadURL, err := env.builder.BuildBlobUploadURL(imageName)
+	if err != nil {
+		t.Fatalf("unexpected error building layer upload url: %v", err)
+	}
+
+	resp, err = http.Post(layerUploadURL, "", nil)
+	if err != nil {
+		t.Fatalf("unexpected error starting layer push: %v", err)
+	}
+	defer resp.Body.Close()
+
+	checkResponse(t, fmt.Sprintf("starting layer push to cache %v", imageName), resp, errcode.ErrorCodeUnsupported.Descriptor().HTTPStatusCode)
+
+	// Blob Delete
+	blobURL, err := env.builder.BuildBlobURL(imageName, digest.DigestSha256EmptyTar)
+	resp, err = httpDelete(blobURL)
+	checkResponse(t, "deleting blob from cache", resp, errcode.ErrorCodeUnsupported.Descriptor().HTTPStatusCode)
+
+}
+
+// TestCheckContextNotifier makes sure the API endpoints get a ResponseWriter
+// that implements http.ContextNotifier.
+func TestCheckContextNotifier(t *testing.T) {
+	env := newTestEnv(t, false)
+
+	// Register a new endpoint for testing
+	env.app.router.Handle("/unittest/{name}/", env.app.dispatcher(func(ctx *Context, r *http.Request) http.Handler {
+		return handlers.MethodHandler{
+			"GET": http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if _, ok := w.(http.CloseNotifier); !ok {
+					t.Fatal("could not cast ResponseWriter to CloseNotifier")
+				}
+				w.WriteHeader(200)
+			}),
+		}
+	}))
+
+	resp, err := http.Get(env.server.URL + "/unittest/reponame/")
+	if err != nil {
+		t.Fatalf("unexpected error issuing request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		t.Fatalf("wrong status code - expected 200, got %d", resp.StatusCode)
+	}
 }
