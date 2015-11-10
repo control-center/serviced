@@ -382,13 +382,13 @@ func (a *HostAgent) StartService(svc *service.Service, state *servicestate.Servi
 		state.DockerID = cid
 		a.removeInstance(state.ID, ctr)
 	})
+	handlerInstalled = true
 
 	if err := ctr.Start(); err != nil {
 		glog.Errorf("Could not start service state %s (%s) for service %s (%s): %s", state.ID, ctr.ID, svc.Name, svc.ID, err)
 		a.removeInstance(state.ID, ctr)
 		return err
 	}
-	handlerInstalled = true
 
 	startLock.Lock()
 	if err := updateInstance(state, ctr); err != nil {
