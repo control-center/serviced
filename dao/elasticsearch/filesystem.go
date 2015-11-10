@@ -242,10 +242,16 @@ func (dao *ControlPlaneDao) Snapshot(req model.SnapshotRequest, snapshotID *stri
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock()
 	defer dfslocker.Unlock()
+
+	tagList := []string{}
+	if len(req.Tag) > 0 {
+		tagList = []string{req.Tag}
+	}
+
 	if req.ContainerID != "" {
-		*snapshotID, err = dao.facade.Commit(ctx, req.ContainerID, req.Message, req.Tags)
+		*snapshotID, err = dao.facade.Commit(ctx, req.ContainerID, req.Message, tagList)
 	} else {
-		*snapshotID, err = dao.facade.Snapshot(ctx, req.ServiceID, req.Message, req.Tags)
+		*snapshotID, err = dao.facade.Snapshot(ctx, req.ServiceID, req.Message, tagList)
 	}
 	return
 }
@@ -305,7 +311,15 @@ func (dao *ControlPlaneDao) ListSnapshots(serviceID string, snapshots *[]model.S
 		if err != nil {
 			return err
 		}
-		*snapshots = append(*snapshots, model.SnapshotInfo{info.Name, info.Message})
+
+		newInfo := model.SnapshotInfo{
+			SnapshotID:  info.Name,
+			Description: info.Message,
+			Tags:        info.Tags,
+			Created:     info.Created,
+		}
+
+		*snapshots = append(*snapshots, newInfo)
 	}
 	return
 }
@@ -334,4 +348,27 @@ func (dao *ControlPlaneDao) ReadyDFS(serviceID string, _ *int) (err error) {
 
 	err = dao.facade.ResetLock(ctx, serviceID)
 	return
+}
+
+// TagSnapshot adds a tag to an existing snapshot
+func (dao *ControlPlaneDao) TagSnapshot(request model.TagSnapshotRequest, newTagList *[]string) error {
+	var err error
+	*newTagList, err = dao.facade.TagSnapshot(request.SnapshotID, request.TagName)
+	return err
+}
+
+// RemoveSnapshotTag removes a tag from an existing snapshot
+func (dao *ControlPlaneDao) RemoveSnapshotTag(request model.TagSnapshotRequest, newTagList *[]string) error {
+	var err error
+	*newTagList, err = dao.facade.RemoveSnapshotTag(request.SnapshotID, request.TagName)
+	return err
+}
+
+// GetSnapshotByServiceIDAndTag Gets the snapshot from a specific service with a specific tag
+func (dao *ControlPlaneDao) GetSnapshotByServiceIDAndTag(request model.SnapshotByTagRequest, snapshotID *string) error {
+	ctx := datastore.Get()
+
+	var err error
+	*snapshotID, err = dao.facade.GetSnapshotByServiceIDAndTag(ctx, request.ServiceID, request.TagName)
+	return err
 }

@@ -219,7 +219,7 @@ func (t ServiceAPITest) GetHosts() ([]host.Host, error) {
 	return t.hosts, nil
 }
 
-func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error)  {
+func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error) {
 	if t.errs["GetHostMap"] != nil {
 		return nil, t.errs["GetHostMap"]
 	}
@@ -398,7 +398,8 @@ func (t ServiceAPITest) AddSnapshot(config api.SnapshotConfig) (string, error) {
 	if t.errs["AddSnapshot"] != nil {
 		return "", t.errs["AddSnapshot"]
 	}
-	return fmt.Sprintf("%s-snapshot description=%q", config.ServiceID, config.Message), nil
+
+	return fmt.Sprintf("%s-snapshot description=%q tags=%q", config.ServiceID, config.Message, config.Tag), nil
 }
 
 func TestServicedCLI_CmdServiceList_one(t *testing.T) {
@@ -1009,6 +1010,24 @@ func ExampleServicedCLI_CmdServiceListSnapshots() {
 	// test-service-1-snapshot-2 description 2
 }
 
+func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsShort() {
+	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "-t")
+
+	// Output:
+	// Snapshot                       Description        Tags
+	// test-service-1-snapshot-1      description 1      tag-1
+	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+}
+
+func ExampleServicedCLI_CmdServiceListSnapshots_ShowTagsLong() {
+	InitServiceAPITest("serviced", "service", "list-snapshots", "test-service-1", "--show-tags")
+
+	// Output:
+	// Snapshot                       Description        Tags
+	// test-service-1-snapshot-1      description 1      tag-1
+	// test-service-1-snapshot-2      description 2      tag-2,tag-3
+}
+
 func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
 	InitServiceAPITest("serviced", "service", "list-snapshots")
 
@@ -1025,6 +1044,7 @@ func ExampleServicedCLI_CmdServiceListSnapshots_usage() {
 	//    serviced service list-snapshots SERVICEID
 	//
 	// OPTIONS:
+	//    --show-tags, -t	shows the tags associated with each snapshot
 }
 
 func ExampleServicedCLI_CmdServiceListSnapshots_fail() {
@@ -1047,14 +1067,21 @@ func ExampleServicedCLI_CmdServiceSnapshot() {
 	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2")
 
 	// Output:
-	// test-service-2-snapshot description=""
+	// test-service-2-snapshot description="" tags=""
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_withDescription() {
 	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2", "-d", "some description")
 
 	// Output:
-	// test-service-2-snapshot description="some description"
+	// test-service-2-snapshot description="some description" tags=""
+}
+
+func ExampleServicedCLI_CmdServiceSnapshot_withDescriptionAndTag() {
+	InitServiceAPITest("serviced", "service", "snapshot", "test-service-2", "-d", "some description", "-t", "tag1")
+
+	// Output:
+	// test-service-2-snapshot description="some description" tags="tag1"
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_usage() {
@@ -1074,6 +1101,8 @@ func ExampleServicedCLI_CmdServiceSnapshot_usage() {
 	//
 	// OPTIONS:
 	//    --description, -d 	a description of the snapshot
+	//    --tag, -t 		a unique tag for the snapshot
+
 }
 
 func ExampleServicedCLI_CmdServiceSnapshot_fail() {
@@ -1091,7 +1120,6 @@ func ExampleServicedCLI_CmdServiceSnapshot_err() {
 	// Output:
 	// service not found
 }
-
 
 func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 	InitServiceAPITest("serviced", "service", "endpoints")
@@ -1111,7 +1139,7 @@ func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 	// OPTIONS:
 	//    --imports, -i	include only imported endpoints
 	//    --all, -a		include all endpoints (imports and exports)
-	//    --verify		verify endpoints
+	//    --verify, -v		verify endpoints
 
 }
 

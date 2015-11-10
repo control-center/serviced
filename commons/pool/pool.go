@@ -82,23 +82,39 @@ type itemPool struct {
 }
 
 func (p *itemPool) BorrowWait(timeout time.Duration) (*Item, error) {
-	item, found := p.itemQ.Poll()
-	if found {
-		return p.checkout(item), nil
-	}
-	if !found {
-		newItem, err := p.newItem()
-		if err != nil && err != ErrItemUnavailable {
-			return nil, err
-		} else if err == nil {
-			return p.checkout(newItem), nil
-		}
-	}
+	var item *Item
+	var err error
+	itemOrError := true
 
+	// function for locking purposes
+	func() {
+		p.poolLock.Lock()
+		defer p.poolLock.Unlock()
+		qItem, found := p.itemQ.Poll()
+		if found {
+			item = p.checkout(qItem)
+			return
+		}
+		if !found {
+			newItem, err := p.newItem()
+			if err != nil && err != ErrItemUnavailable {
+				return
+			} else if err == nil {
+				item = p.checkout(newItem)
+				return
+			}
+		}
+		itemOrError = false
+	}()
+
+	if itemOrError {
+		return item, err
+	}
+	var qItem interface{}
 	itemChan, timeoutChan := p.itemQ.TakeChan(timeout)
 	select {
-	case item = <-itemChan:
-		return p.checkout(item), nil
+	case qItem = <-itemChan:
+		return p.checkout(qItem), nil
 	case <-timeoutChan:
 		return nil, ErrItemUnavailable
 	}
@@ -145,7 +161,12 @@ func (p *itemPool) Remove(item *Item) error {
 	}
 
 	delete(p.itemMap, item.id)
-
+	item, err := p.newItem()
+	if err == nil {
+		p.itemQ.Offer(item)
+	} else {
+		fmt.Printf("Remove error %v\n", err)
+	}
 	return nil
 }
 
@@ -184,8 +205,6 @@ func (p *itemPool) checkout(item interface{}) *Item {
 
 // creates a new Item if it can
 func (p *itemPool) newItem() (*Item, error) {
-	p.poolLock.Lock()
-	defer p.poolLock.Unlock()
 	if len(p.itemMap) >= p.capacity {
 		return nil, ErrItemUnavailable
 	}

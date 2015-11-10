@@ -2,7 +2,7 @@ require_relative 'navbar'
 require 'site_prism'
 
 class Applications < SitePrism::Page
-    set_url applicationURL("#/apps")
+    set_url applicationURL("#/apps?disable-animation=true")
     set_url_matcher /apps/
 
     section :navbar, NavBarSection, ".navbar-collapse"

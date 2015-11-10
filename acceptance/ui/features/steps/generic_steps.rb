@@ -1,8 +1,5 @@
 Given (/^(?:|that )the admin user is logged in$/) do
-    visitLoginPage()
-    fillInDefaultUserID()
-    fillInDefaultPassword()
-    clickSignInButton()
+    loginAsDefaultUser()
 end
 
 When (/^I fill in "([^"]*)" with "([^"]*)"$/) do |element, text|
@@ -305,4 +302,16 @@ end
 
 def getServicedCLI()
     return "/capybara/serviced --endpoint #{HOST_IP}:4979"
+end
+
+
+def loginAsDefaultUser()
+    visitLoginPage()
+    fillInDefaultUserID()
+    fillInDefaultPassword()
+    clickSignInButton()
+    # login redirects to application page, but
+    # deploy wizard may appears, so automatically
+    # close it
+    closeDeployWizard()
 end

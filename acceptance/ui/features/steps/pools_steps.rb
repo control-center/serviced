@@ -119,9 +119,15 @@ Then (/^I should see the Interface field$/) do
 end
 
 def visitPoolsPage()
+    wait = Capybara.default_wait_time
+    Capybara.default_wait_time = 180
     @pools_page = Pools.new
     @pools_page.navbar.resourcePools.click()
     expect(@pools_page).to be_displayed
+    Capybara.default_wait_time = wait
+
+    # wait till loading animation clears
+    @pools_page.has_no_css?(".loading_wrapper")
 end
 
 def clickAddPoolButton()
