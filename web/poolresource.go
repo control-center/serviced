@@ -217,7 +217,7 @@ func restGetPoolIps(w *rest.ResponseWriter, r *rest.Request, ctx *requestContext
 	w.WriteJson(&ips)
 }
 
-func getPoolHostIds(poolID string, client *master.Client) ([]string, error) {
+func getPoolHostIds(poolID string, client master.ClientInterface) ([]string, error) {
 	hosts, err := client.FindHostsInPool(poolID)
 	if err != nil {
 		glog.Errorf("Could not get hosts: %v", err)
@@ -231,7 +231,7 @@ func getPoolHostIds(poolID string, client *master.Client) ([]string, error) {
 	return hostIDs, nil
 }
 
-func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, client *master.Client) error {
+func buildPoolMonitoringProfile(pool *pool.ResourcePool, hostIDs []string, client master.ClientInterface) error {
 	var totalMemory uint64 = 0
 	var totalCores int = 0
 

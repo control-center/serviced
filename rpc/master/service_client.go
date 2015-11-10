@@ -24,7 +24,7 @@ type ServiceUseRequest struct {
 	NoOp      bool
 }
 
-//GetHost gets the host for the given hostID or nil
+// ServiceUse will use a new image for a given service - this will pull the image and tag it
 func (c *Client) ServiceUse(serviceID string, imageID string, registry string, noOp bool) (string, error) {
 	svcUseRequest := &ServiceUseRequest{ServiceID: serviceID, ImageID: imageID, Registry: registry, NoOp: noOp}
 	imageResult := ""
