@@ -319,7 +319,7 @@ func (c *Controller) watchRemotePorts() {
 		return
 	}
 	//translate closing call to endpoint cancel
-	cancelEndpointWatch := make(chan bool)
+	cancelEndpointWatch := make(chan interface{})
 	go func() {
 		select {
 		case errc := <-c.closing:
@@ -761,7 +761,7 @@ var (
 	vifs                    *VIFRegistry
 	nextip                  int
 	watchers                map[string]bool
-	endpointsWatchCanceller chan bool
+	endpointsWatchCanceller chan interface{}
 	cMuxPort                uint16 // the TCP port to use
 	cMuxTLS                 bool
 )
@@ -771,5 +771,5 @@ func init() {
 	vifs = NewVIFRegistry()
 	nextip = 1
 	watchers = make(map[string]bool)
-	endpointsWatchCanceller = make(chan bool)
+	endpointsWatchCanceller = make(chan interface{})
 }
