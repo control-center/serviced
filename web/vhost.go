@@ -35,7 +35,7 @@ import (
 )
 
 var (
-	vregistry = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- bool)}
+	vregistry = vhostRegistry{lookup: make(map[string]*vhostInfo), vhostWatch: make(map[string]chan<- interface{})}
 )
 
 type vhostInfo struct {
@@ -78,18 +78,18 @@ func createvhostEndpointInfo(vep *registry.VhostEndpoint) vhostEndpointInfo {
 //vhostRegistry keeps track of all current known vhosts and vhost endpoints.
 type vhostRegistry struct {
 	sync.RWMutex
-	lookup     map[string]*vhostInfo  //vhost name to all availabe endpoints
-	vhostWatch map[string]chan<- bool //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
+	lookup     map[string]*vhostInfo         //vhost name to all availabe endpoints
+	vhostWatch map[string]chan<- interface{} //watches to ZK vhost dir  e.g. zenoss5x. Channel is to cancel watch
 }
 
-func (vr *vhostRegistry) getWatch(vhost string) (chan<- bool, bool) {
+func (vr *vhostRegistry) getWatch(vhost string) (chan<- interface{}, bool) {
 	vr.RLock()
 	defer vr.RUnlock()
 	channel, found := vr.vhostWatch[vhost]
 	return channel, found
 }
 
-func (vr *vhostRegistry) setWatch(vhost string, cancel chan<- bool) {
+func (vr *vhostRegistry) setWatch(vhost string, cancel chan<- interface{}) {
 	vr.RLock()
 	defer vr.RUnlock()
 	vr.vhostWatch[vhost] = cancel
@@ -164,7 +164,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 			currentVhosts[vhostPath] = struct{}{}
 			if _, found := vregistry.getWatch(vhostPath); !found {
 				glog.Infof("processing vhost watch: %s", vhostPath)
-				cancelChan := make(chan bool)
+				cancelChan := make(chan interface{})
 				vregistry.setWatch(vhostPath, cancelChan)
 				go func(vhostID string) {
 					defer vregistry.deleteWatch(vhostPath)
@@ -232,7 +232,7 @@ func (sc *ServiceConfig) syncVhosts(shutdown <-chan interface{}) error {
 			}
 		}
 	}
-	cancelChan := make(chan bool)
+	cancelChan := make(chan interface{})
 	for {
 		glog.Info("Running vhostRegistry.WatchRegistry")
 
