@@ -13,27 +13,12 @@
 
 package isvcs
 
-import (
-	"time"
-
-	"github.com/control-center/serviced/commons/docker"
-	"github.com/zenoss/glog"
-)
+import "github.com/zenoss/glog"
 
 var logstash *IService
 
 func initLogstash() {
 	var err error
-
-	defaultHealthCheck := healthCheckDefinition{
-		healthCheck: logstashHealthCheck,
-		Interval:    DEFAULT_HEALTHCHECK_INTERVAL,
-		Timeout:     DEFAULT_HEALTHCHECK_TIMEOUT,
-	}
-
-	healthChecks := map[string]healthCheckDefinition{
-		DEFAULT_HEALTHCHECK_NAME: defaultHealthCheck,
-	}
 
 	command := "exec /opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	localFilePortBinding := portBinding{
@@ -63,37 +48,14 @@ func initLogstash() {
 				localFilePortBinding,
 				lumberJackPortBinding,
 				webserverPortBinding},
-			Volumes:      map[string]string{},
-			Notify:       notifyLogstashConfigChange,
-			Links:        []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
-			StartGroup:   1,
-			HealthChecks: healthChecks,
+			Volumes:    map[string]string{},
+			Notify:     notifyLogstashConfigChange,
+			Links:      []string{"serviced-isvcs_elasticsearch-logstash:elasticsearch"},
+			StartGroup: 1,
 		})
 	if err != nil {
 		glog.Fatalf("Error initializing logstash_master container: %s", err)
 	}
-}
-
-func logstashHealthCheck(halt <-chan struct{}) error {
-	for {
-		ctr, err := docker.FindContainer(logstash.name())
-		if err != nil {
-			glog.V(1).Infof("Couldn't find logstash container: %s", err.Error())
-			continue
-		}
-		if ctr.IsRunning() {
-			break
-		}
-		select {
-		case <-halt:
-			glog.V(1).Infof("Quit healthcheck for logstash isvc.")
-			return nil
-		default:
-			time.Sleep(time.Second)
-		}
-	}
-	glog.V(1).Infof("Logstash running.")
-	return nil
 }
 
 func notifyLogstashConfigChange(svc *IService, value interface{}) error {
