@@ -75,14 +75,22 @@ func (r *registryType) EnsureKey(conn client.Connection, key string) (string, er
 }
 
 //WatchKey watches a key in the zk registry. Watches indefinitely or until cancelled, will block
-func (r *registryType) WatchKey(conn client.Connection, key string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
+func (r *registryType) WatchKey(conn client.Connection, key string, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	keyPath := r.getPath(key)
+	if err := zzk.Ready(cancel, conn, keyPath); err != nil {
+		glog.Errorf("Could not wait for registry key at %s: %s", keyPath, err)
+		return err
+	}
 	return watch(conn, keyPath, cancel, processChildren, errorHandler)
 }
 
 //WatchRegistry watches the registry for new keys in the zk registry. Watches indefinitely or until cancelled, will block
-func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
+func (r *registryType) WatchRegistry(conn client.Connection, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	path := r.getPath()
+	if err := zzk.Ready(cancel, conn, path); err != nil {
+		glog.Errorf("Could not wait for registry at %s: %s", r.getPath(), err)
+		return err
+	}
 	return watch(conn, path, cancel, processChildren, errorHandler)
 }
 
@@ -192,22 +200,6 @@ func (r *registryType) ensureKey(conn client.Connection, key string) error {
 	}
 }
 
-func (r *registryType) ensureDir(conn client.Connection, path string) error {
-	timeout := time.After(time.Second * 60)
-	var err error
-	for {
-		err = conn.CreateDir(path)
-		if err == client.ErrNodeExists || err == nil {
-			return nil
-		}
-		select {
-		case <-timeout:
-			break
-		default:
-		}
-	}
-}
-
 // getChildren gets all child paths for the given nodeID
 func (r *registryType) getChildren(conn client.Connection, nodeID string) ([]string, error) {
 	path := r.getPath(nodeID)
@@ -223,16 +215,15 @@ func (r *registryType) getChildren(conn client.Connection, nodeID string) ([]str
 	return result, nil
 }
 
-func WatchChildren(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
+func WatchChildren(conn client.Connection, path string, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
 	return watch(conn, path, cancel, processChildren, errorHandler)
 }
 
-func watch(conn client.Connection, path string, cancel <-chan bool, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
-	exists, err := zzk.PathExists(conn, path)
+func watch(conn client.Connection, path string, cancel <-chan interface{}, processChildren ProcessChildrenFunc, errorHandler WatchError) error {
+	exists, err := conn.Exists(path)
 	if err != nil {
 		return err
-	}
-	if !exists {
+	} else if !exists {
 		return client.ErrNoNode
 	}
 	for {
@@ -255,13 +246,12 @@ func watch(conn client.Connection, path string, cancel <-chan bool, processChild
 	}
 }
 
-func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan bool, processNode func(conn client.Connection,
+func (r *registryType) watchItem(conn client.Connection, path string, nodeType client.Node, cancel <-chan interface{}, processNode func(conn client.Connection,
 	node client.Node), errorHandler WatchError) error {
-	exists, err := zzk.PathExists(conn, path)
+	exists, err := conn.Exists(path)
 	if err != nil {
 		return err
-	}
-	if !exists {
+	} else if !exists {
 		return client.ErrNoNode
 	}
 	for {
