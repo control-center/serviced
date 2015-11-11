@@ -29,15 +29,17 @@ import (
 	"github.com/zenoss/go-json-rest"
 )
 
-var foreverHealthy = &domain.HealthCheckStatus{
-	Status:    "passed",
-	Timestamp: time.Now().UTC().Unix(),
-	Interval:  3.156e9, // One century in seconds.
-}
-
 func init() {
 	// Initialize the fake isvc application.
-	healthStatuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
+	healthStatuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{
+		"0": {
+			"alive": &domain.HealthCheckStatus{
+				Status:    "passed",
+				Timestamp: time.Now().UTC().Unix(),
+				Interval:  3.156e9, // One century in seconds.
+			},
+		},
+	}
 }
 
 type messagePacket struct {
