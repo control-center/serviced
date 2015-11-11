@@ -11,21 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
-
 package isvcs
 
-import (
-	"github.com/zenoss/glog"
-)
+import "github.com/zenoss/glog"
 
 var logstash *IService
 
 func initLogstash() {
 	var err error
+
 	command := "exec /opt/logstash-1.4.2/bin/logstash agent -f /usr/local/serviced/resources/logstash/logstash.conf"
 	localFilePortBinding := portBinding{
 		HostIp:         "0.0.0.0",
