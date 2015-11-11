@@ -17,7 +17,6 @@ import "github.com/stretchr/testify/mock"
 
 import "github.com/control-center/serviced/domain"
 import "github.com/control-center/serviced/domain/addressassignment"
-import "github.com/control-center/serviced/domain/applicationendpoint"
 import "github.com/control-center/serviced/domain/service"
 import "github.com/control-center/serviced/domain/servicestate"
 import "github.com/control-center/serviced/domain/servicetemplate"
@@ -166,18 +165,6 @@ func (_m *ControlPlane) GetTaggedServices(request dao.ServiceRequest, services *
 	var r0 error
 	if rf, ok := ret.Get(0).(func(dao.ServiceRequest, *[]service.Service) error); ok {
 		r0 = rf(request, services)
-	} else {
-		r0 = ret.Error(0)
-	}
-
-	return r0
-}
-func (_m *ControlPlane) GetServiceEndpoints(serviceId string, response *map[string][]applicationendpoint.ApplicationEndpoint) error {
-	ret := _m.Called(serviceId, response)
-
-	var r0 error
-	if rf, ok := ret.Get(0).(func(string, *map[string][]applicationendpoint.ApplicationEndpoint) error); ok {
-		r0 = rf(serviceId, response)
 	} else {
 		r0 = ret.Error(0)
 	}

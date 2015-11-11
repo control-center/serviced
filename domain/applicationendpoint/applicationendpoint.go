@@ -28,6 +28,7 @@ type ApplicationEndpoint struct {
 	ServiceID      string
 	InstanceID     int
 	Application    string
+	Purpose        string
 	HostID         string
 	HostIP         string
 	HostPort       uint16
@@ -39,6 +40,13 @@ type ApplicationEndpoint struct {
 	ProxyPort      uint16
 }
 
+type EndpointReport struct {
+	Endpoint ApplicationEndpoint
+
+	// FIXME: Refactor into some kind of array of typed messages (e.g. info, warn and error)
+	Messages []string
+}
+
 // BuildApplicationEndpoint converts a ServiceEndpoint to an ApplicationEndpoint
 func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *service.ServiceEndpoint) (ApplicationEndpoint, error) {
 	var ae ApplicationEndpoint
@@ -46,6 +54,7 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	ae.ServiceID = state.ServiceID
 	ae.Application = endpoint.Application
 	ae.Protocol = endpoint.Protocol
+	ae.Purpose = endpoint.Purpose
 	ae.ContainerID = state.DockerID
 	ae.ContainerIP = state.PrivateIP
 	if endpoint.PortTemplate != "" {
@@ -81,9 +90,18 @@ func BuildApplicationEndpoint(state *servicestate.ServiceState, endpoint *servic
 	return ae, nil
 }
 
+// BuildEndpointReports converts an array of ApplicationEndpoints to an array of EndpointReports
+func BuildEndpointReports(appEndpoints []ApplicationEndpoint) []EndpointReport {
+	endpoints := make([]EndpointReport, 0)
+	for _, appEndpoint := range appEndpoints {
+		endpoints = append(endpoints, EndpointReport{Endpoint: appEndpoint, Messages: []string{}})
+	}
+	return endpoints
+}
+
 // Returns a string which uniquely identifies an endpoint instance
 func (endpoint *ApplicationEndpoint) GetID() string {
-	return strings.ToLower(fmt.Sprintf("%s/%d %s", endpoint.ServiceID, endpoint.InstanceID, endpoint.Application))
+	return strings.ToLower(fmt.Sprintf("%s/%d %s %s", endpoint.ServiceID, endpoint.InstanceID, endpoint.Purpose, endpoint.Application))
 }
 
 // Find the entry in endpoints which matches the specified endpoint
@@ -107,6 +125,9 @@ func (a *ApplicationEndpoint) Equals(b *ApplicationEndpoint) bool {
 		return false
 	}
 	if a.Application != b.Application {
+		return false
+	}
+	if a.Purpose != b.Purpose {
 		return false
 	}
 	if a.HostID != b.HostID {
