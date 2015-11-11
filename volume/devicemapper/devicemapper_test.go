@@ -25,7 +25,6 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	"github.com/control-center/serviced/volume/drivertest"
-	devmapper "github.com/docker/docker/daemon/graphdriver/devmapper"
 	// Register the devicemapper driver
 	_ "github.com/control-center/serviced/volume/devicemapper"
 )
@@ -37,10 +36,11 @@ var (
 
 func init() {
 	// Reduce the size the the base fs and loopback for the tests
-	devmapper.DefaultDataLoopbackSize = 300 * 1024 * 1024
-	devmapper.DefaultMetaDataLoopbackSize = 199 * 1024 * 1024
-	devmapper.DefaultBaseFsSize = 300 * 1024 * 1024
-	devmapper.DefaultUdevSyncOverride = true
+	devmapArgs = append(devmapArgs,
+		fmt.Sprintf("dm.loopdatasize=%d", 300*1024*1024),
+		fmt.Sprintf("dm.loopmetadatasize=%d", 199*1024*1024),
+		fmt.Sprintf("dm.basesize=%d", 300*1024*1024),
+		"dm.override_udev_sync_check=true")
 	if err := initLoopbacks(); err != nil {
 		panic(err)
 	}
