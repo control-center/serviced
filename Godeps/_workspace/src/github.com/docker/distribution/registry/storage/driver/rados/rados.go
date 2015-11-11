@@ -409,7 +409,9 @@ func (d *driver) List(ctx context.Context, dirPath string) ([]string, error) {
 
 	keys := make([]string, 0, len(files))
 	for k := range files {
-		keys = append(keys, path.Join(dirPath, k))
+		if k != dirPath {
+			keys = append(keys, path.Join(dirPath, k))
+		}
 	}
 
 	return keys, nil
@@ -494,7 +496,7 @@ func (d *driver) Delete(ctx context.Context, objectPath string) error {
 // URLFor returns a URL which may be used to retrieve the content stored at the given path.
 // May return an UnsupportedMethodErr in certain StorageDriver implementations.
 func (d *driver) URLFor(ctx context.Context, path string, options map[string]interface{}) (string, error) {
-	return "", storagedriver.ErrUnsupportedMethod
+	return "", storagedriver.ErrUnsupportedMethod{}
 }
 
 // Generate a blob identifier
@@ -528,7 +530,7 @@ func (d *driver) putOid(objectPath string, oid string) error {
 	}
 
 	// Esure parent virtual directories
-	if createParentReference && directory != "/" {
+	if createParentReference {
 		return d.putOid(directory, "")
 	}
 
@@ -581,7 +583,7 @@ func (d *driver) deleteOid(objectPath string) error {
 		}
 
 		// Remove reference on parent omaps
-		if directory != "/" {
+		if directory != "" {
 			return d.deleteOid(directory)
 		}
 	}
