@@ -23,10 +23,24 @@ import (
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/domain"
 	"github.com/control-center/serviced/facade"
+	"github.com/control-center/serviced/isvcs"
 	"github.com/control-center/serviced/node"
 	"github.com/zenoss/glog"
 	"github.com/zenoss/go-json-rest"
 )
+
+func init() {
+	// Initialize the fake isvc application.
+	healthStatuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{
+		"0": {
+			"alive": &domain.HealthCheckStatus{
+				Status:    "passed",
+				Timestamp: time.Now().UTC().Unix(),
+				Interval:  3.156e9, // One century in seconds.
+			},
+		},
+	}
+}
 
 type messagePacket struct {
 	Timestamp int64
@@ -55,24 +69,6 @@ func GetHealthStatusesForService(serviceID string) map[string]map[string]domain.
 		}
 	}
 	return result
-}
-
-func init() {
-	foreverHealthy := &domain.HealthCheckStatus{
-		Status:    "passed",
-		Timestamp: time.Now().UTC().Unix(),
-		Interval:  3.156e9, // One century in seconds.
-	}
-
-	// FIXME: These values should be replaced with those maintained in isvcs.IService
-	healthStatuses["isvc-internalservices"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-elasticsearch-logstash"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-elasticsearch-serviced"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-zookeeper"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-opentsdb"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-logstash"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-celery"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
-	healthStatuses["isvc-dockerRegistry"] = map[string]map[string]*domain.HealthCheckStatus{"0": {"alive": foreverHealthy}}
 }
 
 func getService(serviceID, instanceID string) *dao.RunningService {
@@ -145,6 +141,20 @@ func SetDao(d dao.ControlPlane) {
 func RestGetHealthStatus(w *rest.ResponseWriter, r *rest.Request, client *node.ControlClient) {
 	lock.RLock()
 	defer lock.RUnlock()
+	isvcNames := isvcs.Mgr.GetServiceNames()
+	for _, name := range isvcNames {
+		iname := "isvc-" + name
+		status, err := isvcs.Mgr.GetHealthStatus(name)
+		if err != nil {
+			glog.Warningf("Error acquiring health status for %s: %s", name, err)
+			continue
+		}
+		healthStatuses[iname] = map[string]map[string]*domain.HealthCheckStatus{}
+		healthStatuses[iname]["0"] = map[string]*domain.HealthCheckStatus{}
+		for _, status2 := range status.HealthStatuses {
+			healthStatuses[iname]["0"][status2.Name] = &status2
+		}
+	}
 	packet := messagePacket{time.Now().UTC().Unix(), healthStatuses}
 	w.WriteJson(&packet)
 }

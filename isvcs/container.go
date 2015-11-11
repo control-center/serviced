@@ -11,11 +11,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package agent implements a service that runs on a serviced node. It is
-// responsible for ensuring that a particular node is running the correct services
-// and reporting the state and health of those services back to the master
-// serviced.
-
 package isvcs
 
 import (
@@ -176,7 +171,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		svc.healthStatuses[name] = &domain.HealthCheckStatus{
 			Name:      name,
 			Status:    "unknown",
-			Interval:  0,
+			Interval:  3.156e9,
 			Timestamp: 0,
 			StartedAt: 0,
 		}

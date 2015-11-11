@@ -260,6 +260,10 @@
             } else if(hc.Status === "failed") {
                 status = "bad";
 
+            // isvcs set status to stopped when they are dead
+            } else if(hc.Status === "stopped") {
+                status = "bad";
+
             // otherwise I have no idea
             } else {
                 status = "unknown";
