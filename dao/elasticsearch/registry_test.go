@@ -241,19 +241,6 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 		errC := make(chan error)
 		eventC := make(chan int)
 
-		// case 0: no parent
-		go func() {
-			parentKey := registry.TenantEndpointKey("bad_tenant", "bad_endpoint")
-			errC <- epr.WatchTenantEndpoint(dt.zkConn, parentKey, nil, nil, make(chan bool))
-		}()
-		select {
-		case err := <-errC:
-			t.Assert(err, Equals, client.ErrNoNode)
-		case <-time.After(5 * time.Second):
-			t.Fatalf("Timeout from WatchTenantEndpoint")
-			// TODO: cancel listener here
-		}
-
 		t.Logf("Starting endpoint listener")
 		go func() {
 			changeEvt := func(conn client.Connection, parent string, nodeIDs ...string) {
@@ -268,7 +255,7 @@ func (dt *DaoTest) TestDao_EndpointRegistrySet(t *C) {
 			_, err := epr.EnsureKey(dt.zkConn, parentKey)
 			t.Assert(err, IsNil)
 
-			epr.WatchTenantEndpoint(dt.zkConn, parentKey, changeEvt, errEvt, make(chan bool))
+			epr.WatchTenantEndpoint(dt.zkConn, parentKey, changeEvt, errEvt, make(chan interface{}))
 			close(errC)
 		}()
 
