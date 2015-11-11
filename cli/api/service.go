@@ -229,18 +229,19 @@ func (a *api) GetServiceStatus(serviceID string) (map[string]map[string]interfac
 }
 
 // Get all of the exported endpoints
-func (a *api) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
-	client, err := a.connectDAO()
+func (a *api) GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error) {
+	client, err := a.connectMaster()
 	if err != nil {
 		return nil, err
 	}
 
-	endpoints := make(map[string][]applicationendpoint.ApplicationEndpoint)
-	if err := client.GetServiceEndpoints(serviceID, &endpoints); err != nil {
+	serviceIDs := make([]string, 0)
+	serviceIDs = append(serviceIDs, serviceID)
+	if endpoints, err := client.GetServiceEndpoints(serviceIDs, reportImports, reportExports, validate); err != nil {
 		return nil, err
+	} else {
+		return endpoints, nil
 	}
-
-	return endpoints, nil
 }
 
 // Gets all of the available services
