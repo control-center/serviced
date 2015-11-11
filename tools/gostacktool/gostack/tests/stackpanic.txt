@@ -1,0 +1,887 @@
+goroutine 2365 [running]:
+github.com/fsouza/go-dockerclient.(*Client).do(0xc2081b2120, 0xd0ab10, 0x4, 0xc20921db00, 0x51, 0x0, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/client.go:373 +0x957
+github.com/fsouza/go-dockerclient.(*Client).WaitContainer(0xc2081b2120, 0xc209293a00, 0x40, 0x0, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/container.go:817 +0xf1
+github.com/control-center/serviced/commons/docker.(*Client).WaitContainer(0xc208a7a650, 0xc209293a00, 0x40, 0x13ce028, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/client.go:179 +0x51
+github.com/control-center/serviced/commons/docker.func·003()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:406 +0x65
+created by github.com/control-center/serviced/commons/docker.(*Container).Wait
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:408 +0x1ec
+
+goroutine 1 [chan receive, 199 minutes]:
+github.com/control-center/serviced/cli/api.(*daemon).run(0xc208116240, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:301 +0xb13
+github.com/control-center/serviced/cli/api.(*api).StartServer(0xc208188300, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/api.go:160 +0x375
+github.com/control-center/serviced/cli/cmd.(*ServicedCli).cmdServer(0xc208188450, 0xc2080ce2c0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/cmd/server.go:52 +0x241
+github.com/control-center/serviced/cli/cmd.*ServicedCli.(github.com/control-center/serviced/cli/cmd.cmdServer)·fm(0xc2080ce2c0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/cmd/server.go:31 +0x31
+github.com/codegangsta/cli.Command.Run(0xd233f0, 0x6, 0x0, 0x0, 0xd3fc30, 0xf, 0xd5dc90, 0xf, 0x0, 0x0, ...)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/codegangsta/cli/command.go:97 +0xe31
+github.com/codegangsta/cli.(*App).Run(0xc2081160c0, 0xc20800a000, 0x2, 0x2, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/codegangsta/cli/app.go:125 +0xb6a
+github.com/control-center/serviced/cli/cmd.(*ServicedCli).Run(0xc208188450, 0xc20800a000, 0x2, 0x2)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/cmd/cmd.go:137 +0x5e
+main.main()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/main.go:49 +0x319
+
+goroutine 5 [syscall, 199 minutes]:
+os/signal.loop()
+/home/homer/.gvm/gos/go1.4.2/src/os/signal/signal_unix.go:21 +0x1f
+created by os/signal.init·1
+/home/homer/.gvm/gos/go1.4.2/src/os/signal/signal_unix.go:27 +0x35
+
+goroutine 6 [chan receive]:
+github.com/zenoss/glog.(*loggingT).flushDaemon(0x13c2980)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/zenoss/glog/glog.go:956 +0x78
+created by github.com/zenoss/glog.init·1
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/zenoss/glog/glog.go:428 +0x376
+
+goroutine 17 [syscall, 199 minutes, locked to thread]:
+runtime.goexit()
+/home/homer/.gvm/gos/go1.4.2/src/runtime/asm_amd64.s:2232 +0x1
+
+goroutine 9 [select, 195 minutes]:
+github.com/control-center/serviced/commons/docker.kernel(0x7f906a6a2f90, 0xc2080fc088, 0xc2080c0480, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/kernel.go:117 +0xefb
+created by github.com/control-center/serviced/commons/docker.init·1
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/kernel.go:107 +0x199
+
+goroutine 19 [chan receive, 199 minutes]:
+github.com/control-center/serviced/commons/docker.func·006()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/event.go:172 +0xba
+created by github.com/control-center/serviced/commons/docker.(*clientEventMonitor).run
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/event.go:179 +0x164
+
+goroutine 20 [select, 195 minutes]:
+github.com/control-center/serviced/commons/docker.func·007()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/event.go:291 +0x255
+created by github.com/control-center/serviced/commons/docker.(*Subscription).run
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/event.go:309 +0xc1
+
+goroutine 21 [chan receive, 195 minutes]:
+github.com/control-center/serviced/commons/docker.listenAndDispatch(0xc2080fc088, 0x13c20c0, 0xc208048050, 0xc208048058)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/event.go:243 +0x80
+created by github.com/control-center/serviced/commons/docker.func·006
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/event.go:169 +0x76
+
+goroutine 22 [select]:
+github.com/fsouza/go-dockerclient.(*eventMonitoringState).monitorEvents(0xc208011650, 0xc20802c6c0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/event.go:175 +0x41c
+created by github.com/fsouza/go-dockerclient.(*eventMonitoringState).enableEventMonitoring
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/event.go:148 +0x16f
+
+goroutine 23 [IO wait, 195 minutes]:
+net.(*pollDesc).Wait(0xc2080a54f0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc2080a54f0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc2080a5490, 0xc20800f000, 0x1000, 0x1000, 0x0, 0x7f906a6a13c8, 0xc21936f870)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc208048098, 0xc20800f000, 0x1000, 0x1000, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+bufio.(*Reader).fill(0xc2080304e0)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:97 +0x1ce
+bufio.(*Reader).ReadSlice(0xc2080304e0, 0x7f906a69d10a, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:295 +0x257
+net/http/internal.readLine(0xc2080304e0, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/internal/chunked.go:110 +0x5a
+net/http/internal.(*chunkedReader).beginChunk(0xc20809f320)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/internal/chunked.go:47 +0x46
+net/http/internal.(*chunkedReader).Read(0xc20809f320, 0xc208bdac01, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/internal/chunked.go:77 +0xbb
+net/http.(*body).readLocked(0xc2080fa540, 0xc208bdac01, 0x5ff, 0x5ff, 0x5, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/transfer.go:584 +0x7a
+net/http.(*body).Read(0xc2080fa540, 0xc208bdac01, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/transfer.go:579 +0x115
+encoding/json.(*Decoder).readValue(0xc208120000, 0xc206eb211b, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc208120000, 0xa995c0, 0xc2194dee40, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+github.com/fsouza/go-dockerclient.func·006(0xc20811e090, 0xc2080ce000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/event.go:289 +0x1b7
+created by github.com/fsouza/go-dockerclient.(*Client).eventHijack
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/event.go:307 +0x625
+
+goroutine 10 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070400)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 11 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070500)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 12 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070600)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 13 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070800)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 14 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070900)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 15 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208070f00)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 16 [select, 199 minutes]:
+github.com/control-center/serviced/isvcs.(*IService).run(0xc208071000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:462 +0x12a0
+created by github.com/control-center/serviced/isvcs.NewIService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/isvcs/container.go:180 +0x57f
+
+goroutine 14677 [IO wait, 191 minutes]:
+net.(*pollDesc).Wait(0xc209cdce60, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc209cdce60, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc209cdce00, 0xc218280c01, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc218591668)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218cf6588, 0xc218280c01, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc219590d80, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc219590d80, 0xbd4360, 0xc21f06d7c0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21f06d7a0, 0xc21aba4400, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21f06d7a0, 0x0, 0x0, 0xc21aba4400, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21f06d7a0, 0xc2080c8680, 0xc2156e1320, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21f06d7a0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 24 [sleep]:
+github.com/control-center/serviced/web.purgeOldsessionTs()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/web/session.go:94 +0x39
+created by github.com/control-center/serviced/web.init·2
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/web/session.go:65 +0x1f0
+
+goroutine 44 [IO wait, 199 minutes]:
+net.(*pollDesc).Wait(0xc2080a4ae0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc2080a4ae0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).accept(0xc2080a4a80, 0x0, 0x7f906a6a13c8, 0xc2081795f0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:419 +0x40b
+net.(*TCPListener).AcceptTCP(0xc2080fc320, 0x76c1d4, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:234 +0x4e
+net/http.tcpKeepAliveListener.Accept(0xc2080fc320, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1976 +0x4c
+net/http.(*Server).Serve(0xc2081ec060, 0x7f906a6a5fa0, 0xc2080fc320, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1728 +0x92
+net/http.(*Server).ListenAndServe(0xc2081ec060, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1718 +0x154
+net/http.ListenAndServe(0xd02270, 0x6, 0x7f906a6aa6c0, 0xc20817d0c0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1808 +0xba
+github.com/control-center/serviced/cli/api.func·014()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:672 +0xaa
+created by github.com/control-center/serviced/cli/api.(*daemon).startAgent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:673 +0xcd8
+
+goroutine 101 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.start(0xc2080c1560, 0x7f906a6aaad8, 0xc20818ec30, 0xc20817cd80, 0x2, 0x2)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:322 +0x408
+github.com/control-center/serviced/zzk.func·012()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:275 +0xae
+created by github.com/control-center/serviced/zzk.Start
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:284 +0x702
+
+goroutine 24829 [IO wait, 147 minutes]:
+net.(*pollDesc).Wait(0xc216801800, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc216801800, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc2168017a0, 0xc216879201, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc219386160)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218cf6110, 0xc216879201, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc218576300, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc218576300, 0xbd4360, 0xc21f9de9e0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21f9de9c0, 0xc21f234d60, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21f9de9c0, 0x0, 0x0, 0xc21f234d60, 0xc21ee41900, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21f9de9c0, 0xc2080c8680, 0xc2090e35e0, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21f9de9c0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 58 [chan receive]:
+github.com/control-center/serviced/coordinator/storage.(*Client).UpdateUpdatedAt(0xc2080d08c0, 0xdf8475800, 0x0, 0x0, 0xc208164d40, 0x1e, 0xc208124f00, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/storage/client.go:229 +0x5ed
+created by github.com/control-center/serviced/coordinator/storage.(*Client).loop
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/storage/client.go:104 +0x35d
+
+goroutine 59 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.(*zconn).monitor(0xc208164d60, 0xd01650, 0x1)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/connection.go:164 +0x6b8
+created by github.com/control-center/serviced/zzk.newzconn
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/connection.go:144 +0x115
+
+goroutine 60 [IO wait]:
+net.(*pollDesc).Wait(0xc216d6a920, 0x77, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitWrite(0xc216d6a920, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:93 +0x43
+net.(*netFD).connect(0xc216d6a8c0, 0x0, 0x0, 0x7f906a6a4890, 0xc21e7a6740, 0xecd71651c, 0x25739eee, 0x13c2360, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:114 +0x24b
+net.(*netFD).dial(0xc216d6a8c0, 0x7f906a6a5f00, 0x0, 0x7f906a6a5f00, 0xc2181ce660, 0xecd71651c, 0x25739eee, 0x13c2360, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/sock_posix.go:139 +0x37a
+net.socket(0xd25290, 0x3, 0x2, 0x1, 0x0, 0xc2181ce600, 0x7f906a6a5f00, 0x0, 0x7f906a6a5f00, 0xc2181ce660, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/sock_posix.go:91 +0x422
+net.internetSocket(0xd25290, 0x3, 0x7f906a6a5f00, 0x0, 0x7f906a6a5f00, 0xc2181ce660, 0xecd71651c, 0x25739eee, 0x13c2360, 0x1, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/ipsock_posix.go:137 +0x148
+net.dialTCP(0xd25290, 0x3, 0x0, 0xc2181ce660, 0xecd71651c, 0x25739eee, 0x13c2360, 0xc2195748e0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:156 +0x125
+net.dialSingle(0xd25290, 0x3, 0xc208164de0, 0x12, 0x0, 0x0, 0x7f906a6a5e98, 0xc2181ce660, 0xecd71651c, 0x25739eee, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:235 +0x3f5
+net.func·016(0xecd71651c, 0xe25739eee, 0x13c2360, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:163 +0x12c
+net.dial(0xd25290, 0x3, 0x7f906a6a5e98, 0xc2181ce660, 0xc2173bccb0, 0xecd71651c, 0xe25739eee, 0x13c2360, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:40 +0x6f
+net.(*Dialer).Dial(0xc21e9cc8c0, 0xd25290, 0x3, 0xc208164de0, 0x12, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:170 +0x4be
+net.DialTimeout(0xd25290, 0x3, 0xc208164de0, 0x12, 0x3b9aca00, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:150 +0xe6
+github.com/control-center/go-zookeeper/zk.(*Conn).connect(0xc2080cc1a0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:184 +0xe7
+github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc2080cc1a0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:203 +0x56
+github.com/control-center/go-zookeeper/zk.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c
+created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8
+
+goroutine 38 [select]:
+github.com/control-center/serviced/proxy.(*TCPMux).loop(0xc20807cf40)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/proxy/mux.go:92 +0x643
+created by github.com/control-center/serviced/proxy.NewTCPMux
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/proxy/mux.go:47 +0x179
+
+goroutine 37 [IO wait, 195 minutes]:
+net.(*pollDesc).Wait(0xc208010290, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc208010290, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).accept(0xc208010230, 0x0, 0x7f906a6a13c8, 0xc208f79850)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:419 +0x40b
+net.(*TCPListener).AcceptTCP(0xc2080fc010, 0x76c4ce, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:234 +0x4e
+net/http.tcpKeepAliveListener.Accept(0xc2080fc010, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1976 +0x4c
+net/http.(*Server).Serve(0xc208030c00, 0x7f906a6a5fa0, 0xc2080fc010, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1728 +0x92
+net/http.(*Server).ListenAndServe(0xc208030c00, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1718 +0x154
+net/http.ListenAndServe(0xd54ad0, 0xe, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1808 +0xba
+github.com/control-center/serviced/cli/api.func·006()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:253 +0x4a
+created by github.com/control-center/serviced/cli/api.(*daemon).startDockerRegistryProxy
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:256 +0x448
+
+goroutine 36 [IO wait]:
+net.(*pollDesc).Wait(0xc2080a40d0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc2080a40d0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).accept(0xc2080a4070, 0x0, 0x7f906a6a13c8, 0xc219575cc0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:419 +0x40b
+net.(*TCPListener).AcceptTCP(0xc2080480a8, 0xc208f59700, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:234 +0x4e
+net.(*TCPListener).Accept(0xc2080480a8, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:244 +0x4c
+github.com/control-center/serviced/cli/api.func·003()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:182 +0x54
+created by github.com/control-center/serviced/cli/api.(*daemon).startRPC
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:188 +0x3fd
+
+goroutine 50 [chan receive, 199 minutes]:
+github.com/control-center/serviced/cli/cmd.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/cmd/cmd.go:283 +0x150
+created by github.com/control-center/serviced/cli/cmd.setLogging
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/cmd/cmd.go:292 +0x445
+
+goroutine 35 [IO wait, 199 minutes]:
+net.(*pollDesc).Wait(0xc2080101b0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc2080101b0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).accept(0xc208010150, 0x0, 0x7f906a6a13c8, 0xc2080bc368)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:419 +0x40b
+net.(*TCPListener).AcceptTCP(0xc2080fc008, 0x76c1d4, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:234 +0x4e
+net/http.tcpKeepAliveListener.Accept(0xc2080fc008, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1976 +0x4c
+net/http.(*Server).Serve(0xc208030ba0, 0x7f906a6a5fa0, 0xc2080fc008, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1728 +0x92
+net/http.(*Server).ListenAndServe(0xc208030ba0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1718 +0x154
+net/http.ListenAndServe(0xc2080bc450, 0xe, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/server.go:1808 +0xba
+github.com/control-center/serviced/cli/api.func·002()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:164 +0x12d
+created by github.com/control-center/serviced/cli/api.(*daemon).startRPC
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:168 +0x63
+
+goroutine 52 [IO wait]:
+net.(*pollDesc).Wait(0xc2080a45a0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc2080a45a0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).accept(0xc2080a4540, 0x0, 0x7f906a6a13c8, 0xc2185906f8)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:419 +0x40b
+net.(*TCPListener).AcceptTCP(0xc2080fc018, 0x2, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:234 +0x4e
+net.(*TCPListener).Accept(0xc2080fc018, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:244 +0x4c
+crypto/tls.(*listener).Accept(0xc20807cee0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/crypto/tls/tls.go:46 +0x6b
+github.com/control-center/serviced/proxy.(*TCPMux).acceptor(0xc20807cf40, 0x7f906a6aa5d0, 0xc20807cee0, 0xc208156000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/proxy/mux.go:61 +0x9b
+created by github.com/control-center/serviced/proxy.(*TCPMux).loop
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/proxy/mux.go:90 +0xcf
+
+goroutine 57 [syscall, 192 minutes]:
+syscall.Syscall(0x4, 0xc2193d9830, 0xc21708c900, 0x0, 0x0, 0x4113b9, 0x90)
+/home/homer/.gvm/gos/go1.4.2/src/syscall/asm_linux_amd64.s:21 +0x5
+syscall.Stat(0xc2081f0840, 0x26, 0xc21708c900, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/syscall/zsyscall_linux_amd64.go:1723 +0x92
+os.Stat(0xc2081f0840, 0x26, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/os/file_unix.go:134 +0x75
+github.com/control-center/serviced/coordinator/storage.UpdateRemoteMonitorFile(0xc2081f46c0, 0x1e, 0xdf8475800, 0xc20807d000, 0xd, 0xc2081566c0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/storage/monitor.go:72 +0x428
+created by github.com/control-center/serviced/coordinator/storage.(*Client).loop
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/storage/client.go:103 +0x2f8
+
+goroutine 56 [sleep]:
+github.com/control-center/go-zookeeper/zk.(*Conn).connect(0xc2080b9ee0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:196 +0x323
+github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc2080b9ee0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:203 +0x56
+github.com/control-center/go-zookeeper/zk.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c
+created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8
+
+goroutine 55 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.(*zconn).monitor(0xc208164c80, 0xc2081963d0, 0xe)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/connection.go:164 +0x6b8
+created by github.com/control-center/serviced/zzk.newzconn
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/connection.go:144 +0x115
+
+goroutine 54 [select, 199 minutes]:
+github.com/control-center/serviced/coordinator/client.(*Client).loop(0xc208176540)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/client.go:213 +0xa03
+created by github.com/control-center/serviced/coordinator/client.New
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/client.go:162 +0x2b0
+
+goroutine 68 [select, 199 minutes]:
+github.com/control-center/serviced/coordinator/storage.(*Client).loop(0xc2080d08c0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/storage/client.go:107 +0x1c62
+created by github.com/control-center/serviced/coordinator/storage.NewClient
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/storage/client.go:56 +0x1be
+
+goroutine 69 [chan receive, 199 minutes]:
+github.com/control-center/serviced/cli/api.func·009()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:581 +0x4f
+created by github.com/control-center/serviced/cli/api.func·013
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:584 +0x1576
+
+goroutine 62 [select, 197 minutes]:
+github.com/control-center/serviced/coordinator/client.(*Client).loop(0xc2081762a0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/client.go:213 +0xa03
+created by github.com/control-center/serviced/coordinator/client.New
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/client.go:162 +0x2b0
+
+goroutine 49447 [IO wait, 28 minutes]:
+net.(*pollDesc).Wait(0xc218217f70, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc218217f70, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc218217f10, 0xc21e754c01, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc21936ea70)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218398250, 0xc21e754c01, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc217d0a000, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc217d0a000, 0xbd4360, 0xc21aa9f1c0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21aa9f1a0, 0xc21fa6e4a0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21aa9f1a0, 0x0, 0x0, 0xc21fa6e4a0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21aa9f1a0, 0xc2080c8680, 0xc2202f2960, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21aa9f1a0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 45481 [IO wait, 46 minutes]:
+net.(*pollDesc).Wait(0xc20a1959c0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc20a1959c0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc20a195960, 0xc21aef2601, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc219575910)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218398200, 0xc21aef2601, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc219590a80, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc219590a80, 0xbd4360, 0xc21f325700, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21f3256e0, 0xc220175220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21f3256e0, 0x0, 0x0, 0xc220175220, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21f3256e0, 0xc2080c8680, 0xc2202f34a0, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21f3256e0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 3472 [chan receive, 195 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 76 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.Start(0xc208031380, 0x7f906a6aaad8, 0xc20818ec30, 0x7f906a6ab470, 0xc208151000, 0xc20817cd80, 0x2, 0x2)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:290 +0xbf3
+github.com/control-center/serviced/node.(*HostAgent).Start(0xc208143320, 0xc208031380)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:838 +0xc87
+github.com/control-center/serviced/cli/api.func·011()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:633 +0x42
+created by github.com/control-center/serviced/cli/api.func·013
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:636 +0xb5e
+
+goroutine 64 [select, 199 minutes]:
+github.com/control-center/serviced/utils.RunTTL(0x7f906a6ab210, 0x13ce028, 0xc208031380, 0xdf8475800, 0x4e94914f0000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/utils/ttl.go:38 +0x355
+github.com/control-center/serviced/commons/docker.RunTTL(0xc208031380, 0xdf8475800, 0x4e94914f0000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/ttl.go:28 +0x87
+github.com/control-center/serviced/node.func·010()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:788 +0xa4
+created by github.com/control-center/serviced/node.(*HostAgent).Start
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:791 +0x2ba
+
+goroutine 100 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.Listen(0xc2080c1560, 0xc2080c1620, 0x7f906a6aaad8, 0xc20818ec30, 0x7f906a6ab470, 0xc208151000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:221 +0x18fe
+github.com/control-center/serviced/zzk.func·010()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:256 +0x9c
+created by github.com/control-center/serviced/zzk.Start
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:257 +0x2fc
+
+goroutine 99 [chan send, 199 minutes]:
+github.com/control-center/serviced/zzk/virtualips.func·001(0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/virtualips/virtualips.go:99 +0x5d
+created by github.com/control-center/serviced/zzk/virtualips.NewVirtualIPListener
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/virtualips/virtualips.go:102 +0x1c7
+
+goroutine 79 [select]:
+net/http.(*Transport).getConn(0xc20802c000, 0xc21944e8f0, 0x0, 0xc208188390, 0x4, 0xc208188397, 0x12, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/transport.go:525 +0x608
+net/http.(*Transport).RoundTrip(0xc20802c000, 0xc21944e8f0, 0xc21812c720, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/transport.go:228 +0x4d4
+net/http.send(0xc21944e8f0, 0x7f906a6a1628, 0xc20802c000, 0x2b, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/client.go:219 +0x4fc
+net/http.(*Client).send(0x13c21c0, 0xc21944e8f0, 0x2b, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/client.go:142 +0x15b
+net/http.(*Client).doFollowingRedirects(0x13c21c0, 0xc21944e8f0, 0xf1ed18, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/client.go:367 +0xb25
+net/http.(*Client).Do(0x13c21c0, 0xc21944e8f0, 0xc215b39d68, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/client.go:177 +0x192
+github.com/control-center/serviced/stats.Post(0xc208188390, 0x2b, 0xc2080d3800, 0x1c, 0x20, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/stats/stats.go:310 +0x5ee
+github.com/control-center/serviced/stats.(*StatsReporter).report(0xc2080c0fc0, 0x2540be400)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/stats/stats.go:154 +0x570
+created by github.com/control-center/serviced/stats.NewStatsReporter
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/stats/stats.go:82 +0x383
+
+goroutine 80 [chan receive, 199 minutes]:
+github.com/control-center/serviced/cli/api.func·012()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:654 +0x71
+created by github.com/control-center/serviced/cli/api.func·013
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:655 +0x126f
+
+goroutine 102 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.Ready(0xc2080c1ec0, 0x7f906a6aaad8, 0xc20818ec30, 0xd30e30, 0xb, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:153 +0x45d
+github.com/control-center/serviced/zzk.Listen(0xc2080c1ec0, 0xc2080c1f20, 0x7f906a6aaad8, 0xc20818ec30, 0x7f906a6ab4c0, 0xc20819e640)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:176 +0x32e
+github.com/control-center/serviced/zzk.func·015(0x7f906a6ab4c0, 0xc20819e640)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:317 +0xf0
+created by github.com/control-center/serviced/zzk.start
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:319 +0x2b5
+
+goroutine 103 [select, 199 minutes]:
+github.com/control-center/serviced/zzk.Ready(0xc2080c1ec0, 0x7f906a6aaad8, 0xc20818ec30, 0xc2080f8dc0, 0x7, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:153 +0x45d
+github.com/control-center/serviced/zzk.Ready(0xc2080c1ec0, 0x7f906a6aaad8, 0xc20818ec30, 0xc2080f8dc0, 0xe, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:138 +0x226
+github.com/control-center/serviced/zzk.Ready(0xc2080c1ec0, 0x7f906a6aaad8, 0xc20818ec30, 0xc2080f8dc0, 0x17, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:138 +0x226
+github.com/control-center/serviced/zzk.Listen(0xc2080c1ec0, 0xc208031920, 0x7f906a6aaad8, 0xc20818ec30, 0x7f906a6ab510, 0xc208189a40)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:176 +0x32e
+github.com/control-center/serviced/zzk.func·015(0x7f906a6ab510, 0xc208189a40)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:317 +0xf0
+created by github.com/control-center/serviced/zzk.start
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:319 +0x2b5
+
+goroutine 55381 [IO wait]:
+net.(*pollDesc).Wait(0xc209fb8840, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc209fb8840, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc209fb87e0, 0xc21551a601, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc21cea6568)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218cf61f8, 0xc21551a601, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc218576c00, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc218576c00, 0xbd4360, 0xc21ed62b60, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21ed62b40, 0xc21f0ff1e0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21ed62b40, 0x0, 0x0, 0xc21f0ff1e0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21ed62b40, 0xc2080c8680, 0xc21aa3c4a0, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21ed62b40)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 87 [chan receive, 199 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 104 [chan receive, 199 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 1312 [IO wait, 197 minutes]:
+net.(*pollDesc).Wait(0xc20a079950, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc20a079950, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc20a0798f0, 0xc20a0d6000, 0x1000, 0x1000, 0x0, 0x7f906a6a13c8, 0xc209ff9720)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc2080fcb28, 0xc20a0d6000, 0x1000, 0x1000, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+bufio.(*Reader).fill(0xc20a07d920)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:97 +0x1ce
+bufio.(*Reader).ReadSlice(0xc20a07d920, 0xa, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:295 +0x257
+bufio.(*Reader).ReadLine(0xc20a07d920, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:324 +0x62
+net/textproto.(*Reader).readLineSlice(0xc20a082e40, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/textproto/reader.go:55 +0x9e
+net/textproto.(*Reader).ReadLine(0xc20a082e40, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/textproto/reader.go:36 +0x4f
+net/http.ReadResponse(0xc20a07d920, 0xc208941ad0, 0xc2080fcb28, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/response.go:123 +0x10c
+github.com/fsouza/go-dockerclient.(*Client).do(0xc20a0a2120, 0xd0ab10, 0x4, 0xc20a07d860, 0x51, 0x0, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/client.go:363 +0x50f
+github.com/fsouza/go-dockerclient.(*Client).WaitContainer(0xc20a0a2120, 0xc20a0b8100, 0x40, 0x0, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/container.go:817 +0xf1
+github.com/control-center/serviced/commons/docker.(*Client).WaitContainer(0xc2080fcb18, 0xc20a0b8100, 0x40, 0x13ce028, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/client.go:179 +0x51
+github.com/control-center/serviced/commons/docker.func·003()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:406 +0x65
+created by github.com/control-center/serviced/commons/docker.(*Container).Wait
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:408 +0x1ec
+
+goroutine 495 [select, 197 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208f72320, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208f72320, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 1588 [sleep]:
+github.com/control-center/go-zookeeper/zk.(*Conn).connect(0xc208d38750)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:196 +0x323
+github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc208d38750)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:203 +0x56
+github.com/control-center/go-zookeeper/zk.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c
+created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8
+
+goroutine 92 [select, 195 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc20807d460, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc20807d460, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 500 [select, 197 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208f730e0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208f730e0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 112 [select, 195 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc20882a380, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc20882a380, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 487 [select, 195 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208edd760, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208edd760, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 1546 [IO wait]:
+net.(*pollDesc).Wait(0xc209fb9410, 0x77, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitWrite(0xc209fb9410, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:93 +0x43
+net.(*netFD).connect(0xc209fb93b0, 0x0, 0x0, 0x7f906a6a4890, 0xc2202f2680, 0xecd71651c, 0x257f4b9d, 0x13c2360, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:114 +0x24b
+net.(*netFD).dial(0xc209fb93b0, 0x7f906a6a5f00, 0x0, 0x7f906a6a5f00, 0xc217e415c0, 0xecd71651c, 0x257f4b9d, 0x13c2360, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/sock_posix.go:139 +0x37a
+net.socket(0xd25290, 0x3, 0x2, 0x1, 0x0, 0xc217e41500, 0x7f906a6a5f00, 0x0, 0x7f906a6a5f00, 0xc217e415c0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/sock_posix.go:91 +0x422
+net.internetSocket(0xd25290, 0x3, 0x7f906a6a5f00, 0x0, 0x7f906a6a5f00, 0xc217e415c0, 0xecd71651c, 0x257f4b9d, 0x13c2360, 0x1, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/ipsock_posix.go:137 +0x148
+net.dialTCP(0xd25290, 0x3, 0x0, 0xc217e415c0, 0xecd71651c, 0x257f4b9d, 0x13c2360, 0xc218591f40, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/tcpsock_posix.go:156 +0x125
+net.dialSingle(0xd25290, 0x3, 0xc20a2d64c0, 0x12, 0x0, 0x0, 0x7f906a6a5e98, 0xc217e415c0, 0xecd71651c, 0x257f4b9d, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:235 +0x3f5
+net.func·016(0xecd71651c, 0xe257f4b9d, 0x13c2360, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:163 +0x12c
+net.dial(0xd25290, 0x3, 0x7f906a6a5e98, 0xc217e415c0, 0xc2192b9cb0, 0xecd71651c, 0xe257f4b9d, 0x13c2360, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:40 +0x6f
+net.(*Dialer).Dial(0xc21eacf240, 0xd25290, 0x3, 0xc20a2d64c0, 0x12, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:170 +0x4be
+net.DialTimeout(0xd25290, 0x3, 0xc20a2d64c0, 0x12, 0x3b9aca00, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/dial.go:150 +0xe6
+github.com/control-center/go-zookeeper/zk.(*Conn).connect(0xc20801f520)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:184 +0xe7
+github.com/control-center/go-zookeeper/zk.(*Conn).loop(0xc20801f520)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:203 +0x56
+github.com/control-center/go-zookeeper/zk.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:149 +0x2c
+created by github.com/control-center/go-zookeeper/zk.ConnectWithDialer
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/control-center/go-zookeeper/zk/conn.go:153 +0x4b8
+
+goroutine 1044 [chan receive, 197 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 54995 [IO wait, 2 minutes]:
+net.(*pollDesc).Wait(0xc21536aa70, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc21536aa70, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc21536aa10, 0xc208ad3201, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc2193866f8)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218398160, 0xc208ad3201, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc216870c00, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc216870c00, 0xbd4360, 0xc21fa1ebc0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21fa1eba0, 0xc21f234180, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21fa1eba0, 0x0, 0x0, 0xc21f234180, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21fa1eba0, 0xc2080c8680, 0xc21f2340a0, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21fa1eba0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 3984 [chan receive, 195 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 4148 [IO wait, 195 minutes]:
+net.(*pollDesc).Wait(0xc21856ca00, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc21856ca00, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc21856c9a0, 0xc218579000, 0x1000, 0x1000, 0x0, 0x7f906a6a13c8, 0xc21844dcf8)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218398820, 0xc218579000, 0x1000, 0x1000, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+bufio.(*Reader).fill(0xc2184b9620)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:97 +0x1ce
+bufio.(*Reader).ReadSlice(0xc2184b9620, 0xa, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:295 +0x257
+bufio.(*Reader).ReadLine(0xc2184b9620, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/bufio/bufio.go:324 +0x62
+net/textproto.(*Reader).readLineSlice(0xc2184eff20, 0x0, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/textproto/reader.go:55 +0x9e
+net/textproto.(*Reader).ReadLine(0xc2184eff20, 0x0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/textproto/reader.go:36 +0x4f
+net/http.ReadResponse(0xc2184b9620, 0xc2184528f0, 0xc218398820, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/http/response.go:123 +0x10c
+github.com/fsouza/go-dockerclient.(*Client).do(0xc218523a70, 0xd0ab10, 0x4, 0xc2184b9560, 0x51, 0x0, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/client.go:363 +0x50f
+github.com/fsouza/go-dockerclient.(*Client).WaitContainer(0xc218523a70, 0xc2184b0a00, 0x40, 0xc21856c770, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/Godeps/_workspace/src/github.com/fsouza/go-dockerclient/container.go:817 +0xf1
+github.com/control-center/serviced/commons/docker.(*Client).WaitContainer(0xc217895320, 0xc2184b0a00, 0x40, 0xc21844db01, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/client.go:179 +0x51
+github.com/control-center/serviced/commons/docker.func·003()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:406 +0x65
+created by github.com/control-center/serviced/commons/docker.(*Container).Wait
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:408 +0x1ec
+
+goroutine 53790 [semacquire]:
+sync.(*Mutex).Lock(0xc2080ca480)
+/home/homer/.gvm/gos/go1.4.2/src/sync/mutex.go:66 +0xd3
+sync.(*RWMutex).Lock(0xc2080ca480)
+/home/homer/.gvm/gos/go1.4.2/src/sync/rwmutex.go:82 +0x33
+github.com/control-center/serviced/rpc/rpcutils.(*reconnectingClient).Call(0xc2080ca480, 0xdbe950, 0x1b, 0xc76d20, 0xc2196fa9b0, 0xa9c020, 0xc219686b60, 0x0, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/rpc/rpcutils/clients.go:73 +0x16e
+github.com/control-center/serviced/node.(*ControlClient).LogHealthCheck(0xc21f0351a0, 0xc21f035180, 0x19, 0xc219686b38, 0x1, 0xc219686b50, 0x9, 0xc218268660, 0x27, 0xc219686b3a, ...)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/cp_client.go:305 +0x114
+github.com/control-center/serviced/node.(*HostAgent).LogHealthCheck(0xc208143320, 0xc21f035180, 0x19, 0xc219686b38, 0x1, 0xc219686b50, 0x9, 0xc218268660, 0x27, 0xc219686b3a, ...)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent_proxy.go:201 +0x1da
+reflect.Value.call(0xba4f20, 0xce4630, 0x13, 0xd03c30, 0x4, 0xc208b64f28, 0x3, 0x3, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/reflect/value.go:419 +0x10e5
+reflect.Value.Call(0xba4f20, 0xce4630, 0x13, 0xc208b64f28, 0x3, 0x3, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/reflect/value.go:296 +0xbc
+net/rpc.(*service).call(0xc208150a00, 0xc20818b180, 0xc219575aa0, 0xc2080c8580, 0xc21aa3d860, 0xc76d20, 0xc2196fa960, 0xd9, 0xa9c020, 0xc219686b60, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:382 +0x1f7
+created by net/rpc.(*Server).ServeCodec
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:476 +0x44a
+
+goroutine 3463 [chan receive, 195 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 409 [select, 195 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208c15ba0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208c15ba0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 1296 [select, 197 minutes]:
+github.com/control-center/serviced/commons/docker.(*Container).Wait(0xc209ff0000, 0x7009d32da30000, 0xc20892be80, 0x0, 0x0)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/commons/docker/api.go:410 +0x348
+github.com/control-center/serviced/node.(*HostAgent).setProxy(0xc208143320, 0xc208dad080, 0xc209ff0000)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:442 +0x9ba
+created by github.com/control-center/serviced/node.(*HostAgent).StartService
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/node/agent.go:401 +0x16bd
+
+goroutine 54708 [IO wait, 3 minutes]:
+net.(*pollDesc).Wait(0xc21830eae0, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc21830eae0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc21830ea80, 0xc21fd55801, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc21b3a1d20)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218cf60e8, 0xc21fd55801, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc219590180, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc219590180, 0xbd4360, 0xc21ff8ba60, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21ff8ba40, 0xc21f303020, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21ff8ba40, 0x0, 0x0, 0xc21f303020, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21ff8ba40, 0xc2080c8680, 0xc21f1fdd80, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2
+net/rpc.(*Server).ServeCodec(0xc20818b180, 0x7f906a6c75d8, 0xc21ff8ba40)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:461 +0x6d
+created by github.com/control-center/serviced/cli/api.func·003
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/cli/api/daemon.go:186 +0x1d2
+
+goroutine 449 [select, 195 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208e452c0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208e452c0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 568 [select, 197 minutes]:
+github.com/control-center/serviced/zzk/service.(*HostStateListener).Spawn(0xc208151000, 0xc2080c1680, 0xc208ded1a0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/service/host.go:223 +0x2d19
+github.com/control-center/serviced/zzk.func·008(0xc208ded1a0, 0x19)
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:214 +0x114
+created by github.com/control-center/serviced/zzk.Listen
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/zzk/zzk.go:215 +0xfcb
+
+goroutine 4149 [chan receive, 195 minutes]:
+github.com/control-center/serviced/coordinator/client/zookeeper.func·001()
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:208 +0x5e
+created by github.com/control-center/serviced/coordinator/client/zookeeper.toClientEvent
+/home/homer/src/europa/src/golang/src/github.com/control-center/serviced/coordinator/client/zookeeper/connection.go:212 +0xfb
+
+goroutine 54047 [IO wait, 6 minutes]:
+net.(*pollDesc).Wait(0xc216327170, 0x72, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:84 +0x47
+net.(*pollDesc).WaitRead(0xc216327170, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_poll_runtime.go:89 +0x43
+net.(*netFD).Read(0xc216327110, 0xc21bd8e001, 0x5ff, 0x5ff, 0x0, 0x7f906a6a13c8, 0xc21830a4b8)
+/home/homer/.gvm/gos/go1.4.2/src/net/fd_unix.go:242 +0x40f
+net.(*conn).Read(0xc218cf6058, 0xc21bd8e001, 0x5ff, 0x5ff, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/net.go:121 +0xdc
+encoding/json.(*Decoder).readValue(0xc21833a300, 0x417220, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:124 +0x5e1
+encoding/json.(*Decoder).Decode(0xc21833a300, 0xbd4360, 0xc21f06d1c0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/encoding/json/stream.go:44 +0x7b
+net/rpc/jsonrpc.(*serverCodec).ReadRequestHeader(0xc21f06d1a0, 0xc21fd59fe0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/jsonrpc/server.go:66 +0x9c
+net/rpc.(*Server).readRequestHeader(0xc20818b180, 0x7f906a6c75d8, 0xc21f06d1a0, 0x0, 0x0, 0xc21fd59fe0, 0x0, 0x0, 0x0)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:575 +0x97
+net/rpc.(*Server).readRequest(0xc20818b180, 0x7f906a6c75d8, 0xc21f06d1a0, 0xc2080c8680, 0xc21eec38c0, 0xc7dc80, 0x0, 0x0, 0x0, 0x0, ...)
+/home/homer/.gvm/gos/go1.4.2/src/net/rpc/server.go:542 +0xa2

@@ -136,7 +136,7 @@ func GetOptionsMaxRPCClients() int {
 }
 
 type api struct {
-	master *master.Client
+	master master.ClientInterface
 	agent  *agent.Client
 	docker *dockerclient.Client
 	dao    dao.ControlPlane // Deprecated
@@ -148,7 +148,7 @@ func New() API {
 }
 
 // New creates a new API type
-func NewAPI(master *master.Client, agent *agent.Client, docker *dockerclient.Client, dao dao.ControlPlane) API {
+func NewAPI(master master.ClientInterface, agent *agent.Client, docker *dockerclient.Client, dao dao.ControlPlane) API {
 	return &api{master: master, agent: agent, docker: docker, dao: dao}
 }
 
@@ -173,7 +173,7 @@ func (a *api) StartServer() error {
 }
 
 // Opens a connection to the master if not already connected
-func (a *api) connectMaster() (*master.Client, error) {
+func (a *api) connectMaster() (master.ClientInterface, error) {
 	if a.master == nil {
 		var err error
 		a.master, err = master.NewClient(options.Endpoint)
