@@ -14,10 +14,11 @@
 package isvcs
 
 import (
+	"time"
+
 	. "github.com/control-center/serviced/dao"
 	"github.com/control-center/serviced/domain"
 	. "github.com/control-center/serviced/domain/service"
-	"time"
 )
 
 var zero int = 0
@@ -895,14 +896,14 @@ func init() {
 	DockerRegistryIRS = RunningService{
 		Name:         "Docker Registry",
 		Description:  "Internal Docker Registry",
-		ID:           "isvc-dockerRegistry",
-		ServiceID:    "isvc-dockerRegistry",
+		ID:           "isvc-docker-registry",
+		ServiceID:    "isvc-docker-registry",
 		DesiredState: 1,
 		StartedAt:    time.Now(),
 	}
 	DockerRegistryISVC = Service{
 		Name:            "Docker Registry",
-		ID:              "isvc-dockerRegistry",
+		ID:              "isvc-docker-registry",
 		Startup:         "DOCKER_REGISTRY_CONFIG=/docker-registry/config/config_sample.yml SETTINGS_FLAVOR=serviced docker-registry",
 		Description:     "Internal Docker Registry",
 		ParentServiceID: "isvc-internalservices",
@@ -1027,7 +1028,7 @@ func init() {
 		"isvc-logstash":               &LogstashISVC,
 		"isvc-opentsdb":               &OpentsdbISVC,
 		"isvc-celery":                 &CeleryISVC,
-		"isvc-dockerRegistry":         &DockerRegistryISVC,
+		"isvc-docker-registry":        &DockerRegistryISVC,
 	}
 
 	IRSMap = map[string]*RunningService{
@@ -1038,7 +1039,7 @@ func init() {
 		"isvc-logstash":               &LogstashIRS,
 		"isvc-opentsdb":               &OpentsdbIRS,
 		"isvc-celery":                 &CeleryIRS,
-		"isvc-dockerRegistry":         &DockerRegistryIRS,
+		"isvc-docker-registry":        &DockerRegistryIRS,
 	}
 	initZK()
 	initOTSDB()

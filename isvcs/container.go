@@ -171,7 +171,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		svc.healthStatuses[name] = &domain.HealthCheckStatus{
 			Name:      name,
 			Status:    "unknown",
-			Interval:  0,
+			Interval:  3.156e9,
 			Timestamp: 0,
 			StartedAt: 0,
 		}
