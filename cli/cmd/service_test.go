@@ -134,22 +134,27 @@ var DefaultTestRunningServices = []dao.RunningService{
 	},
 }
 
-var DefaultEndpoints = map[string][]applicationendpoint.ApplicationEndpoint{
-	"test-service-2": []applicationendpoint.ApplicationEndpoint{
-		{
+var DefaultEndpoints = []applicationendpoint.EndpointReport{
+	{
+		Endpoint: applicationendpoint.ApplicationEndpoint{
 			ServiceID:     "test-service-2",
 			InstanceID:    1,
 			Application:   "endpointName1",
+			Purpose:       "export",
 			HostID:        "hostID1",
 			HostIP:        "hostIP1",
 			HostPort:      10,
 			ContainerID:   "containerID1",
 			ContainerIP:   "containerIP1",
 			ContainerPort: 100,
-		}, {
+		},
+		Messages: []string{},
+	}, {
+		Endpoint: applicationendpoint.ApplicationEndpoint{
 			ServiceID:     "test-service-2",
 			InstanceID:    2,
 			Application:   "endpointName2",
+			Purpose:       "import",
 			HostID:        "hostID2",
 			HostIP:        "hostIP2",
 			HostPort:      20,
@@ -157,6 +162,7 @@ var DefaultEndpoints = map[string][]applicationendpoint.ApplicationEndpoint{
 			ContainerIP:   "containerIP2",
 			ContainerPort: 200,
 		},
+		Messages: []string{},
 	},
 }
 
@@ -176,7 +182,7 @@ type ServiceAPITest struct {
 	pools           []pool.ResourcePool
 	hosts           []host.Host
 	snapshots       []dao.SnapshotInfo
-	endpoints       map[string][]applicationendpoint.ApplicationEndpoint
+	endpoints       []applicationendpoint.EndpointReport
 }
 
 func InitServiceAPITest(args ...string) {
@@ -220,11 +226,13 @@ func (t ServiceAPITest) GetHostMap() (map[string]host.Host, error) {
 	return make(map[string]host.Host), nil
 }
 
-func (t ServiceAPITest) GetEndpoints(serviceID string) (map[string][]applicationendpoint.ApplicationEndpoint, error) {
+func (t ServiceAPITest) GetEndpoints(serviceID string, reportImports, reportExports, validate bool) ([]applicationendpoint.EndpointReport, error)  {
 	if t.errs["GetEndpoints"] != nil {
 		return nil, t.errs["GetEndpoints"]
+	} else if serviceID == "test-service-2" {
+		return t.endpoints, nil
 	}
-	return t.endpoints, nil
+	return []applicationendpoint.EndpointReport{}, nil
 }
 
 func (t ServiceAPITest) GetService(id string) (*service.Service, error) {
@@ -1129,6 +1137,9 @@ func ExampleServicedCLI_CmdServiceEndpoints_usage() {
 	//    serviced service endpoints SERVICEID
 	//
 	// OPTIONS:
+	//    --imports, -i	include only imported endpoints
+	//    --all, -a		include all endpoints (imports and exports)
+	//    --verify, -v		verify endpoints
 
 }
 
@@ -1150,7 +1161,7 @@ func ExampleServicedCLI_CmdServiceEndpoints_works() {
 	pipeStderr(InitServiceAPITest, "serviced", "service", "endpoints", "test-service-2")
 
 	// Output:
-	// Name    ServiceID         Endpoint         Host       HostIP     HostPort    ContainerID     ContainerIP     ContainerPort
-	// Zope    test-service-2    endpointName1    hostID1    hostIP1    10          containerID1    containerIP1    100
-	// Zope    test-service-2    endpointName2    hostID2    hostIP2    20          containerID2    containerIP2    200
+	// Name    ServiceID         Endpoint         Purpose    Host       HostIP     HostPort    ContainerID     ContainerIP     ContainerPort
+	// Zope    test-service-2    endpointName1    export     hostID1    hostIP1    10          containerID1    containerIP1    100
+	// Zope    test-service-2    endpointName2    import     hostID2    hostIP2    20          containerID2    containerIP2    200
 }
