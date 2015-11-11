@@ -76,9 +76,9 @@ func NewEndpointNode(tenantID, endpointID string, endpoint applicationendpoint.A
 // EndpointNode is a node for the exported ApplicationEndpoint
 type EndpointNode struct {
 	applicationendpoint.ApplicationEndpoint
-	TenantID    string
-	EndpointID  string
-	version     interface{}
+	TenantID   string
+	EndpointID string
+	version    interface{}
 }
 
 // Version is an implementation of client.Node
@@ -174,7 +174,7 @@ func (ar *EndpointRegistry) GetServiceEndpoints(conn client.Connection, tenantID
 	allEndpoints, err := ar.getChildren(conn, "")
 	if err == client.ErrNoNode {
 		return serviceEndpoints, nil
-	} else 	if err != nil {
+	} else if err != nil {
 		glog.Errorf("Unable to get children of %s: %v", zkEndpoints, err)
 		return nil, err
 	}
@@ -216,7 +216,7 @@ func (ar *EndpointRegistry) RemoveItem(conn client.Connection, tenantID, endpoin
 
 // WatchTenantEndpoint watches a tenant endpoint directory
 func (ar *EndpointRegistry) WatchTenantEndpoint(conn client.Connection, tenantEndpointKey string,
-	processChildren ProcessChildrenFunc, errorHandler WatchError, cancel <-chan bool) error {
+	processChildren ProcessChildrenFunc, errorHandler WatchError, cancel <-chan interface{}) error {
 
 	//TODO: Deal with cancel channel if this cares
 	return ar.WatchKey(conn, tenantEndpointKey, cancel, processChildren, errorHandler)
