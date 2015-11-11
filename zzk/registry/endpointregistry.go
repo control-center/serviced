@@ -42,12 +42,14 @@
 package registry
 
 import (
+	"fmt"
 	"path"
+	"strings"
 
 	"github.com/zenoss/glog"
 
 	"github.com/control-center/serviced/coordinator/client"
-	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/validation"
 	"github.com/control-center/serviced/zzk"
 )
@@ -63,23 +65,19 @@ func zkEndpointsPath(nodes ...string) string {
 }
 
 // NewEndpointNode returns a new EndpointNode given tenantID, endpointID, hostID, containerID, ApplicationEndpoint
-func NewEndpointNode(tenantID, endpointID, hostID, containerID string, endpoint dao.ApplicationEndpoint) EndpointNode {
+func NewEndpointNode(tenantID, endpointID string, endpoint applicationendpoint.ApplicationEndpoint) EndpointNode {
 	return EndpointNode{
 		ApplicationEndpoint: endpoint,
 		TenantID:            tenantID,
 		EndpointID:          endpointID,
-		HostID:              hostID,
-		ContainerID:         containerID,
 	}
 }
 
 // EndpointNode is a node for the exported ApplicationEndpoint
 type EndpointNode struct {
-	dao.ApplicationEndpoint
+	applicationendpoint.ApplicationEndpoint
 	TenantID    string
 	EndpointID  string
-	HostID      string
-	ContainerID string
 	version     interface{}
 }
 
@@ -168,6 +166,42 @@ func (ar *EndpointRegistry) GetItem(conn client.Connection, path string) (*Endpo
 func (ar *EndpointRegistry) GetChildren(conn client.Connection, tenantID string, endpointID string) ([]string, error) {
 	tenantName := TenantEndpointKey(tenantID, endpointID)
 	return ar.getChildren(conn, tenantName)
+}
+
+// GetServiceEndpoints gets all endpoints for a tenant and service
+func (ar *EndpointRegistry) GetServiceEndpoints(conn client.Connection, tenantID, serviceID string) ([]EndpointNode, error) {
+	var serviceEndpoints []EndpointNode
+	allEndpoints, err := ar.getChildren(conn, "")
+	if err == client.ErrNoNode {
+		return serviceEndpoints, nil
+	} else 	if err != nil {
+		glog.Errorf("Unable to get children of %s: %v", zkEndpoints, err)
+		return nil, err
+	}
+
+	tenantPrefix := fmt.Sprintf("%s/%s_", zkEndpoints, tenantID)
+	for _, endpointPath := range allEndpoints {
+		if strings.HasPrefix(endpointPath, tenantPrefix) {
+			nodes, err := ar.getChildren(conn, path.Base(endpointPath))
+			if err != nil && err != client.ErrNoNode {
+				glog.Errorf("Unable to get children of endpoint %s: %v", endpointPath, err)
+				return nil, err
+			}
+
+			for _, node := range nodes {
+				endpointNode, err := ar.GetItem(conn, node)
+				if err != nil {
+					glog.Errorf("Unable to get data for node %s: %s", node, err)
+					return nil, err
+				} else if endpointNode.ServiceID != serviceID {
+					continue
+				}
+				serviceEndpoints = append(serviceEndpoints, *endpointNode)
+			}
+		}
+	}
+
+	return serviceEndpoints, nil
 }
 
 // RemoveTenantEndpointKey removes a tenant endpoint key from the registry

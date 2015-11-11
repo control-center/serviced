@@ -17,6 +17,7 @@ import (
 	"io"
 
 	"github.com/control-center/serviced/dao"
+	"github.com/control-center/serviced/domain/applicationendpoint"
 	"github.com/control-center/serviced/domain/host"
 	"github.com/control-center/serviced/domain/pool"
 	"github.com/control-center/serviced/domain/service"
@@ -38,6 +39,7 @@ type API interface {
 	// Hosts
 	GetHosts() ([]host.Host, error)
 	GetHost(string) (*host.Host, error)
+	GetHostMap() (map[string]host.Host, error)
 	AddHost(HostConfig) (*host.Host, error)
 	RemoveHost(string) error
 	GetHostMemory(string) (*metrics.MemoryUsageStats, error)
@@ -67,6 +69,7 @@ type API interface {
 	RestartService(SchedulerConfig) (int, error)
 	StopService(SchedulerConfig) (int, error)
 	AssignIP(IPConfig) error
+	GetEndpoints(string) (map[string][]applicationendpoint.ApplicationEndpoint, error)
 
 	// RunningServices (ServiceStates)
 	GetRunningServices() ([]dao.RunningService, error)
