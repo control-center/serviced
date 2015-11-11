@@ -125,14 +125,19 @@ func (dao *ControlPlaneDao) AsyncBackup(dirpath string, filename *string) (err e
 }
 
 // Restore restores the full application stack from a backup file.
-func (dao *ControlPlaneDao) Restore(filename string, _ *int) error {
+func (dao *ControlPlaneDao) Restore(filename string, _ *int) (err error) {
 	ctx := datastore.Get()
 
 	dfslocker := dao.facade.DFSLock(ctx)
 	dfslocker.Lock()
 	defer dfslocker.Unlock()
 	inprogress.SetProgress(filename, "restore")
-
+	defer func() {
+		if err != nil {
+			glog.Errorf("Restore failed with error: %s", err)
+		}
+		inprogress.SetError(err)
+	}()
 	fh, err := os.Open(filename)
 	if err != nil {
 		return err
@@ -144,7 +149,6 @@ func (dao *ControlPlaneDao) Restore(filename string, _ *int) error {
 	}
 	defer gz.Close()
 	err = dao.facade.Restore(ctx, gz)
-	inprogress.SetError(err)
 	return err
 }
 
