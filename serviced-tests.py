@@ -26,6 +26,12 @@ def elastic_server(port):
     log.info("Stopping elastic")
 
 
+def ensure_tool(executable, importpath):
+    if subprocess.call(["which", executable], shell=True):
+        log.info("Installing %s tool" % executable)
+        subprocess.call(["go", "get", importpath])
+
+
 def has_dm_deferred_remove():
     """
     Test whether libdevmapper.h is new enough to support deferred remove
@@ -60,6 +66,8 @@ def args():
     types.add_argument("--integration", action="store_true", help="pass the 'integration' build tag")
 
     options = parser.add_argument_group("Test Options")
+    options.add_argument("--no-godep", dest="nogodep", action="store_true",
+            help="don't add the godep workspace to GOPATH")
     options.add_argument("--quick", action="store_true", help="don't run tests with the '!quick' build constraint")
     options.add_argument("--root", action="store_true", help="run the tests as the root user")
     options.add_argument("--race", action="store_true", help="run tests with race detection")
@@ -105,12 +113,6 @@ def build_tags(options):
     return tags
 
 
-def get_tools():
-    """
-    Make sure you have go tools and stuff
-    """
-    pass
-
 def get_gopath():
     gopath = os.environ.get("GOPATH")
     log.debug("Original GOPATH=%s" % (gopath or ""))
@@ -132,40 +134,60 @@ def main(options):
     log.debug("Running tests under serviced in %s" % SERVICED_ROOT)
 
     env = os.environ
-    env.update({
-        "GOPATH": get_gopath(),
-        "SERVICED_HOME": SERVICED_ROOT,
-    })
+
+    env["SERVICED_HOME"] = SERVICED_ROOT
+
+    # Unset EDITOR so CLI tests won't fail
+    env.pop("EDITOR")
+
+    if not options.nogodep:
+        env["GOPATH"] = get_gopath()
 
     tags = build_tags(options)
 
-    runner = "gocov" if options.cover else "go"
-
-    cmd = [runner, "test", "-tags", " ".join(tags)]
-    cmd.extend(options.arguments)
-    cmd.extend(options.packages or ["./..."])
-
+    runner = "go"
     args = {}
 
     if options.cover:
+        runner = "gocov"
+        ensure_tool(runner, "github.com/axw/gocov/gocov")
+        if options.cover_html:
+            ensure_tool("gocov-html", "gopkg.in/matm/v1/gocov-html")
+        if options.cover_xml:
+            ensure_tool("gocov-xml", "github.com/AlekSi/gocov-xml")
         stdout = tempfile.NamedTemporaryFile()
+        log.debug("Writing temporary coverage output to %s" % stdout.name)
         args["stdout"] = stdout
+
+    cmd = [runner, "test", "-tags", " ".join(tags)]
+    passthru = options.arguments
+    if passthru and passthru[0] == "--":
+        passthru = passthru[1:]
+    cmd.extend(passthru)
+    cmd.extend(options.packages or ["./..."])
 
     log.debug("Running command: %s" % cmd)
     log.debug("Running in directory: %s" % SERVICED_ROOT)
 
-    subprocess.call(
-        cmd,
-        env=env,
-        cwd=SERVICED_ROOT,
-        **args
-    )
+    try:
+        subprocess.call(
+            cmd,
+            env=env,
+            cwd=SERVICED_ROOT,
+            **args
+        )
+    except KeyboardInterrupt:
+        sys.exit(1)
 
+    if options.cover_html:
+        with open(options.cover_html, 'w') as output:
+            subprocess.call(["gocov-html", stdout.name], stdout=output)
 
-
-
-
-
+    if options.cover_xml:
+        with open(options.cover_xml, 'w') as output:
+            proc = subprocess.Popen(["gocov-xml", stdout.name], stdout=output, stdin=subprocess.PIPE)
+            stdout.seek(0)
+            proc.communicate(stdout.read())
 
 
 if __name__ == "__main__":
