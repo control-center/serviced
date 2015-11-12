@@ -53,7 +53,7 @@ type ServiceDefinition struct {
 	HealthChecks      map[string]domain.HealthCheck // HealthChecks for a service.
 	Prereqs           []domain.Prereq               // Optional list of scripts that must be successfully run before kicking off the service command.
 	MonitoringProfile domain.MonitorProfile         // An optional list of queryable metrics, graphs, and thresholds
-	MemoryLimit       float64
+	MemoryLimit       int64
 	CPUShares         int64
 	PIDFile           string // An optional path or command to generate a path for a PID file to which signals are relayed.
 }

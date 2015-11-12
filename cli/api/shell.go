@@ -25,8 +25,8 @@ import (
 	"github.com/control-center/serviced/node"
 	"github.com/control-center/serviced/shell"
 	"github.com/control-center/serviced/utils"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 // ShellConfig is the deserialized object from the command-line

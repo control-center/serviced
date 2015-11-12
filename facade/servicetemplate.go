@@ -21,8 +21,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/parsers"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/commons/docker"
