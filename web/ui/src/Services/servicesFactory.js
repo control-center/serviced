@@ -320,19 +320,40 @@
 
         // start, stop, or restart this service
         start: function(skipChildren){
-            var promise = resourcesFactory.startService(this.id, skipChildren);
+            var promise = resourcesFactory.startService(this.id, skipChildren),
+                oldDesiredState = this.desiredState;
+
             this.desiredState = START;
-            return promise;
+
+            // if something breaks, return desired
+            // state to its previous value
+            return promise.error(() => {
+                this.desiredState = oldDesiredState;
+            });
         },
         stop: function(skipChildren){
-            var promise = resourcesFactory.stopService(this.id, skipChildren);
+            var promise = resourcesFactory.stopService(this.id, skipChildren),
+                oldDesiredState = this.desiredState;
+
             this.desiredState = STOP;
-            return promise;
+
+            // if something breaks, return desired
+            // state to its previous value
+            return promise.error(() => {
+                this.desiredState = oldDesiredState;
+            });
         },
         restart: function(skipChildren){
-            var promise = resourcesFactory.restartService(this.id, skipChildren);
+            var promise = resourcesFactory.restartService(this.id, skipChildren),
+                oldDesiredState = this.desiredState;
+
             this.desiredState = RESTART;
-            return promise;
+
+            // if something breaks, return desired
+            // state to its previous value
+            return promise.error(() => {
+                this.desiredState = oldDesiredState;
+            });
         },
 
         // gets a list of running instances of this service.
