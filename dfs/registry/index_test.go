@@ -16,6 +16,7 @@
 package registry
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/control-center/serviced/datastore"
@@ -24,6 +25,10 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	. "gopkg.in/check.v1"
+)
+
+var (
+	ErrTestUnknownError = errors.New("test unknown error")
 )
 
 func TestRegistryIndex(t *testing.T) { TestingT(t) }
@@ -43,26 +48,27 @@ func (s *RegistryIndexSuite) SetUpTest(c *C) {
 }
 
 func (s *RegistryIndexSuite) TestFindImage(c *C) {
+	// unknown error
+	s.facade.On("GetRegistryImage", s.ctx, "unknownlibrary/repo:tagname").Return(nil, ErrTestUnknownError)
+	actual, err := s.index.FindImage("test-host:5000/unknownlibrary/repo:tagname")
+	c.Assert(actual, IsNil)
+	c.Assert(err, Equals, ErrTestUnknownError)
+	// image not in registry
+	s.facade.On("GetRegistryImage", s.ctx, "libnotfound/repo:latest").Return(nil, datastore.ErrNoSuchEntity{registry.Key("libnotfound/repo:latest")})
+	actual, err = s.index.FindImage("libnotfound/repo")
+	c.Assert(actual, IsNil)
+	c.Assert(err, Equals, ErrImageNotFound)
+	// success
 	expected := &registry.Image{
-		Library: "libraryname",
-		Repo:    "reponame",
+		Library: "library",
+		Repo:    "repo",
 		Tag:     "latest",
 		UUID:    "uuidvalue",
 	}
-	s.facade.On("GetRegistryImage", s.ctx, "libraryname/reponame:latest").Return(expected, nil).Times(4)
-	actual, err := s.index.FindImage("libraryname/reponame:latest")
-	c.Assert(err, IsNil)
+	s.facade.On("GetRegistryImage", s.ctx, "library/repo:latest").Return(expected, nil)
+	actual, err = s.index.FindImage("test-host:5000/library/repo:")
 	c.Assert(actual, DeepEquals, expected)
-	actual, err = s.index.FindImage("localhost:5000/libraryname/reponame:latest")
 	c.Assert(err, IsNil)
-	c.Assert(actual, DeepEquals, expected)
-	actual, err = s.index.FindImage("libraryname/reponame")
-	c.Assert(err, IsNil)
-	c.Assert(actual, DeepEquals, expected)
-	actual, err = s.index.FindImage("localhost:5000/libraryname/reponame:")
-	c.Assert(err, IsNil)
-	c.Assert(actual, DeepEquals, expected)
-	s.facade.AssertExpectations(c)
 }
 
 func (s *RegistryIndexSuite) TestPushImage(c *C) {
