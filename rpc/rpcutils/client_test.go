@@ -73,7 +73,7 @@ func (s *MySuite) TestConcurrentTimeout(c *C) {
 
 func (s *MySuite) TestTimeout(c *C) {
 
-	client, err := newClient("localhost:32111", 1, DiscardClientTimeout, connectRPC)
+	client, err := newClient("localhost:32111", 1, 10*time.Millisecond, connectRPC)
 
 	sleepTime := 100 * time.Millisecond
 
