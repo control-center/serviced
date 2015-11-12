@@ -1,11 +1,13 @@
 import sys
 import tempfile
+import time
 import os
 import subprocess
 import argparse
 import logging
 from contextlib import contextmanager
 
+import uuid
 
 log = logging.getLogger("serviced-tests")
 
@@ -25,9 +27,29 @@ def which(prog):
 
 @contextmanager
 def elastic_server(port):
-    log.info("Starting elastic on port %d " % port)
+    try:
+        log.info("Starting elastic on port %d " % port)
+        container_name = str(uuid.uuid4())
+        # TODO: handle already started
+        # TODO: Get image name from serviced binary or isvcs.go
+        # TODO: Wait for start more betterly
+        cmd = ["docker", "run", "-d", "--name", container_name,
+               "-p", "%d:9200" % port, "zenoss/serviced-isvcs:v38",
+               "/opt/elasticsearch-0.90.9/bin/elasticsearch", "-f",
+               "-Des.cluster.name=%s" % container_name,
+               "-Dmulticast.enabled=false",
+               "-Ddiscovery.zen.ping.multicast.ping.enabled=false"]
+        subprocess.call(cmd)
+        time.sleep(10)
+        yield
+    finally:
+        log.info("Stopping elastic")
+        subprocess.call(["docker", "stop", container_name])
+
+
+@contextmanager
+def dummy(*args, **kwargs):
     yield
-    log.info("Stopping elastic")
 
 
 def ensure_tool(executable, importpath):
@@ -172,12 +194,12 @@ def main(options):
     # TODO: Get a sudo session set up with an interactive proc
     cmd = ["sudo", "-E", "PATH=%s" % env["PATH"]] if options.root else []
 
-    cmd.extend([runner, "test", "-tags", " ".join(tags)])
+    cmd.extend([runner, "test", "-tags", " ".join(tags), "-test.parallel", "1"])
 
     if options.race:
         log.debug("Running with race detection")
         env["GORACE"] = "history_size=7 halt_on_error=1"
-        cmd.extend(["-race", "-test.parallel", "1"])
+        cmd.append("-race")
 
     passthru = options.arguments
     if passthru and passthru[0] == "--":
@@ -188,17 +210,18 @@ def main(options):
     log.debug("Running command: %s" % cmd)
     log.debug("Running in directory: %s" % SERVICED_ROOT)
 
-    try:
-        subprocess.check_call(
-            cmd,
-            env=env,
-            cwd=SERVICED_ROOT,
-            **args
-        )
-    except KeyboardInterrupt:
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        fail(e)
+    fixture = elastic_server if options.elastic else dummy
+
+    with fixture(options.elastic_port):
+        try:
+                subprocess.check_call(
+                    cmd,
+                    env=env,
+                    cwd=SERVICED_ROOT,
+                    **args
+                )
+        except KeyboardInterrupt:
+            sys.exit(1)
 
     if options.cover_html:
         log.debug("Converting coverage to HTML")
