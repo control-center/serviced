@@ -19,6 +19,10 @@ def fail(msg):
     sys.exit(1)
 
 
+def which(prog):
+    return subprocess.check_output("which %s" % prog, shell=True).strip()
+
+
 @contextmanager
 def elastic_server(port):
     log.info("Starting elastic on port %d " % port)
@@ -27,9 +31,12 @@ def elastic_server(port):
 
 
 def ensure_tool(executable, importpath):
-    if subprocess.call(["which", executable], shell=True):
+    try:
+        return which(executable)
+    except subprocess.CalledProcessError:
         log.info("Installing %s tool" % executable)
         subprocess.call(["go", "get", importpath])
+        return which(executable)
 
 
 def has_dm_deferred_remove():
@@ -76,7 +83,7 @@ def args():
 
     coverage = parser.add_argument_group("Coverage Options")
     coverage.add_argument("--cover-html", required=False, help="output file for HTML coverage report")
-    coverage.add_argument("--cover-xml", required=False, help="output file for Coberatura coverage report")
+    coverage.add_argument("--cover-xml", required=False, help="output file for Cobertura coverage report")
 
     fixtures = parser.add_argument_group("Fixture Options")
     fixtures.add_argument("--elastic", action="store_true", help="start an elastic server before the test run")
@@ -145,12 +152,11 @@ def main(options):
 
     tags = build_tags(options)
 
-    runner = "go"
     args = {}
 
     if options.cover:
-        runner = "gocov"
-        ensure_tool(runner, "github.com/axw/gocov/gocov")
+        runner = ensure_tool("gocov", "github.com/axw/gocov/gocov")
+        log.debug("Using gocov executable %s" % runner)
         if options.cover_html:
             ensure_tool("gocov-html", "gopkg.in/matm/v1/gocov-html")
         if options.cover_xml:
@@ -159,7 +165,20 @@ def main(options):
         log.debug("Writing temporary coverage output to %s" % stdout.name)
         args["stdout"] = stdout
 
-    cmd = [runner, "test", "-tags", " ".join(tags)]
+    else:
+        runner = which("go")
+        log.debug("Using go executable %s" % runner)
+
+    # TODO: Get a sudo session set up with an interactive proc
+    cmd = ["sudo", "-E", "PATH=%s" % env["PATH"]] if options.root else []
+
+    cmd.extend([runner, "test", "-tags", " ".join(tags)])
+
+    if options.race:
+        log.debug("Running with race detection")
+        env["GORACE"] = "history_size=7 halt_on_error=1"
+        cmd.extend(["-race", "-test.parallel", "1"])
+
     passthru = options.arguments
     if passthru and passthru[0] == "--":
         passthru = passthru[1:]
@@ -170,7 +189,7 @@ def main(options):
     log.debug("Running in directory: %s" % SERVICED_ROOT)
 
     try:
-        subprocess.call(
+        subprocess.check_call(
             cmd,
             env=env,
             cwd=SERVICED_ROOT,
@@ -178,16 +197,22 @@ def main(options):
         )
     except KeyboardInterrupt:
         sys.exit(1)
+    except subprocess.CalledProcessError as e:
+        fail(e)
 
     if options.cover_html:
+        log.debug("Converting coverage to HTML")
         with open(options.cover_html, 'w') as output:
             subprocess.call(["gocov-html", stdout.name], stdout=output)
+        log.info("HTML output written to %s" % options.cover_html)
 
     if options.cover_xml:
+        log.debug("Converting coverage to Cobertura XML")
         with open(options.cover_xml, 'w') as output:
             proc = subprocess.Popen(["gocov-xml", stdout.name], stdout=output, stdin=subprocess.PIPE)
             stdout.seek(0)
             proc.communicate(stdout.read())
+        log.info("Cobertura output written to %s" % options.cover_xml)
 
 
 if __name__ == "__main__":
