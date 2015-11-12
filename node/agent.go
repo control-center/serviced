@@ -592,8 +592,7 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		return nil, nil, err
 	}
 
-	cfg.Volumes = make(map[string]struct{})
-	bindsMap := make(map[string]string)  // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
+	bindsMap := make(map[string]string) // map to prevent duplicate path assignments. Use to populate hcfg.Binds later.
 
 	if err := injectContext(svc, serviceState, client); err != nil {
 		glog.Errorf("Error injecting context: %s", err)
@@ -613,21 +612,18 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 		resourcePath = strings.TrimSpace(resourcePath)
 		containerPath := strings.TrimSpace(volume.ContainerPath)
-		cfg.Volumes[containerPath] = struct {}{}
 		bindsMap[containerPath] = resourcePath
 	}
 
-
-	// mount serviced path 
+	// mount serviced path
 	dir, binary, err := ExecPath()
 	if err != nil {
 		glog.Errorf("Error getting exec path: %v", err)
 		return nil, nil, err
 	}
-	
+
 	resourcePath := strings.TrimSpace(dir)
 	containerPath := strings.TrimSpace("/serviced")
-	cfg.Volumes[containerPath] = struct{}{}
 	bindsMap[containerPath] = resourcePath
 
 	// bind mount everything we need for logstash-forwarder
@@ -636,7 +632,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		logstashPath := utils.ResourcesDir() + "/logstash"
 		resourcePath := strings.TrimSpace(logstashPath)
 		containerPath := strings.TrimSpace(LOGSTASH_CONTAINER_DIRECTORY)
-		cfg.Volumes[containerPath] = struct{}{}
 		bindsMap[containerPath] = resourcePath
 		glog.V(1).Infof("added logstash bind mount: %s", fmt.Sprintf("%s:%s", resourcePath, containerPath))
 	}
@@ -649,7 +644,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 		}
 	}
 	for _, path := range tmpVolumes {
-		cfg.Volumes[path] = struct{}{}
 		glog.V(4).Infof("added temporary docker container path: %s", path)
 	}
 
@@ -697,7 +691,6 @@ func configureContainer(a *HostAgent, client *ControlClient,
 			if matchedRequestedImage {
 				hostPath = strings.TrimSpace(hostPath)
 				containerPath = strings.TrimSpace(containerPath)
-				cfg.Volumes[containerPath] = struct{}{}
 				bindsMap[containerPath] = hostPath
 			}
 		} else {
@@ -707,11 +700,10 @@ func configureContainer(a *HostAgent, client *ControlClient,
 
 	// transfer bindsMap to hcfg.Binds
 	hcfg.Binds = []string{}
-	for containerPath, hostPath := range(bindsMap) {
+	for containerPath, hostPath := range bindsMap {
 		binding := fmt.Sprintf("%s:%s", hostPath, containerPath)
 		hcfg.Binds = append(hcfg.Binds, binding)
 	}
-
 
 	// Get host IP
 	ips, err := utils.GetIPv4Addresses()
