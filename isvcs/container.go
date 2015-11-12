@@ -109,21 +109,21 @@ type healthCheckDefinition struct {
 }
 
 type IServiceDefinition struct {
-	Name          string                             // name of the service (used in naming containers)
-	Repo          string                             // the service's docker repository
-	Tag           string                             // the service's docker repository tag
-	Command       func() string                      // the command to run in the container
-	Volumes       map[string]string                  // volumes to bind mount to the container
-	PortBindings  []portBinding                      // defines how ports are exposed on the host
-	HealthChecks  map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
-	Configuration map[string]interface{}             // service specific configuration
-	Notify        func(*IService, interface{}) error // A function to run when notified of a data event
-	PostStart     func(*IService) error              // A function to run after the initial start of the service
-	Recover       func(path string) error            // A recovery step if the service fails to start
-	HostNetwork   bool                               // enables host network in the container
-	Links         []string                           // List of links to other containers in the form of <name>:<alias>
-	StartGroup    uint16                             // Start up group number
-	StartupTimeout time.Duration                     // How long to wait for the service to start up (this is the timeout for the initial startup healthcheck)
+	Name           string                             // name of the service (used in naming containers)
+	Repo           string                             // the service's docker repository
+	Tag            string                             // the service's docker repository tag
+	Command        func() string                      // the command to run in the container
+	Volumes        map[string]string                  // volumes to bind mount to the container
+	PortBindings   []portBinding                      // defines how ports are exposed on the host
+	HealthChecks   map[string]healthCheckDefinition   // a set of functions to verify the service is healthy
+	Configuration  map[string]interface{}             // service specific configuration
+	Notify         func(*IService, interface{}) error // A function to run when notified of a data event
+	PostStart      func(*IService) error              // A function to run after the initial start of the service
+	Recover        func(path string) error            // A recovery step if the service fails to start
+	HostNetwork    bool                               // enables host network in the container
+	Links          []string                           // List of links to other containers in the form of <name>:<alias>
+	StartGroup     uint16                             // Start up group number
+	StartupTimeout time.Duration                      // How long to wait for the service to start up (this is the timeout for the initial startup healthcheck)
 }
 
 type IService struct {
@@ -168,7 +168,7 @@ func NewIService(sd IServiceDefinition) (*IService, error) {
 		svc.healthStatuses[name] = &domain.HealthCheckStatus{
 			Name:      name,
 			Status:    "unknown",
-			Interval:  0,
+			Interval:  3.156e9,
 			Timestamp: 0,
 			StartedAt: 0,
 		}
