@@ -178,7 +178,6 @@ def main(options):
     if options.cover:
         if options.race:
             fail("--race and --cover are mutually exclusive.")
-        ensure_tool("cover", "golang.org/x/tools/cmd/cover")
         runner = ensure_tool("gocov", "github.com/axw/gocov/gocov")
         log.debug("Using gocov executable %s" % runner)
         if options.cover_html:
