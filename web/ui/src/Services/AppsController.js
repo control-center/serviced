@@ -11,8 +11,13 @@
         "$notification", "resourcesFactory", "authService",
         "$modalService", "$translate", "$timeout",
         "$cookies", "servicesFactory", "miscUtils",
-        "ngTableParams", "$filter",
-    function($scope, $routeParams, $location, $notification, resourcesFactory, authService, $modalService, $translate, $timeout, $cookies, servicesFactory, utils, NgTableParams, $filter){
+        "ngTableParams", "$filter", "poolsFactory",
+    function($scope, $routeParams, $location,
+    $notification, resourcesFactory, authService,
+    $modalService, $translate, $timeout,
+    $cookies, servicesFactory, utils,
+    NgTableParams, $filter, poolsFactory){
+
         // Ensure logged in
         authService.checkLogin($scope);
 
@@ -31,7 +36,6 @@
 
         $scope.modal_deployWizard = function() {
             // the modal occasionally won't show on page load, so we use a timeout to get around that.
-            // TODO - use a separate controller for deploy wizard
             $timeout(function(){
                 $('#addApp').modal('show');
 
@@ -326,6 +330,9 @@
                 }
             });
 
+            // deploy wizard needs updated pools
+            poolsFactory.activate();
+
             //register polls
             resourcesFactory.registerPoll("deployingApps", getDeploying, 3000);
             resourcesFactory.registerPoll("templates", refreshTemplates, 5000);
@@ -342,6 +349,7 @@
         $scope.$on("$destroy", function(){
             resourcesFactory.unregisterAllPolls();
             servicesFactory.deactivate();
+            poolsFactory.deactivate();
         });
     }]);
 })();
