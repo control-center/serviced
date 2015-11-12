@@ -169,7 +169,7 @@ def main(options):
     env["SERVICED_HOME"] = SERVICED_ROOT
 
     # Unset EDITOR so CLI tests won't fail
-    env.pop("EDITOR")
+    env.pop("EDITOR", None)
 
     if not options.nogodep:
         env["GOPATH"] = get_gopath()
