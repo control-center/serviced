@@ -171,9 +171,6 @@ def main(options):
     # Unset EDITOR so CLI tests won't fail
     env.pop("EDITOR", None)
 
-    if not options.nogodep:
-        env["GOPATH"] = get_gopath()
-
     tags = build_tags(options)
 
     args = {}
@@ -181,6 +178,7 @@ def main(options):
     if options.cover:
         if options.race:
             fail("--race and --cover are mutually exclusive.")
+        ensure_tool("cover", "golang.org/x/tools/cmd/cover")
         runner = ensure_tool("gocov", "github.com/axw/gocov/gocov")
         log.debug("Using gocov executable %s" % runner)
         if options.cover_html:
@@ -194,6 +192,10 @@ def main(options):
     else:
         runner = which("go")
         log.debug("Using go executable %s" % runner)
+
+    # Modify this after we've gotten all the tools.
+    if not options.nogodep:
+        env["GOPATH"] = get_gopath()
 
     # TODO: Get a sudo session set up with an interactive proc
     cmd = ["sudo", "-E", "PATH=%s" % env["PATH"]] if options.root else []
