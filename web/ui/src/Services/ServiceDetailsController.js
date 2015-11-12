@@ -6,8 +6,14 @@
 (function() {
     'use strict';
 
-    controlplane.controller("ServiceDetailsController", ["$scope", "$q", "$routeParams", "$location", "resourcesFactory", "authService", "$modalService", "$translate", "$notification", "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
-    function($scope, $q, $routeParams, $location, resourcesFactory, authService, $modalService, $translate, $notification, $timeout, servicesFactory, utils, hostsFactory){
+    controlplane.controller("ServiceDetailsController",
+    ["$scope", "$q", "$routeParams", "$location", "resourcesFactory",
+    "authService", "$modalService", "$translate", "$notification",
+    "$timeout", "servicesFactory", "miscUtils", "hostsFactory",
+    function($scope, $q, $routeParams, $location, resourcesFactory,
+    authService, $modalService, $translate, $notification,
+    $timeout, servicesFactory, utils, hostsFactory){
+
         // Ensure logged in
         authService.checkLogin($scope);
         $scope.resourcesFactory = resourcesFactory;
@@ -231,15 +237,64 @@
             return {'padding-left': (15*depth) + "px"};
         };
 
-        $scope.clickRunning = function(app, serviceStatus){
-            app[serviceStatus]().error(function(data, status){
-                $notification.create("Unable to " + serviceStatus + " service", data.Detail).error();
+        // sets a service to start, stop or restart state
+        $scope.setServiceState = function(service, state, skipChildren){
+            service[state](skipChildren).error(function(data, status){
+                $notification.create("Unable to " + state + " service", data.Detail).error();
             });
+        };
+
+        // clicks to a service's start, stop, or restart
+        // button should first determine if the service has
+        // children and ask the user to choose to start all
+        // children or only the top service
+        $scope.clickRunning = function(service, state){
+            // if service has children and is not a simple
+            // meta-service (no Startup command), count the kids
+            if(service.children && service.children.length && service.model.Startup){
+                var childCount = utils.countTheKids(service);
+                $scope.modal_confirmSetServiceState(service, state, childCount);
+
+            // if no children, just start the service
+            } else {
+                $scope.setServiceState(service, state);
+            }
             servicesFactory.updateHealth();
         };
 
-        $scope.clickRunningApp = function(app, serviceStatus) {
-            utils.setServiceState($scope, app, serviceStatus, $modalService, $translate);
+        // verifies if use wants to start parent service, or parent
+        // and all children
+        $scope.modal_confirmSetServiceState = function(service, state, childCount){
+            $modalService.create({
+                template: ["<h4>"+ $translate.instant("choose_services_"+ state) +"</h4><ul>",
+                    "<li>"+ $translate.instant(state +"_service_name", {name: "<strong>"+service.name+"</strong>"}) +"</li>",
+                    "<li>"+ $translate.instant(state +"_service_name_and_children", {name: "<strong>"+service.name+"</strong>", count: "<strong>"+childCount+"</strong>"}) +"</li></ul>"
+                ].join(""),
+                model: $scope,
+                title: $translate.instant(state +"_service"),
+                actions: [
+                    {
+                        role: "cancel"
+                    },{
+                        role: "ok",
+                        classes: " ",
+                        label: $translate.instant(state +"_service"),
+                        action: function(){
+                            // the arg here explicitly prevents child services
+                            // from being started
+                            $scope.setServiceState(service, state, true);
+                            this.close();
+                        }
+                    },{
+                        role: "ok",
+                        label: $translate.instant(state +"_service_and_children", {count: childCount}),
+                        action: function(){
+                            $scope.setServiceState(service, state);
+                            this.close();
+                        }
+                    }
+                ]
+            });
         };
 
         $scope.clickVHostEnable = function(vhost){
