@@ -168,7 +168,7 @@
 
                     // if manual service, do not increment and
                     // do not count children
-                    if(service.Launch === "manual"){
+                    if(service.model.Launch === "manual"){
                         return acc;
                     }
 

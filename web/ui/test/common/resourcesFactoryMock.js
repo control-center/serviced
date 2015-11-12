@@ -1,4 +1,4 @@
-/* global jasmine: true */
+/* global jasmine: true, httpify: true */
 // An Angular factory that returns a mock implementation of resourcesFactory.js
 //
 // Call 'beforeEach(module(authServiceMock))' to inject this factory into a test case, and
@@ -23,6 +23,19 @@ var resourcesFactoryMock = function($provide) {
         mock._getCurrDeferred = function(){
             return currDeferred;
         };
+
+        mock.startService = mock.startService.and.callFake(function(){
+            currDeferred = httpify($q.defer());
+            return currDeferred.promise;
+        });
+        mock.startService = mock.stopService.and.callFake(function(){
+            currDeferred = httpify($q.defer());
+            return currDeferred.promise;
+        });
+        mock.startService = mock.restartService.and.callFake(function(){
+            currDeferred = httpify($q.defer());
+            return currDeferred.promise;
+        });
 
         return mock;
     });
