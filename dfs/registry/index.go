@@ -14,11 +14,15 @@
 package registry
 
 import (
+	"errors"
+
 	"github.com/control-center/serviced/commons"
 	"github.com/control-center/serviced/datastore"
 	"github.com/control-center/serviced/dfs/docker"
 	"github.com/control-center/serviced/domain/registry"
 )
+
+var ErrImageNotFound = errors.New("registry index: image not found")
 
 // RegistryIndex is the index for the docker registry on the server
 type RegistryIndex interface {
@@ -72,11 +76,15 @@ func (client *RegistryIndexClient) parseImage(image string) (string, error) {
 
 // FindImage implements RegistryIndex
 func (client *RegistryIndexClient) FindImage(image string) (*registry.Image, error) {
-	var err error
-	if image, err = client.parseImage(image); err != nil {
+	image, err := client.parseImage(image)
+	if err != nil {
 		return nil, err
 	}
-	return client.facade.GetRegistryImage(client.ctx, image)
+	rImage, err := client.facade.GetRegistryImage(client.ctx, image)
+	if datastore.IsErrNoSuchEntity(err) {
+		return nil, ErrImageNotFound
+	}
+	return rImage, err
 }
 
 // PushImage implements RegistryIndex
