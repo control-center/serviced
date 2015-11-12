@@ -177,6 +177,8 @@ def main(options):
     args = {}
 
     if options.cover:
+        if options.race:
+            fail("--race and --cover are mutually exclusive.")
         runner = ensure_tool("gocov", "github.com/axw/gocov/gocov")
         log.debug("Using gocov executable %s" % runner)
         if options.cover_html:
@@ -194,12 +196,24 @@ def main(options):
     # TODO: Get a sudo session set up with an interactive proc
     cmd = ["sudo", "-E", "PATH=%s" % env["PATH"]] if options.root else []
 
-    cmd.extend([runner, "test", "-tags", " ".join(tags), "-test.parallel", "1"])
+    cmd.extend([runner, "test", "-tags", " ".join(tags)])
+
+    usep1 = False
+
+    if options.elastic:
+        if options.cover:
+            env["GOMAXPROCS"] = "1"
+        else:
+            usep1 = True
 
     if options.race:
         log.debug("Running with race detection")
         env["GORACE"] = "history_size=7 halt_on_error=1"
         cmd.append("-race")
+        usep1 = True
+
+    if usep1:
+        cmd.extend(['-p', '1'])
 
     passthru = options.arguments
     if passthru and passthru[0] == "--":
