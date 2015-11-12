@@ -95,6 +95,58 @@ describe('miscUtils', function() {
         });
     });
 
+    describe("countTheKids", function(){
+
+        it("Counts the number of descendents of a service", function(){
+            var service1 = getMockService(),
+                service2 = getMockService(),
+                service3 = getMockService(),
+                service4 = getMockService();
+
+            service1.children = [service2, service3];
+            service2.children = [service4];
+
+            var count = miscUtils.countTheKids(service1);
+
+            expect(count).toEqual(3);
+        });
+
+        it("Skips services with 'Launch' set to 'manual'", function(){
+            var service1 = getMockService(),
+                service2 = getMockService(),
+                service3 = getMockService(),
+                service4 = getMockService();
+
+            service1.children = [service2, service3];
+            service2.children = [service4];
+
+            service3.model.Launch = "manual";
+
+            var count = miscUtils.countTheKids(service1);
+
+            expect(count).toEqual(2);
+        });
+
+        it("Skips descendents of any service that is skipped", function(){
+            var service1 = getMockService(),
+                service2 = getMockService(),
+                service3 = getMockService(),
+                service4 = getMockService();
+
+            service1.children = [service2, service3];
+            service2.children = [service4];
+
+            // service2 will be skipped, so its child,
+            // service4, should also be skipped
+            service2.model.Launch = "manual";
+
+            var count = miscUtils.countTheKids(service1);
+
+            expect(count).toEqual(1);
+        });
+
+    });
+
     describe("capitalizeFirst", function(){
         it("Capitalizes the first character in a string", function(){
             expect(miscUtils.capitalizeFirst("hello")).toEqual("Hello");
@@ -121,6 +173,17 @@ describe('miscUtils', function() {
     //         expect(loc.path.mostRecentCall.args[0]).toBe('/login');
     //     });
     // });
+
+    function getMockService(){
+        return {
+            model: {
+                Launch: "auto"
+            },
+            // 0 is stop, 1 is start, -1 is restart
+            desiredState: 0,
+            children: []
+        };
+    }
 
 
     ///////////////////////////////////////////////////////////////////////////
