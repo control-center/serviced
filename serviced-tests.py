@@ -202,7 +202,7 @@ def main(options):
 
     usep1 = False
 
-    if options.elastic:
+    if options.integration:
         if options.cover:
             env["GOMAXPROCS"] = "1"
         else:
