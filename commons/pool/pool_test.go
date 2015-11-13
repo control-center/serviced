@@ -16,6 +16,7 @@
 package pool
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -29,9 +30,11 @@ func Test(t *testing.T) { TestingT(t) }
 
 type MySuite struct{}
 
-var _ = Suite(&MySuite{})
-
-var factoryCount = int32(0)
+var (
+	_                = Suite(&MySuite{})
+	factoryCount     = int32(0)
+	IntentionalError = errors.New("intentional error")
+)
 
 func Factory(maxCreate int) ItemFactory {
 	factoryCount = 0
@@ -44,6 +47,10 @@ func Factory(maxCreate int) ItemFactory {
 		return val, nil
 	}
 
+}
+
+func ErrFactory() (interface{}, error) {
+	return nil, IntentionalError
 }
 
 func (s *MySuite) TestBorrowReturnRemove(c *C) {
@@ -260,4 +267,11 @@ func (s *MySuite) TestConcurrent(c *C) {
 	c.Assert(int(notAVail), Equals, 0)
 	c.Assert(p.Idle(), Equals, capacity)
 	c.Assert(p.Borrowed(), Equals, 0)
+}
+
+func (s *MySuite) TestBorrowFactoryReturnsErr(c *C) {
+	p, _ := NewPool(1, ErrFactory)
+	x, err := p.Borrow()
+	c.Assert(err, Equals, IntentionalError)
+	c.Assert(x, IsNil)
 }
