@@ -166,14 +166,6 @@ func (z *zkf) GetActiveHosts(poolID string, hosts *[]string) error {
 	return err
 }
 
-func (z *zkf) AddResourcePool(pool *pool.ResourcePool) error {
-	conn, err := zzk.GetLocalConnection("/")
-	if err != nil {
-		return err
-	}
-	return zkservice.AddResourcePool(conn, pool)
-}
-
 func (z *zkf) UpdateResourcePool(pool *pool.ResourcePool) error {
 	conn, err := zzk.GetLocalConnection("/")
 	if err != nil {

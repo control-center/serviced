@@ -76,7 +76,7 @@ func (f *Facade) AddResourcePool(ctx datastore.Context, entity *pool.ResourcePoo
 		return err
 	} else if err = f.poolStore.Put(ctx, pool.Key(entity.ID), entity); err != nil {
 		return err
-	} else if err = f.zzk.AddResourcePool(entity); err != nil {
+	} else if err = f.zzk.UpdateResourcePool(entity); err != nil {
 		return err
 	}
 
