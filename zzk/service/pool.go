@@ -42,12 +42,12 @@ func (node *PoolNode) GetID() string {
 
 // Create implements zzk.Node
 func (node *PoolNode) Create(conn client.Connection) error {
-	return AddResourcePool(conn, node.ResourcePool)
+	return UpdateResourcePool(conn, node.ResourcePool)
 }
 
 // Update implements zzk.Node
 func (node *PoolNode) Update(conn client.Connection) error {
-	return nil
+	return UpdateResourcePool(conn, node.ResourcePool)
 }
 
 // Version implements client.Node
@@ -64,19 +64,15 @@ func SyncResourcePools(conn client.Connection, pools []pool.ResourcePool) error 
 	return zzk.Sync(conn, nodes, poolpath())
 }
 
-func AddResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
-	var node PoolNode
-	if err := conn.Create(poolpath(pool.ID), &node); err != nil {
-		return err
-	}
-	node.ResourcePool = pool
-	return conn.Set(poolpath(pool.ID), &node)
-}
-
 func UpdateResourcePool(conn client.Connection, pool *pool.ResourcePool) error {
 	var node PoolNode
 	if err := conn.Get(poolpath(pool.ID), &node); err != nil {
-		return err
+		if err == client.ErrNoNode {
+			node = PoolNode{ResourcePool: pool}
+			return conn.Create(poolpath(pool.ID), &node)
+		} else {
+			return err
+		}
 	}
 	node.ResourcePool = pool
 	return conn.Set(poolpath(pool.ID), &node)
