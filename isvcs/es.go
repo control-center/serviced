@@ -198,11 +198,13 @@ func getESHealth(url string) <-chan esres {
 	esresC := make(chan esres, 1)
 	go func() {
 		resp, err := http.Get(url)
+		if resp != nil {
+			defer resp.Body.Close()
+		}
 		if err != nil {
 			esresC <- esres{url, nil, err}
 			return
 		}
-		defer resp.Body.Close()
 		if resp.StatusCode != 200 {
 			esresC <- esres{url, nil, fmt.Errorf("received %d status code", resp.StatusCode)}
 			return

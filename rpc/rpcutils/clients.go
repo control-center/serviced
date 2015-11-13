@@ -89,6 +89,8 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 		c <- rpcClient.Call(serviceMethod, args, reply)
 	}()
 	start := time.Now()
+	timer := time.NewTimer(time.Duration(timeout) * time.Second)
+	defer timer.Stop()
 Loop:
 	for {
 		select {
@@ -97,7 +99,7 @@ Loop:
 				glog.V(2).Infof("RPC call %s finished after %ds.", serviceMethod, int(time.Since(start).Seconds()))
 			}
 			break Loop
-		case <-time.After(time.Duration(timeout) * time.Second):
+		case <-timer.C:
 			err = fmt.Errorf("RPC call to %s timed out after %d seconds.", serviceMethod, timeout)
 			break Loop
 		case <-time.After(10 * time.Second):
