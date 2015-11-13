@@ -157,18 +157,26 @@
                 };
             },
 
-            // TODO - make services that should not count configurable
-            // eg: started, stopped, manual, etc
-            countTheKids: function(parentService){
+            countTheKids: function(parentService, filterFunction){
                 var children = parentService.children || [],
                     childCount = 0;
 
                 // count number of descendent services that will start
                 childCount = children.reduce(function countTheKids(acc, service){
 
-                    // if manual service, do not increment and
-                    // do not count children
-                    if(service.model.Launch === "manual"){
+                    // if a filter function was provided,
+                    // apply this service to it. If it returns
+                    // false, then dont count this service or
+                    // its children
+                    if(filterFunction){
+                       if(!filterFunction(service)){
+                            return acc;
+                        }
+                    }
+
+                    // if this service will not be started automatically
+                    // when its parent is started, skip it
+                    if(service.Launch === "manual"){
                         return acc;
                     }
 
@@ -186,7 +194,7 @@
 
                 return childCount;
             }
-       };
+        };
 
         return utils;
     }]);

@@ -244,6 +244,17 @@
             });
         };
 
+        // filters to be used when counting how many descendent
+        // services will be affected by a state change
+        var serviceStateChangeFilters = {
+            // only stopped services will be started
+            "start": service => service.desiredState === 0,
+            // only started services will be stopped
+            "stop": service => service.desiredState === 1,
+            // only started services will be restarted
+            "restart": service => service.desiredState === 1
+        };
+
         // clicks to a service's start, stop, or restart
         // button should first determine if the service has
         // children and ask the user to choose to start all
@@ -252,7 +263,8 @@
             // if service has children and is not a simple
             // meta-service (no Startup command), count the kids
             if(service.children && service.children.length && service.model.Startup){
-                var childCount = utils.countTheKids(service);
+                var filterFn = serviceStateChangeFilters[state];
+                var childCount = utils.countTheKids(service, filterFn);
                 $scope.modal_confirmSetServiceState(service, state, childCount);
 
             // if no children, just start the service
