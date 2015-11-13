@@ -469,8 +469,24 @@ docker_buildandpackage: docker_ok
 #---------------------#
 
 .PHONY: test
-test: build docker_ok
-	./run-tests.sh
+test: unit_test integration_test integration_docker_test integration_dao_test integration_zzk_test js_test
+
+unit_test: build docker_ok
+	./serviced-tests.py --unit --race --packages ./...
+
+integration_test: build docker_ok
+	./serviced-tests.py --integration --quick --race --packages ./...
+
+integration_docker_test: build docker_ok
+	./serviced-tests.py --integration --race --packages ./commons/docker/...
+
+integration_dao_test: build docker_ok
+	./serviced-tests.py --integration --elastic --race --packages ./dao/elasticsearch/...
+
+integration_zzk_test: build docker_ok
+	./serviced-tests.py --integration --race --packages ./zzk/...
+
+js_test: build docker_ok
 	cd web && make "GO=$(GO)" test
 
 smoketest: build docker_ok
