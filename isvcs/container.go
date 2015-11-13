@@ -26,7 +26,7 @@ import (
 	"github.com/control-center/serviced/utils"
 	"github.com/rcrowley/go-metrics"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
+	dockerclient "github.com/fsouza/go-dockerclient"
 
 	"bytes"
 	"encoding/json"
@@ -269,7 +269,7 @@ func (svc *IService) create() (*docker.Container, error) {
 			port := dockerclient.Port(fmt.Sprintf("%d", binding.HostPort))
 			config.ExposedPorts[port] = struct{}{}
 			portBinding := dockerclient.PortBinding{
-				HostIp:   getHostIp(binding),
+				HostIP:   getHostIp(binding),
 				HostPort: port.Port(),
 			}
 

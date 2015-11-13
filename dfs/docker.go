@@ -30,8 +30,8 @@ import (
 	"github.com/control-center/serviced/domain/servicetemplate"
 	"github.com/control-center/serviced/zzk"
 	zkservice "github.com/control-center/serviced/zzk/service"
+	dockerclient "github.com/fsouza/go-dockerclient"
 	"github.com/zenoss/glog"
-	dockerclient "github.com/zenoss/go-dockerclient"
 )
 
 const (

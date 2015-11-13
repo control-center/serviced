@@ -26,83 +26,83 @@
 		},
 		{
 			"ImportPath": "github.com/docker/docker/dockerversion",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/engine",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/fileutils",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/httputils",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/ioutils",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/log",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/mount",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/parsers",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/proxy",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/tarsum",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/term",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/timeutils",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/pkg/units",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/registry",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/utils",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar",
-			"Comment": "v1.3.2",
-			"Rev": "39fa2faad2f3d6fa5133de4eb740677202f53ef4"
+			"Comment": "v1.8.2",
+			"Rev": "0a8c2e3717cb3a6fe4e8cb10243cb06473052541"
 		},
 		{
 			"ImportPath": "github.com/googollee/go-socket.io",
@@ -158,9 +158,8 @@
 			"Rev": "09a83f7c5c0f425c00cb1e063e9179698579f296"
 		},
 		{
-			"ImportPath": "github.com/zenoss/go-dockerclient",
-			"Comment": "0.2.1-203-g1efa6e2",
-			"Rev": "1efa6e22d8f0d84f1c4d1e533e986b195e0f4335"
+			"ImportPath": "github.com/fsouza/go-dockerclient",
+			"Rev": "c0187cbf588c59709e8881fd2bba082b02231356"
 		},
 		{
 			"ImportPath": "github.com/zenoss/go-json-rest",
