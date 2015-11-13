@@ -138,7 +138,13 @@ func TestCopyErrSrcNotExists(t *testing.T) {
 	tmpDirA, tmpDirB := getTestTempDirs(t)
 	defer removeAllPaths(tmpDirA, tmpDirB)
 
-	if _, err := CopyInfoSourcePath(filepath.Join(tmpDirA, "file1")); !os.IsNotExist(err) {
+	content, err := TarResource(filepath.Join(tmpDirA, "file1"))
+	if err == nil {
+		content.Close()
+		t.Fatal("expected IsNotExist error, but got nil instead")
+	}
+
+	if !os.IsNotExist(err) {
 		t.Fatalf("expected IsNotExist error, but got %T: %s", err, err)
 	}
 }
@@ -152,7 +158,13 @@ func TestCopyErrSrcNotDir(t *testing.T) {
 	// Load A with some sample files and directories.
 	createSampleDir(t, tmpDirA)
 
-	if _, err := CopyInfoSourcePath(joinTrailingSep(tmpDirA, "file1")); !isNotDir(err) {
+	content, err := TarResource(joinTrailingSep(tmpDirA, "file1"))
+	if err == nil {
+		content.Close()
+		t.Fatal("expected IsNotDir error, but got nil instead")
+	}
+
+	if !isNotDir(err) {
 		t.Fatalf("expected IsNotDir error, but got %T: %s", err, err)
 	}
 }
@@ -169,7 +181,7 @@ func TestCopyErrDstParentNotExists(t *testing.T) {
 	srcInfo := CopyInfo{Path: filepath.Join(tmpDirA, "file1"), Exists: true, IsDir: false}
 
 	// Try with a file source.
-	content, err := TarResource(srcInfo)
+	content, err := TarResource(srcInfo.Path)
 	if err != nil {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
@@ -187,7 +199,7 @@ func TestCopyErrDstParentNotExists(t *testing.T) {
 	// Try with a directory source.
 	srcInfo = CopyInfo{Path: filepath.Join(tmpDirA, "dir1"), Exists: true, IsDir: true}
 
-	content, err = TarResource(srcInfo)
+	content, err = TarResource(srcInfo.Path)
 	if err != nil {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
@@ -216,7 +228,7 @@ func TestCopyErrDstNotDir(t *testing.T) {
 	// Try with a file source.
 	srcInfo := CopyInfo{Path: filepath.Join(tmpDirA, "file1"), Exists: true, IsDir: false}
 
-	content, err := TarResource(srcInfo)
+	content, err := TarResource(srcInfo.Path)
 	if err != nil {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
@@ -233,7 +245,7 @@ func TestCopyErrDstNotDir(t *testing.T) {
 	// Try with a directory source.
 	srcInfo = CopyInfo{Path: filepath.Join(tmpDirA, "dir1"), Exists: true, IsDir: true}
 
-	content, err = TarResource(srcInfo)
+	content, err = TarResource(srcInfo.Path)
 	if err != nil {
 		t.Fatalf("unexpected error %T: %s", err, err)
 	}
