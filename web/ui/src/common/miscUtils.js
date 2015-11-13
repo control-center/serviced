@@ -159,27 +159,25 @@
 
             // TODO - make services that should not count configurable
             // eg: started, stopped, manual, etc
-            countTheKids: function(parentService){
+            countTheKids: function(parentService, filterFunction=() => true){
                 var children = parentService.children || [],
                     childCount = 0;
 
                 // count number of descendent services that will start
                 childCount = children.reduce(function countTheKids(acc, service){
+                    // if a service is not set to manual launch and
+                    // has a startup command, it probably should count
+                    var shouldCount = service.model.Launch !== "manual" &&
+                        service.model.Startup;
 
-                    // if manual service, do not increment and
-                    // do not count children
-                    if(service.model.Launch === "manual"){
-                        return acc;
+                    // if shouldCount and the filter function returns
+                    // true, this definitely counts
+                    if(shouldCount && filterFunction(service)){
+                        acc++;
                     }
 
-                    acc++;
-
-                    // if no children, return
-                    if(!service.children){
-                        return acc;
-
-                    // else, count children
-                    } else {
+                    // if the service has children, check em
+                    if(service.children){
                         return service.children.reduce(countTheKids, acc);
                     }
                 }, 0);
