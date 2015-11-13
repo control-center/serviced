@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build integration
+// +build integration,!quick
 
 //This test is an integration test and need zookeeper which is why it isn't in the zzk/registry package
 package elasticsearch
