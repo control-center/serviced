@@ -105,7 +105,8 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 	wg.Wait()
 	clientRemoved := false
 	start = time.Now()
-	timeoutChan := time.After(timeout)
+	timer := time.NewTimer(timeout)
+	defer timer.Stop()
 	for {
 		select {
 		case e := <-errChan:
@@ -122,7 +123,7 @@ func (rc *reconnectingClient) Call(serviceMethod string, args interface{}, reply
 			}
 			item = nil
 			return e
-		case <-timeoutChan:
+		case <-timer.C:
 			err = fmt.Errorf("RPC call to %s timed out after %s", serviceMethod, timeout)
 			rpcClient.Close()
 			rc.pool.Remove(item)
