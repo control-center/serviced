@@ -24,7 +24,8 @@ import (
 func DetectDriverType(root string) (DriverType, error) {
 	// Check to see if the directory even exists. If not, no driver has been initialized.
 	glog.V(2).Infof("Detecting driver type under %s", root)
-	if _, err := os.Stat(root); err != nil {
+	flagfile := FlagFilePath(root)
+	if _, err := os.Stat(flagfile); err != nil {
 		if os.IsNotExist(err) {
 			glog.V(2).Infof("Root does not exist; no driver has been initialized")
 			return "", ErrDriverNotInit

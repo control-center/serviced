@@ -323,6 +323,9 @@ func (d *DeviceMapperDriver) ensureInitialized() error {
 	if err := os.MkdirAll(poolPath, 0755); err != nil && !os.IsExist(err) {
 		return err
 	}
+	if err := volume.TouchFlagFile(poolPath); err != nil {
+		return err
+	}
 	if d.DeviceSet == nil {
 		deviceSet, err := devmapper.NewDeviceSet(poolPath, true, d.options, nil, nil)
 		if err != nil {
